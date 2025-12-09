@@ -287,9 +287,6 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 	}
 
 	const flow = flowRun.flow;
-	if (!flow || !flow.id) {
-		return null;
-	}
 	const deployment = flowRun.deployment;
 
 	const startTime = flowRun.start_time
@@ -302,16 +299,18 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 		<Card>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1">
-					{flow && (
-						<Link
-							to={"/flows/flow/$id"}
-							params={{ id: flow.id }}
-							className="text-base font-medium"
-						>
-							{flow.name}
-						</Link>
+					{flow?.id && (
+						<>
+							<Link
+								to={"/flows/flow/$id"}
+								params={{ id: flow.id }}
+								className="text-base font-medium"
+							>
+								{flow.name}
+							</Link>
+							<ChevronRight className="size-4" />
+						</>
 					)}
-					<ChevronRight className="size-4" />
 					<Link
 						to={"/runs/flow-run/$id"}
 						params={{ id: flowRun.id }}
