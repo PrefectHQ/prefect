@@ -1,4 +1,6 @@
-import { format } from "date-fns";
+import { differenceInSeconds, format, isBefore } from "date-fns";
+
+import { secondsToApproximateString } from "./seconds";
 
 const dateFormat = "MMM do, yyyy";
 const timeFormat = "hh:mm a";
@@ -34,4 +36,28 @@ export function formatDate(
 	const date = toDate(value);
 
 	return format(date, dateFormats[type]);
+}
+
+/**
+ * Formats a date as a relative time string (e.g., "25s ago" or "in 5m")
+ * Uses compact format from secondsToApproximateString
+ * @param value - The date to format
+ * @param comparedTo - The date to compare against (defaults to now)
+ * @returns A compact relative time string like "25s ago" or "in 5m"
+ */
+export function formatDateTimeRelative(
+	value: Date | string,
+	comparedTo: Date | string = new Date(),
+): string {
+	const valueDate = toDate(value);
+	const compareDate = toDate(comparedTo);
+	const seconds = differenceInSeconds(compareDate, valueDate);
+	const past = isBefore(valueDate, compareDate);
+	const formatted = secondsToApproximateString(Math.abs(seconds));
+
+	if (past) {
+		return `${formatted} ago`;
+	}
+
+	return `in ${formatted}`;
 }
