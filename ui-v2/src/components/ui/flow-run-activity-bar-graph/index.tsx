@@ -7,6 +7,7 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Bar, BarChart, Cell, type TooltipContentProps } from "recharts";
 import type { components } from "@/api/prefect";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { cn } from "@/utils";
 import {
 	Card,
 	CardContent,
@@ -195,7 +196,7 @@ export const FlowRunActivityBarChart = ({
 	numberOfBars,
 	className,
 }: FlowRunActivityBarChartProps) => {
-	const [, setIsTooltipActive] = useIsTooltipActive(chartId);
+	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	const buckets = organizeFlowRunsWithGaps(
@@ -220,7 +221,7 @@ export const FlowRunActivityBarChart = ({
 					color: "hsl(210 40% 45%)",
 				},
 			}}
-			className={className}
+			className={cn("relative", className, isTooltipActive && "z-20")}
 		>
 			<BarChart
 				data={data}
@@ -234,9 +235,10 @@ export const FlowRunActivityBarChart = ({
 				}}
 			>
 				<ChartTooltip
-					content={<FlowRunTooltip chartId={chartId} />}
+					content={<FlowRunTooltip />}
 					isAnimationActive={false}
 					allowEscapeViewBox={{ x: true, y: true }}
+					active={isTooltipActive}
 					// Allows the tooltip to react to mouse events
 					wrapperStyle={{ pointerEvents: "auto" }}
 				/>
@@ -259,19 +261,10 @@ export const FlowRunActivityBarChart = ({
 
 FlowRunActivityBarChart.displayName = "FlowRunActivityBarChart";
 
-type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>> & {
-	chartId?: string;
-};
+type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>>;
 
-const FlowRunTooltip = ({ payload, active, chartId }: FlowRunTooltipProps) => {
-	const { currentHolder } = useContext(FlowRunActivityBarGraphTooltipContext);
-
+const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 	if (!active || !payload || !payload.length) {
-		return null;
-	}
-
-	// If another chart is the current holder, don't render this tooltip
-	if (currentHolder && chartId && currentHolder !== chartId) {
 		return null;
 	}
 	const firstPayloadItem = payload[0] as { payload?: unknown } | undefined;
