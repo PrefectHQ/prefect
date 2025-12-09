@@ -11,18 +11,21 @@ Running multiple Prefect server instances enables high availability and distribu
 Multi-server deployments require:
 
 - PostgreSQL database version 14.9 or higher (SQLite does not support multi-server synchronization)
-- Redis for event messaging
+- Redis for event messaging and background task coordination
 - Load balancer for API traffic distribution
 
 ## Architecture
 
 A scaled Prefect deployment typically includes:
 
-- **Multiple API server instances** - Handle UI and API requests
-- **Background services** - Runs the scheduler, automation triggers, and other loop services
+- **Multiple API server instances** - Handle UI and API requests, each with an embedded docket worker for background tasks
 - **[PostgreSQL](https://www.postgresql.org/) database** - Stores all persistent data and synchronizes state across servers
-- **[Redis](https://redis.io/)** - Distributes events between services
+- **[Redis](https://redis.io/)** - Coordinates background task execution across servers and distributes events between services
 - **Load balancer** - Routes traffic to healthy API instances (e.g. [NGINX](https://www.f5.com/go/product/welcome-to-nginx) or [Traefik](https://doc.traefik.io/traefik/))
+
+<Note>
+Prefect uses [docket](https://github.com/prefecthq/docket), a Redis-based task queue, to coordinate background services across multiple API servers. Each API server runs an embedded docket worker that picks up tasks from Redis, ensuring background services like the scheduler and automation triggers run exactly once across your deployment—even with multiple API replicas.
+</Note>
 
 ```mermaid
 %%{
@@ -41,7 +44,6 @@ flowchart TB
     classDef userClass fill:#ede7f6db,stroke:#4527a0db,stroke-width:2px
     classDef lbClass fill:#e3f2fddb,stroke:#1565c0db,stroke-width:2px
     classDef apiClass fill:#1860f2db,stroke:#1860f2db,stroke-width:2px
-    classDef bgClass fill:#7c3aeddb,stroke:#7c3aeddb,stroke-width:2px
     classDef dataClass fill:#16a34adb,stroke:#16a34adb,stroke-width:2px
     classDef workerClass fill:#f59e0bdb,stroke:#f59e0bdb,stroke-width:2px
 
@@ -58,18 +60,16 @@ flowchart TB
         direction TB
         subgraph api[API Servers - Horizontal Scaling]
             direction LR
-            API1[API Server 1<br/>--no-services]:::apiClass
-            API2[API Server 2<br/>--no-services]:::apiClass
-            API3[API Server N...<br/>--no-services]:::apiClass
+            API1[API Server 1<br/>+ Docket Worker]:::apiClass
+            API2[API Server 2<br/>+ Docket Worker]:::apiClass
+            API3[API Server N...<br/>+ Docket Worker]:::apiClass
         end
-
-        BG[Background Services<br/>prefect server services start<br/><br/>• Event Processing<br/>• Automation Triggers<br/>• Schedule Management]:::bgClass
     end
 
     subgraph data[Data Layer]
         direction LR
         PG[(PostgreSQL<br/>• Flow/Task State<br/>• Configuration<br/>• History)]:::dataClass
-        Redis[(Redis<br/>• Events<br/>• Automations<br/>• Real-time Updates)]:::dataClass
+        Redis[(Redis<br/>• Docket Task Queue<br/>• Events<br/>• Automations)]:::dataClass
     end
 
     %% Connections
@@ -77,10 +77,7 @@ flowchart TB
     LB --> |Round Robin| api
 
     api --> |Read/Write| PG
-    api --> |Publish| Redis
-
-    BG --> |Read/Write| PG
-    BG --> |Subscribe| Redis
+    api <--> |Task Coordination| Redis
 
     Workers -.-> |Poll Work| api
 ```
@@ -101,17 +98,20 @@ PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLi
 
 ### Redis setup
 
-Configure Redis as your server's message broker, cache, and lease storage:
+Configure Redis as your server's message broker and task coordinator:
 
 ```bash
 export PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
 export PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
 export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
-export PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
 export PREFECT_REDIS_MESSAGING_HOST="redis-host"
 export PREFECT_REDIS_MESSAGING_PORT="6379"
 export PREFECT_REDIS_MESSAGING_DB="0"
 ```
+
+<Note>
+Redis is used for two purposes: (1) event messaging between services via `prefect-redis`, and (2) coordinating background task execution via docket's Redis streams. Both use the same Redis connection configured above.
+</Note>
 
 If your Redis instance requires authentication, you may configure a username and password:
 
@@ -126,19 +126,15 @@ For Redis instances that require an encrypted connection, you can enable SSL/TLS
 export PREFECT_REDIS_MESSAGING_SSL="true"
 ```
 
-### Service separation
+### Running API servers
 
-For optimal performance, run API servers and background services separately:
+Each API server includes an embedded docket worker that processes background tasks. Simply run multiple instances:
 
-**API servers** (multiple instances):
 ```bash
-prefect server start --host 0.0.0.0 --port 4200 --no-services
+prefect server start --host 0.0.0.0 --port 4200
 ```
 
-**Background services**:
-```bash
-prefect server services start
-```
+Background services (scheduler, automation triggers, etc.) are automatically coordinated across all API server instances via Redis. Docket ensures each task runs exactly once, even with multiple replicas.
 
 <Tip>
 For high-volume deployments, consider reducing the event retention period from the default 7 days to prevent rapid database growth. See [database maintenance](/v3/advanced/database-maintenance#configure-event-retention) for configuration details.
@@ -277,7 +273,7 @@ export NO_PROXY=localhost,127.0.0.1,.internal
 
 ### Docker Compose
 
-<Accordion title="3 servers, 1 background service, postgres, redis">
+<Accordion title="3 API servers with embedded background services, postgres, redis">
 
 ```yaml
 services:
@@ -318,42 +314,23 @@ services:
         condition: service_started
     deploy:
       replicas: 3
-    command: prefect server start --host 0.0.0.0 --no-services
+    command: prefect server start --host 0.0.0.0
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
       PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
       PREFECT_MESSAGING_BROKER: prefect_redis.messaging
       PREFECT_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
-      PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
     ports:
       - "4200-4202:4200"  # Maps to different ports for each replica
 
-  prefect-background:
-    image: prefecthq/prefect:3-latest
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    command: prefect server services start
-    environment:
-      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
-      PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
-      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
-      PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
-      PREFECT_REDIS_MESSAGING_HOST: redis
-      PREFECT_REDIS_MESSAGING_PORT: "6379"
-
 volumes:
   postgres_data:
 ```
+
+Each API server replica includes an embedded docket worker. Background services like the scheduler coordinate across all replicas via Redis, ensuring tasks run exactly once.
 </Accordion>
 
 <Tip>
