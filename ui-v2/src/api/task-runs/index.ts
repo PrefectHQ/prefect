@@ -317,7 +317,7 @@ export const useDeleteTaskRun = () => {
 export type TaskRunsHistoryFilter =
 	components["schemas"]["Body_task_run_history_task_runs_history_post"];
 
-export type HistoryResponse = components["schemas"]["HistoryResponse"];
+export type HistoryResponse = components["schemas"]["HistoryResponse-Output"];
 
 export type HistoryResponseState =
 	components["schemas"]["HistoryResponseState"];

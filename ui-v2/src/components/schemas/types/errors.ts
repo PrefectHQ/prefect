@@ -3,9 +3,9 @@ import { isRecord } from "../utilities/guards";
 
 export type SchemaValueError = string;
 export type SchemaValuePropertyError =
-	components["schemas"]["SchemaValuePropertyError"];
+	components["schemas"]["SchemaValuePropertyError-Output"];
 export type SchemaValueIndexError =
-	components["schemas"]["SchemaValueIndexError"];
+	components["schemas"]["SchemaValueIndexError-Output"];
 
 export type SchemaFormNestedError =
 	// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
