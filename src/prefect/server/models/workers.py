@@ -273,10 +273,8 @@ async def update_work_pool(
             "storage_configuration",
         }
         
-        # Detect which fields actually changed (only from our allowlist, excluding status)
         changed_fields = {}
         for field in update_data.keys():
-            # Only track fields in our allowlist, and skip status (it has its own event)
             if field not in WORK_POOL_EVENT_FIELDS or field == "status":
                 continue
             
