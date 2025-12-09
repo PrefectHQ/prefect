@@ -529,6 +529,10 @@ describe("FlowRunsAccordionContent", () => {
 			name: "Timed Run",
 			flow_id: "flow-1",
 			estimated_run_time: 3661,
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
 		});
 
 		server.use(
@@ -565,6 +569,10 @@ describe("FlowRunsAccordionContent", () => {
 			flow_id: "flow-1",
 			state_type: "COMPLETED",
 			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
 			parameters: { key: "value" },
 		});
 
