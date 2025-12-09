@@ -5,6 +5,7 @@ Intended for internal use by the Prefect REST API.
 
 import datetime
 from typing import (
+    Any,
     Awaitable,
     Callable,
     Dict,
@@ -24,7 +25,10 @@ from prefect._internal.uuid7 import uuid7
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models.events import work_pool_status_event
+from prefect.server.models.events import (
+    work_pool_status_event,
+    work_pool_updated_event,  # Add this
+)
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
 from prefect.types._datetime import DateTime, now
@@ -258,7 +262,42 @@ async def update_work_pool(
         assert wp is not None
         assert current_work_pool is not wp
         
-        logger.error(f"[DEBUG] ISSUE ENTRY POINT - Work Pool {work_pool_id} updated. Fields: {list(update_data.keys())}")
+ 
+        # Detect which fields actually changed (excluding status and internal fields)
+        # Fields that should trigger update events (user-updatable fields)
+        WORK_POOL_EVENT_FIELDS = {
+            # "is_paused", # Handled with status
+            "description",
+            "base_job_template",
+            "concurrency_limit",
+            "storage_configuration",
+        }
+        
+        # Detect which fields actually changed (only from our allowlist, excluding status)
+        changed_fields = {}
+        for field in update_data.keys():
+            # Only track fields in our allowlist, and skip status (it has its own event)
+            if field not in WORK_POOL_EVENT_FIELDS or field == "status":
+                continue
+            
+            old_value = getattr(current_work_pool, field, None)
+            new_value = getattr(wp, field, None)
+            
+            # Compare values (handle different types)
+            if old_value != new_value:
+                changed_fields[field] = {
+                    "old": old_value,
+                    "new": new_value,
+                }
+        
+        # Emit event for non-status field changes
+        if changed_fields:
+            await emit_work_pool_updated_event(
+                session=session,
+                work_pool=wp,
+                changed_fields=changed_fields,
+            )
+        
 
         if "status" in update_data and emit_status_change:
             await emit_status_change(
@@ -800,6 +839,25 @@ async def delete_worker(
     )
 
     return result.rowcount > 0
+
+async def emit_work_pool_updated_event(
+    session: AsyncSession,
+    work_pool: orm_models.WorkPool,
+    changed_fields: Dict[str, Dict[str, Any]],
+) -> None:
+    """Emit an event when work pool fields are updated."""
+    if not changed_fields:
+        return
+    
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_pool_updated_event(
+                session=session,
+                work_pool=work_pool,
+                changed_fields=changed_fields,
+                occurred=now("UTC"),
+            )
+        )
 
 
 async def emit_work_pool_status_event(
