@@ -34,7 +34,10 @@ from prefect.server.database import (
 )
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models.events import work_queue_status_event, work_queue_updated_event
+from prefect.server.models.events import (
+    work_queue_status_event,
+    work_queue_updated_event,
+)
 from prefect.server.models.workers import (
     DEFAULT_AGENT_WORK_POOL_NAME,
     bulk_update_work_queue_priorities,
@@ -244,12 +247,14 @@ async def update_work_queue(
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
     update_data = work_queue.model_dump_for_orm(exclude_unset=True)
-    current_work_queue = await read_work_queue(session=session, work_queue_id=work_queue_id)
+    current_work_queue = await read_work_queue(
+        session=session, work_queue_id=work_queue_id
+    )
     if current_work_queue is None:
         return False
-    
+
     session.expunge(current_work_queue)
-    
+
     if "is_paused" in update_data:
         wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
         assert wq is not None
@@ -305,16 +310,16 @@ async def update_work_queue(
         for field in update_data.keys():
             if field not in WORK_QUEUE_EVENT_FIELDS or field == "status":
                 continue
-            
+
             old_value = getattr(current_work_queue, field, None)
             new_value = getattr(wq, field, None)
-            
+
             if old_value != new_value:
                 changed_fields[field] = {
                     "old": old_value,
                     "new": new_value,
                 }
-        
+
         # Emit event for non-status field changes
         if changed_fields:
             await emit_work_queue_updated_event(
@@ -322,7 +327,7 @@ async def update_work_queue(
                 work_queue=wq,
                 changed_fields=changed_fields,
             )
-        
+
         if "status" in update_data and emit_status_change:
             await emit_status_change(wq)
 
@@ -669,6 +674,7 @@ async def emit_work_queue_status_event(
     async with PrefectServerEventsClient() as events_client:
         await events_client.emit(event)
 
+
 async def emit_work_queue_updated_event(
     session: AsyncSession,
     work_queue: orm_models.WorkQueue,
@@ -676,7 +682,7 @@ async def emit_work_queue_updated_event(
 ) -> None:
     if not changed_fields:
         return
-        
+
     async with PrefectServerEventsClient() as events_client:
         await events_client.emit(
             await work_queue_updated_event(

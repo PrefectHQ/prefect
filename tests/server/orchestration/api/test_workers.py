@@ -1503,7 +1503,155 @@ class TestUpdateWorkQueue:
                 }
             ],
         )
+    async def test_update_work_queue_via_work_pool_emits_updated_event(
+        self, client, work_pool
+    ):
+        """Test that updating work queue via work pool endpoint emits updated event."""
+        # Create work pool queue
+        create_response = await client.post(
+            f"/work_pools/{work_pool.name}/queues",
+            json=dict(name="test-queue"),
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        create_result = parse_obj_as(WorkQueue, create_response.json())
 
+        # Update concurrency limit
+        update_response = await client.patch(
+            f"/work_pools/{work_pool.name}/queues/test-queue",
+            json=dict(concurrency_limit=15),
+        )
+        assert update_response.status_code == status.HTTP_204_NO_CONTENT
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{create_result.id}",
+                "prefect.resource.name": "test-queue",
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "changed_fields": ["concurrency_limit"],
+                "changes": {
+                    "concurrency_limit": {
+                        "old": None,
+                        "new": 15,
+                    }
+                },
+            },
+            related=[
+                {
+                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                    "prefect.resource.name": work_pool.name,
+                    "prefect.work-pool.type": work_pool.type,
+                    "prefect.resource.role": "work-pool",
+                }
+            ],
+        )
+
+class TestUpdateWorkPoolEvents:
+    async def test_update_work_pool_emits_updated_event_for_description(
+        self, client, work_pool
+    ):
+        """Test that updating work pool description emits prefect.work-pool.updated event."""
+        original_description = work_pool.description
+
+        response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json={"description": "Updated description"},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-pool.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                "prefect.resource.name": work_pool.name,
+                "prefect.work-pool.type": work_pool.type,
+                "prefect.resource.role": "work-pool",
+            },
+            payload={
+                "changed_fields": ["description"],
+                "changes": {
+                    "description": {
+                        "old": original_description,
+                        "new": "Updated description",
+                    }
+                },
+            },
+        )
+
+    async def test_update_work_pool_emits_updated_event_for_concurrency_limit(
+        self, client, work_pool
+    ):
+        """Test that updating work pool concurrency_limit emits prefect.work-pool.updated event."""
+        original_concurrency_limit = work_pool.concurrency_limit
+
+        response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json={"concurrency_limit": 25},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-pool.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                "prefect.resource.name": work_pool.name,
+                "prefect.work-pool.type": work_pool.type,
+                "prefect.resource.role": "work-pool",
+            },
+            payload={
+                "changed_fields": ["concurrency_limit"],
+                "changes": {
+                    "concurrency_limit": {
+                        "old": original_concurrency_limit,
+                        "new": 25,
+                    }
+                },
+            },
+        )
+
+    async def test_update_work_pool_emits_updated_event_for_multiple_fields(
+        self, client, work_pool
+    ):
+        """Test that updating multiple work pool fields emits single event with all changes."""
+        original_description = work_pool.description
+        original_concurrency_limit = work_pool.concurrency_limit
+
+        response = await client.patch(
+            f"/work_pools/{work_pool.name}",
+            json={
+                "description": "Multi update",
+                "concurrency_limit": 30,
+            },
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-pool.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                "prefect.resource.name": work_pool.name,
+                "prefect.work-pool.type": work_pool.type,
+                "prefect.resource.role": "work-pool",
+            },
+            payload={
+                "changed_fields": ["description", "concurrency_limit"],
+                "changes": {
+                    "description": {
+                        "old": original_description,
+                        "new": "Multi update",
+                    },
+                    "concurrency_limit": {
+                        "old": original_concurrency_limit,
+                        "new": 30,
+                    },
+                },
+            },
+        )
 
 class TestWorkPoolStatus:
     async def test_work_pool_status_with_online_worker(self, client, work_pool):
