@@ -348,9 +348,7 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 				{startTime && (
 					<span className="flex items-center gap-1">
 						<Calendar className="size-4" />
-						<p className="text-sm">
-							{format(startTime, "yyyy/MM/dd hh:mm a")}
-						</p>
+						<p className="text-sm">{format(startTime, "yyyy/MM/dd hh:mm a")}</p>
 					</span>
 				)}
 				<div>
