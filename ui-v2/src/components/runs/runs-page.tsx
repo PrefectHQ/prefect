@@ -32,6 +32,7 @@ type RunsPageProps = {
 	flowRunsPages: number;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
+	onPrefetchPage?: (page: number) => void;
 	sort: SortFilters;
 	onSortChange: (sort: SortFilters) => void;
 	hideSubflows: boolean;
@@ -47,6 +48,7 @@ export const RunsPage = ({
 	flowRunsPages,
 	pagination,
 	onPaginationChange,
+	onPrefetchPage,
 	sort,
 	onSortChange,
 	hideSubflows,
@@ -113,6 +115,7 @@ export const RunsPage = ({
 							pages={flowRunsPages}
 							pagination={pagination}
 							onChangePagination={onPaginationChange}
+							onPrefetchPage={onPrefetchPage}
 						/>
 						<FlowRunsList flowRuns={flowRunsWithFlows} />
 					</div>

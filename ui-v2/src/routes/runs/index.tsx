@@ -1,4 +1,4 @@
-import { useSuspenseQueries } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
@@ -44,27 +44,14 @@ export const Route = createFileRoute("/runs/")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
 	loaderDeps: ({ search }) => buildPaginationBody(search),
-	loader: async ({ deps, context }) => {
-		// Await count queries - these don't change on pagination so won't cause suspense issues
-		const flowRunsCountResult = await context.queryClient.ensureQueryData(
-			buildCountFlowRunsQuery(),
-		);
-
-		const taskRunsCountResult = await context.queryClient.ensureQueryData(
-			buildCountTaskRunsQuery(),
-		);
-
-		// Prefetch paginated flow runs without blocking the loader
-		// This allows pagination changes to use placeholderData (keepPreviousData)
-		// instead of triggering a full route-level Suspense fallback
+	loader: ({ deps, context }) => {
+		// Prefetch all queries without blocking the loader
+		// This allows the component to render immediately and use placeholderData
+		void context.queryClient.prefetchQuery(buildCountFlowRunsQuery());
+		void context.queryClient.prefetchQuery(buildCountTaskRunsQuery());
 		void context.queryClient.prefetchQuery(
 			buildPaginateFlowRunsQuery(deps, 30_000),
 		);
-
-		return {
-			flowRunsCountResult,
-			taskRunsCountResult,
-		};
 	},
 	wrapInSuspense: true,
 });
@@ -158,6 +145,7 @@ const useTab = () => {
 };
 
 function RouteComponent() {
+	const queryClient = useQueryClient();
 	const search = Route.useSearch();
 	const [pagination, onPaginationChange] = usePagination();
 	const [sort, onSortChange] = useSort();
@@ -178,6 +166,19 @@ function RouteComponent() {
 
 	const flowRuns = flowRunsPage?.results ?? [];
 
+	const onPrefetchPage = useCallback(
+		(page: number) => {
+			const filter = buildPaginationBody({
+				...search,
+				page,
+			});
+			void queryClient.prefetchQuery(
+				buildPaginateFlowRunsQuery(filter, 30_000),
+			);
+		},
+		[queryClient, search],
+	);
+
 	return (
 		<RunsPage
 			tab={tab}
@@ -188,6 +189,7 @@ function RouteComponent() {
 			flowRunsPages={flowRunsPage?.pages ?? 0}
 			pagination={pagination}
 			onPaginationChange={onPaginationChange}
+			onPrefetchPage={onPrefetchPage}
 			sort={sort}
 			onSortChange={onSortChange}
 			hideSubflows={hideSubflows}
