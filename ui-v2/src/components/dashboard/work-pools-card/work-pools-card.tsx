@@ -180,7 +180,7 @@ const DashboardWorkPoolCardDetail = ({
 	children,
 }: DashboardWorkPoolCardDetailProps) => {
 	return (
-		<div className="text-center">
+		<div className="flex flex-col items-center">
 			<dt className="text-xs text-muted-foreground">{label}</dt>
 			<dd className="mt-1">{children}</dd>
 		</div>
