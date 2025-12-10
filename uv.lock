@@ -438,6 +438,15 @@ wheels = [
 ]
 
 [[package]]
+name = "beartype"
+version = "0.22.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/1d/794ae2acaa67c8b216d91d5919da2606c2bb14086849ffde7f5555f3a3a5/beartype-0.22.8.tar.gz", hash = "sha256:b19b21c9359722ee3f7cc433f063b3e13997b27ae8226551ea5062e621f61165", size = 1602262, upload-time = "2025-12-03T05:11:10.766Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/2a/fbcbf5a025d3e71ddafad7efd43e34ec4362f4d523c3c471b457148fb211/beartype-0.22.8-py3-none-any.whl", hash = "sha256:b832882d04e41a4097bab9f63e6992bc6de58c414ee84cba9b45b67314f5ab2e", size = 1331895, upload-time = "2025-12-03T05:11:08.373Z" },
+]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.13.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1135,11 +1144,15 @@ wheels = [
 [[package]]
 name = "fakeredis"
 version = "2.32.1"
-source = { git = "https://github.com/zzstoatzz/fakeredis-py.git?rev=fix-xpending-range-fields#a333f0b70397a64f6fdb3e624e130bb586eac910" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "redis" },
     { name = "sortedcontainers" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/56/14/b47b8471303af7deed7080290c14cff27a831fa47b38f45643e6bf889cee/fakeredis-2.32.1.tar.gz", hash = "sha256:dd8246db159f0b66a1ced7800c9d5ef07769e3d2fde44b389a57f2ce2834e444", size = 171582, upload-time = "2025-11-06T01:40:57.836Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c2/d2/c28f6909864bfdb7411bb8f39fabedb5a50da1cbd7da5a1a3a46dfea2eab/fakeredis-2.32.1-py3-none-any.whl", hash = "sha256:e80c8886db2e47ba784f7dfe66aad6cd2eab76093c6bfda50041e5bc890d46cf", size = 118964, upload-time = "2025-11-06T01:40:55.885Z" },
 ]
 
 [package.optional-dependencies]
@@ -3716,7 +3729,7 @@ requires-dist = [
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
     { name = "pydantic-settings", specifier = ">2.2.1,!=2.9.0,<3.0.0" },
-    { name = "pydocket", git = "https://github.com/chrisguidry/docket.git?tag=0.12.0" },
+    { name = "pydocket", specifier = ">=0.13.0" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
     { name = "pytz", specifier = ">=2021.1,<2026" },
@@ -3747,7 +3760,7 @@ dev = [
     { name = "cairosvg", marker = "python_full_version < '3.14'", specifier = ">=2.7.1" },
     { name = "codespell", specifier = "==2.4.1" },
     { name = "codespell", specifier = ">=2.2.6" },
-    { name = "fakeredis", extras = ["lua"], git = "https://github.com/zzstoatzz/fakeredis-py.git?rev=fix-xpending-range-fields" },
+    { name = "fakeredis", extras = ["lua"], specifier = ">=2.32.1" },
     { name = "ipython" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mkdocs", specifier = ">=1.6.1" },
@@ -4253,6 +4266,40 @@ wheels = [
 ]
 
 [[package]]
+name = "py-key-value-aio"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beartype" },
+    { name = "py-key-value-shared" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/93/ce/3136b771dddf5ac905cc193b461eb67967cf3979688c6696e1f2cdcde7ea/py_key_value_aio-0.3.0.tar.gz", hash = "sha256:858e852fcf6d696d231266da66042d3355a7f9871650415feef9fca7a6cd4155", size = 50801, upload-time = "2025-11-17T16:50:04.711Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/10/72f6f213b8f0bce36eff21fda0a13271834e9eeff7f9609b01afdc253c79/py_key_value_aio-0.3.0-py3-none-any.whl", hash = "sha256:1c781915766078bfd608daa769fefb97e65d1d73746a3dfb640460e322071b64", size = 96342, upload-time = "2025-11-17T16:50:03.801Z" },
+]
+
+[package.optional-dependencies]
+memory = [
+    { name = "cachetools" },
+]
+redis = [
+    { name = "redis" },
+]
+
+[[package]]
+name = "py-key-value-shared"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beartype" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/e4/1971dfc4620a3a15b4579fe99e024f5edd6e0967a71154771a059daff4db/py_key_value_shared-0.3.0.tar.gz", hash = "sha256:8fdd786cf96c3e900102945f92aa1473138ebe960ef49da1c833790160c28a4b", size = 11666, upload-time = "2025-11-17T16:50:06.849Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/51/e4/b8b0a03ece72f47dce2307d36e1c34725b7223d209fc679315ffe6a4e2c3/py_key_value_shared-0.3.0-py3-none-any.whl", hash = "sha256:5b0efba7ebca08bb158b1e93afc2f07d30b8f40c2fc12ce24a4c0d84f42f9298", size = 19560, upload-time = "2025-11-17T16:50:05.954Z" },
+]
+
+[[package]]
 name = "py-spy"
 version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4455,20 +4502,25 @@ wheels = [
 
 [[package]]
 name = "pydocket"
-version = "0.12.0"
-source = { git = "https://github.com/chrisguidry/docket.git?tag=0.12.0#2822eaaedc2c94bb3c243ccf951eece7373e86f0" }
+version = "0.15.3"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cloudpickle" },
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "fakeredis", extra = ["lua"] },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-prometheus" },
     { name = "prometheus-client" },
+    { name = "py-key-value-aio", extra = ["memory", "redis"] },
     { name = "python-json-logger" },
     { name = "redis" },
     { name = "rich" },
     { name = "typer" },
     { name = "typing-extensions" },
-    { name = "uuid7" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6c/58/2dc07ffbb38a1d5690e6d32ba38335a87ecd267109959847dd164d98f816/pydocket-0.15.3.tar.gz", hash = "sha256:b98cf34c98be3945bc981101ca07464649207de9dea64ad2c10b640e5e54dd47", size = 271793, upload-time = "2025-12-09T19:31:54.588Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e7/cc/6937b31bf6f6ea082fe8d7d46bc00715def2e8b13a46f104f8948945b45a/pydocket-0.15.3-py3-none-any.whl", hash = "sha256:b915e25b779516c1b1c2b191d7315546072e2cb204fd9a87ff6d70ba34432263", size = 57704, upload-time = "2025-12-09T19:31:51.413Z" },
 ]
 
 [[package]]
@@ -5964,15 +6016,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8a/78/16493d9c386d8e60e442a35feac5e00f0913c0f4b7c217c11e8ec2ff53e0/urllib3-2.4.0.tar.gz", hash = "sha256:414bc6535b787febd7567804cc015fee39daab8ad86268f1310a9250697de466", size = 390672, upload-time = "2025-04-10T15:23:39.232Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6b/11/cc635220681e93a0183390e26485430ca2c7b5f9d33b15c74c2861cb8091/urllib3-2.4.0-py3-none-any.whl", hash = "sha256:4e16665048960a0900c702d4a66415956a584919c03361cac9f1df5c5dd7e813", size = 128680, upload-time = "2025-04-10T15:23:37.377Z" },
-]
-
-[[package]]
-name = "uuid7"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5c/19/7472bd526591e2192926247109dbf78692e709d3e56775792fec877a7720/uuid7-0.1.0.tar.gz", hash = "sha256:8c57aa32ee7456d3cc68c95c4530bc571646defac01895cfc73545449894a63c", size = 14052, upload-time = "2021-12-29T01:38:21.897Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b5/77/8852f89a91453956582a85024d80ad96f30a41fed4c2b3dce0c9f12ecc7e/uuid7-0.1.0-py2.py3-none-any.whl", hash = "sha256:5e259bb63c8cb4aded5927ff41b444a80d0c7124e8a0ced7cf44efa1f5cccf61", size = 7477, upload-time = "2021-12-29T01:38:20.418Z" },
 ]
 
 [[package]]

@@ -174,7 +174,7 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
-    "fakeredis[lua]",
+    "fakeredis[lua]>=2.32.1",
 ]
 
 perf = ["logfire[fastapi,sqlalchemy]>=3.14.0", "pyinstrument>=5.0.0"]
@@ -353,7 +353,3 @@ check-hidden = true
 
 [tool.uv]
 required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
-
-[tool.uv.sources]
-pydocket = { git = "https://github.com/chrisguidry/docket.git", tag = "0.12.0" }
-fakeredis = { git = "https://github.com/zzstoatzz/fakeredis-py.git", rev = "fix-xpending-range-fields" }
