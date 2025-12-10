@@ -311,6 +311,7 @@ class Consumer(_Consumer):
         automatically_acknowledge: Optional[bool] = None,
         max_retries: Optional[int] = None,
         trim_every: Optional[timedelta] = None,
+        read_batch_size: Optional[int] = 1,
     ):
         settings = RedisMessagingConsumerSettings()
 
@@ -344,6 +345,7 @@ class Consumer(_Consumer):
         self._retry_counts: dict[str, int] = {}
 
         self._last_trimmed: Optional[float] = None
+        self._read_batch_size: Optional[int] = read_batch_size
 
     async def _ensure_stream_and_group(self, redis_client: Redis) -> None:
         """Ensure the stream and consumer group exist."""
@@ -396,9 +398,7 @@ class Consumer(_Consumer):
             if self.should_process_pending_messages:
                 try:
                     await self.process_pending_messages(
-                        handler,
-                        redis_client,
-                        1,  # Use batch size of 1 for now
+                        handler, redis_client, self._read_batch_size
                     )
                 except StopConsumer:
                     return
@@ -409,7 +409,7 @@ class Consumer(_Consumer):
                     groupname=self.group,
                     consumername=self.name,
                     streams={self.stream: ">"},
-                    count=1,  # Use batch size of 1 for now
+                    count=self._read_batch_size,
                     block=int(self.block.total_seconds() * 1000),
                 )
             except ResponseError as e:

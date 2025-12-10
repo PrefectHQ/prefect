@@ -69,26 +69,23 @@ describe("FlowRunActivityBarChart", () => {
 		["PAUSED", "fill-gray-500"],
 		["RUNNING", "fill-blue-700"],
 		["CRASHED", "fill-orange-600"],
-	])(
-		"renders the bars with expected colors for %s",
-		(stateType, expectedClass) => {
-			const enrichedFlowRun = {
-				...mockFlowRun,
-				state_type: stateType,
-			};
-			render(
-				<FlowRunActivityBarChart
-					{...defaultProps}
-					// @ts-expect-error - Type error from test data not matching schema
-					enrichedFlowRuns={[enrichedFlowRun]}
-				/>,
-			);
-			const bars = screen.getAllByRole("graphics-symbol");
-			expect(
-				within(bars[0]).getByTestId("bar-rect-test-flow-run-1"),
-			).toHaveClass(expectedClass);
-		},
-	);
+	])("renders the bars with expected colors for %s", (stateType, expectedClass) => {
+		const enrichedFlowRun = {
+			...mockFlowRun,
+			state_type: stateType,
+		};
+		render(
+			<FlowRunActivityBarChart
+				{...defaultProps}
+				// @ts-expect-error - Type error from test data not matching schema
+				enrichedFlowRuns={[enrichedFlowRun]}
+			/>,
+		);
+		const bars = screen.getAllByRole("graphics-symbol");
+		expect(within(bars[0]).getByTestId("bar-rect-test-flow-run-1")).toHaveClass(
+			expectedClass,
+		);
+	});
 
 	it("applies custom bar width when provided", () => {
 		const customBarWidth = 12;
@@ -99,5 +96,29 @@ describe("FlowRunActivityBarChart", () => {
 
 		const bar = screen.getByTestId("bar-rect-test-flow-run-1");
 		expect(bar).toHaveAttribute("width", customBarWidth.toString());
+	});
+
+	it("renders without error when enrichedFlowRuns exceeds numberOfBars", () => {
+		const manyFlowRuns = Array.from({ length: 50 }, (_, i) => ({
+			...mockFlowRun,
+			id: `test-flow-run-${i}`,
+			start_time: new Date(
+				new Date("2024-01-01").getTime() + i * 3600000,
+			).toISOString(),
+		}));
+
+		// Should not throw when there are more flow runs than bars
+		render(
+			<FlowRunActivityBarChart
+				{...defaultProps}
+				// @ts-expect-error - Type error from test data not matching schema
+				enrichedFlowRuns={manyFlowRuns}
+				numberOfBars={10}
+			/>,
+		);
+
+		// Should render exactly numberOfBars bars
+		const bars = screen.getAllByRole("graphics-symbol");
+		expect(bars).toHaveLength(10);
 	});
 });

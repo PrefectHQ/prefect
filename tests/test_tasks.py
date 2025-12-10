@@ -1384,6 +1384,19 @@ class TestResultPersistence:
         assert my_task.persist_result is persist_result
         assert new_task.persist_result is persist_result
 
+    def test_default_cache_policy_does_not_set_persist_result_with_options(self):
+        @task
+        def base():
+            pass
+
+        assert base.cache_policy == DEFAULT
+        assert base.persist_result is None
+
+        new_task = base.with_options(name="something")
+
+        assert new_task.cache_policy == DEFAULT
+        assert new_task.persist_result is None
+
     @pytest.mark.parametrize(
         "cache_policy",
         [policy for policy in CachePolicy.__subclasses__() if policy != NO_CACHE],
@@ -1460,6 +1473,75 @@ class TestResultPersistence:
 
         assert my_task.persist_result is True
         assert new_task.persist_result is True
+
+    def test_result_storage_accepts_path_object(self, tmpdir):
+        from pathlib import Path
+
+        storage_path = Path(tmpdir) / "results"
+
+        @task(result_storage=storage_path)
+        def my_task():
+            return 42
+
+        assert my_task.result_storage == storage_path
+        assert my_task.persist_result is True
+
+    def test_result_storage_with_path_execution(self, tmpdir):
+        from pathlib import Path
+
+        storage_path = Path(tmpdir) / "results"
+
+        @task(result_storage=storage_path, persist_result=True)
+        def my_task(x: int):
+            return x * 2
+
+        @flow
+        def test_flow():
+            return my_task(5)
+
+        result = test_flow()
+        assert result == 10
+
+    def test_result_storage_path_with_with_options(self, tmpdir):
+        from pathlib import Path
+
+        path1 = Path(tmpdir) / "path1"
+        path2 = Path(tmpdir) / "path2"
+
+        @task(result_storage=path1)
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage=path2)
+
+        assert base.result_storage == path1
+        assert new_task.result_storage == path2
+        assert base.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_result_storage_path_relative(self):
+        from pathlib import Path
+
+        @task(result_storage=Path("./relative/path"))
+        def my_task():
+            return "test"
+
+        assert my_task.result_storage == Path("./relative/path")
+        assert my_task.persist_result is True
+
+    def test_result_storage_unsaved_block_still_rejected(self, tmpdir):
+        import pytest
+
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        with pytest.raises(
+            TypeError,
+            match="Result storage configuration must be persisted server-side",
+        ):
+
+            @task(result_storage=block)
+            def my_task():
+                pass
 
     def test_logs_warning_on_serialization_error(self, caplog):
         @task(result_serializer="json")

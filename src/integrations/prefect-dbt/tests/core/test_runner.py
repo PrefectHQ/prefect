@@ -625,6 +625,39 @@ class TestPrefectDbtRunnerInvoke:
 
         mock_settings_context_manager.assert_called_once()
 
+    def test_invoke_omits_target_path_for_deps_with_flags_before_command(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that target_path is not passed to deps when flags appear before command.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19686
+
+        When flags with values appear before the command (e.g., --log-format json deps),
+        the command detection should correctly identify 'deps' as the command, not 'json'.
+        Since 'deps' doesn't support --target-path, it should be omitted.
+        """
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        runner.invoke(
+            [
+                "--no-use-colors",
+                "--log-format",
+                "json",
+                "deps",
+                "--vars",
+                '{"foo": "bar"}',
+            ]
+        )
+
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        args_list = call_args[0][0]
+        assert "--target-path" not in args_list, (
+            f"--target-path should not be passed to 'deps' command, got: {args_list}"
+        )
+
 
 class TestPrefectDbtRunnerCallbackCreation:
     """Test callback creation functionality."""
@@ -1293,3 +1326,70 @@ class TestPrefectDbtRunnerManifestNodeLookup:
 
         assert result_node is None
         assert result_config == {}
+
+
+class TestPrefectDbtRunnerCallbackProcessorReset:
+    """Test that callback processor state is properly reset between invoke() calls.
+
+    Regression tests for https://github.com/PrefectHQ/prefect/pull/19601
+    """
+
+    def test_stop_callback_processor_resets_state(self):
+        """Test that _stop_callback_processor resets all instance variables."""
+        import queue
+        import threading
+
+        runner = PrefectDbtRunner()
+
+        # Simulate state that would exist after an invoke() call
+        runner._event_queue = queue.PriorityQueue()
+        runner._callback_thread = threading.Thread(target=lambda: None)
+        runner._shutdown_event = threading.Event()
+        runner._queue_counter = 42
+        runner._skipped_nodes = {"node1", "node2"}
+
+        # Stop should reset all state
+        runner._stop_callback_processor()
+
+        assert runner._event_queue is None
+        assert runner._callback_thread is None
+        assert runner._shutdown_event is None
+        assert runner._queue_counter == 0
+        assert runner._skipped_nodes == set()
+
+    def test_multiple_invokes_create_fresh_callback_processors(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that multiple invoke() calls create fresh callback processors.
+
+        This is a regression test for a bug where the second invoke() would
+        hang because it tried to use the dead queue/thread from the first invoke().
+        """
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        @flow
+        def test_flow():
+            # First invoke
+            result1 = runner.invoke(["run"])
+
+            # After first invoke, state should be reset
+            assert runner._event_queue is None
+            assert runner._callback_thread is None
+            assert runner._shutdown_event is None
+
+            # Second invoke should work (not hang)
+            result2 = runner.invoke(["run"])
+
+            return result1, result2
+
+        with patch("prefect_dbt.core.runner.serialize_context") as mock_context:
+            mock_context.return_value = {"flow_run_context": {"id": "test"}}
+            result1, result2 = test_flow()
+
+        assert result1.success is True
+        assert result2.success is True
+        # Verify invoke was called twice
+        assert mock_dbt_runner_class.return_value.invoke.call_count == 2

@@ -1,12 +1,17 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import { buildFilterFlowRunsQuery, type FlowRunsFilter } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
+import type { components } from "@/api/prefect";
+import { FlowRunsAccordion } from "@/components/dashboard/flow-runs-accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Skeleton } from "@/components/ui/skeleton";
 import useDebounce from "@/hooks/use-debounce";
+import { FlowRunStateTabs } from "./flow-runs-state-tabs";
+
+type StateType = components["schemas"]["StateType"];
 
 type FlowRunsCardProps = {
 	filter?: {
@@ -15,14 +20,28 @@ type FlowRunsCardProps = {
 		tags?: string[];
 		hideSubflows?: boolean;
 	};
+	selectedStates?: StateType[];
+	onStateChange?: (states: StateType[]) => void;
 };
 
 const BAR_WIDTH = 8;
 const BAR_GAP = 4;
 
-export function FlowRunsCard({ filter }: FlowRunsCardProps) {
+export function FlowRunsCard({
+	filter,
+	selectedStates: controlledSelectedStates,
+	onStateChange: controlledOnStateChange,
+}: FlowRunsCardProps) {
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
+	const [internalSelectedStates, setInternalSelectedStates] = useState<
+		StateType[]
+	>(["FAILED", "CRASHED"]);
+
+	// Use controlled state if provided, otherwise use internal state
+	const selectedStates = controlledSelectedStates ?? internalSelectedStates;
+	const handleStateChange =
+		controlledOnStateChange ?? setInternalSelectedStates;
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
 		if (!node) return;
@@ -76,22 +95,22 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		return baseFilter;
 	}, [filter?.startDate, filter?.endDate, filter?.tags, filter?.hideSubflows]);
 
-	const { data: flowRuns } = useSuspenseQuery(
+	const { data: allFlowRuns } = useSuspenseQuery(
 		buildFilterFlowRunsQuery(flowRunsFilter, 30000),
 	);
 
-	// Extract unique flow and deployment IDs from flow runs
+	// Extract unique flow and deployment IDs from all flow runs for enrichment
 	const { flowIds, deploymentIds } = useMemo(() => {
-		const flowIds = [...new Set(flowRuns.map((fr) => fr.flow_id))];
+		const flowIds = [...new Set(allFlowRuns.map((fr) => fr.flow_id))];
 		const deploymentIds = [
 			...new Set(
-				flowRuns
+				allFlowRuns
 					.map((fr) => fr.deployment_id)
 					.filter((id): id is string => !!id),
 			),
 		];
 		return { flowIds, deploymentIds };
-	}, [flowRuns]);
+	}, [allFlowRuns]);
 
 	// Fetch flows for enrichment
 	const { data: flows, isLoading: isLoadingFlows } = useQuery(
@@ -119,7 +138,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 
 	// Enrich flow runs with flow and deployment data
 	const enrichedFlowRuns = useMemo(() => {
-		return flowRuns.map((flowRun) => {
+		return allFlowRuns.map((flowRun) => {
 			const flow = flows?.find((f) => f.id === flowRun.flow_id);
 			const deployment = deployments?.find(
 				(d) => d.id === flowRun.deployment_id,
@@ -130,7 +149,7 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 				deployment,
 			};
 		});
-	}, [flowRuns, flows, deployments]);
+	}, [allFlowRuns, flows, deployments]);
 
 	// Calculate date range from filter or default to last 7 days
 	const { startDate, endDate } = useMemo(() => {
@@ -149,9 +168,12 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 		return { startDate: start, endDate: end };
 	}, [filter?.startDate, filter?.endDate]);
 
+	// Only show loading state if we have flow runs to enrich
+	const hasFlowRuns = allFlowRuns.length > 0;
 	const isLoadingEnrichment =
-		(isLoadingFlows && flowIds.length > 0) ||
-		(isLoadingDeployments && deploymentIds.length > 0);
+		hasFlowRuns &&
+		((isLoadingFlows && flowIds.length > 0) ||
+			(isLoadingDeployments && deploymentIds.length > 0));
 
 	// Use debounced value if available, otherwise use immediate value
 	// This prevents showing empty chart on initial render while still being responsive
@@ -159,34 +181,43 @@ export function FlowRunsCard({ filter }: FlowRunsCardProps) {
 
 	return (
 		<Card>
-			<CardHeader>
+			<CardHeader className="flex flex-row items-center justify-between">
 				<CardTitle>Flow Runs</CardTitle>
-				{flowRuns.length > 0 && (
+				{allFlowRuns.length > 0 && (
 					<span className="text-sm text-muted-foreground">
-						{flowRuns.length} total
+						{allFlowRuns.length} total
 					</span>
 				)}
 			</CardHeader>
-			<CardContent>
-				{flowRuns.length === 0 ? (
-					<div className="my-8 text-center text-sm text-muted-foreground">
-						<p>No flow runs found</p>
-					</div>
-				) : isLoadingEnrichment || effectiveNumberOfBars === 0 ? (
+			<CardContent className="space-y-2">
+				{isLoadingEnrichment || effectiveNumberOfBars === 0 ? (
 					<div className="w-full" ref={chartRef}>
 						<Skeleton className="h-24 w-full" />
 					</div>
 				) : (
-					<div className="w-full" ref={chartRef}>
-						<FlowRunActivityBarChart
-							enrichedFlowRuns={enrichedFlowRuns}
-							startDate={startDate}
-							endDate={endDate}
-							numberOfBars={effectiveNumberOfBars}
-							barWidth={BAR_WIDTH}
-							className="h-24 w-full"
+					<>
+						<div className="w-full" ref={chartRef}>
+							<FlowRunActivityBarChart
+								enrichedFlowRuns={enrichedFlowRuns}
+								startDate={startDate}
+								endDate={endDate}
+								numberOfBars={effectiveNumberOfBars}
+								barWidth={BAR_WIDTH}
+								className="h-24 w-full"
+							/>
+						</div>
+						<FlowRunStateTabs
+							flowRuns={allFlowRuns}
+							selectedStates={selectedStates}
+							onStateChange={handleStateChange}
 						/>
-					</div>
+						<Suspense fallback={<Skeleton className="h-32 w-full" />}>
+							<FlowRunsAccordion
+								filter={flowRunsFilter}
+								stateTypes={selectedStates}
+							/>
+						</Suspense>
+					</>
 				)}
 			</CardContent>
 		</Card>

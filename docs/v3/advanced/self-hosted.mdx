@@ -140,6 +140,10 @@ prefect server start --host 0.0.0.0 --port 4200 --no-services
 prefect server services start
 ```
 
+<Tip>
+For high-volume deployments, consider reducing the event retention period from the default 7 days to prevent rapid database growth. See [database maintenance](/v3/advanced/database-maintenance#configure-event-retention) for configuration details.
+</Tip>
+
 ### Database migrations
 
 Disable automatic migrations in multi-server deployments:
@@ -433,5 +437,6 @@ Monitor your multi-server deployment:
 
 ## Further reading
 
+- [Database maintenance](/v3/advanced/database-maintenance) - Monitor table sizes, configure event retention, and manage data growth
 - [Server concepts](/v3/concepts/server)
 - Deploy [Helm charts](/v3/advanced/server-helm) for Kubernetes

@@ -10,6 +10,7 @@ import datetime
 import inspect
 from copy import copy
 from functools import partial, update_wrapper
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -342,7 +343,11 @@ class Task(Generic[P, R]):
             indicates that the global default should be used (which is `True` by
             default).
         result_storage: An optional block to use to persist the result of this task.
-            Defaults to the value set in the flow the task is called in.
+            This can be either a saved block instance or a string reference (e.g.,
+            "local-file-system/my-storage"). Block instances must have `.save()` called
+            first since decorators execute at import time. String references are resolved
+            at runtime and recommended for testing scenarios. Defaults to the value set
+            in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
             Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
@@ -489,6 +494,7 @@ class Task(Generic[P, R]):
         self.task_key: str = _generate_task_key(self.fn)
 
         # determine cache and result configuration
+        self._user_cache_policy = cache_policy
         settings = get_current_settings()
         if settings.tasks.default_no_cache and cache_policy is NotSet:
             cache_policy = NO_CACHE
@@ -507,6 +513,7 @@ class Task(Generic[P, R]):
         self.refresh_cache = refresh_cache
 
         # result persistence settings
+        self._user_persist_result = persist_result
         if persist_result is None:
             if any(
                 [
@@ -571,11 +578,12 @@ class Task(Generic[P, R]):
         self.retry_jitter_factor = retry_jitter_factor
         self.persist_result = persist_result
 
-        if result_storage and not isinstance(result_storage, str):
+        if result_storage and not isinstance(result_storage, (str, Path)):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
                     "Result storage configuration must be persisted server-side."
-                    " Please call `.save()` on your block before passing it in."
+                    " Please call `.save()` on your block before passing it in,"
+                    " or use a string reference like 'local-file-system/my-storage' instead."
                 )
 
         self.result_storage = result_storage
@@ -772,7 +780,7 @@ class Task(Generic[P, R]):
             tags=tags or copy(self.tags),
             cache_policy=cache_policy
             if cache_policy is not NotSet
-            else self.cache_policy,
+            else self._user_cache_policy,
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
             task_run_name=task_run_name
@@ -790,7 +798,9 @@ class Task(Generic[P, R]):
                 else self.retry_jitter_factor
             ),
             persist_result=(
-                persist_result if persist_result is not NotSet else self.persist_result
+                persist_result
+                if persist_result is not NotSet
+                else self._user_persist_result
             ),
             result_storage=(
                 result_storage if result_storage is not NotSet else self.result_storage
@@ -1991,7 +2001,11 @@ def task(
             indicates that the global default should be used (which is `True` by
             default).
         result_storage: An optional block to use to persist the result of this task.
-            Defaults to the value set in the flow the task is called in.
+            This can be either a saved block instance or a string reference (e.g.,
+            "local-file-system/my-storage"). Block instances must have `.save()` called
+            first since decorators execute at import time. String references are resolved
+            at runtime and recommended for testing scenarios. Defaults to the value set
+            in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
             Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
@@ -2180,6 +2194,8 @@ class MaterializingTask(Task[P, R]):
             "on_running": "on_running_hooks",
             "on_rollback": "on_rollback_hooks",
             "on_commit": "on_commit_hooks",
+            "persist_result": "_user_persist_result",
+            "cache_policy": "_user_cache_policy",
         }
 
         # Build kwargs for Task constructor

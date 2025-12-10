@@ -39,12 +39,17 @@ type SetTaskRunStateParams = {
  * detail		=>   ['taskRuns', 'details', id]
  * ```
  */
+export type TaskRunsCountFilter =
+	components["schemas"]["Body_count_task_runs_task_runs_count_post"];
+
 export const queryKeyFactory = {
 	all: () => ["taskRuns"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: TaskRunsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
+	count: (filter: TaskRunsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 	flowRunsCount: (flowRunIds: Array<string>) => [
 		...queryKeyFactory.counts(),
 		"flow-runs",
@@ -90,6 +95,34 @@ export const buildListTaskRunsQuery = (
 		refetchInterval,
 	});
 };
+
+/**
+ * Builds a query configuration for counting task runs
+ *
+ * @param filter - Filter parameters for the task runs count query.
+ * @param refetchInterval - Optional interval in ms to refetch the count (default: no refetch)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: taskRunsCount } = useSuspenseQuery(buildCountTaskRunsQuery());
+ * ```
+ */
+export const buildCountTaskRunsQuery = (
+	filter: TaskRunsCountFilter = {},
+	refetchInterval?: number,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/count", {
+				body: filter,
+			});
+			return res.data ?? 0;
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
 
 /**
  * Builds a query configuration for fetching flow runs task count
@@ -279,4 +312,44 @@ export const useDeleteTaskRun = () => {
 		},
 	});
 	return { deleteTaskRun, ...rest };
+};
+
+export type TaskRunsHistoryFilter =
+	components["schemas"]["Body_task_run_history_task_runs_history_post"];
+
+export type HistoryResponse = components["schemas"]["HistoryResponse"];
+
+export type HistoryResponseState =
+	components["schemas"]["HistoryResponseState"];
+
+/**
+ * Builds a query configuration for fetching task runs history
+ *
+ * @param filter - Filter parameters for the task runs history query.
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildTaskRunsHistoryQuery({
+ *   history_start: "2024-01-01T00:00:00Z",
+ *   history_end: "2024-01-02T00:00:00Z",
+ *   history_interval: 3600
+ * }));
+ * ```
+ */
+export const buildTaskRunsHistoryQuery = (
+	filter: TaskRunsHistoryFilter,
+	refetchInterval = 30_000,
+) => {
+	return queryOptions({
+		queryKey: [...queryKeyFactory.lists(), "history", filter],
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/history", {
+				body: filter,
+			});
+			return res.data ?? [];
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
 };

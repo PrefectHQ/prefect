@@ -17,7 +17,7 @@ from dbt.artifacts.schemas.results import (
     TestStatus,
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
-from dbt.cli.main import dbtRunner
+from dbt.cli.main import cli, dbtRunner
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
@@ -459,6 +459,13 @@ class PrefectDbtRunner:
                 pass
         if self._callback_thread and self._callback_thread.is_alive():
             self._callback_thread.join(timeout=5.0)
+
+        # Reset state so next invoke() can create a fresh callback processor
+        self._event_queue = None
+        self._callback_thread = None
+        self._shutdown_event = None
+        self._queue_counter = 0
+        self._skipped_nodes = set()
 
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
@@ -1020,9 +1027,13 @@ class PrefectDbtRunner:
             callbacks = []
 
         # Determine which command is being invoked
+        # We need to find a valid dbt command, skipping flag values like "json" in "--log-format json"
         command_name = None
         for arg in args_copy:
-            if not arg.startswith("-"):
+            if arg.startswith("-"):
+                continue
+            # Check if this is a valid dbt command
+            if arg in cli.commands:
                 command_name = arg
                 break
 
@@ -1032,8 +1043,6 @@ class PrefectDbtRunner:
         # Get valid parameters for the command if we can determine it
         valid_params = None
         if command_name:
-            from dbt.cli.main import cli
-
             command = cli.commands.get(command_name)
             if command:
                 valid_params = {p.name for p in command.params}

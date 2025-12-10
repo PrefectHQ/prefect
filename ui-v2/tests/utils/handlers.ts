@@ -104,6 +104,20 @@ const flowRunHandlers = [
 		]);
 	}),
 
+	http.post(buildApiUrl("/flow_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			pages: 0,
+			page: 1,
+			limit: 10,
+		});
+	}),
+
+	http.post(buildApiUrl("/flow_runs/count"), () => {
+		return HttpResponse.json(0);
+	}),
+
 	http.delete(buildApiUrl("/flow_runs/:id"), () => {
 		return HttpResponse.json({ status: 204 });
 	}),
@@ -132,6 +146,14 @@ const settingsHandlers = [
 
 const taskRunHandlers = [
 	http.post(buildApiUrl("/task_runs/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/task_runs/count"), () => {
+		return HttpResponse.json(0);
+	}),
+
+	http.post(buildApiUrl("/task_runs/history"), () => {
 		return HttpResponse.json([]);
 	}),
 
