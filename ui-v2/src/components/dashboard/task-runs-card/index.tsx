@@ -1,9 +1,8 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useMemo } from "react";
 import {
-	buildListTaskRunsQuery,
-	type TaskRun,
-	type TaskRunsFilter,
+	buildCountTaskRunsQuery,
+	type TaskRunsCountFilter,
 } from "@/api/task-runs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskRunsTrends } from "./task-runs-trends";
@@ -16,86 +15,163 @@ type TaskRunsCardProps = {
 		startDate?: string;
 		endDate?: string;
 		tags?: string[];
+		hideSubflows?: boolean;
 	};
 };
 
-type TaskRunCounts = {
-	total: number;
-	running: number;
-	completed: number;
-	failed: number;
-	completionPercentage: number;
-	failurePercentage: number;
-};
+/**
+ * Builds a base filter for task run count queries that matches the Vue implementation.
+ * This includes:
+ * - Date range filtering on task_runs.start_time
+ * - Excluding subflow task runs (task_runs.subflow_runs.exists_ = false)
+ * - Tag filtering on flow_runs.tags.any_ (matching Vue's anyName behavior)
+ * - Hide subflows filtering on flow_runs.parent_task_run_id.is_null_
+ */
+function buildBaseCountFilter(filter?: TaskRunsCardProps["filter"]): {
+	task_runs: NonNullable<TaskRunsCountFilter["task_runs"]>;
+	flow_runs?: NonNullable<TaskRunsCountFilter["flow_runs"]>;
+} {
+	const taskRunsFilter: NonNullable<TaskRunsCountFilter["task_runs"]> = {
+		operator: "and_",
+		// Exclude subflow task runs by default (matches Vue's getBaseFilter)
+		subflow_runs: {
+			exists_: false,
+		},
+	};
 
-const calculateCounts = (taskRuns: TaskRun[]): TaskRunCounts => {
-	const total = taskRuns.length;
-	let running = 0;
-	let completed = 0;
-	let failed = 0;
-
-	for (const run of taskRuns) {
-		const stateType = run.state_type;
-		if (!stateType) continue;
-
-		if (stateType === "RUNNING") running += 1;
-		else if (stateType === "COMPLETED") completed += 1;
-		else if (stateType === "FAILED" || stateType === "CRASHED") failed += 1;
+	// Add date range filter
+	if (filter?.startDate && filter?.endDate) {
+		taskRunsFilter.start_time = {
+			after_: filter.startDate,
+			before_: filter.endDate,
+		};
 	}
 
-	const totalFinished = completed + failed;
-	const completionPercentage =
-		totalFinished > 0 ? (completed / totalFinished) * 100 : 0;
-	const failurePercentage =
-		totalFinished > 0 ? (failed / totalFinished) * 100 : 0;
-
-	return {
-		total,
-		running,
-		completed,
-		failed,
-		completionPercentage,
-		failurePercentage,
+	const result: {
+		task_runs: NonNullable<TaskRunsCountFilter["task_runs"]>;
+		flow_runs?: NonNullable<TaskRunsCountFilter["flow_runs"]>;
+	} = {
+		task_runs: taskRunsFilter,
 	};
-};
 
-export function TaskRunsCard({ filter }: TaskRunsCardProps) {
-	const taskRunsFilter: TaskRunsFilter = useMemo(() => {
-		const baseFilter: TaskRunsFilter = {
-			sort: "ID_DESC",
-			offset: 0,
-		};
-
-		const taskRunsFilterObj: NonNullable<TaskRunsFilter["task_runs"]> = {
+	// Add flow_runs filter for tags and hideSubflows (matching Vue's dashboard mapping)
+	if ((filter?.tags && filter.tags.length > 0) || filter?.hideSubflows) {
+		const flowRunsFilter: NonNullable<TaskRunsCountFilter["flow_runs"]> = {
 			operator: "and_",
 		};
 
-		if (filter?.startDate && filter?.endDate) {
-			taskRunsFilterObj.start_time = {
-				after_: filter.startDate,
-				before_: filter.endDate,
-			};
-		}
-
+		// Tags filter on flow_runs (matching Vue's flowRuns.tags.anyName)
 		if (filter?.tags && filter.tags.length > 0) {
-			taskRunsFilterObj.tags = {
+			flowRunsFilter.tags = {
 				operator: "and_",
-				all_: filter.tags,
+				any_: filter.tags,
 			};
 		}
 
-		if (Object.keys(taskRunsFilterObj).length > 1) {
-			baseFilter.task_runs = taskRunsFilterObj;
+		// Hide subflows filter (matching Vue's flowRuns.parentTaskRunIdNull)
+		if (filter?.hideSubflows) {
+			flowRunsFilter.parent_task_run_id = {
+				operator: "and_",
+				is_null_: true,
+			};
 		}
 
-		return baseFilter;
-	}, [filter?.startDate, filter?.endDate, filter?.tags]);
+		result.flow_runs = flowRunsFilter;
+	}
 
-	const { data: taskRuns } = useSuspenseQuery(
-		buildListTaskRunsQuery(taskRunsFilter, 30000),
+	return result;
+}
+
+export function TaskRunsCard({ filter }: TaskRunsCardProps) {
+	// Build base filter that's shared across all count queries
+	const baseFilter = useMemo(() => buildBaseCountFilter(filter), [filter]);
+
+	// Build filters for each state type (matching Vue's CumulativeTaskRunsCard)
+	const totalFilter: TaskRunsCountFilter = useMemo(
+		() => ({
+			...baseFilter,
+			task_runs: {
+				...baseFilter.task_runs,
+				state: {
+					operator: "and_",
+					type: {
+						any_: ["COMPLETED", "FAILED", "CRASHED", "RUNNING"],
+					},
+				},
+			},
+		}),
+		[baseFilter],
 	);
 
-	const counts = useMemo(() => calculateCounts(taskRuns), [taskRuns]);
+	const completedFilter: TaskRunsCountFilter = useMemo(
+		() => ({
+			...baseFilter,
+			task_runs: {
+				...baseFilter.task_runs,
+				state: {
+					operator: "and_",
+					type: {
+						any_: ["COMPLETED"],
+					},
+				},
+			},
+		}),
+		[baseFilter],
+	);
+
+	const failedFilter: TaskRunsCountFilter = useMemo(
+		() => ({
+			...baseFilter,
+			task_runs: {
+				...baseFilter.task_runs,
+				state: {
+					operator: "and_",
+					type: {
+						any_: ["FAILED", "CRASHED"],
+					},
+				},
+			},
+		}),
+		[baseFilter],
+	);
+
+	const runningFilter: TaskRunsCountFilter = useMemo(
+		() => ({
+			...baseFilter,
+			task_runs: {
+				...baseFilter.task_runs,
+				state: {
+					operator: "and_",
+					type: {
+						any_: ["RUNNING"],
+					},
+				},
+			},
+		}),
+		[baseFilter],
+	);
+
+	// Fetch counts using the count endpoint (matching Vue's useTaskRunsCount)
+	const { data: total } = useSuspenseQuery(
+		buildCountTaskRunsQuery(totalFilter, 30_000),
+	);
+	const { data: completed } = useSuspenseQuery(
+		buildCountTaskRunsQuery(completedFilter, 30_000),
+	);
+	const { data: failed } = useSuspenseQuery(
+		buildCountTaskRunsQuery(failedFilter, 30_000),
+	);
+	const { data: running } = useSuspenseQuery(
+		buildCountTaskRunsQuery(runningFilter, 30_000),
+	);
+
+	// Calculate percentages (matching Vue's percentComparisonTotal logic)
+	// Vue excludes running from the denominator for percentage calculations
+	const percentComparisonTotal = total - running;
+	const completionPercentage =
+		percentComparisonTotal > 0 ? (completed / percentComparisonTotal) * 100 : 0;
+	const failurePercentage =
+		percentComparisonTotal > 0 ? (failed / percentComparisonTotal) * 100 : 0;
 
 	return (
 		<Card>
@@ -103,7 +179,7 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 				<CardTitle>Task Runs</CardTitle>
 			</CardHeader>
 			<CardContent>
-				{taskRuns.length === 0 ? (
+				{total === 0 ? (
 					<div className="my-8 text-center text-sm text-muted-foreground">
 						<p>No task runs found</p>
 					</div>
@@ -111,28 +187,28 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 					<div className="space-y-4">
 						<div className="grid gap-1">
 							<div className="inline-flex items-end gap-1 text-base">
-								<span className="font-semibold">{counts.total}</span>
+								<span className="font-semibold">{total}</span>
 								<span className="text-muted-foreground">Total</span>
 							</div>
-							{counts.running > 0 && (
+							{running > 0 && (
 								<div className="inline-flex items-end gap-1 text-sm">
-									<span className="font-semibold">{counts.running}</span>
+									<span className="font-semibold">{running}</span>
 									<span className="text-muted-foreground">Running</span>
 								</div>
 							)}
 							<div className="inline-flex items-end gap-1 text-sm">
-								<span className="font-semibold">{counts.completed}</span>
+								<span className="font-semibold">{completed}</span>
 								<span className="text-muted-foreground">Completed</span>
 								<span className="text-muted-foreground">
-									{counts.completionPercentage.toFixed(1)}%
+									{completionPercentage.toFixed(1)}%
 								</span>
 							</div>
-							{counts.failed > 0 && (
+							{failed > 0 && (
 								<div className="inline-flex items-end gap-1 text-sm">
-									<span className="font-semibold">{counts.failed}</span>
+									<span className="font-semibold">{failed}</span>
 									<span className="text-muted-foreground">Failed</span>
 									<span className="text-muted-foreground">
-										{counts.failurePercentage.toFixed(1)}%
+										{failurePercentage.toFixed(1)}%
 									</span>
 								</div>
 							)}

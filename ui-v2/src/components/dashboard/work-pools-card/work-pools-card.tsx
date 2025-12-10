@@ -8,7 +8,6 @@ import {
 	buildFilterFlowRunsQuery,
 	type FlowRunsCountFilter,
 	type FlowRunsFilter,
-	type FlowRunWithDeploymentAndFlow,
 } from "@/api/flow-runs";
 import { getQueryService } from "@/api/service";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
@@ -418,7 +417,9 @@ const WorkPoolFlowRunCompleteness = ({
 		return <span className="text-sm text-muted-foreground">N/A</span>;
 	}
 
-	const completePercent = Math.round((completedRunsCount / allRunsCount) * 100);
+	// Calculate percentage with 2 decimal places to match Vue implementation
+	const decimal = completedRunsCount / allRunsCount;
+	const completePercent = Math.round((decimal + Number.EPSILON) * 10000) / 100;
 
 	// Calculate percent change from previous period
 	let percentChange: { change: string; direction: "+" | "-" } | null = null;
@@ -427,9 +428,9 @@ const WorkPoolFlowRunCompleteness = ({
 		previousAllRunsCount > 0 &&
 		previousCompletedRunsCount !== undefined
 	) {
-		const previousCompletePercent = Math.round(
-			(previousCompletedRunsCount / previousAllRunsCount) * 100,
-		);
+		const prevDecimal = previousCompletedRunsCount / previousAllRunsCount;
+		const previousCompletePercent =
+			Math.round((prevDecimal + Number.EPSILON) * 10000) / 100;
 		if (previousCompletePercent !== completePercent) {
 			const change = Math.abs(completePercent - previousCompletePercent);
 			percentChange = {
@@ -695,20 +696,16 @@ const WorkPoolMiniBarChart = ({
 		return <div className="h-8 w-48 shrink-0" />;
 	}
 
-	// Build enriched flow runs (empty array if no flow runs)
-	const enrichedFlowRuns = (flowRuns ?? [])
-		.map((flowRun, index) => {
-			const enrichment = enrichmentQueries[index]?.data;
-			if (!enrichment?.deployment || !enrichment?.flow) {
-				return null;
-			}
-			return {
-				...flowRun,
-				deployment: enrichment.deployment,
-				flow: enrichment.flow,
-			} as FlowRunWithDeploymentAndFlow;
-		})
-		.filter((fr): fr is FlowRunWithDeploymentAndFlow => fr !== null);
+	// Build enriched flow runs with optional deployment/flow data
+	// Bars should render for all flow runs; enrichment is only used for tooltips
+	const enrichedFlowRuns = (flowRuns ?? []).map((flowRun, index) => {
+		const enrichment = enrichmentQueries[index]?.data;
+		return {
+			...flowRun,
+			deployment: enrichment?.deployment ?? undefined,
+			flow: enrichment?.flow ?? undefined,
+		};
+	});
 
 	const startDate = new Date(filter.startDate);
 	const endDate = new Date(filter.endDate);
