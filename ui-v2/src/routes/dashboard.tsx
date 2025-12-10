@@ -24,12 +24,12 @@ import {
 	buildListWorkPoolWorkersQuery,
 } from "@/api/work-pools";
 import {
+	buildTaskRunsHistoryFilterFromDashboard,
 	DashboardFlowRunsEmptyState,
 	DashboardWorkPoolsCard,
 	FlowRunsCard,
 	TaskRunsCard,
 } from "@/components/dashboard";
-import { buildTaskRunsHistoryFilterFromDashboard } from "@/components/dashboard/task-runs-card";
 import { FlowRunTagsSelect } from "@/components/flow-runs/flow-run-tags-select";
 import {
 	Breadcrumb,
@@ -111,6 +111,44 @@ function WorkPoolsCardSkeleton() {
 					</div>
 				</div>
 			</div>
+		</div>
+	);
+}
+
+/**
+ * Pending component shown while the dashboard loader is running.
+ * Displays an animated Prefect logo to indicate loading state.
+ */
+function DashboardPending() {
+	return (
+		<div className="flex h-[50vh] items-center justify-center">
+			<svg
+				xmlns="http://www.w3.org/2000/svg"
+				fill="none"
+				viewBox="0 0 76 76"
+				className="size-16 animate-pulse text-primary"
+				aria-label="Loading Prefect Dashboard"
+			>
+				<title>Loading</title>
+				<path
+					fill="currentColor"
+					fillRule="evenodd"
+					d="M15.89 15.07 38 26.543v22.935l22.104-11.47.007.004V15.068l-.003.001L38 3.598z"
+					clipRule="evenodd"
+				/>
+				<path
+					fill="currentColor"
+					fillRule="evenodd"
+					d="M15.89 15.07 38 26.543v22.935l22.104-11.47.007.004V15.068l-.003.001L38 3.598z"
+					clipRule="evenodd"
+				/>
+				<path
+					fill="currentColor"
+					fillRule="evenodd"
+					d="M37.987 49.464 15.89 38v22.944l.013-.006L38 72.402V49.457z"
+					clipRule="evenodd"
+				/>
+			</svg>
 		</div>
 	);
 }
@@ -365,6 +403,9 @@ const STATE_TYPE_GROUPS = [
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
+	pendingComponent: DashboardPending,
+	pendingMs: 400,
+	pendingMinMs: 400,
 	loaderDeps: ({ search }) => search,
 	loader: async ({ deps, context: { queryClient } }) => {
 		// Prefetch total flow runs count to determine if dashboard is empty
@@ -483,6 +524,36 @@ export const Route = createFileRoute("/dashboard")({
 								sort: "UPDATED_DESC",
 							}),
 						);
+
+						// Prefetch per-flow count and last run queries (used by FlowRunsAccordionHeader)
+						// This matches the exact filter construction in FlowRunsAccordionHeader component
+						accordionFlowIds.forEach((flowId) => {
+							// Build filter for this specific flow (matches FlowRunsAccordionHeader.flowFilter)
+							const flowFilter: FlowRunsFilter = {
+								...filterWithState,
+								flows: {
+									...(filterWithState.flows ?? {}),
+									operator: "and_",
+									id: { any_: [flowId] },
+								},
+							};
+
+							// Prefetch count of flow runs for this flow
+							void queryClient.prefetchQuery(
+								buildCountFlowRunsQuery(flowFilter, 30_000),
+							);
+
+							// Prefetch last flow run for this flow (matches FlowRunsAccordionHeader.lastFlowRunFilter)
+							const lastFlowRunFilter: FlowRunsFilter = {
+								...flowFilter,
+								sort: "START_TIME_DESC",
+								limit: 1,
+								offset: 0,
+							};
+							void queryClient.prefetchQuery(
+								buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
+							);
+						});
 					}
 				})
 				.catch(() => {

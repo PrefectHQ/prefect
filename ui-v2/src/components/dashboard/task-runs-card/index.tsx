@@ -7,12 +7,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskRunsTrends } from "./task-runs-trends";
 
-export { TaskRunStats } from "./task-runs-stats";
-export {
-	buildTaskRunsHistoryFilterFromDashboard,
-	TaskRunsTrends,
-	type TaskRunsTrendsFilter,
-} from "./task-runs-trends";
+// Re-exports are in a separate file to avoid react-refresh/only-export-components warning
+// See: ./exports.ts for buildTaskRunsHistoryFilterFromDashboard, TaskRunsTrendsFilter, TaskRunStats, TaskRunsTrends
 
 type TaskRunsCardProps = {
 	filter?: {
