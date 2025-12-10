@@ -3,6 +3,8 @@ import type { FlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
+	DateRangeFilter,
+	type DateRangeUrlState,
 	type FlowRunState,
 	FlowRunsList,
 	FlowRunsPagination,
@@ -45,6 +47,8 @@ type RunsPageProps = {
 	onFlowRunSearchChange: (search: string) => void;
 	selectedStates: Set<FlowRunState>;
 	onStateFilterChange: (states: Set<FlowRunState>) => void;
+	dateRange: DateRangeUrlState;
+	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
 };
 
 export const RunsPage = ({
@@ -65,6 +69,8 @@ export const RunsPage = ({
 	onFlowRunSearchChange,
 	selectedStates,
 	onStateFilterChange,
+	dateRange,
+	onDateRangeChange,
 }: RunsPageProps) => {
 	const isEmpty = flowRunsCount === 0 && taskRunsCount === 0;
 
@@ -119,6 +125,10 @@ export const RunsPage = ({
 										onSelectFilter={onStateFilterChange}
 									/>
 								</div>
+								<DateRangeFilter
+									value={dateRange}
+									onValueChange={onDateRangeChange}
+								/>
 							</div>
 							<div className="flex items-center justify-between">
 								<FlowRunsRowCount

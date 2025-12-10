@@ -1,3 +1,8 @@
+export {
+	type DateRangeWithTimeSpan,
+	getMultiplierForUnit,
+	mapValueToRange,
+} from "./date-range-utils";
 export type {
 	DateRangeSelectAroundUnit,
 	DateRangeSelectAroundValue,
