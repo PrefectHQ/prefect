@@ -3610,7 +3610,6 @@ benchmark = [
 dev = [
     { name = "cairosvg", marker = "python_full_version < '3.14'" },
     { name = "codespell" },
-    { name = "fakeredis", extra = ["lua"] },
     { name = "ipython", version = "8.37.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "ipython", version = "9.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "jinja2" },
@@ -3760,7 +3759,6 @@ dev = [
     { name = "cairosvg", marker = "python_full_version < '3.14'", specifier = ">=2.7.1" },
     { name = "codespell", specifier = "==2.4.1" },
     { name = "codespell", specifier = ">=2.2.6" },
-    { name = "fakeredis", extras = ["lua"], specifier = ">=2.32.1" },
     { name = "ipython" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mkdocs", specifier = ">=1.6.1" },

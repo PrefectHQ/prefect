@@ -174,7 +174,6 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
-    "fakeredis[lua]>=2.32.1",
 ]
 
 perf = ["logfire[fastapi,sqlalchemy]>=3.14.0", "pyinstrument>=5.0.0"]
