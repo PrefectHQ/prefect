@@ -64,10 +64,9 @@ export const Default: StoryObj<StoryArgs> = {
 		> & { numberOfDeployments: number },
 	) => {
 		const { numberOfDeployments, ...rest } = args;
-		const [pageIndex, setPageIndex] = useState(0); // eslint-disable-line react-hooks/rules-of-hooks
-		const [pageSize, setPageSize] = useState(10); // eslint-disable-line react-hooks/rules-of-hooks
+		const [pageIndex, setPageIndex] = useState(0);
+		const [pageSize, setPageSize] = useState(10);
 
-		// eslint-disable-next-line react-hooks/rules-of-hooks
 		const deployments = useMemo(() => {
 			return Array.from(
 				{ length: numberOfDeployments },
