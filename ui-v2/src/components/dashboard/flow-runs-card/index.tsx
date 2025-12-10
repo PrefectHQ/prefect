@@ -1,7 +1,12 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
-import { buildFilterFlowRunsQuery, type FlowRunsFilter } from "@/api/flow-runs";
+import {
+	buildCountFlowRunsQuery,
+	buildFilterFlowRunsQuery,
+	type FlowRunsFilter,
+	toFlowRunsCountFilter,
+} from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { FlowRunsAccordion } from "@/components/dashboard/flow-runs-accordion";
@@ -9,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Skeleton } from "@/components/ui/skeleton";
 import useDebounce from "@/hooks/use-debounce";
-import { FlowRunStateTabs } from "./flow-runs-state-tabs";
+import { FlowRunStateTabs, type StateTypeCounts } from "./flow-runs-state-tabs";
 
 type StateType = components["schemas"]["StateType"];
 
@@ -99,6 +104,115 @@ export function FlowRunsCard({
 		buildFilterFlowRunsQuery(flowRunsFilter, 30000),
 	);
 
+	// Convert the filter to a count filter (without sort/limit/offset)
+	const countFilter = useMemo(
+		() => toFlowRunsCountFilter(flowRunsFilter),
+		[flowRunsFilter],
+	);
+
+	// Fetch total count using the count API (not limited by default API limit)
+	const { data: totalCount } = useSuspenseQuery(
+		buildCountFlowRunsQuery(countFilter, 30000),
+	);
+
+	// Fetch counts for each state type group using the count API
+	const { data: failedCrashedCount } = useSuspenseQuery(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["FAILED", "CRASHED"] } },
+				},
+			},
+			30000,
+		),
+	);
+
+	const { data: runningPendingCancellingCount } = useSuspenseQuery(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: {
+						operator: "and_",
+						type: { any_: ["RUNNING", "PENDING", "CANCELLING"] },
+					},
+				},
+			},
+			30000,
+		),
+	);
+
+	const { data: completedCount } = useSuspenseQuery(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["COMPLETED"] } },
+				},
+			},
+			30000,
+		),
+	);
+
+	const { data: scheduledPausedCount } = useSuspenseQuery(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["SCHEDULED", "PAUSED"] } },
+				},
+			},
+			30000,
+		),
+	);
+
+	const { data: cancelledCount } = useSuspenseQuery(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["CANCELLED"] } },
+				},
+			},
+			30000,
+		),
+	);
+
+	// Build state counts object for FlowRunStateTabs
+	// Note: We distribute counts evenly among grouped states for display purposes
+	// The actual count shown in the tab is the sum of all states in the group
+	const stateCounts: StateTypeCounts = useMemo(
+		() => ({
+			FAILED: failedCrashedCount,
+			CRASHED: 0, // Grouped with FAILED
+			RUNNING: runningPendingCancellingCount,
+			PENDING: 0, // Grouped with RUNNING
+			CANCELLING: 0, // Grouped with RUNNING
+			COMPLETED: completedCount,
+			SCHEDULED: scheduledPausedCount,
+			PAUSED: 0, // Grouped with SCHEDULED
+			CANCELLED: cancelledCount,
+		}),
+		[
+			failedCrashedCount,
+			runningPendingCancellingCount,
+			completedCount,
+			scheduledPausedCount,
+			cancelledCount,
+		],
+	);
+
 	// Extract unique flow and deployment IDs from all flow runs for enrichment
 	const { flowIds, deploymentIds } = useMemo(() => {
 		const flowIds = [...new Set(allFlowRuns.map((fr) => fr.flow_id))];
@@ -183,9 +297,9 @@ export function FlowRunsCard({
 		<Card>
 			<CardHeader className="flex flex-row items-center justify-between">
 				<CardTitle>Flow Runs</CardTitle>
-				{allFlowRuns.length > 0 && (
+				{totalCount > 0 && (
 					<span className="text-sm text-muted-foreground">
-						{allFlowRuns.length} total
+						{totalCount} total
 					</span>
 				)}
 			</CardHeader>
@@ -207,7 +321,7 @@ export function FlowRunsCard({
 							/>
 						</div>
 						<FlowRunStateTabs
-							flowRuns={allFlowRuns}
+							stateCounts={stateCounts}
 							selectedStates={selectedStates}
 							onStateChange={handleStateChange}
 						/>
