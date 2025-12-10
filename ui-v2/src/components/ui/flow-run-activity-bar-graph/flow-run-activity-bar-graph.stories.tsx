@@ -37,3 +37,12 @@ export const Randomized: Story = {
 		),
 	},
 };
+
+export const Empty: Story = {
+	args: {
+		startDate: randPastDate(),
+		endDate: new Date(),
+		enrichedFlowRuns: [],
+		numberOfBars: 50,
+	},
+};
