@@ -10,6 +10,7 @@ import {
 	toastDecorator,
 } from "@/storybook/utils";
 import type {
+	DateRangeUrlState,
 	FlowRunState,
 	PaginationState,
 	SortFilters,
@@ -78,6 +79,7 @@ const RunsPageWithState = ({
 	initialPages = 1,
 	initialFlowRunSearch = "",
 	initialSelectedStates = new Set<FlowRunState>(),
+	initialDateRange = {},
 }: {
 	initialFlowRuns?: typeof MOCK_FLOW_RUNS;
 	initialFlowRunsCount?: number;
@@ -85,6 +87,7 @@ const RunsPageWithState = ({
 	initialPages?: number;
 	initialFlowRunSearch?: string;
 	initialSelectedStates?: Set<FlowRunState>;
+	initialDateRange?: DateRangeUrlState;
 }) => {
 	const [tab, setTab] = useState<"flow-runs" | "task-runs">("flow-runs");
 	const [pagination, setPagination] = useState<PaginationState>({
@@ -97,6 +100,8 @@ const RunsPageWithState = ({
 	const [selectedStates, setSelectedStates] = useState<Set<FlowRunState>>(
 		initialSelectedStates,
 	);
+	const [dateRange, setDateRange] =
+		useState<DateRangeUrlState>(initialDateRange);
 
 	return (
 		<RunsPage
@@ -116,6 +121,8 @@ const RunsPageWithState = ({
 			onFlowRunSearchChange={setFlowRunSearch}
 			selectedStates={selectedStates}
 			onStateFilterChange={setSelectedStates}
+			dateRange={dateRange}
+			onDateRangeChange={setDateRange}
 		/>
 	);
 };
