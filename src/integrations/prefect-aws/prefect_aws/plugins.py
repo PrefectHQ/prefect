@@ -6,11 +6,11 @@ from typing import Any, Mapping
 import boto3
 import sqlalchemy as sa
 
-from prefect._experimental.plugins import hookimpl
+from prefect._experimental.plugins import register_hook
 
 
-@hookimpl
-def get_database_connection_params(
+@register_hook
+def set_database_connection_params(
     connection_url: str, settings: Any
 ) -> Mapping[str, Any]:
     iam_settings = settings.server.database.sqlalchemy.connect_args.iam
@@ -34,11 +34,8 @@ def get_database_connection_params(
         return token
 
     # IAM authentication requires SSL
-    # Use PROTOCOL_TLS_CLIENT to avoid loading default system certs
-    # and to avoid DeprecationWarning for PROTOCOL_TLS
-    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+    # Use create_default_context() for secure defaults (cert verification enabled)
+    ctx = ssl.create_default_context()
     connect_args["ssl"] = ctx
 
     connect_args["password"] = get_iam_token
