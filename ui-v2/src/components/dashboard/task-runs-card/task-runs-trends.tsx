@@ -149,7 +149,8 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 	}
 
 	return (
-		<div className="h-16 w-full">
+		/* Break out of card padding (px-6 = 1.5rem × 2) */
+		<div className="h-16 w-[calc(100%+3rem)] -mx-6">
 			<ChartContainer config={chartConfig} className="h-full w-full">
 				<AreaChart
 					data={chartData}
@@ -186,6 +187,7 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 						dataKey="failed"
 						stroke="var(--color-failed)"
 						strokeWidth={2}
+						activeDot={false}
 						fill="url(#failedGradient)"
 						dot={false}
 						isAnimationActive={false}
@@ -195,6 +197,7 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 						dataKey="completed"
 						stroke="var(--color-completed)"
 						strokeWidth={2}
+						activeDot={false}
 						fill="url(#completedGradient)"
 						dot={false}
 						isAnimationActive={false}
