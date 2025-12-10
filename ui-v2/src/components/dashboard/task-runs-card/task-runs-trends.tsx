@@ -1,17 +1,12 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { Area, AreaChart } from "recharts";
 import {
 	buildTaskRunsHistoryQuery,
 	type HistoryResponse,
 	type TaskRunsHistoryFilter,
 } from "@/api/task-runs";
-import {
-	type ChartConfig,
-	ChartContainer,
-	ChartTooltip,
-	ChartTooltipContent,
-} from "@/components/ui/chart";
+import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 
 type TaskRunsTrendsProps = {
 	filter?: {
@@ -72,11 +67,6 @@ const transformHistoryToChartData = (
 	}
 
 	return chartData;
-};
-
-const formatTimestamp = (timestamp: string): string => {
-	const date = new Date(timestamp);
-	return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
 export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
@@ -159,55 +149,60 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 	}
 
 	return (
-		<div className="h-32 w-full">
+		/* Break out of card padding (px-6 = 1.5rem × 2) */
+		<div className="h-16 w-[calc(100%+3rem)] -mx-6">
 			<ChartContainer config={chartConfig} className="h-full w-full">
-				<LineChart
+				<AreaChart
 					data={chartData}
-					margin={{ top: 5, right: 10, bottom: 5, left: 10 }}
+					margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
 				>
-					<CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-					<XAxis
-						dataKey="timestamp"
-						tickFormatter={formatTimestamp}
-						tick={{ fontSize: 10 }}
-						tickLine={false}
-						axisLine={false}
-						className="text-muted-foreground"
-					/>
-					<YAxis
-						tick={{ fontSize: 10 }}
-						tickLine={false}
-						axisLine={false}
-						className="text-muted-foreground"
-						allowDecimals={false}
-					/>
-					<ChartTooltip
-						content={
-							<ChartTooltipContent
-								labelFormatter={(value: string) => {
-									const date = new Date(value);
-									return date.toLocaleString();
-								}}
+					<defs>
+						<linearGradient id="completedGradient" x1="0" y1="1" x2="0" y2="0">
+							<stop
+								offset="0%"
+								stopColor="var(--color-completed)"
+								stopOpacity={0}
 							/>
-						}
-					/>
-					<Line
-						type="monotone"
-						dataKey="completed"
-						stroke="var(--color-completed)"
-						strokeWidth={2}
-						dot={false}
-						activeDot={{ r: 4 }}
-					/>
-					<Line
+							<stop
+								offset="100%"
+								stopColor="var(--color-completed)"
+								stopOpacity={0.3}
+							/>
+						</linearGradient>
+						<linearGradient id="failedGradient" x1="0" y1="1" x2="0" y2="0">
+							<stop
+								offset="0%"
+								stopColor="var(--color-failed)"
+								stopOpacity={0}
+							/>
+							<stop
+								offset="100%"
+								stopColor="var(--color-failed)"
+								stopOpacity={0.3}
+							/>
+						</linearGradient>
+					</defs>
+					<Area
 						type="monotone"
 						dataKey="failed"
 						stroke="var(--color-failed)"
 						strokeWidth={2}
+						activeDot={false}
+						fill="url(#failedGradient)"
 						dot={false}
-						activeDot={{ r: 4 }}
+						isAnimationActive={false}
 					/>
-				</LineChart>
+					<Area
+						type="monotone"
+						dataKey="completed"
+						stroke="var(--color-completed)"
+						strokeWidth={2}
+						activeDot={false}
+						fill="url(#completedGradient)"
+						dot={false}
+						isAnimationActive={false}
+					/>
+				</AreaChart>
 			</ChartContainer>
 		</div>
 	);
