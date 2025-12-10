@@ -122,7 +122,7 @@ function WorkPoolsCardSkeleton() {
  */
 function DashboardPending() {
 	return (
-		<div className="flex h-[50vh] items-center justify-center">
+		<div className="flex h-full items-center justify-center">
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				fill="none"
