@@ -77,20 +77,24 @@ export const StateFilter = ({
 			return "All except scheduled";
 		}
 
+		const selected = Array.from(selectedFilters);
+		const visible = selected.slice(0, MAX_FILTERS_DISPLAYED);
+		const extraCount = selected.length - MAX_FILTERS_DISPLAYED;
+
 		return (
-			<div className="flex gap-2 overflow-hidden min-w-0">
-				{Array.from(selectedFilters)
-					.slice(0, MAX_FILTERS_DISPLAYED)
-					.map((filter) => (
+			<div className="flex flex-1 min-w-0 items-center gap-2">
+				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
+					{visible.map((filter) => (
 						<StateBadge
 							key={filter}
 							name={filter}
 							type={FLOW_RUN_STATES_MAP[filter]}
 						/>
 					))}
-				{selectedFilters.size > MAX_FILTERS_DISPLAYED && (
+				</div>
+				{extraCount > 0 && (
 					<Typography variant="bodySmall" className="shrink-0">
-						+ {selectedFilters.size - MAX_FILTERS_DISPLAYED}
+						+ {extraCount}
 					</Typography>
 				)}
 			</div>
@@ -101,7 +105,7 @@ export const StateFilter = ({
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline" className="justify-between w-full">
-					<span>{renderSelectedTags()}</span>
+					<span className="flex-1 min-w-0">{renderSelectedTags()}</span>
 					<Icon id="ChevronDown" className="ml-2 size-4 shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
