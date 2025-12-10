@@ -16,7 +16,7 @@ import {
 	type FlowRunState,
 } from "./state-filters.constants";
 
-const MAX_FILTERS_DISPLAYED = 4;
+const MAX_FILTERS_DISPLAYED = 2;
 
 type StateFilterProps = {
 	defaultValue?: Set<FlowRunState>;
