@@ -1,17 +1,31 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { createFakeFlowRun } from "@/mocks";
-import { FlowRunStateTabs } from "./flow-runs-state-tabs";
+import { FlowRunStateTabs, type StateTypeCounts } from "./flow-runs-state-tabs";
+
+const createStateCounts = (
+	overrides: Partial<StateTypeCounts> = {},
+): StateTypeCounts => ({
+	FAILED: 0,
+	CRASHED: 0,
+	RUNNING: 0,
+	PENDING: 0,
+	CANCELLING: 0,
+	COMPLETED: 0,
+	SCHEDULED: 0,
+	PAUSED: 0,
+	CANCELLED: 0,
+	...overrides,
+});
 
 describe("FlowRunStateTabs", () => {
 	it("renders all state tabs with correct labels", () => {
-		const flowRuns = [createFakeFlowRun()];
+		const stateCounts = createStateCounts();
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -35,19 +49,20 @@ describe("FlowRunStateTabs", () => {
 	});
 
 	it("displays correct counts for each state type", () => {
-		const flowRuns = [
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "RUNNING" }),
-			createFakeFlowRun({ state_type: "SCHEDULED" }),
-			createFakeFlowRun({ state_type: "CANCELLED" }),
-		];
+		// Note: The component now receives pre-computed counts per state group
+		// FAILED count includes both FAILED and CRASHED (grouped together)
+		const stateCounts = createStateCounts({
+			FAILED: 1, // This represents the FAILED+CRASHED group count
+			RUNNING: 1, // This represents the RUNNING+PENDING+CANCELLING group count
+			COMPLETED: 2,
+			SCHEDULED: 1, // This represents the SCHEDULED+PAUSED group count
+			CANCELLED: 1,
+		});
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -71,12 +86,14 @@ describe("FlowRunStateTabs", () => {
 	});
 
 	it("displays 0 count for states with no flow runs", () => {
-		const flowRuns = [createFakeFlowRun({ state_type: "COMPLETED" })];
+		const stateCounts = createStateCounts({
+			COMPLETED: 1,
+		});
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -96,12 +113,13 @@ describe("FlowRunStateTabs", () => {
 		).toHaveTextContent("0");
 	});
 
-	it("handles empty flowRuns array", () => {
+	it("handles all zero counts", () => {
+		const stateCounts = createStateCounts();
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={[]}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -126,12 +144,12 @@ describe("FlowRunStateTabs", () => {
 
 	it("calls onStateChange when clicking a tab", async () => {
 		const user = userEvent.setup();
-		const flowRuns = [createFakeFlowRun({ state_type: "COMPLETED" })];
+		const stateCounts = createStateCounts({ COMPLETED: 1 });
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -145,12 +163,12 @@ describe("FlowRunStateTabs", () => {
 
 	it("calls onStateChange with correct state types for each tab", async () => {
 		const user = userEvent.setup();
-		const flowRuns = [createFakeFlowRun()];
+		const stateCounts = createStateCounts();
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -178,12 +196,12 @@ describe("FlowRunStateTabs", () => {
 	});
 
 	it("marks the selected tab as active", () => {
-		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
+		const stateCounts = createStateCounts({ FAILED: 1 });
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -195,13 +213,13 @@ describe("FlowRunStateTabs", () => {
 		expect(failedTab).toHaveAttribute("data-state", "active");
 	});
 
-	it("updates counts when flowRuns prop changes", () => {
-		const flowRuns = [createFakeFlowRun({ state_type: "COMPLETED" })];
+	it("updates counts when stateCounts prop changes", () => {
+		const stateCounts = createStateCounts({ COMPLETED: 1 });
 		const onStateChange = vi.fn();
 
 		const { rerender } = render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -211,15 +229,14 @@ describe("FlowRunStateTabs", () => {
 			screen.getByRole("tab", { name: /completed runs/i }),
 		).toHaveTextContent("1");
 
-		const newFlowRuns = [
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-		];
+		const newStateCounts = createStateCounts({
+			COMPLETED: 2,
+			FAILED: 1,
+		});
 
 		rerender(
 			<FlowRunStateTabs
-				flowRuns={newFlowRuns}
+				stateCounts={newStateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -233,33 +250,13 @@ describe("FlowRunStateTabs", () => {
 		).toHaveTextContent("1");
 	});
 
-	it("handles flow runs with null state_type", () => {
-		const flowRuns = [
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: null }),
-		];
-		const onStateChange = vi.fn();
-
-		render(
-			<FlowRunStateTabs
-				flowRuns={flowRuns}
-				selectedStates={["FAILED", "CRASHED"]}
-				onStateChange={onStateChange}
-			/>,
-		);
-
-		expect(
-			screen.getByRole("tab", { name: /completed runs/i }),
-		).toHaveTextContent("1");
-	});
-
 	it("renders pill indicators for each state tab", () => {
-		const flowRuns = [createFakeFlowRun()];
+		const stateCounts = createStateCounts();
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -282,19 +279,15 @@ describe("FlowRunStateTabs", () => {
 		).toBeInTheDocument();
 	});
 
-	it("handles multiple flow runs with the same state type", () => {
-		const flowRuns = [
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-		];
+	it("handles high counts correctly", () => {
+		const stateCounts = createStateCounts({
+			FAILED: 5,
+		});
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,
@@ -308,23 +301,21 @@ describe("FlowRunStateTabs", () => {
 		).toHaveTextContent("0");
 	});
 
-	it("handles all possible state types", () => {
-		const flowRuns = [
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "RUNNING" }),
-			createFakeFlowRun({ state_type: "SCHEDULED" }),
-			createFakeFlowRun({ state_type: "CANCELLED" }),
-			createFakeFlowRun({ state_type: "PENDING" }),
-			createFakeFlowRun({ state_type: "CRASHED" }),
-			createFakeFlowRun({ state_type: "PAUSED" }),
-			createFakeFlowRun({ state_type: "CANCELLING" }),
-		];
+	it("handles counts for all state groups", () => {
+		// Note: The component receives pre-computed counts per state group
+		// The first state in each group holds the group's total count
+		const stateCounts = createStateCounts({
+			COMPLETED: 1,
+			FAILED: 2, // FAILED+CRASHED group
+			RUNNING: 3, // RUNNING+PENDING+CANCELLING group
+			SCHEDULED: 2, // SCHEDULED+PAUSED group
+			CANCELLED: 1,
+		});
 		const onStateChange = vi.fn();
 
 		render(
 			<FlowRunStateTabs
-				flowRuns={flowRuns}
+				stateCounts={stateCounts}
 				selectedStates={["FAILED", "CRASHED"]}
 				onStateChange={onStateChange}
 			/>,

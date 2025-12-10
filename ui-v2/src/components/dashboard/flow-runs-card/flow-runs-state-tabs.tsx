@@ -1,9 +1,9 @@
-import { useMemo } from "react";
-import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type StateType = components["schemas"]["StateType"];
+
+export type StateTypeCounts = Record<StateType, number>;
 
 const STATE_TYPES: readonly StateType[][] = [
 	["FAILED", "CRASHED"],
@@ -46,40 +46,16 @@ const FlowRunStateCountPill = ({
 );
 
 type FlowRunStateTabsProps = {
-	flowRuns: FlowRun[];
+	stateCounts: StateTypeCounts;
 	selectedStates: StateType[];
 	onStateChange: (states: StateType[]) => void;
-	failedOrCrashedCount?: number;
 };
 
 export const FlowRunStateTabs = ({
-	flowRuns,
+	stateCounts,
 	selectedStates,
 	onStateChange,
 }: FlowRunStateTabsProps) => {
-	const counts = useMemo(() => {
-		const stateCounts: Record<StateType, number> = {
-			FAILED: 0,
-			RUNNING: 0,
-			COMPLETED: 0,
-			SCHEDULED: 0,
-			CANCELLED: 0,
-			PENDING: 0,
-			CRASHED: 0,
-			PAUSED: 0,
-			CANCELLING: 0,
-		};
-
-		for (const flowRun of flowRuns) {
-			if (flowRun.state_type) {
-				stateCounts[flowRun.state_type] =
-					(stateCounts[flowRun.state_type] || 0) + 1;
-			}
-		}
-
-		return stateCounts;
-	}, [flowRuns]);
-
 	const handleValueChange = (value: string) => {
 		onStateChange(value.split("-").map((state) => state as StateType));
 	};
@@ -97,7 +73,10 @@ export const FlowRunStateTabs = ({
 						>
 							<FlowRunStateCountPill
 								states={stateType}
-								count={stateType.reduce((acc, state) => acc + counts[state], 0)}
+								count={stateType.reduce(
+									(acc, state) => acc + stateCounts[state],
+									0,
+								)}
 							/>
 						</TabsTrigger>
 					))}

@@ -29,6 +29,28 @@ export type FlowRunsCountFilter =
 export type CreateNewFlowRun = components["schemas"]["DeploymentFlowRunCreate"];
 
 /**
+ * Converts a FlowRunsFilter to a FlowRunsCountFilter by extracting only the
+ * filter properties that are valid for the count endpoint.
+ *
+ * The count endpoint does not accept sort, limit, or offset parameters.
+ *
+ * @param filter - The FlowRunsFilter to convert
+ * @returns A FlowRunsCountFilter with only the valid filter properties
+ */
+export function toFlowRunsCountFilter(
+	filter: FlowRunsFilter,
+): FlowRunsCountFilter {
+	return {
+		flows: filter.flows,
+		flow_runs: filter.flow_runs,
+		task_runs: filter.task_runs,
+		deployments: filter.deployments,
+		work_pools: filter.work_pools,
+		work_pool_queues: filter.work_pool_queues,
+	};
+}
+
+/**
  * The request body for setting a flow run state
  */
 type SetFlowRunStateBody =

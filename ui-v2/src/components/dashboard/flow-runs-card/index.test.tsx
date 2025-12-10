@@ -8,10 +8,120 @@ import {
 import { render, screen } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
-import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import {
+	buildCountFlowRunsQuery,
+	buildFilterFlowRunsQuery,
+	type FlowRunsFilter,
+	toFlowRunsCountFilter,
+} from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { createFakeFlowRun } from "@/mocks";
 import { FlowRunsCard } from "./index";
+
+// Helper to set up all count queries needed by FlowRunsCard
+const setupCountQueries = (
+	queryClient: QueryClient,
+	filter: FlowRunsFilter,
+	counts: {
+		total?: number;
+		failedCrashed?: number;
+		runningPendingCancelling?: number;
+		completed?: number;
+		scheduledPaused?: number;
+		cancelled?: number;
+	} = {},
+) => {
+	const countFilter = toFlowRunsCountFilter(filter);
+
+	// Total count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(countFilter, 30000).queryKey,
+		counts.total ?? 0,
+	);
+
+	// Failed + Crashed count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["FAILED", "CRASHED"] } },
+				},
+			},
+			30000,
+		).queryKey,
+		counts.failedCrashed ?? 0,
+	);
+
+	// Running + Pending + Cancelling count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: {
+						operator: "and_",
+						type: { any_: ["RUNNING", "PENDING", "CANCELLING"] },
+					},
+				},
+			},
+			30000,
+		).queryKey,
+		counts.runningPendingCancelling ?? 0,
+	);
+
+	// Completed count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["COMPLETED"] } },
+				},
+			},
+			30000,
+		).queryKey,
+		counts.completed ?? 0,
+	);
+
+	// Scheduled + Paused count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["SCHEDULED", "PAUSED"] } },
+				},
+			},
+			30000,
+		).queryKey,
+		counts.scheduledPaused ?? 0,
+	);
+
+	// Cancelled count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["CANCELLED"] } },
+				},
+			},
+			30000,
+		).queryKey,
+		counts.cancelled ?? 0,
+	);
+};
 
 type StateType = components["schemas"]["StateType"];
 
@@ -77,11 +187,13 @@ describe("FlowRunsCard", () => {
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 3, failedCrashed: 3 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -128,11 +240,13 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -156,7 +270,7 @@ describe("FlowRunsCard", () => {
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
@@ -166,8 +280,10 @@ describe("FlowRunsCard", () => {
 					before_: endDate,
 				},
 			},
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -193,7 +309,7 @@ describe("FlowRunsCard", () => {
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
@@ -203,8 +319,10 @@ describe("FlowRunsCard", () => {
 					all_: ["production", "critical"],
 				},
 			},
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -229,7 +347,7 @@ describe("FlowRunsCard", () => {
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
@@ -239,8 +357,10 @@ describe("FlowRunsCard", () => {
 					is_null_: true,
 				},
 			},
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -269,7 +389,7 @@ describe("FlowRunsCard", () => {
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
@@ -287,8 +407,10 @@ describe("FlowRunsCard", () => {
 					is_null_: true,
 				},
 			},
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -311,11 +433,13 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -341,11 +465,13 @@ describe("FlowRunsCard", () => {
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 2, failedCrashed: 2 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -365,11 +491,13 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -387,11 +515,17 @@ describe("FlowRunsCard", () => {
 		const onStateChange = vi.fn();
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, {
+			total: 2,
+			failedCrashed: 1,
+			completed: 1,
+		});
 
 		const wrapper = createWrapper({ queryClient });
 
