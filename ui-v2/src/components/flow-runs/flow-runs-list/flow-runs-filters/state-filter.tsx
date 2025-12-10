@@ -78,7 +78,7 @@ export const StateFilter = ({
 		}
 
 		return (
-			<div className="flex gap-2">
+			<div className="flex gap-2 overflow-hidden min-w-0">
 				{Array.from(selectedFilters)
 					.slice(0, MAX_FILTERS_DISPLAYED)
 					.map((filter) => (
@@ -89,7 +89,7 @@ export const StateFilter = ({
 						/>
 					))}
 				{selectedFilters.size > MAX_FILTERS_DISPLAYED && (
-					<Typography variant="bodySmall">
+					<Typography variant="bodySmall" className="shrink-0">
 						+ {selectedFilters.size - MAX_FILTERS_DISPLAYED}
 					</Typography>
 				)}
