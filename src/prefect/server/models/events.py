@@ -479,8 +479,8 @@ async def work_queue_updated_event(
         },
         related=related_work_pool_info,
         payload={
-            "changed_fields": list(changed_fields.keys()),
-            "changes": changed_fields,
+            "updated_fields": list(changed_fields.keys()),
+            "updates": changed_fields,
         },
         id=uuid7(),
     )
