@@ -82,13 +82,7 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 		[history],
 	);
 
-	const hasData = chartData.some(
-		(point) => point.completed > 0 || point.failed > 0,
-	);
-
-	if (!hasData) {
-		return null;
-	}
+	const hasFailedData = chartData.some((point) => point.failed > 0);
 
 	return (
 		/* Break out of card padding (px-6 = 1.5rem × 2) */
@@ -124,16 +118,18 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 							/>
 						</linearGradient>
 					</defs>
-					<Area
-						type="monotone"
-						dataKey="failed"
-						stroke="var(--color-failed)"
-						strokeWidth={2}
-						activeDot={false}
-						fill="url(#failedGradient)"
-						dot={false}
-						isAnimationActive={false}
-					/>
+					{hasFailedData && (
+						<Area
+							type="monotone"
+							dataKey="failed"
+							stroke="var(--color-failed)"
+							strokeWidth={2}
+							activeDot={false}
+							fill="url(#failedGradient)"
+							dot={false}
+							isAnimationActive={false}
+						/>
+					)}
 					<Area
 						type="monotone"
 						dataKey="completed"

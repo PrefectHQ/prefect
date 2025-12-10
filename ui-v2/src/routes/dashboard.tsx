@@ -10,6 +10,7 @@ import {
 	buildFilterFlowRunsQuery,
 	type FlowRunsCountFilter,
 	type FlowRunsFilter,
+	toFlowRunsCountFilter,
 } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import {
@@ -475,6 +476,31 @@ export const Route = createFileRoute("/dashboard")({
 		void queryClient.prefetchQuery(
 			buildTaskRunsHistoryQuery(taskRunsHistoryFilter, 30_000),
 		);
+
+		// Convert to count filter (without sort/limit/offset) for count queries
+		const countFilter = toFlowRunsCountFilter(baseFilter);
+
+		// Prefetch total count using the count API (used by FlowRunsCard for total display)
+		void queryClient.prefetchQuery(
+			buildCountFlowRunsQuery(countFilter, 30_000),
+		);
+
+		// Prefetch counts for each state type group (used by FlowRunStateTabs)
+		STATE_TYPE_GROUPS.forEach((stateTypes) => {
+			void queryClient.prefetchQuery(
+				buildCountFlowRunsQuery(
+					{
+						...countFilter,
+						flow_runs: {
+							...countFilter.flow_runs,
+							operator: countFilter.flow_runs?.operator ?? "and_",
+							state: { operator: "and_", type: { any_: [...stateTypes] } },
+						},
+					},
+					30_000,
+				),
+			);
+		});
 
 		// Prefetch flow runs for each state type group to minimize loading when switching tabs
 		// Also prefetch task run counts for the first 3 runs of each state type (used by FlowRunCard)
