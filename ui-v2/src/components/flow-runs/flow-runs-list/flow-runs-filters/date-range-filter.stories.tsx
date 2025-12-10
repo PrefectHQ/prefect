@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-import { DateRangeFilter, type DateRangeUrlState } from "./date-range-filter";
+import { DateRangeFilter } from "./date-range-filter";
+import type { DateRangeUrlState } from "./date-range-url-state";
 
 const meta: Meta<typeof DateRangeFilter> = {
 	title: "Components/FlowRuns/DateRangeFilter",
