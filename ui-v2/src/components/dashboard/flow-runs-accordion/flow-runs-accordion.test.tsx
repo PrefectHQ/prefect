@@ -600,6 +600,8 @@ describe("FlowRunsAccordionContent", () => {
 		});
 
 		expect(screen.getByText("1 Parameter")).toBeInTheDocument();
-		expect(screen.getByText("5 Task runs")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getByText("5 Task runs")).toBeInTheDocument();
+		});
 	});
 });
