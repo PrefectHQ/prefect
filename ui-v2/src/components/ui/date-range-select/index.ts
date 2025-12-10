@@ -1,3 +1,8 @@
+export {
+	type DateRangeWithTimeSpan,
+	getMultiplierForUnit,
+	mapValueToRange,
+} from "./date-range-utils";
 export type {
 	DateRangeSelectAroundUnit,
 	DateRangeSelectAroundValue,
@@ -9,8 +14,3 @@ export type {
 	RichDateRangeSelectorProps,
 } from "./rich-date-range-selector";
 export { RichDateRangeSelector } from "./rich-date-range-selector";
-export {
-	mapValueToRange,
-	getMultiplierForUnit,
-	type DateRangeWithTimeSpan,
-} from "./date-range-utils";
