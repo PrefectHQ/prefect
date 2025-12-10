@@ -121,7 +121,9 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 		: undefined;
 
 	// Build flows filter for filtering by flow_id
-	const flowsFilterBody = flowIds ? { id: { any_: flowIds } } : undefined;
+	const flowsFilterBody = flowIds
+		? { operator: "and_" as const, id: { any_: flowIds } }
+		: undefined;
 
 	return {
 		page: search?.page ?? 1,
