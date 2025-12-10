@@ -17,7 +17,6 @@ import pluggy
 PREFECT_PLUGIN_API_VERSION = "0.1"
 
 hookspec = pluggy.HookspecMarker("prefect-experimental")
-hookimpl = pluggy.HookimplMarker("prefect-experimental")
 
 
 @dataclass

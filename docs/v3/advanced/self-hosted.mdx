@@ -103,28 +103,24 @@ PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLi
 
 To use AWS IAM authentication for your PostgreSQL database (experimental):
 
-1. **Enable experimental plugins**:
-   ```bash
-   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=1
-   ```
-
-2. **Install the AWS integration**:
+1. **Install the AWS integration**:
    ```bash
    pip install prefect-aws
    ```
 
-3. **Configure IAM settings**:
+2. **Create an IAM policy** with `rds-db:connect` permission and attach it to your IAM user/role.
+
+3. **Enable experimental plugins and IAM authentication**:
    ```bash
-   export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_IAM_ENABLED=1
-   # Optional: Specify region if different from environment default
-   # export PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_IAM_REGION_NAME=us-east-1
+   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true
+   export PREFECT_INTEGRATIONS_AWS_RDS_IAM_ENABLED=true
+   # Optional: export PREFECT_INTEGRATIONS_AWS_RDS_IAM_REGION_NAME=us-east-1
    ```
 
-4. **Ensure your connection URL uses the correct IAM-enabled username**:
+4. **Configure your connection URL**:
    ```bash
    export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@host:5432/prefect"
    ```
-   *Note: The password in the URL will be ignored and replaced by the generated IAM token.*
 
 ### Redis setup
 

@@ -7,13 +7,14 @@ import boto3
 import sqlalchemy as sa
 
 from prefect._experimental.plugins import register_hook
+from prefect_aws.settings import AwsSettings
 
 
 @register_hook
 def set_database_connection_params(
     connection_url: str, settings: Any
 ) -> Mapping[str, Any]:
-    iam_settings = settings.server.database.sqlalchemy.connect_args.iam
+    iam_settings = AwsSettings().rds.iam
 
     if not iam_settings.enabled:
         return {}

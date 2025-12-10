@@ -80,10 +80,7 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
             "host",
             "user",
             "name",
-            "password",
         ]
-        if settings.server.database.sqlalchemy.connect_args.iam.enabled:
-            required.remove("password")
         missing = [
             attr for attr in required if getattr(settings.server.database, attr) is None
         ]
