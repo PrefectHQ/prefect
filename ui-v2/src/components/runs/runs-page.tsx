@@ -8,6 +8,7 @@ import {
 	FlowRunsRowCount,
 	type PaginationState,
 	type SortFilters,
+	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { DocsLink } from "@/components/ui/docs-link";
@@ -56,6 +57,9 @@ export const RunsPage = ({
 }: RunsPageProps) => {
 	const isEmpty = flowRunsCount === 0 && taskRunsCount === 0;
 
+	const [selectedRows, setSelectedRows, { onSelectRow }] =
+		useFlowRunsSelectedRows();
+
 	const flowIds = [...new Set(flowRuns.map((flowRun) => flowRun.flow_id))];
 
 	const { data: flows } = useQuery(
@@ -97,7 +101,12 @@ export const RunsPage = ({
 				<TabsContent value="flow-runs">
 					<div className="flex flex-col gap-4">
 						<div className="flex items-center justify-between">
-							<FlowRunsRowCount count={flowRunsCount} />
+							<FlowRunsRowCount
+								count={flowRunsCount}
+								results={flowRunsWithFlows}
+								selectedRows={selectedRows}
+								setSelectedRows={setSelectedRows}
+							/>
 							<div className="flex items-center gap-4">
 								<div className="flex items-center gap-2">
 									<Switch
@@ -117,7 +126,11 @@ export const RunsPage = ({
 							onChangePagination={onPaginationChange}
 							onPrefetchPage={onPrefetchPage}
 						/>
-						<FlowRunsList flowRuns={flowRunsWithFlows} />
+						<FlowRunsList
+							flowRuns={flowRunsWithFlows}
+							selectedRows={selectedRows}
+							onSelect={onSelectRow}
+						/>
 					</div>
 				</TabsContent>
 				<TabsContent value="task-runs">
