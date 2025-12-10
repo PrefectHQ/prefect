@@ -248,7 +248,7 @@ function getMultiplierForUnit(unit: DateRangeSelectAroundUnit): number {
 			return secondsInDay;
 	}
 }
-function mapValueToRange(
+export function mapValueToRange(
 	source: DateRangeSelectValue,
 ): DateRangeWithTimeSpan | null {
 	if (!source) return null;

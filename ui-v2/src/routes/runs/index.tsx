@@ -17,13 +17,17 @@ import {
 	buildGetFlowRunsTaskRunsCountQuery,
 } from "@/api/task-runs";
 import {
+	DATE_RANGE_PRESETS,
+	type DateRangeUrlState,
 	FLOW_RUN_STATES,
 	type FlowRunState,
 	type PaginationState,
 	SORT_FILTERS,
 	type SortFilters,
+	urlStateToDateRangeValue,
 } from "@/components/flow-runs/flow-runs-list";
 import { RunsPage } from "@/components/runs/runs-page";
+import { mapValueToRange } from "@/components/ui/date-range-select";
 
 const searchParams = z.object({
 	tab: z.enum(["flow-runs", "task-runs"]).optional().default("flow-runs"),
@@ -33,6 +37,9 @@ const searchParams = z.object({
 	"hide-subflows": z.boolean().optional().default(false),
 	"flow-run-search": z.string().optional().default(""),
 	state: z.string().optional().default(""),
+	range: z.enum(DATE_RANGE_PRESETS).optional(),
+	start: z.string().optional(),
+	end: z.string().optional(),
 });
 
 type SearchParams = z.infer<typeof searchParams>;
@@ -47,16 +54,42 @@ const parseStateFilter = (stateString: string): FlowRunState[] => {
 		);
 };
 
+// Helper to get date range from search params
+const getDateRangeFilter = (
+	search?: SearchParams,
+): { after_?: string; before_?: string } | undefined => {
+	if (!search) return undefined;
+
+	const dateRangeUrlState: DateRangeUrlState = {
+		range: search.range,
+		start: search.start,
+		end: search.end,
+	};
+
+	const dateRangeValue = urlStateToDateRangeValue(dateRangeUrlState);
+	if (!dateRangeValue) return undefined;
+
+	const range = mapValueToRange(dateRangeValue);
+	if (!range) return undefined;
+
+	return {
+		after_: range.startDate.toISOString(),
+		before_: range.endDate.toISOString(),
+	};
+};
+
 const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const hideSubflows = search?.["hide-subflows"];
 	const flowRunSearch = search?.["flow-run-search"];
 	const stateFilters = parseStateFilter(search?.state ?? "");
+	const dateRangeFilter = getDateRangeFilter(search);
 
 	// Map state names to state types for the API filter
 	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
 
 	// Build flow_runs filter only if we have filters to apply
-	const hasFilters = hideSubflows || flowRunSearch || stateNames;
+	const hasFilters =
+		hideSubflows || flowRunSearch || stateNames || dateRangeFilter;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
@@ -71,6 +104,9 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 						operator: "and_" as const,
 						name: { any_: stateNames },
 					},
+				}),
+				...(dateRangeFilter && {
+					expected_start_time: dateRangeFilter,
 				}),
 			}
 		: undefined;
@@ -251,6 +287,39 @@ const useStateFilter = () => {
 	return [selectedStates, onStateFilterChange] as const;
 };
 
+const useDateRange = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const dateRange: DateRangeUrlState = useMemo(
+		() => ({
+			range: search.range,
+			start: search.start,
+			end: search.end,
+		}),
+		[search.range, search.start, search.end],
+	);
+
+	const onDateRangeChange = useCallback(
+		(newDateRange: DateRangeUrlState) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					range: newDateRange.range,
+					start: newDateRange.start,
+					end: newDateRange.end,
+					page: 1, // Reset pagination when date range changes
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [dateRange, onDateRangeChange] as const;
+};
+
 function RouteComponent() {
 	const queryClient = useQueryClient();
 	const search = Route.useSearch();
@@ -260,6 +329,7 @@ function RouteComponent() {
 	const [tab, onTabChange] = useTab();
 	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
 	const [selectedStates, onStateFilterChange] = useStateFilter();
+	const [dateRange, onDateRangeChange] = useDateRange();
 
 	// Use useSuspenseQueries for count queries (stable keys, won't cause suspense on search change)
 	const [{ data: flowRunsCount }, { data: taskRunsCount }] = useSuspenseQueries(
@@ -328,6 +398,8 @@ function RouteComponent() {
 			onFlowRunSearchChange={onFlowRunSearchChange}
 			selectedStates={selectedStates}
 			onStateFilterChange={onStateFilterChange}
+			dateRange={dateRange}
+			onDateRangeChange={onDateRangeChange}
 		/>
 	);
 }
