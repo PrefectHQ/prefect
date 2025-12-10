@@ -631,19 +631,19 @@ async def update_work_queue(
     session.expunge(current_work_queue)
 
     if "is_paused" in update_values:
-        if (wq := await session.get(db.WorkQueue, work_queue_id)) is None:
-            return False
-
         # Only update the status to paused if it's not already paused. This ensures a work queue that is already
         # paused will not get a status update if it's paused again
-        if update_values.get("is_paused") and wq.status != WorkQueueStatus.PAUSED:
+        if (
+            update_values.get("is_paused")
+            and current_work_queue.status != WorkQueueStatus.PAUSED
+        ):
             update_values["status"] = WorkQueueStatus.PAUSED
 
         # If unpausing, only update status if it's currently paused. This ensures a work queue that is already
         # unpaused will not get a status update if it's unpaused again
         if (
             update_values.get("is_paused") is False
-            and wq.status == WorkQueueStatus.PAUSED
+            and current_work_queue.status == WorkQueueStatus.PAUSED
         ):
             # Default status if unpaused
             update_values["status"] = default_status
@@ -652,7 +652,7 @@ async def update_work_queue(
             if "last_polled" in update_values:
                 last_polled = update_values["last_polled"]
             else:
-                last_polled = wq.last_polled
+                last_polled = current_work_queue.last_polled
 
             # Check if last polled is recent and set status to READY if so
             if is_last_polled_recent(last_polled):

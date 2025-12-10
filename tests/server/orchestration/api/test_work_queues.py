@@ -328,11 +328,11 @@ class TestUpdateWorkQueue:
                 "prefect.resource.role": "work-queue",
             },
             payload={
-                "changed_fields": ["concurrency_limit"],
-                "changes": {
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
                     "concurrency_limit": {
-                        "old": None,
-                        "new": 3,
+                        "from": None,
+                        "to": 3,
                     }
                 },
             },
@@ -373,11 +373,11 @@ class TestUpdateWorkQueue:
                 "prefect.resource.role": "work-queue",
             },
             payload={
-                "changed_fields": ["concurrency_limit"],
-                "changes": {
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
                     "concurrency_limit": {
-                        "old": None,
-                        "new": 3,
+                        "from": None,
+                        "to": 3,
                     }
                 },
             },
@@ -625,11 +625,11 @@ class TestUpdateWorkQueue:
                 "prefect.resource.role": "work-queue",
             },
             payload={
-                "changed_fields": ["concurrency_limit"],
-                "changes": {
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
                     "concurrency_limit": {
-                        "old": None,
-                        "new": 10,
+                        "from": None,
+                        "to": 10,
                     }
                 },
             },
@@ -670,11 +670,11 @@ class TestUpdateWorkQueue:
                 "prefect.resource.role": "work-queue",
             },
             payload={
-                "changed_fields": ["description"],
-                "changes": {
+                "updated_fields": ["description"],
+                "updates": {
                     "description": {
-                        "old": original_description,
-                        "new": "Updated description",
+                        "from": original_description,
+                        "to": "Updated description",
                     }
                 },
             },
@@ -707,11 +707,11 @@ class TestUpdateWorkQueue:
                 "prefect.resource.role": "work-queue",
             },
             payload={
-                "changed_fields": ["priority"],
-                "changes": {
+                "updated_fields": ["priority"],
+                "updates": {
                     "priority": {
-                        "old": original_priority,
-                        "new": 5,
+                        "from": original_priority,
+                        "to": 5,
                     }
                 },
             },
@@ -746,15 +746,15 @@ class TestUpdateWorkQueue:
                 "prefect.resource.role": "work-queue",
             },
             payload={
-                "changed_fields": ["description", "concurrency_limit"],
-                "changes": {
+                "updated_fields": ["description", "concurrency_limit"],
+                "updates": {
                     "description": {
-                        "old": original_description,
-                        "new": "Multi update",
+                        "from": original_description,
+                        "to": "Multi update",
                     },
                     "concurrency_limit": {
-                        "old": original_concurrency_limit,
-                        "new": 20,
+                        "from": original_concurrency_limit,
+                        "to": 20,
                     },
                 },
             },
