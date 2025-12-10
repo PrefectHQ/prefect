@@ -1,10 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import type { components } from "@/api/prefect";
-import {
-	FlowRunStateTabs,
-	type StateTypeCounts,
-} from "./flow-runs-state-tabs";
+import { FlowRunStateTabs, type StateTypeCounts } from "./flow-runs-state-tabs";
 
 type StateType = components["schemas"]["StateType"];
 
@@ -68,7 +65,9 @@ export default {
 							{Object.values(stateCounts).reduce((a, b) => a + b, 0)}
 						</li>
 						<li>• Completed: {stateCounts.COMPLETED}</li>
-						<li>• Failed + Crashed: {stateCounts.FAILED + stateCounts.CRASHED}</li>
+						<li>
+							• Failed + Crashed: {stateCounts.FAILED + stateCounts.CRASHED}
+						</li>
 						<li>
 							• Running + Pending + Cancelling:{" "}
 							{stateCounts.RUNNING +
@@ -76,8 +75,7 @@ export default {
 								stateCounts.CANCELLING}
 						</li>
 						<li>
-							• Scheduled + Paused:{" "}
-							{stateCounts.SCHEDULED + stateCounts.PAUSED}
+							• Scheduled + Paused: {stateCounts.SCHEDULED + stateCounts.PAUSED}
 						</li>
 						<li>• Cancelled: {stateCounts.CANCELLED}</li>
 					</ul>
