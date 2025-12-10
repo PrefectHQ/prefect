@@ -102,13 +102,12 @@ async def cancel_subflow_run(
 
 # Perpetual monitor for cancelled flow runs with child tasks (find and flood pattern)
 @perpetual_service(
-    settings_getter=lambda: get_current_settings().server.services.cancellation_cleanup,
+    enabled_getter=lambda: get_current_settings().server.services.cancellation_cleanup.enabled,
 )
 async def monitor_cancelled_flow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
         every=datetime.timedelta(
             seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds
         ),
@@ -138,13 +137,12 @@ async def monitor_cancelled_flow_runs(
 
 # Perpetual monitor for subflow runs that need cancellation (find and flood pattern)
 @perpetual_service(
-    settings_getter=lambda: get_current_settings().server.services.cancellation_cleanup,
+    enabled_getter=lambda: get_current_settings().server.services.cancellation_cleanup.enabled,
 )
 async def monitor_subflow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
         every=datetime.timedelta(
             seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds
         ),
