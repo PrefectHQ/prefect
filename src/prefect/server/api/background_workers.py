@@ -14,6 +14,7 @@ from prefect.server.services.cancellation_cleanup import (
     cancel_child_task_runs,
     cancel_subflow_run,
 )
+from prefect.server.services.pause_expirations import fail_expired_pause
 from prefect.server.services.perpetual_services import (
     register_and_schedule_perpetual_services,
 )
@@ -28,6 +29,7 @@ task_functions: list[Callable[..., Any]] = [
     # Find-and-flood pattern tasks used by perpetual services
     cancel_child_task_runs,
     cancel_subflow_run,
+    fail_expired_pause,
 ]
 
 
