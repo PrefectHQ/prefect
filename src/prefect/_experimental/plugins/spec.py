@@ -86,11 +86,11 @@ class HookSpec:
         """
 
     @hookspec
-    def get_database_connection_params(
+    def set_database_connection_params(
         self, connection_url: str, settings: Any
     ) -> Mapping[str, Any]:
         """
-        Get additional database connection parameters.
+        Set additional database connection parameters.
 
         This hook is called when creating a database engine. It allows plugins
         to provide additional connection parameters, such as authentication

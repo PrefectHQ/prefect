@@ -288,10 +288,10 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                     logger=logging.getLogger("prefect.plugins"),
                 )
 
-                # Call get_database_connection_params hook
+                # Call set_database_connection_params hook
                 results = await call_async_hook(
                     pm,
-                    "get_database_connection_params",
+                    "set_database_connection_params",
                     connection_url=self.connection_url,
                     settings=get_current_settings(),
                 )
@@ -300,7 +300,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                     if error:
                         # Log error but don't fail, other plugins might succeed
                         logging.getLogger("prefect.server.database").warning(
-                            "Plugin failed to get database connection params: %s", error
+                            "Plugin failed to set database connection params: %s", error
                         )
                     elif params:
                         connect_args.update(params)
