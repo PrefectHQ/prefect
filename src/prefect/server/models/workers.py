@@ -693,8 +693,8 @@ async def update_work_queue(
 
             if old_value != new_value:
                 changed_fields[field] = {
-                    "old": old_value,
-                    "new": new_value,
+                    "from": old_value,
+                    "to": new_value,
                 }
 
         if changed_fields:
