@@ -3,7 +3,7 @@ import { cva } from "class-variance-authority";
 import { format, formatDistanceStrict } from "date-fns";
 import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { Bar, BarChart, Cell, type TooltipContentProps } from "recharts";
 import type { components } from "@/api/prefect";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -28,7 +28,6 @@ type CustomShapeProps = {
 	radius?: number[];
 	role?: string;
 	flowRun?: EnrichedFlowRun;
-	containerHeight?: number;
 };
 
 const barVariants = cva("gap-1 z-1", {
@@ -55,15 +54,16 @@ const CustomBar = (props: CustomShapeProps) => {
 	const minHeight = 8; // Minimum height for zero values
 	const {
 		x = 0,
+		y = 0,
 		width = 0,
 		height = minHeight,
 		radius = [0, 0, 0, 0],
 		role,
 		flowRun,
-		containerHeight = 32,
 	} = props;
 	const effectiveHeight = Math.max(height, minHeight);
-	const yPosition = containerHeight - effectiveHeight;
+	// Shift the bar up if we're inflating its height, so it still rests on the baseline
+	const yPosition = y + (height - effectiveHeight);
 
 	return (
 		<g role={role}>
@@ -72,7 +72,7 @@ const CustomBar = (props: CustomShapeProps) => {
 				x={x}
 				y={yPosition}
 				width={width}
-				height={Math.max(height, minHeight)}
+				height={effectiveHeight}
 				rx={radius[0]}
 				ry={radius[0]}
 				className={barVariants({ state: flowRun?.state_type })}
@@ -197,7 +197,6 @@ export const FlowRunActivityBarChart = ({
 	className,
 }: FlowRunActivityBarChartProps) => {
 	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
-	const containerRef = useRef<HTMLDivElement>(null);
 
 	// Cap flow runs to prevent crash when there are more runs than bars.
 	// The chart can only display one run per bar, so we take the first N runs
@@ -217,10 +216,9 @@ export const FlowRunActivityBarChart = ({
 		stateType: flowRun?.state_type,
 		flowRun,
 	}));
-	const containerHeight = containerRef.current?.getBoundingClientRect().height;
+
 	return (
 		<ChartContainer
-			ref={containerRef}
 			config={{
 				inactivity: {
 					color: "hsl(210 40% 45%)",
@@ -249,7 +247,7 @@ export const FlowRunActivityBarChart = ({
 				/>
 				<Bar
 					dataKey="value"
-					shape={<CustomBar containerHeight={containerHeight} />}
+					shape={<CustomBar />}
 					radius={[5, 5, 5, 5]}
 					onMouseEnter={() => setIsTooltipActive(true)}
 					onMouseLeave={() => setIsTooltipActive(undefined)}
