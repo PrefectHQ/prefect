@@ -77,10 +77,10 @@ describe("FlowRunsDataTable -- StateFilter", () => {
 
 		await user.keyboard("{Escape}");
 
-		// Assert
+		// Assert - MAX_FILTERS_DISPLAYED is 2, so we show 2 badges + "+ 3"
 		expect(
 			screen.getByRole("button", {
-				name: /timedout crashed failed running \+ 1/i,
+				name: /timedout crashed \+ 3/i,
 			}),
 		).toBeVisible();
 	});
