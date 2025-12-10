@@ -210,9 +210,9 @@ export const FlowRunActivityBarChart = ({
 		numberOfBars,
 	);
 
-	const data = buckets.map((flowRun) => ({
-		value: flowRun?.total_run_time,
-		id: flowRun?.id,
+	const data = buckets.map((flowRun, index) => ({
+		value: flowRun?.total_run_time ?? 0,
+		id: flowRun?.id ?? `empty-${index}`,
 		stateType: flowRun?.state_type,
 		flowRun,
 	}));
