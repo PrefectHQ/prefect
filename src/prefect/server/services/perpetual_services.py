@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeVar
 
 from docket import Docket, Perpetual
 
@@ -27,14 +27,26 @@ if TYPE_CHECKING:
 
 logger: logging.Logger = get_logger(__name__)
 
+# Type aliases for perpetual service functions and getters
+PerpetualServiceFunction = Callable[..., Awaitable[Any]]
+"""An async function that can be registered as a perpetual service."""
+
+SettingsGetter = Callable[[], "ServicesBaseSetting"]
+"""A callable that returns a service settings object with an `enabled` attribute."""
+
+EnabledGetter = Callable[[], bool]
+"""A callable that returns whether a service is enabled."""
+
+F = TypeVar("F", bound=PerpetualServiceFunction)
+
 
 @dataclass
 class PerpetualServiceConfig:
     """Configuration for a perpetual service function."""
 
-    function: Callable[..., None]
-    settings_getter: Callable[[], "ServicesBaseSetting"] | None
-    enabled_getter: Callable[[], bool] | None = None
+    function: PerpetualServiceFunction
+    settings_getter: SettingsGetter | None
+    enabled_getter: EnabledGetter | None = None
     run_in_ephemeral: bool = False
     run_in_webserver: bool = False
 
@@ -44,11 +56,11 @@ _PERPETUAL_SERVICES: list[PerpetualServiceConfig] = []
 
 
 def perpetual_service(
-    settings_getter: Callable[[], "ServicesBaseSetting"] | None = None,
-    enabled_getter: Callable[[], bool] | None = None,
+    settings_getter: SettingsGetter | None = None,
+    enabled_getter: EnabledGetter | None = None,
     run_in_ephemeral: bool = False,
     run_in_webserver: bool = False,
-) -> Callable[[Callable[..., None]], Callable[..., None]]:
+) -> Callable[[F], F]:
     """
     Decorator to register a perpetual service function.
 
@@ -80,7 +92,7 @@ def perpetual_service(
     if settings_getter is None and enabled_getter is None:
         raise ValueError("Either settings_getter or enabled_getter must be provided")
 
-    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+    def decorator(func: F) -> F:
         _PERPETUAL_SERVICES.append(
             PerpetualServiceConfig(
                 function=func,
