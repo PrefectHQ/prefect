@@ -40,7 +40,6 @@ def _known_service_modules() -> list[ModuleType]:
     from prefect.server.services import (
         foreman,
         late_runs,
-        pause_expirations,
         repossessor,
         scheduler,
         task_run_recorder,
@@ -51,7 +50,6 @@ def _known_service_modules() -> list[ModuleType]:
         # Orchestration services
         foreman,
         late_runs,
-        pause_expirations,
         repossessor,
         scheduler,
         task_run_recorder,

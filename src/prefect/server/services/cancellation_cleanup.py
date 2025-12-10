@@ -108,6 +108,7 @@ async def monitor_cancelled_flow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
+        automatic=False,
         every=datetime.timedelta(
             seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds
         ),
@@ -143,6 +144,7 @@ async def monitor_subflow_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
+        automatic=False,
         every=datetime.timedelta(
             seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds
         ),
