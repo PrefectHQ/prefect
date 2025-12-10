@@ -8773,6 +8773,11 @@ export interface components {
              */
             application_name?: string | null;
             /**
+             * Search Path
+             * @description PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend. Note: The public schema should be included in the search path (e.g. 'myschema, public') to ensure that pg_trgm and other extensions remain available.
+             */
+            search_path?: string | null;
+            /**
              * Statement Cache Size
              * @description Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
              */
@@ -9746,6 +9751,18 @@ export interface components {
              * @default 1
              */
             read_batch_size: number;
+            /**
+             * Batch Size
+             * @description The number of task runs the task run recorder will attempt to insert in one batch.
+             * @default 1
+             */
+            batch_size: number;
+            /**
+             * Flush Interval
+             * @description The maximum number of seconds between flushes of the task run recorder.
+             * @default 5
+             */
+            flush_interval: number;
         };
         /**
          * ServerServicesTriggersSettings
