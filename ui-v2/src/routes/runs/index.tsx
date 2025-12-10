@@ -17,6 +17,8 @@ import {
 	buildGetFlowRunsTaskRunsCountQuery,
 } from "@/api/task-runs";
 import {
+	FLOW_RUN_STATES,
+	type FlowRunState,
 	type PaginationState,
 	SORT_FILTERS,
 	type SortFilters,
@@ -30,16 +32,31 @@ const searchParams = z.object({
 	sort: z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
 	"hide-subflows": z.boolean().optional().default(false),
 	"flow-run-search": z.string().optional().default(""),
+	state: z.string().optional().default(""),
 });
 
 type SearchParams = z.infer<typeof searchParams>;
 
+// Helper to parse state string to array of FlowRunState
+const parseStateFilter = (stateString: string): FlowRunState[] => {
+	if (!stateString) return [];
+	return stateString
+		.split(",")
+		.filter((s): s is FlowRunState =>
+			FLOW_RUN_STATES.includes(s as FlowRunState),
+		);
+};
+
 const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const hideSubflows = search?.["hide-subflows"];
 	const flowRunSearch = search?.["flow-run-search"];
+	const stateFilters = parseStateFilter(search?.state ?? "");
+
+	// Map state names to state types for the API filter
+	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
 
 	// Build flow_runs filter only if we have filters to apply
-	const hasFilters = hideSubflows || flowRunSearch;
+	const hasFilters = hideSubflows || flowRunSearch || stateNames;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
@@ -48,6 +65,12 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 				}),
 				...(flowRunSearch && {
 					name: { like_: flowRunSearch },
+				}),
+				...(stateNames && {
+					state: {
+						operator: "and_" as const,
+						name: { any_: stateNames },
+					},
 				}),
 			}
 		: undefined;
@@ -200,6 +223,34 @@ const useFlowRunSearch = () => {
 	return [search["flow-run-search"], onFlowRunSearchChange] as const;
 };
 
+const useStateFilter = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const selectedStates = useMemo(
+		() => new Set<FlowRunState>(parseStateFilter(search.state ?? "")),
+		[search.state],
+	);
+
+	const onStateFilterChange = useCallback(
+		(states: Set<FlowRunState>) => {
+			const stateArray = Array.from(states);
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					state: stateArray.length > 0 ? stateArray.join(",") : "",
+					page: 1, // Reset pagination when filter changes
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [selectedStates, onStateFilterChange] as const;
+};
+
 function RouteComponent() {
 	const queryClient = useQueryClient();
 	const search = Route.useSearch();
@@ -208,6 +259,7 @@ function RouteComponent() {
 	const [hideSubflows, onHideSubflowsChange] = useHideSubflows();
 	const [tab, onTabChange] = useTab();
 	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
+	const [selectedStates, onStateFilterChange] = useStateFilter();
 
 	// Use useSuspenseQueries for count queries (stable keys, won't cause suspense on search change)
 	const [{ data: flowRunsCount }, { data: taskRunsCount }] = useSuspenseQueries(
@@ -274,6 +326,8 @@ function RouteComponent() {
 			onHideSubflowsChange={onHideSubflowsChange}
 			flowRunSearch={flowRunSearch}
 			onFlowRunSearchChange={onFlowRunSearchChange}
+			selectedStates={selectedStates}
+			onStateFilterChange={onStateFilterChange}
 		/>
 	);
 }

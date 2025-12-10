@@ -9,7 +9,11 @@ import {
 	routerDecorator,
 	toastDecorator,
 } from "@/storybook/utils";
-import type { PaginationState, SortFilters } from "../flow-runs/flow-runs-list";
+import type {
+	FlowRunState,
+	PaginationState,
+	SortFilters,
+} from "../flow-runs/flow-runs-list";
 import { RunsPage } from "./runs-page";
 
 const MOCK_FLOW_RUNS = [
@@ -73,12 +77,14 @@ const RunsPageWithState = ({
 	initialTaskRunsCount = 3,
 	initialPages = 1,
 	initialFlowRunSearch = "",
+	initialSelectedStates = new Set<FlowRunState>(),
 }: {
 	initialFlowRuns?: typeof MOCK_FLOW_RUNS;
 	initialFlowRunsCount?: number;
 	initialTaskRunsCount?: number;
 	initialPages?: number;
 	initialFlowRunSearch?: string;
+	initialSelectedStates?: Set<FlowRunState>;
 }) => {
 	const [tab, setTab] = useState<"flow-runs" | "task-runs">("flow-runs");
 	const [pagination, setPagination] = useState<PaginationState>({
@@ -88,6 +94,9 @@ const RunsPageWithState = ({
 	const [sort, setSort] = useState<SortFilters>("START_TIME_DESC");
 	const [hideSubflows, setHideSubflows] = useState(false);
 	const [flowRunSearch, setFlowRunSearch] = useState(initialFlowRunSearch);
+	const [selectedStates, setSelectedStates] = useState<Set<FlowRunState>>(
+		initialSelectedStates,
+	);
 
 	return (
 		<RunsPage
@@ -105,6 +114,8 @@ const RunsPageWithState = ({
 			onHideSubflowsChange={setHideSubflows}
 			flowRunSearch={flowRunSearch}
 			onFlowRunSearchChange={setFlowRunSearch}
+			selectedStates={selectedStates}
+			onStateFilterChange={setSelectedStates}
 		/>
 	);
 };
@@ -139,4 +150,13 @@ export const WithPagination: Story = {
 export const WithSearchValue: Story = {
 	name: "With Search Value",
 	render: () => <RunsPageWithState initialFlowRunSearch="test-flow" />,
+};
+
+export const WithStateFilter: Story = {
+	name: "With State Filter",
+	render: () => (
+		<RunsPageWithState
+			initialSelectedStates={new Set<FlowRunState>(["Completed", "Failed"])}
+		/>
+	),
 };
