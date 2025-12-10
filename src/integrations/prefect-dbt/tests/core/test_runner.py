@@ -777,28 +777,55 @@ class TestPrefectDbtRunnerManifestNodeOperations:
 
         assert result == []
 
-    def test_get_upstream_manifest_nodes_and_configs_handles_missing_relation_name(
+    def test_get_upstream_manifest_nodes_and_configs_skips_ephemeral_models(
         self, mock_manifest, mock_manifest_node
     ):
-        """Test that missing relation_name is handled gracefully."""
+        """Test that ephemeral models (which have relation_name=None) are skipped.
+
+        Ephemeral models in dbt are CTEs that get inlined into downstream models.
+        They don't create database objects, so relation_name is None by design.
+        The runner should skip these rather than raising an error.
+
+        See: https://github.com/PrefectHQ/prefect/issues/19706
+        """
         runner = PrefectDbtRunner(manifest=mock_manifest)
 
-        # Create a node without relation_name
-        upstream_node = Mock(spec=ManifestNode)
-        upstream_node.unique_id = "model.test_project.upstream_model"
-        upstream_node.config = Mock()
-        upstream_node.config.meta = {"prefect": {}}
-        upstream_node.config.materialized = "view"
-        upstream_node.relation_name = None
-        upstream_node.resource_type = NodeType.Model
-        upstream_node.depends_on_nodes = []
+        # Create an ephemeral model (relation_name=None is expected for ephemeral)
+        ephemeral_node = Mock(spec=ManifestNode)
+        ephemeral_node.unique_id = "model.test_project.ephemeral_staging"
+        ephemeral_node.config = Mock()
+        ephemeral_node.config.meta = {"prefect": {}}
+        ephemeral_node.config.materialized = "ephemeral"
+        ephemeral_node.relation_name = None  # Expected for ephemeral models
+        ephemeral_node.resource_type = NodeType.Model
+        ephemeral_node.depends_on_nodes = []
 
-        mock_manifest.nodes = {"model.test_project.upstream_model": upstream_node}
-        mock_manifest_node.depends_on_nodes = ["model.test_project.upstream_model"]
+        # Create a regular model with relation_name
+        regular_node = Mock(spec=ManifestNode)
+        regular_node.unique_id = "model.test_project.regular_model"
+        regular_node.config = Mock()
+        regular_node.config.meta = {"prefect": {}}
+        regular_node.config.materialized = "view"
+        regular_node.relation_name = "test_db.test_schema.regular_model"
+        regular_node.resource_type = NodeType.Model
+        regular_node.depends_on_nodes = []
 
-        # Should raise ValueError
-        with pytest.raises(ValueError, match="Relation name not found in manifest"):
-            runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+        mock_manifest.nodes = {
+            "model.test_project.ephemeral_staging": ephemeral_node,
+            "model.test_project.regular_model": regular_node,
+        }
+        # The main node depends on both an ephemeral and a regular model
+        mock_manifest_node.depends_on_nodes = [
+            "model.test_project.ephemeral_staging",
+            "model.test_project.regular_model",
+        ]
+
+        # Should NOT raise - ephemeral models should be skipped
+        result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+
+        # Only the regular model should be returned (ephemeral skipped)
+        assert len(result) == 1
+        assert result[0][0].unique_id == "model.test_project.regular_model"
 
     def test_get_upstream_manifest_nodes_and_configs_with_source_definition(
         self, mock_manifest, mock_manifest_node, mock_source_definition
@@ -881,7 +908,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
     def test_get_upstream_manifest_nodes_and_configs_source_definition_missing_relation_name(
         self, mock_manifest, mock_manifest_node, mock_source_definition
     ):
-        """Test that source definitions without relation_name raise an error."""
+        """Test that source definitions without relation_name are skipped."""
         runner = PrefectDbtRunner(manifest=mock_manifest)
 
         # Remove relation_name from source definition
@@ -891,8 +918,9 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         }
         mock_manifest_node.depends_on_nodes = ["source.test_project.test_source"]
 
-        with pytest.raises(ValueError, match="Relation name not found in manifest"):
-            runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+        # Should skip sources without relation_name rather than raising
+        result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+        assert result == []
 
 
 class TestPrefectDbtRunnerTaskCreation:
