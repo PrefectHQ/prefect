@@ -438,8 +438,8 @@ async def work_pool_updated_event(
             "prefect.resource.role": "work-pool",
         },
         payload={
-            "changed_fields": list(changed_fields.keys()),
-            "changes": changed_fields,
+            "updated_fields": list(changed_fields.keys()),
+            "updates": changed_fields,
         },
         id=uuid7(),
     )
