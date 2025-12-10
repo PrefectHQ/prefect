@@ -1,14 +1,14 @@
-import {
-	DateRangeFilter,
-	dateRangeValueToUrlState,
-	urlStateToDateRangeValue,
-	type DateRangeUrlState,
-} from "@/components/flow-runs/flow-runs-list";
-import type { DateRangeSelectValue } from "@/components/ui/date-range-select";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
+import {
+	DateRangeFilter,
+	type DateRangeUrlState,
+	dateRangeValueToUrlState,
+	urlStateToDateRangeValue,
+} from "@/components/flow-runs/flow-runs-list";
+import type { DateRangeSelectValue } from "@/components/ui/date-range-select";
 
 describe("Date Range Filter", () => {
 	describe("urlStateToDateRangeValue", () => {
@@ -132,13 +132,15 @@ describe("Date Range Filter", () => {
 			expect(result.start).toBeDefined();
 			expect(result.end).toBeDefined();
 			// The start should be 1 day before the date
-			expect(new Date(result.start!).getTime()).toBe(
-				date.getTime() - 86400 * 1000,
-			);
-			// The end should be 1 day after the date
-			expect(new Date(result.end!).getTime()).toBe(
-				date.getTime() + 86400 * 1000,
-			);
+			if (result.start && result.end) {
+				expect(new Date(result.start).getTime()).toBe(
+					date.getTime() - 86400 * 1000,
+				);
+				// The end should be 1 day after the date
+				expect(new Date(result.end).getTime()).toBe(
+					date.getTime() + 86400 * 1000,
+				);
+			}
 		});
 
 		it("should convert non-standard span to start/end dates", () => {
@@ -155,20 +157,18 @@ describe("Date Range Filter", () => {
 	describe("DateRangeFilter component", () => {
 		it("should render with placeholder when no value is set", () => {
 			const onValueChange = vi.fn();
-			render(
-				<DateRangeFilter value={{}} onValueChange={onValueChange} />,
-				{ wrapper: createWrapper() },
-			);
+			render(<DateRangeFilter value={{}} onValueChange={onValueChange} />, {
+				wrapper: createWrapper(),
+			});
 			expect(screen.getByText("All time")).toBeVisible();
 		});
 
 		it("should call onValueChange when a preset is selected", async () => {
 			const user = userEvent.setup();
 			const onValueChange = vi.fn();
-			render(
-				<DateRangeFilter value={{}} onValueChange={onValueChange} />,
-				{ wrapper: createWrapper() },
-			);
+			render(<DateRangeFilter value={{}} onValueChange={onValueChange} />, {
+				wrapper: createWrapper(),
+			});
 
 			// Click to open the dropdown
 			await user.click(screen.getByText("All time"));
