@@ -282,8 +282,8 @@ async def update_work_pool(
             # Compare values (handle different types)
             if old_value != new_value:
                 changed_fields[field] = {
-                    "old": old_value,
-                    "new": new_value,
+                    "from": old_value,
+                    "to": new_value,
                 }
 
         # Emit event for non-status field changes
