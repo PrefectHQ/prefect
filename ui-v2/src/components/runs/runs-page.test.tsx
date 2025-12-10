@@ -17,6 +17,49 @@ const renderRunsPage = async () => {
 	return result;
 };
 
+const setupFlowRunsHandlers = (
+	flowRuns = [
+		{
+			id: "1",
+			name: "test-flow-run-1",
+			flow_id: "flow-1",
+			state: { type: "COMPLETED", name: "Completed" },
+			tags: [],
+		},
+		{
+			id: "2",
+			name: "test-flow-run-2",
+			flow_id: "flow-1",
+			state: { type: "RUNNING", name: "Running" },
+			tags: [],
+		},
+	],
+) => {
+	server.use(
+		http.post(buildApiUrl("/flow_runs/count"), () => {
+			return HttpResponse.json(flowRuns.length);
+		}),
+		http.post(buildApiUrl("/flow_runs/paginate"), () => {
+			return HttpResponse.json({
+				results: flowRuns,
+				count: flowRuns.length,
+				pages: 1,
+				page: 1,
+				limit: 10,
+			});
+		}),
+		http.post(buildApiUrl("/flows/filter"), () => {
+			return HttpResponse.json([{ id: "flow-1", name: "Test Flow", tags: [] }]);
+		}),
+		http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+			return HttpResponse.json({ "1": 0, "2": 0 });
+		}),
+		http.delete(buildApiUrl("/flow_runs/:id"), () => {
+			return new HttpResponse(null, { status: 204 });
+		}),
+	);
+};
+
 describe("Runs page", () => {
 	it("should render with empty state when no flow runs or task runs exist", async () => {
 		await renderRunsPage();
@@ -149,6 +192,106 @@ describe("Runs page", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Task Runs tab coming soon")).toBeVisible();
+		});
+	});
+
+	describe("Row selection", () => {
+		it("should show select-all checkbox when flow runs exist", async () => {
+			setupFlowRunsHandlers();
+			await renderRunsPage();
+
+			await waitFor(() => {
+				expect(
+					screen.getByRole("checkbox", { name: "Toggle all" }),
+				).toBeVisible();
+			});
+		});
+
+		it("should select individual flow run when checkbox is clicked", async () => {
+			const user = userEvent.setup();
+			setupFlowRunsHandlers();
+			await renderRunsPage();
+
+			await waitFor(() => {
+				expect(screen.getByText("test-flow-run-1")).toBeVisible();
+			});
+
+			// Find and click the first flow run's checkbox
+			const checkboxes = screen.getAllByRole("checkbox");
+			// First checkbox is the "Toggle all", subsequent ones are for individual rows
+			const firstRowCheckbox = checkboxes[1];
+			await user.click(firstRowCheckbox);
+
+			await waitFor(() => {
+				expect(screen.getByText("1 selected")).toBeVisible();
+			});
+		});
+
+		it("should show delete button when rows are selected", async () => {
+			const user = userEvent.setup();
+			setupFlowRunsHandlers();
+			await renderRunsPage();
+
+			await waitFor(() => {
+				expect(screen.getByText("test-flow-run-1")).toBeVisible();
+			});
+
+			const checkboxes = screen.getAllByRole("checkbox");
+			await user.click(checkboxes[1]);
+
+			await waitFor(() => {
+				expect(
+					screen.getByRole("button", { name: "Delete rows" }),
+				).toBeVisible();
+			});
+		});
+
+		it("should select all rows when toggle all checkbox is clicked", async () => {
+			const user = userEvent.setup();
+			setupFlowRunsHandlers();
+			await renderRunsPage();
+
+			await waitFor(() => {
+				expect(
+					screen.getByRole("checkbox", { name: "Toggle all" }),
+				).toBeVisible();
+			});
+
+			await user.click(screen.getByRole("checkbox", { name: "Toggle all" }));
+
+			await waitFor(() => {
+				expect(screen.getByText("2 selected")).toBeVisible();
+			});
+		});
+
+		it("should show confirmation dialog when delete button is clicked", async () => {
+			const user = userEvent.setup();
+			setupFlowRunsHandlers();
+			await renderRunsPage();
+
+			await waitFor(() => {
+				expect(screen.getByText("test-flow-run-1")).toBeVisible();
+			});
+
+			const checkboxes = screen.getAllByRole("checkbox");
+			await user.click(checkboxes[1]);
+
+			await waitFor(() => {
+				expect(
+					screen.getByRole("button", { name: "Delete rows" }),
+				).toBeVisible();
+			});
+
+			await user.click(screen.getByRole("button", { name: "Delete rows" }));
+
+			await waitFor(() => {
+				expect(screen.getByText("Delete Flow Runs")).toBeVisible();
+				expect(
+					screen.getByText(
+						"Are you sure you want to delete selected flow runs?",
+					),
+				).toBeVisible();
+			});
 		});
 	});
 });
