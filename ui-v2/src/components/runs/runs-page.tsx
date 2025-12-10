@@ -19,6 +19,7 @@ import {
 	EmptyStateIcon,
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
+import { SearchInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,6 +39,8 @@ type RunsPageProps = {
 	onSortChange: (sort: SortFilters) => void;
 	hideSubflows: boolean;
 	onHideSubflowsChange: (hideSubflows: boolean) => void;
+	flowRunSearch: string;
+	onFlowRunSearchChange: (search: string) => void;
 };
 
 export const RunsPage = ({
@@ -54,6 +57,8 @@ export const RunsPage = ({
 	onSortChange,
 	hideSubflows,
 	onHideSubflowsChange,
+	flowRunSearch,
+	onFlowRunSearchChange,
 }: RunsPageProps) => {
 	const isEmpty = flowRunsCount === 0 && taskRunsCount === 0;
 
@@ -116,6 +121,14 @@ export const RunsPage = ({
 									/>
 									<Label htmlFor="hide-subflows">Hide subflows</Label>
 								</div>
+								<SearchInput
+									value={flowRunSearch}
+									onChange={(e) => onFlowRunSearchChange(e.target.value)}
+									placeholder="Search by flow run name"
+									aria-label="Search by flow run name"
+									className="w-64"
+									debounceMs={1200}
+								/>
 								<SortFilter value={sort} onSelect={onSortChange} />
 							</div>
 						</div>

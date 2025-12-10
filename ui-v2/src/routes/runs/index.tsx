@@ -25,23 +25,36 @@ const searchParams = z.object({
 	limit: z.number().int().positive().optional().default(10).catch(10),
 	sort: z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
 	"hide-subflows": z.boolean().optional().default(false),
+	"flow-run-search": z.string().optional().default(""),
 });
 
 type SearchParams = z.infer<typeof searchParams>;
 
-const buildPaginationBody = (
-	search?: SearchParams,
-): FlowRunsPaginateFilter => ({
-	page: search?.page ?? 1,
-	limit: search?.limit ?? 10,
-	sort: search?.sort ?? "START_TIME_DESC",
-	flow_runs: search?.["hide-subflows"]
+const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
+	const hideSubflows = search?.["hide-subflows"];
+	const flowRunSearch = search?.["flow-run-search"];
+
+	// Build flow_runs filter only if we have filters to apply
+	const hasFilters = hideSubflows || flowRunSearch;
+	const flowRunsFilter = hasFilters
 		? {
-				operator: "and_",
-				parent_task_run_id: { operator: "and_", is_null_: true },
+				operator: "and_" as const,
+				...(hideSubflows && {
+					parent_task_run_id: { operator: "and_" as const, is_null_: true },
+				}),
+				...(flowRunSearch && {
+					name: { like_: flowRunSearch },
+				}),
 			}
-		: undefined,
-});
+		: undefined;
+
+	return {
+		page: search?.page ?? 1,
+		limit: search?.limit ?? 10,
+		sort: search?.sort ?? "START_TIME_DESC",
+		flow_runs: flowRunsFilter,
+	};
+};
 
 export const Route = createFileRoute("/runs/")({
 	validateSearch: zodValidator(searchParams),
@@ -161,6 +174,28 @@ const useTab = () => {
 	return [search.tab, onTabChange] as const;
 };
 
+const useFlowRunSearch = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onFlowRunSearchChange = useCallback(
+		(flowRunSearch: string) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"flow-run-search": flowRunSearch,
+					page: 1, // Reset pagination when search changes
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search["flow-run-search"], onFlowRunSearchChange] as const;
+};
+
 function RouteComponent() {
 	const queryClient = useQueryClient();
 	const search = Route.useSearch();
@@ -168,6 +203,7 @@ function RouteComponent() {
 	const [sort, onSortChange] = useSort();
 	const [hideSubflows, onHideSubflowsChange] = useHideSubflows();
 	const [tab, onTabChange] = useTab();
+	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
 
 	const [
 		{ data: flowRunsCount },
@@ -231,6 +267,8 @@ function RouteComponent() {
 			onSortChange={onSortChange}
 			hideSubflows={hideSubflows}
 			onHideSubflowsChange={onHideSubflowsChange}
+			flowRunSearch={flowRunSearch}
+			onFlowRunSearchChange={onFlowRunSearchChange}
 		/>
 	);
 }

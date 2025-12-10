@@ -195,6 +195,47 @@ describe("Runs page", () => {
 		});
 	});
 
+	describe("Search functionality", () => {
+		it("should render search input when flow runs exist", async () => {
+			setupFlowRunsHandlers();
+			await renderRunsPage();
+
+			await waitFor(() => {
+				expect(
+					screen.getByPlaceholderText("Search by flow run name"),
+				).toBeVisible();
+			});
+		});
+
+		it("should allow typing in search input", async () => {
+			const user = userEvent.setup();
+			setupFlowRunsHandlers();
+			await renderRunsPage();
+
+			await waitFor(() => {
+				expect(
+					screen.getByPlaceholderText("Search by flow run name"),
+				).toBeVisible();
+			});
+
+			const searchInput = screen.getByPlaceholderText("Search by flow run name");
+			await user.type(searchInput, "test-search");
+
+			expect(searchInput).toHaveValue("test-search");
+		});
+
+		it("should have correct aria-label for accessibility", async () => {
+			setupFlowRunsHandlers();
+			await renderRunsPage();
+
+			await waitFor(() => {
+				expect(
+					screen.getByLabelText("Search by flow run name"),
+				).toBeVisible();
+			});
+		});
+	});
+
 	describe("Row selection", () => {
 		it("should show select-all checkbox when flow runs exist", async () => {
 			setupFlowRunsHandlers();
