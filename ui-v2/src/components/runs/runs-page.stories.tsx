@@ -72,11 +72,13 @@ const RunsPageWithState = ({
 	initialFlowRunsCount = 5,
 	initialTaskRunsCount = 3,
 	initialPages = 1,
+	initialFlowRunSearch = "",
 }: {
 	initialFlowRuns?: typeof MOCK_FLOW_RUNS;
 	initialFlowRunsCount?: number;
 	initialTaskRunsCount?: number;
 	initialPages?: number;
+	initialFlowRunSearch?: string;
 }) => {
 	const [tab, setTab] = useState<"flow-runs" | "task-runs">("flow-runs");
 	const [pagination, setPagination] = useState<PaginationState>({
@@ -85,6 +87,7 @@ const RunsPageWithState = ({
 	});
 	const [sort, setSort] = useState<SortFilters>("START_TIME_DESC");
 	const [hideSubflows, setHideSubflows] = useState(false);
+	const [flowRunSearch, setFlowRunSearch] = useState(initialFlowRunSearch);
 
 	return (
 		<RunsPage
@@ -100,6 +103,8 @@ const RunsPageWithState = ({
 			onSortChange={setSort}
 			hideSubflows={hideSubflows}
 			onHideSubflowsChange={setHideSubflows}
+			flowRunSearch={flowRunSearch}
+			onFlowRunSearchChange={setFlowRunSearch}
 		/>
 	);
 };
@@ -129,4 +134,9 @@ export const WithPagination: Story = {
 			initialPages={5}
 		/>
 	),
+};
+
+export const WithSearchValue: Story = {
+	name: "With Search Value",
+	render: () => <RunsPageWithState initialFlowRunSearch="test-flow" />,
 };
