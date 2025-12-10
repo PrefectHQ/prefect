@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import type { components } from "@/api/prefect";
-import { createFakeFlowRun } from "@/mocks";
-import { FlowRunStateTabs } from "./flow-runs-state-tabs";
+import { FlowRunStateTabs, type StateTypeCounts } from "./flow-runs-state-tabs";
 
 type StateType = components["schemas"]["StateType"];
 
@@ -16,25 +15,18 @@ export default {
 			"CRASHED",
 		]);
 
-		// Create sample flow runs with different states
-		const flowRuns = [
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "COMPLETED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "FAILED" }),
-			createFakeFlowRun({ state_type: "RUNNING" }),
-			createFakeFlowRun({ state_type: "RUNNING" }),
-			createFakeFlowRun({ state_type: "RUNNING" }),
-			createFakeFlowRun({ state_type: "RUNNING" }),
-			createFakeFlowRun({ state_type: "SCHEDULED" }),
-			createFakeFlowRun({ state_type: "CANCELLED" }),
-		];
-
-		// Filter flow runs based on selected states
-		const filteredFlowRuns = flowRuns.filter((run) =>
-			selectedStates.includes(run.state_type as StateType),
-		);
+		// Create sample state counts (simulating what would come from the count API)
+		const stateCounts: StateTypeCounts = {
+			COMPLETED: 3,
+			FAILED: 2,
+			CRASHED: 0,
+			RUNNING: 4,
+			PENDING: 0,
+			CANCELLING: 0,
+			SCHEDULED: 1,
+			PAUSED: 0,
+			CANCELLED: 1,
+		};
 
 		const handleStateChange = (states: StateType[]) => {
 			setSelectedStates(states);
@@ -53,58 +45,39 @@ export default {
 				</div>
 
 				<FlowRunStateTabs
-					flowRuns={flowRuns}
+					stateCounts={stateCounts}
 					selectedStates={selectedStates}
 					onStateChange={handleStateChange}
 				/>
 
 				<div className="border rounded-lg p-4">
-					<h3 className="text-sm font-medium mb-2">
-						Filtered Flow Runs ({filteredFlowRuns.length})
-					</h3>
+					<h3 className="text-sm font-medium mb-2">Selected States</h3>
 					<div className="text-xs text-muted-foreground">
 						Selected states: <strong>{selectedStates.join(", ")}</strong>
-					</div>
-					<div className="mt-4 space-y-2">
-						{filteredFlowRuns.map((run) => (
-							<div
-								key={run.id}
-								className="flex items-center gap-2 text-sm border-b pb-2"
-							>
-								<span className="font-mono text-xs text-muted-foreground">
-									{run.name}
-								</span>
-								<span className="text-xs">→</span>
-								<span className="text-xs">{run.state_type}</span>
-							</div>
-						))}
 					</div>
 				</div>
 
 				<div className="border rounded-lg p-4 bg-muted/50">
 					<h3 className="text-sm font-semibold mb-2">Component Details</h3>
 					<ul className="text-xs space-y-1 text-muted-foreground">
-						<li>• Total flow runs: {flowRuns.length}</li>
 						<li>
-							• Completed:{" "}
-							{flowRuns.filter((r) => r.state_type === "COMPLETED").length}
+							• Total flow runs:{" "}
+							{Object.values(stateCounts).reduce((a, b) => a + b, 0)}
+						</li>
+						<li>• Completed: {stateCounts.COMPLETED}</li>
+						<li>
+							• Failed + Crashed: {stateCounts.FAILED + stateCounts.CRASHED}
 						</li>
 						<li>
-							• Failed:{" "}
-							{flowRuns.filter((r) => r.state_type === "FAILED").length}
+							• Running + Pending + Cancelling:{" "}
+							{stateCounts.RUNNING +
+								stateCounts.PENDING +
+								stateCounts.CANCELLING}
 						</li>
 						<li>
-							• Running:{" "}
-							{flowRuns.filter((r) => r.state_type === "RUNNING").length}
+							• Scheduled + Paused: {stateCounts.SCHEDULED + stateCounts.PAUSED}
 						</li>
-						<li>
-							• Scheduled:{" "}
-							{flowRuns.filter((r) => r.state_type === "SCHEDULED").length}
-						</li>
-						<li>
-							• Cancelled:{" "}
-							{flowRuns.filter((r) => r.state_type === "CANCELLED").length}
-						</li>
+						<li>• Cancelled: {stateCounts.CANCELLED}</li>
 					</ul>
 				</div>
 			</div>
