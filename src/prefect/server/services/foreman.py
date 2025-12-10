@@ -19,13 +19,6 @@ from prefect.server.schemas.statuses import (
     WorkPoolStatus,
 )
 from prefect.server.services.perpetual_services import perpetual_service
-from prefect.settings import (
-    PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS,
-    PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS,
-    PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE,
-    PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS,
-    PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS,
-)
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
@@ -176,20 +169,24 @@ async def monitor_worker_health(
     docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(
         automatic=False,
-        every=timedelta(seconds=PREFECT_API_SERVICES_FOREMAN_LOOP_SECONDS.value()),
+        every=timedelta(
+            seconds=get_current_settings().server.services.foreman.loop_seconds
+        ),
     ),
 ) -> None:
     """Monitor worker and work pool health, scheduling monitoring tasks."""
 
-    # Schedule all foreman monitoring tasks in parallel
+    settings = get_current_settings().server.services.foreman
+
+    # Schedule all foreman monitoring tasks
     await docket.add(mark_workers_offline)(
-        PREFECT_API_SERVICES_FOREMAN_INACTIVITY_HEARTBEAT_MULTIPLE.value(),
-        PREFECT_API_SERVICES_FOREMAN_FALLBACK_HEARTBEAT_INTERVAL_SECONDS.value(),
+        settings.inactivity_heartbeat_multiple,
+        settings.fallback_heartbeat_interval_seconds,
     )
     await docket.add(mark_work_pools_not_ready)()
     await docket.add(mark_deployments_not_ready_task)(
-        PREFECT_API_SERVICES_FOREMAN_DEPLOYMENT_LAST_POLLED_TIMEOUT_SECONDS.value(),
+        settings.deployment_last_polled_timeout_seconds,
     )
     await docket.add(mark_work_queues_not_ready_task)(
-        PREFECT_API_SERVICES_FOREMAN_WORK_QUEUE_LAST_POLLED_TIMEOUT_SECONDS.value(),
+        settings.work_queue_last_polled_timeout_seconds,
     )

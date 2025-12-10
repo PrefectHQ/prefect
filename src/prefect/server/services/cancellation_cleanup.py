@@ -15,7 +15,6 @@ import prefect.server.models as models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import filters, states
 from prefect.server.services.perpetual_services import perpetual_service
-from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
@@ -112,7 +111,7 @@ async def monitor_cancelled_flow_runs(
     perpetual: Perpetual = Perpetual(
         automatic=False,
         every=datetime.timedelta(
-            seconds=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value()
+            seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds
         ),
     ),
 ) -> None:
@@ -148,7 +147,7 @@ async def monitor_subflow_runs(
     perpetual: Perpetual = Perpetual(
         automatic=False,
         every=datetime.timedelta(
-            seconds=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value()
+            seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds
         ),
     ),
 ) -> None:
