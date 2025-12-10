@@ -165,11 +165,9 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 		buildCountTaskRunsQuery(runningFilter, 30_000),
 	);
 
-	// Calculate percentages (matching Vue's percentComparisonTotal logic)
+	// Calculate failure percentage (matching Vue's percentComparisonTotal logic)
 	// Vue excludes running from the denominator for percentage calculations
 	const percentComparisonTotal = total - running;
-	const completionPercentage =
-		percentComparisonTotal > 0 ? (completed / percentComparisonTotal) * 100 : 0;
 	const failurePercentage =
 		percentComparisonTotal > 0 ? (failed / percentComparisonTotal) * 100 : 0;
 
@@ -179,45 +177,35 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 				<CardTitle>Task Runs</CardTitle>
 			</CardHeader>
 			<CardContent>
-				{total === 0 ? (
-					<div className="my-8 text-center text-sm text-muted-foreground">
-						<p>No task runs found</p>
-					</div>
-				) : (
-					<div className="space-y-4">
-						<div className="grid gap-1">
-							<div className="inline-flex items-end gap-1 text-base">
-								<span className="font-semibold">{total}</span>
-								<span className="text-muted-foreground">Total</span>
-							</div>
-							{running > 0 && (
-								<div className="inline-flex items-end gap-1 text-sm">
-									<span className="font-semibold">{running}</span>
-									<span className="text-muted-foreground">Running</span>
-								</div>
-							)}
+				<div className="space-y-4">
+					<div className="grid gap-1">
+						<div className="inline-flex items-end gap-1 text-base">
+							<span className="font-semibold">{total}</span>
+						</div>
+						{running > 0 && (
 							<div className="inline-flex items-end gap-1 text-sm">
-								<span className="font-semibold">{completed}</span>
-								<span className="text-muted-foreground">Completed</span>
+								<span className="font-semibold">{running}</span>
+								<span className="text-muted-foreground">Running</span>
+							</div>
+						)}
+						<div className="inline-flex items-end gap-1 text-sm">
+							<span className="font-semibold">{completed}</span>
+							<span className="text-muted-foreground">Completed</span>
+						</div>
+						{failed > 0 && (
+							<div className="inline-flex items-end gap-1 text-sm">
+								<span className="font-semibold">{failed}</span>
+								<span className="text-muted-foreground">Failed</span>
 								<span className="text-muted-foreground">
-									{completionPercentage.toFixed(1)}%
+									{failurePercentage.toFixed(1)}%
 								</span>
 							</div>
-							{failed > 0 && (
-								<div className="inline-flex items-end gap-1 text-sm">
-									<span className="font-semibold">{failed}</span>
-									<span className="text-muted-foreground">Failed</span>
-									<span className="text-muted-foreground">
-										{failurePercentage.toFixed(1)}%
-									</span>
-								</div>
-							)}
-						</div>
-						<Suspense fallback={null}>
-							<TaskRunsTrends filter={filter} />
-						</Suspense>
+						)}
 					</div>
-				)}
+					<Suspense fallback={null}>
+						<TaskRunsTrends filter={filter} />
+					</Suspense>
+				</div>
 			</CardContent>
 		</Card>
 	);

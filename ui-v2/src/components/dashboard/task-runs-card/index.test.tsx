@@ -207,14 +207,14 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		// Total count is now displayed as a large number with "Total" label
-		expect(await screen.findByText("Total")).toBeInTheDocument();
+		// Total count is displayed as a large number
+		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
 		// Use getAllByText since total and completed might have same value
 		const threeElements = screen.getAllByText("3");
 		expect(threeElements.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("does not display count when no task runs exist", async () => {
+	it("displays zero counts when no task runs exist", async () => {
 		const queryClient = new QueryClient();
 		seedTaskRunsCountQueries(queryClient, {
 			total: 0,
@@ -228,23 +228,10 @@ describe("TaskRunsCard", () => {
 		render(<TaskRunsCardRouter />, { wrapper });
 
 		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
-		expect(screen.queryByText("total")).not.toBeInTheDocument();
-	});
-
-	it("shows empty message when no task runs", async () => {
-		const queryClient = new QueryClient();
-		seedTaskRunsCountQueries(queryClient, {
-			total: 0,
-			completed: 0,
-			failed: 0,
-			running: 0,
-		});
-
-		const wrapper = createWrapper({ queryClient });
-
-		render(<TaskRunsCardRouter />, { wrapper });
-
-		expect(await screen.findByText("No task runs found")).toBeInTheDocument();
+		// Should show "0" for total and "0 Completed"
+		const zeroElements = screen.getAllByText("0");
+		expect(zeroElements.length).toBeGreaterThanOrEqual(2);
+		expect(screen.getByText("Completed")).toBeInTheDocument();
 	});
 
 	it("displays running count correctly", async () => {
@@ -266,10 +253,9 @@ describe("TaskRunsCard", () => {
 		expect(screen.getByText("2")).toBeInTheDocument();
 	});
 
-	it("displays completed count and percentage correctly", async () => {
+	it("displays completed count correctly", async () => {
 		const queryClient = new QueryClient();
 		// 2 completed, 1 running, 1 failed = 4 total
-		// Percentage is calculated excluding running: 2/(2+1) = 66.7%
 		seedTaskRunsCountQueries(queryClient, {
 			total: 4,
 			completed: 2,
@@ -281,15 +267,14 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		// Percentage is now displayed inline with the label (e.g., "Completed 66.7%")
+		// Completed count is displayed with the label
 		expect(await screen.findByText(/Completed/)).toBeInTheDocument();
-		expect(screen.getByText(/66\.7%/)).toBeInTheDocument();
+		expect(screen.getByText("2")).toBeInTheDocument();
 	});
 
 	it("displays failed count including crashed state", async () => {
 		const queryClient = new QueryClient();
 		// 2 failed (including crashed), 1 completed = 3 total
-		// Percentage: 2/(2+1) = 66.7%
 		seedTaskRunsCountQueries(queryClient, {
 			total: 3,
 			completed: 1,
@@ -301,7 +286,7 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		// Failed count is now displayed inline with the label
+		// Failed count is displayed with the label and percentage
 		expect(await screen.findByText(/Failed/)).toBeInTheDocument();
 		expect(screen.getByText("2")).toBeInTheDocument();
 		expect(screen.getByText(/66\.7%/)).toBeInTheDocument();
@@ -438,8 +423,9 @@ describe("TaskRunsCard", () => {
 		render(<TaskRunsCardRouter />, { wrapper });
 
 		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
-		// Total count is displayed with the "Total" label in vertical layout
-		expect(screen.getByText("Total")).toBeInTheDocument();
+		// Total count is displayed as a number (use getAllByText since total and completed might have same value)
+		const oneElements = screen.getAllByText("1");
+		expect(oneElements.length).toBeGreaterThanOrEqual(1);
 	});
 
 	it("displays completed stat when task runs exist", async () => {
@@ -455,19 +441,15 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		// New layout shows total count with "Total" label in vertical layout
+		// Layout shows total count and completed count
 		// Running and Failed are only shown when count > 0
 		expect(await screen.findByText("Task Runs")).toBeInTheDocument();
-		// The total count is displayed with the "Total" label
-		expect(screen.getByText("Total")).toBeInTheDocument();
 		expect(screen.getByText(/Completed/)).toBeInTheDocument();
 	});
 
-	it("calculates percentages correctly with zero values", async () => {
+	it("displays completed count with zero values", async () => {
 		const queryClient = new QueryClient();
 		// Only running tasks, no completed or failed
-		// percentComparisonTotal = total - running = 1 - 1 = 0
-		// So percentage should be 0.0%
 		seedTaskRunsCountQueries(queryClient, {
 			total: 1,
 			completed: 0,
@@ -479,9 +461,7 @@ describe("TaskRunsCard", () => {
 
 		render(<TaskRunsCardRouter />, { wrapper });
 
-		// New layout shows percentage inline with Completed label
-		// The text is split across elements, so we check for the container
+		// Layout shows completed count even when 0
 		expect(await screen.findByText(/Completed/)).toBeInTheDocument();
-		expect(screen.getByText(/0\.0%/)).toBeInTheDocument();
 	});
 });
