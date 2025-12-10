@@ -63,13 +63,18 @@ flowchart TB
             API3[API Server N...<br/>--no-services]:::apiClass
         end
 
-        BG[Background Services<br/>prefect server services start<br/><br/>• Event Processing<br/>• Automation Triggers<br/>• Schedule Management]:::bgClass
+        subgraph bg[Background Services - Horizontal Scaling]
+            direction LR
+            BG1[Background 1<br/>services start]:::bgClass
+            BG2[Background 2<br/>services start]:::bgClass
+            BG3[Background N...<br/>services start]:::bgClass
+        end
     end
 
     subgraph data[Data Layer]
         direction LR
         PG[(PostgreSQL<br/>• Flow/Task State<br/>• Configuration<br/>• History)]:::dataClass
-        Redis[(Redis<br/>• Events<br/>• Automations<br/>• Real-time Updates)]:::dataClass
+        Redis[(Redis<br/>• Event Streams<br/>• Consumer Groups<br/>• Task Coordination)]:::dataClass
     end
 
     %% Connections
@@ -79,8 +84,8 @@ flowchart TB
     api --> |Read/Write| PG
     api --> |Publish| Redis
 
-    BG --> |Read/Write| PG
-    BG --> |Subscribe| Redis
+    bg --> |Read/Write| PG
+    bg --> |Consumer Groups| Redis
 
     Workers -.-> |Poll Work| api
 ```
@@ -135,10 +140,14 @@ For optimal performance, run API servers and background services separately:
 prefect server start --host 0.0.0.0 --port 4200 --no-services
 ```
 
-**Background services**:
+**Background services** (can be horizontally scaled):
 ```bash
 prefect server services start
 ```
+
+<Note>
+Background services are designed for horizontal scaling. They use Redis consumer groups to coordinate work distribution, so multiple instances safely process events without duplication. Periodic tasks (like the scheduler) use distributed coordination via Redis to ensure only one instance runs each task at a time.
+</Note>
 
 <Tip>
 For high-volume deployments, consider reducing the event retention period from the default 7 days to prevent rapid database growth. See [database maintenance](/v3/advanced/database-maintenance#configure-event-retention) for configuration details.
@@ -277,7 +286,7 @@ export NO_PROXY=localhost,127.0.0.1,.internal
 
 ### Docker Compose
 
-<Accordion title="3 servers, 1 background service, postgres, redis">
+<Accordion title="3 API servers, 1 background service">
 
 ```yaml
 services:
@@ -340,6 +349,91 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    command: prefect server services start
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
+      PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: "6379"
+
+volumes:
+  postgres_data:
+```
+</Accordion>
+
+<Accordion title="3 API servers, 3 background services (horizontally scaled)">
+
+For high-volume deployments, scale background services to handle increased event processing load:
+
+```yaml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: prefect
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -h localhost -U $$POSTGRES_USER
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7
+
+  migrate:
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: prefect server database upgrade -y
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+
+  prefect-api:
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    deploy:
+      replicas: 3
+    command: prefect server start --host 0.0.0.0 --no-services
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
+      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
+      PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
+      PREFECT_REDIS_MESSAGING_HOST: redis
+      PREFECT_REDIS_MESSAGING_PORT: "6379"
+    ports:
+      - "4200-4202:4200"
+
+  # Background services can be horizontally scaled - Redis consumer groups
+  # ensure events are processed exactly once across all instances
+  prefect-background:
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    deploy:
+      replicas: 3
     command: prefect server services start
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect

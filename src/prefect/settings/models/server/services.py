@@ -543,6 +543,46 @@ class ServerServicesTriggersSettings(ServicesBaseSetting):
     )
 
 
+class DocketSettings(PrefectBaseSettings):
+    """
+    Settings for controlling docket background task workers.
+
+    Docket is the distributed task queue infrastructure used by services
+    to offload work to background workers.
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "services", "docket")
+    )
+
+    workers: int | None = Field(
+        default=None,
+        gt=0,
+        description="""
+        The number of docket worker processes to run. If not set, defaults are based on
+        database type: SQLite uses 2 workers, PostgreSQL uses 10 workers.
+        """,
+    )
+
+    concurrency: int | None = Field(
+        default=None,
+        gt=0,
+        description="""
+        The concurrency limit for each docket worker (number of tasks per worker).
+        If not set, defaults are based on database type: SQLite uses 2 concurrent tasks
+        per worker, PostgreSQL uses 10 concurrent tasks per worker.
+        """,
+    )
+
+    url: str = Field(
+        default="memory://",
+        description="""
+        The URL for the docket backend. Supports redis://, rediss://, or memory:// (default).
+        When set to memory://, uses an in-memory backend via fakeredis.
+        """,
+    )
+
+
 class ServerServicesSettings(PrefectBaseSettings):
     """
     Settings for controlling server services
@@ -552,6 +592,10 @@ class ServerServicesSettings(PrefectBaseSettings):
         ("server", "services")
     )
 
+    docket: DocketSettings = Field(
+        default_factory=DocketSettings,
+        description="Settings for controlling docket background task workers",
+    )
     cancellation_cleanup: ServerServicesCancellationCleanupSettings = Field(
         default_factory=ServerServicesCancellationCleanupSettings,
         description="Settings for controlling the cancellation cleanup service",

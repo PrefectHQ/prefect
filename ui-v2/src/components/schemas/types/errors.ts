@@ -3,13 +3,19 @@ import { isRecord } from "../utilities/guards";
 
 export type SchemaValueError = string;
 export type SchemaValuePropertyError =
-	components["schemas"]["SchemaValuePropertyError"];
+	components["schemas"]["SchemaValuePropertyError-Output"];
 export type SchemaValueIndexError =
-	components["schemas"]["SchemaValueIndexError"];
+	components["schemas"]["SchemaValueIndexError-Output"];
+
+export type SchemaFormNestedError =
+	// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+	| SchemaValuePropertyError
+	// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+	| SchemaValueIndexError;
 export type SchemaFormError =
 	| SchemaValueError
-	| SchemaValuePropertyError
-	| SchemaValueIndexError;
+	// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+	| SchemaFormNestedError;
 export type SchemaFormErrors = SchemaFormError[];
 
 export function isSchemaValueError(error: unknown): error is SchemaValueError {

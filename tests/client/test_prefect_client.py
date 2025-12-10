@@ -4,7 +4,7 @@ import os
 import ssl
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import Any, Generator, List
+from typing import Any, Generator, List, Optional
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import UUID, uuid4
@@ -16,9 +16,10 @@ import httpx
 import pydantic
 import pytest
 import respx
-from fastapi import Depends, FastAPI, status
-from fastapi.security import HTTPBasic, HTTPBearer
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBasic, HTTPBearer
 from packaging import version
+from starlette.requests import Request
 
 import prefect.client.schemas as client_schemas
 import prefect.context
@@ -1801,14 +1802,32 @@ class TestClientAPIVersionRequests:
             )
 
 
+class HTTPBearer401(HTTPBearer):
+    async def __call__(
+        self, request: Request
+    ) -> Optional[HTTPAuthorizationCredentials]:
+        from fastapi.security.utils import get_authorization_scheme_param
+
+        authorization = request.headers.get("Authorization")
+        scheme, credentials = get_authorization_scheme_param(authorization)
+        if not (authorization and scheme and credentials):
+            if self.auto_error:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+                )
+            else:
+                return None
+        return HTTPAuthorizationCredentials(scheme=scheme, credentials=credentials)
+
+
 class TestClientAPIKey:
     @pytest.fixture
     async def test_app(self):
         app = FastAPI()
-        bearer = HTTPBearer()
+        bearer = HTTPBearer401()
 
         # Returns given credentials if an Authorization
-        # header is passed, otherwise raises 403
+        # header is passed, otherwise raises 401
         @app.get("/api/check_for_auth_header")
         async def check_for_auth_header(credentials=Depends(bearer)):
             return credentials.credentials

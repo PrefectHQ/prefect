@@ -671,6 +671,9 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        logger.info(
+            f"Lifespan starting: ephemeral={ephemeral}, webserver_only={webserver_only}"
+        )
         if app in LIFESPAN_RAN_FOR_APP:
             yield
             return
@@ -690,7 +693,11 @@ def create_app(
             docket = await stack.enter_async_context(
                 Docket(name=settings.server.docket.name, url=settings.server.docket.url)
             )
-            await stack.enter_async_context(background_worker(docket))
+            await stack.enter_async_context(
+                background_worker(
+                    docket, ephemeral=ephemeral, webserver_only=webserver_only
+                )
+            )
             api_app.state.docket = docket
             if Services:
                 await stack.enter_async_context(Services.running())
@@ -747,8 +754,11 @@ def create_app(
     # Limit the number of concurrent requests when using a SQLite database to reduce
     # chance of errors where the database cannot be opened due to a high number of
     # concurrent writes
+    settings = get_current_settings()
     if (
-        get_dialect(prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL.value()).name
+        get_dialect(
+            str(settings.server.database.connection_url.get_secret_value())
+        ).name
         == "sqlite"
     ):
         _install_sqlite_locked_log_filter()

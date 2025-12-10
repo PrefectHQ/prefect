@@ -5599,7 +5599,32 @@ export interface components {
             expiration: string;
         };
         /** DependencyResult */
-        DependencyResult: {
+        "DependencyResult-Input": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Upstream Dependencies */
+            upstream_dependencies: components["schemas"]["TaskRunResult"][];
+            state: components["schemas"]["State"] | null;
+            /** Expected Start Time */
+            expected_start_time: string | null;
+            /** Start Time */
+            start_time: string | null;
+            /** End Time */
+            end_time: string | null;
+            /** Total Run Time */
+            total_run_time: number | null;
+            /** Estimated Run Time */
+            estimated_run_time: number | null;
+            /** Untrackable Result */
+            untrackable_result: boolean;
+        };
+        /** DependencyResult */
+        "DependencyResult-Output": {
             /**
              * Id
              * Format: uuid
@@ -6321,6 +6346,41 @@ export interface components {
              */
             type: "do-nothing";
         };
+        /**
+         * DocketSettings
+         * @description Settings for controlling docket background task workers.
+         *
+         *     Docket is the distributed task queue infrastructure used by services
+         *     to offload work to background workers.
+         */
+        DocketSettings: {
+            /**
+             * Workers
+             * @description
+             *             The number of docket worker processes to run. If not set, defaults are based on
+             *             database type: SQLite uses 2 workers, PostgreSQL uses 10 workers.
+             *
+             */
+            workers?: number | null;
+            /**
+             * Concurrency
+             * @description
+             *             The concurrency limit for each docket worker (number of tasks per worker).
+             *             If not set, defaults are based on database type: SQLite uses 2 concurrent tasks
+             *             per worker, PostgreSQL uses 10 concurrent tasks per worker.
+             *
+             */
+            concurrency?: number | null;
+            /**
+             * Url
+             * @description
+             *             The URL for the docket backend. Supports redis://, rediss://, or memory:// (default).
+             *             When set to memory://, uses an in-memory backend via fakeredis.
+             *
+             * @default memory://
+             */
+            url: string;
+        };
         /** Edge */
         Edge: {
             /**
@@ -6803,7 +6863,178 @@ export interface components {
          * FlowRun
          * @description An ORM representation of flow run data.
          */
-        FlowRun: {
+        "FlowRun-Input": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /**
+             * Name
+             * @description The name of the flow run. Defaults to a random slug if not specified.
+             */
+            name?: string;
+            /**
+             * Flow Id
+             * Format: uuid
+             * @description The id of the flow being run.
+             */
+            flow_id: string;
+            /**
+             * State Id
+             * @description The id of the flow run's current state.
+             */
+            state_id?: string | null;
+            /**
+             * Deployment Id
+             * @description The id of the deployment associated with this flow run, if available.
+             */
+            deployment_id?: string | null;
+            /**
+             * Deployment Version
+             * @description The version of the deployment associated with this flow run.
+             */
+            deployment_version?: string | null;
+            /**
+             * Work Queue Name
+             * @description The work queue that handled this flow run.
+             */
+            work_queue_name?: string | null;
+            /**
+             * Flow Version
+             * @description The version of the flow executed in this flow run.
+             */
+            flow_version?: string | null;
+            /**
+             * Parameters
+             * @description Parameters for the flow run.
+             */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Idempotency Key
+             * @description An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times.
+             */
+            idempotency_key?: string | null;
+            /**
+             * Context
+             * @description Additional context for the flow run.
+             */
+            context?: {
+                [key: string]: unknown;
+            };
+            empirical_policy?: components["schemas"]["FlowRunPolicy"];
+            /**
+             * Tags
+             * @description A list of tags on the flow run
+             */
+            tags?: string[];
+            /**
+             * Labels
+             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             */
+            labels?: {
+                [key: string]: boolean | number | string;
+            } | null;
+            /**
+             * Parent Task Run Id
+             * @description If the flow run is a subflow, the id of the 'dummy' task in the parent flow used to track subflow state.
+             */
+            parent_task_run_id?: string | null;
+            /** @description The type of the current flow run state. */
+            state_type?: components["schemas"]["StateType"] | null;
+            /**
+             * State Name
+             * @description The name of the current flow run state.
+             */
+            state_name?: string | null;
+            /**
+             * Run Count
+             * @description The number of times the flow run was executed.
+             * @default 0
+             */
+            run_count: number;
+            /**
+             * Expected Start Time
+             * @description The flow run's expected start time.
+             */
+            expected_start_time?: string | null;
+            /**
+             * Next Scheduled Start Time
+             * @description The next time the flow run is scheduled to start.
+             */
+            next_scheduled_start_time?: string | null;
+            /**
+             * Start Time
+             * @description The actual start time.
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description The actual end time.
+             */
+            end_time?: string | null;
+            /**
+             * Total Run Time
+             * @description Total run time. If the flow run was executed multiple times, the time of each run will be summed.
+             * @default 0
+             */
+            total_run_time: number;
+            /**
+             * Estimated Run Time
+             * @description A real-time estimate of the total run time.
+             * @default 0
+             */
+            estimated_run_time: number;
+            /**
+             * Estimated Start Time Delta
+             * @description The difference between actual and expected start time.
+             * @default 0
+             */
+            estimated_start_time_delta: number;
+            /**
+             * Auto Scheduled
+             * @description Whether or not the flow run was automatically scheduled.
+             * @default false
+             */
+            auto_scheduled: boolean;
+            /**
+             * Infrastructure Document Id
+             * @description The block document defining infrastructure to use this flow run.
+             */
+            infrastructure_document_id?: string | null;
+            /**
+             * Infrastructure Pid
+             * @description The id of the flow run as returned by an infrastructure block.
+             */
+            infrastructure_pid?: string | null;
+            /** @description Optional information about the creator of this flow run. */
+            created_by?: components["schemas"]["CreatedBy"] | null;
+            /**
+             * Work Queue Id
+             * @description The id of the run's work pool queue.
+             */
+            work_queue_id?: string | null;
+            /** @description The current state of the flow run. */
+            state?: components["schemas"]["State"] | null;
+            /**
+             * Job Variables
+             * @description Variables used as overrides in the base job template
+             */
+            job_variables?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * FlowRun
+         * @description An ORM representation of flow run data.
+         */
+        "FlowRun-Output": {
             /**
              * Id
              * Format: uuid
@@ -7829,7 +8060,30 @@ export interface components {
          * HistoryResponse
          * @description Represents a history of aggregation states over an interval
          */
-        HistoryResponse: {
+        "HistoryResponse-Input": {
+            /**
+             * Interval Start
+             * Format: date-time
+             * @description The start date of the interval.
+             */
+            interval_start: string;
+            /**
+             * Interval End
+             * Format: date-time
+             * @description The end date of the interval.
+             */
+            interval_end: string;
+            /**
+             * States
+             * @description A list of state histories during the interval.
+             */
+            states: components["schemas"]["HistoryResponseState"][];
+        };
+        /**
+         * HistoryResponse
+         * @description Represents a history of aggregation states over an interval
+         */
+        "HistoryResponse-Output": {
             /**
              * Interval Start
              * Format: date-time
@@ -8773,6 +9027,11 @@ export interface components {
              */
             application_name?: string | null;
             /**
+             * Search Path
+             * @description PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend. Note: The public schema should be included in the search path (e.g. 'myschema, public') to ensure that pg_trgm and other extensions remain available.
+             */
+            search_path?: string | null;
+            /**
              * Statement Cache Size
              * @description Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
              */
@@ -8790,7 +9049,40 @@ export interface components {
          * @description Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
          *     using a PostgreSQL database.
          */
-        SQLAlchemySettings: {
+        "SQLAlchemySettings-Input": {
+            /** @description Settings for controlling SQLAlchemy connection behavior */
+            connect_args?: components["schemas"]["SQLAlchemyConnectArgsSettings"];
+            /**
+             * Pool Size
+             * @description Controls connection pool size of database connection pools from the Prefect backend.
+             * @default 5
+             */
+            pool_size: number;
+            /**
+             * Pool Recycle
+             * @description This setting causes the pool to recycle connections after the given number of seconds has passed; set it to -1 to avoid recycling entirely.
+             * @default 3600
+             */
+            pool_recycle: number;
+            /**
+             * Pool Timeout
+             * @description Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.
+             * @default 30
+             */
+            pool_timeout: number | null;
+            /**
+             * Max Overflow
+             * @description Controls maximum overflow of the connection pool. To prevent overflow, set to -1.
+             * @default 10
+             */
+            max_overflow: number;
+        };
+        /**
+         * SQLAlchemySettings
+         * @description Settings for controlling SQLAlchemy behavior; note that these settings only take effect when
+         *     using a PostgreSQL database.
+         */
+        "SQLAlchemySettings-Output": {
             /** @description Settings for controlling SQLAlchemy connection behavior */
             connect_args?: components["schemas"]["SQLAlchemyConnectArgsSettings"];
             /**
@@ -8925,23 +9217,37 @@ export interface components {
             value: unknown;
         };
         /** SchemaValueIndexError */
-        SchemaValueIndexError: {
+        "SchemaValueIndexError-Input": {
             /** Index */
             index: number;
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Input"] | components["schemas"]["SchemaValueIndexError-Input"])[];
+        };
+        /** SchemaValueIndexError */
+        "SchemaValueIndexError-Output": {
+            /** Index */
+            index: number;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
         };
         /** SchemaValuePropertyError */
-        SchemaValuePropertyError: {
+        "SchemaValuePropertyError-Input": {
             /** Property */
             property: string;
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Input"] | components["schemas"]["SchemaValueIndexError-Input"])[];
+        };
+        /** SchemaValuePropertyError */
+        "SchemaValuePropertyError-Output": {
+            /** Property */
+            property: string;
+            /** Errors */
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
         };
         /** SchemaValuesValidationResponse */
         SchemaValuesValidationResponse: {
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
             /** Valid */
             valid: boolean;
         };
@@ -9157,9 +9463,87 @@ export interface components {
          * ServerDatabaseSettings
          * @description Settings for controlling server database behavior
          */
-        ServerDatabaseSettings: {
+        "ServerDatabaseSettings-Input": {
             /** @description Settings for controlling SQLAlchemy behavior */
-            sqlalchemy?: components["schemas"]["SQLAlchemySettings"];
+            sqlalchemy?: components["schemas"]["SQLAlchemySettings-Input"];
+            /**
+             * Connection Url
+             * @description
+             *             A database connection URL in a SQLAlchemy-compatible
+             *             format. Prefect currently supports SQLite and Postgres. Note that all
+             *             Prefect database engines must use an async driver - for SQLite, use
+             *             `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
+             *
+             *             SQLite in-memory databases can be used by providing the url
+             *             `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
+             *             which will allow the database to be accessed by multiple threads. Note
+             *             that in-memory databases can not be accessed from multiple processes and
+             *             should only be used for simple tests.
+             *
+             */
+            connection_url?: string | null;
+            /**
+             * Driver
+             * @description The database driver to use when connecting to the database. If not set, the driver will be inferred from the connection URL.
+             */
+            driver?: ("postgresql+asyncpg" | "sqlite+aiosqlite") | null;
+            /**
+             * Host
+             * @description The database server host.
+             */
+            host?: string | null;
+            /**
+             * Port
+             * @description The database server port.
+             */
+            port?: number | null;
+            /**
+             * User
+             * @description The user to use when connecting to the database.
+             */
+            user?: string | null;
+            /**
+             * Name
+             * @description The name of the Prefect database on the remote server, or the path to the database file for SQLite.
+             */
+            name?: string | null;
+            /**
+             * Password
+             * @description The password to use when connecting to the database. Should be kept secret.
+             */
+            password?: string | null;
+            /**
+             * Echo
+             * @description If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.
+             * @default false
+             */
+            echo: boolean;
+            /**
+             * Migrate On Start
+             * @description If `True`, the database will be migrated on application startup.
+             * @default true
+             */
+            migrate_on_start: boolean;
+            /**
+             * Timeout
+             * @description A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.
+             * @default 10
+             */
+            timeout: number | null;
+            /**
+             * Connection Timeout
+             * @description A connection timeout, in seconds, applied to database connections. Defaults to `5`.
+             * @default 5
+             */
+            connection_timeout: number | null;
+        };
+        /**
+         * ServerDatabaseSettings
+         * @description Settings for controlling server database behavior
+         */
+        "ServerDatabaseSettings-Output": {
+            /** @description Settings for controlling SQLAlchemy behavior */
+            sqlalchemy?: components["schemas"]["SQLAlchemySettings-Output"];
             /**
              * Connection Url
              * @description
@@ -9718,6 +10102,8 @@ export interface components {
          * @description Settings for controlling server services
          */
         ServerServicesSettings: {
+            /** @description Settings for controlling docket background task workers */
+            docket?: components["schemas"]["DocketSettings"];
             cancellation_cleanup?: components["schemas"]["ServerServicesCancellationCleanupSettings"];
             event_persister?: components["schemas"]["ServerServicesEventPersisterSettings"];
             event_logger?: components["schemas"]["ServerServicesEventLoggerSettings"];
@@ -9746,6 +10132,18 @@ export interface components {
              * @default 1
              */
             read_batch_size: number;
+            /**
+             * Batch Size
+             * @description The number of task runs the task run recorder will attempt to insert in one batch.
+             * @default 1
+             */
+            batch_size: number;
+            /**
+             * Flush Interval
+             * @description The maximum number of seconds between flushes of the task run recorder.
+             * @default 5
+             */
+            flush_interval: number;
         };
         /**
          * ServerServicesTriggersSettings
@@ -9789,7 +10187,7 @@ export interface components {
          * ServerSettings
          * @description Settings for controlling server behavior
          */
-        ServerSettings: {
+        "ServerSettings-Input": {
             /**
              * Logging Level
              * @description The default logging level for the Prefect API server.
@@ -9845,7 +10243,86 @@ export interface components {
             api?: components["schemas"]["ServerAPISettings"];
             /** @description Settings for controlling server-side concurrency limit handling */
             concurrency?: components["schemas"]["ServerConcurrencySettings"];
-            database?: components["schemas"]["ServerDatabaseSettings"];
+            database?: components["schemas"]["ServerDatabaseSettings-Input"];
+            /** @description Settings for controlling server deployments behavior */
+            deployments?: components["schemas"]["ServerDeploymentsSettings"];
+            /** @description Settings for controlling server Docket behavior */
+            docket?: components["schemas"]["ServerDocketSettings"];
+            ephemeral?: components["schemas"]["ServerEphemeralSettings"];
+            /** @description Settings for controlling server events behavior */
+            events?: components["schemas"]["ServerEventsSettings"];
+            /** @description Settings for controlling flow run graph behavior */
+            flow_run_graph?: components["schemas"]["ServerFlowRunGraphSettings"];
+            /** @description Settings for controlling server logs behavior */
+            logs?: components["schemas"]["ServerLogsSettings"];
+            /** @description Settings for controlling server services behavior */
+            services?: components["schemas"]["ServerServicesSettings"];
+            /** @description Settings for controlling server tasks behavior */
+            tasks?: components["schemas"]["ServerTasksSettings"];
+            /** @description Settings for controlling server UI behavior */
+            ui?: components["schemas"]["ServerUISettings"];
+        };
+        /**
+         * ServerSettings
+         * @description Settings for controlling server behavior
+         */
+        "ServerSettings-Output": {
+            /**
+             * Logging Level
+             * @description The default logging level for the Prefect API server.
+             * @default WARNING
+             * @enum {string}
+             */
+            logging_level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+            /**
+             * Analytics Enabled
+             * @description
+             *             When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
+             *             on server startup to help us improve our product.
+             *
+             * @default true
+             */
+            analytics_enabled: boolean;
+            /**
+             * Metrics Enabled
+             * @description Whether or not to enable Prometheus metrics in the API.
+             * @default false
+             */
+            metrics_enabled: boolean;
+            /**
+             * Log Retryable Errors
+             * @description If `True`, log retryable errors in the API and it's services.
+             * @default false
+             */
+            log_retryable_errors: boolean;
+            /**
+             * Register Blocks On Start
+             * @description If set, any block types that have been imported will be registered with the backend on application startup. If not set, block types must be manually registered.
+             * @default true
+             */
+            register_blocks_on_start: boolean;
+            /**
+             * Memoize Block Auto Registration
+             * @description Controls whether or not block auto-registration on start
+             * @default true
+             */
+            memoize_block_auto_registration: boolean;
+            /**
+             * Memo Store Path
+             * Format: path
+             * @description Path to the memo store file. Defaults to $PREFECT_HOME/memo_store.toml
+             */
+            memo_store_path?: string;
+            /**
+             * Deployment Schedule Max Scheduled Runs
+             * @description The maximum number of scheduled runs to create for a deployment.
+             * @default 50
+             */
+            deployment_schedule_max_scheduled_runs: number;
+            api?: components["schemas"]["ServerAPISettings"];
+            /** @description Settings for controlling server-side concurrency limit handling */
+            concurrency?: components["schemas"]["ServerConcurrencySettings"];
+            database?: components["schemas"]["ServerDatabaseSettings-Output"];
             /** @description Settings for controlling server deployments behavior */
             deployments?: components["schemas"]["ServerDeploymentsSettings"];
             /** @description Settings for controlling server Docket behavior */
@@ -9984,7 +10461,7 @@ export interface components {
             logging?: components["schemas"]["LoggingSettings"];
             results?: components["schemas"]["ResultsSettings"];
             runner?: components["schemas"]["RunnerSettings"];
-            server?: components["schemas"]["ServerSettings"];
+            server?: components["schemas"]["ServerSettings-Output"];
             /** @description Settings for controlling task behavior */
             tasks?: components["schemas"]["TasksSettings"];
             /** @description Settings used during testing */
@@ -10390,7 +10867,20 @@ export interface components {
             /** @description The current task run state. */
             state?: components["schemas"]["State"] | null;
         };
-        TaskRunCount: {
+        /** TaskRunCount */
+        "TaskRunCount-Input": {
+            /**
+             * Completed
+             * @description The number of completed task runs.
+             */
+            completed: number;
+            /**
+             * Failed
+             * @description The number of failed task runs.
+             */
+            failed: number;
+        };
+        "TaskRunCount-Output": {
             [key: string]: number;
         };
         /**
@@ -10643,7 +11133,7 @@ export interface components {
         /** TaskRunPaginationResponse */
         TaskRunPaginationResponse: {
             /** Results */
-            results: components["schemas"]["TaskRunResponse"][];
+            results: components["schemas"]["TaskRunResponse-Output"][];
             /** Count */
             count: number;
             /** Limit */
@@ -10689,7 +11179,74 @@ export interface components {
             retry_jitter_factor?: number | null;
         };
         /** TaskRunResponse */
-        TaskRunResponse: {
+        "TaskRunResponse-Input": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Created */
+            created: string | null;
+            /** Updated */
+            updated: string | null;
+            /**
+             * Name
+             * @description The name of the task run. Defaults to a random slug if not specified.
+             */
+            name?: string;
+            /**
+             * Flow Run Id
+             * @description The id of the flow run this task run belongs to.
+             */
+            flow_run_id?: string | null;
+            /**
+             * Task Key
+             * @description The key of the task this run represents.
+             */
+            task_key: string;
+            /**
+             * State Id
+             * @description The id of the task run's current state.
+             */
+            state_id?: string | null;
+            /** @description The current state of the task run. */
+            state?: components["schemas"]["State"] | null;
+            /**
+             * Task Version
+             * @description The version of the task executed in this task run.
+             */
+            task_version?: string | null;
+            /**
+             * Parameters
+             * @description Parameters for the task run.
+             */
+            parameters?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Task Inputs
+             * @description Inputs provided to the task run.
+             */
+            task_inputs?: {
+                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
+            };
+            /**
+             * Context
+             * @description Additional context for the task run.
+             */
+            context?: {
+                [key: string]: unknown;
+            };
+            /** @description The task run's empirical retry policy. */
+            empirical_policy?: components["schemas"]["TaskRunPolicy"];
+            /**
+             * Tags
+             * @description A list of tags for the task run.
+             */
+            tags?: string[];
+        };
+        /** TaskRunResponse */
+        "TaskRunResponse-Output": {
             /**
              * Id
              * Format: uuid
@@ -11738,7 +12295,7 @@ export interface components {
             not_any_?: components["schemas"]["WorkerStatus"][] | null;
         };
         /** WorkerFlowRunResponse */
-        WorkerFlowRunResponse: {
+        "WorkerFlowRunResponse-Input": {
             /**
              * Work Pool Id
              * Format: uuid
@@ -11749,7 +12306,21 @@ export interface components {
              * Format: uuid
              */
             work_queue_id: string;
-            flow_run: components["schemas"]["FlowRun"];
+            flow_run: components["schemas"]["FlowRun-Input"];
+        };
+        /** WorkerFlowRunResponse */
+        "WorkerFlowRunResponse-Output": {
+            /**
+             * Work Pool Id
+             * Format: uuid
+             */
+            work_pool_id: string;
+            /**
+             * Work Queue Id
+             * Format: uuid
+             */
+            work_queue_id: string;
+            flow_run: components["schemas"]["FlowRun-Output"];
         };
         /** WorkerResponse */
         WorkerResponse: {
@@ -12386,7 +12957,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HistoryResponse"][];
+                    "application/json": components["schemas"]["HistoryResponse-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -12420,7 +12991,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DependencyResult"][];
+                    "application/json": components["schemas"]["DependencyResult-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -13028,7 +13599,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HistoryResponse"][];
+                    "application/json": components["schemas"]["HistoryResponse-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -15539,7 +16110,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkerFlowRunResponse"][];
+                    "application/json": components["schemas"]["WorkerFlowRunResponse-Output"][];
                 };
             };
             /** @description Validation Error */
@@ -17754,7 +18325,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskRunCount"][];
+                    "application/json": components["schemas"]["TaskRunCount-Output"][];
                 };
             };
             /** @description Validation Error */
