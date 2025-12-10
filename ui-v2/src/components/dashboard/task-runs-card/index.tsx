@@ -8,7 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskRunsTrends } from "./task-runs-trends";
 
 export { TaskRunStats } from "./task-runs-stats";
-export { TaskRunsTrends } from "./task-runs-trends";
+export {
+	buildTaskRunsHistoryFilterFromDashboard,
+	TaskRunsTrends,
+	type TaskRunsTrendsFilter,
+} from "./task-runs-trends";
 
 type TaskRunsCardProps = {
 	filter?: {

@@ -3,14 +3,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
+import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
+	buildAverageLatenessFlowRunsQuery,
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
+	type FlowRunsCountFilter,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
+import { buildListFlowsQuery } from "@/api/flows";
 import {
 	buildCountTaskRunsQuery,
 	buildGetFlowRunsTaskRunsCountQuery,
+	buildTaskRunsHistoryQuery,
 	type TaskRunsCountFilter,
 } from "@/api/task-runs";
 import { buildListWorkPoolQueuesQuery } from "@/api/work-pool-queues";
@@ -24,6 +29,7 @@ import {
 	FlowRunsCard,
 	TaskRunsCard,
 } from "@/components/dashboard";
+import { buildTaskRunsHistoryFilterFromDashboard } from "@/components/dashboard/task-runs-card";
 import { FlowRunTagsSelect } from "@/components/flow-runs/flow-run-tags-select";
 import {
 	Breadcrumb,
@@ -373,10 +379,60 @@ export const Route = createFileRoute("/dashboard")({
 
 		// Build the base filter from search params (matches what FlowRunsCard uses)
 		const baseFilter = buildFlowRunsFilterFromSearch(deps);
+		const { from, to } = getDateRangeFromSearch(deps);
 
-		// Prefetch all flow runs (used by FlowRunsCard for the bar chart and state tabs)
-		void queryClient.prefetchQuery(
+		// Prefetch all flow runs and extract IDs for enrichment queries
+		// FlowRunsCard uses useSuspenseQuery for this, so we need to ensure it's prefetched
+		const allFlowRuns = await queryClient.ensureQueryData(
 			buildFilterFlowRunsQuery(baseFilter, 30_000),
+		);
+
+		// Prefetch flows and deployments enrichment data (used by FlowRunsCard)
+		// Extract unique flow IDs and deployment IDs from flow runs
+		const flowIds = [
+			...new Set(
+				allFlowRuns
+					.map((run) => run.flow_id)
+					.filter((id): id is string => Boolean(id)),
+			),
+		];
+		const deploymentIds = [
+			...new Set(
+				allFlowRuns
+					.map((run) => run.deployment_id)
+					.filter((id): id is string => Boolean(id)),
+			),
+		];
+
+		if (flowIds.length > 0) {
+			void queryClient.prefetchQuery(
+				buildListFlowsQuery({
+					flows: { operator: "and_", id: { any_: flowIds } },
+					offset: 0,
+					sort: "CREATED_DESC",
+				}),
+			);
+		}
+
+		if (deploymentIds.length > 0) {
+			void queryClient.prefetchQuery(
+				buildFilterDeploymentsQuery({
+					deployments: { operator: "and_", id: { any_: deploymentIds } },
+					offset: 0,
+					sort: "CREATED_DESC",
+				}),
+			);
+		}
+
+		// Prefetch task runs history (used by TaskRunsTrends with useSuspenseQuery)
+		const taskRunsHistoryFilter = buildTaskRunsHistoryFilterFromDashboard({
+			startDate: from,
+			endDate: to,
+			tags: deps.tags,
+			hideSubflows: deps.hideSubflows,
+		});
+		void queryClient.prefetchQuery(
+			buildTaskRunsHistoryQuery(taskRunsHistoryFilter, 30_000),
 		);
 
 		// Prefetch flow runs for each state type group to minimize loading when switching tabs
@@ -410,6 +466,24 @@ export const Route = createFileRoute("/dashboard")({
 							buildGetFlowRunsTaskRunsCountQuery([flowRunId]),
 						);
 					});
+
+					// Prefetch flows for accordion (used by FlowRunsAccordion)
+					const accordionFlowIds = [
+						...new Set(
+							flowRuns
+								.map((run) => run.flow_id)
+								.filter((id): id is string => Boolean(id)),
+						),
+					];
+					if (accordionFlowIds.length > 0) {
+						void queryClient.prefetchQuery(
+							buildListFlowsQuery({
+								flows: { operator: "and_", id: { any_: accordionFlowIds } },
+								offset: 0,
+								sort: "UPDATED_DESC",
+							}),
+						);
+					}
 				})
 				.catch(() => {
 					// Swallow errors so a failed prefetch doesn't break the loader
@@ -440,11 +514,171 @@ export const Route = createFileRoute("/dashboard")({
 		// Prefetch nested queries for each active work pool to minimize loading states
 		const activeWorkPools = workPools.filter((pool) => !pool.is_paused);
 		activeWorkPools.forEach((workPool) => {
+			// Prefetch workers and queues (existing)
 			void queryClient.prefetchQuery(
 				buildListWorkPoolWorkersQuery(workPool.name),
 			);
 			void queryClient.prefetchQuery(
 				buildListWorkPoolQueuesQuery(workPool.name),
+			);
+
+			// Build base flow runs filter for this work pool (matches DashboardWorkPoolCard)
+			const workPoolFlowRunsFilter: FlowRunsFilter = {
+				sort: "ID_DESC",
+				offset: 0,
+				work_pools: {
+					operator: "and_",
+					id: { any_: [workPool.id] },
+				},
+				flow_runs: {
+					operator: "and_",
+					start_time: {
+						after_: from,
+						before_: to,
+					},
+				},
+			};
+
+			// Prefetch mini bar chart flow runs (used by WorkPoolMiniBarChart)
+			const miniBarChartFilter: FlowRunsFilter = {
+				limit: 24,
+				sort: "START_TIME_DESC",
+				offset: 0,
+				work_pools: {
+					operator: "and_",
+					id: { any_: [workPool.id] },
+				},
+				flow_runs: {
+					operator: "and_",
+					start_time: {
+						after_: from,
+						before_: to,
+					},
+				},
+			};
+			void queryClient.prefetchQuery(
+				buildFilterFlowRunsQuery(miniBarChartFilter, 30_000),
+			);
+
+			// Prefetch completeness stats (used by WorkPoolFlowRunCompleteness)
+			// All runs filter (completed, failed, crashed)
+			const allRunsFilter: FlowRunsCountFilter = {
+				...workPoolFlowRunsFilter,
+				work_pools: {
+					operator: "and_",
+					id: { any_: [workPool.id] },
+				},
+				flow_runs: {
+					operator: "and_",
+					start_time: {
+						after_: from,
+						before_: to,
+					},
+					state: {
+						operator: "and_",
+						type: {
+							any_: ["COMPLETED", "FAILED", "CRASHED"],
+						},
+					},
+				},
+			};
+			void queryClient.prefetchQuery(
+				buildCountFlowRunsQuery(allRunsFilter, 30_000),
+			);
+
+			// Completed runs filter
+			const completedRunsFilter: FlowRunsCountFilter = {
+				...workPoolFlowRunsFilter,
+				work_pools: {
+					operator: "and_",
+					id: { any_: [workPool.id] },
+				},
+				flow_runs: {
+					operator: "and_",
+					start_time: {
+						after_: from,
+						before_: to,
+					},
+					state: {
+						operator: "and_",
+						type: {
+							any_: ["COMPLETED"],
+						},
+					},
+				},
+			};
+			void queryClient.prefetchQuery(
+				buildCountFlowRunsQuery(completedRunsFilter, 30_000),
+			);
+
+			// Prefetch late count (used by DashboardWorkPoolLateCount)
+			const lateFlowRunsFilter: FlowRunsCountFilter = {
+				...workPoolFlowRunsFilter,
+				work_pools: {
+					operator: "and_",
+					name: { any_: [workPool.name] },
+				},
+				flow_runs: {
+					operator: "and_",
+					start_time: {
+						after_: from,
+						before_: to,
+					},
+					state: {
+						operator: "and_",
+						name: {
+							any_: ["Late"],
+						},
+					},
+				},
+			};
+			void queryClient.prefetchQuery(
+				buildCountFlowRunsQuery(lateFlowRunsFilter, 30_000),
+			);
+
+			// Prefetch average lateness (used by WorkPoolAverageLateTime)
+			const latenessFilter: FlowRunsFilter = {
+				sort: "ID_DESC",
+				offset: 0,
+				work_pools: {
+					operator: "and_",
+					id: { any_: [workPool.id] },
+				},
+				flow_runs: {
+					operator: "and_",
+					start_time: {
+						after_: from,
+						before_: to,
+					},
+				},
+			};
+			void queryClient.prefetchQuery(
+				buildAverageLatenessFlowRunsQuery(latenessFilter, 30_000),
+			);
+
+			// Prefetch total count (used by DashboardWorkPoolFlowRunsTotal)
+			const totalCountFilter: FlowRunsCountFilter = {
+				...workPoolFlowRunsFilter,
+				work_pools: {
+					operator: "and_",
+					name: { any_: [workPool.name] },
+				},
+				flow_runs: {
+					operator: "and_",
+					start_time: {
+						after_: from,
+						before_: to,
+					},
+					state: {
+						operator: "and_",
+						type: {
+							any_: ["COMPLETED", "FAILED", "CRASHED"],
+						},
+					},
+				},
+			};
+			void queryClient.prefetchQuery(
+				buildCountFlowRunsQuery(totalCountFilter, 30_000),
 			);
 		});
 	},
