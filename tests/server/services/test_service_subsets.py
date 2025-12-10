@@ -7,7 +7,6 @@ from prefect.server.logs.stream import LogDistributor
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.services.foreman import Foreman
 from prefect.server.services.late_runs import MarkLateRuns
-from prefect.server.services.pause_expirations import FailExpiredPauses
 from prefect.server.services.repossessor import Repossessor
 from prefect.server.services.scheduler import RecentDeploymentsScheduler, Scheduler
 from prefect.server.services.task_run_recorder import TaskRunRecorder
@@ -20,7 +19,6 @@ def test_the_all_service_subset():
     assert set(Service.all_services()) == {
         Telemetry,
         # Orchestration services
-        FailExpiredPauses,
         Foreman,
         MarkLateRuns,
         RecentDeploymentsScheduler,
