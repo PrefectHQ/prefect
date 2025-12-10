@@ -218,7 +218,9 @@ describe("Runs page", () => {
 				).toBeVisible();
 			});
 
-			const searchInput = screen.getByPlaceholderText("Search by flow run name");
+			const searchInput = screen.getByPlaceholderText(
+				"Search by flow run name",
+			);
 			await user.type(searchInput, "test-search");
 
 			expect(searchInput).toHaveValue("test-search");
@@ -229,9 +231,7 @@ describe("Runs page", () => {
 			await renderRunsPage();
 
 			await waitFor(() => {
-				expect(
-					screen.getByLabelText("Search by flow run name"),
-				).toBeVisible();
+				expect(screen.getByLabelText("Search by flow run name")).toBeVisible();
 			});
 		});
 	});

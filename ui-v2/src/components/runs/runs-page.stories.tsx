@@ -138,9 +138,5 @@ export const WithPagination: Story = {
 
 export const WithSearchValue: Story = {
 	name: "With Search Value",
-	render: () => (
-		<RunsPageWithState
-			initialFlowRunSearch="test-flow"
-		/>
-	),
+	render: () => <RunsPageWithState initialFlowRunSearch="test-flow" />,
 };
