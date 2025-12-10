@@ -1,13 +1,18 @@
-from typing import Any, Callable, Sequence
+"""Tests for the cancellation cleanup perpetual service."""
+
+from typing import Any, Callable
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
-from prefect.server.database.orm_models import ORMFlow, ORMFlowRun
+from prefect.server.database import provide_database_interface
 from prefect.server.schemas import states
 from prefect.server.schemas.core import Deployment, Flow, FlowRun
-from prefect.server.services.cancellation_cleanup import CancellationCleanup
+from prefect.server.services.cancellation_cleanup import (
+    cancel_child_task_runs,
+    cancel_subflow_run,
+)
 from prefect.types._datetime import Duration, now
 
 NON_TERMINAL_STATE_CONSTRUCTORS: dict[states.StateType, Any] = {
@@ -133,132 +138,131 @@ async def test_all_state_types_are_tested():
 
 
 @pytest.mark.parametrize("state_constructor", NON_TERMINAL_STATE_CONSTRUCTORS.items())
-async def test_service_cleans_up_nonterminal_runs(
+async def test_cancel_child_task_runs_cancels_nonterminal_tasks(
     session: AsyncSession,
     cancelled_flow_run: FlowRun,
     orphaned_task_run_maker: Callable[..., Any],
-    orphaned_subflow_run_maker: Callable[..., Any],
-    orphaned_subflow_run_from_deployment_maker: Callable[..., Any],
     state_constructor: tuple[states.StateType, Any],
 ):
+    """Test that cancel_child_task_runs cancels non-terminal task runs."""
     orphaned_task_run = await orphaned_task_run_maker(
         cancelled_flow_run, state_constructor[1]
     )
-    orphaned_subflow_run = await orphaned_subflow_run_maker(
-        cancelled_flow_run, state_constructor[1]
-    )
-    orphaned_subflow_run_from_deployment = (
-        await orphaned_subflow_run_from_deployment_maker(
-            cancelled_flow_run, state_constructor[1]
-        )
-    )
     assert cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_task_run.state.type == state_constructor[0]
-    assert orphaned_subflow_run.state.type == state_constructor[0]
-    assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
-    await CancellationCleanup().start(loops=1)
+    # Call the docket task function directly
+    db = provide_database_interface()
+    await cancel_child_task_runs(cancelled_flow_run.id, db=db)
+
     await session.refresh(orphaned_task_run)
-    await session.refresh(orphaned_subflow_run)
-    await session.refresh(orphaned_subflow_run_from_deployment)
-
-    assert cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_task_run.state.type == "CANCELLED"
-    assert orphaned_subflow_run.state.type == "CANCELLED"
-    assert orphaned_subflow_run_from_deployment.state.type == "CANCELLING"
 
 
 @pytest.mark.parametrize("state_constructor", NON_TERMINAL_STATE_CONSTRUCTORS.items())
-async def test_service_ignores_old_cancellations(
+async def test_cancel_subflow_run_cancels_nonterminal_subflows(
     session: AsyncSession,
-    old_cancelled_flow_run: FlowRun,
-    orphaned_task_run_maker: Callable[..., Any],
+    cancelled_flow_run: FlowRun,
     orphaned_subflow_run_maker: Callable[..., Any],
+    state_constructor: tuple[states.StateType, Any],
+):
+    """Test that cancel_subflow_run cancels non-terminal subflow runs."""
+    orphaned_subflow_run = await orphaned_subflow_run_maker(
+        cancelled_flow_run, state_constructor[1]
+    )
+    assert cancelled_flow_run.state.type == "CANCELLED"
+    assert orphaned_subflow_run.state.type == state_constructor[0]
+
+    # Call the docket task function directly
+    db = provide_database_interface()
+    await cancel_subflow_run(orphaned_subflow_run.id, db=db)
+
+    await session.refresh(orphaned_subflow_run)
+    assert orphaned_subflow_run.state.type == "CANCELLED"
+
+
+@pytest.mark.parametrize("state_constructor", NON_TERMINAL_STATE_CONSTRUCTORS.items())
+async def test_cancel_subflow_run_sets_cancelling_for_deployment_subflows(
+    session: AsyncSession,
+    cancelled_flow_run: FlowRun,
     orphaned_subflow_run_from_deployment_maker: Callable[..., Any],
     state_constructor: tuple[states.StateType, Any],
 ):
-    orphaned_task_run = await orphaned_task_run_maker(
-        old_cancelled_flow_run, state_constructor[1]
+    """Test that subflows from deployments get CANCELLING state (not CANCELLED)."""
+    orphaned_subflow_run = await orphaned_subflow_run_from_deployment_maker(
+        cancelled_flow_run, state_constructor[1]
     )
-    orphaned_subflow_run = await orphaned_subflow_run_maker(
-        old_cancelled_flow_run, state_constructor[1]
-    )
-    orphaned_subflow_run_from_deployment = (
-        await orphaned_subflow_run_from_deployment_maker(
-            old_cancelled_flow_run, state_constructor[1]
-        )
-    )
-    assert old_cancelled_flow_run.state.type == "CANCELLED"
-    assert orphaned_task_run.state.type == state_constructor[0]
+    assert cancelled_flow_run.state.type == "CANCELLED"
     assert orphaned_subflow_run.state.type == state_constructor[0]
-    assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
-    await CancellationCleanup().start(loops=1)
-    await session.refresh(orphaned_task_run)
+    # Call the docket task function directly
+    db = provide_database_interface()
+    await cancel_subflow_run(orphaned_subflow_run.id, db=db)
+
     await session.refresh(orphaned_subflow_run)
-    await session.refresh(orphaned_subflow_run_from_deployment)
-
-    # tasks are ignored, but subflows will still be cancelled
-    assert old_cancelled_flow_run.state.type == "CANCELLED"
-    assert orphaned_task_run.state.type == state_constructor[0]
-    assert orphaned_subflow_run.state.type == "CANCELLED"
-    assert orphaned_subflow_run_from_deployment.state.type == "CANCELLING"
+    # Subflows from deployments should be set to CANCELLING (not CANCELLED)
+    # so the infrastructure can be properly cleaned up
+    assert orphaned_subflow_run.state.type == "CANCELLING"
 
 
 @pytest.mark.parametrize("state_constructor", TERMINAL_STATE_CONSTRUCTORS.items())
-async def test_service_leaves_terminal_runs_alone(
+async def test_cancel_child_task_runs_leaves_terminal_tasks_alone(
     session: AsyncSession,
     cancelled_flow_run: FlowRun,
     orphaned_task_run_maker: Callable[..., Any],
-    orphaned_subflow_run_maker: Callable[..., Any],
-    orphaned_subflow_run_from_deployment_maker: Callable[..., Any],
     state_constructor: tuple[states.StateType, Any],
 ):
+    """Test that cancel_child_task_runs doesn't modify terminal task runs."""
     orphaned_task_run = await orphaned_task_run_maker(
         cancelled_flow_run, state_constructor[1]
     )
+    assert cancelled_flow_run.state.type == "CANCELLED"
+    assert orphaned_task_run.state.type == state_constructor[0]
+
+    # Call the docket task function directly
+    db = provide_database_interface()
+    await cancel_child_task_runs(cancelled_flow_run.id, db=db)
+
+    await session.refresh(orphaned_task_run)
+    # Terminal states should not be changed
+    assert orphaned_task_run.state.type == state_constructor[0]
+
+
+@pytest.mark.parametrize("state_constructor", TERMINAL_STATE_CONSTRUCTORS.items())
+async def test_cancel_subflow_run_leaves_terminal_subflows_alone(
+    session: AsyncSession,
+    cancelled_flow_run: FlowRun,
+    orphaned_subflow_run_maker: Callable[..., Any],
+    state_constructor: tuple[states.StateType, Any],
+):
+    """Test that cancel_subflow_run doesn't modify terminal subflow runs."""
     orphaned_subflow_run = await orphaned_subflow_run_maker(
         cancelled_flow_run, state_constructor[1]
     )
-    orphaned_subflow_run_from_deployment = (
-        await orphaned_subflow_run_from_deployment_maker(
-            cancelled_flow_run, state_constructor[1]
-        )
-    )
-
     assert cancelled_flow_run.state.type == "CANCELLED"
-    assert orphaned_task_run.state.type == state_constructor[0]
     assert orphaned_subflow_run.state.type == state_constructor[0]
-    assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
-    await CancellationCleanup().start(loops=1)
-    await session.refresh(orphaned_task_run)
+    # Call the docket task function directly
+    db = provide_database_interface()
+    await cancel_subflow_run(orphaned_subflow_run.id, db=db)
+
     await session.refresh(orphaned_subflow_run)
-    await session.refresh(orphaned_subflow_run_from_deployment)
-
-    assert cancelled_flow_run.state.type == "CANCELLED"
-    assert orphaned_task_run.state.type == state_constructor[0]
+    # Terminal states should not be changed
     assert orphaned_subflow_run.state.type == state_constructor[0]
-    assert orphaned_subflow_run_from_deployment.state.type == state_constructor[0]
 
 
-async def test_service_works_with_partial_flow_run_objects(
+async def test_cancel_subflow_run_ignores_non_cancelled_parents(
     session: AsyncSession,
     flow: Flow,
-    deployment: Deployment,
 ):
-    """
-    Test that the cancellation cleanup service works correctly with partial FlowRun objects.
-    This verifies that selecting only specific columns in the query doesn't break functionality.
-    """
-    # Create a parent flow run and task run
+    """Test that cancel_subflow_run doesn't cancel subflows whose parent isn't cancelled."""
+    # Create a running parent flow run (not cancelled)
     async with session.begin():
         parent_flow = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=states.Cancelled(),
-                end_time=THE_PAST,
+                state=states.Running(),
             ),
         )
         virtual_task = await models.task_runs.create_task_run(
@@ -270,19 +274,7 @@ async def test_service_works_with_partial_flow_run_objects(
                 state=states.Running(),
             ),
         )
-
-    # Create subflows in different states
-    async with session.begin():
-        subflow_with_deployment = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id,
-                parent_task_run_id=virtual_task.id,
-                state=states.Running(),
-                deployment_id=deployment.id,
-            ),
-        )
-        subflow_without_deployment = await models.flow_runs.create_flow_run(
+        subflow = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
@@ -291,46 +283,37 @@ async def test_service_works_with_partial_flow_run_objects(
             ),
         )
 
-    # Run the cleanup service
-    await CancellationCleanup().start(loops=1)
+    assert parent_flow.state.type == "RUNNING"
+    assert subflow.state.type == "RUNNING"
 
-    # Refresh states
-    async with session.begin():
-        await session.refresh(subflow_with_deployment)
-        await session.refresh(subflow_without_deployment)
+    # Call the docket task function directly
+    db = provide_database_interface()
+    await cancel_subflow_run(subflow.id, db=db)
 
-    # Verify correct state transitions with partial objects
-    assert subflow_with_deployment.state.type == states.StateType.CANCELLING
-    assert subflow_without_deployment.state.type == states.StateType.CANCELLED
-
-
-@pytest.fixture
-async def many_cancelled_runs(
-    session: AsyncSession, flow: ORMFlow
-) -> Sequence[ORMFlowRun]:
-    runs: list[ORMFlowRun] = []
-    async with session.begin():
-        for i in range(10):
-            runs.append(
-                await models.flow_runs.create_flow_run(
-                    session=session,
-                    flow_run=schemas.core.FlowRun(
-                        flow_id=flow.id, state=states.Cancelled(), end_time=THE_PAST
-                    ),
-                )
-            )
-    return runs
+    await session.refresh(subflow)
+    # Subflow should still be running since parent isn't cancelled
+    assert subflow.state.type == "RUNNING"
 
 
-async def test_service_does_a_finite_amount_of_work(
-    session: AsyncSession, many_cancelled_runs: Sequence[ORMFlowRun]
+async def test_cancel_child_task_runs_handles_deleted_flow_run(
+    session: AsyncSession,
+    flow: Flow,
 ):
-    """Regression test for PrefectHQ/prefect#18005, where the CancellationCleanup
-    service can get stuck in an infinite loop if more than the batch size of runs
-    are cancelled"""
+    """Test that cancel_child_task_runs handles the case where flow run was deleted."""
+    from uuid import uuid4
 
-    service = CancellationCleanup()
-    service.batch_size = 5
-    assert len(many_cancelled_runs) > service.batch_size
+    # Call with a non-existent flow run ID - should not raise
+    db = provide_database_interface()
+    await cancel_child_task_runs(uuid4(), db=db)
 
-    await service.start(loops=1)
+
+async def test_cancel_subflow_run_handles_deleted_flow_run(
+    session: AsyncSession,
+    flow: Flow,
+):
+    """Test that cancel_subflow_run handles the case where flow run was deleted."""
+    from uuid import uuid4
+
+    # Call with a non-existent flow run ID - should not raise
+    db = provide_database_interface()
+    await cancel_subflow_run(uuid4(), db=db)
