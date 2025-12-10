@@ -1,4 +1,8 @@
-import { useQueryClient, useSuspenseQueries } from "@tanstack/react-query";
+import {
+	useQuery,
+	useQueryClient,
+	useSuspenseQueries,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
@@ -205,17 +209,18 @@ function RouteComponent() {
 	const [tab, onTabChange] = useTab();
 	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
 
-	const [
-		{ data: flowRunsCount },
-		{ data: taskRunsCount },
-		{ data: flowRunsPage },
-	] = useSuspenseQueries({
-		queries: [
-			buildCountFlowRunsQuery(),
-			buildCountTaskRunsQuery(),
-			buildPaginateFlowRunsQuery(buildPaginationBody(search), 30_000),
-		],
-	});
+	// Use useSuspenseQueries for count queries (stable keys, won't cause suspense on search change)
+	const [{ data: flowRunsCount }, { data: taskRunsCount }] = useSuspenseQueries(
+		{
+			queries: [buildCountFlowRunsQuery(), buildCountTaskRunsQuery()],
+		},
+	);
+
+	// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
+	// This prevents the page from suspending when search/filter changes
+	const { data: flowRunsPage } = useQuery(
+		buildPaginateFlowRunsQuery(buildPaginationBody(search), 30_000),
+	);
 
 	const flowRuns = flowRunsPage?.results ?? [];
 
