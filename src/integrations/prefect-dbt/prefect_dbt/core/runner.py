@@ -240,8 +240,11 @@ class PrefectDbtRunner:
             if not depends_manifest_node:
                 continue
 
+            # Skip nodes without relation_name. This primarily occurs for ephemeral
+            # models which are CTEs that don't create database objects. We skip rather
+            # than error because nodes without relation_name can't be tracked as assets.
             if not depends_manifest_node.relation_name:
-                raise ValueError("Relation name not found in manifest")
+                continue
 
             upstream_manifest_nodes.append(
                 (
