@@ -102,9 +102,14 @@ class DatabricksCredentials(Block):
         2. client_id + client_secret (service principal authentication)
         3. client_id + client_secret + tenant_id (Azure service principal authentication)
         """
-        has_token = values.get("token") is not None
-        has_client_id = values.get("client_id") is not None
-        has_client_secret = values.get("client_secret") is not None
+        token = values.get("token")
+        client_id = values.get("client_id")
+        client_secret = values.get("client_secret")
+
+        # Guard against both None and empty strings
+        has_token = token is not None and token != ""
+        has_client_id = client_id is not None and client_id != ""
+        has_client_secret = client_secret is not None and client_secret != ""
 
         has_any_sp = has_client_id or has_client_secret
         has_all_sp = has_client_id and has_client_secret
@@ -192,6 +197,11 @@ class DatabricksCredentials(Block):
                 )
 
             token_data = response.json()
+            if "access_token" not in token_data:
+                raise RuntimeError(
+                    "OAuth token response did not contain an access_token. "
+                    f"Response: {token_data}"
+                )
             self._cached_token = token_data["access_token"]
             expires_in = token_data.get("expires_in", 3600)
             self._token_expiry = time.time() + expires_in

@@ -219,6 +219,33 @@ class TestDatabricksCredentialsServicePrincipalAuth:
         with pytest.raises(RuntimeError, match="Failed to acquire OAuth token"):
             credentials.get_client()
 
+    @patch("prefect_databricks.credentials.Client")
+    def test_oauth_token_response_missing_access_token(self, mock_client_class):
+        """Test that missing access_token in response raises user-friendly error."""
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "error": "invalid_grant",
+            "error_description": "Some error occurred",
+        }
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post.return_value = mock_response
+        mock_client_instance.__enter__ = MagicMock(return_value=mock_client_instance)
+        mock_client_instance.__exit__ = MagicMock(return_value=False)
+        mock_client_class.return_value = mock_client_instance
+
+        credentials = DatabricksCredentials(
+            databricks_instance="dbc-test.cloud.databricks.com",
+            client_id="my-client-id",
+            client_secret="my-client-secret",
+        )
+
+        with pytest.raises(
+            RuntimeError, match="OAuth token response did not contain an access_token"
+        ):
+            credentials.get_client()
+
 
 class TestDatabricksCredentialsValidation:
     """Tests for authentication validation."""
@@ -290,6 +317,41 @@ class TestDatabricksCredentialsValidation:
                 databricks_instance="dbc-test.cloud.databricks.com",
                 token="my-token",
                 client_secret="my-client-secret",
+            )
+
+    def test_validation_error_empty_string_token(self):
+        """Test that validation fails when token is an empty string."""
+        with pytest.raises(
+            ValueError,
+            match="Must provide either `token` for PAT authentication",
+        ):
+            DatabricksCredentials(
+                databricks_instance="dbc-test.cloud.databricks.com",
+                token="",
+            )
+
+    def test_validation_error_empty_string_client_id(self):
+        """Test that validation fails when client_id is an empty string."""
+        with pytest.raises(
+            ValueError,
+            match="both `client_id` and `client_secret` must be provided",
+        ):
+            DatabricksCredentials(
+                databricks_instance="dbc-test.cloud.databricks.com",
+                client_id="",
+                client_secret="my-client-secret",
+            )
+
+    def test_validation_error_empty_string_client_secret(self):
+        """Test that validation fails when client_secret is an empty string."""
+        with pytest.raises(
+            ValueError,
+            match="both `client_id` and `client_secret` must be provided",
+        ):
+            DatabricksCredentials(
+                databricks_instance="dbc-test.cloud.databricks.com",
+                client_id="my-client-id",
+                client_secret="",
             )
 
 
