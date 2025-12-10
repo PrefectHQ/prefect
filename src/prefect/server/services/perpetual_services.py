@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeVar
 
 from docket import Docket, Perpetual
+from docket.dependencies import get_single_dependency_parameter_of_type
 
 from prefect.logging import get_logger
 
@@ -199,8 +200,6 @@ async def register_and_schedule_perpetual_services(
         ephemeral: If True, only register services for ephemeral mode.
         webserver_only: If True, only register services for webserver mode.
     """
-    from docket.dependencies import get_single_dependency_parameter_of_type
-
     # Get all services for this mode (for counting)
     all_services = get_perpetual_services(ephemeral, webserver_only)
 

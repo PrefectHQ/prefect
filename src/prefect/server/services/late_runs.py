@@ -7,7 +7,6 @@ This service has been converted from a LoopService to docket Perpetual functions
 
 from __future__ import annotations
 
-import datetime
 from datetime import timedelta
 from uuid import UUID
 
@@ -20,10 +19,6 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MarkLateRunsPolicy
 from prefect.server.schemas import states
 from prefect.server.services.perpetual_services import perpetual_service
-from prefect.settings import (
-    PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
-    PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
-)
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
@@ -67,16 +62,16 @@ async def monitor_late_runs(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
         automatic=False,
-        every=timedelta(seconds=PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS.value()),
+        every=timedelta(
+            seconds=get_current_settings().server.services.late_runs.loop_seconds
+        ),
     ),
 ) -> None:
     """Monitor for late flow runs and schedule marking tasks."""
 
+    settings = get_current_settings().server.services.late_runs
     batch_size = 400
-    mark_late_after = PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS.value()
-    scheduled_to_start_before = now("UTC") - datetime.timedelta(
-        seconds=mark_late_after.total_seconds()
-    )
+    scheduled_to_start_before = now("UTC") - settings.after_seconds
 
     async with db.session_context() as session:
         query = (

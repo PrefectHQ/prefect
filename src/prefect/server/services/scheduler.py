@@ -22,15 +22,6 @@ from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas.states import StateType
 from prefect.server.services.perpetual_services import perpetual_service
-from prefect.settings import (
-    PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
-    PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
-    PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS,
-    PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
-    PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
-    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
-    PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
-)
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 from prefect.utilities.collections import batched_iterable
@@ -179,21 +170,24 @@ async def schedule_deployments(
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
         automatic=False,
-        every=timedelta(seconds=PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.value()),
+        every=timedelta(
+            seconds=get_current_settings().server.services.scheduler.loop_seconds
+        ),
     ),
 ) -> None:
     """
     Main scheduler - schedules flow runs from deployments.
 
-    Perpetual task that runs according to PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.
+    Perpetual task that runs according to scheduler.loop_seconds setting.
     """
     logger.debug("Running schedule_deployments")
-    deployment_batch_size = PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
-    max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
-    min_runs = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
-    max_scheduled_time = PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
-    min_scheduled_time = PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
-    insert_batch_size = PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
+    settings = get_current_settings().server.services.scheduler
+    deployment_batch_size = settings.deployment_batch_size
+    max_runs = settings.max_runs
+    min_runs = settings.min_runs
+    max_scheduled_time = settings.max_scheduled_time
+    min_scheduled_time = settings.min_scheduled_time
+    insert_batch_size = settings.insert_batch_size
 
     total_inserted_runs = 0
     last_id = None
@@ -261,15 +255,14 @@ async def schedule_recent_deployments(
 
     Perpetual task that runs according to recent_deployments_loop_seconds setting.
     """
-    deployment_batch_size = PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
-    max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
-    min_runs = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
-    max_scheduled_time = PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
-    min_scheduled_time = PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
-    insert_batch_size = PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
-    loop_seconds = (
-        get_current_settings().server.services.scheduler.recent_deployments_loop_seconds
-    )
+    settings = get_current_settings().server.services.scheduler
+    deployment_batch_size = settings.deployment_batch_size
+    max_runs = settings.max_runs
+    min_runs = settings.min_runs
+    max_scheduled_time = settings.max_scheduled_time
+    min_scheduled_time = settings.min_scheduled_time
+    insert_batch_size = settings.insert_batch_size
+    loop_seconds = settings.recent_deployments_loop_seconds
 
     total_inserted_runs = 0
     last_id = None
