@@ -64,6 +64,47 @@ class TestDatabricksCredentialsServicePrincipalAuth:
         assert credentials.tenant_id == "my-tenant-id"
 
     @patch("prefect_databricks.credentials.Client")
+    def test_get_client_with_azure_ad_service_principal(self, mock_client_class):
+        """Test that get_client uses Azure AD endpoint when tenant_id is provided."""
+        mock_response = MagicMock(spec=Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "access_token": "azure-ad-access-token",
+            "expires_in": 3600,
+        }
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post.return_value = mock_response
+        mock_client_instance.__enter__ = MagicMock(return_value=mock_client_instance)
+        mock_client_instance.__exit__ = MagicMock(return_value=False)
+        mock_client_class.return_value = mock_client_instance
+
+        credentials = DatabricksCredentials(
+            databricks_instance="adb-123456789.7.azuredatabricks.net",
+            client_id="my-azure-client-id",
+            client_secret="my-azure-client-secret",
+            tenant_id="my-tenant-id",
+        )
+        client = credentials.get_client()
+
+        assert isinstance(client, AsyncClient)
+        assert client.headers["authorization"] == "Bearer azure-ad-access-token"
+
+        mock_client_instance.post.assert_called_once()
+        call_args = mock_client_instance.post.call_args
+        assert (
+            call_args[0][0]
+            == "https://login.microsoftonline.com/my-tenant-id/oauth2/v2.0/token"
+        )
+        assert call_args[1]["data"]["grant_type"] == "client_credentials"
+        assert call_args[1]["data"]["client_id"] == "my-azure-client-id"
+        assert call_args[1]["data"]["client_secret"] == "my-azure-client-secret"
+        assert (
+            call_args[1]["data"]["scope"]
+            == "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default"
+        )
+
+    @patch("prefect_databricks.credentials.Client")
     def test_get_client_with_service_principal(self, mock_client_class):
         """Test that get_client works with service principal authentication."""
         mock_response = MagicMock(spec=Response)

@@ -136,6 +136,10 @@ class DatabricksCredentials(Block):
         Implements token caching and automatic refresh when the token is expired
         or about to expire (within 60 seconds of expiration).
 
+        For Azure Databricks with a tenant_id, uses Microsoft Entra ID (Azure AD)
+        token endpoint. For Databricks-managed service principals (no tenant_id),
+        uses the Databricks OIDC endpoint.
+
         Returns:
             A valid OAuth access token.
 
@@ -149,20 +153,35 @@ class DatabricksCredentials(Block):
         ):
             return self._cached_token
 
-        token_url = f"https://{self.databricks_instance}/oidc/v1/token"
-
-        credentials = f"{self.client_id}:{self.client_secret.get_secret_value()}"
-        encoded_credentials = base64.b64encode(credentials.encode()).decode()
-
-        headers = {
-            "Authorization": f"Basic {encoded_credentials}",
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-
-        data = {
-            "grant_type": "client_credentials",
-            "scope": "all-apis",
-        }
+        if self.tenant_id is not None:
+            # Azure AD (Microsoft Entra ID) authentication
+            token_url = (
+                f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
+            )
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded",
+            }
+            # Azure Databricks resource ID
+            azure_databricks_resource_id = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+            data = {
+                "grant_type": "client_credentials",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret.get_secret_value(),
+                "scope": f"{azure_databricks_resource_id}/.default",
+            }
+        else:
+            # Databricks-managed service principal authentication
+            token_url = f"https://{self.databricks_instance}/oidc/v1/token"
+            credentials = f"{self.client_id}:{self.client_secret.get_secret_value()}"
+            encoded_credentials = base64.b64encode(credentials.encode()).decode()
+            headers = {
+                "Authorization": f"Basic {encoded_credentials}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            }
+            data = {
+                "grant_type": "client_credentials",
+                "scope": "all-apis",
+            }
 
         with Client() as client:
             response = client.post(token_url, headers=headers, data=data)
