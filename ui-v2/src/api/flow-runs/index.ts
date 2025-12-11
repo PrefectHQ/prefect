@@ -295,7 +295,7 @@ export const buildAverageLatenessFlowRunsQuery = (
  */
 const withFlowIdFilter = (
 	flowId: string,
-	filter: FlowRunsFilter = {},
+	filter: FlowRunsFilter,
 ): FlowRunsFilter => ({
 	...filter,
 	flows: {
@@ -323,7 +323,10 @@ const withFlowIdFilter = (
  */
 export const buildFilterFlowRunsByFlowIdQuery = (
 	flowId: string,
-	filter: FlowRunsFilter = {},
+	filter: FlowRunsFilter = {
+		sort: "ID_DESC",
+		offset: 0,
+	},
 	refetchInterval = 30_000,
 ) => {
 	const filterWithFlowId = withFlowIdFilter(flowId, filter);

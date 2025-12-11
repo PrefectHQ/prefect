@@ -242,42 +242,6 @@ export const buildFilterDeploymentsByFlowIdQuery = (
 	});
 };
 
-/**
- * Builds a query configuration for counting deployments for a specific flow
- *
- * @param flowId - The flow ID to filter by
- * @param filter - Additional filter parameters for the count query
- * @returns Query configuration object for use with TanStack Query
- *
- * @example
- * ```ts
- * const { data: count } = useSuspenseQuery(buildCountDeploymentsByFlowIdQuery("flow-id"));
- * ```
- */
-export const buildCountDeploymentsByFlowIdQuery = (
-	flowId: string,
-	filter: DeploymentsFilter = { offset: 0, sort: "NAME_ASC" },
-) => {
-	const filterWithFlowId: DeploymentsFilter = {
-		...filter,
-		flows: {
-			...filter.flows,
-			operator: "and_" as const,
-			id: { any_: [flowId] },
-		},
-	};
-	return queryOptions({
-		queryKey: queryKeyFactory.count(filterWithFlowId),
-		queryFn: async () => {
-			const res = await getQueryService().POST("/deployments/count", {
-				body: filterWithFlowId,
-			});
-			return res.data ?? 0;
-		},
-		placeholderData: keepPreviousData,
-	});
-};
-
 // ----------------------------
 // --------  Mutations --------
 // ----------------------------

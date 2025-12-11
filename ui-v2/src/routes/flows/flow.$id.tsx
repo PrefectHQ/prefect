@@ -2,17 +2,17 @@ import { useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import {
-	buildCountDeploymentsByFlowIdQuery,
-	buildFilterDeploymentsByFlowIdQuery,
-} from "@/api/deployments";
+import { buildFilterDeploymentsByFlowIdQuery } from "@/api/deployments";
 import {
 	buildCountFlowRunsByFlowIdQuery,
 	buildFilterFlowRunsByFlowIdQuery,
 	buildLatestFlowRunsByFlowIdQuery,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
-import { buildFLowDetailsQuery } from "@/api/flows";
+import {
+	buildDeploymentsCountByFlowQuery,
+	buildFLowDetailsQuery,
+} from "@/api/flows";
 import FlowDetail from "@/components/flows/detail";
 
 // Route for /flows/flow/$id
@@ -122,12 +122,12 @@ export const Route = createFileRoute("/flows/flow/$id")({
 			context.queryClient.ensureQueryData(
 				buildFilterDeploymentsByFlowIdQuery(id, {
 					sort: "CREATED_DESC",
-					offset: deps["deployments.page"] * deps["deployments.limit"],
-					limit: deps["deployments.limit"],
+					offset: deps["runs.page"] * deps["runs.limit"],
+					limit: deps["runs.limit"],
 				}),
 			),
 			context.queryClient.ensureQueryData(
-				buildCountDeploymentsByFlowIdQuery(id),
+				buildDeploymentsCountByFlowQuery([id]),
 			),
 		]);
 	},
