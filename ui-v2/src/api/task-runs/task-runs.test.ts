@@ -69,7 +69,7 @@ describe("task runs api", () => {
 						buildPaginateTaskRunsQuery({
 							page: 2,
 							limit: 5,
-							sort: "START_TIME_DESC",
+							sort: "EXPECTED_START_TIME_DESC",
 						}),
 					),
 				{
