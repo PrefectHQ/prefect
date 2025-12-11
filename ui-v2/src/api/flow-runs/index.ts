@@ -105,6 +105,14 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.lateness(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	// Flow-scoped query keys
+	byFlowId: () => [...queryKeyFactory.all(), "byFlow"] as const,
+	latestByFlowId: (flowId: string, limit: number) =>
+		[...queryKeyFactory.byFlowId(), "latest", flowId, limit] as const,
+	nextByFlowId: (flowId: string, limit: number) =>
+		[...queryKeyFactory.byFlowId(), "next", flowId, limit] as const,
+	countByFlowId: (flowId: string, filter: FlowRunsCountFilter) =>
+		[...queryKeyFactory.byFlowId(), "count", flowId, filter] as const,
 };
 
 /**
@@ -274,6 +282,187 @@ export const buildAverageLatenessFlowRunsQuery = (
 		refetchInterval,
 		placeholderData: keepPreviousData,
 	});
+
+// ----- 🔍 Flow-Scoped Queries 🗄️
+// ----------------------------
+
+/**
+ * Adds a flow ID constraint to a FlowRunsFilter
+ *
+ * @param flowId - The flow ID to filter by
+ * @param filter - The base filter to extend
+ * @returns A new filter with the flow ID constraint added
+ */
+const withFlowIdFilter = (
+	flowId: string,
+	filter: FlowRunsFilter = {},
+): FlowRunsFilter => ({
+	...filter,
+	flows: {
+		...filter.flows,
+		operator: "and_" as const,
+		id: { any_: [flowId] },
+	},
+});
+
+/**
+ * Builds a query configuration for fetching filtered flow runs for a specific flow
+ *
+ * @param flowId - The flow ID to filter by
+ * @param filter - Additional filter parameters for the flow runs query
+ * @param refetchInterval - Interval in ms to refetch the data (default: 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildFilterFlowRunsByFlowIdQuery(
+ *   "flow-id",
+ *   { sort: "START_TIME_DESC", limit: 10 }
+ * ));
+ * ```
+ */
+export const buildFilterFlowRunsByFlowIdQuery = (
+	flowId: string,
+	filter: FlowRunsFilter = {},
+	refetchInterval = 30_000,
+) => {
+	const filterWithFlowId = withFlowIdFilter(flowId, filter);
+	return queryOptions({
+		queryKey: queryKeyFactory.filter(filterWithFlowId),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/flow_runs/filter", {
+				body: filterWithFlowId,
+			});
+			return res.data ?? ([] satisfies FlowRun[]);
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
+};
+
+/**
+ * Builds a query configuration for fetching the latest N completed flow runs for a specific flow
+ *
+ * @param flowId - The flow ID to filter by
+ * @param limit - Maximum number of flow runs to return
+ * @param refetchInterval - Interval in ms to refetch the data (default: 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildLatestFlowRunsByFlowIdQuery("flow-id", 10));
+ * ```
+ */
+export const buildLatestFlowRunsByFlowIdQuery = (
+	flowId: string,
+	limit: number,
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.latestByFlowId(flowId, limit),
+		queryFn: async () => {
+			const now = new Date().toISOString();
+			const res = await getQueryService().POST("/flow_runs/filter", {
+				body: {
+					flows: { operator: "and_" as const, id: { any_: [flowId] } },
+					flow_runs: {
+						operator: "and_" as const,
+						start_time: {
+							before_: now,
+							is_null_: false,
+						},
+					},
+					offset: 0,
+					limit,
+					sort: "START_TIME_DESC",
+				},
+			});
+			return res.data ?? ([] satisfies FlowRun[]);
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
+
+/**
+ * Builds a query configuration for fetching the next N scheduled flow runs for a specific flow
+ *
+ * @param flowId - The flow ID to filter by
+ * @param limit - Maximum number of flow runs to return
+ * @param refetchInterval - Interval in ms to refetch the data (default: 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useSuspenseQuery(buildNextScheduledFlowRunsByFlowIdQuery("flow-id", 10));
+ * ```
+ */
+export const buildNextScheduledFlowRunsByFlowIdQuery = (
+	flowId: string,
+	limit: number,
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.nextByFlowId(flowId, limit),
+		queryFn: async () => {
+			const now = new Date().toISOString();
+			const res = await getQueryService().POST("/flow_runs/filter", {
+				body: {
+					flows: { operator: "and_" as const, id: { any_: [flowId] } },
+					flow_runs: {
+						operator: "and_" as const,
+						expected_start_time: {
+							after_: now,
+						},
+					},
+					offset: 0,
+					limit,
+					sort: "EXPECTED_START_TIME_ASC",
+				},
+			});
+			return res.data ?? ([] satisfies FlowRun[]);
+		},
+		staleTime: 1000,
+		refetchInterval,
+	});
+
+/**
+ * Builds a query configuration for counting flow runs for a specific flow
+ *
+ * @param flowId - The flow ID to filter by
+ * @param filter - Additional filter parameters for the count query
+ * @param refetchInterval - Interval in ms to refetch the count (default: 60 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: count } = useSuspenseQuery(buildCountFlowRunsByFlowIdQuery("flow-id"));
+ * ```
+ */
+export const buildCountFlowRunsByFlowIdQuery = (
+	flowId: string,
+	filter: FlowRunsCountFilter = {},
+	refetchInterval = 60_000,
+) => {
+	const filterWithFlowId: FlowRunsCountFilter = {
+		...filter,
+		flows: {
+			...filter.flows,
+			operator: "and_" as const,
+			id: { any_: [flowId] },
+		},
+	};
+	return queryOptions({
+		queryKey: queryKeyFactory.countByFlowId(flowId, filterWithFlowId),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/flow_runs/count", {
+				body: filterWithFlowId,
+			});
+			return res.data ?? 0;
+		},
+		refetchInterval,
+		placeholderData: keepPreviousData,
+	});
+};
 
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
