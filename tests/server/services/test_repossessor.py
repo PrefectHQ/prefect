@@ -1,6 +1,8 @@
 from datetime import timedelta
+from uuid import uuid4
 
 import pytest
+from docket import Docket
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
@@ -170,25 +172,18 @@ class TestMonitorExpiredLeases:
         # Verify initial state
         assert len(lease_storage.leases) == 1
 
-        # Track scheduled tasks
-        scheduled_tasks = []
+        # Use a real Docket instance with unique name for isolation
+        async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+            docket.register(revoke_expired_lease)
 
-        class MockDocket:
-            def add(self, func):
-                async def add_task(*args, **kwargs):
-                    scheduled_tasks.append((func, args, kwargs))
+            await monitor_expired_leases(
+                docket=docket,
+                lease_storage=lease_storage,
+            )
 
-                return add_task
-
-        # Run the monitor
-        await monitor_expired_leases(
-            docket=MockDocket(),
-            lease_storage=lease_storage,
-        )
-
-        # Verify a task was scheduled
-        assert len(scheduled_tasks) == 1
-        assert scheduled_tasks[0][0] == revoke_expired_lease
+            # Verify a task was scheduled via snapshot
+            snapshot = await docket.snapshot()
+            assert snapshot.total_tasks == 1
 
     async def test_monitor_ignores_non_expired_leases(
         self, lease_storage, concurrency_limit
@@ -206,24 +201,18 @@ class TestMonitorExpiredLeases:
         # Verify initial state
         assert len(lease_storage.leases) == 1
 
-        # Track scheduled tasks
-        scheduled_tasks = []
+        # Use a real Docket instance with unique name for isolation
+        async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+            docket.register(revoke_expired_lease)
 
-        class MockDocket:
-            def add(self, func):
-                async def add_task(*args, **kwargs):
-                    scheduled_tasks.append((func, args, kwargs))
+            await monitor_expired_leases(
+                docket=docket,
+                lease_storage=lease_storage,
+            )
 
-                return add_task
-
-        # Run the monitor
-        await monitor_expired_leases(
-            docket=MockDocket(),
-            lease_storage=lease_storage,
-        )
-
-        # Verify no tasks were scheduled
-        assert len(scheduled_tasks) == 0
+            # Verify no tasks were scheduled
+            snapshot = await docket.snapshot()
+            assert snapshot.total_tasks == 0
 
     async def test_monitor_schedules_multiple_tasks(
         self, lease_storage, session: AsyncSession
@@ -258,23 +247,15 @@ class TestMonitorExpiredLeases:
         # Verify initial state
         assert len(lease_storage.leases) == 3
 
-        # Track scheduled tasks
-        scheduled_tasks = []
+        # Use a real Docket instance with unique name for isolation
+        async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+            docket.register(revoke_expired_lease)
 
-        class MockDocket:
-            def add(self, func):
-                async def add_task(*args, **kwargs):
-                    scheduled_tasks.append((func, args, kwargs))
+            await monitor_expired_leases(
+                docket=docket,
+                lease_storage=lease_storage,
+            )
 
-                return add_task
-
-        # Run the monitor
-        await monitor_expired_leases(
-            docket=MockDocket(),
-            lease_storage=lease_storage,
-        )
-
-        # Verify all tasks were scheduled
-        assert len(scheduled_tasks) == 3
-        for task in scheduled_tasks:
-            assert task[0] == revoke_expired_lease
+            # Verify all tasks were scheduled
+            snapshot = await docket.snapshot()
+            assert snapshot.total_tasks == 3
