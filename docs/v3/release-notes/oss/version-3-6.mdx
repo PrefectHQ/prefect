@@ -2,6 +2,43 @@
 title: 3.6
 ---
 
+## 3.6.6 - The Eternal Docket of the Spotless Server
+
+*Released on December 08, 2025*
+
+**Enhancements ➕➕**
+
+* Add client-side configuration for deployment concurrency grace period by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19489](https://github.com/PrefectHQ/prefect/pull/19489)
+* Add PostgreSQL `search_path` support via settings by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19620](https://github.com/PrefectHQ/prefect/pull/19620)
+* Add memory safeguards to event persister service by [@desertaxle](https://github.com/desertaxle) in [#19651](https://github.com/PrefectHQ/prefect/pull/19651)
+* Add perpetual services infrastructure and convert `cancellation_cleanup` to perpetual Docket task by [@zzstoatzz](https://github.com/zzstoatzz) in [#19715](https://github.com/PrefectHQ/prefect/pull/19715)
+* Convert `pause_expirations` service to perpetual Docket task by [@zzstoatzz](https://github.com/zzstoatzz) in [#19719](https://github.com/PrefectHQ/prefect/pull/19719)
+
+
+**Bug Fixes 🐞**
+
+* Prevent uvloop from setting global event loop policy in healthcheck by [@zzstoatzz](https://github.com/zzstoatzz) in [#19660](https://github.com/PrefectHQ/prefect/pull/19660)
+* Clarify `result_storage` usage with `@task` and `@flow` decorators by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19671](https://github.com/PrefectHQ/prefect/pull/19671)
+* Exclude `DEFAULT` cache policy from triggering automatic `persist_result` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19673](https://github.com/PrefectHQ/prefect/pull/19673)
+* Remove return type annotation from settings serializer to fix OpenAPI schema by [@zzstoatzz](https://github.com/zzstoatzz) in [#19616](https://github.com/PrefectHQ/prefect/pull/19616)
+* Use `history_interval_seconds` as parameter name in OpenAPI schema by [@desertaxle](https://github.com/desertaxle) in [#19659](https://github.com/PrefectHQ/prefect/pull/19659)
+
+**Development & Tidiness 🧹**
+
+* Turn off dependabot for Vue UI package updates by [@desertaxle](https://github.com/desertaxle) in [#19636](https://github.com/PrefectHQ/prefect/pull/19636)
+* Add weekly release kickoff workflow by [@desertaxle](https://github.com/desertaxle) in [#19661](https://github.com/PrefectHQ/prefect/pull/19661)
+* Migrate `prefect.input.actions` from `sync_compatible` to `async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19632](https://github.com/PrefectHQ/prefect/pull/19632)
+* Remove auto-generate docs workflow by [@desertaxle](https://github.com/desertaxle) in [#19665](https://github.com/PrefectHQ/prefect/pull/19665)
+
+**Documentation 📓**
+
+* Fix incorrect Dockerfile example in "Deploy via Python" guide by [@desertaxle](https://github.com/desertaxle) in [#19653](https://github.com/PrefectHQ/prefect/pull/19653)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.5...3.6.6
+
+
+---
+
 ## 3.6.5 - Batch Me If You Can
 
 *Released on December 04, 2025*

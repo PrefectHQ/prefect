@@ -22530,6 +22530,21 @@
                             "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME"
                         ]
                     },
+                    "search_path": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Search Path",
+                        "description": "PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend. Note: The public schema should be included in the search path (e.g. 'myschema, public') to ensure that pg_trgm and other extensions remain available.",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH"
+                        ]
+                    },
                     "statement_cache_size": {
                         "anyOf": [
                             {
