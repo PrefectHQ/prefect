@@ -5,6 +5,7 @@ import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
 	DateRangeFilter,
 	type DateRangeUrlState,
+	FlowFilter,
 	type FlowRunState,
 	FlowRunsList,
 	FlowRunsPagination,
@@ -47,6 +48,8 @@ type RunsPageProps = {
 	onFlowRunSearchChange: (search: string) => void;
 	selectedStates: Set<FlowRunState>;
 	onStateFilterChange: (states: Set<FlowRunState>) => void;
+	selectedFlows: Set<string>;
+	onFlowFilterChange: (flows: Set<string>) => void;
 	dateRange: DateRangeUrlState;
 	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
 };
@@ -69,6 +72,8 @@ export const RunsPage = ({
 	onFlowRunSearchChange,
 	selectedStates,
 	onStateFilterChange,
+	selectedFlows,
+	onFlowFilterChange,
 	dateRange,
 	onDateRangeChange,
 }: RunsPageProps) => {
@@ -123,6 +128,12 @@ export const RunsPage = ({
 									<StateFilter
 										selectedFilters={selectedStates}
 										onSelectFilter={onStateFilterChange}
+									/>
+								</div>
+								<div className="w-64">
+									<FlowFilter
+										selectedFlows={selectedFlows}
+										onSelectFlows={onFlowFilterChange}
 									/>
 								</div>
 								<DateRangeFilter
