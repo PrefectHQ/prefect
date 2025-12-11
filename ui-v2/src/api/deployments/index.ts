@@ -195,53 +195,6 @@ export const buildDeploymentDetailsQuery = (id: string) =>
 		},
 	});
 
-// ----- 🔍 Flow-Scoped Queries 🗄️
-// ----------------------------
-
-/**
- * Builds a query configuration for fetching filtered deployments for a specific flow
- *
- * @param flowId - The flow ID to filter by
- * @param filter - Additional filter parameters for the deployments query
- * @returns Query configuration object for use with TanStack Query
- *
- * @example
- * ```ts
- * const { data } = useSuspenseQuery(buildFilterDeploymentsByFlowIdQuery(
- *   "flow-id",
- *   { sort: "CREATED_DESC", limit: 10 }
- * ));
- * ```
- */
-export const buildFilterDeploymentsByFlowIdQuery = (
-	flowId: string,
-	filter: DeploymentsFilter = {
-		offset: 0,
-		sort: "CREATED_DESC",
-	},
-	{ enabled = true }: { enabled?: boolean } = {},
-) => {
-	const filterWithFlowId: DeploymentsFilter = {
-		...filter,
-		flows: {
-			...filter.flows,
-			operator: "and_" as const,
-			id: { any_: [flowId] },
-		},
-	};
-	return queryOptions({
-		queryKey: queryKeyFactory["list-filter"](filterWithFlowId),
-		queryFn: async () => {
-			const res = await getQueryService().POST("/deployments/filter", {
-				body: filterWithFlowId,
-			});
-			return res.data ?? [];
-		},
-		placeholderData: keepPreviousData,
-		enabled,
-	});
-};
-
 // ----------------------------
 // --------  Mutations --------
 // ----------------------------
