@@ -1,3 +1,4 @@
+export { TaskRunsList } from "./task-runs-list";
 export {
 	TaskRunsListItem,
 	TaskRunsListItemWithData,
