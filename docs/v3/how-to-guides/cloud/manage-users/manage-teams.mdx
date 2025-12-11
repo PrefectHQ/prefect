@@ -10,7 +10,34 @@ Account Admins can configure teams and team membership from the account settings
 Teams are composed of users and service accounts.
 Teams can be added to workspaces or object access control lists just like users and service accounts.
 
-If SCIM is enabled on your account, the set of teams and the users within them is governed by your IDP.
-Prefect Cloud service accounts, which are not governed by your IDP, can be still be added to your existing set of teams.
+## SCIM team management
+
+If SCIM is enabled on your account, teams and team memberships are automatically managed by your identity provider.
+
+### Automatic team creation
+
+When SCIM is enabled:
+- Directory groups from your identity provider are automatically synchronized as teams in Prefect Cloud
+- Teams are created with the same name as the directory group
+- Team names are updated automatically if changed in the identity provider
+
+### Automatic membership management
+
+Team memberships are automatically managed based on directory group memberships:
+- Users added to a directory group automatically become team members in Prefect Cloud
+- Users removed from a directory group automatically lose team membership
+- Changes are synchronized in real-time when your identity provider sends SCIM events
+
+### Service accounts
+
+Prefect Cloud service accounts are not governed by your identity provider and can still be manually added to teams.
+Service accounts provide a way to access Prefect Cloud programmatically without requiring individual user credentials.
+
+### Mixed management
+
+In SCIM environments:
+- **Teams**: Governed by identity provider directory groups
+- **Users**: Governed by identity provider (automatic provisioning/deprovisioning)
+- **Service accounts**: Manually managed (can be added to any team)
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting teams.

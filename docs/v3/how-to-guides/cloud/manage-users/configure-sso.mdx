@@ -47,5 +47,55 @@ Prefect Cloud resources. This allows your IT team to control access to Prefect C
 
 ## SCIM Provisioning
 
-Enterprise plans have access to SCIM for user provisioning.
-The SSO tab provides access to enable SCIM provisioning.
+Enterprise plans have access to SCIM (System for Cross-domain Identity Management) for automated user and team provisioning.
+
+SCIM enables automatic provisioning and de-provisioning of users and teams based on your identity provider's directory.
+When users are added, removed, or have their group memberships changed in your identity provider, these changes are
+automatically reflected in Prefect Cloud.
+
+### Enable SCIM provisioning
+
+The SSO tab provides access to enable SCIM provisioning for your account.
+
+### Role mapping
+
+SCIM supports role mapping, which allows you to automatically assign Prefect Cloud account roles based on directory
+group memberships configured in your identity provider.
+
+#### Account roles
+
+Directory groups can be mapped to the following Prefect Cloud account roles:
+
+- **Owner**: Full account control including billing and account management
+- **Admin**: Account management capabilities, can invite users and manage workspaces
+- **Member**: Basic account access with workspace-level permissions
+- **Collaborator**: Limited account access, typically for external users
+
+#### Configure role mapping
+
+Role mapping is configured in your WorkOS organization dashboard:
+
+1. Navigate to your WorkOS dashboard
+2. Select your organization
+3. Go to Directory Sync settings
+4. Click "Configure role assignment"
+5. Map your identity provider groups to Prefect Cloud roles
+
+When role mapping is configured:
+- New users automatically receive the appropriate role based on their group memberships
+- Users with multiple group memberships receive the role with the highest priority
+- Users not in any mapped group receive the default "Member" role
+- Role changes in your identity provider are reflected in Prefect Cloud automatically
+
+#### Team management
+
+Directory groups are automatically synchronized as teams in Prefect Cloud. See [Teams](/v3/how-to-guides/cloud/manage-users/manage-teams/)
+for more information about SCIM team management.
+
+### Supported operations
+
+SCIM provisioning supports the following operations:
+- **User provisioning**: Automatic creation and updates of user accounts
+- **User deprovisioning**: Automatic removal of user access when removed from the directory
+- **Group/team synchronization**: Automatic creation and management of teams based on directory groups
+- **Role assignment**: Automatic role assignment based on group memberships
