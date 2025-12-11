@@ -6,7 +6,6 @@ from prefect.server.events.stream import Distributor
 from prefect.server.logs.stream import LogDistributor
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.services.foreman import Foreman
-from prefect.server.services.repossessor import Repossessor
 from prefect.server.services.scheduler import RecentDeploymentsScheduler, Scheduler
 from prefect.server.services.task_run_recorder import TaskRunRecorder
 from prefect.server.services.telemetry import Telemetry
@@ -20,7 +19,6 @@ def test_the_all_service_subset():
         # Orchestration services
         Foreman,
         RecentDeploymentsScheduler,
-        Repossessor,
         Scheduler,
         TaskRunRecorder,
         # Events services

@@ -19,6 +19,7 @@ from prefect.server.services.pause_expirations import fail_expired_pause
 from prefect.server.services.perpetual_services import (
     register_and_schedule_perpetual_services,
 )
+from prefect.server.services.repossessor import revoke_expired_lease
 
 # Task functions to register with docket for background processing
 task_functions: list[Callable[..., Any]] = [
@@ -32,6 +33,7 @@ task_functions: list[Callable[..., Any]] = [
     cancel_subflow_run,
     fail_expired_pause,
     mark_flow_run_late,
+    revoke_expired_lease,
 ]
 
 
