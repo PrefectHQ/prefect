@@ -1,4 +1,5 @@
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -10,6 +11,12 @@ export type TaskRun = components["schemas"]["UITaskRun"];
 
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
+
+export type TaskRunsPaginateFilter =
+	components["schemas"]["Body_paginate_task_runs_task_runs_paginate_post"];
+
+export type TaskRunPaginationResponse =
+	components["schemas"]["TaskRunPaginationResponse"];
 
 type SetTaskRunStateBody =
 	components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
@@ -47,6 +54,8 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: TaskRunsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
+	paginate: (filter: TaskRunsPaginateFilter) =>
+		[...queryKeyFactory.lists(), "paginate", filter] as const,
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
 	count: (filter: TaskRunsCountFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
@@ -91,6 +100,45 @@ export const buildListTaskRunsQuery = (
 			});
 			return res.data ?? [];
 		},
+		staleTime: 1000,
+		refetchInterval,
+	});
+};
+
+/**
+ * Builds a query configuration for fetching paginated task runs
+ *
+ * @param filter - Filter parameters for the task runs pagination query.
+ * @param refetchInterval - Interval in ms to refetch the data (default: 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useQuery(buildPaginateTaskRunsQuery({
+ *   page: 1,
+ *   sort: "EXPECTED_START_TIME_DESC"
+ * }));
+ * ```
+ */
+export const buildPaginateTaskRunsQuery = (
+	filter: TaskRunsPaginateFilter = {
+		page: 1,
+		sort: "EXPECTED_START_TIME_DESC",
+	},
+	refetchInterval = 30_000,
+) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.paginate(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/task_runs/paginate", {
+				body: filter,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		placeholderData: keepPreviousData,
 		staleTime: 1000,
 		refetchInterval,
 	});

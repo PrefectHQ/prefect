@@ -1,13 +1,90 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, useQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { createFakeTaskRun } from "@/mocks";
 import type { TaskRun } from ".";
-import { queryKeyFactory, useDeleteTaskRun, useSetTaskRunState } from ".";
+import {
+	buildPaginateTaskRunsQuery,
+	queryKeyFactory,
+	useDeleteTaskRun,
+	useSetTaskRunState,
+} from ".";
 
 describe("task runs api", () => {
+	describe("buildPaginateTaskRunsQuery", () => {
+		it("fetches paginated task runs with default parameters", async () => {
+			const mockTaskRuns = [
+				createFakeTaskRun({ id: "task-run-1", name: "Task Run 1" }),
+				createFakeTaskRun({ id: "task-run-2", name: "Task Run 2" }),
+			];
+
+			server.use(
+				http.post(buildApiUrl("/task_runs/paginate"), () => {
+					return HttpResponse.json({
+						results: mockTaskRuns,
+						count: 2,
+						pages: 1,
+						page: 1,
+						limit: 10,
+					});
+				}),
+			);
+
+			const { result } = renderHook(
+				() => useQuery(buildPaginateTaskRunsQuery()),
+				{
+					wrapper: createWrapper(),
+				},
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+			expect(result.current.data?.results).toHaveLength(2);
+			expect(result.current.data?.results[0].id).toBe("task-run-1");
+			expect(result.current.data?.results[1].id).toBe("task-run-2");
+		});
+
+		it("fetches paginated task runs with custom filter", async () => {
+			const mockTaskRuns = [
+				createFakeTaskRun({ id: "task-run-3", name: "Task Run 3" }),
+			];
+
+			server.use(
+				http.post(buildApiUrl("/task_runs/paginate"), () => {
+					return HttpResponse.json({
+						results: mockTaskRuns,
+						count: 1,
+						pages: 1,
+						page: 2,
+						limit: 5,
+					});
+				}),
+			);
+
+			const { result } = renderHook(
+				() =>
+					useQuery(
+						buildPaginateTaskRunsQuery({
+							page: 2,
+							limit: 5,
+							sort: "START_TIME_DESC",
+						}),
+					),
+				{
+					wrapper: createWrapper(),
+				},
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+			expect(result.current.data?.results).toHaveLength(1);
+			expect(result.current.data?.page).toBe(2);
+			expect(result.current.data?.limit).toBe(5);
+		});
+	});
+
 	describe("useSetTaskRunState", () => {
 		const taskRunId = "test-task-run-id";
 		const mockApiResponse = { state: { type: "FAILED", name: "Failed" } };

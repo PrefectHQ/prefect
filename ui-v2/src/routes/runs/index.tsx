@@ -15,6 +15,7 @@ import {
 import {
 	buildCountTaskRunsQuery,
 	buildGetFlowRunsTaskRunsCountQuery,
+	buildPaginateTaskRunsQuery,
 } from "@/api/task-runs";
 import {
 	DATE_RANGE_PRESETS,
@@ -145,6 +146,13 @@ export const Route = createFileRoute("/runs/")({
 		void context.queryClient.prefetchQuery(buildCountTaskRunsQuery());
 		void context.queryClient.prefetchQuery(
 			buildPaginateFlowRunsQuery(deps, 30_000),
+		);
+		// Prefetch task runs for the Task Runs tab
+		void context.queryClient.prefetchQuery(
+			buildPaginateTaskRunsQuery(
+				{ page: 1, sort: "EXPECTED_START_TIME_DESC" },
+				30_000,
+			),
 		);
 
 		// Background async chain: prefetch task run counts for each flow run
@@ -390,6 +398,20 @@ function RouteComponent() {
 
 	const flowRuns = flowRunsPage?.results ?? [];
 
+	// Fetch task runs for the Task Runs tab
+	const {
+		data: taskRunsPage,
+		isLoading: taskRunsLoading,
+		isError: taskRunsError,
+	} = useQuery(
+		buildPaginateTaskRunsQuery(
+			{ page: 1, sort: "EXPECTED_START_TIME_DESC" },
+			30_000,
+		),
+	);
+
+	const taskRuns = taskRunsPage?.results ?? [];
+
 	// Prefetch task run counts for the current page's flow runs
 	// This ensures the data is ready when FlowRunCard renders
 	useEffect(() => {
@@ -431,6 +453,9 @@ function RouteComponent() {
 			taskRunsCount={taskRunsCount}
 			flowRuns={flowRuns}
 			flowRunsPages={flowRunsPage?.pages ?? 0}
+			taskRuns={taskRuns}
+			taskRunsLoading={taskRunsLoading}
+			taskRunsError={taskRunsError}
 			pagination={pagination}
 			onPaginationChange={onPaginationChange}
 			onPrefetchPage={onPrefetchPage}

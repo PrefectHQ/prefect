@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { FlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
+import type { components } from "@/api/prefect";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
 	DateRangeFilter,
@@ -16,6 +17,7 @@ import {
 } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
+import { TaskRunsList } from "@/components/task-runs/task-runs-list";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
 	EmptyState,
@@ -30,6 +32,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Typography } from "@/components/ui/typography";
 
+type TaskRunResponse = components["schemas"]["TaskRunResponse"];
+
 type RunsPageProps = {
 	tab: "flow-runs" | "task-runs";
 	onTabChange: (tab: string) => void;
@@ -37,6 +41,9 @@ type RunsPageProps = {
 	taskRunsCount: number;
 	flowRuns: FlowRun[];
 	flowRunsPages: number;
+	taskRuns: TaskRunResponse[];
+	taskRunsLoading: boolean;
+	taskRunsError: boolean;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
 	onPrefetchPage?: (page: number) => void;
@@ -61,6 +68,9 @@ export const RunsPage = ({
 	taskRunsCount,
 	flowRuns,
 	flowRunsPages,
+	taskRuns,
+	taskRunsLoading,
+	taskRunsError,
 	pagination,
 	onPaginationChange,
 	onPrefetchPage,
@@ -179,7 +189,11 @@ export const RunsPage = ({
 					</div>
 				</TabsContent>
 				<TabsContent value="task-runs">
-					<TaskRunsPlaceholder />
+					<TaskRunsTabContent
+						taskRuns={taskRuns}
+						taskRunsLoading={taskRunsLoading}
+						taskRunsError={taskRunsError}
+					/>
 				</TabsContent>
 			</Tabs>
 		</div>
@@ -207,10 +221,46 @@ const RunsEmptyState = () => (
 	</EmptyState>
 );
 
-const TaskRunsPlaceholder = () => (
-	<div className="flex flex-col items-center justify-center py-16">
-		<Typography variant="bodySmall" className="text-muted-foreground">
-			Task Runs tab coming soon
-		</Typography>
-	</div>
-);
+type TaskRunsTabContentProps = {
+	taskRuns: TaskRunResponse[];
+	taskRunsLoading: boolean;
+	taskRunsError: boolean;
+};
+
+const TaskRunsTabContent = ({
+	taskRuns,
+	taskRunsLoading,
+	taskRunsError,
+}: TaskRunsTabContentProps) => {
+	if (taskRunsLoading) {
+		return (
+			<div className="flex flex-col items-center justify-center py-16">
+				<Typography variant="bodySmall" className="text-muted-foreground">
+					Loading task runs...
+				</Typography>
+			</div>
+		);
+	}
+
+	if (taskRunsError) {
+		return (
+			<div className="flex flex-col items-center justify-center py-16">
+				<Typography variant="bodySmall" className="text-muted-foreground">
+					Error loading task runs
+				</Typography>
+			</div>
+		);
+	}
+
+	if (taskRuns.length === 0) {
+		return (
+			<div className="flex flex-col items-center justify-center py-16">
+				<Typography variant="bodySmall" className="text-muted-foreground">
+					No task runs found
+				</Typography>
+			</div>
+		);
+	}
+
+	return <TaskRunsList taskRuns={taskRuns} />;
+};
