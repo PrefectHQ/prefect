@@ -5,22 +5,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
 import { TaskRunsListItemWithData } from "./task-runs-list-item";
 
-type TaskRunsListProps =
-	| {
-			taskRuns: Array<TaskRun> | undefined;
-			onClearFilters?: () => void;
-	  }
-	| {
-			taskRuns: Array<TaskRun> | undefined;
-			onSelect: (id: string, checked: boolean) => void;
-			selectedRows: Set<string>;
-			onClearFilters?: () => void;
-	  };
+type TaskRunsListProps = {
+	taskRuns?: Array<TaskRun>;
+	onSelect?: (id: string, checked: boolean) => void;
+	selectedRows?: Set<string>;
+	onClearFilters?: () => void;
+};
 
 export const TaskRunsList = ({
 	taskRuns,
 	onClearFilters,
-	...props
+	onSelect,
+	selectedRows,
 }: TaskRunsListProps) => {
 	if (!taskRuns) {
 		return <LoadingSkeleton numSkeletons={5} />;
@@ -41,26 +37,17 @@ export const TaskRunsList = ({
 
 	return (
 		<ul className="flex flex-col gap-2">
-			{taskRuns.map((taskRun) => {
-				if ("onSelect" in props && "selectedRows" in props) {
-					return (
-						<li key={taskRun.id}>
-							<TaskRunsListItemWithData
-								taskRun={taskRun}
-								checked={props.selectedRows.has(taskRun.id)}
-								onCheckedChange={(checked) =>
-									props.onSelect(taskRun.id, checked)
-								}
-							/>
-						</li>
-					);
-				}
-				return (
-					<li key={taskRun.id}>
-						<TaskRunsListItemWithData taskRun={taskRun} />
-					</li>
-				);
-			})}
+			{taskRuns.map((taskRun) => (
+				<li key={taskRun.id}>
+					<TaskRunsListItemWithData
+						taskRun={taskRun}
+						checked={selectedRows?.has(taskRun.id)}
+						onCheckedChange={
+							onSelect ? (checked) => onSelect(taskRun.id, checked) : undefined
+						}
+					/>
+				</li>
+			))}
 		</ul>
 	);
 };
