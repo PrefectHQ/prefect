@@ -26,6 +26,12 @@ def test_late_runs_service_registered():
     assert "monitor_late_runs" in service_names
 
 
+def test_repossessor_service_registered():
+    """Test that repossessor perpetual service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "monitor_expired_leases" in service_names
+
+
 def test_get_perpetual_services_returns_all_in_default_mode():
     """Test that get_perpetual_services returns all services in default mode."""
     services = get_perpetual_services(ephemeral=False, webserver_only=False)
