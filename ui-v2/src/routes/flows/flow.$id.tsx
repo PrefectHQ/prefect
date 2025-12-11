@@ -1,10 +1,18 @@
 import { useSuspenseQueries } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router"; // Import createFileRoute function from @tanstack/react-router
+import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import type { components } from "@/api/prefect";
+import { buildFilterDeploymentsQuery } from "@/api/deployments";
+import {
+	buildCountFlowRunsQuery,
+	buildFilterFlowRunsQuery,
+	type FlowRunsFilter,
+} from "@/api/flow-runs";
+import {
+	buildDeploymentsCountByFlowQuery,
+	buildFLowDetailsQuery,
+} from "@/api/flows";
 import FlowDetail from "@/components/flows/detail";
-import { FlowQuery } from "@/components/flows/queries";
 
 // Route for /flows/flow/$id
 
@@ -40,32 +48,30 @@ const searchParams = z
 
 const filterFlowRunsBySearchParams = (
 	search: z.infer<typeof searchParams>,
-): components["schemas"]["Body_read_flow_runs_flow_runs_filter_post"] => {
-	const filter: components["schemas"]["Body_read_flow_runs_flow_runs_filter_post"] =
-		{
-			sort: search["runs.sort"],
-			limit: search["runs.limit"],
-			offset: search["runs.page"] * search["runs.limit"],
-			flow_runs: {
+): FlowRunsFilter => {
+	const filter: FlowRunsFilter = {
+		sort: search["runs.sort"],
+		limit: search["runs.limit"],
+		offset: search["runs.page"] * search["runs.limit"],
+		flow_runs: {
+			operator: "and_",
+			state: {
 				operator: "and_",
-				state: {
-					operator: "and_",
-					name: {
-						any_: search["runs.flowRuns.state.name"],
-					},
-				},
 				name: {
-					like_: search["runs.flowRuns.nameLike"],
+					any_: search["runs.flowRuns.state.name"],
 				},
 			},
-		};
+			name: {
+				like_: search["runs.flowRuns.nameLike"],
+			},
+		},
+	};
 	return filter;
 };
 
 const FlowDetailRoute = () => {
 	const { id } = Route.useParams();
 	const search = Route.useSearch();
-	const flowQuery = new FlowQuery(id);
 	const [
 		{ data: flow },
 		{ data: flowRuns },
@@ -73,13 +79,26 @@ const FlowDetailRoute = () => {
 		{ data: deployments },
 	] = useSuspenseQueries({
 		queries: [
-			flowQuery.getQueryParams(),
-			flowQuery.getFlowRunsQueryParams(filterFlowRunsBySearchParams(search)),
-			flowQuery.getLatestFlowRunsQueryParams(60),
-			flowQuery.getDeploymentsQueryParams({
+			buildFLowDetailsQuery(id),
+			buildFilterFlowRunsQuery({
+				...filterFlowRunsBySearchParams(search),
+				flows: { operator: "and_", id: { any_: [id] } },
+			}),
+			buildFilterFlowRunsQuery({
+				flows: { operator: "and_", id: { any_: [id] } },
+				flow_runs: {
+					operator: "and_",
+					start_time: { is_null_: false },
+				},
+				offset: 0,
+				limit: 60,
+				sort: "START_TIME_DESC",
+			}),
+			buildFilterDeploymentsQuery({
 				sort: "CREATED_DESC",
 				offset: search["deployments.page"] * search["deployments.limit"],
 				limit: search["deployments.limit"],
+				flows: { operator: "and_", id: { any_: [id] } },
 			}),
 		],
 	});
@@ -100,22 +119,29 @@ export const Route = createFileRoute("/flows/flow/$id")({
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => search,
 	loader: async ({ params: { id }, context, deps }) => {
-		const flow = new FlowQuery(id);
 		return await Promise.all([
-			context.queryClient.ensureQueryData(flow.getQueryParams()),
+			context.queryClient.ensureQueryData(buildFLowDetailsQuery(id)),
 			context.queryClient.ensureQueryData(
-				flow.getFlowRunsQueryParams(filterFlowRunsBySearchParams(deps)),
-			),
-			context.queryClient.ensureQueryData(flow.getFlowRunsCountQueryParams()),
-			context.queryClient.ensureQueryData(
-				flow.getDeploymentsQueryParams({
-					sort: "CREATED_DESC",
-					offset: deps["runs.page"] * deps["runs.limit"],
-					limit: deps["runs.limit"],
+				buildFilterFlowRunsQuery({
+					...filterFlowRunsBySearchParams(deps),
+					flows: { operator: "and_", id: { any_: [id] } },
 				}),
 			),
 			context.queryClient.ensureQueryData(
-				flow.getDeploymentsCountQueryParams(),
+				buildCountFlowRunsQuery({
+					flows: { operator: "and_", id: { any_: [id] } },
+				}),
+			),
+			context.queryClient.ensureQueryData(
+				buildFilterDeploymentsQuery({
+					sort: "CREATED_DESC",
+					offset: deps["runs.page"] * deps["runs.limit"],
+					limit: deps["runs.limit"],
+					flows: { operator: "and_", id: { any_: [id] } },
+				}),
+			),
+			context.queryClient.ensureQueryData(
+				buildDeploymentsCountByFlowQuery([id]),
 			),
 		]);
 	},
