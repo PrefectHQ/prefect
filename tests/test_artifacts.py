@@ -10,14 +10,17 @@ from fastapi.testclient import TestClient
 from prefect import flow, task
 from prefect.artifacts import (
     Artifact,
+    RichArtifact,
     acreate_link_artifact,
     acreate_progress_artifact,
+    acreate_rich_artifact,
     acreate_table_artifact,
     aupdate_progress_artifact,
     create_image_artifact,
     create_link_artifact,
     create_markdown_artifact,
     create_progress_artifact,
+    create_rich_artifact,
     create_table_artifact,
     update_progress_artifact,
 )
@@ -1093,3 +1096,172 @@ class TestArtifact:
         """Test getting an artifact that doesn't exist returns None"""
         retrieved = await Artifact.aget("nonexistent-key", prefect_client)
         assert retrieved is None
+
+
+class TestRichArtifact:
+    async def test_rich_artifact_format_with_default_sandbox(self):
+        """Test RichArtifact format with default sandbox permissions."""
+        artifact = RichArtifact(
+            html="<html><body><h1>Hello</h1></body></html>",
+            key="test-rich",
+            description="Test rich artifact",
+        )
+
+        formatted = await artifact.aformat()
+        assert formatted == {
+            "html": "<html><body><h1>Hello</h1></body></html>",
+            "sandbox": ["allow-scripts"],
+        }
+
+        sync_formatted = cast(dict, artifact.format(_sync=True))  # pyright: ignore[reportCallIssue]
+        assert sync_formatted == {
+            "html": "<html><body><h1>Hello</h1></body></html>",
+            "sandbox": ["allow-scripts"],
+        }
+
+    async def test_rich_artifact_format_with_custom_sandbox(self):
+        """Test RichArtifact format with custom sandbox permissions."""
+        artifact = RichArtifact(
+            html="<html><body><h1>Hello</h1></body></html>",
+            key="test-rich",
+            description="Test rich artifact",
+            sandbox=["allow-scripts"],
+        )
+
+        formatted = await artifact.aformat()
+        assert formatted == {
+            "html": "<html><body><h1>Hello</h1></body></html>",
+            "sandbox": ["allow-scripts"],
+        }
+
+    async def test_rich_artifact_format_with_empty_sandbox(self):
+        """Test RichArtifact format with empty sandbox (most restrictive)."""
+        artifact = RichArtifact(
+            html="<html><body><h1>Hello</h1></body></html>",
+            key="test-rich",
+            description="Test rich artifact",
+            sandbox=[],
+        )
+
+        formatted = await artifact.aformat()
+        assert formatted == {
+            "html": "<html><body><h1>Hello</h1></body></html>",
+            "sandbox": [],
+        }
+
+    async def test_rich_artifact_format_with_csp(self):
+        """Test RichArtifact format with CSP directive."""
+        artifact = RichArtifact(
+            html="<html><body><h1>Hello</h1></body></html>",
+            key="test-rich",
+            description="Test rich artifact",
+            csp="default-src 'self'; script-src 'unsafe-inline'",
+        )
+
+        formatted = await artifact.aformat()
+        assert formatted == {
+            "html": "<html><body><h1>Hello</h1></body></html>",
+            "sandbox": ["allow-scripts"],
+            "csp": "default-src 'self'; script-src 'unsafe-inline'",
+        }
+
+    async def test_create_rich_artifact_in_flow(self, client: httpx.AsyncClient):
+        """Test creating a rich artifact in a flow."""
+
+        @flow
+        async def my_flow():
+            return await acreate_rich_artifact(
+                html="<html><body><h1>Hello World</h1></body></html>",
+                key="flow-rich-artifact",
+                description="A rich artifact from a flow",
+            )
+
+        artifact_id = await my_flow()
+        response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == 200
+        result = schemas.core.Artifact.model_validate(response.json())
+        assert result.type == "rich"
+        assert isinstance(result.data, dict)
+        assert result.data["html"] == "<html><body><h1>Hello World</h1></body></html>"
+        assert result.data["sandbox"] == ["allow-scripts"]
+
+    async def test_create_rich_artifact_in_task(self, client: httpx.AsyncClient):
+        """Test creating a rich artifact in a task."""
+
+        @task
+        def my_task():
+            run_context = get_run_context()
+            assert isinstance(run_context, TaskRunContext)
+            task_run_id = run_context.task_run.id
+            artifact_id = create_rich_artifact(
+                html="<html><body><script>console.log('test');</script></body></html>",
+                key="task-rich-artifact",
+                description="A rich artifact from a task",
+            )
+            return artifact_id, task_run_id
+
+        @flow
+        def my_flow():
+            run_context = get_run_context()
+            assert isinstance(run_context, FlowRunContext)
+            assert run_context.flow_run is not None
+            flow_run_id = run_context.flow_run.id
+            artifact_id, task_run_id = my_task()
+            return artifact_id, flow_run_id, task_run_id
+
+        my_artifact_id, flow_run_id, task_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200
+        my_rich_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_rich_artifact.flow_run_id == flow_run_id
+        assert my_rich_artifact.task_run_id == task_run_id
+        assert my_rich_artifact.type == "rich"
+        assert isinstance(my_rich_artifact.data, dict)
+        assert (
+            my_rich_artifact.data["html"]
+            == "<html><body><script>console.log('test');</script></body></html>"
+        )
+
+    async def test_create_rich_artifact_with_custom_sandbox(
+        self, client: httpx.AsyncClient
+    ):
+        """Test creating a rich artifact with custom sandbox permissions."""
+
+        @flow
+        async def my_flow():
+            return await acreate_rich_artifact(
+                html="<html><body>No scripts allowed</body></html>",
+                key="restricted-rich-artifact",
+                description="A restricted rich artifact",
+                sandbox=[],  # Most restrictive - no permissions
+            )
+
+        artifact_id = await my_flow()
+        response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == 200
+        result = schemas.core.Artifact.model_validate(response.json())
+        assert result.type == "rich"
+        assert isinstance(result.data, dict)
+        assert result.data["sandbox"] == []
+
+    async def test_create_rich_artifact_with_csp(self, client: httpx.AsyncClient):
+        """Test creating a rich artifact with CSP directive."""
+
+        @flow
+        async def my_flow():
+            return await acreate_rich_artifact(
+                html="<html><body><h1>Secure</h1></body></html>",
+                key="csp-rich-artifact",
+                description="A rich artifact with CSP",
+                csp="default-src 'self'",
+            )
+
+        artifact_id = await my_flow()
+        response = await client.get(f"/artifacts/{artifact_id}")
+        assert response.status_code == 200
+        result = schemas.core.Artifact.model_validate(response.json())
+        assert result.type == "rich"
+        assert isinstance(result.data, dict)
+        assert result.data["csp"] == "default-src 'self'"
