@@ -37,6 +37,7 @@ const searchParams = z.object({
 	"hide-subflows": z.boolean().optional().default(false),
 	"flow-run-search": z.string().optional().default(""),
 	state: z.string().optional().default(""),
+	flows: z.string().optional().default(""),
 	range: z.enum(DATE_RANGE_PRESETS).optional(),
 	start: z.string().optional(),
 	end: z.string().optional(),
@@ -78,18 +79,26 @@ const getDateRangeFilter = (
 	};
 };
 
+// Helper to parse flows string to array of flow IDs
+const parseFlowsFilter = (flowsString: string): string[] => {
+	if (!flowsString) return [];
+	return flowsString.split(",").filter((s) => s.trim().length > 0);
+};
+
 const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const hideSubflows = search?.["hide-subflows"];
 	const flowRunSearch = search?.["flow-run-search"];
 	const stateFilters = parseStateFilter(search?.state ?? "");
+	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
 	// Map state names to state types for the API filter
 	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
+	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
 
 	// Build flow_runs filter only if we have filters to apply
 	const hasFilters =
-		hideSubflows || flowRunSearch || stateNames || dateRangeFilter;
+		hideSubflows || flowRunSearch || stateNames || flowIds || dateRangeFilter;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
@@ -111,11 +120,17 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 			}
 		: undefined;
 
+	// Build flows filter for filtering by flow_id
+	const flowsFilterBody = flowIds
+		? { operator: "and_" as const, id: { any_: flowIds } }
+		: undefined;
+
 	return {
 		page: search?.page ?? 1,
 		limit: search?.limit ?? 10,
 		sort: search?.sort ?? "START_TIME_DESC",
 		flow_runs: flowRunsFilter,
+		flows: flowsFilterBody,
 	};
 };
 
@@ -320,6 +335,34 @@ const useDateRange = () => {
 	return [dateRange, onDateRangeChange] as const;
 };
 
+const useFlowFilter = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const selectedFlows = useMemo(
+		() => new Set<string>(parseFlowsFilter(search.flows ?? "")),
+		[search.flows],
+	);
+
+	const onFlowFilterChange = useCallback(
+		(flows: Set<string>) => {
+			const flowsArray = Array.from(flows);
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					flows: flowsArray.length > 0 ? flowsArray.join(",") : "",
+					page: 1, // Reset pagination when filter changes
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [selectedFlows, onFlowFilterChange] as const;
+};
+
 function RouteComponent() {
 	const queryClient = useQueryClient();
 	const search = Route.useSearch();
@@ -329,6 +372,7 @@ function RouteComponent() {
 	const [tab, onTabChange] = useTab();
 	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
 	const [selectedStates, onStateFilterChange] = useStateFilter();
+	const [selectedFlows, onFlowFilterChange] = useFlowFilter();
 	const [dateRange, onDateRangeChange] = useDateRange();
 
 	// Use useSuspenseQueries for count queries (stable keys, won't cause suspense on search change)
@@ -398,6 +442,8 @@ function RouteComponent() {
 			onFlowRunSearchChange={onFlowRunSearchChange}
 			selectedStates={selectedStates}
 			onStateFilterChange={onStateFilterChange}
+			selectedFlows={selectedFlows}
+			onFlowFilterChange={onFlowFilterChange}
 			dateRange={dateRange}
 			onDateRangeChange={onDateRangeChange}
 		/>

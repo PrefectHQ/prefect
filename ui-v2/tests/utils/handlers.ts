@@ -91,6 +91,13 @@ const flowHandlers = [
 		});
 	}),
 
+	http.post(buildApiUrl("/flows/filter"), () => {
+		return HttpResponse.json([
+			{ id: "1", name: "Flow 1", tags: [] },
+			{ id: "2", name: "Flow 2", tags: [] },
+		]);
+	}),
+
 	http.post(buildApiUrl("/deployments/count"), () => {
 		return HttpResponse.json(1);
 	}),

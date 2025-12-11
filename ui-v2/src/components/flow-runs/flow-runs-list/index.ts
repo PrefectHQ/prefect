@@ -7,6 +7,7 @@ export {
 	dateRangeValueToUrlState,
 	urlStateToDateRangeValue,
 } from "./flow-runs-filters/date-range-url-state";
+export { FlowFilter } from "./flow-runs-filters/flow-filter";
 export {
 	SORT_FILTERS,
 	type SortFilters,

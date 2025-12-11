@@ -80,6 +80,7 @@ const RunsPageWithState = ({
 	initialFlowRunSearch = "",
 	initialSelectedStates = new Set<FlowRunState>(),
 	initialDateRange = {},
+	initialSelectedFlows = new Set<string>(),
 }: {
 	initialFlowRuns?: typeof MOCK_FLOW_RUNS;
 	initialFlowRunsCount?: number;
@@ -88,6 +89,7 @@ const RunsPageWithState = ({
 	initialFlowRunSearch?: string;
 	initialSelectedStates?: Set<FlowRunState>;
 	initialDateRange?: DateRangeUrlState;
+	initialSelectedFlows?: Set<string>;
 }) => {
 	const [tab, setTab] = useState<"flow-runs" | "task-runs">("flow-runs");
 	const [pagination, setPagination] = useState<PaginationState>({
@@ -102,6 +104,8 @@ const RunsPageWithState = ({
 	);
 	const [dateRange, setDateRange] =
 		useState<DateRangeUrlState>(initialDateRange);
+	const [selectedFlows, setSelectedFlows] =
+		useState<Set<string>>(initialSelectedFlows);
 
 	return (
 		<RunsPage
@@ -121,6 +125,8 @@ const RunsPageWithState = ({
 			onFlowRunSearchChange={setFlowRunSearch}
 			selectedStates={selectedStates}
 			onStateFilterChange={setSelectedStates}
+			selectedFlows={selectedFlows}
+			onFlowFilterChange={setSelectedFlows}
 			dateRange={dateRange}
 			onDateRangeChange={setDateRange}
 		/>
