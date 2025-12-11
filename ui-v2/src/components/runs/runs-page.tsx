@@ -115,6 +115,21 @@ export const RunsPage = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<RunsHeader />
+			<div className="flex items-center gap-4">
+				<div className="w-64">
+					<StateFilter
+						selectedFilters={selectedStates}
+						onSelectFilter={onStateFilterChange}
+					/>
+				</div>
+				<div className="w-64">
+					<FlowFilter
+						selectedFlows={selectedFlows}
+						onSelectFlows={onFlowFilterChange}
+					/>
+				</div>
+				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
+			</div>
 			<Tabs value={tab} onValueChange={onTabChange}>
 				<TabsList>
 					<TabsTrigger value="flow-runs">Flow Runs</TabsTrigger>
@@ -122,51 +137,31 @@ export const RunsPage = ({
 				</TabsList>
 				<TabsContent value="flow-runs">
 					<div className="flex flex-col gap-4">
-						<div className="flex flex-col gap-4">
+						<div className="flex items-center justify-between">
+							<FlowRunsRowCount
+								count={flowRunsCount}
+								results={flowRunsWithFlows}
+								selectedRows={selectedRows}
+								setSelectedRows={setSelectedRows}
+							/>
 							<div className="flex items-center gap-4">
-								<div className="w-64">
-									<StateFilter
-										selectedFilters={selectedStates}
-										onSelectFilter={onStateFilterChange}
+								<div className="flex items-center gap-2 whitespace-nowrap">
+									<Switch
+										id="hide-subflows"
+										checked={hideSubflows}
+										onCheckedChange={onHideSubflowsChange}
 									/>
+									<Label htmlFor="hide-subflows">Hide subflows</Label>
 								</div>
-								<div className="w-64">
-									<FlowFilter
-										selectedFlows={selectedFlows}
-										onSelectFlows={onFlowFilterChange}
-									/>
-								</div>
-								<DateRangeFilter
-									value={dateRange}
-									onValueChange={onDateRangeChange}
+								<SearchInput
+									value={flowRunSearch}
+									onChange={(e) => onFlowRunSearchChange(e.target.value)}
+									placeholder="Search by flow run name"
+									aria-label="Search by flow run name"
+									className="w-64"
+									debounceMs={1200}
 								/>
-							</div>
-							<div className="flex items-center justify-between">
-								<FlowRunsRowCount
-									count={flowRunsCount}
-									results={flowRunsWithFlows}
-									selectedRows={selectedRows}
-									setSelectedRows={setSelectedRows}
-								/>
-								<div className="flex items-center gap-4">
-									<div className="flex items-center gap-2 whitespace-nowrap">
-										<Switch
-											id="hide-subflows"
-											checked={hideSubflows}
-											onCheckedChange={onHideSubflowsChange}
-										/>
-										<Label htmlFor="hide-subflows">Hide subflows</Label>
-									</div>
-									<SearchInput
-										value={flowRunSearch}
-										onChange={(e) => onFlowRunSearchChange(e.target.value)}
-										placeholder="Search by flow run name"
-										aria-label="Search by flow run name"
-										className="w-64"
-										debounceMs={1200}
-									/>
-									<SortFilter value={sort} onSelect={onSortChange} />
-								</div>
+								<SortFilter value={sort} onSelect={onSortChange} />
 							</div>
 						</div>
 						<FlowRunsPagination
