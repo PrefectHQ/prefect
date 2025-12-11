@@ -26,36 +26,34 @@ import {
 } from "@/components/ui/tooltip";
 import { formatDate } from "@/utils/date";
 
-export type TaskRunsListItemData = TaskRun & {
+type TaskRunsListItemProps = {
+	taskRun: TaskRun;
 	flow?: Flow;
 	flowRun?: FlowRun;
+	checked?: boolean;
+	onCheckedChange?: (checked: boolean) => void;
 };
-
-type TaskRunsListItemProps =
-	| {
-			taskRun: TaskRunsListItemData;
-	  }
-	| {
-			taskRun: TaskRunsListItemData;
-			checked: boolean;
-			onCheckedChange: (checked: boolean) => void;
-	  };
 
 export const TaskRunsListItem = ({
 	taskRun,
-	...props
+	flow,
+	flowRun,
+	checked,
+	onCheckedChange,
 }: TaskRunsListItemProps) => {
+	const isSelectable = typeof onCheckedChange === "function";
+
 	return (
 		<Card className={stateCardVariants({ state: taskRun.state?.type })}>
 			<div className="flex justify-between items-center">
 				<div className="flex items-center gap-2">
-					{"checked" in props && "onCheckedChange" in props && (
+					{isSelectable && (
 						<Checkbox
-							checked={props.checked}
-							onCheckedChange={props.onCheckedChange}
+							checked={checked ?? false}
+							onCheckedChange={onCheckedChange}
 						/>
 					)}
-					<TaskRunBreadcrumbs taskRun={taskRun} />
+					<TaskRunBreadcrumbs taskRun={taskRun} flow={flow} flowRun={flowRun} />
 				</div>
 				<div>
 					<TagBadgeGroup tags={taskRun.tags ?? []} />
@@ -89,12 +87,16 @@ const stateCardVariants = cva("flex flex-col gap-2 p-4 border-l-8", {
 });
 
 type TaskRunBreadcrumbsProps = {
-	taskRun: TaskRunsListItemData;
+	taskRun: TaskRun;
+	flow?: Flow;
+	flowRun?: FlowRun;
 };
 
-const TaskRunBreadcrumbs = ({ taskRun }: TaskRunBreadcrumbsProps) => {
-	const { flow, flowRun } = taskRun;
-
+const TaskRunBreadcrumbs = ({
+	taskRun,
+	flow,
+	flowRun,
+}: TaskRunBreadcrumbsProps) => {
 	return (
 		<div className="flex items-center">
 			<Breadcrumb>
@@ -138,7 +140,7 @@ const TaskRunBreadcrumbs = ({ taskRun }: TaskRunBreadcrumbsProps) => {
 };
 
 type TaskRunStartTimeProps = {
-	taskRun: TaskRunsListItemData;
+	taskRun: TaskRun;
 };
 
 const TaskRunStartTime = ({ taskRun }: TaskRunStartTimeProps) => {
@@ -173,7 +175,7 @@ const TaskRunStartTime = ({ taskRun }: TaskRunStartTimeProps) => {
 };
 
 type TaskRunDurationProps = {
-	taskRun: TaskRunsListItemData;
+	taskRun: TaskRun;
 };
 
 const TaskRunDuration = ({ taskRun }: TaskRunDurationProps) => {
@@ -209,15 +211,11 @@ const TaskRunDuration = ({ taskRun }: TaskRunDurationProps) => {
 	);
 };
 
-type TaskRunsListItemWithDataProps =
-	| {
-			taskRun: TaskRun;
-	  }
-	| {
-			taskRun: TaskRun;
-			checked: boolean;
-			onCheckedChange: (checked: boolean) => void;
-	  };
+type TaskRunsListItemWithDataProps = {
+	taskRun: TaskRun;
+	checked?: boolean;
+	onCheckedChange?: (checked: boolean) => void;
+};
 
 type TaskRunsListItemWithFlowDataProps = TaskRunsListItemWithDataProps & {
 	flowRunId: string;
@@ -226,7 +224,8 @@ type TaskRunsListItemWithFlowDataProps = TaskRunsListItemWithDataProps & {
 const TaskRunsListItemWithFlowData = ({
 	taskRun,
 	flowRunId,
-	...props
+	checked,
+	onCheckedChange,
 }: TaskRunsListItemWithFlowDataProps) => {
 	const { data: flowRun } = useSuspenseQuery(
 		buildGetFlowRunDetailsQuery(flowRunId),
@@ -235,63 +234,49 @@ const TaskRunsListItemWithFlowData = ({
 		buildFLowDetailsQuery(flowRun.flow_id),
 	);
 
-	const taskRunWithData: TaskRunsListItemData = {
-		...taskRun,
-		flow,
-		flowRun,
-	};
-
-	if ("checked" in props && "onCheckedChange" in props) {
-		return (
-			<TaskRunsListItem
-				taskRun={taskRunWithData}
-				checked={props.checked}
-				onCheckedChange={props.onCheckedChange}
-			/>
-		);
-	}
-
-	return <TaskRunsListItem taskRun={taskRunWithData} />;
+	return (
+		<TaskRunsListItem
+			taskRun={taskRun}
+			flow={flow}
+			flowRun={flowRun}
+			checked={checked}
+			onCheckedChange={onCheckedChange}
+		/>
+	);
 };
 
 const TaskRunsListItemWithDataInner = ({
 	taskRun,
-	...props
+	checked,
+	onCheckedChange,
 }: TaskRunsListItemWithDataProps) => {
 	const flowRunId = taskRun.flow_run_id;
 
 	if (!flowRunId) {
-		if ("checked" in props && "onCheckedChange" in props) {
-			return (
-				<TaskRunsListItem
-					taskRun={taskRun}
-					checked={props.checked}
-					onCheckedChange={props.onCheckedChange}
-				/>
-			);
-		}
-		return <TaskRunsListItem taskRun={taskRun} />;
-	}
-
-	if ("checked" in props && "onCheckedChange" in props) {
 		return (
-			<TaskRunsListItemWithFlowData
+			<TaskRunsListItem
 				taskRun={taskRun}
-				flowRunId={flowRunId}
-				checked={props.checked}
-				onCheckedChange={props.onCheckedChange}
+				checked={checked}
+				onCheckedChange={onCheckedChange}
 			/>
 		);
 	}
 
 	return (
-		<TaskRunsListItemWithFlowData taskRun={taskRun} flowRunId={flowRunId} />
+		<TaskRunsListItemWithFlowData
+			taskRun={taskRun}
+			flowRunId={flowRunId}
+			checked={checked}
+			onCheckedChange={onCheckedChange}
+		/>
 	);
 };
 
-export const TaskRunsListItemWithData = (
-	props: TaskRunsListItemWithDataProps,
-) => {
+export const TaskRunsListItemWithData = ({
+	taskRun,
+	checked,
+	onCheckedChange,
+}: TaskRunsListItemWithDataProps) => {
 	return (
 		<Suspense
 			fallback={
@@ -301,7 +286,11 @@ export const TaskRunsListItemWithData = (
 				</Card>
 			}
 		>
-			<TaskRunsListItemWithDataInner {...props} />
+			<TaskRunsListItemWithDataInner
+				taskRun={taskRun}
+				checked={checked}
+				onCheckedChange={onCheckedChange}
+			/>
 		</Suspense>
 	);
 };
