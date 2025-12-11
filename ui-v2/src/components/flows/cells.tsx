@@ -150,7 +150,7 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 		<Link
 			to="/flows/flow/$id"
 			params={{ id: flowId }}
-			search={{ tab: "Deployments" }}
+			search={{ tab: "deployments" }}
 		>
 			<Typography
 				variant="bodySmall"
