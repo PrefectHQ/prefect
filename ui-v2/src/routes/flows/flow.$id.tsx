@@ -6,7 +6,6 @@ import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
-	buildLatestFlowRunsByFlowIdQuery,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
 import {
@@ -85,7 +84,16 @@ const FlowDetailRoute = () => {
 				...filterFlowRunsBySearchParams(search),
 				flows: { operator: "and_", id: { any_: [id] } },
 			}),
-			buildLatestFlowRunsByFlowIdQuery(id, 60),
+			buildFilterFlowRunsQuery({
+				flows: { operator: "and_", id: { any_: [id] } },
+				flow_runs: {
+					operator: "and_",
+					start_time: { is_null_: false },
+				},
+				offset: 0,
+				limit: 60,
+				sort: "START_TIME_DESC",
+			}),
 			buildFilterDeploymentsQuery({
 				sort: "CREATED_DESC",
 				offset: search["deployments.page"] * search["deployments.limit"],

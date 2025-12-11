@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { buildLatestFlowRunsByFlowIdQuery } from "@/api/flow-runs";
+import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import {
 	buildDeploymentsCountByFlowQuery,
 	buildNextRunsByFlowQuery,
@@ -55,7 +55,16 @@ export const FlowName = ({ row }: { row: { original: Flow } }) => {
 export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
 	const flowId = row.original.id;
 	const { data: flowRuns } = useQuery({
-		...buildLatestFlowRunsByFlowIdQuery(flowId ?? "", 16),
+		...buildFilterFlowRunsQuery({
+			flows: { operator: "and_", id: { any_: [flowId ?? ""] } },
+			flow_runs: {
+				operator: "and_",
+				start_time: { is_null_: false },
+			},
+			offset: 0,
+			limit: 16,
+			sort: "START_TIME_DESC",
+		}),
 		enabled: !!flowId,
 	});
 
@@ -154,7 +163,16 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
 	const flowId = row.original.id;
 	const { data: flowRuns } = useQuery({
-		...buildLatestFlowRunsByFlowIdQuery(flowId ?? "", 16),
+		...buildFilterFlowRunsQuery({
+			flows: { operator: "and_", id: { any_: [flowId ?? ""] } },
+			flow_runs: {
+				operator: "and_",
+				start_time: { is_null_: false },
+			},
+			offset: 0,
+			limit: 16,
+			sort: "START_TIME_DESC",
+		}),
 		enabled: !!flowId,
 	});
 	if (!flowId) return null;
