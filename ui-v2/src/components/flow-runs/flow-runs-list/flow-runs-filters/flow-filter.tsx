@@ -129,13 +129,9 @@ export const FlowFilter = ({
 							aria-label="All flows"
 							onSelect={handleClearAll}
 							closeOnSelect={false}
-							selected={selectedFlows.size === 0}
 							value="__all__"
 						>
-							<Checkbox
-								checked={selectedFlows.size === 0}
-								className="mr-2 pointer-events-none"
-							/>
+							<Checkbox checked={selectedFlows.size === 0} />
 							All flows
 						</ComboboxCommandItem>
 						{filteredFlows.map((flow: Flow) => (
@@ -144,13 +140,9 @@ export const FlowFilter = ({
 								aria-label={flow.name}
 								onSelect={() => handleSelectFlow(flow.id)}
 								closeOnSelect={false}
-								selected={selectedFlows.has(flow.id)}
 								value={flow.id}
 							>
-								<Checkbox
-									checked={selectedFlows.has(flow.id)}
-									className="mr-2 pointer-events-none"
-								/>
+								<Checkbox checked={selectedFlows.has(flow.id)} />
 								{flow.name}
 							</ComboboxCommandItem>
 						))}
