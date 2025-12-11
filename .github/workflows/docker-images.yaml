@@ -5,7 +5,7 @@ on:
   release:
     types: [released, prereleased]
 
-  # On workflow_dispatch, allow publishing 3-latest images
+  # On workflow_dispatch, allow publishing 3-latest images or a specific tag
   workflow_dispatch:
     inputs:
       publish_3_latest:
@@ -13,6 +13,10 @@ on:
         required: false
         type: boolean
         default: false
+      tag:
+        description: 'Build dev images for a specific tag (e.g., 3.6.6.dev5)'
+        required: false
+        type: string
 
 jobs:
   publish-docker-images:
@@ -66,16 +70,17 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Generate tags for ${{ matrix.image }}-dev
         id: metadata-dev
         uses: docker/metadata-action@v5
-        # do not generate the development tags on true release events, only pre-releases
-        if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
+        # generate dev tags on pre-releases or when manually triggered with a tag input
+        if: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') }}
         with:
           images: ${{ matrix.image }}-dev
           tags: |
-            type=raw,value=${{ github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
+            type=raw,value=${{ github.event.inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=sha,suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
           flavor: |
             latest=false
