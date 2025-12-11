@@ -119,7 +119,7 @@ export const buildListTaskRunsQuery = (
 export const buildPaginateTaskRunsQuery = (
 	filter: TaskRunsPaginateFilter = {
 		page: 1,
-		sort: "START_TIME_DESC",
+		sort: "EXPECTED_START_TIME_DESC",
 	},
 	refetchInterval = 30_000,
 ) => {

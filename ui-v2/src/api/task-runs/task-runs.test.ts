@@ -57,6 +57,7 @@ describe("task runs api", () => {
 				limit: 5,
 				sort: "EXPECTED_START_TIME_ASC" as const,
 				task_runs: {
+					operator: "and_" as const,
 					name: { like_: "test-task" },
 				},
 			};
@@ -75,7 +76,7 @@ describe("task runs api", () => {
 			const customRefetchInterval = 60_000;
 
 			const { refetchInterval } = buildPaginateTaskRunsQuery(
-				{ page: 1, sort: "START_TIME_DESC" },
+				{ page: 1, sort: "EXPECTED_START_TIME_DESC" },
 				customRefetchInterval,
 			);
 
