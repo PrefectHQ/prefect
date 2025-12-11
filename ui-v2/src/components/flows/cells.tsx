@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useDeleteFlowById } from "@/api/flows";
+import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import {
+	buildDeploymentsCountByFlowQuery,
+	buildNextRunsByFlowQuery,
+	useDeleteFlowById,
+} from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,11 +20,6 @@ import { Icon } from "@/components/ui/icons";
 import { cn } from "@/utils";
 import { formatDate } from "@/utils/date";
 import { Typography } from "../ui/typography";
-import {
-	deploymentsCountQueryParams,
-	getLatestFlowRunsQueryParams,
-	getNextFlowRunsQueryParams,
-} from "./queries";
 
 type Flow = components["schemas"]["Flow"];
 
@@ -53,62 +53,73 @@ export const FlowName = ({ row }: { row: { original: Flow } }) => {
 };
 
 export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
-	const { data: flowRun } = useQuery(
-		getLatestFlowRunsQueryParams(row.original.id || "", 16, {
-			enabled: !!row.original.id,
+	const flowId = row.original.id;
+	const { data: flowRuns } = useQuery({
+		...buildFilterFlowRunsQuery({
+			flows: { operator: "and_", id: { any_: [flowId ?? ""] } },
+			flow_runs: {
+				operator: "and_",
+				start_time: { is_null_: false },
+			},
+			offset: 0,
+			limit: 16,
+			sort: "START_TIME_DESC",
 		}),
-	);
+		enabled: !!flowId,
+	});
 
-	if (!row.original.id || !flowRun?.[0]) return null;
+	if (!flowId || !flowRuns?.[0]) return null;
 	return (
-		<Link to="/runs/flow-run/$id" params={{ id: flowRun[0].id ?? "" }}>
+		<Link to="/runs/flow-run/$id" params={{ id: flowRuns[0].id ?? "" }}>
 			<Typography
 				variant="bodySmall"
 				className="text-blue-700 hover:underline p-2"
 				fontFamily="mono"
 			>
-				{flowRun?.[0]?.name}
+				{flowRuns[0].name}
 			</Typography>
 		</Link>
 	);
 };
 
 export const FlowNextRun = ({ row }: { row: { original: Flow } }) => {
-	const { data: flowRun } = useQuery(
-		getNextFlowRunsQueryParams(row.original.id || "", 16, {
-			enabled: !!row.original.id,
-		}),
+	const flowId = row.original.id;
+	const { data: nextRunsMap } = useQuery(
+		buildNextRunsByFlowQuery(flowId ? [flowId] : [], { enabled: !!flowId }),
 	);
 
-	if (!row.original.id || !flowRun?.[0]) return null;
+	const nextRun = flowId ? nextRunsMap?.[flowId] : null;
+	if (!flowId || !nextRun) return null;
 	return (
-		<Link to="/runs/flow-run/$id" params={{ id: flowRun[0].id ?? "" }}>
+		<Link to="/runs/flow-run/$id" params={{ id: nextRun.id ?? "" }}>
 			<Typography
 				variant="bodySmall"
 				className="text-blue-700 hover:underline p-2"
 				fontFamily="mono"
 			>
-				{flowRun?.[0]?.name}
+				{nextRun.name}
 			</Typography>
 		</Link>
 	);
 };
 
 export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
-	const { data } = useQuery(
-		deploymentsCountQueryParams(row.original.id || "", {
-			enabled: !!row.original.id,
+	const flowId = row.original.id;
+	const { data: countsMap } = useQuery(
+		buildDeploymentsCountByFlowQuery(flowId ? [flowId] : [], {
+			enabled: !!flowId,
 		}),
 	);
-	if (!row.original.id) return null;
+	if (!flowId) return null;
 
+	const count = countsMap?.[flowId] ?? 0;
 	return (
 		<Typography
 			variant="bodySmall"
 			className="text-muted-foreground hover:underline p-2"
 			fontFamily="mono"
 		>
-			{data !== 0 ? data : "None"}
+			{count !== 0 ? count : "None"}
 		</Typography>
 	);
 };
@@ -150,12 +161,21 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 
 // TODO: Update this to use the flow run graph from src/components/ui/flow-run-activity-bar-graph
 export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
-	const { data } = useQuery(
-		getLatestFlowRunsQueryParams(row.original.id || "", 16, {
-			enabled: !!row.original.id,
+	const flowId = row.original.id;
+	const { data: flowRuns } = useQuery({
+		...buildFilterFlowRunsQuery({
+			flows: { operator: "and_", id: { any_: [flowId ?? ""] } },
+			flow_runs: {
+				operator: "and_",
+				start_time: { is_null_: false },
+			},
+			offset: 0,
+			limit: 16,
+			sort: "START_TIME_DESC",
 		}),
-	);
-	if (!row.original.id) return null;
+		enabled: !!flowId,
+	});
+	if (!flowId) return null;
 
 	return (
 		<div className="flex h-[24px]">
@@ -167,11 +187,11 @@ export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
 						key={index}
 						className={cn(
 							"flex-1 mr-[1px] rounded-full bg-gray-400",
-							data?.[index]?.state_type &&
-								data?.[index]?.state_type === "COMPLETED" &&
+							flowRuns?.[index]?.state_type &&
+								flowRuns?.[index]?.state_type === "COMPLETED" &&
 								"bg-green-500",
-							data?.[index]?.state_type &&
-								data?.[index]?.state_type !== "COMPLETED" &&
+							flowRuns?.[index]?.state_type &&
+								flowRuns?.[index]?.state_type !== "COMPLETED" &&
 								"bg-red-500",
 						)}
 					/>
