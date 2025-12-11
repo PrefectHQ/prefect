@@ -124,8 +124,8 @@ class TestBackgroundServices:
             ],
             expected_output_contains=[
                 "Available Services",
-                "MarkLateRuns",
-                "PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED",
+                "Foreman",
+                "PREFECT_SERVER_SERVICES_FOREMAN_ENABLED",
                 "Telemetry",
                 "PREFECT_SERVER_ANALYTICS_ENABLED",
             ],
