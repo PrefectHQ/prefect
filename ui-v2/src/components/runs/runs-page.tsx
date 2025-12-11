@@ -128,10 +128,7 @@ export const RunsPage = ({
 						onSelectFlows={onFlowFilterChange}
 					/>
 				</div>
-				<DateRangeFilter
-					value={dateRange}
-					onValueChange={onDateRangeChange}
-				/>
+				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
 			</div>
 			<Tabs value={tab} onValueChange={onTabChange}>
 				<TabsList>
