@@ -149,7 +149,7 @@ describe("Runs page", () => {
 		});
 	});
 
-	it("should allow switching to task runs tab", async () => {
+	it("should allow switching to task runs tab and show task runs", async () => {
 		const user = userEvent.setup();
 		server.use(
 			http.post(buildApiUrl("/flow_runs/count"), () => {
@@ -180,6 +180,26 @@ describe("Runs page", () => {
 			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
 				return HttpResponse.json({ "1": 0 });
 			}),
+			http.post(buildApiUrl("/task_runs/paginate"), () => {
+				return HttpResponse.json({
+					results: [
+						{
+							id: "task-1",
+							name: "test-task-run-1",
+							flow_run_id: "1",
+							state: {
+								type: "COMPLETED",
+								name: "Completed",
+								timestamp: new Date().toISOString(),
+							},
+						},
+					],
+					count: 1,
+					pages: 1,
+					page: 1,
+					limit: 10,
+				});
+			}),
 		);
 
 		await renderRunsPage();
@@ -191,7 +211,62 @@ describe("Runs page", () => {
 		await user.click(screen.getByRole("tab", { name: "Task Runs" }));
 
 		await waitFor(() => {
-			expect(screen.getByText("Task Runs tab coming soon")).toBeVisible();
+			expect(screen.getByText("test-task-run-1")).toBeVisible();
+		});
+	});
+
+	it("should show empty state when switching to task runs tab with no task runs", async () => {
+		const user = userEvent.setup();
+		server.use(
+			http.post(buildApiUrl("/flow_runs/count"), () => {
+				return HttpResponse.json(1);
+			}),
+			http.post(buildApiUrl("/flow_runs/paginate"), () => {
+				return HttpResponse.json({
+					results: [
+						{
+							id: "1",
+							name: "test-flow-run-1",
+							flow_id: "flow-1",
+							state: { type: "COMPLETED", name: "Completed" },
+							tags: [],
+						},
+					],
+					count: 1,
+					pages: 1,
+					page: 1,
+					limit: 10,
+				});
+			}),
+			http.post(buildApiUrl("/flows/filter"), () => {
+				return HttpResponse.json([
+					{ id: "flow-1", name: "Test Flow", tags: [] },
+				]);
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "1": 0 });
+			}),
+			http.post(buildApiUrl("/task_runs/paginate"), () => {
+				return HttpResponse.json({
+					results: [],
+					count: 0,
+					pages: 0,
+					page: 1,
+					limit: 10,
+				});
+			}),
+		);
+
+		await renderRunsPage();
+
+		await waitFor(() => {
+			expect(screen.getByRole("tab", { name: "Task Runs" })).toBeVisible();
+		});
+
+		await user.click(screen.getByRole("tab", { name: "Task Runs" }));
+
+		await waitFor(() => {
+			expect(screen.getByText("No task runs found")).toBeVisible();
 		});
 	});
 
