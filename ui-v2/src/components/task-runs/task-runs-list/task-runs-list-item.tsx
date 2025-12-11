@@ -219,12 +219,17 @@ type TaskRunsListItemWithDataProps =
 			onCheckedChange: (checked: boolean) => void;
 	  };
 
-const TaskRunsListItemWithDataInner = ({
+type TaskRunsListItemWithFlowDataProps = TaskRunsListItemWithDataProps & {
+	flowRunId: string;
+};
+
+const TaskRunsListItemWithFlowData = ({
 	taskRun,
+	flowRunId,
 	...props
-}: TaskRunsListItemWithDataProps) => {
+}: TaskRunsListItemWithFlowDataProps) => {
 	const { data: flowRun } = useSuspenseQuery(
-		buildGetFlowRunDetailsQuery(taskRun.flow_run_id),
+		buildGetFlowRunDetailsQuery(flowRunId),
 	);
 	const { data: flow } = useSuspenseQuery(
 		buildFLowDetailsQuery(flowRun.flow_id),
@@ -247,6 +252,41 @@ const TaskRunsListItemWithDataInner = ({
 	}
 
 	return <TaskRunsListItem taskRun={taskRunWithData} />;
+};
+
+const TaskRunsListItemWithDataInner = ({
+	taskRun,
+	...props
+}: TaskRunsListItemWithDataProps) => {
+	const flowRunId = taskRun.flow_run_id;
+
+	if (!flowRunId) {
+		if ("checked" in props && "onCheckedChange" in props) {
+			return (
+				<TaskRunsListItem
+					taskRun={taskRun}
+					checked={props.checked}
+					onCheckedChange={props.onCheckedChange}
+				/>
+			);
+		}
+		return <TaskRunsListItem taskRun={taskRun} />;
+	}
+
+	if ("checked" in props && "onCheckedChange" in props) {
+		return (
+			<TaskRunsListItemWithFlowData
+				taskRun={taskRun}
+				flowRunId={flowRunId}
+				checked={props.checked}
+				onCheckedChange={props.onCheckedChange}
+			/>
+		);
+	}
+
+	return (
+		<TaskRunsListItemWithFlowData taskRun={taskRun} flowRunId={flowRunId} />
+	);
 };
 
 export const TaskRunsListItemWithData = (

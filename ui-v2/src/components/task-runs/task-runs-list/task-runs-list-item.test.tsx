@@ -60,6 +60,21 @@ const renderWithProviders = async (ui: ReactNode) => {
 	return result;
 };
 
+const createMockStateDetails = () => ({
+	deferred: false,
+	untrackable_result: false,
+	pause_reschedule: false,
+});
+
+const createMockEmpiricalPolicy = () => ({
+	max_retries: 0,
+	retry_delay_seconds: 0,
+	retries: 0,
+	retry_delay: 0,
+	retry_jitter_factor: null,
+	resuming: null,
+});
+
 const createMockTaskRun = (
 	overrides: Partial<TaskRunsListItemData> = {},
 ): TaskRunsListItemData => ({
@@ -71,13 +86,7 @@ const createMockTaskRun = (
 	cache_key: null,
 	cache_expiration: null,
 	task_version: null,
-	empirical_policy: {
-		max_retries: 0,
-		retry_delay_seconds: 0,
-		retries: 0,
-		retry_delay: 0,
-		retry_jitter_factor: null,
-	},
+	empirical_policy: createMockEmpiricalPolicy(),
 	tags: ["tag1", "tag2"],
 	state_id: "state-1",
 	task_inputs: {},
@@ -98,7 +107,7 @@ const createMockTaskRun = (
 		name: "Completed",
 		timestamp: "2024-01-01T10:05:00Z",
 		message: null,
-		state_details: {},
+		state_details: createMockStateDetails(),
 		data: null,
 	},
 	created: "2024-01-01T09:00:00Z",
@@ -130,7 +139,7 @@ const createMockFlowRun = () => ({
 		name: "Completed",
 		timestamp: "2024-01-01T10:05:00Z",
 		message: null,
-		state_details: {},
+		state_details: createMockStateDetails(),
 		data: null,
 	},
 	created: "2024-01-01T09:00:00Z",
@@ -139,13 +148,7 @@ const createMockFlowRun = () => ({
 	parameters: {},
 	idempotency_key: null,
 	context: {},
-	empirical_policy: {
-		max_retries: 0,
-		retry_delay_seconds: 0,
-		retries: 0,
-		retry_delay: 0,
-		retry_jitter_factor: null,
-	},
+	empirical_policy: createMockEmpiricalPolicy(),
 	auto_scheduled: false,
 	infrastructure_document_id: null,
 	infrastructure_pid: null,
@@ -354,7 +357,7 @@ describe("TaskRunsListItem", () => {
 						name: type,
 						timestamp: "2024-01-01T10:00:00Z",
 						message: null,
-						state_details: {},
+						state_details: createMockStateDetails(),
 						data: null,
 					},
 					state_type: type,
