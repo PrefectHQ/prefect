@@ -101,6 +101,14 @@ const flowHandlers = [
 	http.post(buildApiUrl("/deployments/count"), () => {
 		return HttpResponse.json(1);
 	}),
+
+	http.post(buildApiUrl("/ui/flows/count-deployments"), () => {
+		return HttpResponse.json({});
+	}),
+
+	http.post(buildApiUrl("/ui/flows/next-runs"), () => {
+		return HttpResponse.json({});
+	}),
 ];
 
 const flowRunHandlers = [
