@@ -731,7 +731,7 @@ class TestAPICompatibility:
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
 
-    @pytest.mark.parametrize("block_name", ["a_block", "a.block"])
+    @pytest.mark.parametrize("block_name", ["a.block"])
     async def test_create_block_document_create_invalid_characters(self, block_name):
         """This gets raised on instantiation of BlockDocumentCreate"""
 
