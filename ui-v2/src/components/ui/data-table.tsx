@@ -25,13 +25,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/utils";
 
-export function DataTable<TData>({
-	table,
-	showPagination = true,
-}: {
-	table: TanstackTable<TData>;
-	showPagination?: boolean;
-}) {
+export function DataTable<TData>({ table }: { table: TanstackTable<TData> }) {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="rounded-md border">
@@ -102,12 +96,10 @@ export function DataTable<TData>({
 					</TableBody>
 				</Table>
 			</div>
-			{showPagination && (
-				<div className="flex flex-row justify-between items-center">
-					<DataTablePageSize table={table} />
-					<DataTablePagination table={table} />
-				</div>
-			)}
+			<div className="flex flex-row justify-between items-center">
+				<DataTablePageSize table={table} />
+				<DataTablePagination table={table} />
+			</div>
 		</div>
 	);
 }

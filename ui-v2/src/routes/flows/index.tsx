@@ -1,5 +1,6 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import type { PaginationState } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
@@ -8,7 +9,6 @@ import {
 	buildPaginateFlowsQuery,
 	type FlowsPaginateFilter,
 } from "@/api/flows";
-import type { PaginationState } from "@/components/flow-runs/flow-runs-list";
 import FlowsPage from "@/components/flows/flows-page";
 
 // Route for /flows/
@@ -71,10 +71,11 @@ const usePagination = () => {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
+	// Convert URL params (1-based page) to TanStack Table's PaginationState (0-based pageIndex)
 	const pagination: PaginationState = useMemo(
 		() => ({
-			page: search.page ?? 1,
-			limit: search.limit ?? 10,
+			pageIndex: (search.page ?? 1) - 1,
+			pageSize: search.limit ?? 10,
 		}),
 		[search.page, search.limit],
 	);
@@ -85,8 +86,9 @@ const usePagination = () => {
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					page: newPagination.page,
-					limit: newPagination.limit,
+					// Convert TanStack Table's 0-based pageIndex back to 1-based page for URL
+					page: newPagination.pageIndex + 1,
+					limit: newPagination.pageSize,
 				}),
 				replace: true,
 			});
@@ -124,7 +126,7 @@ function FlowsRoute() {
 		<FlowsPage
 			flows={flows}
 			count={count ?? 0}
-			pages={flowsPage?.pages ?? 0}
+			pageCount={flowsPage?.pages ?? 0}
 			sort={search.sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
 			pagination={pagination}
 			onPaginationChange={onPaginationChange}

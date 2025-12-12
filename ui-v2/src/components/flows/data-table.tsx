@@ -1,15 +1,12 @@
 import { useNavigate } from "@tanstack/react-router";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import {
 	getCoreRowModel,
 	type RowSelectionState,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { type Flow, useDeleteFlowById } from "@/api/flows";
-import {
-	FlowRunsPagination,
-	type PaginationState,
-} from "@/components/flow-runs/flow-runs-list";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -156,29 +153,47 @@ const SortComponent = ({ currentSort }: { currentSort: FlowSortValue }) => {
 export default function FlowsTable({
 	flows,
 	count,
-	pages,
+	pageCount,
 	sort,
 	pagination,
 	onPaginationChange,
 }: {
 	flows: Flow[];
 	count: number;
-	pages: number;
+	pageCount: number;
 	sort: FlowSortValue;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+	// Wrap the external onPaginationChange to handle TanStack Table's updater pattern
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			onPaginationChange(newPagination);
+		},
+		[pagination, onPaginationChange],
+	);
+
 	const table = useReactTable({
 		columns: columns,
 		data: flows,
 		getCoreRowModel: getCoreRowModel(),
-		// Note: We don't use getPaginationRowModel() here because we're using server-side pagination
+		manualPagination: true,
+		pageCount,
 		state: {
 			rowSelection,
+			pagination,
 		},
 		onRowSelectionChange: setRowSelection,
+		onPaginationChange: handlePaginationChange,
 	});
 
 	const handleDeleteRows = () => {
@@ -207,15 +222,7 @@ export default function FlowsTable({
 					<SortComponent currentSort={sort} />
 				</div>
 			</header>
-			<DataTable table={table} showPagination={false} />
-			<div className="mt-4">
-				<FlowRunsPagination
-					count={count}
-					pages={pages}
-					pagination={pagination}
-					onChangePagination={onPaginationChange}
-				/>
-			</div>
+			<DataTable table={table} />
 		</div>
 	);
 }
