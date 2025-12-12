@@ -10,7 +10,7 @@ import {
 import { capitalize, cn } from "@/utils";
 import { Badge } from "../badge";
 
-export const STATE_ICONS = {
+const STATE_ICONS = {
 	COMPLETED: COMPONENT_ICONS.Check,
 	FAILED: COMPONENT_ICONS.X,
 	RUNNING: COMPONENT_ICONS.Play,
@@ -61,7 +61,7 @@ export const StateBadge = ({ type, name, className }: StateBadgeProps) => {
 	);
 };
 
-export const STATE_ICON_COLORS = {
+const STATE_ICON_COLORS = {
 	COMPLETED: "text-green-600",
 	FAILED: "text-red-600",
 	RUNNING: "text-blue-700",
