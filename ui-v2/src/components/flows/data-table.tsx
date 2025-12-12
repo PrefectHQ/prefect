@@ -1,5 +1,8 @@
-import { useNavigate } from "@tanstack/react-router";
-import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import type {
+	ColumnFiltersState,
+	OnChangeFn,
+	PaginationState,
+} from "@tanstack/react-table";
 import {
 	getCoreRowModel,
 	type RowSelectionState,
@@ -28,7 +31,7 @@ const FLOW_SORT_OPTIONS = [
 	{ label: "Created", value: "CREATED_DESC" },
 ] as const;
 
-type FlowSortValue = (typeof FLOW_SORT_OPTIONS)[number]["value"];
+type FlowSortValue = "NAME_ASC" | "NAME_DESC" | "CREATED_DESC" | "UPDATED_DESC";
 
 export default function FlowsTable({
 	flows,
@@ -37,6 +40,9 @@ export default function FlowsTable({
 	sort,
 	pagination,
 	onPaginationChange,
+	onSortChange,
+	columnFilters,
+	onColumnFiltersChange,
 }: {
 	flows: Flow[];
 	count: number;
@@ -44,53 +50,38 @@ export default function FlowsTable({
 	sort: FlowSortValue;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
+	onSortChange: (sort: FlowSortValue) => void;
+	columnFilters: ColumnFiltersState;
+	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
-	const navigate = useNavigate();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
-	const nameSearchValue =
-		new URLSearchParams(window.location.search).get("name") ?? "";
-
-	const tagsSearchValue =
-		new URLSearchParams(window.location.search)
-			.get("tags")
-			?.split(",")
-			.filter(Boolean) ?? [];
+	const nameSearchValue = (columnFilters.find((filter) => filter.id === "name")
+		?.value ?? "") as string;
+	const tagsSearchValue = (columnFilters.find((filter) => filter.id === "tags")
+		?.value ?? []) as string[];
 
 	const handleNameSearchChange = useCallback(
 		(value?: string) => {
-			void navigate({
-				to: ".",
-				search: (prev) => ({ ...prev, name: value || undefined }),
-			});
+			const filters = columnFilters.filter((filter) => filter.id !== "name");
+			onColumnFiltersChange(
+				value ? [...filters, { id: "name", value }] : filters,
+			);
 		},
-		[navigate],
+		[onColumnFiltersChange, columnFilters],
 	);
 
 	const handleTagsSearchChange: React.ChangeEventHandler<HTMLInputElement> &
 		((tags: string[]) => void) = useCallback(
 		(e: string[] | React.ChangeEvent<HTMLInputElement>) => {
 			const tags = Array.isArray(e) ? e : [];
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					tags: tags.length ? tags.join(",") : undefined,
-				}),
-			});
+			const filters = columnFilters.filter((filter) => filter.id !== "tags");
+			onColumnFiltersChange(
+				tags.length ? [...filters, { id: "tags", value: tags }] : filters,
+			);
 		},
-		[navigate],
-	);
-
-	const onSortChange = useCallback(
-		(value: string) => {
-			void navigate({
-				to: ".",
-				search: (prev) => ({ ...prev, sort: value }),
-			});
-		},
-		[navigate],
+		[onColumnFiltersChange, columnFilters],
 	);
 
 	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
