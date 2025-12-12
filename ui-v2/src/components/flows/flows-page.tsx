@@ -1,9 +1,12 @@
-import type { PaginationState } from "@tanstack/react-table";
+import type {
+	ColumnFiltersState,
+	PaginationState,
+} from "@tanstack/react-table";
 import type { Flow } from "@/api/flows";
 import FlowsTable from "./data-table";
 import { FlowsHeader } from "./flows-page-header";
 
-type FlowSortValue = "NAME_ASC" | "NAME_DESC" | "CREATED_DESC";
+type FlowSortValue = "NAME_ASC" | "NAME_DESC" | "CREATED_DESC" | "UPDATED_DESC";
 
 type FlowsPageProps = {
 	flows: Flow[];
@@ -12,6 +15,9 @@ type FlowsPageProps = {
 	sort: FlowSortValue;
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
+	onSortChange: (sort: FlowSortValue) => void;
+	columnFilters: ColumnFiltersState;
+	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
 };
 
 export default function FlowsPage({
@@ -21,6 +27,9 @@ export default function FlowsPage({
 	sort,
 	pagination,
 	onPaginationChange,
+	onSortChange,
+	columnFilters,
+	onColumnFiltersChange,
 }: FlowsPageProps) {
 	return (
 		<div>
@@ -32,6 +41,9 @@ export default function FlowsPage({
 				sort={sort}
 				pagination={pagination}
 				onPaginationChange={onPaginationChange}
+				onSortChange={onSortChange}
+				columnFilters={columnFilters}
+				onColumnFiltersChange={onColumnFiltersChange}
 			/>
 		</div>
 	);
