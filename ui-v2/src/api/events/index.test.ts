@@ -61,14 +61,16 @@ describe("events api", () => {
 		});
 
 		it("generates correct historyFilter query key with filter", () => {
-			const filter: EventsFilter = {
+			const filter: EventsCountFilter = {
 				filter: {
-					any_resource: {
-						id: ["prefect.flow-run.456"],
+					occurred: {
+						since: "2024-01-01T00:00:00.000Z",
+						until: "2024-01-31T23:59:59.999Z",
 					},
 					order: "ASC",
 				},
-				limit: 50,
+				time_unit: "hour",
+				time_interval: 1,
 			};
 
 			expect(queryKeyFactory.historyFilter(filter)).toEqual([
