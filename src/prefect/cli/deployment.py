@@ -26,6 +26,13 @@ from prefect.blocks.core import Block
 from prefect.cli._prompts import confirm, prompt
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.deploy._models import (
+    ConcurrencyLimitSpec,
+    DeploymentConfig,
+    PrefectYamlModel,
+    RawScheduleConfig,
+    WorkPoolConfig,
+)
 from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
@@ -38,7 +45,6 @@ from prefect.client.schemas.filters import (
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.client.schemas.schedules import (
-    SCHEDULE_TYPES,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -1120,110 +1126,96 @@ async def delete(
             exit_with_error("Must provide a deployment name or id")
 
 
-def _deployment_response_to_yaml_dict(
+def _deployment_response_to_config(
     deployment: DeploymentResponse,
     flow_name: str | None = None,
-) -> dict[str, Any]:
+) -> DeploymentConfig:
     """
-    Convert a DeploymentResponse to a dictionary suitable for prefect.yaml.
+    Convert a DeploymentResponse to a DeploymentConfig for prefect.yaml.
 
     Args:
         deployment: The deployment response from the server
-        flow_name: Optional flow name to construct the entrypoint
+        flow_name: Optional flow name (currently unused, reserved for future use)
 
     Returns:
-        A dictionary that can be serialized to YAML for prefect.yaml
+        A DeploymentConfig that can be serialized to YAML for prefect.yaml
     """
-    config: dict[str, Any] = {
-        "name": deployment.name,
-    }
-
-    # Add optional fields if they have values
-    if deployment.version:
-        config["version"] = deployment.version
-
-    if deployment.description:
-        config["description"] = deployment.description
-
-    if deployment.entrypoint:
-        config["entrypoint"] = deployment.entrypoint
-
-    if deployment.tags:
-        config["tags"] = deployment.tags
-
-    if deployment.parameters:
-        config["parameters"] = deployment.parameters
-
-    if deployment.enforce_parameter_schema is not None:
-        config["enforce_parameter_schema"] = deployment.enforce_parameter_schema
-
-    if deployment.paused:
-        config["paused"] = deployment.paused
-
-    # Work pool configuration
+    # Build work pool configuration
+    work_pool: WorkPoolConfig | None = None
     if deployment.work_pool_name:
-        work_pool_config: dict[str, Any] = {"name": deployment.work_pool_name}
-        if deployment.work_queue_name:
-            work_pool_config["work_queue_name"] = deployment.work_queue_name
-        if deployment.job_variables:
-            work_pool_config["job_variables"] = deployment.job_variables
-        config["work_pool"] = work_pool_config
+        work_pool = WorkPoolConfig(
+            name=deployment.work_pool_name,
+            work_queue_name=deployment.work_queue_name,
+            job_variables=deployment.job_variables or {},
+        )
 
-    # Schedules
+    # Build schedules
+    schedules: list[RawScheduleConfig] | None = None
     if deployment.schedules:
-        schedules: list[dict[str, Any]] = []
+        schedules = []
         for deployment_schedule in deployment.schedules:
             schedule = deployment_schedule.schedule
+            schedule_kwargs: dict[str, Any] = {}
+
             if isinstance(schedule, IntervalSchedule):
-                schedule_config = {
-                    "interval": schedule.interval.total_seconds(),
-                    "anchor_date": schedule.anchor_date.isoformat(),
-                }
+                schedule_kwargs["interval"] = int(schedule.interval.total_seconds())
+                schedule_kwargs["anchor_date"] = schedule.anchor_date.isoformat()
                 if schedule.timezone:
-                    schedule_config["timezone"] = schedule.timezone
-            elif isinstance(schedule, SCHEDULE_TYPES):
-                schedule_config = schedule.model_dump(mode="json")
-            else:
-                # Fallback for any other schedule type
-                schedule_config = (
-                    schedule.model_dump(mode="json")
-                    if hasattr(schedule, "model_dump")
-                    else {}
-                )
+                    schedule_kwargs["timezone"] = schedule.timezone
+            elif isinstance(schedule, CronSchedule):
+                schedule_kwargs["cron"] = schedule.cron
+                if schedule.timezone:
+                    schedule_kwargs["timezone"] = schedule.timezone
+                if schedule.day_or is not None:
+                    schedule_kwargs["day_or"] = schedule.day_or
+            elif isinstance(schedule, RRuleSchedule):
+                schedule_kwargs["rrule"] = schedule.rrule
+                if schedule.timezone:
+                    schedule_kwargs["timezone"] = schedule.timezone
 
             # Add active status
-            schedule_config["active"] = deployment_schedule.active
+            schedule_kwargs["active"] = deployment_schedule.active
 
-            # Add max_scheduled_runs if set
-            if deployment_schedule.max_scheduled_runs is not None:
-                schedule_config["max_scheduled_runs"] = (
-                    deployment_schedule.max_scheduled_runs
-                )
+            schedules.append(RawScheduleConfig(**schedule_kwargs))
 
-            schedules.append(schedule_config)
+    # Build concurrency limit configuration
+    concurrency_limit: int | ConcurrencyLimitSpec | None = None
+    if deployment.global_concurrency_limit or deployment.concurrency_options:
+        limit_value = (
+            deployment.global_concurrency_limit.limit
+            if deployment.global_concurrency_limit
+            else None
+        )
+        collision_strategy = (
+            str(deployment.concurrency_options.collision_strategy.value)
+            if deployment.concurrency_options
+            and deployment.concurrency_options.collision_strategy
+            else None
+        )
 
-        config["schedules"] = schedules
-
-    # Concurrency settings
-    if deployment.global_concurrency_limit:
-        concurrency_config: dict[str, Any] = {
-            "limit": deployment.global_concurrency_limit.limit,
-        }
-        config["concurrency_limit"] = concurrency_config
-
-    if deployment.concurrency_options:
-        if "concurrency_limit" not in config:
-            config["concurrency_limit"] = {}
-        if deployment.concurrency_options.collision_strategy:
-            config["concurrency_limit"]["collision_strategy"] = str(
-                deployment.concurrency_options.collision_strategy.value
+        if collision_strategy:
+            concurrency_limit = ConcurrencyLimitSpec(
+                limit=limit_value,
+                collision_strategy=collision_strategy,
             )
+        elif limit_value is not None:
+            concurrency_limit = limit_value
 
-    # Pull steps
-    if deployment.pull_steps:
-        config["pull"] = deployment.pull_steps
-
-    return config
+    return DeploymentConfig(
+        name=deployment.name,
+        version=deployment.version,
+        description=deployment.description,
+        entrypoint=deployment.entrypoint,
+        tags=deployment.tags if deployment.tags else None,
+        parameters=deployment.parameters or {},
+        enforce_parameter_schema=deployment.enforce_parameter_schema,
+        paused=deployment.paused if deployment.paused else None,
+        work_pool=work_pool,
+        schedules=schedules,
+        concurrency_limit=concurrency_limit,
+        pull=deployment.pull_steps,
+        flow_name=flow_name,
+    )
 
 
 def _validate_yaml_extension(output_path: Path) -> None:
@@ -1257,7 +1249,7 @@ async def export_deployments(
         "--all",
         help="Export all deployments",
     ),
-    output: Optional[str] = typer.Option(
+    output: Optional[Path] = typer.Option(
         None,
         "--output",
         "-o",
@@ -1300,8 +1292,9 @@ async def export_deployments(
         assert_deployment_name_format(name)
 
     # Determine output path
+    output_path: Path
     if output:
-        output_path = Path(output)
+        output_path = output
         _validate_yaml_extension(output_path)
     elif is_interactive():
         # Interactive mode: prompt for output path
@@ -1368,21 +1361,24 @@ async def export_deployments(
             except ObjectNotFound:
                 flow_names[flow_id] = "unknown"
 
-    # Convert deployments to YAML format
-    deployment_configs: list[dict[str, Any]] = []
+    # Convert deployments to DeploymentConfig models
+    deployment_configs: list[DeploymentConfig] = []
     for deployment in deployments_to_export:
         flow_name = flow_names.get(deployment.flow_id)
-        config = _deployment_response_to_yaml_dict(deployment, flow_name)
+        config = _deployment_response_to_config(deployment, flow_name)
         deployment_configs.append(config)
 
-    # Build the prefect.yaml content
-    prefect_yaml_content: dict[str, Any] = {
-        "deployments": deployment_configs,
-    }
+    # Build the prefect.yaml content using PrefectYamlModel
+    prefect_yaml = PrefectYamlModel(deployments=deployment_configs)
 
-    # Write to file
+    # Write to file using model_dump for consistent serialization
     with output_path.open("w") as f:
-        yaml.dump(prefect_yaml_content, f, sort_keys=False, default_flow_style=False)
+        yaml.dump(
+            prefect_yaml.model_dump(exclude_unset=True, mode="json"),
+            f,
+            sort_keys=False,
+            default_flow_style=False,
+        )
 
     plural = "" if len(deployment_configs) == 1 else "s"
     exit_with_success(
