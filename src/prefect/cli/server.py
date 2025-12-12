@@ -717,18 +717,18 @@ def run_manager_process():
 
 
 async def _run_all_services() -> None:
-    """Run both LoopService-based services and docket-based perpetual services."""
+    """Run Service-based services and docket-based perpetual services."""
     from docket import Docket
 
     from prefect.server.api.background_workers import background_worker
     from prefect.server.services.base import Service
-    from prefect.settings import PREFECT_SERVER_DOCKET_URL
+    from prefect.settings.context import get_current_settings
 
-    docket_url = PREFECT_SERVER_DOCKET_URL.value()
+    docket_url = get_current_settings().server.docket_url
 
     async with Docket(name="prefect", url=docket_url) as docket:
         async with background_worker(docket, ephemeral=False, webserver_only=False):
-            # Run LoopService-based services (will block until shutdown)
+            # Run Service-based services (will block until shutdown)
             await Service.run_services()
 
 
