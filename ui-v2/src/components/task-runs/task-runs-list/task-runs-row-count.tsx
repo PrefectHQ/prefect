@@ -1,6 +1,6 @@
 import type { CheckedState } from "@radix-ui/react-checkbox";
 import { useMemo } from "react";
-import type { TaskRun } from "@/api/task-runs";
+import type { TaskRunResponse } from "@/api/task-runs";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
@@ -14,7 +14,7 @@ type CountOnlyProps = {
 };
 type SelectableProps = {
 	count: number | undefined;
-	results: Array<TaskRun> | undefined;
+	results: Array<TaskRunResponse> | undefined;
 	setSelectedRows: (rows: Set<string>) => void;
 	selectedRows: Set<string>;
 };
