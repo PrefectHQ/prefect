@@ -171,9 +171,11 @@ export default function FlowsTable({
 							<SelectValue placeholder="Sort by" />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="CREATED_DESC">Created</SelectItem>
-							<SelectItem value="NAME_ASC">A to Z</SelectItem>
-							<SelectItem value="NAME_DESC">Z to A</SelectItem>
+							{FLOW_SORT_OPTIONS.map((option) => (
+								<SelectItem key={option.value} value={option.value}>
+									{option.label}
+								</SelectItem>
+							))}
 						</SelectContent>
 					</Select>
 				</div>
