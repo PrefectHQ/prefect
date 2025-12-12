@@ -71,7 +71,10 @@ const eventsHandlers = [
 
 const deploymentsHandlers = [
 	http.post(buildApiUrl("/deployments/filter"), () => {
-		return HttpResponse.json([]);
+		return HttpResponse.json([
+			{ id: "deployment-1", name: "Deployment 1", tags: [] },
+			{ id: "deployment-2", name: "Deployment 2", tags: [] },
+		]);
 	}),
 
 	http.patch(buildApiUrl("/deployments/:id"), () => {
