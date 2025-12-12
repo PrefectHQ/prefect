@@ -1,6 +1,9 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import type { PaginationState } from "@tanstack/react-table";
+import type {
+	ColumnFiltersState,
+	PaginationState,
+} from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
@@ -37,13 +40,28 @@ const searchParams = z
 type SearchParams = z.infer<typeof searchParams>;
 
 const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
+	const hasNameFilter = Boolean(search?.name);
+	const hasTagsFilter = Boolean(search?.tags?.length);
+
+	if (!hasNameFilter && !hasTagsFilter) {
+		return {
+			page: search?.page ?? 1,
+			limit: search?.limit ?? 10,
+			sort: search?.sort ?? "NAME_ASC",
+		};
+	}
+
 	return {
 		page: search?.page ?? 1,
 		limit: search?.limit ?? 10,
 		sort: search?.sort ?? "NAME_ASC",
-		flows: search?.name
-			? { operator: "and_", name: { like_: search.name } }
-			: undefined,
+		flows: {
+			operator: "and_",
+			...(hasNameFilter && { name: { like_: search?.name } }),
+			...(hasTagsFilter && {
+				tags: { operator: "and_", all_: search?.tags },
+			}),
+		},
 	};
 };
 
@@ -99,25 +117,83 @@ const usePagination = () => {
 	return [pagination, onPaginationChange] as const;
 };
 
+type FlowSort = "CREATED_DESC" | "UPDATED_DESC" | "NAME_ASC" | "NAME_DESC";
+
+const useSort = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onSortChange = useCallback(
+		(sort: FlowSort) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, sort }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search.sort, onSortChange] as const;
+};
+
+const useFlowsColumnFilters = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+	const columnFilters: ColumnFiltersState = useMemo(
+		() => [
+			{ id: "name", value: search.name },
+			{ id: "tags", value: search.tags },
+		],
+		[search.name, search.tags],
+	);
+
+	const onColumnFiltersChange = useCallback(
+		(newColumnFilters: ColumnFiltersState) => {
+			void navigate({
+				to: ".",
+				search: (prev) => {
+					const name = newColumnFilters.find((filter) => filter.id === "name")
+						?.value as string | undefined;
+					const tags = newColumnFilters.find((filter) => filter.id === "tags")
+						?.value as string[] | undefined;
+					return {
+						...prev,
+						page: 1,
+						name,
+						tags,
+					};
+				},
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [columnFilters, onColumnFiltersChange] as const;
+};
+
 function FlowsRoute() {
 	const search = Route.useSearch();
 	const [pagination, onPaginationChange] = usePagination();
+	const [sort, onSortChange] = useSort();
+	const [columnFilters, onColumnFiltersChange] = useFlowsColumnFilters();
+
+	const paginationBody = buildPaginationBody(search);
 
 	// Use useSuspenseQuery for count (stable key, won't cause suspense on search change)
 	const { data: count } = useSuspenseQuery(
 		buildCountFlowsFilteredQuery({
 			offset: 0,
 			sort: search.sort,
-			flows: search.name
-				? { operator: "and_", name: { like_: search.name } }
-				: undefined,
+			flows: paginationBody.flows ?? undefined,
 		}),
 	);
 
 	// Use useQuery for paginated flows to leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
 	const { data: flowsPage } = useQuery(
-		buildPaginateFlowsQuery(buildPaginationBody(search), 30_000),
+		buildPaginateFlowsQuery(paginationBody, 30_000),
 	);
 
 	const flows = flowsPage?.results ?? [];
@@ -127,9 +203,12 @@ function FlowsRoute() {
 			flows={flows}
 			count={count ?? 0}
 			pageCount={flowsPage?.pages ?? 0}
-			sort={search.sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
+			sort={sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
 			pagination={pagination}
 			onPaginationChange={onPaginationChange}
+			onSortChange={onSortChange}
+			columnFilters={columnFilters}
+			onColumnFiltersChange={onColumnFiltersChange}
 		/>
 	);
 }
