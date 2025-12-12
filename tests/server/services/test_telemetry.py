@@ -6,7 +6,10 @@ import respx
 from httpx import Response
 
 import prefect
-from prefect.server.services.telemetry import Telemetry
+from prefect.server.services.telemetry import (
+    _fetch_or_set_telemetry_session,
+    send_telemetry_heartbeat,
+)
 
 
 @pytest.fixture
@@ -32,8 +35,7 @@ def error_sens_o_matic_mock():
 async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
     from prefect.client.constants import SERVER_API_VERSION
 
-    telemetry = Telemetry()
-    await telemetry.start(loops=1)
+    await send_telemetry_heartbeat()
 
     assert sens_o_matic_mock.called
     assert sens_o_matic_mock.call_count == 1
@@ -54,34 +56,35 @@ async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
     assert payload["api_version"] == SERVER_API_VERSION
     assert payload["prefect_version"] == prefect.__version__
 
-    assert payload["session_id"] == telemetry.session_id
-    assert payload["session_start_timestamp"] == telemetry.session_start_timestamp
+    # Session info should be present
+    assert payload["session_id"]
+    assert payload["session_start_timestamp"]
 
 
-async def test_sets_and_fetches_session_information(sens_o_matic_mock):
-    telemetry = Telemetry()
-    await telemetry.start(loops=1)
+async def test_sets_and_fetches_session_information():
+    from prefect.server.database import provide_database_interface
 
-    # set it on the first call
-    sid = telemetry.session_id
-    sts = telemetry.session_start_timestamp
-    assert sid
-    assert sts
+    db = provide_database_interface()
 
-    # retrieve from the db if process restarted
-    telemetry_2 = Telemetry()
-    await telemetry_2.start(loops=1)
-    assert telemetry_2.session_id == sid
-    assert telemetry_2.session_start_timestamp == sts
+    # Get session info from first call
+    session_start_timestamp_1, session_id_1 = await _fetch_or_set_telemetry_session(
+        db=db
+    )
+    assert session_id_1
+    assert session_start_timestamp_1
+
+    # Retrieve from the db if process restarted (same session info)
+    session_start_timestamp_2, session_id_2 = await _fetch_or_set_telemetry_session(
+        db=db
+    )
+    assert session_id_2 == session_id_1
+    assert session_start_timestamp_2 == session_start_timestamp_1
 
 
-async def test_errors_shutdown_service(error_sens_o_matic_mock, caplog):
-    # When telemetry encounters an error on any loop the service is stopped
-    telemetry = Telemetry()
+async def test_errors_do_not_crash_service(error_sens_o_matic_mock, caplog):
+    # When telemetry encounters an error, it logs but doesn't crash
+    await send_telemetry_heartbeat()
 
-    await telemetry.start(loops=5)
-
-    # The service should only be hit once
     assert error_sens_o_matic_mock.called
     assert error_sens_o_matic_mock.call_count == 1
 
