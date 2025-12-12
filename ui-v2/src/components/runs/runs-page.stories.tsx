@@ -4,7 +4,10 @@ import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
 import { useState } from "react";
 import type { TaskRunResponse } from "@/api/task-runs";
-import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
+import {
+	createFakeFlowRunWithDeploymentAndFlow,
+	createFakeTaskRunResponse,
+} from "@/mocks";
 import {
 	reactQueryDecorator,
 	routerDecorator,
@@ -50,37 +53,31 @@ const MOCK_FLOW_RUNS_TASK_COUNT = {
 	"4": randNumber({ min: 0, max: 5 }),
 };
 
-const MOCK_TASK_RUNS: TaskRunResponse[] = [
-	{
+const MOCK_TASK_RUNS = [
+	createFakeTaskRunResponse({
 		id: "task-0",
 		name: "my_task-0",
 		flow_run_id: "0",
 		task_key: "my_task",
 		state: { type: "COMPLETED", name: "Completed", id: "state-0" },
 		tags: [],
-		created: new Date().toISOString(),
-		updated: new Date().toISOString(),
-	},
-	{
+	}),
+	createFakeTaskRunResponse({
 		id: "task-1",
 		name: "my_task-1",
 		flow_run_id: "1",
 		task_key: "my_task",
 		state: { type: "FAILED", name: "Failed", id: "state-1" },
 		tags: ["important"],
-		created: new Date().toISOString(),
-		updated: new Date().toISOString(),
-	},
-	{
+	}),
+	createFakeTaskRunResponse({
 		id: "task-2",
 		name: "another_task-0",
 		flow_run_id: "2",
 		task_key: "another_task",
 		state: { type: "RUNNING", name: "Running", id: "state-2" },
 		tags: [],
-		created: new Date().toISOString(),
-		updated: new Date().toISOString(),
-	},
+	}),
 ];
 
 const meta = {
