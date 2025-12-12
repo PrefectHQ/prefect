@@ -160,3 +160,5 @@ export const buildEventsHistoryQuery = (
 		},
 		refetchInterval,
 	});
+
+export * from "./filters";
