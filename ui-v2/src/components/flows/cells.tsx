@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { subWeeks } from "date-fns";
+import { useMemo } from "react";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import {
 	buildDeploymentsCountByFlowQuery,
@@ -16,8 +18,10 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
-import { cn } from "@/utils";
+import { StateIcon } from "@/components/ui/state-badge";
+import { pluralize } from "@/utils";
 import { formatDate } from "@/utils/date";
 import { Typography } from "../ui/typography";
 
@@ -62,23 +66,33 @@ export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
 				start_time: { is_null_: false },
 			},
 			offset: 0,
-			limit: 16,
+			limit: 1,
 			sort: "START_TIME_DESC",
 		}),
 		enabled: !!flowId,
 	});
 
-	if (!flowId || !flowRuns?.[0]) return null;
+	const lastRun = flowRuns?.[0];
+	if (!flowId || !lastRun) return null;
+
 	return (
-		<Link to="/runs/flow-run/$id" params={{ id: flowRuns[0].id ?? "" }}>
-			<Typography
-				variant="bodySmall"
-				className="text-blue-700 hover:underline p-2"
-				fontFamily="mono"
-			>
-				{flowRuns[0].name}
-			</Typography>
-		</Link>
+		<div className="flex items-center gap-1 p-2">
+			{lastRun.state_type && (
+				<StateIcon
+					type={lastRun.state_type}
+					name={lastRun.state_name ?? undefined}
+				/>
+			)}
+			<Link to="/runs/flow-run/$id" params={{ id: lastRun.id ?? "" }}>
+				<Typography
+					variant="bodySmall"
+					className="text-blue-700 hover:underline"
+					fontFamily="mono"
+				>
+					{lastRun.name}
+				</Typography>
+			</Link>
+		</div>
 	);
 };
 
@@ -90,16 +104,22 @@ export const FlowNextRun = ({ row }: { row: { original: Flow } }) => {
 
 	const nextRun = flowId ? nextRunsMap?.[flowId] : null;
 	if (!flowId || !nextRun) return null;
+
 	return (
-		<Link to="/runs/flow-run/$id" params={{ id: nextRun.id ?? "" }}>
-			<Typography
-				variant="bodySmall"
-				className="text-blue-700 hover:underline p-2"
-				fontFamily="mono"
-			>
-				{nextRun.name}
-			</Typography>
-		</Link>
+		<div className="flex items-center gap-1 p-2">
+			{nextRun.state_type && (
+				<StateIcon type={nextRun.state_type} name={nextRun.state_name} />
+			)}
+			<Link to="/runs/flow-run/$id" params={{ id: nextRun.id ?? "" }}>
+				<Typography
+					variant="bodySmall"
+					className="text-blue-700 hover:underline"
+					fontFamily="mono"
+				>
+					{nextRun.name}
+				</Typography>
+			</Link>
+		</div>
 	);
 };
 
@@ -113,14 +133,33 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 	if (!flowId) return null;
 
 	const count = countsMap?.[flowId] ?? 0;
+
+	if (count === 0) {
+		return (
+			<Typography
+				variant="bodySmall"
+				className="text-muted-foreground p-2"
+				fontFamily="mono"
+			>
+				None
+			</Typography>
+		);
+	}
+
 	return (
-		<Typography
-			variant="bodySmall"
-			className="text-muted-foreground hover:underline p-2"
-			fontFamily="mono"
+		<Link
+			to="/flows/flow/$id"
+			params={{ id: flowId }}
+			search={{ tab: "deployments" }}
 		>
-			{count !== 0 ? count : "None"}
-		</Typography>
+			<Typography
+				variant="bodySmall"
+				className="text-blue-700 hover:underline p-2"
+				fontFamily="mono"
+			>
+				{count} {pluralize(count, "Deployment")}
+			</Typography>
+		</Link>
 	);
 };
 
@@ -159,9 +198,22 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 	);
 };
 
-// TODO: Update this to use the flow run graph from src/components/ui/flow-run-activity-bar-graph
+const NUMBER_OF_ACTIVITY_BARS = 16;
+
 export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
 	const flowId = row.original.id;
+
+	const { startDate, endDate } = useMemo((): {
+		startDate: Date;
+		endDate: Date;
+	} => {
+		const now = new Date();
+		return {
+			startDate: subWeeks(now, 1),
+			endDate: now,
+		};
+	}, []);
+
 	const { data: flowRuns } = useQuery({
 		...buildFilterFlowRunsQuery({
 			flows: { operator: "and_", id: { any_: [flowId ?? ""] } },
@@ -170,32 +222,22 @@ export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
 				start_time: { is_null_: false },
 			},
 			offset: 0,
-			limit: 16,
+			limit: NUMBER_OF_ACTIVITY_BARS,
 			sort: "START_TIME_DESC",
 		}),
 		enabled: !!flowId,
 	});
+
 	if (!flowId) return null;
 
 	return (
-		<div className="flex h-[24px]">
-			{Array(16)
-				.fill(1)
-				?.map((_, index) => (
-					<div
-						// biome-ignore lint/suspicious/noArrayIndexKey: ok for temporary placeholder component
-						key={index}
-						className={cn(
-							"flex-1 mr-[1px] rounded-full bg-gray-400",
-							flowRuns?.[index]?.state_type &&
-								flowRuns?.[index]?.state_type === "COMPLETED" &&
-								"bg-green-500",
-							flowRuns?.[index]?.state_type &&
-								flowRuns?.[index]?.state_type !== "COMPLETED" &&
-								"bg-red-500",
-						)}
-					/>
-				))}
-		</div>
+		<FlowRunActivityBarChart
+			chartId={`flow-activity-${flowId}`}
+			enrichedFlowRuns={flowRuns ?? []}
+			startDate={startDate}
+			endDate={endDate}
+			numberOfBars={NUMBER_OF_ACTIVITY_BARS}
+			className="h-[24px] w-[140px]"
+		/>
 	);
 };
