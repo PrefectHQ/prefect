@@ -8,3 +8,4 @@ export {
 	TaskRunsListItem,
 	TaskRunsListItemWithData,
 } from "./task-runs-list-item";
+export { useTaskRunsSelectedRows } from "./use-task-runs-selected-rows";
