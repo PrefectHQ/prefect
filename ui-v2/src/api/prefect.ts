@@ -7711,6 +7711,11 @@ export interface components {
          */
         FlowsSettings: {
             /**
+             * Heartbeat Frequency
+             * @description Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+             */
+            heartbeat_frequency?: number | null;
+            /**
              * Default Retries
              * @description This value sets the default number of retries for all flows.
              * @default 0
@@ -8754,11 +8759,6 @@ export interface components {
              * @default 10
              */
             poll_frequency: number;
-            /**
-             * Heartbeat Frequency
-             * @description Number of seconds a runner should wait between heartbeats for flow runs.
-             */
-            heartbeat_frequency?: number | null;
             server?: components["schemas"]["RunnerServerSettings"];
         };
         /**
