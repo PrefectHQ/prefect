@@ -144,10 +144,10 @@ const FlowRunsBarChart = ({
 			<TooltipProvider>
 				<div className="w-full h-full flex flex-col p-4 border rounded-lg">
 					<div className="flex justify-between">
-						<Typography variant="body" className="text-black font-bold">
+						<Typography variant="body" className="text-foreground font-bold">
 							Flow Runs
 						</Typography>
-						<Typography variant="bodySmall" className="text-black">
+						<Typography variant="bodySmall" className="text-foreground">
 							<span className="font-bold">{flowRuns.length}</span> runs
 						</Typography>
 					</div>

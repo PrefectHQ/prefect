@@ -91,8 +91,23 @@ const flowHandlers = [
 		});
 	}),
 
+	http.post(buildApiUrl("/flows/filter"), () => {
+		return HttpResponse.json([
+			{ id: "1", name: "Flow 1", tags: [] },
+			{ id: "2", name: "Flow 2", tags: [] },
+		]);
+	}),
+
 	http.post(buildApiUrl("/deployments/count"), () => {
 		return HttpResponse.json(1);
+	}),
+
+	http.post(buildApiUrl("/ui/flows/count-deployments"), () => {
+		return HttpResponse.json({});
+	}),
+
+	http.post(buildApiUrl("/ui/flows/next-runs"), () => {
+		return HttpResponse.json({});
 	}),
 ];
 
@@ -102,6 +117,20 @@ const flowRunHandlers = [
 			{ id: "1", name: "Flow 1", tags: [] },
 			{ id: "2", name: "Flow 2", tags: [] },
 		]);
+	}),
+
+	http.post(buildApiUrl("/flow_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			pages: 0,
+			page: 1,
+			limit: 10,
+		});
+	}),
+
+	http.post(buildApiUrl("/flow_runs/count"), () => {
+		return HttpResponse.json(0);
 	}),
 
 	http.delete(buildApiUrl("/flow_runs/:id"), () => {
@@ -132,6 +161,24 @@ const settingsHandlers = [
 
 const taskRunHandlers = [
 	http.post(buildApiUrl("/task_runs/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/task_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			pages: 0,
+			page: 1,
+			limit: 10,
+		});
+	}),
+
+	http.post(buildApiUrl("/task_runs/count"), () => {
+		return HttpResponse.json(0);
+	}),
+
+	http.post(buildApiUrl("/task_runs/history"), () => {
 		return HttpResponse.json([]);
 	}),
 

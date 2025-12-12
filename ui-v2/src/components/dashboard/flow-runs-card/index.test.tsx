@@ -7,14 +7,129 @@ import {
 } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
-import { describe, expect, it } from "vitest";
-import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import { describe, expect, it, vi } from "vitest";
+import {
+	buildCountFlowRunsQuery,
+	buildFilterFlowRunsQuery,
+	type FlowRunsFilter,
+	toFlowRunsCountFilter,
+} from "@/api/flow-runs";
+import type { components } from "@/api/prefect";
 import { createFakeFlowRun } from "@/mocks";
 import { FlowRunsCard } from "./index";
+
+// Helper to set up all count queries needed by FlowRunsCard
+const setupCountQueries = (
+	queryClient: QueryClient,
+	filter: FlowRunsFilter,
+	counts: {
+		total?: number;
+		failedCrashed?: number;
+		runningPendingCancelling?: number;
+		completed?: number;
+		scheduledPaused?: number;
+		cancelled?: number;
+	} = {},
+) => {
+	const countFilter = toFlowRunsCountFilter(filter);
+
+	// Total count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(countFilter, 30000).queryKey,
+		counts.total ?? 0,
+	);
+
+	// Failed + Crashed count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["FAILED", "CRASHED"] } },
+				},
+			},
+			30000,
+		).queryKey,
+		counts.failedCrashed ?? 0,
+	);
+
+	// Running + Pending + Cancelling count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: {
+						operator: "and_",
+						type: { any_: ["RUNNING", "PENDING", "CANCELLING"] },
+					},
+				},
+			},
+			30000,
+		).queryKey,
+		counts.runningPendingCancelling ?? 0,
+	);
+
+	// Completed count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["COMPLETED"] } },
+				},
+			},
+			30000,
+		).queryKey,
+		counts.completed ?? 0,
+	);
+
+	// Scheduled + Paused count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["SCHEDULED", "PAUSED"] } },
+				},
+			},
+			30000,
+		).queryKey,
+		counts.scheduledPaused ?? 0,
+	);
+
+	// Cancelled count
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(
+			{
+				...countFilter,
+				flow_runs: {
+					...countFilter.flow_runs,
+					operator: countFilter.flow_runs?.operator ?? "and_",
+					state: { operator: "and_", type: { any_: ["CANCELLED"] } },
+				},
+			},
+			30000,
+		).queryKey,
+		counts.cancelled ?? 0,
+	);
+};
+
+type StateType = components["schemas"]["StateType"];
 
 // Wraps component in test with a Tanstack router provider
 const FlowRunsCardRouter = ({
 	filter,
+	selectedStates,
+	onStateChange,
 }: {
 	filter?: {
 		startDate?: string;
@@ -22,9 +137,17 @@ const FlowRunsCardRouter = ({
 		tags?: string[];
 		hideSubflows?: boolean;
 	};
+	selectedStates?: StateType[];
+	onStateChange?: (states: StateType[]) => void;
 }) => {
 	const rootRoute = createRootRoute({
-		component: () => <FlowRunsCard filter={filter} />,
+		component: () => (
+			<FlowRunsCard
+				filter={filter}
+				selectedStates={selectedStates}
+				onStateChange={onStateChange}
+			/>
+		),
 	});
 
 	const router = createRouter({
@@ -58,17 +181,19 @@ describe("FlowRunsCard", () => {
 
 	it("displays total count when flow runs exist", async () => {
 		const flowRuns = [
-			createFakeFlowRun({ name: "Flow Run 1" }),
-			createFakeFlowRun({ name: "Flow Run 2" }),
-			createFakeFlowRun({ name: "Flow Run 3" }),
+			createFakeFlowRun({ name: "Flow Run 1", state_type: "FAILED" }),
+			createFakeFlowRun({ name: "Flow Run 2", state_type: "FAILED" }),
+			createFakeFlowRun({ name: "Flow Run 3", state_type: "FAILED" }),
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 3, failedCrashed: 3 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -93,7 +218,7 @@ describe("FlowRunsCard", () => {
 		expect(screen.queryByText("total")).not.toBeInTheDocument();
 	});
 
-	it("shows empty message when no flow runs", async () => {
+	it("shows chart and state tabs when no flow runs", async () => {
 		const queryClient = new QueryClient();
 		const queryOptions = buildFilterFlowRunsQuery({
 			sort: "START_TIME_DESC",
@@ -105,18 +230,23 @@ describe("FlowRunsCard", () => {
 
 		render(<FlowRunsCardRouter />, { wrapper });
 
-		expect(await screen.findByText("No flow runs found")).toBeInTheDocument();
+		// The card should still render with the title
+		expect(await screen.findByText("Flow Runs")).toBeInTheDocument();
+		// State tabs should be visible with 0 counts
+		expect(screen.getByRole("tablist")).toBeInTheDocument();
 	});
 
 	it("shows loading skeleton when flow runs exist but chart is loading", async () => {
-		const flowRuns = [createFakeFlowRun()];
+		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -135,11 +265,12 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [
 			createFakeFlowRun({
 				start_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+				state_type: "FAILED",
 			}),
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
@@ -149,8 +280,10 @@ describe("FlowRunsCard", () => {
 					before_: endDate,
 				},
 			},
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -171,11 +304,12 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [
 			createFakeFlowRun({
 				tags: ["production", "critical"],
+				state_type: "FAILED",
 			}),
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
@@ -185,8 +319,10 @@ describe("FlowRunsCard", () => {
 					all_: ["production", "critical"],
 				},
 			},
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -206,11 +342,12 @@ describe("FlowRunsCard", () => {
 		const flowRuns = [
 			createFakeFlowRun({
 				parent_task_run_id: null,
+				state_type: "FAILED",
 			}),
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
@@ -220,8 +357,10 @@ describe("FlowRunsCard", () => {
 					is_null_: true,
 				},
 			},
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -245,11 +384,12 @@ describe("FlowRunsCard", () => {
 				start_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
 				tags: ["production"],
 				parent_task_run_id: null,
+				state_type: "FAILED",
 			}),
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
 			flow_runs: {
@@ -267,8 +407,10 @@ describe("FlowRunsCard", () => {
 					is_null_: true,
 				},
 			},
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -288,14 +430,16 @@ describe("FlowRunsCard", () => {
 	});
 
 	it("handles empty tags array", async () => {
-		const flowRuns = [createFakeFlowRun()];
+		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -313,16 +457,21 @@ describe("FlowRunsCard", () => {
 
 	it("handles hideSubflows false", async () => {
 		const flowRuns = [
-			createFakeFlowRun(),
-			createFakeFlowRun({ parent_task_run_id: "some-parent-id" }),
+			createFakeFlowRun({ state_type: "FAILED" }),
+			createFakeFlowRun({
+				parent_task_run_id: "some-parent-id",
+				state_type: "FAILED",
+			}),
 		];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 2, failedCrashed: 2 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -339,14 +488,16 @@ describe("FlowRunsCard", () => {
 	});
 
 	it("renders with no filter prop", async () => {
-		const flowRuns = [createFakeFlowRun()];
+		const flowRuns = [createFakeFlowRun({ state_type: "FAILED" })];
 
 		const queryClient = new QueryClient();
-		const queryOptions = buildFilterFlowRunsQuery({
+		const filter: FlowRunsFilter = {
 			sort: "START_TIME_DESC",
 			offset: 0,
-		});
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
 		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, { total: 1, failedCrashed: 1 });
 
 		const wrapper = createWrapper({ queryClient });
 
@@ -354,5 +505,39 @@ describe("FlowRunsCard", () => {
 
 		expect(await screen.findByText("Flow Runs")).toBeInTheDocument();
 		expect(screen.getByText("1 total")).toBeInTheDocument();
+	});
+
+	it("accepts controlled selectedStates and onStateChange props", async () => {
+		const flowRuns = [
+			createFakeFlowRun({ state_type: "COMPLETED" }),
+			createFakeFlowRun({ state_type: "FAILED" }),
+		];
+		const onStateChange = vi.fn();
+
+		const queryClient = new QueryClient();
+		const filter: FlowRunsFilter = {
+			sort: "START_TIME_DESC",
+			offset: 0,
+		};
+		const queryOptions = buildFilterFlowRunsQuery(filter);
+		queryClient.setQueryData(queryOptions.queryKey, flowRuns);
+		setupCountQueries(queryClient, filter, {
+			total: 2,
+			failedCrashed: 1,
+			completed: 1,
+		});
+
+		const wrapper = createWrapper({ queryClient });
+
+		render(
+			<FlowRunsCardRouter
+				selectedStates={["COMPLETED"]}
+				onStateChange={onStateChange}
+			/>,
+			{ wrapper },
+		);
+
+		expect(await screen.findByText("Flow Runs")).toBeInTheDocument();
+		expect(screen.getByText("2 total")).toBeInTheDocument();
 	});
 });

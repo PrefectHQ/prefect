@@ -398,9 +398,7 @@ class Consumer(_Consumer):
             if self.should_process_pending_messages:
                 try:
                     await self.process_pending_messages(
-                        handler,
-                        redis_client,
-                        1,  # Use batch size of 1 for now
+                        handler, redis_client, self._read_batch_size
                     )
                 except StopConsumer:
                     return

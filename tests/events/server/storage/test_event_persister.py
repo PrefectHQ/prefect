@@ -417,3 +417,135 @@ async def test_batch_delete(
     queried_events, event_count, _ = await query_events(session, filter=EventFilter())
     assert event_count == 0
     assert len(queried_events) == 0
+
+
+async def test_drops_events_when_queue_is_full(
+    event: ReceivedEvent,
+    caplog: pytest.LogCaptureFixture,
+):
+    """When the queue is full, new events should be dropped with a warning."""
+    async with event_persister.create_handler(
+        batch_size=100,  # Don't trigger flush on batch size
+        flush_every=timedelta(days=100),  # Don't trigger periodic flush
+        queue_max_size=5,  # Small queue for testing
+    ) as handler:
+        # Fill the queue
+        for _ in range(5):
+            event.id = uuid4()
+            message = CapturedMessage(
+                data=event.model_dump_json().encode(), attributes={}
+            )
+            await handler(message)
+
+        # This event should be dropped
+        event.id = uuid4()
+        dropped_event_id = event.id
+        message = CapturedMessage(data=event.model_dump_json().encode(), attributes={})
+        await handler(message)
+
+    assert "Event queue full" in caplog.text
+    assert str(dropped_event_id) in caplog.text
+
+
+async def test_drops_events_after_max_flush_retries(
+    event: ReceivedEvent,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    """After max_flush_retries consecutive failures, events should be dropped."""
+    call_count = 0
+
+    async def failing_write_events(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        raise Exception("Simulated DB failure")
+
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.write_events",
+        failing_write_events,
+    )
+
+    async with event_persister.create_handler(
+        batch_size=1,
+        flush_every=timedelta(days=100),
+        max_flush_retries=3,
+    ) as handler:
+        for _ in range(3):
+            event.id = uuid4()
+            message = CapturedMessage(
+                data=event.model_dump_json().encode(), attributes={}
+            )
+            await handler(message)  # Each triggers flush which fails
+
+    assert call_count == 3
+    assert "Max flush retries" in caplog.text
+    assert "dropping" in caplog.text
+
+
+async def test_successful_flush_resets_retry_counter(
+    event: ReceivedEvent,
+    session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A successful flush should reset the consecutive failure counter."""
+    call_count = 0
+
+    async def sometimes_failing_write_events(session, events):
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            raise Exception("Simulated DB failure")
+        return await write_events(session=session, events=events)
+
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.write_events",
+        sometimes_failing_write_events,
+    )
+
+    async with event_persister.create_handler(
+        batch_size=1,
+        flush_every=timedelta(days=100),
+        max_flush_retries=3,
+    ) as handler:
+        # Fail twice, then succeed on third attempt
+        for _ in range(3):
+            event.id = uuid4()
+            message = CapturedMessage(
+                data=event.model_dump_json().encode(), attributes={}
+            )
+            await handler(message)
+
+    # Event should be persisted after retry succeeded
+    assert (await get_event_count(session)) >= 1
+
+
+async def test_logs_warning_at_high_queue_capacity(
+    event: ReceivedEvent,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Should log warning when queue reaches 80% capacity."""
+    async with event_persister.create_handler(
+        batch_size=100,  # Won't trigger flush
+        flush_every=timedelta(days=100),
+        queue_max_size=10,  # Small queue: 80% = 8 events
+    ) as handler:
+        # Fill to 90% capacity (9 events)
+        for _ in range(9):
+            event.id = uuid4()
+            message = CapturedMessage(
+                data=event.model_dump_json().encode(), attributes={}
+            )
+            await handler(message)
+
+    # Final flush in __aexit__ should log the warning since queue > 80%
+    assert "capacity" in caplog.text
+
+
+async def test_event_persister_settings_have_correct_defaults():
+    """Verify the new settings exist with correct default values."""
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings().server.services.event_persister
+    assert settings.queue_max_size == 50_000
+    assert settings.max_flush_retries == 5

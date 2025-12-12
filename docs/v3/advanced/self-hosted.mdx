@@ -99,6 +99,29 @@ export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:password@h
 PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLite does not support the features needed for state synchronization across multiple servers.
 </Warning>
 
+### AWS RDS IAM Authentication
+
+To use AWS IAM authentication for your PostgreSQL database (experimental):
+
+1. **Install the AWS integration**:
+   ```bash
+   pip install prefect-aws
+   ```
+
+2. **Create an IAM policy** with `rds-db:connect` permission and attach it to your IAM user/role.
+
+3. **Enable experimental plugins and IAM authentication**:
+   ```bash
+   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true
+   export PREFECT_INTEGRATIONS_AWS_RDS_IAM_ENABLED=true
+   # Optional: export PREFECT_INTEGRATIONS_AWS_RDS_IAM_REGION_NAME=us-east-1
+   ```
+
+4. **Configure your connection URL**:
+   ```bash
+   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@host:5432/prefect"
+   ```
+
 ### Redis setup
 
 Configure Redis as your server's message broker, cache, and lease storage:
@@ -139,6 +162,10 @@ prefect server start --host 0.0.0.0 --port 4200 --no-services
 ```bash
 prefect server services start
 ```
+
+<Tip>
+For high-volume deployments, consider reducing the event retention period from the default 7 days to prevent rapid database growth. See [database maintenance](/v3/advanced/database-maintenance#configure-event-retention) for configuration details.
+</Tip>
 
 ### Database migrations
 
@@ -433,5 +460,6 @@ Monitor your multi-server deployment:
 
 ## Further reading
 
+- [Database maintenance](/v3/advanced/database-maintenance) - Monitor table sizes, configure event retention, and manage data growth
 - [Server concepts](/v3/concepts/server)
 - Deploy [Helm charts](/v3/advanced/server-helm) for Kubernetes

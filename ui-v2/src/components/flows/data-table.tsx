@@ -1,11 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import {
 	getCoreRowModel,
-	getPaginationRowModel,
 	type RowSelectionState,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { type Flow, useDeleteFlowById } from "@/api/flows";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -110,37 +110,41 @@ const FilterComponent = () => {
 	);
 };
 
-const SortComponent = () => {
+const FLOW_SORT_OPTIONS = [
+	{ label: "A to Z", value: "NAME_ASC" },
+	{ label: "Z to A", value: "NAME_DESC" },
+	{ label: "Created", value: "CREATED_DESC" },
+] as const;
+
+type FlowSortValue = (typeof FLOW_SORT_OPTIONS)[number]["value"];
+
+const SortComponent = ({ currentSort }: { currentSort: FlowSortValue }) => {
 	const navigate = useNavigate();
+
+	const currentLabel =
+		FLOW_SORT_OPTIONS.find((opt) => opt.value === currentSort)?.label ?? "Sort";
 
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <Icon id="ChevronDown" className="ml-2 size-4" />
+					{currentLabel} <Icon id="ChevronDown" className="ml-2 size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
-				<DropdownMenuItem
-					onClick={() =>
-						void navigate({
-							to: ".",
-							search: (prev) => ({ ...prev, sort: "NAME_ASC" }),
-						})
-					}
-				>
-					A to Z
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={() =>
-						void navigate({
-							to: ".",
-							search: (prev) => ({ ...prev, sort: "NAME_DESC" }),
-						})
-					}
-				>
-					Z to A
-				</DropdownMenuItem>
+				{FLOW_SORT_OPTIONS.map((option) => (
+					<DropdownMenuItem
+						key={option.value}
+						onClick={() =>
+							void navigate({
+								to: ".",
+								search: (prev) => ({ ...prev, sort: option.value }),
+							})
+						}
+					>
+						{option.label}
+					</DropdownMenuItem>
+				))}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -149,27 +153,47 @@ const SortComponent = () => {
 export default function FlowsTable({
 	flows,
 	count,
+	pageCount,
+	sort,
+	pagination,
+	onPaginationChange,
 }: {
 	flows: Flow[];
 	count: number;
+	pageCount: number;
+	sort: FlowSortValue;
+	pagination: PaginationState;
+	onPaginationChange: (pagination: PaginationState) => void;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+	// Wrap the external onPaginationChange to handle TanStack Table's updater pattern
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			onPaginationChange(newPagination);
+		},
+		[pagination, onPaginationChange],
+	);
+
 	const table = useReactTable({
 		columns: columns,
 		data: flows,
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
+		manualPagination: true,
+		pageCount,
 		state: {
 			rowSelection,
-		},
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 10,
-			},
+			pagination,
 		},
 		onRowSelectionChange: setRowSelection,
+		onPaginationChange: handlePaginationChange,
 	});
 
 	const handleDeleteRows = () => {
@@ -195,7 +219,7 @@ export default function FlowsTable({
 				<div className="flex space-x-4">
 					<SearchComponent />
 					<FilterComponent />
-					<SortComponent />
+					<SortComponent currentSort={sort} />
 				</div>
 			</header>
 			<DataTable table={table} />

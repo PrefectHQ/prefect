@@ -4,9 +4,6 @@
 # ui
 /ui                                  @znicholasbrown
 
-# integrations
-/src/integrations/prefect-dbt        @cicdw @desertaxle @zzstoatzz @kevingrismore
-
 # imports
 /src/prefect/__init__.py             @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
 /src/prefect/main.py                 @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
