@@ -5,7 +5,6 @@ from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveT
 from prefect.server.events.stream import Distributor
 from prefect.server.logs.stream import LogDistributor
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
-from prefect.server.services.scheduler import RecentDeploymentsScheduler, Scheduler
 from prefect.server.services.task_run_recorder import TaskRunRecorder
 
 
@@ -14,8 +13,6 @@ def test_the_all_service_subset():
     API servers"""
     assert set(Service.all_services()) == {
         # Orchestration services
-        RecentDeploymentsScheduler,
-        Scheduler,
         TaskRunRecorder,
         # Events services
         Actions,
