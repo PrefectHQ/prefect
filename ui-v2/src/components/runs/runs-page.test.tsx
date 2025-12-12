@@ -149,7 +149,7 @@ describe("Runs page", () => {
 		});
 	});
 
-	it("should allow switching to task runs tab", async () => {
+	it("should allow switching to task runs tab and show task runs UI", async () => {
 		const user = userEvent.setup();
 		server.use(
 			http.post(buildApiUrl("/flow_runs/count"), () => {
@@ -180,6 +180,24 @@ describe("Runs page", () => {
 			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
 				return HttpResponse.json({ "1": 0 });
 			}),
+			http.post(buildApiUrl("/task_runs/paginate"), () => {
+				return HttpResponse.json({
+					results: [
+						{
+							id: "task-1",
+							name: "test-task-run-1",
+							flow_run_id: null,
+							task_key: "test-task",
+							state: { type: "COMPLETED", name: "Completed" },
+							tags: [],
+						},
+					],
+					count: 1,
+					pages: 1,
+					page: 1,
+					limit: 10,
+				});
+			}),
 		);
 
 		await renderRunsPage();
@@ -191,7 +209,10 @@ describe("Runs page", () => {
 		await user.click(screen.getByRole("tab", { name: "Task Runs" }));
 
 		await waitFor(() => {
-			expect(screen.getByText("Task Runs tab coming soon")).toBeVisible();
+			// Should show task runs search input
+			expect(
+				screen.getByPlaceholderText("Search by task run name"),
+			).toBeVisible();
 		});
 	});
 

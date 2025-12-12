@@ -15,6 +15,8 @@ import {
 import {
 	buildCountTaskRunsQuery,
 	buildGetFlowRunsTaskRunsCountQuery,
+	buildPaginateTaskRunsQuery,
+	type TaskRunsPaginateFilter,
 } from "@/api/task-runs";
 import {
 	DATE_RANGE_PRESETS,
@@ -27,10 +29,15 @@ import {
 	urlStateToDateRangeValue,
 } from "@/components/flow-runs/flow-runs-list";
 import { RunsPage } from "@/components/runs/runs-page";
+import {
+	TASK_RUN_SORT_FILTERS,
+	type TaskRunSortFilters,
+} from "@/components/task-runs/task-runs-list";
 import { mapValueToRange } from "@/components/ui/date-range-select";
 
 const searchParams = z.object({
 	tab: z.enum(["flow-runs", "task-runs"]).optional().default("flow-runs"),
+	// Flow runs pagination params
 	page: z.number().int().positive().optional().default(1).catch(1),
 	limit: z.number().int().positive().optional().default(10).catch(10),
 	sort: z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
@@ -41,6 +48,20 @@ const searchParams = z.object({
 	range: z.enum(DATE_RANGE_PRESETS).optional(),
 	start: z.string().optional(),
 	end: z.string().optional(),
+	// Task runs pagination params
+	"task-runs-page": z.number().int().positive().optional().default(1).catch(1),
+	"task-runs-limit": z
+		.number()
+		.int()
+		.positive()
+		.optional()
+		.default(10)
+		.catch(10),
+	"task-runs-sort": z
+		.enum(TASK_RUN_SORT_FILTERS)
+		.optional()
+		.default("EXPECTED_START_TIME_DESC"),
+	"task-run-search": z.string().optional().default(""),
 });
 
 type SearchParams = z.infer<typeof searchParams>;
@@ -134,24 +155,51 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	};
 };
 
+const buildTaskRunsPaginationBody = (
+	search?: SearchParams,
+): TaskRunsPaginateFilter => {
+	const taskRunSearch = search?.["task-run-search"];
+
+	// Build task_runs filter only if we have filters to apply
+	const taskRunsFilter = taskRunSearch
+		? {
+				operator: "and_" as const,
+				name: { like_: taskRunSearch },
+			}
+		: undefined;
+
+	return {
+		page: search?.["task-runs-page"] ?? 1,
+		limit: search?.["task-runs-limit"] ?? 10,
+		sort: search?.["task-runs-sort"] ?? "EXPECTED_START_TIME_DESC",
+		task_runs: taskRunsFilter,
+	};
+};
+
 export const Route = createFileRoute("/runs/")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
-	loaderDeps: ({ search }) => buildPaginationBody(search),
+	loaderDeps: ({ search }) => ({
+		flowRunsDeps: buildPaginationBody(search),
+		taskRunsDeps: buildTaskRunsPaginationBody(search),
+	}),
 	loader: ({ deps, context }) => {
 		// Prefetch all queries without blocking the loader
 		// This allows the component to render immediately and use placeholderData
 		void context.queryClient.prefetchQuery(buildCountFlowRunsQuery());
 		void context.queryClient.prefetchQuery(buildCountTaskRunsQuery());
 		void context.queryClient.prefetchQuery(
-			buildPaginateFlowRunsQuery(deps, 30_000),
+			buildPaginateFlowRunsQuery(deps.flowRunsDeps, 30_000),
+		);
+		void context.queryClient.prefetchQuery(
+			buildPaginateTaskRunsQuery(deps.taskRunsDeps, 30_000),
 		);
 
 		// Background async chain: prefetch task run counts for each flow run
 		// This prevents suspense when FlowRunCard renders
 		void (async () => {
 			const pageData = await context.queryClient.ensureQueryData(
-				buildPaginateFlowRunsQuery(deps, 30_000),
+				buildPaginateFlowRunsQuery(deps.flowRunsDeps, 30_000),
 			);
 			const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
 			if (flowRunIds.length > 0) {
@@ -363,9 +411,85 @@ const useFlowFilter = () => {
 	return [selectedFlows, onFlowFilterChange] as const;
 };
 
+// Task runs hooks
+const useTaskRunsPagination = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const pagination: PaginationState = useMemo(
+		() => ({
+			page: search["task-runs-page"] ?? 1,
+			limit: search["task-runs-limit"] ?? 10,
+		}),
+		[search["task-runs-page"], search["task-runs-limit"]],
+	);
+
+	const onPaginationChange = useCallback(
+		(newPagination: PaginationState) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"task-runs-page": newPagination.page,
+					"task-runs-limit": newPagination.limit,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [pagination, onPaginationChange] as const;
+};
+
+const useTaskRunsSort = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onSortChange = useCallback(
+		(sort: TaskRunSortFilters) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"task-runs-sort": sort,
+					"task-runs-page": 1,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search["task-runs-sort"], onSortChange] as const;
+};
+
+const useTaskRunSearch = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onTaskRunSearchChange = useCallback(
+		(taskRunSearch: string) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"task-run-search": taskRunSearch,
+					"task-runs-page": 1, // Reset pagination when search changes
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search["task-run-search"], onTaskRunSearchChange] as const;
+};
+
 function RouteComponent() {
 	const queryClient = useQueryClient();
 	const search = Route.useSearch();
+	// Flow runs hooks
 	const [pagination, onPaginationChange] = usePagination();
 	const [sort, onSortChange] = useSort();
 	const [hideSubflows, onHideSubflowsChange] = useHideSubflows();
@@ -374,6 +498,11 @@ function RouteComponent() {
 	const [selectedStates, onStateFilterChange] = useStateFilter();
 	const [selectedFlows, onFlowFilterChange] = useFlowFilter();
 	const [dateRange, onDateRangeChange] = useDateRange();
+	// Task runs hooks
+	const [taskRunsPagination, onTaskRunsPaginationChange] =
+		useTaskRunsPagination();
+	const [taskRunsSort, onTaskRunsSortChange] = useTaskRunsSort();
+	const [taskRunSearch, onTaskRunSearchChange] = useTaskRunSearch();
 
 	// Use useSuspenseQueries for count queries (stable keys, won't cause suspense on search change)
 	const [{ data: flowRunsCount }, { data: taskRunsCount }] = useSuspenseQueries(
@@ -388,7 +517,13 @@ function RouteComponent() {
 		buildPaginateFlowRunsQuery(buildPaginationBody(search), 30_000),
 	);
 
+	// Use useQuery for paginated task runs to leverage placeholderData: keepPreviousData
+	const { data: taskRunsPage } = useQuery(
+		buildPaginateTaskRunsQuery(buildTaskRunsPaginationBody(search), 30_000),
+	);
+
 	const flowRuns = flowRunsPage?.results ?? [];
+	const taskRuns = taskRunsPage?.results ?? [];
 
 	// Prefetch task run counts for the current page's flow runs
 	// This ensures the data is ready when FlowRunCard renders
@@ -423,6 +558,23 @@ function RouteComponent() {
 		[queryClient, search],
 	);
 
+	const onTaskRunsPrefetchPage = useCallback(
+		(page: number) => {
+			const filter = buildTaskRunsPaginationBody({
+				...search,
+				"task-runs-page": page,
+			});
+			void queryClient.prefetchQuery(
+				buildPaginateTaskRunsQuery(filter, 30_000),
+			);
+		},
+		[queryClient, search],
+	);
+
+	const onClearTaskRunFilters = useCallback(() => {
+		onTaskRunSearchChange("");
+	}, [onTaskRunSearchChange]);
+
 	return (
 		<RunsPage
 			tab={tab}
@@ -446,6 +598,17 @@ function RouteComponent() {
 			onFlowFilterChange={onFlowFilterChange}
 			dateRange={dateRange}
 			onDateRangeChange={onDateRangeChange}
+			// Task runs props
+			taskRuns={taskRuns}
+			taskRunsPages={taskRunsPage?.pages ?? 0}
+			taskRunsPagination={taskRunsPagination}
+			onTaskRunsPaginationChange={onTaskRunsPaginationChange}
+			onTaskRunsPrefetchPage={onTaskRunsPrefetchPage}
+			taskRunsSort={taskRunsSort}
+			onTaskRunsSortChange={onTaskRunsSortChange}
+			taskRunSearch={taskRunSearch}
+			onTaskRunSearchChange={onTaskRunSearchChange}
+			onClearTaskRunFilters={onClearTaskRunFilters}
 		/>
 	);
 }

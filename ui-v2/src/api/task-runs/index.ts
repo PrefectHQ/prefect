@@ -8,6 +8,7 @@ import type { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type TaskRun = components["schemas"]["UITaskRun"];
+export type TaskRunResponse = components["schemas"]["TaskRunResponse"];
 
 export type TaskRunsFilter =
 	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];

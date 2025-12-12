@@ -1,4 +1,4 @@
-import type { TaskRun } from "@/api/task-runs";
+import type { TaskRunResponse } from "@/api/task-runs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -6,7 +6,7 @@ import { Typography } from "@/components/ui/typography";
 import { TaskRunsListItemWithData } from "./task-runs-list-item";
 
 type TaskRunsListProps = {
-	taskRuns?: Array<TaskRun>;
+	taskRuns?: Array<TaskRunResponse>;
 	onSelect?: (id: string, checked: boolean) => void;
 	selectedRows?: Set<string>;
 	onClearFilters?: () => void;

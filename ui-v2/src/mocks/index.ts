@@ -22,7 +22,10 @@ export { createFakeSchedule } from "./create-fake-schedule";
 export { createFakeServerSettings } from "./create-fake-server-settings";
 export { createFakeState } from "./create-fake-state";
 export { createFakeTaskRunConcurrencyLimit } from "./create-fake-take-run-concurrency-limit";
-export { createFakeTaskRun } from "./create-fake-task-run";
+export {
+	createFakeTaskRun,
+	createFakeTaskRunResponse,
+} from "./create-fake-task-run";
 export { createFakeVersion } from "./create-fake-version";
 export {
 	createFakeWorkPool,

@@ -6,7 +6,7 @@ import {
 	randVerb,
 	randWord,
 } from "@ngneat/falso";
-import type { TaskRun } from "@/api/task-runs";
+import type { TaskRun, TaskRunResponse } from "@/api/task-runs";
 import { createFakeState } from "./create-fake-state";
 
 export const createFakeTaskRun = (overrides?: Partial<TaskRun>): TaskRun => {
@@ -49,6 +49,26 @@ export const createFakeTaskRun = (overrides?: Partial<TaskRun>): TaskRun => {
 		estimated_run_time: randNumber({ max: 30, precision: 2 }),
 		estimated_start_time_delta: randNumber({ max: 30, precision: 2 }),
 		state,
+		...overrides,
+	};
+};
+
+export const createFakeTaskRunResponse = (
+	overrides?: Partial<TaskRunResponse>,
+): TaskRunResponse => {
+	const state = overrides?.state ?? createFakeState();
+
+	return {
+		id: randUuid(),
+		created: randPastDate().toISOString(),
+		updated: randPastDate().toISOString(),
+		name: `${randVerb()}-task-${randAlphaNumeric({ length: 3 }).join()}`,
+		flow_run_id: randUuid(),
+		task_key: "say_hello-6b199e75",
+		state_id: randUuid(),
+		state,
+		task_version: null,
+		tags: randWord({ length: randNumber({ min: 0, max: 6 }) }),
 		...overrides,
 	};
 };
