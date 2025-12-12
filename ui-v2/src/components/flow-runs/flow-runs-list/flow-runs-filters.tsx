@@ -1,4 +1,5 @@
 import { SearchInput } from "@/components/ui/input";
+import { DeploymentFilter } from "./flow-runs-filters/deployment-filter";
 import { SortFilter } from "./flow-runs-filters/sort-filter";
 import type { SortFilters } from "./flow-runs-filters/sort-filter.constants";
 import { StateFilter } from "./flow-runs-filters/state-filter";
@@ -13,6 +14,10 @@ export type FlowRunsFiltersProps = {
 		value: Set<FlowRunState>;
 		onSelect: (filters: Set<FlowRunState>) => void;
 	};
+	deploymentFilter?: {
+		value: Set<string>;
+		onSelect: (deployments: Set<string>) => void;
+	};
 	sort: {
 		value: SortFilters | undefined;
 		onSelect: (sort: SortFilters) => void;
@@ -23,6 +28,7 @@ export const FlowRunsFilters = ({
 	search,
 	sort,
 	stateFilter,
+	deploymentFilter,
 }: FlowRunsFiltersProps) => {
 	return (
 		<div className="flex items-center gap-2">
@@ -41,6 +47,14 @@ export const FlowRunsFilters = ({
 						onSelectFilter={stateFilter.onSelect}
 					/>
 				</div>
+				{deploymentFilter && (
+					<div className="min-w-56">
+						<DeploymentFilter
+							selectedDeployments={deploymentFilter.value}
+							onSelectDeployments={deploymentFilter.onSelect}
+						/>
+					</div>
+				)}
 			</div>
 			<SortFilter value={sort.value} onSelect={sort.onSelect} />
 		</div>
