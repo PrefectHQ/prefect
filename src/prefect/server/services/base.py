@@ -40,14 +40,12 @@ def _known_service_modules() -> list[ModuleType]:
     from prefect.server.services import (
         scheduler,
         task_run_recorder,
-        telemetry,
     )
 
     return [
         # Orchestration services
         scheduler,
         task_run_recorder,
-        telemetry,
         # Events services
         event_logger,
         event_persister,
