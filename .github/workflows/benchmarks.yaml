@@ -48,7 +48,7 @@ jobs:
         # Note: We use a "cache" instead of artifacts because artifacts are not available
         #       across workflow runs.
         id: bench-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ./.benchmarks
           # Pushes benchmark results for this branch and sha, this will always be a cache miss
