@@ -1,4 +1,6 @@
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import type { components } from "../prefect";
+import { getQueryService } from "../service";
 
 export type Event = components["schemas"]["ReceivedEvent"];
 export type EventsFilter =
@@ -41,6 +43,120 @@ export const queryKeyFactory = {
 	count: (countable: string, filter: EventsCountFilter) =>
 		[...queryKeyFactory.counts(), countable, filter] as const,
 	history: () => [...queryKeyFactory.all(), "history"] as const,
-	historyFilter: (filter: EventsFilter) =>
+	historyFilter: (filter: EventsCountFilter) =>
 		[...queryKeyFactory.history(), filter] as const,
 };
+
+/**
+ * Builds a query configuration for fetching filtered events
+ *
+ * @param filter - Filter parameters for the events query
+ * @param refetchInterval - Interval for refetching events (default 60 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useQuery(buildFilterEventsQuery({
+ *   filter: {
+ *     any_resource: { id: ["prefect.flow-run.123"] },
+ *     order: "DESC"
+ *   },
+ *   limit: 100
+ * }));
+ * ```
+ */
+export const buildFilterEventsQuery = (
+	filter: EventsFilter,
+	refetchInterval = 60_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory["list-filter"](filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/events/filter", {
+				body: filter,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		placeholderData: keepPreviousData,
+		staleTime: 1000,
+		refetchInterval,
+	});
+
+/**
+ * Builds a query configuration for fetching event counts by dimension
+ *
+ * @param countable - The dimension to count by: "day", "time", "event", or "resource"
+ * @param filter - Filter parameters for the events count query
+ * @param refetchInterval - Interval for refetching counts (default 60 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useQuery(buildEventsCountQuery("day", {
+ *   filter: {
+ *     occurred: {
+ *       since: "2024-01-01T00:00:00.000Z",
+ *       until: "2024-01-31T23:59:59.999Z"
+ *     }
+ *   },
+ *   time_unit: "day",
+ *   time_interval: 1
+ * }));
+ * ```
+ */
+export const buildEventsCountQuery = (
+	countable: "day" | "time" | "event" | "resource",
+	filter: EventsCountFilter,
+	refetchInterval = 60_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(countable, filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/events/count-by/{countable}", {
+				params: { path: { countable } },
+				body: filter,
+			});
+			return res.data ?? [];
+		},
+		refetchInterval,
+	});
+
+/**
+ * Builds a query configuration for fetching event history (time-series data)
+ *
+ * @param filter - Filter parameters for the events history query
+ * @param refetchInterval - Interval for refetching history (default 60 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useQuery(buildEventsHistoryQuery({
+ *   filter: {
+ *     occurred: {
+ *       since: "2024-01-01T00:00:00.000Z",
+ *       until: "2024-01-31T23:59:59.999Z"
+ *     }
+ *   },
+ *   time_unit: "hour",
+ *   time_interval: 1
+ * }));
+ * ```
+ */
+export const buildEventsHistoryQuery = (
+	filter: EventsCountFilter,
+	refetchInterval = 60_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.historyFilter(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/events/count-by/{countable}", {
+				params: { path: { countable: "time" } },
+				body: filter,
+			});
+			return res.data ?? [];
+		},
+		refetchInterval,
+	});
