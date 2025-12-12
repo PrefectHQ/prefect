@@ -30,7 +30,7 @@ export const FlowName = ({ row }: { row: { original: Flow } }) => {
 	if (!row.original.id) return null;
 
 	return (
-		<div className="flex flex-col pl-2">
+		<div className="flex flex-col pl-4">
 			<Link
 				to="/flows/flow/$id"
 				params={{ id: row.original.id }}

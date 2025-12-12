@@ -35,7 +35,7 @@ export const columns: ColumnDef<Flow>[] = [
 	},
 	{
 		accessorKey: "name",
-		header: "Flow",
+		header: () => <div className="pl-4">Flow</div>,
 		cell: FlowName,
 	},
 	{

@@ -153,7 +153,7 @@ export default function FlowsTable({
 				</div>
 				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
 					<SearchInput
-						placeholder="Search flows"
+						placeholder="Flow names"
 						value={nameSearchValue}
 						onChange={(e) => handleNameSearchChange(e.target.value)}
 					/>
