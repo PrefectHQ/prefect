@@ -709,11 +709,27 @@ def run_manager_process():
 
     logger.debug("Manager process started. Starting services...")
     try:
-        asyncio.run(Service.run_services())
+        asyncio.run(_run_all_services())
     except KeyboardInterrupt:
         pass
     finally:
         logger.debug("Manager process has exited.")
+
+
+async def _run_all_services() -> None:
+    """Run both LoopService-based services and docket-based perpetual services."""
+    from docket import Docket
+
+    from prefect.server.api.background_workers import background_worker
+    from prefect.server.services.base import Service
+    from prefect.settings import PREFECT_SERVER_DOCKET_URL
+
+    docket_url = PREFECT_SERVER_DOCKET_URL.value()
+
+    async with Docket(name="prefect", url=docket_url) as docket:
+        async with background_worker(docket, ephemeral=False, webserver_only=False):
+            # Run LoopService-based services (will block until shutdown)
+            await Service.run_services()
 
 
 # public, user-facing `prefect server services` commands
@@ -772,7 +788,7 @@ def start_services(
     if not background:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
         try:
-            asyncio.run(Service.run_services())
+            asyncio.run(_run_all_services())
         except KeyboardInterrupt:
             pass
         app.console.print("\n[green]All services stopped.[/]")
