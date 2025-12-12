@@ -10,6 +10,7 @@ import textwrap
 import warnings
 from asyncio import gather, iscoroutine
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from uuid import UUID
 
@@ -22,6 +23,7 @@ from rich.table import Table
 
 import prefect.types._datetime
 from prefect.blocks.core import Block
+from prefect.cli._prompts import confirm, prompt
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.flow_runs_watching import watch_flow_run
@@ -36,6 +38,7 @@ from prefect.client.schemas.filters import (
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.client.schemas.schedules import (
+    SCHEDULE_TYPES,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -1115,6 +1118,276 @@ async def delete(
                 exit_with_error(f"Deployment {name!r} not found!")
         else:
             exit_with_error("Must provide a deployment name or id")
+
+
+def _deployment_response_to_yaml_dict(
+    deployment: DeploymentResponse,
+    flow_name: str | None = None,
+) -> dict[str, Any]:
+    """
+    Convert a DeploymentResponse to a dictionary suitable for prefect.yaml.
+
+    Args:
+        deployment: The deployment response from the server
+        flow_name: Optional flow name to construct the entrypoint
+
+    Returns:
+        A dictionary that can be serialized to YAML for prefect.yaml
+    """
+    config: dict[str, Any] = {
+        "name": deployment.name,
+    }
+
+    # Add optional fields if they have values
+    if deployment.version:
+        config["version"] = deployment.version
+
+    if deployment.description:
+        config["description"] = deployment.description
+
+    if deployment.entrypoint:
+        config["entrypoint"] = deployment.entrypoint
+
+    if deployment.tags:
+        config["tags"] = deployment.tags
+
+    if deployment.parameters:
+        config["parameters"] = deployment.parameters
+
+    if deployment.enforce_parameter_schema is not None:
+        config["enforce_parameter_schema"] = deployment.enforce_parameter_schema
+
+    if deployment.paused:
+        config["paused"] = deployment.paused
+
+    # Work pool configuration
+    if deployment.work_pool_name:
+        work_pool_config: dict[str, Any] = {"name": deployment.work_pool_name}
+        if deployment.work_queue_name:
+            work_pool_config["work_queue_name"] = deployment.work_queue_name
+        if deployment.job_variables:
+            work_pool_config["job_variables"] = deployment.job_variables
+        config["work_pool"] = work_pool_config
+
+    # Schedules
+    if deployment.schedules:
+        schedules: list[dict[str, Any]] = []
+        for deployment_schedule in deployment.schedules:
+            schedule = deployment_schedule.schedule
+            if isinstance(schedule, IntervalSchedule):
+                schedule_config = {
+                    "interval": schedule.interval.total_seconds(),
+                    "anchor_date": schedule.anchor_date.isoformat(),
+                }
+                if schedule.timezone:
+                    schedule_config["timezone"] = schedule.timezone
+            elif isinstance(schedule, SCHEDULE_TYPES):
+                schedule_config = schedule.model_dump(mode="json")
+            else:
+                # Fallback for any other schedule type
+                schedule_config = (
+                    schedule.model_dump(mode="json")
+                    if hasattr(schedule, "model_dump")
+                    else {}
+                )
+
+            # Add active status
+            schedule_config["active"] = deployment_schedule.active
+
+            # Add max_scheduled_runs if set
+            if deployment_schedule.max_scheduled_runs is not None:
+                schedule_config["max_scheduled_runs"] = (
+                    deployment_schedule.max_scheduled_runs
+                )
+
+            schedules.append(schedule_config)
+
+        config["schedules"] = schedules
+
+    # Concurrency settings
+    if deployment.global_concurrency_limit:
+        concurrency_config: dict[str, Any] = {
+            "limit": deployment.global_concurrency_limit.limit,
+        }
+        config["concurrency_limit"] = concurrency_config
+
+    if deployment.concurrency_options:
+        if "concurrency_limit" not in config:
+            config["concurrency_limit"] = {}
+        if deployment.concurrency_options.collision_strategy:
+            config["concurrency_limit"]["collision_strategy"] = str(
+                deployment.concurrency_options.collision_strategy.value
+            )
+
+    # Pull steps
+    if deployment.pull_steps:
+        config["pull"] = deployment.pull_steps
+
+    return config
+
+
+def _validate_yaml_extension(output_path: Path) -> None:
+    """
+    Validate that the output file has a valid YAML extension.
+
+    Args:
+        output_path: The path to validate
+
+    Raises:
+        SystemExit: If the extension is not .yaml or .yml
+    """
+    suffix = output_path.suffix.lower()
+    if suffix not in (".yaml", ".yml"):
+        exit_with_error(
+            f"Unsupported file extension '{suffix}'. "
+            "Only YAML output is supported (.yaml or .yml)."
+        )
+
+
+@deployment_app.command("export")
+async def export_deployments(
+    name: Optional[str] = typer.Option(
+        None,
+        "--name",
+        "-n",
+        help="A deployment name to export: <FLOW_NAME>/<DEPLOYMENT_NAME>",
+    ),
+    _all: bool = typer.Option(
+        False,
+        "--all",
+        help="Export all deployments",
+    ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (must be .yaml or .yml)",
+    ),
+):
+    """
+    Export deployment configuration(s) to a YAML file.
+
+    This command exports deployment configurations from the server to a prefect.yaml
+    file. This is the inverse of `prefect deploy` - instead of turning a YAML file
+    into deployments, it connects to Prefect and outputs deployment configs as YAML.
+
+    Examples:
+
+        Export a specific deployment:
+
+            $ prefect deployment export --name my-flow/my-deployment
+
+        Export all deployments:
+
+            $ prefect deployment export --all
+
+        Export to a specific file:
+
+            $ prefect deployment export --all --output deployments.yaml
+
+        Interactive mode (prompts for output path):
+
+            $ prefect deployment export --all
+    """
+    # Validate arguments
+    if not name and not _all:
+        exit_with_error("Must provide either --name or --all")
+
+    if name and _all:
+        exit_with_error("Cannot use both --name and --all at the same time")
+
+    if name:
+        assert_deployment_name_format(name)
+
+    # Determine output path
+    if output:
+        output_path = Path(output)
+        _validate_yaml_extension(output_path)
+    elif is_interactive():
+        # Interactive mode: prompt for output path
+        output_str = prompt("Output file", default="prefect.yaml")
+        output_path = Path(output_str)
+        _validate_yaml_extension(output_path)
+    else:
+        # Non-interactive mode requires --output
+        exit_with_error(
+            "Output file path is required in non-interactive mode. "
+            "Use --output to specify the file path."
+        )
+
+    # Check if file exists
+    if output_path.exists():
+        if is_interactive():
+            if not confirm(
+                f"File '{output_path}' already exists. Overwrite?", default=False
+            ):
+                exit_with_error("Export cancelled.")
+        else:
+            exit_with_error(
+                f"Output file '{output_path}' already exists. "
+                "Use a different path or run in interactive mode to confirm overwrite."
+            )
+
+    # Fetch deployments from server
+    async with get_client() as client:
+        deployments_to_export: list[DeploymentResponse] = []
+
+        if name:
+            try:
+                deployment = await client.read_deployment_by_name(name)
+                deployments_to_export.append(deployment)
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+        else:
+            # Export all deployments with pagination
+            page_limit = 200
+            offset = 0
+            while True:
+                page = await client.read_deployments(
+                    deployment_filter=DeploymentFilter(),
+                    limit=page_limit,
+                    offset=offset,
+                )
+                if not page:
+                    break
+                deployments_to_export.extend(page)
+                if len(page) < page_limit:
+                    break
+                offset += page_limit
+
+            if not deployments_to_export:
+                exit_with_error("No deployments found to export.")
+
+        # Get flow names for each deployment
+        flow_ids = {d.flow_id for d in deployments_to_export}
+        flow_names: dict[UUID, str] = {}
+        for flow_id in flow_ids:
+            try:
+                flow = await client.read_flow(flow_id)
+                flow_names[flow_id] = flow.name
+            except ObjectNotFound:
+                flow_names[flow_id] = "unknown"
+
+    # Convert deployments to YAML format
+    deployment_configs: list[dict[str, Any]] = []
+    for deployment in deployments_to_export:
+        flow_name = flow_names.get(deployment.flow_id)
+        config = _deployment_response_to_yaml_dict(deployment, flow_name)
+        deployment_configs.append(config)
+
+    # Build the prefect.yaml content
+    prefect_yaml_content: dict[str, Any] = {
+        "deployments": deployment_configs,
+    }
+
+    # Write to file
+    with output_path.open("w") as f:
+        yaml.dump(prefect_yaml_content, f, sort_keys=False, default_flow_style=False)
+
+    plural = "" if len(deployment_configs) == 1 else "s"
+    exit_with_success(
+        f"Exported {len(deployment_configs)} deployment{plural} to '{output_path}'"
+    )
 
 
 def _load_json_key_values(
