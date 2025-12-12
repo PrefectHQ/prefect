@@ -1,7 +1,7 @@
 from prefect.server.events.services.actions import Actions
 from prefect.server.events.services.event_logger import EventLogger
 from prefect.server.events.services.event_persister import EventPersister
-from prefect.server.events.services.triggers import ProactiveTriggers, ReactiveTriggers
+from prefect.server.events.services.triggers import ReactiveTriggers
 from prefect.server.events.stream import Distributor
 from prefect.server.logs.stream import LogDistributor
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
@@ -19,7 +19,6 @@ def test_the_all_service_subset():
         Distributor,
         EventLogger,
         EventPersister,
-        ProactiveTriggers,
         ReactiveTriggers,
         # Logs services
         LogDistributor,
@@ -36,7 +35,6 @@ def test_run_in_ephemeral_servers():
         Distributor,
         EventLogger,
         EventPersister,
-        ProactiveTriggers,
         ReactiveTriggers,
         # Logs services
         LogDistributor,
