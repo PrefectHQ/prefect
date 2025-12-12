@@ -30,7 +30,7 @@ export const FlowName = ({ row }: { row: { original: Flow } }) => {
 	if (!row.original.id) return null;
 
 	return (
-		<div className="flex flex-col">
+		<div className="flex flex-col pl-2">
 			<Link
 				to="/flows/flow/$id"
 				params={{ id: row.original.id }}
@@ -75,10 +75,10 @@ export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
 				/>
 			)}
 			<Link to="/runs/flow-run/$id" params={{ id: lastRun.id ?? "" }}>
-				<span className="text-sm text-blue-700 hover:underline font-mono">
-					{lastRun.name}
-				</span>
-			</Link>
+					<span className="text-sm text-blue-700 hover:underline">
+						{lastRun.name}
+					</span>
+				</Link>
 		</div>
 	);
 };
@@ -98,10 +98,10 @@ export const FlowNextRun = ({ row }: { row: { original: Flow } }) => {
 				<StateIcon type={nextRun.state_type} name={nextRun.state_name} />
 			)}
 			<Link to="/runs/flow-run/$id" params={{ id: nextRun.id ?? "" }}>
-				<span className="text-sm text-blue-700 hover:underline font-mono">
-					{nextRun.name}
-				</span>
-			</Link>
+					<span className="text-sm text-blue-700 hover:underline">
+						{nextRun.name}
+					</span>
+				</Link>
 		</div>
 	);
 };
@@ -119,7 +119,7 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 
 	if (count === 0) {
 		return (
-			<span className="text-sm text-muted-foreground font-mono">None</span>
+			<span className="text-sm text-muted-foreground">None</span>
 		);
 	}
 
@@ -129,9 +129,9 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 			params={{ id: flowId }}
 			search={{ tab: "deployments" }}
 		>
-			<span className="text-sm text-blue-700 hover:underline font-mono">
-				{count} {pluralize(count, "Deployment")}
-			</span>
+			<span className="text-sm text-blue-700 hover:underline">
+					{count} {pluralize(count, "Deployment")}
+				</span>
 		</Link>
 	);
 };
