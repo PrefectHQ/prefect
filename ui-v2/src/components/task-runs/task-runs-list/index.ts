@@ -8,4 +8,5 @@ export {
 	TaskRunsListItem,
 	TaskRunsListItemWithData,
 } from "./task-runs-list-item";
+export { useDeleteTaskRunsDialog } from "./use-delete-task-runs-dialog";
 export { useTaskRunsSelectedRows } from "./use-task-runs-selected-rows";
