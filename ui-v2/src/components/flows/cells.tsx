@@ -23,35 +23,26 @@ import { Icon } from "@/components/ui/icons";
 import { StateIcon } from "@/components/ui/state-badge";
 import { pluralize } from "@/utils";
 import { formatDate } from "@/utils/date";
-import { Typography } from "../ui/typography";
 
 type Flow = components["schemas"]["Flow"];
 
-export const FlowsTableHeaderCell = ({ content }: { content: string }) => (
-	<Typography variant="bodySmall" className="font-bold text-foreground m-2">
-		{content}
-	</Typography>
-);
 export const FlowName = ({ row }: { row: { original: Flow } }) => {
 	if (!row.original.id) return null;
 
 	return (
-		<div className="m-2">
+		<div className="flex flex-col pl-4">
 			<Link
 				to="/flows/flow/$id"
 				params={{ id: row.original.id }}
-				className="text-blue-700 hover:underline cursor-pointer"
+				className="text-sm font-medium truncate"
+				title={row.original.name}
 			>
 				{row.original.name}
 			</Link>
-			<Typography
-				variant="bodySmall"
-				className="text-sm text-muted-foreground"
-				fontFamily="mono"
-			>
+			<span className="text-xs text-muted-foreground">
 				Created{" "}
 				{row.original?.created && formatDate(row.original.created, "dateTime")}
-			</Typography>
+			</span>
 		</div>
 	);
 };
@@ -76,7 +67,7 @@ export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
 	if (!flowId || !lastRun) return null;
 
 	return (
-		<div className="flex items-center gap-1 p-2">
+		<div className="flex items-center gap-1">
 			{lastRun.state_type && (
 				<StateIcon
 					type={lastRun.state_type}
@@ -84,13 +75,9 @@ export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
 				/>
 			)}
 			<Link to="/runs/flow-run/$id" params={{ id: lastRun.id ?? "" }}>
-				<Typography
-					variant="bodySmall"
-					className="text-blue-700 hover:underline"
-					fontFamily="mono"
-				>
+				<span className="text-sm text-blue-700 hover:underline">
 					{lastRun.name}
-				</Typography>
+				</span>
 			</Link>
 		</div>
 	);
@@ -106,18 +93,14 @@ export const FlowNextRun = ({ row }: { row: { original: Flow } }) => {
 	if (!flowId || !nextRun) return null;
 
 	return (
-		<div className="flex items-center gap-1 p-2">
+		<div className="flex items-center gap-1">
 			{nextRun.state_type && (
 				<StateIcon type={nextRun.state_type} name={nextRun.state_name} />
 			)}
 			<Link to="/runs/flow-run/$id" params={{ id: nextRun.id ?? "" }}>
-				<Typography
-					variant="bodySmall"
-					className="text-blue-700 hover:underline"
-					fontFamily="mono"
-				>
+				<span className="text-sm text-blue-700 hover:underline">
 					{nextRun.name}
-				</Typography>
+				</span>
 			</Link>
 		</div>
 	);
@@ -135,15 +118,7 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 	const count = countsMap?.[flowId] ?? 0;
 
 	if (count === 0) {
-		return (
-			<Typography
-				variant="bodySmall"
-				className="text-muted-foreground p-2"
-				fontFamily="mono"
-			>
-				None
-			</Typography>
-		);
+		return <span className="text-sm text-muted-foreground">None</span>;
 	}
 
 	return (
@@ -152,13 +127,9 @@ export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
 			params={{ id: flowId }}
 			search={{ tab: "deployments" }}
 		>
-			<Typography
-				variant="bodySmall"
-				className="text-blue-700 hover:underline p-2"
-				fontFamily="mono"
-			>
+			<span className="text-sm text-blue-700 hover:underline">
 				{count} {pluralize(count, "Deployment")}
-			</Typography>
+			</span>
 		</Link>
 	);
 };
@@ -172,7 +143,7 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 		return null;
 	}
 	return (
-		<div className="flex justify-end m-2">
+		<div className="flex justify-end">
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="ghost" className="h-8 w-8 p-0">
