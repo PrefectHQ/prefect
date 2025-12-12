@@ -10,6 +10,8 @@ import { getQueryService } from "@/api/service";
 export type Flow = components["schemas"]["Flow"];
 export type FlowsFilter =
 	components["schemas"]["Body_read_flows_flows_filter_post"];
+export type FlowsPaginateFilter =
+	components["schemas"]["Body_paginate_flows_flows_paginate_post"];
 export type SimpleNextFlowRun = components["schemas"]["SimpleNextFlowRun"];
 
 /**
@@ -33,6 +35,8 @@ export const queryKeyFactory = {
 	all: () => ["flows"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: FlowsFilter) => [...queryKeyFactory.lists(), filter] as const,
+	paginate: (filter: FlowsPaginateFilter) =>
+		[...queryKeyFactory.lists(), "paginate", filter] as const,
 	details: () => [...queryKeyFactory.all(), "detail"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 	deploymentsCount: (flowIds: string[]) =>
@@ -81,6 +85,41 @@ export const buildListFlowsQuery = (
 		placeholderData: keepPreviousData,
 		enabled,
 	});
+
+/**
+ * Builds a query configuration for fetching paginated flows
+ *
+ * @param filter - Filter parameters for the flows pagination query.
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useQuery(buildPaginateFlowsQuery({ page: 1, limit: 10 }));
+ * ```
+ */
+export const buildPaginateFlowsQuery = (
+	filter: FlowsPaginateFilter = {
+		page: 1,
+		sort: "NAME_ASC",
+	},
+	refetchInterval = 30_000,
+) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.paginate(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/flows/paginate", {
+				body: filter,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		placeholderData: keepPreviousData,
+		staleTime: 1000,
+		refetchInterval,
+	});
+};
 
 /**
  * Builds a query configuration for getting a flow's details

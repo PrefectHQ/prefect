@@ -1,11 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import {
 	getCoreRowModel,
-	getPaginationRowModel,
 	type RowSelectionState,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { type Flow, useDeleteFlowById } from "@/api/flows";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -153,29 +153,47 @@ const SortComponent = ({ currentSort }: { currentSort: FlowSortValue }) => {
 export default function FlowsTable({
 	flows,
 	count,
+	pageCount,
 	sort,
+	pagination,
+	onPaginationChange,
 }: {
 	flows: Flow[];
 	count: number;
+	pageCount: number;
 	sort: FlowSortValue;
+	pagination: PaginationState;
+	onPaginationChange: (pagination: PaginationState) => void;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+
+	// Wrap the external onPaginationChange to handle TanStack Table's updater pattern
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			let newPagination = pagination;
+			if (typeof updater === "function") {
+				newPagination = updater(pagination);
+			} else {
+				newPagination = updater;
+			}
+			onPaginationChange(newPagination);
+		},
+		[pagination, onPaginationChange],
+	);
+
 	const table = useReactTable({
 		columns: columns,
 		data: flows,
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
+		manualPagination: true,
+		pageCount,
 		state: {
 			rowSelection,
-		},
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 10,
-			},
+			pagination,
 		},
 		onRowSelectionChange: setRowSelection,
+		onPaginationChange: handlePaginationChange,
 	});
 
 	const handleDeleteRows = () => {
