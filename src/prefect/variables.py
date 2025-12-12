@@ -1,6 +1,7 @@
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Generic, Optional, overload
 
 from pydantic import BaseModel, Field
+from typing_extensions import TypeVar
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.migration import getattr_migration
@@ -10,8 +11,10 @@ from prefect.client.utilities import get_or_create_client
 from prefect.exceptions import ObjectNotFound
 from prefect.types import MAX_VARIABLE_NAME_LENGTH, StrictVariableValue
 
+T = TypeVar("T", bound=StrictVariableValue, default=StrictVariableValue)
 
-class Variable(BaseModel):
+
+class Variable(BaseModel, Generic[T]):
     """
     Variables are named, mutable JSON values that can be shared across tasks and flows.
 
@@ -135,12 +138,27 @@ class Variable(BaseModel):
 
             return cls.model_validate(var_dict)
 
+    @overload
     @classmethod
     async def aget(
         cls,
         name: str,
-        default: StrictVariableValue = None,
-    ) -> StrictVariableValue:
+    ) -> T | None: ...
+
+    @overload
+    @classmethod
+    async def aget(
+        cls,
+        name: str,
+        default: T,
+    ) -> T: ...
+
+    @classmethod
+    async def aget(
+        cls,
+        name: str,
+        default: StrictVariableValue | None = None,
+    ) -> StrictVariableValue | None:
         """
         Asynchronously get a variable's value by name.
 
@@ -160,19 +178,44 @@ class Variable(BaseModel):
             async def my_flow():
                 var = await Variable.aget("my_var")
             ```
+
+            Get a variable's value with explicit typing.
+            ```python
+            from prefect import flow
+            from prefect.variables import Variable
+
+            @flow
+            async def my_flow():
+                var = await Variable[str].aget("my_var")
+            ```
         """
         client, _ = get_or_create_client()
         variable = await client.read_variable_by_name(name)
 
         return variable.value if variable else default
 
+    @overload
+    @classmethod
+    def get(
+        cls,
+        name: str,
+    ) -> T | None: ...
+
+    @overload
+    @classmethod
+    def get(
+        cls,
+        name: str,
+        default: T,
+    ) -> T: ...
+
     @classmethod
     @async_dispatch(aget)
     def get(
         cls,
         name: str,
-        default: StrictVariableValue = None,
-    ) -> StrictVariableValue:
+        default: StrictVariableValue | None = None,
+    ) -> StrictVariableValue | None:
         """
         Get a variable's value by name.
 
@@ -191,6 +234,16 @@ class Variable(BaseModel):
             @flow
             def my_flow():
                 var = Variable.get("my_var")
+            ```
+
+            Get a variable's value with explicit typing.
+            ```python
+            from prefect import flow
+            from prefect.variables import Variable
+
+            @flow
+            def my_flow():
+                var = Variable[str].get("my_var")
             ```
         """
         with get_client(sync_client=True) as client:
