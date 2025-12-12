@@ -38,13 +38,11 @@ def _known_service_modules() -> list[ModuleType]:
     )
     from prefect.server.logs import stream as logs_stream
     from prefect.server.services import (
-        scheduler,
         task_run_recorder,
     )
 
     return [
         # Orchestration services
-        scheduler,
         task_run_recorder,
         # Events services
         event_logger,
