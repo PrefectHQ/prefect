@@ -126,8 +126,9 @@ class TestBackgroundServices:
                 "Available Services",
                 "Scheduler",
                 "PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED",
-                "Telemetry",
-                "PREFECT_SERVER_ANALYTICS_ENABLED",
+                "TaskRunRecorder",
+                # May be truncated in table display
+                "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER",
             ],
             expected_code=0,
         )
