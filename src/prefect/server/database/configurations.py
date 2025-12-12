@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sqlite3
 import ssl
 import traceback
@@ -25,6 +26,12 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import ConnectionPoolEntry
 from typing_extensions import TypeAlias
 
+from prefect._experimental.plugins import (
+    HookSpec,
+    build_manager,
+    call_async_hook,
+    load_entry_point_plugins,
+)
 from prefect._internal.observability import configure_logfire
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
@@ -278,6 +285,33 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 pg_ctx.check_hostname = tls_config.check_hostname
                 pg_ctx.verify_mode = ssl.CERT_REQUIRED
                 connect_args["ssl"] = pg_ctx
+
+            # Initialize plugin manager
+            if get_current_settings().experiments.plugins.enabled:
+                pm = build_manager(HookSpec)
+                load_entry_point_plugins(
+                    pm,
+                    allow=get_current_settings().experiments.plugins.allow,
+                    deny=get_current_settings().experiments.plugins.deny,
+                    logger=logging.getLogger("prefect.plugins"),
+                )
+
+                # Call set_database_connection_params hook
+                results = await call_async_hook(
+                    pm,
+                    "set_database_connection_params",
+                    connection_url=self.connection_url,
+                    settings=get_current_settings(),
+                )
+
+                for _, params, error in results:
+                    if error:
+                        # Log error but don't fail, other plugins might succeed
+                        logging.getLogger("prefect.server.database").warning(
+                            "Plugin failed to set database connection params: %s", error
+                        )
+                    elif params:
+                        connect_args.update(params)
 
             if connect_args:
                 kwargs["connect_args"] = connect_args

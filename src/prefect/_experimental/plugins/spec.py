@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Callable, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional
 
 import pluggy
 
@@ -82,4 +82,23 @@ class HookSpec:
             - Should be idempotent
             - May be async or sync
             - Exceptions are caught and logged unless required=True in strict mode
+        """
+
+    @hookspec
+    def set_database_connection_params(
+        self, connection_url: str, settings: Any
+    ) -> Mapping[str, Any]:
+        """
+        Set additional database connection parameters.
+
+        This hook is called when creating a database engine. It allows plugins
+        to provide additional connection parameters, such as authentication
+        tokens or SSL configuration.
+
+        Args:
+            connection_url: The database connection URL
+            settings: The current Prefect settings
+
+        Returns:
+            Dictionary of connection parameters to merge into connect_args
         """

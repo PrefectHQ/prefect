@@ -64,6 +64,9 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 [project.entry-points."prefect.collections"]
 prefect_aws = "prefect_aws"
 
+[project.entry-points."prefect.plugins"]
+aws = "prefect_aws.plugins"
+
 [project.scripts]
 prefect-aws = "prefect_aws._cli.main:app"
 

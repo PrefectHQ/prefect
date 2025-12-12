@@ -80,7 +80,6 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
             "host",
             "user",
             "name",
-            "password",
         ]
         missing = [
             attr for attr in required if getattr(settings.server.database, attr) is None

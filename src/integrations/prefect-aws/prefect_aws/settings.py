@@ -46,10 +46,42 @@ class EcsSettings(PrefectBaseSettings):
     )
 
 
+class RdsIAMSettings(PrefectBaseSettings):
+    """Settings for controlling RDS IAM authentication."""
+
+    model_config = build_settings_config(("integrations", "aws", "rds", "iam"))
+
+    enabled: bool = Field(
+        default=False,
+        description="Controls whether to use IAM authentication for RDS PostgreSQL connections.",
+    )
+
+    region_name: Optional[str] = Field(
+        default=None,
+        description="The AWS region for IAM authentication. If not provided, it will be inferred from the environment.",
+    )
+
+
+class RdsSettings(PrefectBaseSettings):
+    """Settings for AWS RDS integration."""
+
+    model_config = build_settings_config(("integrations", "aws", "rds"))
+
+    iam: RdsIAMSettings = Field(
+        description="Settings for controlling RDS IAM authentication.",
+        default_factory=RdsIAMSettings,
+    )
+
+
 class AwsSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "aws"))
 
     ecs: EcsSettings = Field(
         description="Settings for controlling ECS behavior.",
         default_factory=EcsSettings,
+    )
+
+    rds: RdsSettings = Field(
+        description="Settings for controlling RDS behavior.",
+        default_factory=RdsSettings,
     )
