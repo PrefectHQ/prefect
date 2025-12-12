@@ -1,93 +1,133 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
-import { buildCountFlowsFilteredQuery, type Flow } from "@/api/flows";
-import { getQueryService } from "@/api/service"; // Service object that makes requests to the Prefect API
+import {
+	buildCountFlowsFilteredQuery,
+	buildPaginateFlowsQuery,
+	type FlowsPaginateFilter,
+} from "@/api/flows";
+import type { PaginationState } from "@/components/flow-runs/flow-runs-list";
 import FlowsPage from "@/components/flows/flows-page";
 
 // Route for /flows/
 
-// This file should only contain the route definition and loader function for the /flows/ route.
-
-// 1. searchParams defined as a zod schema, so that the search query can be validated and typechecked.
-// 2. flowsQueryParams function that takes a search object and returns the queryKey and queryFn for the loader.
-// 3. Route definition that uses the createFileRoute function to define the route.
-//    - It passes down the result of the loader function to the FlowsTable component.
-
 const searchParams = z
 	.object({
 		name: z.string().optional(),
-		page: z.number().int().positive().optional().default(1),
-		limit: z.number().int().positive().max(100).optional().default(10),
+		page: z.number().int().positive().optional().default(1).catch(1),
+		limit: z
+			.number()
+			.int()
+			.positive()
+			.max(100)
+			.optional()
+			.default(10)
+			.catch(10),
 		tags: z.array(z.string()).optional(),
 		sort: z
 			.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
 			.optional()
 			.default("NAME_ASC"),
-		offset: z.number().int().min(0).optional().default(0),
 	})
 	.optional()
 	.default({});
 
-// Alex: check why this appears to be totally fucked.
-// 1. extra keyword: ignored
-// 2. think through expected behavior of bad data.
+type SearchParams = z.infer<typeof searchParams>;
 
-const flowsQueryParams = (search: z.infer<typeof searchParams>) => ({
-	queryKey: ["flows", JSON.stringify(search)],
-	queryFn: async () =>
-		await getQueryService().POST("/flows/paginate", {
-			body: {
-				page: search.page,
-				limit: search.limit,
-				sort: search.sort,
-				flows: { operator: "and_", name: { like_: search.name } },
-			},
-		}),
-	staleTime: 1000, // Data will be considered stale after 1 second.
-});
-
-const FlowsRoute = () => {
-	const search = Route.useSearch();
-	const { data } = useSuspenseQuery(flowsQueryParams(search));
-	const { data: count } = useQuery(
-		buildCountFlowsFilteredQuery({
-			offset: search.offset,
-			sort: search.sort,
-			flows: {
-				operator: "and_",
-				name: { like_: search.name },
-			},
-			limit: search.limit,
-		}),
-	);
-	return (
-		<FlowsPage
-			flows={data.data?.results as Flow[]}
-			count={count ?? 0}
-			sort={search.sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
-		/>
-	);
+const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
+	return {
+		page: search?.page ?? 1,
+		limit: search?.limit ?? 10,
+		sort: search?.sort ?? "NAME_ASC",
+		flows: search?.name
+			? { operator: "and_", name: { like_: search.name } }
+			: undefined,
+	};
 };
 
 export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
 	component: FlowsRoute,
-	loaderDeps: ({ search }) => search,
-	loader: async ({ deps: search, context }) => {
-		await context.queryClient.ensureQueryData(flowsQueryParams(search));
-		void context.queryClient.ensureQueryData(
+	loaderDeps: ({ search }) => buildPaginationBody(search),
+	loader: ({ deps, context }) => {
+		// Prefetch all queries without blocking the loader
+		void context.queryClient.prefetchQuery(
+			buildPaginateFlowsQuery(deps, 30_000),
+		);
+		void context.queryClient.prefetchQuery(
 			buildCountFlowsFilteredQuery({
-				offset: search.offset,
-				sort: search.sort,
-				flows: {
-					operator: "and_",
-					name: { like_: search.name },
-				},
-				limit: search.limit,
+				offset: 0,
+				sort: deps.sort,
+				flows: deps.flows ?? undefined,
 			}),
 		);
 	},
 	wrapInSuspense: true,
 });
+
+const usePagination = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const pagination: PaginationState = useMemo(
+		() => ({
+			page: search.page ?? 1,
+			limit: search.limit ?? 10,
+		}),
+		[search.page, search.limit],
+	);
+
+	const onPaginationChange = useCallback(
+		(newPagination: PaginationState) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					page: newPagination.page,
+					limit: newPagination.limit,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [pagination, onPaginationChange] as const;
+};
+
+function FlowsRoute() {
+	const search = Route.useSearch();
+	const [pagination, onPaginationChange] = usePagination();
+
+	// Use useSuspenseQuery for count (stable key, won't cause suspense on search change)
+	const { data: count } = useSuspenseQuery(
+		buildCountFlowsFilteredQuery({
+			offset: 0,
+			sort: search.sort,
+			flows: search.name
+				? { operator: "and_", name: { like_: search.name } }
+				: undefined,
+		}),
+	);
+
+	// Use useQuery for paginated flows to leverage placeholderData: keepPreviousData
+	// This prevents the page from suspending when search/filter changes
+	const { data: flowsPage } = useQuery(
+		buildPaginateFlowsQuery(buildPaginationBody(search), 30_000),
+	);
+
+	const flows = flowsPage?.results ?? [];
+
+	return (
+		<FlowsPage
+			flows={flows}
+			count={count ?? 0}
+			pages={flowsPage?.pages ?? 0}
+			sort={search.sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
+			pagination={pagination}
+			onPaginationChange={onPaginationChange}
+		/>
+	);
+}
