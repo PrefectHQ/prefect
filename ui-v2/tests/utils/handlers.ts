@@ -55,6 +55,20 @@ const blockTypesHandlers = [
 	}),
 ];
 
+const eventsHandlers = [
+	http.post(buildApiUrl("/events/filter"), () => {
+		return HttpResponse.json({
+			events: [],
+			total: 0,
+			next_page: null,
+		});
+	}),
+
+	http.post(buildApiUrl("/events/count-by/:countable"), () => {
+		return HttpResponse.json([]);
+	}),
+];
+
 const deploymentsHandlers = [
 	http.post(buildApiUrl("/deployments/filter"), () => {
 		return HttpResponse.json([]);
@@ -265,6 +279,7 @@ export const handlers = [
 	...blockSchemasHandlers,
 	...blockTypesHandlers,
 	...deploymentsHandlers,
+	...eventsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,
