@@ -110,37 +110,41 @@ const FilterComponent = () => {
 	);
 };
 
-const SortComponent = () => {
+const FLOW_SORT_OPTIONS = [
+	{ label: "A to Z", value: "NAME_ASC" },
+	{ label: "Z to A", value: "NAME_DESC" },
+	{ label: "Created", value: "CREATED_DESC" },
+] as const;
+
+type FlowSortValue = (typeof FLOW_SORT_OPTIONS)[number]["value"];
+
+const SortComponent = ({ currentSort }: { currentSort: FlowSortValue }) => {
 	const navigate = useNavigate();
+
+	const currentLabel =
+		FLOW_SORT_OPTIONS.find((opt) => opt.value === currentSort)?.label ?? "Sort";
 
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline">
-					Sort <Icon id="ChevronDown" className="ml-2 size-4" />
+					{currentLabel} <Icon id="ChevronDown" className="ml-2 size-4" />
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent>
-				<DropdownMenuItem
-					onClick={() =>
-						void navigate({
-							to: ".",
-							search: (prev) => ({ ...prev, sort: "NAME_ASC" }),
-						})
-					}
-				>
-					A to Z
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={() =>
-						void navigate({
-							to: ".",
-							search: (prev) => ({ ...prev, sort: "NAME_DESC" }),
-						})
-					}
-				>
-					Z to A
-				</DropdownMenuItem>
+				{FLOW_SORT_OPTIONS.map((option) => (
+					<DropdownMenuItem
+						key={option.value}
+						onClick={() =>
+							void navigate({
+								to: ".",
+								search: (prev) => ({ ...prev, sort: option.value }),
+							})
+						}
+					>
+						{option.label}
+					</DropdownMenuItem>
+				))}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
@@ -149,9 +153,11 @@ const SortComponent = () => {
 export default function FlowsTable({
 	flows,
 	count,
+	sort,
 }: {
 	flows: Flow[];
 	count: number;
+	sort: FlowSortValue;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -195,7 +201,7 @@ export default function FlowsTable({
 				<div className="flex space-x-4">
 					<SearchComponent />
 					<FilterComponent />
-					<SortComponent />
+					<SortComponent currentSort={sort} />
 				</div>
 			</header>
 			<DataTable table={table} />

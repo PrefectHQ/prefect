@@ -2,10 +2,15 @@ import { cva } from "class-variance-authority";
 import type { components } from "@/api/prefect";
 
 import { ICONS as COMPONENT_ICONS } from "@/components/ui/icons";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { capitalize, cn } from "@/utils";
 import { Badge } from "../badge";
 
-const ICONS = {
+const STATE_ICONS = {
 	COMPLETED: COMPONENT_ICONS.Check,
 	FAILED: COMPONENT_ICONS.X,
 	RUNNING: COMPONENT_ICONS.Play,
@@ -19,6 +24,8 @@ const ICONS = {
 	components["schemas"]["StateType"],
 	React.ElementType
 >;
+
+const ICONS = STATE_ICONS;
 
 const stateBadgeVariants = cva("gap-1", {
 	variants: {
@@ -51,5 +58,51 @@ export const StateBadge = ({ type, name, className }: StateBadgeProps) => {
 			<Icon size={16} />
 			{name ?? capitalize(type)}
 		</Badge>
+	);
+};
+
+const STATE_ICON_COLORS = {
+	COMPLETED: "text-green-600",
+	FAILED: "text-red-600",
+	RUNNING: "text-blue-700",
+	CANCELLED: "text-gray-600",
+	CANCELLING: "text-gray-600",
+	CRASHED: "text-orange-600",
+	PAUSED: "text-gray-600",
+	PENDING: "text-gray-500",
+	SCHEDULED: "text-yellow-600",
+} as const satisfies Record<components["schemas"]["StateType"], string>;
+
+export type StateIconProps = {
+	type: components["schemas"]["StateType"];
+	name?: string | null;
+	className?: string;
+	size?: number;
+};
+
+export const StateIcon = ({
+	type,
+	name,
+	className,
+	size = 16,
+}: StateIconProps) => {
+	const Icon = STATE_ICONS[type];
+	const tooltipText = name ?? capitalize(type);
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<span
+					className={cn(
+						"inline-flex items-center",
+						STATE_ICON_COLORS[type],
+						className,
+					)}
+				>
+					<Icon size={size} />
+				</span>
+			</TooltipTrigger>
+			<TooltipContent>{tooltipText}</TooltipContent>
+		</Tooltip>
 	);
 };

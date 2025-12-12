@@ -24,7 +24,7 @@ const searchParams = z
 		sort: z
 			.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
 			.optional()
-			.default("CREATED_DESC"),
+			.default("NAME_ASC"),
 		offset: z.number().int().min(0).optional().default(0),
 	})
 	.optional()
@@ -62,7 +62,13 @@ const FlowsRoute = () => {
 			limit: search.limit,
 		}),
 	);
-	return <FlowsPage flows={data.data?.results as Flow[]} count={count ?? 0} />;
+	return (
+		<FlowsPage
+			flows={data.data?.results as Flow[]}
+			count={count ?? 0}
+			sort={search.sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
+		/>
+	);
 };
 
 export const Route = createFileRoute("/flows/")({
