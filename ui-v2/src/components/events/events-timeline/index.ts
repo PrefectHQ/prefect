@@ -1,5 +1,2 @@
-export {
-	EventsTimeline,
-	formatEventLabel,
-	getEventPrefixes,
-} from "./events-timeline";
+export { EventsTimeline } from "./events-timeline";
+export { formatEventLabel, getEventPrefixes } from "./utilities";

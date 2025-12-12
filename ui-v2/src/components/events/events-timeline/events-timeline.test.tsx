@@ -2,11 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { components } from "@/api/prefect";
-import {
-	EventsTimeline,
-	formatEventLabel,
-	getEventPrefixes,
-} from "./events-timeline";
+import { EventsTimeline } from "./events-timeline";
+import { formatEventLabel, getEventPrefixes } from "./utilities";
 
 type Event = components["schemas"]["ReceivedEvent"];
 
