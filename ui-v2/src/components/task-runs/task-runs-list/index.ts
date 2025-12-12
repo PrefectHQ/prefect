@@ -1,3 +1,8 @@
+export { TaskRunsSortFilter } from "./task-run-sort-filter";
+export {
+	TASK_RUN_SORT_FILTERS,
+	type TaskRunSortFilters,
+} from "./task-run-sort-filter.constants";
 export { TaskRunsList } from "./task-runs-list";
 export {
 	TaskRunsListItem,
