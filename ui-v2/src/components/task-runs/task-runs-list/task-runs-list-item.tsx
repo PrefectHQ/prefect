@@ -5,7 +5,7 @@ import { Suspense, useMemo } from "react";
 import { buildGetFlowRunDetailsQuery, type FlowRun } from "@/api/flow-runs";
 import { buildFLowDetailsQuery, type Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
-import type { TaskRun } from "@/api/task-runs";
+import type { TaskRun, TaskRunResponse } from "@/api/task-runs";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -27,7 +27,7 @@ import {
 import { formatDate } from "@/utils/date";
 
 type TaskRunsListItemProps = {
-	taskRun: TaskRun;
+	taskRun: TaskRun | TaskRunResponse;
 	flow?: Flow;
 	flowRun?: FlowRun;
 	checked?: boolean;
@@ -87,7 +87,7 @@ const stateCardVariants = cva("flex flex-col gap-2 p-4 border-l-8", {
 });
 
 type TaskRunBreadcrumbsProps = {
-	taskRun: TaskRun;
+	taskRun: TaskRun | TaskRunResponse;
 	flow?: Flow;
 	flowRun?: FlowRun;
 };
@@ -140,11 +140,17 @@ const TaskRunBreadcrumbs = ({
 };
 
 type TaskRunStartTimeProps = {
-	taskRun: TaskRun;
+	taskRun: TaskRun | TaskRunResponse;
 };
 
 const TaskRunStartTime = ({ taskRun }: TaskRunStartTimeProps) => {
-	const { start_time, expected_start_time } = taskRun;
+	// These properties only exist on UITaskRun, not TaskRunResponse
+	const start_time =
+		"start_time" in taskRun ? (taskRun.start_time as string | null) : null;
+	const expected_start_time =
+		"expected_start_time" in taskRun
+			? (taskRun.expected_start_time as string | null)
+			: null;
 
 	const { text, tooltipText } = useMemo(() => {
 		let text: string | undefined;
@@ -175,11 +181,19 @@ const TaskRunStartTime = ({ taskRun }: TaskRunStartTimeProps) => {
 };
 
 type TaskRunDurationProps = {
-	taskRun: TaskRun;
+	taskRun: TaskRun | TaskRunResponse;
 };
 
 const TaskRunDuration = ({ taskRun }: TaskRunDurationProps) => {
-	const { estimated_run_time, total_run_time } = taskRun;
+	// These properties only exist on UITaskRun, not TaskRunResponse
+	const estimated_run_time =
+		"estimated_run_time" in taskRun
+			? (taskRun.estimated_run_time as number | null)
+			: null;
+	const total_run_time =
+		"total_run_time" in taskRun
+			? (taskRun.total_run_time as number | null)
+			: null;
 	const duration = estimated_run_time ?? total_run_time ?? 0;
 
 	if (duration === 0) {
@@ -212,13 +226,16 @@ const TaskRunDuration = ({ taskRun }: TaskRunDurationProps) => {
 };
 
 type TaskRunsListItemWithDataProps = {
-	taskRun: TaskRun;
+	taskRun: TaskRun | TaskRunResponse;
 	checked?: boolean;
 	onCheckedChange?: (checked: boolean) => void;
 };
 
-type TaskRunsListItemWithFlowDataProps = TaskRunsListItemWithDataProps & {
+type TaskRunsListItemWithFlowDataProps = {
+	taskRun: TaskRun | TaskRunResponse;
 	flowRunId: string;
+	checked?: boolean;
+	onCheckedChange?: (checked: boolean) => void;
 };
 
 const TaskRunsListItemWithFlowData = ({
