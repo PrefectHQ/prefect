@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { FlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
+import type { TaskRunResponse } from "@/api/task-runs";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
 	DateRangeFilter,
@@ -16,6 +17,14 @@ import {
 } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
+import {
+	type TaskRunSortFilters,
+	TaskRunsList,
+	TaskRunsPagination,
+	TaskRunsRowCount,
+	TaskRunsSortFilter,
+	useTaskRunsSelectedRows,
+} from "@/components/task-runs/task-runs-list";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
 	EmptyState,
@@ -35,6 +44,7 @@ type RunsPageProps = {
 	onTabChange: (tab: string) => void;
 	flowRunsCount: number;
 	taskRunsCount: number;
+	// Flow runs props
 	flowRuns: FlowRun[];
 	flowRunsPages: number;
 	pagination: PaginationState;
@@ -52,6 +62,17 @@ type RunsPageProps = {
 	onFlowFilterChange: (flows: Set<string>) => void;
 	dateRange: DateRangeUrlState;
 	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
+	// Task runs props
+	taskRuns: TaskRunResponse[];
+	taskRunsPages: number;
+	taskRunsPagination: PaginationState;
+	onTaskRunsPaginationChange: (pagination: PaginationState) => void;
+	onTaskRunsPrefetchPage?: (page: number) => void;
+	taskRunsSort: TaskRunSortFilters;
+	onTaskRunsSortChange: (sort: TaskRunSortFilters) => void;
+	taskRunSearch: string;
+	onTaskRunSearchChange: (search: string) => void;
+	onClearTaskRunFilters: () => void;
 };
 
 export const RunsPage = ({
@@ -59,6 +80,7 @@ export const RunsPage = ({
 	onTabChange,
 	flowRunsCount,
 	taskRunsCount,
+	// Flow runs props
 	flowRuns,
 	flowRunsPages,
 	pagination,
@@ -76,11 +98,30 @@ export const RunsPage = ({
 	onFlowFilterChange,
 	dateRange,
 	onDateRangeChange,
+	// Task runs props
+	taskRuns,
+	taskRunsPages,
+	taskRunsPagination,
+	onTaskRunsPaginationChange,
+	onTaskRunsPrefetchPage,
+	taskRunsSort,
+	onTaskRunsSortChange,
+	taskRunSearch,
+	onTaskRunSearchChange,
+	onClearTaskRunFilters,
 }: RunsPageProps) => {
 	const isEmpty = flowRunsCount === 0 && taskRunsCount === 0;
 
+	// Flow runs selection
 	const [selectedRows, setSelectedRows, { onSelectRow }] =
 		useFlowRunsSelectedRows();
+
+	// Task runs selection
+	const [
+		taskRunsSelectedRows,
+		setTaskRunsSelectedRows,
+		{ onSelectRow: onSelectTaskRunRow },
+	] = useTaskRunsSelectedRows();
 
 	const flowIds = [...new Set(flowRuns.map((flowRun) => flowRun.flow_id))];
 
@@ -179,7 +220,43 @@ export const RunsPage = ({
 					</div>
 				</TabsContent>
 				<TabsContent value="task-runs">
-					<TaskRunsPlaceholder />
+					<div className="flex flex-col gap-4">
+						<div className="flex items-center justify-between">
+							<TaskRunsRowCount
+								count={taskRunsCount}
+								results={taskRuns}
+								selectedRows={taskRunsSelectedRows}
+								setSelectedRows={setTaskRunsSelectedRows}
+							/>
+							<div className="flex items-center gap-4">
+								<SearchInput
+									value={taskRunSearch}
+									onChange={(e) => onTaskRunSearchChange(e.target.value)}
+									placeholder="Search by task run name"
+									aria-label="Search by task run name"
+									className="w-64"
+									debounceMs={1200}
+								/>
+								<TaskRunsSortFilter
+									value={taskRunsSort}
+									onSelect={onTaskRunsSortChange}
+								/>
+							</div>
+						</div>
+						<TaskRunsPagination
+							count={taskRunsCount}
+							pages={taskRunsPages}
+							pagination={taskRunsPagination}
+							onChangePagination={onTaskRunsPaginationChange}
+							onPrefetchPage={onTaskRunsPrefetchPage}
+						/>
+						<TaskRunsList
+							taskRuns={taskRuns}
+							selectedRows={taskRunsSelectedRows}
+							onSelect={onSelectTaskRunRow}
+							onClearFilters={onClearTaskRunFilters}
+						/>
+					</div>
 				</TabsContent>
 			</Tabs>
 		</div>
@@ -205,12 +282,4 @@ const RunsEmptyState = () => (
 			<DocsLink id="getting-started" />
 		</EmptyStateActions>
 	</EmptyState>
-);
-
-const TaskRunsPlaceholder = () => (
-	<div className="flex flex-col items-center justify-center py-16">
-		<Typography variant="bodySmall" className="text-muted-foreground">
-			Task Runs tab coming soon
-		</Typography>
-	</div>
 );
