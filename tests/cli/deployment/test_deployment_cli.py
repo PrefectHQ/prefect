@@ -1421,3 +1421,301 @@ class TestDeploymentDelete:
             expected_code=1,
             expected_output_contains="Cannot provide a deployment name or id when deleting all deployments.",
         )
+
+
+class TestDeploymentExport:
+    """Tests for the `prefect deployment export` command."""
+
+    def test_export_requires_name_or_all(self):
+        """Test that export requires either --name or --all."""
+        invoke_and_assert(
+            ["deployment", "export", "--output", "test.yaml"],
+            expected_code=1,
+            expected_output_contains="Must provide either --name or --all",
+        )
+
+    def test_export_cannot_use_both_name_and_all(
+        self, flojo_deployment: DeploymentResponse
+    ):
+        """Test that export cannot use both --name and --all."""
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+                "--all",
+                "--output",
+                "test.yaml",
+            ],
+            expected_code=1,
+            expected_output_contains="Cannot use both --name and --all",
+        )
+
+    def test_export_validates_deployment_name_format(self):
+        """Test that export validates the deployment name format."""
+        invoke_and_assert(
+            ["deployment", "export", "--name", "invalid-name", "--output", "test.yaml"],
+            expected_code=1,
+            expected_output_contains="Invalid deployment name",
+        )
+
+    def test_export_validates_yaml_extension(
+        self, flojo_deployment: DeploymentResponse
+    ):
+        """Test that export only accepts .yaml or .yml extensions."""
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+                "--output",
+                "test.json",
+            ],
+            expected_code=1,
+            expected_output_contains="Unsupported file extension",
+        )
+
+    def test_export_accepts_yml_extension(
+        self, flojo_deployment: DeploymentResponse, tmp_path
+    ):
+        """Test that export accepts .yml extension."""
+        output_file = tmp_path / "test.yml"
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+                "--output",
+                str(output_file),
+            ],
+            expected_code=0,
+            expected_output_contains="Exported 1 deployment",
+        )
+        assert output_file.exists()
+
+    def test_export_single_deployment(
+        self, flojo_deployment: DeploymentResponse, tmp_path
+    ):
+        """Test exporting a single deployment by name."""
+        import yaml
+
+        output_file = tmp_path / "test.yaml"
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+                "--output",
+                str(output_file),
+            ],
+            expected_code=0,
+            expected_output_contains="Exported 1 deployment",
+        )
+
+        assert output_file.exists()
+        with open(output_file) as f:
+            content = yaml.safe_load(f)
+
+        assert "deployments" in content
+        assert len(content["deployments"]) == 1
+        assert content["deployments"][0]["name"] == "test-deployment"
+
+    async def test_export_all_deployments(
+        self,
+        flojo_deployment: DeploymentResponse,
+        prefect_client: PrefectClient,
+        tmp_path,
+    ):
+        """Test exporting all deployments."""
+        import yaml
+
+        # Create additional deployments
+        for i in range(2):
+            await prefect_client.create_deployment(
+                flow_id=flojo_deployment.flow_id,
+                name=f"additional-deployment-{i}",
+            )
+
+        output_file = tmp_path / "test.yaml"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "deployment",
+                "export",
+                "--all",
+                "--output",
+                str(output_file),
+            ],
+            expected_code=0,
+            expected_output_contains="Exported 3 deployment",
+        )
+
+        assert output_file.exists()
+        with open(output_file) as f:
+            content = yaml.safe_load(f)
+
+        assert "deployments" in content
+        assert len(content["deployments"]) == 3
+
+    def test_export_deployment_not_found(self, tmp_path):
+        """Test that export fails when deployment is not found."""
+        output_file = tmp_path / "test.yaml"
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "nonexistent-flow/nonexistent-deployment",
+                "--output",
+                str(output_file),
+            ],
+            expected_code=1,
+            expected_output_contains="not found",
+        )
+
+    def test_export_no_deployments_found(self, tmp_path):
+        """Test that export fails when no deployments exist."""
+        output_file = tmp_path / "test.yaml"
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--all",
+                "--output",
+                str(output_file),
+            ],
+            expected_code=1,
+            expected_output_contains="No deployments found",
+        )
+
+    def test_export_fails_if_file_exists_non_interactive(
+        self, flojo_deployment: DeploymentResponse, tmp_path
+    ):
+        """Test that export fails if output file exists in non-interactive mode."""
+        output_file = tmp_path / "test.yaml"
+        output_file.write_text("existing content")
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+                "--output",
+                str(output_file),
+            ],
+            expected_code=1,
+            expected_output_contains="already exists",
+        )
+
+    def test_export_requires_output_in_non_interactive_mode(
+        self, flojo_deployment: DeploymentResponse
+    ):
+        """Test that export requires --output in non-interactive mode."""
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+            ],
+            expected_code=1,
+            expected_output_contains="Output file path is required in non-interactive mode",
+        )
+
+    def test_export_includes_deployment_properties(
+        self, flojo_deployment: DeploymentResponse, tmp_path
+    ):
+        """Test that exported deployment includes expected properties."""
+        import yaml
+
+        output_file = tmp_path / "test.yaml"
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+                "--output",
+                str(output_file),
+            ],
+            expected_code=0,
+        )
+
+        with open(output_file) as f:
+            content = yaml.safe_load(f)
+
+        deployment = content["deployments"][0]
+        assert deployment["name"] == "test-deployment"
+        assert deployment["version"] == "git-commit-hash"
+        assert deployment["tags"] == ["foo", "bar"]
+        assert deployment["parameters"] == {"foo": "bar"}
+        # Check schedules are exported
+        assert "schedules" in deployment
+        assert len(deployment["schedules"]) == 1
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_export_prompts_for_output_in_interactive_mode(
+        self, flojo_deployment: DeploymentResponse, tmp_path, monkeypatch
+    ):
+        """Test that export prompts for output path in interactive mode."""
+        monkeypatch.chdir(tmp_path)
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+            ],
+            user_input="test-output.yaml\n",
+            expected_code=0,
+            expected_output_contains="Exported 1 deployment",
+        )
+        assert (tmp_path / "test-output.yaml").exists()
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_export_prompts_for_overwrite_confirmation(
+        self, flojo_deployment: DeploymentResponse, tmp_path, monkeypatch
+    ):
+        """Test that export prompts for confirmation when file exists in interactive mode."""
+        monkeypatch.chdir(tmp_path)
+        output_file = tmp_path / "existing.yaml"
+        output_file.write_text("existing content")
+
+        # User confirms overwrite
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+            ],
+            user_input="existing.yaml\ny\n",
+            expected_code=0,
+            expected_output_contains="Exported 1 deployment",
+        )
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_export_cancels_on_overwrite_rejection(
+        self, flojo_deployment: DeploymentResponse, tmp_path, monkeypatch
+    ):
+        """Test that export cancels when user rejects overwrite in interactive mode."""
+        monkeypatch.chdir(tmp_path)
+        output_file = tmp_path / "existing.yaml"
+        output_file.write_text("existing content")
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+            ],
+            user_input="existing.yaml\nn\n",
+            expected_code=1,
+            expected_output_contains="Export cancelled",
+        )
