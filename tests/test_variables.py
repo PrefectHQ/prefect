@@ -226,3 +226,39 @@ async def test_explicit_async_methods_from_async_context(variable: Variable):
 
     await Variable.aunset("some_variable")
     assert await Variable.aget("some_variable") is None
+
+
+async def test_generic_typing_syntax():
+    """Test that the generic typing syntax works at runtime.
+
+    This test verifies that Variable[T].get() and Variable[T].aget() work correctly
+    at runtime. The type narrowing is primarily a static type checking feature,
+    but we verify the runtime behavior is unchanged.
+    """
+    # Set up a test variable
+    await Variable.aset("typed_variable", value="test_value", overwrite=True)
+
+    # Test sync get with generic syntax
+    @flow
+    def sync_flow():
+        # Variable[str].get() should work the same as Variable.get()
+        value = Variable[str].get("typed_variable")
+        return value
+
+    result = sync_flow()
+    assert result == "test_value"
+
+    # Test async get with generic syntax
+    value = await Variable[str].aget("typed_variable")
+    assert value == "test_value"
+
+    # Test with default value
+    default_value = await Variable[str].aget("nonexistent_variable", "default")
+    assert default_value == "default"
+
+    # Test without default (should return None)
+    none_value = await Variable[str].aget("nonexistent_variable")
+    assert none_value is None
+
+    # Clean up
+    await Variable.aunset("typed_variable")
