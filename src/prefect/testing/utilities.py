@@ -5,6 +5,7 @@ Internal utilities for tests.
 from __future__ import annotations
 
 import atexit
+import concurrent.futures
 import shutil
 import warnings
 from contextlib import ExitStack, contextmanager
@@ -172,9 +173,30 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         )
         yield
         # drain the logs before stopping the server to avoid connection errors on shutdown
-        APILogWorker.instance().drain()
-        # drain events to prevent stale events from leaking into subsequent test harnesses
-        EventsWorker.drain_all()
+        # Use _drain() to get a concurrent.futures.Future and wait synchronously to avoid
+        # creating unawaited coroutines when running in an async context (issue #19762)
+        futures: list[concurrent.futures.Future[bool]] = []
+
+        # Drain the APILogWorker instance
+        try:
+            log_worker = APILogWorker.instance()
+            futures.append(log_worker._drain())
+        except RuntimeError:
+            # Worker may not have been started
+            pass
+
+        # Drain all EventsWorker instances
+        # Copy the instances to avoid "dictionary changed size during iteration" error
+        # since _drain() calls _stop() which removes the instance from the dict
+        with EventsWorker._instance_lock:
+            events_worker_instances = list(EventsWorker._instances.values())
+        for instance in events_worker_instances:
+            futures.append(instance._drain())
+
+        # Wait for all drains to complete synchronously
+        if futures:
+            concurrent.futures.wait(futures)
+
         test_server.stop()
 
 

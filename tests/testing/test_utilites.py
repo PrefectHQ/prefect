@@ -175,3 +175,20 @@ def test_prefect_test_harness_multiple_runs():
     with prefect_test_harness():
         result2 = example_flow()
         assert result2 == "task completed"
+
+
+@pytest.mark.filterwarnings("error::pytest.PytestUnraisableExceptionWarning")
+async def test_prefect_test_harness_async_cleanup():
+    """
+    Test that prefect_test_harness properly cleans up in async contexts.
+
+    Regression test for issue #19762 - when prefect_test_harness is used in an
+    async context, the drain_all() and drain() calls return coroutines that were
+    never awaited, causing RuntimeWarning: coroutine 'wait' was never awaited.
+    """
+    import gc
+
+    with prefect_test_harness():
+        pass
+    # Force garbage collection to trigger finalization of any unawaited coroutines
+    gc.collect()
