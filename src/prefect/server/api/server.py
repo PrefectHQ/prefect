@@ -156,6 +156,7 @@ def _install_sqlite_locked_log_filter() -> None:
 
     filter_ = _SQLiteLockedOperationalErrorFilter()
     logging.getLogger("uvicorn.error").addFilter(filter_)
+    logging.getLogger("docket.worker").addFilter(filter_)
     _SQLITE_LOCKED_LOG_FILTER = filter_
 
 
