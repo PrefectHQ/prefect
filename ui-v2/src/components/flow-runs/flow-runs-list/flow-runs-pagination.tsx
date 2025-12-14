@@ -110,7 +110,7 @@ export const FlowRunsPagination = ({
 						/>
 					</PaginationItem>
 					<PaginationItem className="text-sm">
-						Page {pagination.page} of {pages}
+						Page {pages === 0 ? 0 : pagination.page} of {pages}
 					</PaginationItem>
 					<PaginationItem>
 						<PaginationNextButton

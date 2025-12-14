@@ -124,10 +124,11 @@ class TestBackgroundServices:
             ],
             expected_output_contains=[
                 "Available Services",
-                "MarkLateRuns",
-                "PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED",
-                "Telemetry",
-                "PREFECT_SERVER_ANALYTICS_ENABLED",
+                "Scheduler",
+                "PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED",
+                "TaskRunRecorder",
+                # May be truncated in table display
+                "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER",
             ],
             expected_code=0,
         )

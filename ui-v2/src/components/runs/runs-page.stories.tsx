@@ -3,7 +3,11 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
 import { useState } from "react";
-import { createFakeFlowRunWithDeploymentAndFlow } from "@/mocks/create-fake-flow-run";
+import type { TaskRunResponse } from "@/api/task-runs";
+import {
+	createFakeFlowRunWithDeploymentAndFlow,
+	createFakeTaskRunResponse,
+} from "@/mocks";
 import {
 	reactQueryDecorator,
 	routerDecorator,
@@ -15,6 +19,7 @@ import type {
 	PaginationState,
 	SortFilters,
 } from "../flow-runs/flow-runs-list";
+import type { TaskRunSortFilters } from "../task-runs/task-runs-list";
 import { RunsPage } from "./runs-page";
 
 const MOCK_FLOW_RUNS = [
@@ -48,6 +53,33 @@ const MOCK_FLOW_RUNS_TASK_COUNT = {
 	"4": randNumber({ min: 0, max: 5 }),
 };
 
+const MOCK_TASK_RUNS = [
+	createFakeTaskRunResponse({
+		id: "task-0",
+		name: "my_task-0",
+		flow_run_id: "0",
+		task_key: "my_task",
+		state: { type: "COMPLETED", name: "Completed", id: "state-0" },
+		tags: [],
+	}),
+	createFakeTaskRunResponse({
+		id: "task-1",
+		name: "my_task-1",
+		flow_run_id: "1",
+		task_key: "my_task",
+		state: { type: "FAILED", name: "Failed", id: "state-1" },
+		tags: ["important"],
+	}),
+	createFakeTaskRunResponse({
+		id: "task-2",
+		name: "another_task-0",
+		flow_run_id: "2",
+		task_key: "another_task",
+		state: { type: "RUNNING", name: "Running", id: "state-2" },
+		tags: [],
+	}),
+];
+
 const meta = {
 	title: "Components/Runs/RunsPage",
 	component: RunsPage,
@@ -75,19 +107,27 @@ type Story = StoryObj<typeof RunsPage>;
 const RunsPageWithState = ({
 	initialFlowRuns = MOCK_FLOW_RUNS,
 	initialFlowRunsCount = 5,
+	initialTaskRuns = MOCK_TASK_RUNS,
 	initialTaskRunsCount = 3,
 	initialPages = 1,
+	initialTaskRunsPages = 1,
 	initialFlowRunSearch = "",
+	initialTaskRunSearch = "",
 	initialSelectedStates = new Set<FlowRunState>(),
 	initialDateRange = {},
+	initialSelectedFlows = new Set<string>(),
 }: {
 	initialFlowRuns?: typeof MOCK_FLOW_RUNS;
 	initialFlowRunsCount?: number;
+	initialTaskRuns?: TaskRunResponse[];
 	initialTaskRunsCount?: number;
 	initialPages?: number;
+	initialTaskRunsPages?: number;
 	initialFlowRunSearch?: string;
+	initialTaskRunSearch?: string;
 	initialSelectedStates?: Set<FlowRunState>;
 	initialDateRange?: DateRangeUrlState;
+	initialSelectedFlows?: Set<string>;
 }) => {
 	const [tab, setTab] = useState<"flow-runs" | "task-runs">("flow-runs");
 	const [pagination, setPagination] = useState<PaginationState>({
@@ -102,6 +142,20 @@ const RunsPageWithState = ({
 	);
 	const [dateRange, setDateRange] =
 		useState<DateRangeUrlState>(initialDateRange);
+	const [selectedFlows, setSelectedFlows] =
+		useState<Set<string>>(initialSelectedFlows);
+
+	// Task runs state
+	const [taskRunsPagination, setTaskRunsPagination] = useState<PaginationState>(
+		{
+			page: 1,
+			limit: 10,
+		},
+	);
+	const [taskRunsSort, setTaskRunsSort] = useState<TaskRunSortFilters>(
+		"EXPECTED_START_TIME_DESC",
+	);
+	const [taskRunSearch, setTaskRunSearch] = useState(initialTaskRunSearch);
 
 	return (
 		<RunsPage
@@ -121,8 +175,21 @@ const RunsPageWithState = ({
 			onFlowRunSearchChange={setFlowRunSearch}
 			selectedStates={selectedStates}
 			onStateFilterChange={setSelectedStates}
+			selectedFlows={selectedFlows}
+			onFlowFilterChange={setSelectedFlows}
 			dateRange={dateRange}
 			onDateRangeChange={setDateRange}
+			// Task runs props
+			taskRuns={initialTaskRuns}
+			taskRunsPages={initialTaskRunsPages}
+			taskRunsPagination={taskRunsPagination}
+			onTaskRunsPaginationChange={setTaskRunsPagination}
+			onTaskRunsPrefetchPage={() => {}}
+			taskRunsSort={taskRunsSort}
+			onTaskRunsSortChange={setTaskRunsSort}
+			taskRunSearch={taskRunSearch}
+			onTaskRunSearchChange={setTaskRunSearch}
+			onClearTaskRunFilters={() => setTaskRunSearch("")}
 		/>
 	);
 };
@@ -138,6 +205,7 @@ export const EmptyState: Story = {
 		<RunsPageWithState
 			initialFlowRuns={[]}
 			initialFlowRunsCount={0}
+			initialTaskRuns={[]}
 			initialTaskRunsCount={0}
 		/>
 	),

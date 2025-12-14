@@ -55,9 +55,26 @@ const blockTypesHandlers = [
 	}),
 ];
 
+const eventsHandlers = [
+	http.post(buildApiUrl("/events/filter"), () => {
+		return HttpResponse.json({
+			events: [],
+			total: 0,
+			next_page: null,
+		});
+	}),
+
+	http.post(buildApiUrl("/events/count-by/:countable"), () => {
+		return HttpResponse.json([]);
+	}),
+];
+
 const deploymentsHandlers = [
 	http.post(buildApiUrl("/deployments/filter"), () => {
-		return HttpResponse.json([]);
+		return HttpResponse.json([
+			{ id: "deployment-1", name: "Deployment 1", tags: [] },
+			{ id: "deployment-2", name: "Deployment 2", tags: [] },
+		]);
 	}),
 
 	http.patch(buildApiUrl("/deployments/:id"), () => {
@@ -91,8 +108,23 @@ const flowHandlers = [
 		});
 	}),
 
+	http.post(buildApiUrl("/flows/filter"), () => {
+		return HttpResponse.json([
+			{ id: "1", name: "Flow 1", tags: [] },
+			{ id: "2", name: "Flow 2", tags: [] },
+		]);
+	}),
+
 	http.post(buildApiUrl("/deployments/count"), () => {
 		return HttpResponse.json(1);
+	}),
+
+	http.post(buildApiUrl("/ui/flows/count-deployments"), () => {
+		return HttpResponse.json({});
+	}),
+
+	http.post(buildApiUrl("/ui/flows/next-runs"), () => {
+		return HttpResponse.json({});
 	}),
 ];
 
@@ -147,6 +179,16 @@ const settingsHandlers = [
 const taskRunHandlers = [
 	http.post(buildApiUrl("/task_runs/filter"), () => {
 		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/task_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			pages: 0,
+			page: 1,
+			limit: 10,
+		});
 	}),
 
 	http.post(buildApiUrl("/task_runs/count"), () => {
@@ -240,6 +282,7 @@ export const handlers = [
 	...blockSchemasHandlers,
 	...blockTypesHandlers,
 	...deploymentsHandlers,
+	...eventsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,
