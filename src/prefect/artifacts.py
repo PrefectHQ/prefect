@@ -373,9 +373,9 @@ class RichArtifact(Artifact):
     """
 
     html: str
-    sandbox: Optional[list[str]] = None
-    csp: Optional[str] = None
-    type: Optional[str] = "rich"
+    sandbox: list[str] | None = None
+    csp: str | None = None
+    type: str | None = "rich"
 
     def _get_sandbox(self) -> list[str]:
         if self.sandbox is not None:
