@@ -724,7 +724,7 @@ async def _run_all_services() -> None:
     from prefect.server.services.base import Service
     from prefect.settings.context import get_current_settings
 
-    docket_url = get_current_settings().server.docket_url
+    docket_url = get_current_settings().server.docket.url
 
     async with Docket(name="prefect", url=docket_url) as docket:
         async with background_worker(docket, ephemeral=False, webserver_only=False):
