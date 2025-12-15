@@ -5,7 +5,7 @@ Internal utilities for tests.
 from __future__ import annotations
 
 import atexit
-import concurrent.futures
+import inspect
 import shutil
 import warnings
 from contextlib import ExitStack, contextmanager
@@ -32,6 +32,7 @@ from prefect.results import (
 from prefect.serializers import Serializer
 from prefect.server.api.server import SubprocessASGIServer
 from prefect.states import State
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -173,29 +174,25 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         )
         yield
         # drain the logs before stopping the server to avoid connection errors on shutdown
-        # Use _drain() to get a concurrent.futures.Future and wait synchronously to avoid
-        # creating unawaited coroutines when running in an async context (issue #19762)
-        futures: list[concurrent.futures.Future[bool]] = []
+        # When running in an async context, drain() and drain_all() return awaitables.
+        # We use a wrapper coroutine passed to run_coro_as_sync to ensure the awaitable
+        # is created and awaited on the same loop, avoiding cross-loop issues (issue #19762)
 
-        # Drain the APILogWorker instance
-        try:
-            log_worker = APILogWorker.instance()
-            futures.append(log_worker._drain())
-        except RuntimeError:
-            # Worker may not have been started
-            pass
+        async def drain_workers():
+            try:
+                result = APILogWorker.instance().drain()
+                if inspect.isawaitable(result):
+                    await result
+            except RuntimeError:
+                # Worker may not have been started
+                pass
 
-        # Drain all EventsWorker instances
-        # Copy the instances to avoid "dictionary changed size during iteration" error
-        # since _drain() calls _stop() which removes the instance from the dict
-        with EventsWorker._instance_lock:
-            events_worker_instances = list(EventsWorker._instances.values())
-        for instance in events_worker_instances:
-            futures.append(instance._drain())
+            # drain events to prevent stale events from leaking into subsequent test harnesses
+            result = EventsWorker.drain_all()
+            if inspect.isawaitable(result):
+                await result
 
-        # Wait for all drains to complete synchronously
-        if futures:
-            concurrent.futures.wait(futures)
+        run_coro_as_sync(drain_workers())
 
         test_server.stop()
 

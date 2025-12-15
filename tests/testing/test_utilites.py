@@ -1,3 +1,4 @@
+import gc
 import sys
 import uuid
 import warnings
@@ -186,8 +187,6 @@ async def test_prefect_test_harness_async_cleanup():
     async context, the drain_all() and drain() calls return coroutines that were
     never awaited, causing RuntimeWarning: coroutine 'wait' was never awaited.
     """
-    import gc
-
     with prefect_test_harness():
         pass
     # Force garbage collection to trigger finalization of any unawaited coroutines
