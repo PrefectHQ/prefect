@@ -38,7 +38,13 @@ export function useChartSelection({
 		null,
 	);
 	const [localSelectionEnd, setLocalSelectionEnd] = useState<Date | null>(null);
+
+	// Use refs for drag tracking to avoid React state timing issues
+	// State updates are batched and may not be committed before the next event fires
+	const isDraggingRef = useRef(false);
 	const dragStartTimeRef = useRef<Date | null>(null);
+	const selectionStartRef = useRef<Date | null>(null);
+	const selectionEndRef = useRef<Date | null>(null);
 
 	const getTimestampFromX = useCallback(
 		(clientX: number): Date => {
@@ -78,7 +84,14 @@ export function useChartSelection({
 			if (e.button !== 0) return;
 
 			const timestamp = getTimestampFromX(e.clientX);
+
+			// Update refs immediately for synchronous access in subsequent events
+			isDraggingRef.current = true;
 			dragStartTimeRef.current = timestamp;
+			selectionStartRef.current = timestamp;
+			selectionEndRef.current = timestamp;
+
+			// Update state for rendering
 			setIsDragging(true);
 			setLocalSelectionStart(timestamp);
 			setLocalSelectionEnd(timestamp);
@@ -88,7 +101,8 @@ export function useChartSelection({
 
 	const handleMouseMove = useCallback(
 		(e: React.MouseEvent) => {
-			if (!isDragging || !dragStartTimeRef.current) return;
+			// Use ref for immediate check - state may not be updated yet
+			if (!isDraggingRef.current || !dragStartTimeRef.current) return;
 
 			const timestamp = getTimestampFromX(e.clientX);
 			const dragStartTime = dragStartTimeRef.current;
@@ -96,51 +110,69 @@ export function useChartSelection({
 
 			// Track both endpoints properly based on drag direction
 			if (e.clientX < startX) {
+				// Update refs immediately
+				selectionStartRef.current = timestamp;
+				selectionEndRef.current = dragStartTime;
+				// Update state for rendering
 				setLocalSelectionStart(timestamp);
 				setLocalSelectionEnd(dragStartTime);
 			} else {
+				// Update refs immediately
+				selectionStartRef.current = dragStartTime;
+				selectionEndRef.current = timestamp;
+				// Update state for rendering
 				setLocalSelectionStart(dragStartTime);
 				setLocalSelectionEnd(timestamp);
 			}
 		},
-		[isDragging, getTimestampFromX, getXFromTimestamp],
+		[getTimestampFromX, getXFromTimestamp],
 	);
 
 	const finalizeSelection = useCallback(() => {
-		if (!isDragging) return;
+		// Use ref for immediate check - state may not be updated yet
+		if (!isDraggingRef.current) return;
 
+		// Clear dragging state immediately via ref
+		isDraggingRef.current = false;
 		setIsDragging(false);
 
+		// Use refs for selection values - state may not be updated yet
+		const currentSelectionStart = selectionStartRef.current;
+		const currentSelectionEnd = selectionEndRef.current;
+
 		// Check if selection is too small (less than 1 second)
-		if (localSelectionStart && localSelectionEnd) {
+		if (currentSelectionStart && currentSelectionEnd) {
 			const selectionDurationMs = Math.abs(
-				localSelectionEnd.getTime() - localSelectionStart.getTime(),
+				currentSelectionEnd.getTime() - currentSelectionStart.getTime(),
 			);
 			const selectionDurationSeconds = selectionDurationMs / 1000;
 
 			if (selectionDurationSeconds < MIN_SELECTION_SECONDS) {
 				// Clear selection for sub-1-second selections
+				selectionStartRef.current = null;
+				selectionEndRef.current = null;
 				setLocalSelectionStart(null);
 				setLocalSelectionEnd(null);
 				onSelectionChange?.(null, null);
+				dragStartTimeRef.current = null;
 				return;
 			}
 
 			// Sort dates before calling onSelectionChange
 			const sortedStart =
-				localSelectionStart < localSelectionEnd
-					? localSelectionStart
-					: localSelectionEnd;
+				currentSelectionStart < currentSelectionEnd
+					? currentSelectionStart
+					: currentSelectionEnd;
 			const sortedEnd =
-				localSelectionStart < localSelectionEnd
-					? localSelectionEnd
-					: localSelectionStart;
+				currentSelectionStart < currentSelectionEnd
+					? currentSelectionEnd
+					: currentSelectionStart;
 
 			onSelectionChange?.(sortedStart, sortedEnd);
 		}
 
 		dragStartTimeRef.current = null;
-	}, [isDragging, localSelectionStart, localSelectionEnd, onSelectionChange]);
+	}, [onSelectionChange]);
 
 	const handleMouseUp = useCallback(() => {
 		finalizeSelection();
@@ -152,6 +184,10 @@ export function useChartSelection({
 	}, [finalizeSelection]);
 
 	const clearSelection = useCallback(() => {
+		// Clear refs
+		selectionStartRef.current = null;
+		selectionEndRef.current = null;
+		// Clear state
 		setLocalSelectionStart(null);
 		setLocalSelectionEnd(null);
 		onSelectionChange?.(null, null);
