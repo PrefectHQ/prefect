@@ -47,6 +47,7 @@ const searchParams = z.object({
 	flows: z.string().optional().default(""),
 	deployments: z.string().optional().default(""),
 	"work-pools": z.string().optional().default(""),
+	tags: z.string().optional().default(""),
 	range: z.enum(DATE_RANGE_PRESETS).optional(),
 	start: z.string().optional(),
 	end: z.string().optional(),
@@ -120,6 +121,12 @@ const parseWorkPoolsFilter = (workPoolsString: string): string[] => {
 	return workPoolsString.split(",").filter((s) => s.trim().length > 0);
 };
 
+// Helper to parse tags string to array of tag strings
+const parseTagsFilter = (tagsString: string): string[] => {
+	if (!tagsString) return [];
+	return tagsString.split(",").filter((s) => s.trim().length > 0);
+};
+
 const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const hideSubflows = search?.["hide-subflows"];
 	const flowRunSearch = search?.["flow-run-search"];
@@ -127,6 +134,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
 	const workPoolsFilter = parseWorkPoolsFilter(search?.["work-pools"] ?? "");
+	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
 	// Map state names to state types for the API filter
@@ -144,6 +152,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 		stateNames ||
 		flowIds ||
 		deploymentIds ||
+		tagsFilter.length > 0 ||
 		dateRangeFilter;
 	const flowRunsFilter = hasFilters
 		? {
@@ -159,6 +168,9 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 						operator: "and_" as const,
 						name: { any_: stateNames },
 					},
+				}),
+				...(tagsFilter.length > 0 && {
+					tags: { any_: tagsFilter },
 				}),
 				...(dateRangeFilter && {
 					expected_start_time: dateRangeFilter,
@@ -506,14 +518,30 @@ const useWorkPoolFilter = () => {
 	return [selectedWorkPools, onWorkPoolFilterChange] as const;
 };
 
-// Tags filter - UI component only, filtering functionality to be implemented in a separate ticket
 const useTagsFilter = () => {
-	const selectedTags = useMemo(() => new Set<string>(), []);
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const onTagsFilterChange = useCallback((_tags: Set<string>) => {
-		// No-op: filtering functionality to be implemented in a separate ticket
-	}, []);
+	const selectedTags = useMemo(
+		() => new Set<string>(parseTagsFilter(search.tags ?? "")),
+		[search.tags],
+	);
+
+	const onTagsFilterChange = useCallback(
+		(tags: Set<string>) => {
+			const tagsArray = Array.from(tags);
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					tags: tagsArray.length > 0 ? tagsArray.join(",") : "",
+					page: 1, // Reset pagination when filter changes
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
 
 	return [selectedTags, onTagsFilterChange] as const;
 };
