@@ -55,6 +55,19 @@ def test_telemetry_runs_in_all_modes():
     assert config.run_in_webserver is True
 
 
+def test_scheduler_services_registered():
+    """Test that scheduler perpetual services are registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "schedule_deployments" in service_names
+    assert "schedule_recent_deployments" in service_names
+
+
+def test_proactive_triggers_service_registered():
+    """Test that proactive triggers perpetual service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "evaluate_proactive_triggers_periodic" in service_names
+
+
 def test_get_perpetual_services_returns_all_in_default_mode():
     """Test that get_perpetual_services returns all services in default mode."""
     services = get_perpetual_services(ephemeral=False, webserver_only=False)
@@ -70,6 +83,8 @@ def test_get_perpetual_services_filters_ephemeral_mode():
     service_names = [config.function.__name__ for config in services]
     assert "monitor_cancelled_flow_runs" not in service_names
     assert "monitor_subflow_runs" not in service_names
+    # Proactive triggers IS marked for ephemeral mode
+    assert "evaluate_proactive_triggers_periodic" in service_names
 
 
 def test_get_perpetual_services_filters_webserver_mode():

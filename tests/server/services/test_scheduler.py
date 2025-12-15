@@ -1,5 +1,4 @@
 import datetime
-from datetime import timezone
 
 import pytest
 import sqlalchemy as sa
@@ -7,13 +6,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
-from prefect.server.services.scheduler import RecentDeploymentsScheduler, Scheduler
+from prefect.server.services.scheduler import (
+    schedule_deployments,
+    schedule_recent_deployments,
+)
 from prefect.settings import (
     PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
-    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
     PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS,
     temporary_settings,
 )
+from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 from prefect.utilities.callables import parameter_schema
 
@@ -105,6 +107,9 @@ async def test_create_schedules_from_deployment(
     session: AsyncSession,
     deployment_with_active_schedules: schemas.core.Deployment,
 ):
+    settings = get_current_settings().server.services.scheduler
+    min_runs = settings.min_runs
+
     active_schedules = [
         s.schedule
         for s in await models.deployments.read_deployment_schedules(
@@ -120,14 +125,13 @@ async def test_create_schedules_from_deployment(
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    service = Scheduler()
-    await service.start(loops=1)
+    await schedule_deployments()
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == service.min_runs * num_active_schedules
+    assert len(runs) == min_runs * num_active_schedules
 
     expected_dates: set[datetime.datetime] = set()
     for schedule in active_schedules:
-        expected_dates.update(await schedule.get_dates(service.min_runs))
+        expected_dates.update(await schedule.get_dates(min_runs))
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
     assert all([r.state_name == "Scheduled" for r in runs]), (
@@ -138,6 +142,9 @@ async def test_create_schedules_from_deployment(
 async def test_create_parametrized_schedules_from_deployment(
     flow: schemas.core.Flow, session: AsyncSession
 ):
+    settings = get_current_settings().server.services.scheduler
+    min_runs = settings.min_runs
+
     schedule = schemas.schedules.IntervalSchedule(
         interval=datetime.timedelta(days=30),
         anchor_date=now("UTC"),
@@ -174,33 +181,39 @@ async def test_create_parametrized_schedules_from_deployment(
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    service = Scheduler()
-    await service.start(loops=1)
+    await schedule_deployments()
     runs = await models.flow_runs.read_flow_runs(session)
 
-    # We expect min_runs * 2 because we have two schedules
-    # However, we only get min_runs because the second schedule's runs
-    # overwrite the first schedule's runs due to having the same idempotency key
-    # (scheduled {deployment.id} {date})
-    assert len(runs) == service.min_runs * 2  # Should create runs for both schedules
+    # Should have min_runs from each of the two schedules
+    assert len(runs) == 2 * min_runs
 
-    expected_dates = await schedule.get_dates(service.min_runs)
-    # Each expected date should have two runs with different parameters
-    assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
+    expected_dates = await schedule.get_dates(min_runs)
 
-    # Check that we have runs with both sets of parameters
-    run_params = {(r.parameters["name"], r.parameters["x"]) for r in runs}
-    assert run_params == {("whoami", 11), ("whoami2", 11)}
+    for schedule_param_name in ("whoami", "whoami2"):
+        schedule_runs = [
+            r for r in runs if r.parameters.get("name") == schedule_param_name
+        ]
+        assert len(schedule_runs) == min_runs
 
-    assert all([r.state_name == "Scheduled" for r in runs]), (
-        "Scheduler sets flow_run.state_name"
-    )
+        # Each schedule has overwritten the deployment parameter `name`
+        assert all(r.parameters["name"] == schedule_param_name for r in schedule_runs)
+
+        # Each schedule has not changed the other deployment parameters
+        assert all(r.parameters["x"] == 11 for r in schedule_runs)
+
+        # Each schedule has scheduled the same datetimes
+        assert set(expected_dates) == {
+            r.state.state_details.scheduled_time for r in schedule_runs
+        }
 
 
 async def test_create_parametrized_schedules_with_slugs(
     flow: schemas.core.Flow, session: AsyncSession
 ):
     """Test that schedules with slugs use them in idempotency keys, and schedules without slugs fall back to ID"""
+    settings = get_current_settings().server.services.scheduler
+    min_runs = settings.min_runs
+
     schedule = schemas.schedules.IntervalSchedule(
         interval=datetime.timedelta(days=30),
         anchor_date=now("UTC"),
@@ -232,12 +245,11 @@ async def test_create_parametrized_schedules_with_slugs(
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    service = Scheduler()
-    await service.start(loops=1)
+    await schedule_deployments()
     runs = await models.flow_runs.read_flow_runs(session)
 
     # We should get min_runs * 2 because we have two schedules
-    assert len(runs) == service.min_runs * 2
+    assert len(runs) == min_runs * 2
 
     # Check that we have runs with both sets of parameters
     run_params = {(r.parameters["name"], r.parameters["x"]) for r in runs}
@@ -257,19 +269,19 @@ async def test_create_parametrized_schedules_with_slugs(
     assert schedule_with_slug.active is True
 
     # Check that idempotency keys use slugs when available and IDs when not
-    expected_dates = await schedule.get_dates(service.min_runs)
+    expected_dates = await schedule.get_dates(min_runs)
     for date in expected_dates:
         # Find runs for this date
         date_runs = [r for r in runs if r.state.state_details.scheduled_time == date]
         assert len(date_runs) == 2  # Should have two runs per date
 
-        # One run should use the slug in its idempotency key
+        # One run should use the schedule ID in its idempotency key
         assert any(
             f"scheduled {deployment.id} {schedule_with_slug.id} {date}"
             == r.idempotency_key
             for r in date_runs
         )
-        # One run should use the ID in its idempotency key
+        # The other run should use its schedule ID
         assert any(
             f"scheduled {deployment.id} {schedule_without_slug.id} {date}"
             == r.idempotency_key
@@ -280,20 +292,22 @@ async def test_create_parametrized_schedules_with_slugs(
 async def test_create_schedule_respects_max_future_time(
     flow: schemas.core.Flow, session: AsyncSession
 ):
-    schedule = schemas.schedules.IntervalSchedule(
-        interval=datetime.timedelta(days=30), anchor_date=now("UTC")
-    )
+    settings = get_current_settings().server.services.scheduler
+    max_scheduled_time = settings.max_scheduled_time
+    min_runs = settings.min_runs
 
-    await models.deployments.create_deployment(
+    deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
             schedules=[
                 schemas.core.DeploymentSchedule(
-                    schedule=schedule,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=30)
+                    ),
                     active=True,
-                ),
+                )
             ],
         ),
     )
@@ -301,104 +315,64 @@ async def test_create_schedule_respects_max_future_time(
 
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
-    service = Scheduler()
-    await service.start(loops=1)
-    runs = await models.flow_runs.read_flow_runs(session)
 
-    assert len(runs) == 3
-    expected_dates = await schedule.get_dates(
-        service.max_runs,
-        end=datetime.datetime.now(timezone.utc) + service.max_scheduled_time,
+    await schedule_deployments()
+    runs = await models.flow_runs.read_flow_runs(session)
+    # the schedule would generate 100 runs, but we limit it to min_runs
+    # since they would all be past the max_scheduled_time
+    assert len(runs) == min_runs
+
+    # runs for this deployment should be no more than max_scheduled_time in the future
+    deployment_runs = [r for r in runs if r.deployment_id == deployment.id]
+    assert all(
+        r.state.state_details.scheduled_time < now("UTC") + max_scheduled_time
+        for r in deployment_runs
     )
-    assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
 
 async def test_create_schedules_from_multiple_deployments(
-    flow: schemas.core.Flow, session: AsyncSession
+    flow: schemas.core.Flow,
+    session: AsyncSession,
+    deployment_without_schedules,
+    deployment_with_active_schedules,
+    deployment_with_inactive_schedules,
 ):
-    schedule1 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(hours=1))
-    schedule2 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(days=10))
-    schedule3 = schemas.schedules.IntervalSchedule(interval=datetime.timedelta(days=5))
+    settings = get_current_settings().server.services.scheduler
+    min_runs = settings.min_runs
 
-    flow_2 = await models.flows.create_flow(
-        session=session, flow=schemas.core.Flow(name="flow-2")
-    )
-
-    await models.deployments.create_deployment(
-        session=session,
-        deployment=schemas.core.Deployment(
-            name="test",
-            flow_id=flow.id,
-            schedules=[
-                schemas.core.DeploymentSchedule(
-                    schedule=schedule1,
-                    active=True,
-                ),
-            ],
-        ),
-    )
-    await models.deployments.create_deployment(
-        session=session,
-        deployment=schemas.core.Deployment(
-            name="test-2",
-            flow_id=flow.id,
-            schedules=[
-                schemas.core.DeploymentSchedule(
-                    schedule=schedule2,
-                    active=True,
-                ),
-            ],
-        ),
-    )
-    await models.deployments.create_deployment(
-        session=session,
-        deployment=schemas.core.Deployment(
-            name="test",
-            flow_id=flow_2.id,
-            schedules=[
-                schemas.core.DeploymentSchedule(
-                    schedule=schedule3,
-                    active=True,
-                ),
-            ],
-        ),
-    )
-    await session.commit()
+    active_schedules = [
+        s.schedule
+        for s in await models.deployments.read_deployment_schedules(
+            session=session,
+            deployment_id=deployment_with_active_schedules.id,
+            deployment_schedule_filter=schemas.filters.DeploymentScheduleFilter(
+                active=schemas.filters.DeploymentScheduleFilterActive(eq_=True)
+            ),
+        )
+    ]
+    num_active_schedules = len(active_schedules)
 
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    service = Scheduler()
-    await service.start(loops=1)
+    await schedule_deployments()
     runs = await models.flow_runs.read_flow_runs(session)
+    # min_runs per active schedule - only the active deployment had active schedules
+    assert len(runs) == min_runs * num_active_schedules
 
-    expected_dates = set()
-    for schedule in [schedule1, schedule2, schedule3]:
-        dep_runs = await schedule.get_dates(
-            service.min_runs,
-            start=datetime.datetime.now(timezone.utc),
-            end=datetime.datetime.now(timezone.utc) + service.max_scheduled_time,
-        )
-        expected_dates.update(dep_runs)
-    assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
+    # confirm that the runs are for the active deployment
+    assert all(r.deployment_id == deployment_with_active_schedules.id for r in runs)
 
 
 async def test_create_schedules_from_multiple_deployments_in_batches(flow, session):
-    await models.flows.create_flow(
-        session=session, flow=schemas.core.Flow(name="flow-2")
-    )
+    settings = get_current_settings().server.services.scheduler
+    min_runs = settings.min_runs
 
-    # create deployments that will have to insert
-    # flow runs in batches of scheduler_insertion_batch_size
-    deployments_to_schedule = (
-        PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
-        // PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
-    ) + 1
-    for i in range(deployments_to_schedule):
+    for i in range(10):
         await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                name=f"test_{i}",
+                name=f"test-{i}",
                 flow_id=flow.id,
                 schedules=[
                     schemas.core.DeploymentSchedule(
@@ -415,47 +389,40 @@ async def test_create_schedules_from_multiple_deployments_in_batches(flow, sessi
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    # should insert more than the batch size successfully
-    await Scheduler().start(loops=1)
+    with temporary_settings(
+        {
+            PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE: 7,
+        }
+    ):
+        await schedule_deployments()
+
     runs = await models.flow_runs.read_flow_runs(session)
-    assert (
-        len(runs)
-        == deployments_to_schedule * PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
-    )
-    assert len(runs) > PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
+    assert len(runs) == 10 * min_runs
 
 
 async def test_scheduler_respects_paused(
-    flow: schemas.core.Flow, session: AsyncSession
+    session: AsyncSession,
+    deployment_with_active_schedules: schemas.core.Deployment,
 ):
-    await models.deployments.create_deployment(
+    # pause the deployment
+    await models.deployments.update_deployment(
         session=session,
-        deployment=schemas.core.Deployment(
-            name="test",
-            flow_id=flow.id,
-            schedules=[
-                schemas.core.DeploymentSchedule(
-                    schedule=schemas.schedules.IntervalSchedule(
-                        interval=datetime.timedelta(hours=1)
-                    ),
-                    active=True,
-                )
-            ],
-            paused=True,
-        ),
+        deployment_id=deployment_with_active_schedules.id,
+        deployment=schemas.actions.DeploymentUpdate(paused=True),
     )
     await session.commit()
 
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    await Scheduler().start(loops=1)
-    n_runs_2 = await models.flow_runs.count_flow_runs(session)
-    assert n_runs_2 == 0
+    await schedule_deployments()
+    runs = await models.flow_runs.read_flow_runs(session)
+    assert len(runs) == 0
 
 
 async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
-    flow: schemas.core.Flow, session: AsyncSession
+    flow: schemas.core.Flow,
+    session: AsyncSession,
 ):
     """
     Create 3 runs, cancel one, and check that the scheduler doesn't overwrite the cancelled run
@@ -481,8 +448,8 @@ async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
     assert n_runs == 0
 
     # run multiple loops
-    await Scheduler().start(loops=1)
-    await Scheduler().start(loops=1)
+    await schedule_deployments()
+    await schedule_deployments()
 
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 3
@@ -502,7 +469,7 @@ async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
     await session.commit()
 
     # run scheduler again
-    await Scheduler().start(loops=1)
+    await schedule_deployments()
     runs = await models.flow_runs.read_flow_runs(
         session,
         flow_run_filter=schemas.filters.FlowRunFilter(
@@ -513,142 +480,175 @@ async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
     assert {r.state_type for r in runs} == {"SCHEDULED", "SCHEDULED", "CANCELLED"}
 
 
-@pytest.mark.usefixtures(
-    "deployment_without_schedules", "deployment_with_inactive_schedules"
-)
 async def test_only_looks_at_deployments_with_active_schedules(
     session: AsyncSession,
     deployment_with_active_schedules: schemas.core.Deployment,
+    deployment_with_inactive_schedules: schemas.core.Deployment,
+    deployment_without_schedules: schemas.core.Deployment,
 ):
-    n_runs = await models.flow_runs.count_flow_runs(session=session)
-    assert n_runs == 0
-
-    query = Scheduler()._get_select_deployments_to_schedule_query().limit(10)
-
-    deployment_ids = (await session.execute(query)).scalars().all()
-    assert len(deployment_ids) == 1
-    assert deployment_ids[0] == deployment_with_active_schedules.id
+    await schedule_deployments()
+    runs = await models.flow_runs.read_flow_runs(session)
+    # only the active deployment should have runs
+    assert all(r.deployment_id == deployment_with_active_schedules.id for r in runs)
 
 
 class TestRecentDeploymentsScheduler:
-    async def test_tight_loop_by_default(self):
-        assert RecentDeploymentsScheduler().loop_seconds == 5
-
-    async def test_tight_loop_can_be_configured(self):
-        assert RecentDeploymentsScheduler(loop_seconds=1).loop_seconds == 1
-
-        with temporary_settings(
-            {PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS: 42}
-        ):
-            assert RecentDeploymentsScheduler().loop_seconds == 42
-
-    async def test_schedules_runs_for_recently_created_deployments(
+    async def test_recent_scheduler_picks_up_recent_deployments(
         self,
-        deployment: schemas.core.Deployment,
+        flow: schemas.core.Flow,
         session: AsyncSession,
-        db: PrefectDBInterface,
     ):
-        recent_scheduler = RecentDeploymentsScheduler()
-        count_query = (
-            sa.select(sa.func.count())
-            .select_from(db.FlowRun)
-            .where(db.FlowRun.deployment_id == deployment.id)
-        )
-        runs_count = (await session.execute(count_query)).scalar()
-        assert runs_count == 0
+        settings = get_current_settings().server.services.scheduler
+        min_runs = settings.min_runs
 
-        await recent_scheduler.start(loops=1)
-
-        runs_count = (await session.execute(count_query)).scalar()
-        assert runs_count == recent_scheduler.min_runs
-
-    async def test_schedules_runs_for_recently_updated_deployments(
-        self,
-        deployment: schemas.core.Deployment,
-        session: AsyncSession,
-        db: PrefectDBInterface,
-    ):
-        # artificially move the created time back (updated time will still be recent)
-        await session.execute(
-            sa.update(db.Deployment)
-            .where(db.Deployment.id == deployment.id)
-            .values(
-                created=datetime.datetime.now(timezone.utc)
-                - datetime.timedelta(hours=1)
-            )
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="new deployment",
+                flow_id=flow.id,
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(hours=1)
+                        ),
+                        active=True,
+                    )
+                ],
+            ),
         )
         await session.commit()
 
-        count_query = (
-            sa.select(sa.func.count())
-            .select_from(db.FlowRun)
-            .where(db.FlowRun.deployment_id == deployment.id)
-        )
-
-        recent_scheduler = RecentDeploymentsScheduler()
-        runs_count = (await session.execute(count_query)).scalar()
-        assert runs_count == 0
-
-        await recent_scheduler.start(loops=1)
-
-        runs_count = (await session.execute(count_query)).scalar()
-        assert runs_count == recent_scheduler.min_runs
-
-    async def test_schedules_no_runs_for_deployments_updated_a_while_ago(
-        self,
-        deployment: schemas.core.Deployment,
-        session: AsyncSession,
-        db: PrefectDBInterface,
-    ):
-        # artificially move the updated time back
-        await session.execute(
-            sa.update(db.Deployment)
-            .where(db.Deployment.id == deployment.id)
-            .values(
-                updated=datetime.datetime.now(timezone.utc)
-                - datetime.timedelta(minutes=1)
-            )
-        )
-        await session.commit()
-
-        count_query = (
-            sa.select(sa.func.count())
-            .select_from(db.FlowRun)
-            .where(db.FlowRun.deployment_id == deployment.id)
-        )
-
-        recent_scheduler = RecentDeploymentsScheduler()
-        runs_count = (await session.execute(count_query)).scalar()
-        assert runs_count == 0
-
-        await recent_scheduler.start(loops=1)
-
-        runs_count = (await session.execute(count_query)).scalar()
-        assert runs_count == 0
-
-    async def test_only_looks_at_deployments_with_active_schedules(
-        self,
-        session: AsyncSession,
-        db: PrefectDBInterface,
-        deployment_without_schedules: schemas.core.Deployment,
-        deployment_with_inactive_schedules: schemas.core.Deployment,
-        deployment_with_active_schedules: schemas.core.Deployment,
-    ):
-        n_runs = await models.flow_runs.count_flow_runs(session=session)
+        n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
-        query = (
-            RecentDeploymentsScheduler()
-            ._get_select_deployments_to_schedule_query()
-            .limit(10)
-        )
+        await schedule_recent_deployments()
+        runs = await models.flow_runs.read_flow_runs(session)
+        assert len(runs) == min_runs
 
-        deployment_ids = (await session.execute(query)).scalars().all()
-        assert len(deployment_ids) == 1
-        assert deployment_ids[0] == deployment_with_active_schedules.id
+    async def test_recent_scheduler_ignores_deployments_with_inactive_schedules(
+        self, session, deployment_with_inactive_schedules
+    ):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await schedule_recent_deployments()
+        runs = await models.flow_runs.read_flow_runs(session)
+        assert len(runs) == 0
+
+    async def test_recent_scheduler_ignores_old_deployments(
+        self,
+        db: PrefectDBInterface,
+        flow: schemas.core.Flow,
+        session: AsyncSession,
+    ):
+        settings = get_current_settings().server.services.scheduler
+        recent_loop_seconds = settings.recent_deployments_loop_seconds
+
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="old deployment",
+                flow_id=flow.id,
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(hours=1)
+                        ),
+                        active=True,
+                    )
+                ],
+            ),
+        )
+        # Set the deployment's updated time to be older than the recent loop
+        old_time = now("UTC") - datetime.timedelta(seconds=recent_loop_seconds + 10)
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(db.Deployment.id == deployment.id)
+            .values(updated=old_time)
+        )
+        await session.commit()
+
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await schedule_recent_deployments()
+        runs = await models.flow_runs.read_flow_runs(session)
+        # Should not pick up old deployment
+        assert len(runs) == 0
+
+    async def test_recent_scheduler_works_within_expected_loop_interval(
+        self,
+        flow: schemas.core.Flow,
+        session: AsyncSession,
+    ):
+        """
+        Verifies that the recent scheduler picks up deployments created within
+        PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS + 1 seconds
+        """
+        settings = get_current_settings().server.services.scheduler
+        min_runs = settings.min_runs
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="new deployment",
+                flow_id=flow.id,
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(hours=1)
+                        ),
+                        active=True,
+                    )
+                ],
+            ),
+        )
+        await session.commit()
+
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        # Use a long loop interval to ensure the deployment is picked up
+        with temporary_settings(
+            {PREFECT_SERVER_SERVICES_SCHEDULER_RECENT_DEPLOYMENTS_LOOP_SECONDS: 60}
+        ):
+            await schedule_recent_deployments()
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        assert len(runs) == min_runs
 
 
 class TestScheduleRulesWaterfall:
+    """
+    These tests verify the scheduling waterfall, which is:
+
+    - Runs will be generated starting on or after the `start_time`
+    - No more than `max_runs` runs will be generated
+    - No runs will be generated after `end_time` is reached
+    - At least `min_runs` runs will be generated
+    - Runs will be generated until at least `start_time + min_time` is reached
+    """
+
+    @pytest.fixture
+    async def deployment(self, flow: schemas.core.Flow, session: AsyncSession):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="hourly",
+                flow_id=flow.id,
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=datetime.timedelta(hours=1)
+                        ),
+                        active=True,
+                    )
+                ],
+            ),
+        )
+        await session.commit()
+        return deployment
+
     @pytest.mark.parametrize(
         "interval,n",
         [
@@ -678,8 +678,7 @@ class TestScheduleRulesWaterfall:
                     schemas.core.DeploymentSchedule(
                         schedule=schemas.schedules.IntervalSchedule(
                             interval=interval,
-                            anchor_date=datetime.datetime.now(timezone.utc)
-                            + datetime.timedelta(seconds=1),
+                            anchor_date=now("UTC") + datetime.timedelta(seconds=1),
                         ),
                         active=True,
                     )
@@ -692,8 +691,20 @@ class TestScheduleRulesWaterfall:
         assert (await models.flow_runs.count_flow_runs(session)) == 0
 
         # run scheduler
-        service = Scheduler()
-        await service.start(loops=1)
+        await schedule_deployments()
 
         runs = await models.flow_runs.read_flow_runs(session)
         assert len(runs) == n
+
+    async def test_min_runs_honored_when_min_time_reached(
+        self, session: AsyncSession, deployment: schemas.core.Deployment
+    ):
+        """When min_time would not produce enough runs, min_runs takes precedence."""
+        settings = get_current_settings().server.services.scheduler
+        min_runs = settings.min_runs
+
+        await schedule_deployments()
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        # With hourly schedule and min_runs=3 (default), we should have at least 3 runs
+        assert len(runs) >= min_runs
