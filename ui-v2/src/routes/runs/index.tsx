@@ -46,6 +46,7 @@ const searchParams = z.object({
 	state: z.string().optional().default(""),
 	flows: z.string().optional().default(""),
 	deployments: z.string().optional().default(""),
+	"work-pools": z.string().optional().default(""),
 	range: z.enum(DATE_RANGE_PRESETS).optional(),
 	start: z.string().optional(),
 	end: z.string().optional(),
@@ -113,12 +114,19 @@ const parseDeploymentsFilter = (deploymentsString: string): string[] => {
 	return deploymentsString.split(",").filter((s) => s.trim().length > 0);
 };
 
+// Helper to parse work pools string to array of work pool names
+const parseWorkPoolsFilter = (workPoolsString: string): string[] => {
+	if (!workPoolsString) return [];
+	return workPoolsString.split(",").filter((s) => s.trim().length > 0);
+};
+
 const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const hideSubflows = search?.["hide-subflows"];
 	const flowRunSearch = search?.["flow-run-search"];
 	const stateFilters = parseStateFilter(search?.state ?? "");
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
 	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
+	const workPoolsFilter = parseWorkPoolsFilter(search?.["work-pools"] ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
 	// Map state names to state types for the API filter
@@ -126,6 +134,8 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
 	const deploymentIds =
 		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
+	const workPoolNames =
+		workPoolsFilter.length > 0 ? workPoolsFilter : undefined;
 
 	// Build flow_runs filter only if we have filters to apply
 	const hasFilters =
@@ -166,6 +176,11 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 		? { operator: "and_" as const, id: { any_: deploymentIds } }
 		: undefined;
 
+	// Build work_pools filter for filtering by work pool name
+	const workPoolsFilterBody = workPoolNames
+		? { operator: "and_" as const, name: { any_: workPoolNames } }
+		: undefined;
+
 	return {
 		page: search?.page ?? 1,
 		limit: search?.limit ?? 10,
@@ -173,6 +188,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 		flow_runs: flowRunsFilter,
 		flows: flowsFilterBody,
 		deployments: deploymentsFilterBody,
+		work_pools: workPoolsFilterBody,
 	};
 };
 
@@ -461,6 +477,35 @@ const useDeploymentFilter = () => {
 	return [selectedDeployments, onDeploymentFilterChange] as const;
 };
 
+const useWorkPoolFilter = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const selectedWorkPools = useMemo(
+		() => new Set<string>(parseWorkPoolsFilter(search["work-pools"] ?? "")),
+		[search["work-pools"]],
+	);
+
+	const onWorkPoolFilterChange = useCallback(
+		(workPools: Set<string>) => {
+			const workPoolsArray = Array.from(workPools);
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"work-pools":
+						workPoolsArray.length > 0 ? workPoolsArray.join(",") : "",
+					page: 1, // Reset pagination when filter changes
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [selectedWorkPools, onWorkPoolFilterChange] as const;
+};
+
 // Task runs hooks
 const useTaskRunsPagination = () => {
 	const search = Route.useSearch();
@@ -548,6 +593,7 @@ function RouteComponent() {
 	const [selectedStates, onStateFilterChange] = useStateFilter();
 	const [selectedFlows, onFlowFilterChange] = useFlowFilter();
 	const [selectedDeployments, onDeploymentFilterChange] = useDeploymentFilter();
+	const [selectedWorkPools, onWorkPoolFilterChange] = useWorkPoolFilter();
 	const [dateRange, onDateRangeChange] = useDateRange();
 	// Task runs hooks
 	const [taskRunsPagination, onTaskRunsPaginationChange] =
@@ -649,6 +695,8 @@ function RouteComponent() {
 			onFlowFilterChange={onFlowFilterChange}
 			selectedDeployments={selectedDeployments}
 			onDeploymentFilterChange={onDeploymentFilterChange}
+			selectedWorkPools={selectedWorkPools}
+			onWorkPoolFilterChange={onWorkPoolFilterChange}
 			dateRange={dateRange}
 			onDateRangeChange={onDateRangeChange}
 			// Task runs props
