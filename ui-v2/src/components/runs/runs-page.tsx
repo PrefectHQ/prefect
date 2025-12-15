@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { ChangeEvent } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { TaskRunResponse } from "@/api/task-runs";
@@ -193,7 +194,10 @@ export const RunsPage = ({
 				<div className="w-64">
 					<TagsInput
 						value={Array.from(selectedTags)}
-						onChange={(tags: string[]) => onTagsFilterChange(new Set(tags))}
+						onChange={(e: string[] | ChangeEvent<HTMLInputElement>) => {
+							const tags = Array.isArray(e) ? e : [];
+							onTagsFilterChange(new Set(tags));
+						}}
 						placeholder="Filter by tags"
 					/>
 				</div>
