@@ -33,15 +33,8 @@ export const WorkPoolFilter = ({
 
 	const { data: workPools = [] } = useQuery(
 		buildFilterWorkPoolsQuery({
-			work_pools: deferredSearch
-				? {
-						operator: "and_",
-						name: { like_: deferredSearch },
-					}
-				: undefined,
 			limit: 100,
 			offset: 0,
-			sort: "NAME_ASC",
 		}),
 	);
 
@@ -57,7 +50,6 @@ export const WorkPoolFilter = ({
 						: undefined,
 				limit: selectedWorkPools.size || 1,
 				offset: 0,
-				sort: "NAME_ASC",
 			},
 			{ enabled: selectedWorkPools.size > 0 },
 		),
@@ -104,11 +96,13 @@ export const WorkPoolFilter = ({
 	};
 
 	const filteredWorkPools = useMemo(() => {
-		return workPools.filter(
-			(workPool: WorkPool) =>
-				!deferredSearch ||
-				workPool.name.toLowerCase().includes(deferredSearch.toLowerCase()),
-		);
+		return workPools
+			.filter(
+				(workPool: WorkPool) =>
+					!deferredSearch ||
+					workPool.name.toLowerCase().includes(deferredSearch.toLowerCase()),
+			)
+			.sort((a: WorkPool, b: WorkPool) => a.name.localeCompare(b.name));
 	}, [workPools, deferredSearch]);
 
 	return (
