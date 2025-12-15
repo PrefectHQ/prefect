@@ -170,7 +170,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 					},
 				}),
 				...(tagsFilter.length > 0 && {
-					tags: { any_: tagsFilter },
+					tags: { operator: "and_" as const, any_: tagsFilter },
 				}),
 				...(dateRangeFilter && {
 					expected_start_time: dateRangeFilter,
