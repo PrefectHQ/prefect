@@ -195,7 +195,7 @@ export const RunsPage = ({
 				<div className="w-64">
 					<TagsInput
 						value={Array.from(selectedTags)}
-						onChange={(tags) => onTagsFilterChange(new Set(tags))}
+						onChange={(tags: string[]) => onTagsFilterChange(new Set(tags))}
 						placeholder="Filter by tags"
 					/>
 				</div>

@@ -154,6 +154,7 @@ const RunsPageWithState = ({
 	const [selectedWorkPools, setSelectedWorkPools] = useState<Set<string>>(
 		initialSelectedWorkPools,
 	);
+	const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
 
 	// Task runs state
 	const [taskRunsPagination, setTaskRunsPagination] = useState<PaginationState>(
@@ -191,6 +192,8 @@ const RunsPageWithState = ({
 			onDeploymentFilterChange={setSelectedDeployments}
 			selectedWorkPools={selectedWorkPools}
 			onWorkPoolFilterChange={setSelectedWorkPools}
+			selectedTags={selectedTags}
+			onTagsFilterChange={setSelectedTags}
 			dateRange={dateRange}
 			onDateRangeChange={setDateRange}
 			// Task runs props
