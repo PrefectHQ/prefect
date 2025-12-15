@@ -1,9 +1,16 @@
-import type { components } from "@/api/prefect";
+import { Suspense } from "react";
+import type { Event } from "@/api/events";
+import { Icon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/utils";
+import {
+	extractResourceId,
+	parseResourceType,
+	RESOURCE_ICONS,
+	type ResourceType,
+} from "./resource-types";
 
-type Event = components["schemas"]["ReceivedEvent"];
-
-type EventResourceDisplayProps = {
+export type EventResourceDisplayProps = {
 	event: Event;
 	className?: string;
 };
@@ -21,30 +28,95 @@ function getResourceId(resource: Record<string, string>): string {
 	return resource["prefect.resource.id"] || "";
 }
 
+type ResourceDisplayWithIconProps = {
+	resourceType: ResourceType;
+	displayText: string;
+	className?: string;
+};
+
+export function ResourceDisplayWithIcon({
+	resourceType,
+	displayText,
+	className,
+}: ResourceDisplayWithIconProps) {
+	const iconId = RESOURCE_ICONS[resourceType];
+
+	return (
+		<div className={cn("flex items-center gap-2", className)}>
+			<Icon id={iconId} className="h-4 w-4 text-muted-foreground" />
+			<span>{displayText}</span>
+		</div>
+	);
+}
+
+export function ResourceDisplaySkeleton() {
+	return (
+		<div className="flex items-center gap-2">
+			<Skeleton className="h-4 w-4 rounded-full" />
+			<Skeleton className="h-4 w-24" />
+		</div>
+	);
+}
+
 export function EventResourceDisplay({
 	event,
 	className,
 }: EventResourceDisplayProps) {
 	const resourceName = getResourceName(event.resource);
-	const resourceId = getResourceId(event.resource);
+	const prefectResourceId = getResourceId(event.resource);
+	const resourceType = parseResourceType(prefectResourceId);
+	const extractedId = extractResourceId(prefectResourceId);
 
+	// If we have a resource name, display it with the appropriate icon
+	if (resourceName) {
+		return (
+			<div className={cn("flex flex-col gap-0.5", className)}>
+				<span className="text-sm font-medium">Resource</span>
+				<Suspense fallback={<ResourceDisplaySkeleton />}>
+					<ResourceDisplayWithIcon
+						resourceType={resourceType}
+						displayText={resourceName}
+						className="text-sm"
+					/>
+				</Suspense>
+			</div>
+		);
+	}
+
+	// If we have an extracted ID but no name, show the ID with the icon
+	if (extractedId) {
+		return (
+			<div className={cn("flex flex-col gap-0.5", className)}>
+				<span className="text-sm font-medium">Resource</span>
+				<Suspense fallback={<ResourceDisplaySkeleton />}>
+					<ResourceDisplayWithIcon
+						resourceType={resourceType}
+						displayText={extractedId}
+						className="text-sm text-muted-foreground font-mono"
+					/>
+				</Suspense>
+			</div>
+		);
+	}
+
+	// Fallback: show the raw resource ID if nothing else is available
+	if (prefectResourceId) {
+		return (
+			<div className={cn("flex flex-col gap-0.5", className)}>
+				<span className="text-sm font-medium">Resource</span>
+				<div className="text-sm text-muted-foreground">
+					<span className="font-mono text-xs">{prefectResourceId}</span>
+				</div>
+			</div>
+		);
+	}
+
+	// No resource information available
 	return (
 		<div className={cn("flex flex-col gap-0.5", className)}>
 			<span className="text-sm font-medium">Resource</span>
 			<div className="text-sm text-muted-foreground">
-				{resourceName ? (
-					<span className="font-medium text-foreground">{resourceName}</span>
-				) : null}
-				{resourceId && (
-					<span
-						className={cn(
-							"font-mono text-xs",
-							resourceName ? "ml-2 text-muted-foreground" : "text-foreground",
-						)}
-					>
-						{resourceId}
-					</span>
-				)}
+				<span className="text-muted-foreground">Unknown</span>
 			</div>
 		</div>
 	);
