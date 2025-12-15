@@ -1,4 +1,8 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+	useQuery,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
@@ -7,8 +11,11 @@ import type {
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
+import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import {
 	buildCountFlowsFilteredQuery,
+	buildDeploymentsCountByFlowQuery,
+	buildNextRunsByFlowQuery,
 	buildPaginateFlowsQuery,
 	type FlowsPaginateFilter,
 } from "@/api/flows";
@@ -65,12 +72,14 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 	};
 };
 
+const NUMBER_OF_ACTIVITY_BARS = 16;
+
 export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
 	component: FlowsRoute,
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: ({ deps, context }) => {
-		// Prefetch all queries without blocking the loader
+		// Prefetch current page queries without blocking the loader
 		void context.queryClient.prefetchQuery(
 			buildPaginateFlowsQuery(deps, 30_000),
 		);
@@ -175,6 +184,7 @@ const useFlowsColumnFilters = () => {
 
 function FlowsRoute() {
 	const search = Route.useSearch();
+	const queryClient = useQueryClient();
 	const [pagination, onPaginationChange] = usePagination();
 	const [sort, onSortChange] = useSort();
 	const [columnFilters, onColumnFiltersChange] = useFlowsColumnFilters();
@@ -198,6 +208,68 @@ function FlowsRoute() {
 
 	const flows = flowsPage?.results ?? [];
 
+	// Prefetch a page and its child component data when user hovers over pagination buttons
+	const onPrefetchPage = useCallback(
+		(page: number) => {
+			const pageDeps = { ...paginationBody, page };
+			void queryClient
+				.prefetchQuery(buildPaginateFlowsQuery(pageDeps, 30_000))
+				.then(() => {
+					// Get the prefetched page data from cache
+					const pageData = queryClient.getQueryData<{
+						results?: Array<{ id?: string }>;
+					}>(buildPaginateFlowsQuery(pageDeps, 30_000).queryKey);
+
+					const flowIds =
+						pageData?.results
+							?.map((flow) => flow.id)
+							.filter((id): id is string => Boolean(id)) ?? [];
+
+					if (flowIds.length === 0) return;
+
+					// Prefetch child component queries for each flow individually
+					// Using individual flow IDs ensures query keys match what components use
+					for (const flowId of flowIds) {
+						// FlowNextRun query - uses single flow ID array for query key matching
+						void queryClient.prefetchQuery(buildNextRunsByFlowQuery([flowId]));
+
+						// FlowDeploymentCount query - uses single flow ID array for query key matching
+						void queryClient.prefetchQuery(
+							buildDeploymentsCountByFlowQuery([flowId]),
+						);
+						// FlowLastRun query - last completed run
+						void queryClient.prefetchQuery(
+							buildFilterFlowRunsQuery({
+								flows: { operator: "and_", id: { any_: [flowId] } },
+								flow_runs: {
+									operator: "and_",
+									start_time: { is_null_: false },
+								},
+								offset: 0,
+								limit: 1,
+								sort: "START_TIME_DESC",
+							}),
+						);
+
+						// FlowActivity query - recent runs for activity chart
+						void queryClient.prefetchQuery(
+							buildFilterFlowRunsQuery({
+								flows: { operator: "and_", id: { any_: [flowId] } },
+								flow_runs: {
+									operator: "and_",
+									start_time: { is_null_: false },
+								},
+								offset: 0,
+								limit: NUMBER_OF_ACTIVITY_BARS,
+								sort: "START_TIME_DESC",
+							}),
+						);
+					}
+				});
+		},
+		[queryClient, paginationBody],
+	);
+
 	return (
 		<FlowsPage
 			flows={flows}
@@ -209,6 +281,7 @@ function FlowsRoute() {
 			onSortChange={onSortChange}
 			columnFilters={columnFilters}
 			onColumnFiltersChange={onColumnFiltersChange}
+			onPrefetchPage={onPrefetchPage}
 		/>
 	);
 }
