@@ -679,7 +679,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
                 token=self.token.get_secret_value(),
                 fullpath=self.path,
                 host=self.hostname,
-                botname=self.botname,
+                user=self.botname,
                 channels=self.channels,
                 include_image=self.include_image,
                 port=self.port,
