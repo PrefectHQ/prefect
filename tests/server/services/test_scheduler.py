@@ -210,6 +210,7 @@ async def test_create_parametrized_schedules_from_deployment(
 async def test_create_parametrized_schedules_with_slugs(
     flow: schemas.core.Flow, session: AsyncSession
 ):
+    """Test that schedules with slugs use them in idempotency keys, and schedules without slugs fall back to ID"""
     settings = get_current_settings().server.services.scheduler
     min_runs = settings.min_runs
 
@@ -218,30 +219,23 @@ async def test_create_parametrized_schedules_with_slugs(
         anchor_date=now("UTC"),
     )
 
-    def func_for_params(name: str, x: int = 42):
-        pass
-
-    param_schema = parameter_schema(func_for_params).model_dump_for_openapi()
-
-    await models.deployments.create_deployment(
+    deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
             parameters={"name": "deployment-test", "x": 11},
-            parameter_openapi_schema=param_schema,
             schedules=[
                 schemas.core.DeploymentSchedule(
                     schedule=schedule,
                     parameters={"name": "whoami"},
-                    slug="schedule-1",
+                    slug="my-schedule",
                     active=True,
                 ),
                 schemas.core.DeploymentSchedule(
                     schedule=schedule,  # Same schedule/timing
                     parameters={"name": "whoami2"},  # Different parameters
-                    slug="schedule-2",
-                    active=True,
+                    active=True,  # No slug on this one
                 ),
             ],
         ),
@@ -254,14 +248,45 @@ async def test_create_parametrized_schedules_with_slugs(
     await schedule_deployments()
     runs = await models.flow_runs.read_flow_runs(session)
 
-    # Should have min_runs from each of the two schedules
-    assert len(runs) == 2 * min_runs
+    # We should get min_runs * 2 because we have two schedules
+    assert len(runs) == min_runs * 2
 
-    schedule_1_runs = [r for r in runs if r.created_by.display_value == "schedule-1"]
-    schedule_2_runs = [r for r in runs if r.created_by.display_value == "schedule-2"]
+    # Check that we have runs with both sets of parameters
+    run_params = {(r.parameters["name"], r.parameters["x"]) for r in runs}
+    assert run_params == {("whoami", 11), ("whoami2", 11)}
 
-    assert len(schedule_1_runs) == min_runs
-    assert len(schedule_2_runs) == min_runs
+    # Get the deployment schedules to check their IDs/slugs
+    schedules = await models.deployments.read_deployment_schedules(
+        session=session,
+        deployment_id=deployment.id,
+    )
+    schedule_with_slug = next(s for s in schedules if s.slug == "my-schedule")
+    schedule_without_slug = next(s for s in schedules if not s.slug)
+
+    # Verify the schedule with slug has the expected properties
+    assert schedule_with_slug.slug == "my-schedule"
+    assert schedule_with_slug.parameters == {"name": "whoami"}
+    assert schedule_with_slug.active is True
+
+    # Check that idempotency keys use slugs when available and IDs when not
+    expected_dates = await schedule.get_dates(min_runs)
+    for date in expected_dates:
+        # Find runs for this date
+        date_runs = [r for r in runs if r.state.state_details.scheduled_time == date]
+        assert len(date_runs) == 2  # Should have two runs per date
+
+        # One run should use the schedule ID in its idempotency key
+        assert any(
+            f"scheduled {deployment.id} {schedule_with_slug.id} {date}"
+            == r.idempotency_key
+            for r in date_runs
+        )
+        # The other run should use its schedule ID
+        assert any(
+            f"scheduled {deployment.id} {schedule_without_slug.id} {date}"
+            == r.idempotency_key
+            for r in date_runs
+        )
 
 
 async def test_create_schedule_respects_max_future_time(
@@ -623,6 +648,53 @@ class TestScheduleRulesWaterfall:
         )
         await session.commit()
         return deployment
+
+    @pytest.mark.parametrize(
+        "interval,n",
+        [
+            # schedule until we at least exceed an hour
+            (datetime.timedelta(minutes=1), 61),
+            # schedule at least 3 runs
+            (datetime.timedelta(hours=1), 3),
+            # schedule until we at least exceed an hour
+            (datetime.timedelta(minutes=5), 13),
+            # schedule until at most 100 days
+            (datetime.timedelta(days=60), 2),
+        ],
+    )
+    async def test_create_schedule_respects_max_future_time(
+        self,
+        flow: schemas.core.Flow,
+        session: AsyncSession,
+        interval: datetime.timedelta,
+        n: int,
+    ):
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test",
+                flow_id=flow.id,
+                schedules=[
+                    schemas.core.DeploymentSchedule(
+                        schedule=schemas.schedules.IntervalSchedule(
+                            interval=interval,
+                            anchor_date=now("UTC") + datetime.timedelta(seconds=1),
+                        ),
+                        active=True,
+                    )
+                ],
+            ),
+        )
+        await session.commit()
+
+        # assert clean slate
+        assert (await models.flow_runs.count_flow_runs(session)) == 0
+
+        # run scheduler
+        await schedule_deployments()
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        assert len(runs) == n
 
     async def test_min_runs_honored_when_min_time_reached(
         self, session: AsyncSession, deployment: schemas.core.Deployment
