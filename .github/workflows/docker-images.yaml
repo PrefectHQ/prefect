@@ -176,7 +176,8 @@ jobs:
       - name: Trigger cluster-deployment workflow
         run: |
           # Construct the Kubernetes image tag (e.g., 3.4.16-python3.11-kubernetes)
-          IMAGE_TAG="${{ github.ref_name }}-python3.11-kubernetes"
+          # Use the tag input if provided (workflow_dispatch), otherwise use ref_name (release event)
+          IMAGE_TAG="${{ github.event.inputs.tag || github.ref_name }}-python3.11-kubernetes"
           
           gh workflow run update-prefect-image-version.yaml \
             --repo PrefectHQ/cluster-deployment \
