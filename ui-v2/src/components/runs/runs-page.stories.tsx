@@ -117,6 +117,7 @@ const RunsPageWithState = ({
 	initialDateRange = {},
 	initialSelectedFlows = new Set<string>(),
 	initialSelectedDeployments = new Set<string>(),
+	initialSelectedWorkPools = new Set<string>(),
 }: {
 	initialFlowRuns?: typeof MOCK_FLOW_RUNS;
 	initialFlowRunsCount?: number;
@@ -130,6 +131,7 @@ const RunsPageWithState = ({
 	initialDateRange?: DateRangeUrlState;
 	initialSelectedFlows?: Set<string>;
 	initialSelectedDeployments?: Set<string>;
+	initialSelectedWorkPools?: Set<string>;
 }) => {
 	const [tab, setTab] = useState<"flow-runs" | "task-runs">("flow-runs");
 	const [pagination, setPagination] = useState<PaginationState>({
@@ -148,6 +150,9 @@ const RunsPageWithState = ({
 		useState<Set<string>>(initialSelectedFlows);
 	const [selectedDeployments, setSelectedDeployments] = useState<Set<string>>(
 		initialSelectedDeployments,
+	);
+	const [selectedWorkPools, setSelectedWorkPools] = useState<Set<string>>(
+		initialSelectedWorkPools,
 	);
 
 	// Task runs state
@@ -184,6 +189,8 @@ const RunsPageWithState = ({
 			onFlowFilterChange={setSelectedFlows}
 			selectedDeployments={selectedDeployments}
 			onDeploymentFilterChange={setSelectedDeployments}
+			selectedWorkPools={selectedWorkPools}
+			onWorkPoolFilterChange={setSelectedWorkPools}
 			dateRange={dateRange}
 			onDateRangeChange={setDateRange}
 			// Task runs props
