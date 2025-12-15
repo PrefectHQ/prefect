@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { subWeeks } from "date-fns";
 import { useMemo } from "react";
+import { toast } from "sonner";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import {
 	buildDeploymentsCountByFlowQuery,
@@ -154,7 +155,10 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
 					<DropdownMenuItem
-						onClick={() => void navigator.clipboard.writeText(id)}
+						onClick={() => {
+							void navigator.clipboard.writeText(id);
+							toast.success("ID copied");
+						}}
 					>
 						Copy ID
 					</DropdownMenuItem>
