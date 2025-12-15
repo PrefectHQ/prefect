@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { ChangeEvent } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { TaskRunResponse } from "@/api/task-runs";
@@ -39,6 +40,7 @@ import { SearchInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
 
 type RunsPageProps = {
@@ -64,6 +66,8 @@ type RunsPageProps = {
 	onFlowFilterChange: (flows: Set<string>) => void;
 	selectedDeployments: Set<string>;
 	onDeploymentFilterChange: (deployments: Set<string>) => void;
+	selectedTags: Set<string>;
+	onTagsFilterChange: (tags: Set<string>) => void;
 	selectedWorkPools: Set<string>;
 	onWorkPoolFilterChange: (workPools: Set<string>) => void;
 	dateRange: DateRangeUrlState;
@@ -104,6 +108,8 @@ export const RunsPage = ({
 	onFlowFilterChange,
 	selectedDeployments,
 	onDeploymentFilterChange,
+	selectedTags,
+	onTagsFilterChange,
 	selectedWorkPools,
 	onWorkPoolFilterChange,
 	dateRange,
@@ -183,6 +189,16 @@ export const RunsPage = ({
 					<DeploymentFilter
 						selectedDeployments={selectedDeployments}
 						onSelectDeployments={onDeploymentFilterChange}
+					/>
+				</div>
+				<div className="w-64">
+					<TagsInput
+						value={Array.from(selectedTags)}
+						onChange={(e: string[] | ChangeEvent<HTMLInputElement>) => {
+							const tags = Array.isArray(e) ? e : [];
+							onTagsFilterChange(new Set(tags));
+						}}
+						placeholder="Filter by tags"
 					/>
 				</div>
 				<div className="w-64">
