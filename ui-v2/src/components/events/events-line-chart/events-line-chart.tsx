@@ -43,6 +43,8 @@ const EventsTooltipContent = ({ active, payload }: EventsTooltipProps) => {
 export type EventsLineChartProps = {
 	data: EventsCount[];
 	className?: string;
+	/** Whether to show the X-axis with time labels (default: true) */
+	showAxis?: boolean;
 	/** Current zoom range start */
 	zoomStart?: Date;
 	/** Current zoom range end */
@@ -74,7 +76,14 @@ export const EventsLineChart = forwardRef<
 	EventsLineChartRef,
 	EventsLineChartProps
 >(function EventsLineChart(
-	{ data, className, selectionStart, selectionEnd, onCursorChange },
+	{
+		data,
+		className,
+		showAxis = true,
+		selectionStart,
+		selectionEnd,
+		onCursorChange,
+	},
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -150,6 +159,7 @@ export const EventsLineChart = forwardRef<
 						axisLine={false}
 						tickLine={false}
 						domain={["dataMin", "dataMax"]}
+						hide={!showAxis}
 					/>
 					<YAxis hide domain={[0, "auto"]} />
 					<ChartTooltip content={<EventsTooltipContent />} />

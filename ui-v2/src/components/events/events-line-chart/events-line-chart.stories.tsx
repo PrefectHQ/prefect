@@ -119,3 +119,10 @@ export const HighVolume: Story = {
 		})),
 	},
 };
+
+export const HiddenAxis: Story = {
+	args: {
+		data: generateMockData(twentyFourHoursAgo, 24, "random"),
+		showAxis: false,
+	},
+};
