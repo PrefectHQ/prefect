@@ -227,14 +227,16 @@ function FlowsRoute() {
 
 					if (flowIds.length === 0) return;
 
-					// Batch prefetch for endpoints that support arrays of flow IDs
-					void queryClient.prefetchQuery(buildNextRunsByFlowQuery(flowIds));
-					void queryClient.prefetchQuery(
-						buildDeploymentsCountByFlowQuery(flowIds),
-					);
-
-					// Individual prefetch for flow run queries (last run and activity per flow)
+					// Prefetch child component queries for each flow individually
+					// Using individual flow IDs ensures query keys match what components use
 					for (const flowId of flowIds) {
+						// FlowNextRun query - uses single flow ID array for query key matching
+						void queryClient.prefetchQuery(buildNextRunsByFlowQuery([flowId]));
+
+						// FlowDeploymentCount query - uses single flow ID array for query key matching
+						void queryClient.prefetchQuery(
+							buildDeploymentsCountByFlowQuery([flowId]),
+						);
 						// FlowLastRun query - last completed run
 						void queryClient.prefetchQuery(
 							buildFilterFlowRunsQuery({
