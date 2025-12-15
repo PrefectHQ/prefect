@@ -18,6 +18,7 @@ import {
 } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
+import { WorkPoolFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/work-pool-filter";
 import {
 	type TaskRunSortFilters,
 	TaskRunsList,
@@ -103,11 +104,8 @@ export const RunsPage = ({
 	onFlowFilterChange,
 	selectedDeployments,
 	onDeploymentFilterChange,
-	// Work pool filter props - UI component to be implemented in a separate ticket
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	selectedWorkPools: _selectedWorkPools,
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	onWorkPoolFilterChange: _onWorkPoolFilterChange,
+	selectedWorkPools,
+	onWorkPoolFilterChange,
 	dateRange,
 	onDateRangeChange,
 	// Task runs props
@@ -185,6 +183,12 @@ export const RunsPage = ({
 					<DeploymentFilter
 						selectedDeployments={selectedDeployments}
 						onSelectDeployments={onDeploymentFilterChange}
+					/>
+				</div>
+				<div className="w-64">
+					<WorkPoolFilter
+						selectedWorkPools={selectedWorkPools}
+						onSelectWorkPools={onWorkPoolFilterChange}
 					/>
 				</div>
 				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
