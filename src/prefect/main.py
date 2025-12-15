@@ -8,7 +8,12 @@ from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect._result_records import ResultRecordMetadata
-from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
+from prefect.flow_runs import (
+    aresume_flow_run,
+    pause_flow_run,
+    resume_flow_run,
+    suspend_flow_run,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.cloud import get_cloud_client
 import prefect.variables  # pyright: ignore[reportUnusedImport] # TODO: Does this need to be imported here?
@@ -58,20 +63,21 @@ flow: FlowDecorator
 # Declare API for type-checkers
 __all__ = [
     "allow_failure",
+    "aresume_flow_run",
+    "aserve",
     "flow",
     "Flow",
     "get_client",
     "get_cloud_client",
     "get_run_logger",
+    "pause_flow_run",
+    "resume_flow_run",
+    "serve",
     "State",
+    "suspend_flow_run",
     "tags",
     "task",
     "Task",
     "Transaction",
     "unmapped",
-    "serve",
-    "aserve",
-    "pause_flow_run",
-    "resume_flow_run",
-    "suspend_flow_run",
 ]

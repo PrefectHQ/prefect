@@ -8,9 +8,9 @@ import prefect.client.schemas as client_schemas
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.events.utilities import emit_event
-from prefect.exceptions import FlowRunWaitTimeout
+from prefect.exceptions import FlowRunWaitTimeout, NotPausedError
 from prefect.flow_engine import run_flow_async
-from prefect.flow_runs import wait_for_flow_run
+from prefect.flow_runs import aresume_flow_run, resume_flow_run, wait_for_flow_run
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.states import Completed, Pending
 
@@ -84,3 +84,96 @@ async def test_wait_for_flow_run_handles_heartbeats(
     assert finished_flow_run.id == flow_run_id
     assert finished_flow_run.state is not None
     assert finished_flow_run.state.is_completed()
+
+
+class TestResumeFlowRunAsyncDispatch:
+    """Tests for the async_dispatch migration of resume_flow_run."""
+
+    async def test_aresume_flow_run_raises_not_paused_error(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that aresume_flow_run raises NotPausedError for non-paused flow runs."""
+
+        @flow
+        def foo():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(foo, state=Pending())
+
+        with pytest.raises(
+            NotPausedError, match="Cannot resume a run that isn't paused"
+        ):
+            await aresume_flow_run(flow_run.id)
+
+    async def test_resume_flow_run_dispatches_to_async_in_async_context(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that resume_flow_run dispatches to async when awaited."""
+
+        @flow
+        def foo():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(foo, state=Pending())
+
+        # Should dispatch to async version and raise NotPausedError
+        with pytest.raises(
+            NotPausedError, match="Cannot resume a run that isn't paused"
+        ):
+            await resume_flow_run(flow_run.id)
+
+    def test_resume_flow_run_works_in_sync_context(self, sync_prefect_client):
+        """Test that resume_flow_run works in pure sync context."""
+
+        @flow
+        def foo():
+            pass
+
+        flow_run = sync_prefect_client.create_flow_run(foo, state=Pending())
+
+        # In a sync context (no event loop), should use sync implementation
+        # and raise NotPausedError for non-paused flow run
+        with pytest.raises(
+            NotPausedError, match="Cannot resume a run that isn't paused"
+        ):
+            resume_flow_run(flow_run.id)
+
+    def test_resume_flow_run_in_sync_flow(self, sync_prefect_client):
+        """Test sync usage within a sync flow."""
+
+        @flow
+        def foo():
+            pass
+
+        target_flow_run = sync_prefect_client.create_flow_run(foo, state=Pending())
+
+        @flow
+        def sync_test_flow():
+            with pytest.raises(
+                NotPausedError, match="Cannot resume a run that isn't paused"
+            ):
+                resume_flow_run(target_flow_run.id)
+            return "completed"
+
+        result = sync_test_flow()
+        assert result == "completed"
+
+    async def test_resume_flow_run_in_async_flow(self, prefect_client: PrefectClient):
+        """Test async usage within an async flow."""
+
+        @flow
+        def foo():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(foo, state=Pending())
+
+        @flow
+        async def async_test_flow():
+            with pytest.raises(
+                NotPausedError, match="Cannot resume a run that isn't paused"
+            ):
+                await resume_flow_run(flow_run.id)
+            return "completed"
+
+        result = await async_test_flow()
+        assert result == "completed"
