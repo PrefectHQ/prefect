@@ -38,6 +38,7 @@ import { SearchInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
 
 type RunsPageProps = {
@@ -63,6 +64,8 @@ type RunsPageProps = {
 	onFlowFilterChange: (flows: Set<string>) => void;
 	selectedDeployments: Set<string>;
 	onDeploymentFilterChange: (deployments: Set<string>) => void;
+	selectedTags: Set<string>;
+	onTagsFilterChange: (tags: Set<string>) => void;
 	selectedWorkPools: Set<string>;
 	onWorkPoolFilterChange: (workPools: Set<string>) => void;
 	dateRange: DateRangeUrlState;
@@ -103,6 +106,8 @@ export const RunsPage = ({
 	onFlowFilterChange,
 	selectedDeployments,
 	onDeploymentFilterChange,
+	selectedTags,
+	onTagsFilterChange,
 	// Work pool filter props - UI component to be implemented in a separate ticket
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	selectedWorkPools: _selectedWorkPools,
@@ -185,6 +190,13 @@ export const RunsPage = ({
 					<DeploymentFilter
 						selectedDeployments={selectedDeployments}
 						onSelectDeployments={onDeploymentFilterChange}
+					/>
+				</div>
+				<div className="w-64">
+					<TagsInput
+						value={Array.from(selectedTags)}
+						onChange={(tags) => onTagsFilterChange(new Set(tags))}
+						placeholder="Filter by tags"
 					/>
 				</div>
 				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
