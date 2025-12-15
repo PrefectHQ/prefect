@@ -18,6 +18,7 @@ type FlowsPageProps = {
 	onSortChange: (sort: FlowSortValue) => void;
 	columnFilters: ColumnFiltersState;
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
+	onPrefetchPage?: (page: number) => void;
 };
 
 export default function FlowsPage({
@@ -30,6 +31,7 @@ export default function FlowsPage({
 	onSortChange,
 	columnFilters,
 	onColumnFiltersChange,
+	onPrefetchPage,
 }: FlowsPageProps) {
 	return (
 		<div>
@@ -44,6 +46,7 @@ export default function FlowsPage({
 				onSortChange={onSortChange}
 				columnFilters={columnFilters}
 				onColumnFiltersChange={onColumnFiltersChange}
+				onPrefetchPage={onPrefetchPage}
 			/>
 		</div>
 	);

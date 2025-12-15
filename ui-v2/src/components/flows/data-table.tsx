@@ -43,6 +43,7 @@ export default function FlowsTable({
 	onSortChange,
 	columnFilters,
 	onColumnFiltersChange,
+	onPrefetchPage,
 }: {
 	flows: Flow[];
 	count: number;
@@ -53,6 +54,7 @@ export default function FlowsTable({
 	onSortChange: (sort: FlowSortValue) => void;
 	columnFilters: ColumnFiltersState;
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
+	onPrefetchPage?: (page: number) => void;
 }) {
 	const { deleteFlow } = useDeleteFlowById();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -171,7 +173,7 @@ export default function FlowsTable({
 					</Select>
 				</div>
 			</div>
-			<DataTable table={table} />
+			<DataTable table={table} onPrefetchPage={onPrefetchPage} />
 		</div>
 	);
 }
