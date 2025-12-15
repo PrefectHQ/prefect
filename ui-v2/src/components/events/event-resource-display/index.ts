@@ -1,1 +1,7 @@
-export { EventResourceDisplay } from "./event-resource-display";
+export {
+	EventResourceDisplay,
+	type EventResourceDisplayProps,
+	ResourceDisplaySkeleton,
+	ResourceDisplayWithIcon,
+} from "./event-resource-display";
+export * from "./resource-types";
