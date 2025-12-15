@@ -4,13 +4,12 @@ import { mockPointerEvents } from "@tests/utils/browser";
 import { useState } from "react";
 import { beforeAll, describe, expect, it } from "vitest";
 import { StateFilter } from "./state-filter";
-import type { FlowRunState } from "./state-filters.constants";
 
 describe("FlowRunsDataTable -- StateFilter", () => {
 	beforeAll(mockPointerEvents);
 
 	const TestStateFilter = () => {
-		const [filters, setFilters] = useState<Set<FlowRunState>>();
+		const [filters, setFilters] = useState<Set<string>>();
 		return (
 			<StateFilter selectedFilters={filters} onSelectFilter={setFilters} />
 		);

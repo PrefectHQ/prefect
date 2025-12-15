@@ -15,7 +15,6 @@ import {
 } from "@/storybook/utils";
 import type {
 	DateRangeUrlState,
-	FlowRunState,
 	PaginationState,
 	SortFilters,
 } from "../flow-runs/flow-runs-list";
@@ -113,7 +112,7 @@ const RunsPageWithState = ({
 	initialTaskRunsPages = 1,
 	initialFlowRunSearch = "",
 	initialTaskRunSearch = "",
-	initialSelectedStates = new Set<FlowRunState>(),
+	initialSelectedStates = new Set<string>(),
 	initialDateRange = {},
 	initialSelectedFlows = new Set<string>(),
 	initialSelectedDeployments = new Set<string>(),
@@ -127,7 +126,7 @@ const RunsPageWithState = ({
 	initialTaskRunsPages?: number;
 	initialFlowRunSearch?: string;
 	initialTaskRunSearch?: string;
-	initialSelectedStates?: Set<FlowRunState>;
+	initialSelectedStates?: Set<string>;
 	initialDateRange?: DateRangeUrlState;
 	initialSelectedFlows?: Set<string>;
 	initialSelectedDeployments?: Set<string>;
@@ -141,7 +140,7 @@ const RunsPageWithState = ({
 	const [sort, setSort] = useState<SortFilters>("START_TIME_DESC");
 	const [hideSubflows, setHideSubflows] = useState(false);
 	const [flowRunSearch, setFlowRunSearch] = useState(initialFlowRunSearch);
-	const [selectedStates, setSelectedStates] = useState<Set<FlowRunState>>(
+	const [selectedStates, setSelectedStates] = useState<Set<string>>(
 		initialSelectedStates,
 	);
 	const [dateRange, setDateRange] =
@@ -248,7 +247,7 @@ export const WithStateFilter: Story = {
 	name: "With State Filter",
 	render: () => (
 		<RunsPageWithState
-			initialSelectedStates={new Set<FlowRunState>(["Completed", "Failed"])}
+			initialSelectedStates={new Set<string>(["Completed", "Failed"])}
 		/>
 	),
 };

@@ -19,9 +19,9 @@ import {
 const MAX_FILTERS_DISPLAYED = 2;
 
 type StateFilterProps = {
-	defaultValue?: Set<FlowRunState>;
-	selectedFilters: Set<FlowRunState> | undefined;
-	onSelectFilter: (filters: Set<FlowRunState>) => void;
+	defaultValue?: Set<string>;
+	selectedFilters: Set<string> | undefined;
+	onSelectFilter: (filters: Set<string>) => void;
 };
 
 export const StateFilter = ({
@@ -32,7 +32,7 @@ export const StateFilter = ({
 	const [open, setOpen] = useState(false);
 
 	const isAllButScheduled = useMemo(() => {
-		const flowRunStatesNoScheduleSet = new Set<FlowRunState>(
+		const flowRunStatesNoScheduleSet = new Set<string>(
 			FLOW_RUN_STATES_NO_SCHEDULED,
 		);
 		if (
@@ -88,7 +88,7 @@ export const StateFilter = ({
 						<StateBadge
 							key={filter}
 							name={filter}
-							type={FLOW_RUN_STATES_MAP[filter]}
+							type={FLOW_RUN_STATES_MAP[filter as FlowRunState]}
 						/>
 					))}
 				</div>

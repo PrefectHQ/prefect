@@ -11,7 +11,6 @@ import {
 	toastDecorator,
 } from "@/storybook/utils";
 import { FlowRunsFilters } from "./flow-runs-filters";
-import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
 import { FlowRunsList } from "./flow-runs-list";
 import {
 	FlowRunsPagination,
@@ -76,15 +75,13 @@ const FlowRunsListStory = () => {
 		page: 1,
 	});
 	const [search, setSearch] = useState("");
-	const [filters, setFilters] = useState<Set<FlowRunState>>(new Set());
+	const [filters, setFilters] = useState<Set<string>>(new Set());
 
 	const flowRuns = useMemo(() => {
 		return MOCK_DATA.filter((flowRun) =>
 			flowRun.name?.toLocaleLowerCase().includes(search.toLowerCase()),
 		).filter((flowRun) =>
-			filters.size === 0
-				? flowRun
-				: filters.has(flowRun.state?.name as FlowRunState),
+			filters.size === 0 ? flowRun : filters.has(flowRun.state?.name as string),
 		);
 	}, [filters, search]);
 
