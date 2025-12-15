@@ -7,8 +7,11 @@ import type {
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
+import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import {
 	buildCountFlowsFilteredQuery,
+	buildDeploymentsCountByFlowQuery,
+	buildNextRunsByFlowQuery,
 	buildPaginateFlowsQuery,
 	type FlowsPaginateFilter,
 } from "@/api/flows";
@@ -65,12 +68,14 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 	};
 };
 
+const NUMBER_OF_ACTIVITY_BARS = 16;
+
 export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
 	component: FlowsRoute,
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: ({ deps, context }) => {
-		// Prefetch all queries without blocking the loader
+		// Prefetch current page queries without blocking the loader
 		void context.queryClient.prefetchQuery(
 			buildPaginateFlowsQuery(deps, 30_000),
 		);
@@ -81,6 +86,63 @@ export const Route = createFileRoute("/flows/")({
 				flows: deps.flows ?? undefined,
 			}),
 		);
+
+		// Prefetch next page and its child component data
+		const nextPageDeps = { ...deps, page: (deps.page ?? 1) + 1 };
+		void context.queryClient
+			.prefetchQuery(buildPaginateFlowsQuery(nextPageDeps, 30_000))
+			.then(() => {
+				// Get the prefetched next page data from cache
+				const nextPageData = context.queryClient.getQueryData<{
+					results?: Array<{ id?: string }>;
+				}>(buildPaginateFlowsQuery(nextPageDeps, 30_000).queryKey);
+
+				const flowIds =
+					nextPageData?.results
+						?.map((flow) => flow.id)
+						.filter((id): id is string => Boolean(id)) ?? [];
+
+				if (flowIds.length === 0) return;
+
+				// Batch prefetch for endpoints that support arrays of flow IDs
+				void context.queryClient.prefetchQuery(
+					buildNextRunsByFlowQuery(flowIds),
+				);
+				void context.queryClient.prefetchQuery(
+					buildDeploymentsCountByFlowQuery(flowIds),
+				);
+
+				// Individual prefetch for flow run queries (last run and activity per flow)
+				for (const flowId of flowIds) {
+					// FlowLastRun query - last completed run
+					void context.queryClient.prefetchQuery(
+						buildFilterFlowRunsQuery({
+							flows: { operator: "and_", id: { any_: [flowId] } },
+							flow_runs: {
+								operator: "and_",
+								start_time: { is_null_: false },
+							},
+							offset: 0,
+							limit: 1,
+							sort: "START_TIME_DESC",
+						}),
+					);
+
+					// FlowActivity query - recent runs for activity chart
+					void context.queryClient.prefetchQuery(
+						buildFilterFlowRunsQuery({
+							flows: { operator: "and_", id: { any_: [flowId] } },
+							flow_runs: {
+								operator: "and_",
+								start_time: { is_null_: false },
+							},
+							offset: 0,
+							limit: NUMBER_OF_ACTIVITY_BARS,
+							sort: "START_TIME_DESC",
+						}),
+					);
+				}
+			});
 	},
 	wrapInSuspense: true,
 });
