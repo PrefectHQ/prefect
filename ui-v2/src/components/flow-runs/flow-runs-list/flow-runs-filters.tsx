@@ -4,6 +4,7 @@ import { SortFilter } from "./flow-runs-filters/sort-filter";
 import type { SortFilters } from "./flow-runs-filters/sort-filter.constants";
 import { StateFilter } from "./flow-runs-filters/state-filter";
 import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
+import { TagsFilter } from "./flow-runs-filters/tags-filter";
 import { WorkPoolFilter } from "./flow-runs-filters/work-pool-filter";
 
 export type FlowRunsFiltersProps = {
@@ -23,6 +24,10 @@ export type FlowRunsFiltersProps = {
 		value: Set<string>;
 		onSelect: (workPools: Set<string>) => void;
 	};
+	tagsFilter?: {
+		value: Set<string>;
+		onSelect: (tags: Set<string>) => void;
+	};
 	sort: {
 		value: SortFilters | undefined;
 		onSelect: (sort: SortFilters) => void;
@@ -35,6 +40,7 @@ export const FlowRunsFilters = ({
 	stateFilter,
 	deploymentFilter,
 	workPoolFilter,
+	tagsFilter,
 }: FlowRunsFiltersProps) => {
 	return (
 		<div className="flex items-center gap-2">
@@ -66,6 +72,14 @@ export const FlowRunsFilters = ({
 						<WorkPoolFilter
 							selectedWorkPools={workPoolFilter.value}
 							onSelectWorkPools={workPoolFilter.onSelect}
+						/>
+					</div>
+				)}
+				{tagsFilter && (
+					<div className="min-w-56">
+						<TagsFilter
+							selectedTags={tagsFilter.value}
+							onSelectTags={tagsFilter.onSelect}
 						/>
 					</div>
 				)}
