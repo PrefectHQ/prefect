@@ -2,6 +2,7 @@ import type { IconId } from "@/components/ui/icons";
 
 export type ResourceType =
 	| "flow-run"
+	| "task-run"
 	| "deployment"
 	| "flow"
 	| "work-pool"
@@ -13,6 +14,7 @@ export type ResourceType =
 
 export const RESOURCE_ICONS: Record<ResourceType, IconId> = {
 	"flow-run": "Play",
+	"task-run": "Cog",
 	deployment: "Rocket",
 	flow: "Workflow",
 	"work-pool": "Server",
@@ -37,6 +39,9 @@ export function parseResourceType(resourceId: string): ResourceType {
 
 	if (resourceId.startsWith("prefect.flow-run.")) {
 		return "flow-run";
+	}
+	if (resourceId.startsWith("prefect.task-run.")) {
+		return "task-run";
 	}
 	if (resourceId.startsWith("prefect.deployment.")) {
 		return "deployment";

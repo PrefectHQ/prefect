@@ -17,6 +17,16 @@ describe("parseResourceType", () => {
 		).toBe("flow-run");
 	});
 
+	it("parses task-run resource type", () => {
+		expect(parseResourceType("prefect.task-run.abc-123")).toBe("task-run");
+		expect(parseResourceType("prefect.task-run.")).toBe("task-run");
+		expect(
+			parseResourceType(
+				"prefect.task-run.12345678-1234-1234-1234-123456789012",
+			),
+		).toBe("task-run");
+	});
+
 	it("parses deployment resource type", () => {
 		expect(parseResourceType("prefect.deployment.abc-123")).toBe("deployment");
 		expect(parseResourceType("prefect.deployment.")).toBe("deployment");
@@ -115,6 +125,7 @@ describe("RESOURCE_ICONS", () => {
 	it("has an icon mapping for each resource type", () => {
 		const resourceTypes: ResourceType[] = [
 			"flow-run",
+			"task-run",
 			"deployment",
 			"flow",
 			"work-pool",
@@ -133,6 +144,7 @@ describe("RESOURCE_ICONS", () => {
 
 	it("maps to expected icon names", () => {
 		expect(RESOURCE_ICONS["flow-run"]).toBe("Play");
+		expect(RESOURCE_ICONS["task-run"]).toBe("Cog");
 		expect(RESOURCE_ICONS.deployment).toBe("Rocket");
 		expect(RESOURCE_ICONS.flow).toBe("Workflow");
 		expect(RESOURCE_ICONS["work-pool"]).toBe("Server");
