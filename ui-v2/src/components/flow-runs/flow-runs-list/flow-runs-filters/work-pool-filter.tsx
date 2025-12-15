@@ -38,23 +38,6 @@ export const WorkPoolFilter = ({
 		}),
 	);
 
-	const { data: selectedWorkPoolsData = [] } = useQuery(
-		buildFilterWorkPoolsQuery(
-			{
-				work_pools:
-					selectedWorkPools.size > 0
-						? {
-								operator: "and_",
-								name: { any_: Array.from(selectedWorkPools) },
-							}
-						: undefined,
-				limit: selectedWorkPools.size || 1,
-				offset: 0,
-			},
-			{ enabled: selectedWorkPools.size > 0 },
-		),
-	);
-
 	const handleSelectWorkPool = (workPoolName: string) => {
 		const updatedWorkPools = new Set(selectedWorkPools);
 		if (selectedWorkPools.has(workPoolName)) {
@@ -74,9 +57,9 @@ export const WorkPoolFilter = ({
 			return "All work pools";
 		}
 
-		const selectedWorkPoolNames = selectedWorkPoolsData
-			.filter((workPool) => selectedWorkPools.has(workPool.name))
-			.map((workPool) => workPool.name);
+		const selectedWorkPoolNames = Array.from(selectedWorkPools).sort((a, b) =>
+			a.localeCompare(b),
+		);
 
 		const visible = selectedWorkPoolNames.slice(0, MAX_WORK_POOLS_DISPLAYED);
 		const extraCount = selectedWorkPoolNames.length - MAX_WORK_POOLS_DISPLAYED;
