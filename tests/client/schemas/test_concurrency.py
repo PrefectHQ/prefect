@@ -92,3 +92,31 @@ class TestConcurrencyLimitConfigValidation:
         """Test that collision_strategy can be set to CANCEL_NEW."""
         config = ConcurrencyLimitConfig(limit=1, collision_strategy="CANCEL_NEW")
         assert config.collision_strategy == "CANCEL_NEW"
+
+
+class TestConcurrencyOptionsSerialization:
+    """Tests for ConcurrencyOptions serialization behavior.
+
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/19778
+    """
+
+    def test_grace_period_seconds_excluded_when_unset(self):
+        """Test that grace_period_seconds is excluded when not explicitly set.
+
+        When grace_period_seconds is not provided, model_dump(exclude_unset=True)
+        should not include it in the output. This prevents API 422 errors.
+        """
+        options = ConcurrencyOptions(collision_strategy="ENQUEUE")
+        payload = options.model_dump(mode="json", exclude_unset=True)
+
+        assert "grace_period_seconds" not in payload
+
+    def test_grace_period_seconds_included_when_set(self):
+        """Test that grace_period_seconds IS included when explicitly set."""
+        options = ConcurrencyOptions(
+            collision_strategy="ENQUEUE", grace_period_seconds=120
+        )
+        payload = options.model_dump(mode="json", exclude_unset=True)
+
+        assert "grace_period_seconds" in payload
+        assert payload["grace_period_seconds"] == 120
