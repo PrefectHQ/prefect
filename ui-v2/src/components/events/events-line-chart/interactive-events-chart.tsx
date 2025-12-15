@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import type { EventsCount } from "@/api/events";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/utils";
@@ -31,15 +31,14 @@ export function InteractiveEventsChart({
 	selectionStart: controlledSelectionStart,
 	selectionEnd: controlledSelectionEnd,
 }: InteractiveEventsChartProps) {
-	const mergedRef = useRef<HTMLDivElement>(null);
-
-	const { handleWheel } = useChartZoom({
+	const { containerRef: zoomContainerRef, handleWheel } = useChartZoom({
 		startDate: zoomStart,
 		endDate: zoomEnd,
 		onZoomChange,
 	});
 
 	const {
+		containerRef: selectionContainerRef,
 		selectionStart: localSelectionStart,
 		selectionEnd: localSelectionEnd,
 		isDragging,
@@ -53,6 +52,20 @@ export function InteractiveEventsChart({
 		endDate: zoomEnd,
 		onSelectionChange,
 	});
+
+	// Merge refs from both hooks so they both reference the same DOM element
+	const mergedRef = useCallback(
+		(node: HTMLDivElement | null) => {
+			// Set the ref for both hooks
+			(
+				zoomContainerRef as React.MutableRefObject<HTMLDivElement | null>
+			).current = node;
+			(
+				selectionContainerRef as React.MutableRefObject<HTMLDivElement | null>
+			).current = node;
+		},
+		[zoomContainerRef, selectionContainerRef],
+	);
 
 	// Support both controlled and uncontrolled selection modes via fallback pattern
 	const selectionStart = controlledSelectionStart ?? localSelectionStart;
