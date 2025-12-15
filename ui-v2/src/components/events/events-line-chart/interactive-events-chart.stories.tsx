@@ -1,0 +1,236 @@
+import type { Meta, StoryObj } from "@storybook/react";
+import { useState } from "react";
+import type { EventsCount } from "@/api/events";
+import { routerDecorator } from "@/storybook/utils";
+import { InteractiveEventsChart } from "./interactive-events-chart";
+
+const createMockEventsCount = (
+	startTime: Date,
+	count: number,
+	label?: string,
+): EventsCount => ({
+	value: startTime.toISOString(),
+	start_time: startTime.toISOString(),
+	end_time: new Date(startTime.getTime() + 3600000).toISOString(),
+	count,
+	label: label ?? `${count} events`,
+});
+
+const generateMockData = (
+	startDate: Date,
+	hours: number,
+	pattern: "random" | "increasing" | "decreasing" | "spike" = "random",
+): EventsCount[] => {
+	return Array.from({ length: hours }, (_, i) => {
+		const time = new Date(startDate.getTime() + i * 3600000);
+		let count: number;
+
+		switch (pattern) {
+			case "increasing":
+				count = Math.floor(i * 10 + Math.random() * 20);
+				break;
+			case "decreasing":
+				count = Math.floor((hours - i) * 10 + Math.random() * 20);
+				break;
+			case "spike":
+				count =
+					i === Math.floor(hours / 2)
+						? 200
+						: Math.floor(Math.random() * 30 + 10);
+				break;
+			default:
+				count = Math.floor(Math.random() * 100 + 10);
+		}
+
+		return createMockEventsCount(time, count);
+	});
+};
+
+const now = new Date();
+const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+const meta = {
+	title: "Components/Events/InteractiveEventsChart",
+	component: InteractiveEventsChart,
+	parameters: {
+		layout: "centered",
+	},
+	decorators: [routerDecorator],
+} satisfies Meta<typeof InteractiveEventsChart>;
+
+export default meta;
+type Story = StoryObj<typeof InteractiveEventsChart>;
+
+function InteractiveChartWithZoom() {
+	const [zoomStart, setZoomStart] = useState(twentyFourHoursAgo);
+	const [zoomEnd, setZoomEnd] = useState(now);
+
+	const handleZoomChange = (start: Date, end: Date) => {
+		setZoomStart(start);
+		setZoomEnd(end);
+	};
+
+	return (
+		<div className="space-y-4">
+			<div className="text-sm text-muted-foreground">
+				Scroll wheel to zoom in/out. Zoom is centered on mouse position.
+			</div>
+			<InteractiveEventsChart
+				data={generateMockData(twentyFourHoursAgo, 24, "random")}
+				className="h-64 w-[600px]"
+				zoomStart={zoomStart}
+				zoomEnd={zoomEnd}
+				onZoomChange={handleZoomChange}
+			/>
+			<div className="text-xs text-muted-foreground">
+				Range: {zoomStart.toLocaleString()} - {zoomEnd.toLocaleString()}
+			</div>
+		</div>
+	);
+}
+
+export const WithZoom: Story = {
+	render: () => <InteractiveChartWithZoom />,
+};
+
+function InteractiveChartWithSelection() {
+	const [selectionStart, setSelectionStart] = useState<Date | null>(null);
+	const [selectionEnd, setSelectionEnd] = useState<Date | null>(null);
+
+	const handleSelectionChange = (start: Date | null, end: Date | null) => {
+		setSelectionStart(start);
+		setSelectionEnd(end);
+	};
+
+	return (
+		<div className="space-y-4">
+			<div className="text-sm text-muted-foreground">
+				Click and drag to select a time range. Click &quot;Clear selection&quot;
+				to reset.
+			</div>
+			<InteractiveEventsChart
+				data={generateMockData(twentyFourHoursAgo, 24, "random")}
+				className="h-64 w-[600px]"
+				zoomStart={twentyFourHoursAgo}
+				zoomEnd={now}
+				onZoomChange={() => {}}
+				selectionStart={selectionStart}
+				selectionEnd={selectionEnd}
+				onSelectionChange={handleSelectionChange}
+			/>
+			{selectionStart && selectionEnd && (
+				<div className="text-xs text-muted-foreground">
+					Selection: {selectionStart.toLocaleString()} -{" "}
+					{selectionEnd.toLocaleString()}
+				</div>
+			)}
+		</div>
+	);
+}
+
+export const WithSelection: Story = {
+	render: () => <InteractiveChartWithSelection />,
+};
+
+export const WithPreExistingSelection: Story = {
+	args: {
+		data: generateMockData(twentyFourHoursAgo, 24, "random"),
+		className: "h-64 w-[600px]",
+		zoomStart: twentyFourHoursAgo,
+		zoomEnd: now,
+		onZoomChange: () => {},
+		selectionStart: new Date(twentyFourHoursAgo.getTime() + 6 * 3600000),
+		selectionEnd: new Date(twentyFourHoursAgo.getTime() + 12 * 3600000),
+	},
+};
+
+function InteractiveChartCombined() {
+	const [zoomStart, setZoomStart] = useState(twentyFourHoursAgo);
+	const [zoomEnd, setZoomEnd] = useState(now);
+	const [selectionStart, setSelectionStart] = useState<Date | null>(null);
+	const [selectionEnd, setSelectionEnd] = useState<Date | null>(null);
+
+	const handleZoomChange = (start: Date, end: Date) => {
+		setZoomStart(start);
+		setZoomEnd(end);
+	};
+
+	const handleSelectionChange = (start: Date | null, end: Date | null) => {
+		setSelectionStart(start);
+		setSelectionEnd(end);
+	};
+
+	return (
+		<div className="space-y-4">
+			<div className="text-sm text-muted-foreground">
+				Scroll wheel to zoom. Click and drag to select a time range.
+			</div>
+			<InteractiveEventsChart
+				data={generateMockData(twentyFourHoursAgo, 24, "random")}
+				className="h-64 w-[600px]"
+				zoomStart={zoomStart}
+				zoomEnd={zoomEnd}
+				onZoomChange={handleZoomChange}
+				selectionStart={selectionStart}
+				selectionEnd={selectionEnd}
+				onSelectionChange={handleSelectionChange}
+			/>
+			<div className="text-xs text-muted-foreground space-y-1">
+				<div>
+					Zoom: {zoomStart.toLocaleString()} - {zoomEnd.toLocaleString()}
+				</div>
+				{selectionStart && selectionEnd && (
+					<div>
+						Selection: {selectionStart.toLocaleString()} -{" "}
+						{selectionEnd.toLocaleString()}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+export const CombinedZoomAndSelection: Story = {
+	render: () => <InteractiveChartCombined />,
+};
+
+export const WithIncreasingTrend: Story = {
+	args: {
+		data: generateMockData(twentyFourHoursAgo, 24, "increasing"),
+		className: "h-64 w-[600px]",
+		zoomStart: twentyFourHoursAgo,
+		zoomEnd: now,
+		onZoomChange: () => {},
+	},
+};
+
+export const WithSpike: Story = {
+	args: {
+		data: generateMockData(twentyFourHoursAgo, 24, "spike"),
+		className: "h-64 w-[600px]",
+		zoomStart: twentyFourHoursAgo,
+		zoomEnd: now,
+		onZoomChange: () => {},
+	},
+};
+
+export const WeekRange: Story = {
+	args: {
+		data: generateMockData(oneWeekAgo, 168, "random"), // 168 hours = 1 week
+		className: "h-64 w-[600px]",
+		zoomStart: oneWeekAgo,
+		zoomEnd: now,
+		onZoomChange: () => {},
+	},
+};
+
+export const Empty: Story = {
+	args: {
+		data: [],
+		className: "h-64 w-[600px]",
+		zoomStart: twentyFourHoursAgo,
+		zoomEnd: now,
+		onZoomChange: () => {},
+	},
+};
