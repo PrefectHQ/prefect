@@ -6,6 +6,7 @@ import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
 	DateRangeFilter,
 	type DateRangeUrlState,
+	DeploymentFilter,
 	FlowFilter,
 	type FlowRunState,
 	FlowRunsList,
@@ -60,6 +61,8 @@ type RunsPageProps = {
 	onStateFilterChange: (states: Set<FlowRunState>) => void;
 	selectedFlows: Set<string>;
 	onFlowFilterChange: (flows: Set<string>) => void;
+	selectedDeployments: Set<string>;
+	onDeploymentFilterChange: (deployments: Set<string>) => void;
 	dateRange: DateRangeUrlState;
 	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
 	// Task runs props
@@ -96,6 +99,8 @@ export const RunsPage = ({
 	onStateFilterChange,
 	selectedFlows,
 	onFlowFilterChange,
+	selectedDeployments,
+	onDeploymentFilterChange,
 	dateRange,
 	onDateRangeChange,
 	// Task runs props
@@ -167,6 +172,12 @@ export const RunsPage = ({
 					<FlowFilter
 						selectedFlows={selectedFlows}
 						onSelectFlows={onFlowFilterChange}
+					/>
+				</div>
+				<div className="w-64">
+					<DeploymentFilter
+						selectedDeployments={selectedDeployments}
+						onSelectDeployments={onDeploymentFilterChange}
 					/>
 				</div>
 				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
