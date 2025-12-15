@@ -2,7 +2,7 @@
 Perpetual services are background services that run on a periodic schedule using docket.
 
 This module provides the registry and scheduling logic for perpetual services,
-replacing the LoopService pattern with docket's Perpetual dependency.
+using docket's Perpetual dependency for distributed, HA-aware task scheduling.
 """
 
 from __future__ import annotations

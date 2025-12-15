@@ -6,10 +6,9 @@ from docket import Docket, Worker
 
 from prefect.server.api.flow_runs import delete_flow_run_logs
 from prefect.server.api.task_runs import delete_task_run_logs
+from prefect.server.events.services import triggers as _triggers_module  # noqa: F401
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import mark_work_queues_ready
-
-# Import task functions that need to be registered with docket
 from prefect.server.services.cancellation_cleanup import (
     cancel_child_task_runs,
     cancel_subflow_run,
