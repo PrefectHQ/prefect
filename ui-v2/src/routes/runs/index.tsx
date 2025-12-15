@@ -506,6 +506,18 @@ const useWorkPoolFilter = () => {
 	return [selectedWorkPools, onWorkPoolFilterChange] as const;
 };
 
+// Tags filter - UI component only, filtering functionality to be implemented in a separate ticket
+const useTagsFilter = () => {
+	const selectedTags = useMemo(() => new Set<string>(), []);
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const onTagsFilterChange = useCallback((_tags: Set<string>) => {
+		// No-op: filtering functionality to be implemented in a separate ticket
+	}, []);
+
+	return [selectedTags, onTagsFilterChange] as const;
+};
+
 // Task runs hooks
 const useTaskRunsPagination = () => {
 	const search = Route.useSearch();
@@ -594,6 +606,7 @@ function RouteComponent() {
 	const [selectedFlows, onFlowFilterChange] = useFlowFilter();
 	const [selectedDeployments, onDeploymentFilterChange] = useDeploymentFilter();
 	const [selectedWorkPools, onWorkPoolFilterChange] = useWorkPoolFilter();
+	const [selectedTags, onTagsFilterChange] = useTagsFilter();
 	const [dateRange, onDateRangeChange] = useDateRange();
 	// Task runs hooks
 	const [taskRunsPagination, onTaskRunsPaginationChange] =
@@ -695,6 +708,8 @@ function RouteComponent() {
 			onFlowFilterChange={onFlowFilterChange}
 			selectedDeployments={selectedDeployments}
 			onDeploymentFilterChange={onDeploymentFilterChange}
+			selectedTags={selectedTags}
+			onTagsFilterChange={onTagsFilterChange}
 			selectedWorkPools={selectedWorkPools}
 			onWorkPoolFilterChange={onWorkPoolFilterChange}
 			dateRange={dateRange}
