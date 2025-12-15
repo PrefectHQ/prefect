@@ -63,6 +63,8 @@ type RunsPageProps = {
 	onFlowFilterChange: (flows: Set<string>) => void;
 	selectedDeployments: Set<string>;
 	onDeploymentFilterChange: (deployments: Set<string>) => void;
+	selectedWorkPools: Set<string>;
+	onWorkPoolFilterChange: (workPools: Set<string>) => void;
 	dateRange: DateRangeUrlState;
 	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
 	// Task runs props
@@ -101,6 +103,11 @@ export const RunsPage = ({
 	onFlowFilterChange,
 	selectedDeployments,
 	onDeploymentFilterChange,
+	// Work pool filter props - UI component to be implemented in a separate ticket
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	selectedWorkPools: _selectedWorkPools,
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	onWorkPoolFilterChange: _onWorkPoolFilterChange,
 	dateRange,
 	onDateRangeChange,
 	// Task runs props
