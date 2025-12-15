@@ -157,6 +157,12 @@ class DeploymentClient(BaseClient):
             payload["version_info"] = deployment_create.version_info.model_dump(
                 mode="json"
             )
+        if deployment_create.concurrency_options:
+            payload["concurrency_options"] = (
+                deployment_create.concurrency_options.model_dump(
+                    mode="json", exclude_unset=True
+                )
+            )
 
         try:
             response = self.request("POST", "/deployments/", json=payload)
@@ -822,6 +828,12 @@ class DeploymentAsyncClient(BaseAsyncClient):
         if deployment_create.version_info:
             payload["version_info"] = deployment_create.version_info.model_dump(
                 mode="json"
+            )
+        if deployment_create.concurrency_options:
+            payload["concurrency_options"] = (
+                deployment_create.concurrency_options.model_dump(
+                    mode="json", exclude_unset=True
+                )
             )
 
         try:
