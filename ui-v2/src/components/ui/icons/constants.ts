@@ -12,6 +12,7 @@ import {
 	ChevronsLeft,
 	ChevronsRight,
 	ChevronsUpDown,
+	Circle,
 	CircleArrowOutUpRight,
 	CircleCheck,
 	Clock,
@@ -22,9 +23,11 @@ import {
 	EllipsisVertical,
 	Expand,
 	ExternalLink,
+	Gauge,
 	Image,
 	Info,
 	LayoutGrid,
+	ListOrdered,
 	Loader2,
 	Monitor,
 	Moon,
@@ -37,6 +40,7 @@ import {
 	RefreshCw,
 	Rocket,
 	Search,
+	Server,
 	ServerCrash,
 	Shrink,
 	SlidersVertical,
@@ -46,6 +50,7 @@ import {
 	Variable,
 	Workflow,
 	X,
+	Zap,
 } from "lucide-react";
 
 export const ICONS = {
@@ -62,6 +67,7 @@ export const ICONS = {
 	ChevronsLeft,
 	ChevronsRight,
 	ChevronsUpDown,
+	Circle,
 	CircleArrowOutUpRight,
 	CircleCheck,
 	Clock,
@@ -72,9 +78,11 @@ export const ICONS = {
 	EllipsisVertical,
 	Expand,
 	ExternalLink,
+	Gauge,
 	Image,
 	Info,
 	LayoutGrid,
+	ListOrdered,
 	Loader2,
 	Monitor,
 	Moon,
@@ -87,6 +95,7 @@ export const ICONS = {
 	RefreshCw,
 	Rocket,
 	Search,
+	Server,
 	ServerCrash,
 	Shrink,
 	SlidersVertical,
@@ -96,6 +105,7 @@ export const ICONS = {
 	Variable,
 	Workflow,
 	X,
+	Zap,
 } as const;
 
 export type IconId = keyof typeof ICONS;
