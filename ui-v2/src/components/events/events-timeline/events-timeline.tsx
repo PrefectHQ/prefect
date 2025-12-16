@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import type { components } from "@/api/prefect";
@@ -38,13 +38,30 @@ type EventTimelineItemProps = {
 
 function EventTimestamp({ occurred }: { occurred: string }) {
 	const date = new Date(occurred);
-	const formattedDate = format(date, "MMM d, yyyy HH:mm:ss");
-	const relativeTime = formatDistanceToNow(date, { addSuffix: true });
+	const formattedTime = format(date, "h:mm:ss a");
+	const formattedDate = format(date, "MMM do, yyyy");
 
 	return (
-		<div className="flex flex-col text-xs text-muted-foreground">
-			<span>{formattedDate}</span>
-			<span>{relativeTime}</span>
+		<div className="flex flex-col text-right text-sm w-24 shrink-0">
+			<span>{formattedTime}</span>
+			<span className="text-xs text-muted-foreground">{formattedDate}</span>
+		</div>
+	);
+}
+
+function TimelinePoint({ event }: { event: Event }) {
+	const resourceId = event.resource["prefect.resource.id"] || "";
+	const resourceType = parseResourceType(resourceId);
+	const iconId = RESOURCE_ICONS[resourceType];
+
+	return (
+		<div className="relative flex items-start justify-center w-10 h-full">
+			{/* Vertical line */}
+			<div className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 bg-border -z-10" />
+			{/* Icon circle */}
+			<div className="flex items-center justify-center w-10 h-10 rounded-full bg-background border border-border">
+				<Icon id={iconId} className="h-5 w-5 text-muted-foreground" />
+			</div>
 		</div>
 	);
 }
@@ -178,18 +195,22 @@ function EventTimelineItem({
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (
-		<Collapsible open={isOpen} onOpenChange={setIsOpen}>
-			<Card className="py-4">
-				<CardHeader className="py-0">
-					<div className="flex items-start justify-between gap-4">
-						<div className="flex flex-col gap-3 flex-1 min-w-0">
-							<div className="flex items-start justify-between gap-4">
-								<EventNameWithPrefixes
-									eventName={event.event}
-									onEventClick={onEventClick}
-								/>
-								<EventTimestamp occurred={event.occurred} />
-							</div>
+		<div className="grid grid-cols-[6rem_2.5rem_1fr] gap-4 items-start py-4">
+			{/* Date column */}
+			<EventTimestamp occurred={event.occurred} />
+
+			{/* Point column with icon and vertical line */}
+			<TimelinePoint event={event} />
+
+			{/* Content column */}
+			<Collapsible open={isOpen} onOpenChange={setIsOpen}>
+				<Card className="py-4">
+					<CardHeader className="py-0">
+						<div className="flex flex-col gap-3">
+							<EventNameWithPrefixes
+								eventName={event.event}
+								onEventClick={onEventClick}
+							/>
 							<EventResourceDisplay event={event} />
 							{event.related && event.related.length > 0 && (
 								<EventRelatedResources
@@ -198,40 +219,40 @@ function EventTimelineItem({
 								/>
 							)}
 						</div>
+					</CardHeader>
+					<div className="px-6 pt-2">
+						<CollapsibleTrigger asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="w-full justify-center gap-2 text-muted-foreground"
+								aria-label={
+									isOpen ? "Collapse event details" : "Expand event details"
+								}
+							>
+								<ChevronDown
+									className={cn(
+										"h-4 w-4 transition-transform duration-200",
+										isOpen && "rotate-180",
+									)}
+								/>
+								<span className="text-xs">
+									{isOpen ? "Hide raw event" : "Show raw event"}
+								</span>
+							</Button>
+						</CollapsibleTrigger>
 					</div>
-				</CardHeader>
-				<div className="px-6 pt-2">
-					<CollapsibleTrigger asChild>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="w-full justify-center gap-2 text-muted-foreground"
-							aria-label={
-								isOpen ? "Collapse event details" : "Expand event details"
-							}
-						>
-							<ChevronDown
-								className={cn(
-									"h-4 w-4 transition-transform duration-200",
-									isOpen && "rotate-180",
-								)}
+					<CollapsibleContent>
+						<CardContent className="pt-4">
+							<JsonView
+								value={JSON.stringify(event, null, 2)}
+								className="max-h-96 overflow-auto"
 							/>
-							<span className="text-xs">
-								{isOpen ? "Hide raw event" : "Show raw event"}
-							</span>
-						</Button>
-					</CollapsibleTrigger>
-				</div>
-				<CollapsibleContent>
-					<CardContent className="pt-4">
-						<JsonView
-							value={JSON.stringify(event, null, 2)}
-							className="max-h-96 overflow-auto"
-						/>
-					</CardContent>
-				</CollapsibleContent>
-			</Card>
-		</Collapsible>
+						</CardContent>
+					</CollapsibleContent>
+				</Card>
+			</Collapsible>
+		</div>
 	);
 }
 
@@ -246,15 +267,16 @@ export function EventsTimeline({
 	}
 
 	return (
-		<div className={cn("flex flex-col gap-4", className)}>
+		<ol className={cn("list-none p-0 m-0", className)}>
 			{events.map((event) => (
-				<EventTimelineItem
-					key={event.id}
-					event={event}
-					onEventClick={onEventClick}
-					onResourceClick={onResourceClick}
-				/>
+				<li key={event.id}>
+					<EventTimelineItem
+						event={event}
+						onEventClick={onEventClick}
+						onResourceClick={onResourceClick}
+					/>
+				</li>
 			))}
-		</div>
+		</ol>
 	);
 }
