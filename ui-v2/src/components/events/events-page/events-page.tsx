@@ -7,7 +7,7 @@ import {
 	type EventsSearchParams,
 	getDateRangeFromSearch,
 } from "@/api/events/filters";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	type DateRangeSelectValue,
 	RichDateRangeSelector,
@@ -18,6 +18,7 @@ import {
 	EmptyStateIcon,
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
+import { Label } from "@/components/ui/label";
 import {
 	Pagination,
 	PaginationContent,
@@ -155,32 +156,26 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 			</div>
 
 			{/* Filters */}
-			<div className="flex flex-wrap gap-4">
-				<Suspense fallback={<Skeleton className="h-10 w-48" />}>
-					<EventsResourceFilter
-						selectedResourceIds={search.resource ?? []}
-						onResourceIdsChange={handleResourceIdsChange}
-					/>
-				</Suspense>
-				<Suspense fallback={<Skeleton className="h-10 w-48" />}>
-					<EventsTypeFilter
-						filter={countFilter}
-						selectedEventTypes={search.event ?? []}
-						onEventTypesChange={handleEventTypesChange}
-					/>
-				</Suspense>
-				<RichDateRangeSelector
-					value={
-						search.rangeType === "range" && search.start && search.end
-							? {
-									type: "range",
-									startDate: new Date(search.start),
-									endDate: new Date(search.end),
-								}
-							: { type: "span", seconds: search.seconds ?? -86400 }
-					}
-					onValueChange={handleDateRangeChange}
-				/>
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-[2fr_1fr]">
+				<div className="flex flex-col gap-1">
+					<Label>Resource</Label>
+					<Suspense fallback={<Skeleton className="h-10 w-full" />}>
+						<EventsResourceFilter
+							selectedResourceIds={search.resource ?? []}
+							onResourceIdsChange={handleResourceIdsChange}
+						/>
+					</Suspense>
+				</div>
+				<div className="flex flex-col gap-1">
+					<Label>Events</Label>
+					<Suspense fallback={<Skeleton className="h-10 w-full" />}>
+						<EventsTypeFilter
+							filter={countFilter}
+							selectedEventTypes={search.event ?? []}
+							onEventTypesChange={handleEventTypesChange}
+						/>
+					</Suspense>
+				</div>
 			</div>
 
 			{/* Chart - sticky when scrolling */}
@@ -190,10 +185,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 					isChartSticky && "shadow-lg",
 				)}
 			>
-				<CardHeader className="pb-2">
-					<CardTitle className="text-base">Event Activity</CardTitle>
-				</CardHeader>
-				<CardContent>
+				<CardContent className="pt-6">
 					<InteractiveEventsChart
 						data={historyData}
 						className="h-32"
@@ -204,6 +196,20 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 						selectionStart={selectionStart}
 						selectionEnd={selectionEnd}
 					/>
+					<div className="flex justify-center pt-3">
+						<RichDateRangeSelector
+							value={
+								search.rangeType === "range" && search.start && search.end
+									? {
+											type: "range",
+											startDate: new Date(search.start),
+											endDate: new Date(search.end),
+										}
+									: { type: "span", seconds: search.seconds ?? -86400 }
+							}
+							onValueChange={handleDateRangeChange}
+						/>
+					</div>
 				</CardContent>
 			</Card>
 
