@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { formatDistanceStrict } from "date-fns";
 import humanizeDuration from "humanize-duration";
 import { Calendar, Clock, Loader2 } from "lucide-react";
+import type { ComponentProps } from "react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
 	ResponsiveContainer,
@@ -168,6 +169,10 @@ type ActivePoint = {
 	y: number;
 };
 
+type ScatterChartMouseMove = NonNullable<
+	ComponentProps<typeof ScatterChart>["onMouseMove"]
+>;
+
 export const FlowRunsScatterPlot = ({
 	history,
 	startDate,
@@ -201,49 +206,24 @@ export const FlowRunsScatterPlot = ({
 		return ["dataMin", "dataMax"] as const;
 	}, [startDate, endDate, chartData.length]);
 
-	const handleMouseMove = useCallback(
-		(state: { activePayload?: Array<{ payload: ChartDataPoint }> }) => {
-			if (state.activePayload && state.activePayload.length > 0) {
-				const payload = state.activePayload[0];
-				if (payload?.payload) {
-					// Get the chart container to calculate position
-					const chartContainer =
-						containerRef.current?.querySelector(".recharts-wrapper");
-					if (chartContainer) {
-						const rect = chartContainer.getBoundingClientRect();
-						const containerRect = containerRef.current?.getBoundingClientRect();
-						if (containerRect) {
-							// Find the dot element position using the active payload
-							const dots = chartContainer.querySelectorAll("circle");
-							for (const dot of dots) {
-								const cx = Number.parseFloat(dot.getAttribute("cx") || "0");
-								const cy = Number.parseFloat(dot.getAttribute("cy") || "0");
-								// Match the dot by checking if it's close to expected position
-								if (
-									dot.getAttribute("fill") ===
-									STATE_COLORS[payload.payload.stateType]
-								) {
-									setActivePoint({
-										data: payload.payload,
-										x: cx + (rect.left - containerRect.left),
-										y: cy + (rect.top - containerRect.top),
-									});
-									return;
-								}
-							}
-							// Fallback: use mouse position
-							setActivePoint({
-								data: payload.payload,
-								x: rect.width / 2,
-								y: rect.height / 2,
-							});
-						}
-					}
-				}
+	const handleMouseMove: ScatterChartMouseMove = useCallback((state) => {
+		// Type assertion needed because Recharts types activePayload as an error type
+		const activePayload = state.activePayload as
+			| Array<{ payload?: ChartDataPoint }>
+			| undefined;
+		const activeCoordinate = state.activeCoordinate;
+
+		if (activePayload && activePayload.length > 0 && activeCoordinate) {
+			const point = activePayload[0]?.payload;
+			if (point && typeof point === "object" && "id" in point) {
+				setActivePoint({
+					data: point,
+					x: activeCoordinate.x,
+					y: activeCoordinate.y,
+				});
 			}
-		},
-		[],
-	);
+		}
+	}, []);
 
 	const handleMouseLeave = useCallback(() => {
 		// Delay hiding to allow moving to tooltip
