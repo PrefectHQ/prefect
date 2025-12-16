@@ -61,6 +61,15 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 		end: zoomEnd.toISOString(),
 	});
 
+	// Create separate filter for type dropdown (without event filter)
+	// This ensures all event types are shown regardless of current selection
+	const countFilterForTypeDropdown = buildEventsCountFilterFromSearch({
+		resource: search.resource,
+		rangeType: "range",
+		start: zoomStart.toISOString(),
+		end: zoomEnd.toISOString(),
+	});
+
 	// Pagination
 	const {
 		events,
@@ -140,7 +149,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 					<Label>Events</Label>
 					<Suspense fallback={<Skeleton className="h-10 w-full" />}>
 						<EventsTypeFilter
-							filter={countFilter}
+							filter={countFilterForTypeDropdown}
 							selectedEventTypes={search.event ?? []}
 							onEventTypesChange={handleEventTypesChange}
 						/>
