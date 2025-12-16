@@ -1088,17 +1088,17 @@ class Task(Generic[P, R]):
     # These preserve full parameter type checking when users call tasks normally
     @overload
     def __call__(
-        self: "Task[P, Coroutine[Any, Any, R]]",
+        self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Coroutine[Any, Any, R]: ...
+    ) -> Coroutine[Any, Any, T]: ...
 
     @overload
     def __call__(
-        self: "Task[P, R]",
+        self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> R: ...
+    ) -> T: ...
 
     @overload
     def __call__(
@@ -1116,65 +1116,65 @@ class Task(Generic[P, R]):
     # are advanced use cases.
     @overload
     def __call__(
-        self: "Task[..., Coroutine[Any, Any, R]]",
+        self: "Task[..., Coroutine[Any, Any, T]]",
         *args: Any,
         return_state: Literal[False],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, R]: ...
+    ) -> Coroutine[Any, Any, T]: ...
 
     @overload
     def __call__(
-        self: "Task[..., Coroutine[Any, Any, R]]",
+        self: "Task[..., Coroutine[Any, Any, T]]",
         *args: Any,
         return_state: Literal[True],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> State[R]: ...
+    ) -> State[T]: ...
 
     @overload
     def __call__(
-        self: "Task[..., R]",
+        self: "Task[..., T]",
         *args: Any,
         return_state: Literal[False],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> R: ...
+    ) -> T: ...
 
     @overload
     def __call__(
-        self: "Task[..., R]",
+        self: "Task[..., T]",
         *args: Any,
         return_state: Literal[True],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> State[R]: ...
+    ) -> State[T]: ...
 
     @overload
     def __call__(
-        self: "Task[..., Coroutine[Any, Any, R]]",
+        self: "Task[..., Coroutine[Any, Any, T]]",
         *args: Any,
         wait_for: OneOrManyFutureOrResult[Any],
         return_state: Literal[False] = False,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, R]: ...
+    ) -> Coroutine[Any, Any, T]: ...
 
     @overload
     def __call__(
-        self: "Task[..., R]",
+        self: "Task[..., T]",
         *args: Any,
         wait_for: OneOrManyFutureOrResult[Any],
         return_state: Literal[False] = False,
         **kwargs: Any,
-    ) -> R: ...
+    ) -> T: ...
 
     def __call__(
-        self: "Union[Task[..., R], Task[..., NoReturn]]",
+        self: "Union[Task[..., T], Task[..., NoReturn]]",
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> Union[R, State[R], None]:
+    ) -> Union[T, State[T], None]:
         """
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
