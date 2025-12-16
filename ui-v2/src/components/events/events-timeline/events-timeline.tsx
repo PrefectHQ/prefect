@@ -10,9 +10,15 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Icon } from "@/components/ui/icons";
 import { JsonView } from "@/components/ui/json-view";
 import { cn } from "@/utils";
 import { EventResourceDisplay } from "../event-resource-display";
+import {
+	parseResourceType,
+	RESOURCE_ICONS,
+	RESOURCE_TYPE_LABELS,
+} from "../event-resource-display/resource-types";
 import { formatEventLabel } from "./utilities";
 
 type Event = components["schemas"]["ReceivedEvent"];
@@ -125,9 +131,17 @@ function EventRelatedResources({
 					const resourceId = getResourceId(resource);
 					const resourceName = getResourceName(resource);
 					const displayText = resourceName || resourceId;
+					const resourceType = parseResourceType(resourceId);
+					const typeLabel = RESOURCE_TYPE_LABELS[resourceType];
+					const iconId = RESOURCE_ICONS[resourceType];
 
 					return (
-						<div key={resourceId} className="text-sm text-muted-foreground">
+						<div
+							key={resourceId}
+							className="flex items-center gap-2 text-sm text-muted-foreground"
+						>
+							{typeLabel && <span>{typeLabel}</span>}
+							<Icon id={iconId} className="h-4 w-4 text-muted-foreground" />
 							{onResourceClick ? (
 								<button
 									type="button"
