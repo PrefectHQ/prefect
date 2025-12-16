@@ -108,6 +108,7 @@ export function InteractiveEventsChart({
 			<EventsLineChart
 				data={data}
 				className="h-full w-full"
+				showAxis={false}
 				selectionStart={selectionStart}
 				selectionEnd={selectionEnd}
 			/>
