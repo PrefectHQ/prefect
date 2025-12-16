@@ -196,6 +196,7 @@ export const FlowRunsScatterPlot = ({
 					<Tooltip
 						content={<FlowRunTooltip />}
 						cursor={{ strokeDasharray: "3 3" }}
+						animationDuration={0}
 					/>
 					<Scatter
 						data={chartData}
