@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { buildEventsHistoryQuery } from "@/api/events";
 import {
@@ -87,9 +87,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	} = useEventsPagination({ filter: eventsFilter });
 
 	// Chart histogram data
-	const { data: historyData } = useSuspenseQuery(
-		buildEventsHistoryQuery(countFilter),
-	);
+	const { data: historyData } = useQuery(buildEventsHistoryQuery(countFilter));
 
 	// Handlers - using correct property names that match EventsSearchParams
 	const handleResourceIdsChange = (resourceIds: string[]) => {
@@ -195,7 +193,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 				</CardHeader>
 				<CardContent>
 					<InteractiveEventsChart
-						data={historyData}
+						data={historyData ?? []}
 						className="h-32"
 						zoomStart={zoomStart}
 						zoomEnd={zoomEnd}
