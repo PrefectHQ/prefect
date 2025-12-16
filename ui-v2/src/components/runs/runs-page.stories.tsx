@@ -174,6 +174,8 @@ const RunsPageWithState = ({
 			onTabChange={(newTab) => setTab(newTab as "flow-runs" | "task-runs")}
 			flowRunsCount={initialFlowRunsCount}
 			taskRunsCount={initialTaskRunsCount}
+			hasAnyFlowRuns={initialFlowRunsCount > 0 || initialFlowRuns.length > 0}
+			hasAnyTaskRuns={initialTaskRunsCount > 0 || initialTaskRuns.length > 0}
 			flowRuns={initialFlowRuns}
 			flowRunsPages={initialPages}
 			pagination={pagination}
