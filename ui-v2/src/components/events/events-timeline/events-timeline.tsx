@@ -27,8 +27,6 @@ type EventsTimelineProps = {
 	events: Event[];
 	onEventClick?: (eventName: string) => void;
 	onResourceClick?: (resourceId: string) => void;
-	onFilterEventsSince?: (date: Date) => void;
-	onFilterEventsUntil?: (date: Date) => void;
 	className?: string;
 };
 
@@ -36,8 +34,6 @@ type EventTimelineItemProps = {
 	event: Event;
 	onEventClick?: (eventName: string) => void;
 	onResourceClick?: (resourceId: string) => void;
-	onFilterEventsSince?: (date: Date) => void;
-	onFilterEventsUntil?: (date: Date) => void;
 };
 
 function EventTimestamp({ occurred }: { occurred: string }) {
@@ -178,11 +174,8 @@ function EventTimelineItem({
 	event,
 	onEventClick,
 	onResourceClick,
-	onFilterEventsSince,
-	onFilterEventsUntil,
 }: EventTimelineItemProps) {
 	const [isOpen, setIsOpen] = useState(false);
-	const eventDate = new Date(event.occurred);
 
 	return (
 		<Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -195,33 +188,7 @@ function EventTimelineItem({
 									eventName={event.event}
 									onEventClick={onEventClick}
 								/>
-								<div className="flex flex-col items-end gap-1">
-									<EventTimestamp occurred={event.occurred} />
-									{(onFilterEventsSince || onFilterEventsUntil) && (
-										<div className="flex gap-1">
-											{onFilterEventsSince && (
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-													onClick={() => onFilterEventsSince(eventDate)}
-												>
-													Since
-												</Button>
-											)}
-											{onFilterEventsUntil && (
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-													onClick={() => onFilterEventsUntil(eventDate)}
-												>
-													Until
-												</Button>
-											)}
-										</div>
-									)}
-								</div>
+								<EventTimestamp occurred={event.occurred} />
 							</div>
 							<EventResourceDisplay event={event} />
 							{event.related && event.related.length > 0 && (
@@ -272,8 +239,6 @@ export function EventsTimeline({
 	events,
 	onEventClick,
 	onResourceClick,
-	onFilterEventsSince,
-	onFilterEventsUntil,
 	className,
 }: EventsTimelineProps) {
 	if (!events || events.length === 0) {
@@ -288,8 +253,6 @@ export function EventsTimeline({
 					event={event}
 					onEventClick={onEventClick}
 					onResourceClick={onResourceClick}
-					onFilterEventsSince={onFilterEventsSince}
-					onFilterEventsUntil={onFilterEventsUntil}
 				/>
 			))}
 		</div>
