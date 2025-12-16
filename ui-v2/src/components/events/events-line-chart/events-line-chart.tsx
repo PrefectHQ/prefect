@@ -130,7 +130,10 @@ export const EventsLineChart = forwardRef<
 	}, [selectionStart, selectionEnd]);
 
 	return (
-		<div ref={containerRef} className={cn("relative", className)}>
+		<div
+			ref={containerRef}
+			className={cn("relative border-b border-border", className)}
+		>
 			<ChartContainer config={chartConfig} className="h-full w-full">
 				<AreaChart
 					data={chartData}
