@@ -150,7 +150,10 @@ export const EventsLineChart = forwardRef<
 
 	return (
 		<div ref={containerRef} className={cn("relative", className)}>
-			<ChartContainer config={chartConfig} className="h-full w-full">
+			<ChartContainer
+				config={chartConfig}
+				className="h-full w-[calc(100%+3rem)] -mx-6"
+			>
 				<AreaChart
 					data={chartData}
 					margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
