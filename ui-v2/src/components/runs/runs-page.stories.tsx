@@ -156,6 +156,26 @@ const RunsPageWithState = ({
 	);
 	const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
 
+	// Compute hasActiveFilters based on current filter state
+	const hasActiveFilters =
+		selectedStates.size > 0 ||
+		selectedFlows.size > 0 ||
+		selectedDeployments.size > 0 ||
+		selectedWorkPools.size > 0 ||
+		selectedTags.size > 0 ||
+		dateRange.range !== undefined ||
+		dateRange.start !== undefined ||
+		dateRange.end !== undefined;
+
+	const clearAllFilters = () => {
+		setSelectedStates(new Set());
+		setSelectedFlows(new Set());
+		setSelectedDeployments(new Set());
+		setSelectedWorkPools(new Set());
+		setSelectedTags(new Set());
+		setDateRange({});
+	};
+
 	// Task runs state
 	const [taskRunsPagination, setTaskRunsPagination] = useState<PaginationState>(
 		{
@@ -207,6 +227,8 @@ const RunsPageWithState = ({
 			taskRunSearch={taskRunSearch}
 			onTaskRunSearchChange={setTaskRunSearch}
 			onClearTaskRunFilters={() => setTaskRunSearch("")}
+			hasActiveFilters={hasActiveFilters}
+			onClearAllFilters={clearAllFilters}
 		/>
 	);
 };
