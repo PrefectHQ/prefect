@@ -189,7 +189,7 @@ export function buildEventsFilterFromSearch(
 
 	return {
 		filter: eventFilter,
-		limit: 100,
+		limit: 50,
 	};
 }
 

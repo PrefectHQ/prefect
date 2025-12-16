@@ -248,7 +248,7 @@ describe("events filter utilities", () => {
 						exclude_prefix: ["prefect.log.write"],
 					},
 				},
-				limit: 100,
+				limit: 50,
 			});
 		});
 
@@ -343,7 +343,7 @@ describe("events filter utilities", () => {
 						exclude_prefix: ["prefect.log.write"],
 					},
 				},
-				limit: 100,
+				limit: 50,
 			});
 		});
 
