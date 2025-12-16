@@ -12,13 +12,19 @@ export default {
 		layout: "centered",
 	},
 	args: {
-		history: [],
-		startDate: undefined,
-		endDate: undefined,
+		history: createFakeSimpleFlowRuns(50),
+		startDate: randPastDate({ years: 0.1 }),
+		endDate: new Date(),
 	},
 	decorators: [routerDecorator],
 	render: function Render(args: ComponentProps<typeof FlowRunsScatterPlot>) {
-		return <FlowRunsScatterPlot {...args} />;
+		// Wrap in a container with explicit width to ensure ResponsiveContainer can measure
+		// The component uses "hidden md:block" so we need a wide enough container
+		return (
+			<div className="w-[900px]">
+				<FlowRunsScatterPlot {...args} />
+			</div>
+		);
 	},
 } satisfies Meta<typeof FlowRunsScatterPlot>;
 
