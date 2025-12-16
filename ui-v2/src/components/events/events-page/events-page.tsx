@@ -52,23 +52,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 		() => new Date(initialDateRange.to),
 	);
 
-	// Chart selection state (overrides zoom for filtering)
-	const [selectionStart, setSelectionStart] = useState<Date | null>(null);
-	const [selectionEnd, setSelectionEnd] = useState<Date | null>(null);
-
-	// Build filters - use selection if present, otherwise use zoom/search dates
-	const effectiveSearch: EventsSearchParams = {
-		...search,
-		...(selectionStart && selectionEnd
-			? {
-					rangeType: "range" as const,
-					start: selectionStart.toISOString(),
-					end: selectionEnd.toISOString(),
-				}
-			: {}),
-	};
-
-	const eventsFilter = buildEventsFilterFromSearch(effectiveSearch);
+	const eventsFilter = buildEventsFilterFromSearch(search);
 	const countFilter = buildEventsCountFilterFromSearch({
 		...search,
 		rangeType: "range",
@@ -101,10 +85,6 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	};
 
 	const handleDateRangeChange = (value: DateRangeSelectValue) => {
-		// Clear selection when date range changes
-		setSelectionStart(null);
-		setSelectionEnd(null);
-
 		if (value?.type === "span") {
 			const newEnd = new Date();
 			const newStart = new Date(newEnd.getTime() + value.seconds * 1000);
@@ -126,14 +106,6 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 		setZoomStart(start);
 		setZoomEnd(end);
 	}, []);
-
-	const handleSelectionChange = useCallback(
-		(start: Date | null, end: Date | null) => {
-			setSelectionStart(start);
-			setSelectionEnd(end);
-		},
-		[],
-	);
 
 	// Sticky chart behavior
 	const [isChartSticky, setIsChartSticky] = useState(false);
@@ -200,9 +172,6 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 						zoomStart={zoomStart}
 						zoomEnd={zoomEnd}
 						onZoomChange={handleZoomChange}
-						onSelectionChange={handleSelectionChange}
-						selectionStart={selectionStart}
-						selectionEnd={selectionEnd}
 					/>
 				</CardContent>
 			</Card>
