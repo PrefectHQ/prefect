@@ -108,6 +108,9 @@ export function InteractiveEventsChart({
 			<EventsLineChart
 				data={data}
 				className="h-full w-full"
+				showAxis={false}
+				zoomStart={zoomStart}
+				zoomEnd={zoomEnd}
 				selectionStart={selectionStart}
 				selectionEnd={selectionEnd}
 			/>
