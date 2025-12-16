@@ -161,4 +161,41 @@ export const buildEventsHistoryQuery = (
 		refetchInterval,
 	});
 
+/**
+ * Builds a query configuration for fetching the next page of events
+ *
+ * @param nextPageUrl - The full next_page URL from the previous response
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: firstPage } = useQuery(buildFilterEventsQuery(filter));
+ * // If there's a next page, fetch it
+ * if (firstPage.next_page) {
+ *   const { data: nextPage } = useQuery(buildEventsNextPageQuery(firstPage.next_page));
+ * }
+ * ```
+ */
+export const buildEventsNextPageQuery = (nextPageUrl: string) =>
+	queryOptions({
+		queryKey: [...queryKeyFactory.lists(), "next", nextPageUrl] as const,
+		queryFn: async () => {
+			const url = new URL(nextPageUrl);
+			const pageToken = url.searchParams.get("page-token");
+			if (!pageToken) {
+				throw new Error(
+					"'page-token' query parameter expected in next_page URL",
+				);
+			}
+			const res = await getQueryService().GET("/events/filter/next", {
+				params: { query: { "page-token": pageToken } },
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		staleTime: Number.POSITIVE_INFINITY,
+	});
+
 export * from "./filters";
