@@ -8,7 +8,7 @@ import { cn } from "@/utils";
 type ChartDataPoint = {
 	time: number;
 	count: number;
-	label: string | undefined;
+	label: string;
 };
 
 type EventsTooltipProps = {
@@ -111,12 +111,12 @@ export const EventsLineChart = forwardRef<
 
 			// Add start boundary point if not present
 			if (points.length === 0 || points[0].time > startTime) {
-				points.unshift({ time: startTime, count: 0, label: undefined });
+				points.unshift({ time: startTime, count: 0, label: "" });
 			}
 
 			// Add end boundary point if not present
 			if (points.length === 0 || points[points.length - 1].time < endTime) {
-				points.push({ time: endTime, count: 0, label: undefined });
+				points.push({ time: endTime, count: 0, label: "" });
 			}
 		}
 
