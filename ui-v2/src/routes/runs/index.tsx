@@ -209,8 +209,13 @@ const buildTaskRunsPaginationBody = (
 	search?: SearchParams,
 ): TaskRunsPaginateFilter => {
 	const taskRunSearch = search?.["task-run-search"];
+	const stateFilters = parseStateFilter(search?.state ?? "");
+	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
+	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
+	const tagsFilter = parseTagsFilter(search?.tags ?? "");
+	const dateRangeFilter = getDateRangeFilter(search);
 
-	// Build task_runs filter only if we have filters to apply
+	// Build task_runs filter only if we have task-specific filters to apply
 	const taskRunsFilter = taskRunSearch
 		? {
 				operator: "and_" as const,
@@ -218,11 +223,52 @@ const buildTaskRunsPaginationBody = (
 			}
 		: undefined;
 
+	// Build flow_runs filter from shared filters (state, tags, date range)
+	// These filters apply to the flow runs that the task runs belong to
+	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
+	const hasFlowRunsFilters =
+		stateNames || tagsFilter.length > 0 || dateRangeFilter;
+	const flowRunsFilter = hasFlowRunsFilters
+		? {
+				operator: "and_" as const,
+				...(stateNames && {
+					state: {
+						operator: "and_" as const,
+						name: { any_: stateNames },
+					},
+				}),
+				...(tagsFilter.length > 0 && {
+					tags: { operator: "and_" as const, any_: tagsFilter },
+				}),
+				...(dateRangeFilter && {
+					expected_start_time: dateRangeFilter,
+				}),
+			}
+		: undefined;
+
+	// Build flows filter for filtering by flow_id
+	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
+	const flowsFilterBody = flowIds
+		? { operator: "and_" as const, id: { any_: flowIds } }
+		: undefined;
+
+	// Build deployments filter for filtering by deployment_id
+	const deploymentIds =
+		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
+	const deploymentsFilterBody = deploymentIds
+		? { operator: "and_" as const, id: { any_: deploymentIds } }
+		: undefined;
+
+	// Note: work_pools filter is NOT supported by the task_runs/paginate endpoint
+
 	return {
 		page: search?.["task-runs-page"] ?? 1,
 		limit: search?.["task-runs-limit"] ?? 10,
 		sort: search?.["task-runs-sort"] ?? "EXPECTED_START_TIME_DESC",
 		task_runs: taskRunsFilter,
+		flow_runs: flowRunsFilter,
+		flows: flowsFilterBody,
+		deployments: deploymentsFilterBody,
 	};
 };
 
