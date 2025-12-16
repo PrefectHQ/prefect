@@ -64,6 +64,14 @@ const eventsHandlers = [
 		});
 	}),
 
+	http.get(buildApiUrl("/events/filter/next"), () => {
+		return HttpResponse.json({
+			events: [],
+			total: 0,
+			next_page: null,
+		});
+	}),
+
 	http.post(buildApiUrl("/events/count-by/:countable"), () => {
 		return HttpResponse.json([]);
 	}),

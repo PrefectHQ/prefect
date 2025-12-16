@@ -7,6 +7,7 @@ import type { EventsCountFilter, EventsFilter, EventsPage } from ".";
 import {
 	buildEventsCountQuery,
 	buildEventsHistoryQuery,
+	buildEventsNextPageQuery,
 	buildFilterEventsQuery,
 } from ".";
 
@@ -308,6 +309,83 @@ describe("events query factories", () => {
 			await waitFor(() => {
 				expect(result.current.data).toEqual([]);
 			});
+		});
+	});
+
+	describe("buildEventsNextPageQuery", () => {
+		const mockNextPageAPI = (response: EventsPage) => {
+			server.use(
+				http.get(buildApiUrl("/events/filter/next"), () => {
+					return HttpResponse.json(response);
+				}),
+			);
+		};
+
+		it("fetches next page of events using page token", async () => {
+			const mockResponse: EventsPage = {
+				events: [
+					{
+						id: "event-2",
+						occurred: "2024-01-15T11:00:00.000Z",
+						event: "prefect.flow-run.completed",
+						resource: { "prefect.resource.id": "prefect.flow-run.456" },
+						payload: {},
+						received: "2024-01-15T11:00:01.000Z",
+					},
+				],
+				total: 100,
+				next_page: "http://test/api/events/filter/next?page-token=token2",
+			};
+			mockNextPageAPI(mockResponse);
+
+			const nextPageUrl =
+				"http://test/api/events/filter/next?page-token=token1";
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildEventsNextPageQuery(nextPageUrl)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => {
+				expect(result.current.data).toEqual(mockResponse);
+			});
+		});
+
+		it("has correct query key structure", () => {
+			const nextPageUrl =
+				"http://test/api/events/filter/next?page-token=token1";
+
+			const { queryKey } = buildEventsNextPageQuery(nextPageUrl);
+
+			expect(queryKey).toEqual(["events", "list", "next", nextPageUrl]);
+		});
+
+		it("has staleTime set to Infinity", () => {
+			const nextPageUrl =
+				"http://test/api/events/filter/next?page-token=token1";
+
+			const { staleTime } = buildEventsNextPageQuery(nextPageUrl);
+
+			expect(staleTime).toBe(Number.POSITIVE_INFINITY);
+		});
+
+		it("extracts page-token from URL correctly", () => {
+			const nextPageUrl =
+				"http://test/api/events/filter/next?page-token=abc123xyz";
+
+			const queryOptions = buildEventsNextPageQuery(nextPageUrl);
+
+			expect(queryOptions.queryFn).toBeDefined();
+		});
+
+		it("handles URLs with additional query parameters", () => {
+			const nextPageUrl =
+				"http://test/api/events/filter/next?page-token=token1&other=param";
+
+			const { queryKey } = buildEventsNextPageQuery(nextPageUrl);
+
+			expect(queryKey).toEqual(["events", "list", "next", nextPageUrl]);
 		});
 	});
 });
