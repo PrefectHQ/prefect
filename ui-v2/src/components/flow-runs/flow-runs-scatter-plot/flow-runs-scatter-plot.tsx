@@ -1,7 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { formatDistanceStrict } from "date-fns";
 import humanizeDuration from "humanize-duration";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, ChevronRight, Clock } from "lucide-react";
 import { useMemo } from "react";
 import {
 	ResponsiveContainer,
@@ -11,7 +12,11 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import type { SimpleFlowRun } from "@/api/flow-runs";
+import {
+	buildGetFlowRunDetailsQuery,
+	type SimpleFlowRun,
+} from "@/api/flow-runs";
+import { buildFLowDetailsQuery } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { StateBadge } from "@/components/ui/state-badge";
 
@@ -80,13 +85,25 @@ type FlowRunTooltipProps = {
 };
 
 const FlowRunTooltip = ({ active, payload }: FlowRunTooltipProps) => {
-	if (!active || !payload || payload.length === 0) {
-		return null;
-	}
-
-	const firstPayload = payload[0];
+	const firstPayload = payload?.[0];
 	const data = firstPayload?.payload;
-	if (!data) {
+	const flowRunId = data?.id;
+
+	// Fetch flow run details when tooltip is active
+	const { data: flowRun } = useQuery({
+		...buildGetFlowRunDetailsQuery(flowRunId ?? ""),
+		enabled: active && Boolean(flowRunId),
+		staleTime: 5 * 60 * 1000, // 5 minutes to avoid refetching on mouse movement
+	});
+
+	// Fetch flow details when we have flow_id
+	const { data: flow } = useQuery({
+		...buildFLowDetailsQuery(flowRun?.flow_id ?? ""),
+		enabled: Boolean(flowRun?.flow_id),
+		staleTime: 5 * 60 * 1000,
+	});
+
+	if (!active || !payload || payload.length === 0 || !data) {
 		return null;
 	}
 
@@ -94,13 +111,26 @@ const FlowRunTooltip = ({ active, payload }: FlowRunTooltipProps) => {
 
 	return (
 		<div className="bg-background border rounded-lg p-3 shadow-lg flex flex-col gap-2 min-w-48">
-			<div className="flex items-center gap-2">
+			{/* Flow name and flow run name breadcrumbs */}
+			<div className="flex items-center gap-1 text-sm text-muted-foreground">
+				{flowRun?.flow_id && (
+					<>
+						<Link
+							to="/flows/flow/$id"
+							params={{ id: flowRun.flow_id }}
+							className="font-semibold hover:underline truncate max-w-32"
+						>
+							{flow?.name ?? "..."}
+						</Link>
+						<ChevronRight className="size-3 flex-shrink-0" />
+					</>
+				)}
 				<Link
 					to="/runs/flow-run/$id"
 					params={{ id: data.id }}
-					className="text-sm font-medium text-blue-700 hover:underline"
+					className="hover:underline truncate max-w-32"
 				>
-					{data.id.slice(0, 8)}...
+					{flowRun?.name ?? data.id.slice(0, 8)}
 				</Link>
 			</div>
 			<div>
