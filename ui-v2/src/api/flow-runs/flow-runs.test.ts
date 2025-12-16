@@ -3,12 +3,14 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
-import { createFakeFlowRun } from "@/mocks";
+import { createFakeFlowRun, createFakeSimpleFlowRun } from "@/mocks";
 import {
 	buildFilterFlowRunsQuery,
+	buildFlowRunHistoryQuery,
 	buildPaginateFlowRunsQuery,
 	type FlowRun,
 	queryKeyFactory,
+	type SimpleFlowRun,
 	useDeleteFlowRun,
 	useDeploymentCreateFlowRun,
 } from ".";
@@ -117,6 +119,78 @@ describe("flow runs api", () => {
 
 			expect(result.current.data.count).toEqual(3);
 			expect(result.current.data.results).toEqual(mockFlowRuns);
+		});
+	});
+
+	describe("buildFlowRunHistoryQuery", () => {
+		const mockFlowRunHistoryAPI = (flowRuns: Array<SimpleFlowRun>) => {
+			server.use(
+				http.post(buildApiUrl("/ui/flow_runs/history"), () => {
+					return HttpResponse.json(flowRuns);
+				}),
+			);
+		};
+
+		it("fetches flow run history with default parameters", async () => {
+			const mockHistory = [
+				createFakeSimpleFlowRun(),
+				createFakeSimpleFlowRun(),
+				createFakeSimpleFlowRun(),
+			];
+			mockFlowRunHistoryAPI(mockHistory);
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildFlowRunHistoryQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual(mockHistory);
+		});
+
+		it("fetches flow run history with custom filter parameters", async () => {
+			const mockHistory = [createFakeSimpleFlowRun()];
+			mockFlowRunHistoryAPI(mockHistory);
+
+			const filter = {
+				sort: "EXPECTED_START_TIME_ASC" as const,
+				limit: 500,
+				offset: 10,
+			};
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildFlowRunHistoryQuery(filter)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual(mockHistory);
+		});
+
+		it("uses the provided refetch interval", () => {
+			const customRefetchInterval = 60_000; // 1 minute
+
+			const { refetchInterval } = buildFlowRunHistoryQuery(
+				{ sort: "EXPECTED_START_TIME_DESC", limit: 1000, offset: 0 },
+				customRefetchInterval,
+			);
+
+			expect(refetchInterval).toBe(customRefetchInterval);
+		});
+
+		it("returns empty array when API returns no data", async () => {
+			mockFlowRunHistoryAPI([]);
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildFlowRunHistoryQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual([]);
 		});
 	});
 
