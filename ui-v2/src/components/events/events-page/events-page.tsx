@@ -135,23 +135,6 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 		[],
 	);
 
-	// Handlers for filtering events by time from timeline
-	const handleFilterEventsSince = useCallback(
-		(date: Date) => {
-			setSelectionStart(date);
-			setSelectionEnd(zoomEnd);
-		},
-		[zoomEnd],
-	);
-
-	const handleFilterEventsUntil = useCallback(
-		(date: Date) => {
-			setSelectionStart(zoomStart);
-			setSelectionEnd(date);
-		},
-		[zoomStart],
-	);
-
 	// Sticky chart behavior
 	const [isChartSticky, setIsChartSticky] = useState(false);
 
@@ -236,11 +219,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 				</EmptyState>
 			) : (
 				<>
-					<EventsTimeline
-						events={events}
-						onFilterEventsSince={handleFilterEventsSince}
-						onFilterEventsUntil={handleFilterEventsUntil}
-					/>
+					<EventsTimeline events={events} />
 
 					{/* Pagination */}
 					{totalPages > 1 && (

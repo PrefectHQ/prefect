@@ -25,6 +25,19 @@ export const RESOURCE_ICONS: Record<ResourceType, IconId> = {
 	unknown: "Circle",
 };
 
+export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
+	"flow-run": "Flow run",
+	"task-run": "Task run",
+	flow: "Flow",
+	deployment: "Deployment",
+	"work-pool": "Work pool",
+	"work-queue": "Work queue",
+	automation: "Automation",
+	"block-document": "Block document",
+	"concurrency-limit": "Concurrency limit",
+	unknown: "Resource",
+};
+
 /**
  * Parses a Prefect resource ID to determine its type.
  * Resource IDs follow the format: prefect.{resource-type}.{uuid}
