@@ -56,7 +56,7 @@ function TimelinePoint({ event, isLast }: { event: Event; isLast: boolean }) {
 	const iconId = RESOURCE_ICONS[resourceType];
 
 	return (
-		<div className="relative flex items-start justify-center w-10">
+		<div className="relative flex items-start justify-center w-10 h-full">
 			{/* Vertical line - extends from top to bottom, hidden for last item below the icon */}
 			<div
 				className={cn(
