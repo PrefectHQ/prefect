@@ -5,6 +5,7 @@ import {
 	buildEventsCountFilterFromSearch,
 	buildEventsFilterFromSearch,
 	type EventsSearchParams,
+	getDateRangeFromSearch,
 } from "@/api/events/filters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -39,19 +40,17 @@ export type EventsPageProps = {
 };
 
 export function EventsPage({ search, onSearchChange }: EventsPageProps) {
+	// Get the initial date range using the same logic as the route loader
+	// This ensures query keys match and prevents infinite Suspense retries
+	const initialDateRange = getDateRangeFromSearch(search);
+
 	// Chart zoom state (separate from filter date range)
-	const [zoomStart, setZoomStart] = useState<Date>(() => {
-		if (search.rangeType === "range" && search.start) {
-			return new Date(search.start);
-		}
-		return new Date(Date.now() + (search.seconds ?? -86400) * 1000);
-	});
-	const [zoomEnd, setZoomEnd] = useState<Date>(() => {
-		if (search.rangeType === "range" && search.end) {
-			return new Date(search.end);
-		}
-		return new Date();
-	});
+	const [zoomStart, setZoomStart] = useState<Date>(
+		() => new Date(initialDateRange.from),
+	);
+	const [zoomEnd, setZoomEnd] = useState<Date>(
+		() => new Date(initialDateRange.to),
+	);
 
 	// Chart selection state (overrides zoom for filtering)
 	const [selectionStart, setSelectionStart] = useState<Date | null>(null);
