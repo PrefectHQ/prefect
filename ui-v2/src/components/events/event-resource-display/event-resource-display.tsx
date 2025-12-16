@@ -8,6 +8,7 @@ import {
 	extractResourceId,
 	parseResourceType,
 	RESOURCE_ICONS,
+	RESOURCE_TYPE_LABELS,
 	type ResourceType,
 } from "./resource-types";
 
@@ -41,9 +42,11 @@ export function ResourceDisplayWithIcon({
 	className,
 }: ResourceDisplayWithIconProps) {
 	const iconId = RESOURCE_ICONS[resourceType];
+	const typeLabel = RESOURCE_TYPE_LABELS[resourceType];
 
 	return (
 		<div className={cn("flex items-center gap-2", className)}>
+			{typeLabel && <span>{typeLabel}</span>}
 			<Icon id={iconId} className="h-4 w-4 text-muted-foreground" />
 			<span>{displayText}</span>
 		</div>

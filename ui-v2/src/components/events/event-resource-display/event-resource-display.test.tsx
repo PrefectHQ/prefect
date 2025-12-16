@@ -132,7 +132,9 @@ describe("EventResourceDisplay", () => {
 		const event = createMockEvent("some.unknown.resource");
 		render(<EventResourceDisplay event={event} />);
 
-		expect(screen.getByText("Resource")).toBeInTheDocument();
+		// "Resource" appears twice: once as section header, once as type label for unknown types
+		const resourceTexts = screen.getAllByText("Resource");
+		expect(resourceTexts).toHaveLength(2);
 		expect(screen.getByText("resource")).toBeInTheDocument();
 	});
 
@@ -199,24 +201,27 @@ describe("EventResourceDisplay", () => {
 });
 
 describe("ResourceDisplayWithIcon", () => {
-	it("renders with flow-run icon", () => {
+	it("renders with flow-run icon and type label", () => {
 		render(
 			<ResourceDisplayWithIcon resourceType="flow-run" displayText="Test" />,
 		);
+		expect(screen.getByText("Flow run")).toBeInTheDocument();
 		expect(screen.getByText("Test")).toBeInTheDocument();
 	});
 
-	it("renders with deployment icon", () => {
+	it("renders with deployment icon and type label", () => {
 		render(
 			<ResourceDisplayWithIcon resourceType="deployment" displayText="Test" />,
 		);
+		expect(screen.getByText("Deployment")).toBeInTheDocument();
 		expect(screen.getByText("Test")).toBeInTheDocument();
 	});
 
-	it("renders with unknown icon", () => {
+	it("renders with unknown icon and type label", () => {
 		render(
 			<ResourceDisplayWithIcon resourceType="unknown" displayText="Test" />,
 		);
+		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("Test")).toBeInTheDocument();
 	});
 
