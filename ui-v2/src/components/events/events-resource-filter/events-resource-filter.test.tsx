@@ -88,7 +88,7 @@ describe("EventsResourceFilter", () => {
 		});
 	});
 
-	it("shows selected resources as TagBadges", async () => {
+	it("shows count text when resources are selected", async () => {
 		render(
 			<EventsResourceFilter
 				selectedResourceIds={[
@@ -101,8 +101,7 @@ describe("EventsResourceFilter", () => {
 		);
 
 		await waitFor(() => {
-			expect(screen.getByText("Test Automation")).toBeInTheDocument();
-			expect(screen.getByText("Test Flow")).toBeInTheDocument();
+			expect(screen.getByText("2 resources selected")).toBeInTheDocument();
 		});
 	});
 
@@ -173,25 +172,6 @@ describe("EventsResourceFilter", () => {
 		const listbox = await screen.findByRole("listbox");
 		const flowOption = await within(listbox).findByText("Test Flow");
 		await user.click(flowOption);
-
-		expect(onChange).toHaveBeenCalledWith([]);
-	});
-
-	it("removes a resource via TagBadge remove button", async () => {
-		const onChange = vi.fn();
-		const user = userEvent.setup();
-		render(
-			<EventsResourceFilter
-				selectedResourceIds={["prefect.flow.flow-1"]}
-				onResourceIdsChange={onChange}
-			/>,
-			{ wrapper: createWrapper() },
-		);
-
-		const removeButton = await screen.findByRole("button", {
-			name: /remove test flow tag/i,
-		});
-		await user.click(removeButton);
 
 		expect(onChange).toHaveBeenCalledWith([]);
 	});

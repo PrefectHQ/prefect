@@ -9,7 +9,6 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-import { TagBadge } from "@/components/ui/tag-badge";
 import {
 	type ResourceOption,
 	useResourceOptions,
@@ -45,14 +44,6 @@ function EventsResourceFilterImplementation({
 	const deferredSearch = useDeferredValue(search);
 
 	const { resourceOptions } = useResourceOptions();
-
-	const selectedResources = useMemo(() => {
-		return selectedResourceIds
-			.map((resourceId) =>
-				resourceOptions.find((option) => option.resourceId === resourceId),
-			)
-			.filter(Boolean) as ResourceOption[];
-	}, [resourceOptions, selectedResourceIds]);
 
 	const filteredOptions = useMemo(() => {
 		if (!deferredSearch) {
@@ -92,68 +83,51 @@ function EventsResourceFilterImplementation({
 		setSearch("");
 	};
 
-	const handleRemoveResource = (resourceId: string) => {
-		onResourceIdsChange(selectedResourceIds.filter((id) => id !== resourceId));
-	};
-
 	return (
-		<div className="flex flex-col gap-2">
-			<Combobox>
-				<ComboboxTrigger
-					aria-label="Filter by resource"
-					selected={selectedResourceIds.length > 0}
-				>
-					{selectedResourceIds.length > 0
-						? `${selectedResourceIds.length} resource${selectedResourceIds.length === 1 ? "" : "s"} selected`
-						: "All resources"}
-				</ComboboxTrigger>
-				<ComboboxContent>
-					<ComboboxCommandInput
-						value={search}
-						onValueChange={setSearch}
-						placeholder="Search resources..."
-					/>
-					<ComboboxCommandEmtpy>No resources found</ComboboxCommandEmtpy>
-					<ComboboxCommandList>
-						{(
-							Object.entries(groupedOptions) as [
-								ResourceOption["type"],
-								ResourceOption[],
-							][]
-						).map(([type, options]) =>
-							options.length > 0 ? (
-								<ComboboxCommandGroup
-									key={type}
-									heading={RESOURCE_TYPE_DISPLAY_NAMES[type]}
-								>
-									{options.map((option) => (
-										<ComboboxCommandItem
-											key={option.resourceId}
-											value={option.resourceId}
-											selected={selectedResourceIds.includes(option.resourceId)}
-											onSelect={handleToggleResource}
-											closeOnSelect={false}
-										>
-											{option.name}
-										</ComboboxCommandItem>
-									))}
-								</ComboboxCommandGroup>
-							) : null,
-						)}
-					</ComboboxCommandList>
-				</ComboboxContent>
-			</Combobox>
-			{selectedResources.length > 0 && (
-				<div className="flex flex-wrap gap-1">
-					{selectedResources.map((resource) => (
-						<TagBadge
-							key={resource.resourceId}
-							tag={resource.name}
-							onRemove={() => handleRemoveResource(resource.resourceId)}
-						/>
-					))}
-				</div>
-			)}
-		</div>
+		<Combobox>
+			<ComboboxTrigger
+				aria-label="Filter by resource"
+				selected={selectedResourceIds.length > 0}
+			>
+				{selectedResourceIds.length > 0
+					? `${selectedResourceIds.length} resource${selectedResourceIds.length === 1 ? "" : "s"} selected`
+					: "All resources"}
+			</ComboboxTrigger>
+			<ComboboxContent>
+				<ComboboxCommandInput
+					value={search}
+					onValueChange={setSearch}
+					placeholder="Search resources..."
+				/>
+				<ComboboxCommandEmtpy>No resources found</ComboboxCommandEmtpy>
+				<ComboboxCommandList>
+					{(
+						Object.entries(groupedOptions) as [
+							ResourceOption["type"],
+							ResourceOption[],
+						][]
+					).map(([type, options]) =>
+						options.length > 0 ? (
+							<ComboboxCommandGroup
+								key={type}
+								heading={RESOURCE_TYPE_DISPLAY_NAMES[type]}
+							>
+								{options.map((option) => (
+									<ComboboxCommandItem
+										key={option.resourceId}
+										value={option.resourceId}
+										selected={selectedResourceIds.includes(option.resourceId)}
+										onSelect={handleToggleResource}
+										closeOnSelect={false}
+									>
+										{option.name}
+									</ComboboxCommandItem>
+								))}
+							</ComboboxCommandGroup>
+						) : null,
+					)}
+				</ComboboxCommandList>
+			</ComboboxContent>
+		</Combobox>
 	);
 }
