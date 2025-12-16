@@ -7,6 +7,7 @@ import { createFakeWorkQueue } from "@/mocks";
 import {
 	buildFilterWorkPoolWorkQueuesQuery,
 	buildFilterWorkQueuesQuery,
+	buildGetWorkQueueQuery,
 	buildWorkQueueDetailsQuery,
 	type WorkQueue,
 } from "./work-queues";
@@ -98,6 +99,30 @@ describe("work queues api", () => {
 					),
 				{ wrapper: createWrapper({ queryClient }) },
 			);
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual(MOCK_WORK_QUEUE);
+		});
+	});
+
+	describe("buildGetWorkQueueQuery", () => {
+		const mockGetWorkQueueByIdAPI = (workQueue: WorkQueue) => {
+			server.use(
+				http.get(buildApiUrl("/work_queues/:id"), () => {
+					return HttpResponse.json(workQueue);
+				}),
+			);
+		};
+
+		it("fetches a work queue by ID", async () => {
+			const MOCK_WORK_QUEUE = createFakeWorkQueue();
+			mockGetWorkQueueByIdAPI(MOCK_WORK_QUEUE);
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildGetWorkQueueQuery(MOCK_WORK_QUEUE.id)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toEqual(MOCK_WORK_QUEUE);
 		});

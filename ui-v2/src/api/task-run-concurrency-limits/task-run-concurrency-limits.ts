@@ -66,7 +66,7 @@ const fetchTaskRunConcurrencyLimit = async (id: string) => {
 	return res.data;
 };
 
-export const buildDetailTaskRunConcurrencyLimitsQuery = (id: string) =>
+export const buildGetConcurrencyLimitQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: () => fetchTaskRunConcurrencyLimit(id),
@@ -86,7 +86,7 @@ export const useListTaskRunConcurrencyLimits = (
  * @returns details of task run concurrency limits as a SuspenseQueryResult object
  */
 export const useGetTaskRunConcurrencyLimit = (id: string) =>
-	useSuspenseQuery(buildDetailTaskRunConcurrencyLimitsQuery(id));
+	useSuspenseQuery(buildGetConcurrencyLimitQuery(id));
 
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
