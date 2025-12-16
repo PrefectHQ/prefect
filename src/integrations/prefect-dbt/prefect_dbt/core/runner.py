@@ -363,7 +363,16 @@ class PrefectDbtRunner:
             manifest_node
         )
 
-        if manifest_node.resource_type in MATERIALIZATION_NODE_TYPES and enable_assets:
+        # Only create assets for materialization nodes that have a relation_name.
+        # Ephemeral models are NodeType.Model but have relation_name=None because
+        # they're CTEs that don't create database objects. We skip asset creation
+        # for these and fall through to create a regular Task instead.
+        # See: https://github.com/PrefectHQ/prefect/issues/19821
+        if (
+            manifest_node.resource_type in MATERIALIZATION_NODE_TYPES
+            and enable_assets
+            and manifest_node.relation_name
+        ):
             asset = self._create_asset_from_node(manifest_node, adapter_type)
 
             upstream_assets: list[Asset] = []
@@ -383,8 +392,6 @@ class PrefectDbtRunner:
                     upstream_assets.append(upstream_asset)
 
             task_options = self._create_task_options(manifest_node, upstream_assets)
-            if not manifest_node.relation_name:
-                raise ValueError("Relation name not found in manifest")
             asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
 
             task = MaterializingTask(

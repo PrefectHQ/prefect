@@ -984,21 +984,32 @@ class TestPrefectDbtRunnerTaskCreation:
     def test_call_task_handles_missing_relation_name_for_assets(
         self, mock_task_state, mock_manifest_node, mock_manifest
     ):
-        """Test that missing relation_name is handled when creating assets."""
+        """Test that missing relation_name creates a regular Task instead of MaterializingTask.
+
+        Ephemeral models in dbt have relation_name=None because they're CTEs that
+        don't create database objects. When enable_assets=True but relation_name is
+        missing, we should fall back to creating a regular Task instead of raising
+        an error.
+
+        See: https://github.com/PrefectHQ/prefect/issues/19821
+        """
         runner = PrefectDbtRunner(manifest=mock_manifest)
         context = {"test": "context"}
 
-        # Remove relation_name from manifest node
+        # Remove relation_name from manifest node (simulates ephemeral model)
         mock_manifest_node.relation_name = None
 
         with patch("prefect_dbt.core.runner.Task") as mock_task_class:
             mock_task = Mock(spec=Task)
             mock_task_class.return_value = mock_task
 
-            with pytest.raises(ValueError, match="Relation name not found in manifest"):
-                runner._call_task(
-                    mock_task_state, mock_manifest_node, context, enable_assets=True
-                )
+            # Should NOT raise - should create a regular Task instead
+            runner._call_task(
+                mock_task_state, mock_manifest_node, context, enable_assets=True
+            )
+
+            # Verify that a regular Task was created (not MaterializingTask)
+            mock_task_class.assert_called_once()
 
     def test_call_task_with_source_definition_upstream_nodes(
         self, mock_task_state, mock_manifest_node, mock_manifest, mock_source_definition
