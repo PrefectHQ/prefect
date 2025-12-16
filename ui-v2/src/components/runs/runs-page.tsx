@@ -9,6 +9,7 @@ import {
 	type DateRangeUrlState,
 	DeploymentFilter,
 	FlowFilter,
+	type FlowRunState,
 	FlowRunsList,
 	FlowRunsPagination,
 	FlowRunsRowCount,
@@ -59,8 +60,8 @@ type RunsPageProps = {
 	onHideSubflowsChange: (hideSubflows: boolean) => void;
 	flowRunSearch: string;
 	onFlowRunSearchChange: (search: string) => void;
-	selectedStates: Set<string>;
-	onStateFilterChange: (states: Set<string>) => void;
+	selectedStates: Set<FlowRunState>;
+	onStateFilterChange: (states: Set<FlowRunState>) => void;
 	selectedFlows: Set<string>;
 	onFlowFilterChange: (flows: Set<string>) => void;
 	selectedDeployments: Set<string>;

@@ -23,14 +23,14 @@ const parseCommaSeparatedFilter = (filterString: string): string[] => {
 };
 
 export type RunsFilters = {
-	states: Set<string>;
+	states: Set<FlowRunState>;
 	flows: Set<string>;
 	deployments: Set<string>;
 	workPools: Set<string>;
 	tags: Set<string>;
 	dateRange: DateRangeUrlState;
 
-	onStatesChange: (states: Set<string>) => void;
+	onStatesChange: (states: Set<FlowRunState>) => void;
 	onFlowsChange: (flows: Set<string>) => void;
 	onDeploymentsChange: (deployments: Set<string>) => void;
 	onWorkPoolsChange: (workPools: Set<string>) => void;
@@ -46,7 +46,7 @@ export function useRunsFilters(): RunsFilters {
 	const navigate = routeApi.useNavigate();
 
 	const states = useMemo(
-		() => new Set<string>(parseStateFilter(search.state ?? "")),
+		() => new Set<FlowRunState>(parseStateFilter(search.state ?? "")),
 		[search.state],
 	);
 
@@ -81,7 +81,7 @@ export function useRunsFilters(): RunsFilters {
 	);
 
 	const onStatesChange = useCallback(
-		(newStates: Set<string>) => {
+		(newStates: Set<FlowRunState>) => {
 			const statesArray = Array.from(newStates);
 			void navigate({
 				to: ".",

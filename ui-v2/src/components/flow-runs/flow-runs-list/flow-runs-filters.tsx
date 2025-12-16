@@ -3,6 +3,7 @@ import { DeploymentFilter } from "./flow-runs-filters/deployment-filter";
 import { SortFilter } from "./flow-runs-filters/sort-filter";
 import type { SortFilters } from "./flow-runs-filters/sort-filter.constants";
 import { StateFilter } from "./flow-runs-filters/state-filter";
+import type { FlowRunState } from "./flow-runs-filters/state-filters.constants";
 import { WorkPoolFilter } from "./flow-runs-filters/work-pool-filter";
 
 export type FlowRunsFiltersProps = {
@@ -11,8 +12,8 @@ export type FlowRunsFiltersProps = {
 		value: string;
 	};
 	stateFilter: {
-		value: Set<string>;
-		onSelect: (filters: Set<string>) => void;
+		value: Set<FlowRunState>;
+		onSelect: (filters: Set<FlowRunState>) => void;
 	};
 	deploymentFilter?: {
 		value: Set<string>;

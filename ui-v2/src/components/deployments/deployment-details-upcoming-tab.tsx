@@ -214,7 +214,7 @@ function useFilter() {
 	const navigate = routeApi.useNavigate();
 
 	const onFilter = useCallback(
-		(value?: Set<string>) => {
+		(value?: Set<FlowRunState>) => {
 			void navigate({
 				to: ".",
 				search: (prev) => ({

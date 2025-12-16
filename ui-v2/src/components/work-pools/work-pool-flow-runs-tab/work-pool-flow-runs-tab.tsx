@@ -10,6 +10,7 @@ import {
 import { buildListFlowsQuery, type Flow } from "@/api/flows";
 import { FlowRunsList } from "@/components/flow-runs/flow-runs-list";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
+import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import {
 	FlowRunsPagination,
 	type PaginationState,
@@ -31,7 +32,9 @@ export const WorkPoolFlowRunsTab = ({
 		page: 1,
 	});
 	const [searchTerm, setSearchTerm] = useState("");
-	const [selectedStates, setSelectedStates] = useState<Set<string>>(new Set());
+	const [selectedStates, setSelectedStates] = useState<Set<FlowRunState>>(
+		new Set(),
+	);
 
 	// Debounce the search term to avoid too many API calls
 	const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -187,7 +190,7 @@ export const WorkPoolFlowRunsTab = ({
 	);
 
 	const handleStateFilterChange = useCallback(
-		(newSelectedStates: Set<string>) => {
+		(newSelectedStates: Set<FlowRunState>) => {
 			setSelectedStates(newSelectedStates);
 			// Reset to first page when filtering
 			setPagination((prev) => ({ ...prev, page: 1 }));
