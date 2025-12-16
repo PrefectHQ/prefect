@@ -1454,6 +1454,26 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 ),
             )
 
+            # If the deployment was deleted while the run was waiting for a
+            # concurrency slot, cancel the run to prevent it from being polled
+            # indefinitely
+            if "Deployment not found" in str(exc):
+                run_logger.info(
+                    f"Cancelling flow run '{flow_run.id}' because its deployment "
+                    "was deleted"
+                )
+                try:
+                    await self.client.set_flow_run_state(
+                        flow_run.id,
+                        Cancelled(
+                            message="Deployment was deleted while run was waiting"
+                        ),
+                        force=True,
+                    )
+                except ObjectNotFound:
+                    # Flow run was already deleted
+                    pass
+
             return False
         except Exception:
             run_logger.exception(

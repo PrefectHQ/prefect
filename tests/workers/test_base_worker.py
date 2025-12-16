@@ -38,6 +38,7 @@ from prefect.client.schemas.objects import (
 )
 from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import (
+    Abort,
     CrashedRun,
     ObjectNotFound,
 )
@@ -2859,3 +2860,78 @@ class TestBackwardsCompatibility:
         with pytest.warns(PrefectDeprecationWarning):
             async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
                 await worker._get_configuration(flow_run=flow_run)
+
+
+async def test_worker_cancels_flow_run_when_deployment_not_found_on_pending_transition(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    """
+    Regression test for orphaned flow runs when deployment is deleted.
+
+    When a flow run is waiting for a concurrency slot (AwaitingConcurrencySlot state)
+    and the deployment is deleted, the worker should cancel the run instead of leaving
+    it stuck in the queue indefinitely.
+
+    See: https://github.com/PrefectHQ/prefect/issues/XXXXX
+    """
+    # Create a flow run
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        # Mock propose_state to raise Abort with "Deployment not found" message
+        # This simulates what happens when the server's SecureFlowConcurrencySlots
+        # rule finds the deployment was deleted
+        with mock.patch(
+            "prefect.workers.base.propose_state",
+            side_effect=Abort("Deployment not found."),
+        ):
+            result = await worker._propose_pending_state(flow_run)
+
+        # Should return False (run not transitioned to pending)
+        assert result is False
+
+    # Flow run should now be cancelled
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_cancelled()
+    assert "Deployment was deleted" in (updated_flow_run.state.message or "")
+
+
+async def test_worker_does_not_cancel_flow_run_for_other_abort_reasons(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    """
+    Ensure that only "Deployment not found" aborts trigger cancellation.
+
+    Other abort reasons (like concurrency limit of 0) should not cancel the run.
+    """
+    # Create a flow run
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        # Mock propose_state to raise Abort with a different message
+        with mock.patch(
+            "prefect.workers.base.propose_state",
+            side_effect=Abort(
+                "The deployment concurrency limit is 0. The flow will deadlock if submitted again."
+            ),
+        ):
+            result = await worker._propose_pending_state(flow_run)
+
+        # Should return False (run not transitioned to pending)
+        assert result is False
+
+    # Flow run should NOT be cancelled - it should still be scheduled
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_scheduled()

@@ -3674,6 +3674,80 @@ class TestFlowConcurrencyLimits:
         )
         assert ctx3.response_details.reason == "Deployment concurrency limit reached."
 
+    async def test_secure_concurrency_slots_updates_next_scheduled_start_time(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """
+        Regression test: when a flow run is rejected to AwaitingConcurrencySlot,
+        the next_scheduled_start_time on the flow run should be updated to match
+        the new scheduled_time from the rejection state.
+
+        Without this update, workers will keep seeing the run but the server will
+        keep rejecting it, causing runs to get stuck in AwaitingConcurrencySlot
+        indefinitely even after concurrency slots become available.
+        """
+        from prefect.server.orchestration.global_policy import GlobalFlowPolicy
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        concurrency_policy = [SecureFlowConcurrencySlots]
+        global_policy = GlobalFlowPolicy.compile_transition_rules(
+            states.StateType.SCHEDULED, states.StateType.PENDING
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # Fill the single slot with the first run
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *pending_transition))
+            for rule in global_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *pending_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        # Second run should be rejected with AwaitingConcurrencySlot
+        # and next_scheduled_start_time should be updated
+        ctx2 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        original_next_scheduled = ctx2.run.next_scheduled_start_time
+
+        with mock.patch("prefect.server.orchestration.core_policy.now") as mock_now:
+            expected_now = parse_datetime("2024-01-01T00:00:00Z")
+            mock_now.return_value = expected_now
+            expected_scheduled_time = expected_now + timedelta(
+                seconds=PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS.value()
+            )
+
+            async with contextlib.AsyncExitStack() as stack:
+                for rule in concurrency_policy:
+                    ctx2 = await stack.enter_async_context(
+                        rule(ctx2, *pending_transition)
+                    )
+                for rule in global_policy:
+                    ctx2 = await stack.enter_async_context(
+                        rule(ctx2, *pending_transition)
+                    )
+                await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert ctx2.proposed_state.name == "AwaitingConcurrencySlot"
+
+        # The critical assertion: next_scheduled_start_time should be updated
+        # to match the rejection state's scheduled_time
+        assert ctx2.run.next_scheduled_start_time == expected_scheduled_time
+        assert ctx2.run.next_scheduled_start_time != original_next_scheduled
+
     async def test_release_concurrency_slots(
         self,
         session,
