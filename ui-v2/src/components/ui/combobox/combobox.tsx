@@ -107,8 +107,14 @@ const ComboboxCommandEmtpy = ({ children }: { children: React.ReactNode }) => {
 	return <CommandEmpty>{children}</CommandEmpty>;
 };
 
-const ComboboxCommandGroup = ({ children }: { children: React.ReactNode }) => {
-	return <CommandGroup>{children}</CommandGroup>;
+const ComboboxCommandGroup = ({
+	heading,
+	children,
+}: {
+	heading?: string;
+	children: React.ReactNode;
+}) => {
+	return <CommandGroup heading={heading}>{children}</CommandGroup>;
 };
 
 const ComboboxCommandItem = ({
