@@ -281,7 +281,11 @@ class PrefectEventsClient(EventsClient):
         # Don't handle any errors in the initial connection, because these are most
         # likely a permission or configuration issue that should propagate
         await super().__aenter__()
-        await self._reconnect()
+        try:
+            await self._reconnect()
+        except Exception as e:
+            self._log_connection_error(e)
+            raise
         return self
 
     async def __aexit__(
@@ -297,6 +301,18 @@ class PrefectEventsClient(EventsClient):
     def _log_debug(self, message: str, *args: Any, **kwargs: Any) -> None:
         message = f"EventsClient(id={id(self)}): " + message
         logger.debug(message, *args, **kwargs)
+
+    def _log_connection_error(self, error: Exception) -> None:
+        logger.warning(
+            "Unable to connect to %r. "
+            "Please check your network settings to ensure websocket connections "
+            "to the API are allowed. Otherwise event data (including task run data) may be lost. "
+            "Reason: %s. "
+            "Set PREFECT_DEBUG_MODE=1 to see the full error.",
+            self._events_socket_url,
+            str(error),
+            exc_info=PREFECT_DEBUG_MODE.value(),
+        )
 
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting websocket connection.")
@@ -315,15 +331,10 @@ class PrefectEventsClient(EventsClient):
             await pong
             logger.debug("Pong received. Websocket connected.")
         except Exception as e:
-            # The client is frequently run in a background thread
-            # so we log an additional warning to ensure
-            # surfacing the error to the user.
-            logger.warning(
-                "Unable to connect to %r. "
-                "Please check your network settings to ensure websocket connections "
-                "to the API are allowed. Otherwise event data (including task run data) may be lost. "
-                "Reason: %s. "
-                "Set PREFECT_DEBUG_MODE=1 to see the full error.",
+            # Log at debug level during reconnection attempts - the warning will
+            # only be logged if all reconnection attempts fail (in _emit)
+            logger.debug(
+                "Unable to connect to %r, will retry. Reason: %s",
                 self._events_socket_url,
                 str(e),
                 exc_info=PREFECT_DEBUG_MODE.value(),
@@ -391,10 +402,11 @@ class PrefectEventsClient(EventsClient):
                 await self._checkpoint()
 
                 return
-            except ConnectionClosed:
+            except ConnectionClosed as e:
                 self._log_debug("Got ConnectionClosed error.")
                 if i == self._reconnection_attempts:
-                    # this was our final chance, raise the most recent error
+                    # this was our final chance, log warning and raise
+                    self._log_connection_error(e)
                     raise
 
                 if i > 2:
