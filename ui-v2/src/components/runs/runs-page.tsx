@@ -28,6 +28,7 @@ import {
 	TaskRunsSortFilter,
 	useTaskRunsSelectedRows,
 } from "@/components/task-runs/task-runs-list";
+import { Button } from "@/components/ui/button";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
 	EmptyState,
@@ -72,6 +73,8 @@ type RunsPageProps = {
 	onWorkPoolFilterChange: (workPools: Set<string>) => void;
 	dateRange: DateRangeUrlState;
 	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
+	hasActiveFilters: boolean;
+	onClearAllFilters: () => void;
 	// Task runs props
 	taskRuns: TaskRunResponse[];
 	taskRunsPages: number;
@@ -114,6 +117,8 @@ export const RunsPage = ({
 	onWorkPoolFilterChange,
 	dateRange,
 	onDateRangeChange,
+	hasActiveFilters,
+	onClearAllFilters,
 	// Task runs props
 	taskRuns,
 	taskRunsPages,
@@ -208,6 +213,11 @@ export const RunsPage = ({
 					/>
 				</div>
 				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
+				{hasActiveFilters && (
+					<Button variant="ghost" size="sm" onClick={onClearAllFilters}>
+						Clear filters
+					</Button>
+				)}
 			</div>
 			<Tabs value={tab} onValueChange={onTabChange}>
 				<TabsList>

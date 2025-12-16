@@ -470,6 +470,8 @@ function RouteComponent() {
 		onWorkPoolsChange: onWorkPoolFilterChange,
 		onTagsChange: onTagsFilterChange,
 		onDateRangeChange,
+		hasActiveFilters,
+		clearAllFilters,
 	} = useRunsFilters();
 	// Task runs hooks
 	const [taskRunsPagination, onTaskRunsPaginationChange] =
@@ -577,6 +579,8 @@ function RouteComponent() {
 			onWorkPoolFilterChange={onWorkPoolFilterChange}
 			dateRange={dateRange}
 			onDateRangeChange={onDateRangeChange}
+			hasActiveFilters={hasActiveFilters}
+			onClearAllFilters={clearAllFilters}
 			// Task runs props
 			taskRuns={taskRuns}
 			taskRunsPages={taskRunsPage?.pages ?? 0}
