@@ -158,6 +158,8 @@ export const buildEventsHistoryQuery = (
 			});
 			return res.data ?? [];
 		},
+		placeholderData: keepPreviousData,
+		staleTime: 1000,
 		refetchInterval,
 	});
 

@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import {
 	buildEventsNextPageQuery,
@@ -35,7 +35,7 @@ type UseEventsPaginationReturn = {
  * - `tokenVault[n]` contains the token to fetch page `n+1`
  * - Clears token vault when filter changes (detected via JSON.stringify comparison)
  * - Stores next page tokens from API responses as they're received
- * - Uses `useSuspenseQuery` for the first page and `useQuery` for subsequent pages
+ * - Uses `useQuery` for both the first page and subsequent pages
  *
  * @param options - Configuration options
  * @param options.filter - The events filter to apply
@@ -72,7 +72,7 @@ export function useEventsPagination({
 	}, [filter]);
 
 	// First page query - always fetches the first page
-	const firstPageQuery = useSuspenseQuery(buildFilterEventsQuery(filter));
+	const firstPageQuery = useQuery(buildFilterEventsQuery(filter));
 
 	// Store the next_page token from first page response
 	useEffect(() => {
