@@ -4,9 +4,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import AsyncGenerator, Generator, Optional
+from unittest.mock import patch
 
 import anyio
 import pytest
+from prefect_redis.client import _client_cache, clear_cached_clients
 from prefect_redis.messaging import (
     Cache,
     Consumer,
@@ -19,6 +21,7 @@ from prefect_redis.messaging import (
     _trim_stream_to_lowest_delivered_id,
 )
 from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from prefect.server.events import Event
 from prefect.server.events.clients import PrefectServerEventsClient
@@ -628,3 +631,67 @@ async def test_cleanup_empty_consumer_groups(redis: Redis):
     groups_after = await redis.xinfo_groups(stream_name)
     assert len(groups_after) == 1
     assert groups_after[0]["name"] == "ephemeral-active-group"
+
+
+async def test_consumer_recovers_from_redis_connection_error(
+    broker: str, publisher: Publisher
+):
+    """Test that consumer reconnects after Redis connection error (issue #19080)."""
+    captured_messages: list[Message] = []
+    connection_error_count = 0
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        if len(captured_messages) >= 2:
+            raise StopConsumer(ack=True)
+
+    consumer = create_consumer("message-tests")
+
+    # We'll simulate a connection error by patching xreadgroup to fail once
+    original_xreadgroup = Redis.xreadgroup
+
+    async def failing_xreadgroup(self, *args, **kwargs):
+        nonlocal connection_error_count
+        if connection_error_count == 0:
+            connection_error_count += 1
+            raise RedisConnectionError("Simulated connection error")
+        return await original_xreadgroup(self, *args, **kwargs)
+
+    with patch.object(Redis, "xreadgroup", failing_xreadgroup):
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        # Give the consumer time to hit the error and reconnect
+        await asyncio.sleep(0.5)
+
+        # Publish messages - these should be received after reconnection
+        async with publisher as p:
+            await p.publish_data(b"message-1", {"id": "1"})
+            await p.publish_data(b"message-2", {"id": "2"})
+
+        # Wait for consumer to process messages
+        with anyio.move_on_after(5.0):
+            await consumer_task
+
+    # Verify the connection error was raised and recovered from
+    assert connection_error_count == 1, "Should have encountered one connection error"
+
+    # Verify messages were received after recovery
+    assert len(captured_messages) == 2, (
+        "Should have received both messages after recovery"
+    )
+    assert captured_messages[0].data == "message-1"
+    assert captured_messages[1].data == "message-2"
+
+
+async def test_clear_cached_clients():
+    """Test that clear_cached_clients clears the cache."""
+    # Get a client to populate the cache
+    from prefect_redis.client import get_async_redis_client
+
+    get_async_redis_client()  # Populate cache
+    assert len(_client_cache) > 0, "Cache should have at least one client"
+
+    # Clear the cache
+    await clear_cached_clients()
+
+    assert len(_client_cache) == 0, "Cache should be empty after clearing"
