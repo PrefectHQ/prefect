@@ -20,6 +20,10 @@ export { createFakeGlobalConcurrencyLimit } from "./create-fake-global-concurren
 export { createFakeLog } from "./create-fake-log";
 export { createFakeSchedule } from "./create-fake-schedule";
 export { createFakeServerSettings } from "./create-fake-server-settings";
+export {
+	createFakeSimpleFlowRun,
+	createFakeSimpleFlowRuns,
+} from "./create-fake-simple-flow-run";
 export { createFakeState } from "./create-fake-state";
 export { createFakeTaskRunConcurrencyLimit } from "./create-fake-take-run-concurrency-limit";
 export {
