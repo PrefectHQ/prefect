@@ -10,6 +10,7 @@ import {
 	createFakeFlow,
 	createFakeFlowRun,
 	createFakeTaskRun,
+	createFakeTaskRunConcurrencyLimit,
 	createFakeWorkPool,
 	createFakeWorkQueue,
 } from "@/mocks";
@@ -17,6 +18,7 @@ import { ResolvedResourceDisplay } from "./resolved-resource-display";
 import {
 	AutomationResourceDisplay,
 	BlockDocumentResourceDisplay,
+	ConcurrencyLimitResourceDisplay,
 	DeploymentResourceDisplay,
 	FlowResourceDisplay,
 	FlowRunResourceDisplay,
@@ -52,6 +54,10 @@ const mockAutomation = createFakeAutomation({
 const mockBlockDocument = createFakeBlockDocument({
 	id: "block-document-123",
 	name: "my-block",
+});
+const mockConcurrencyLimit = createFakeTaskRunConcurrencyLimit({
+	id: "concurrency-limit-123",
+	tag: "my-concurrency-limit",
 });
 
 const renderWithSuspense = (ui: React.ReactElement) => {
@@ -192,6 +198,24 @@ describe("BlockDocumentResourceDisplay", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("my-block")).toBeInTheDocument();
+		});
+	});
+});
+
+describe("ConcurrencyLimitResourceDisplay", () => {
+	it("fetches and displays concurrency limit tag", async () => {
+		server.use(
+			http.get(buildApiUrl("/concurrency_limits/:id"), () => {
+				return HttpResponse.json(mockConcurrencyLimit);
+			}),
+		);
+
+		renderWithSuspense(
+			<ConcurrencyLimitResourceDisplay resourceId="concurrency-limit-123" />,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("my-concurrency-limit")).toBeInTheDocument();
 		});
 	});
 });
@@ -346,15 +370,22 @@ describe("ResolvedResourceDisplay", () => {
 		});
 	});
 
-	it("returns null for concurrency-limit type (blocked by OSS-7267)", () => {
-		const { container } = renderWithSuspense(
+	it("renders ConcurrencyLimitResourceDisplay for concurrency-limit type", async () => {
+		server.use(
+			http.get(buildApiUrl("/concurrency_limits/:id"), () => {
+				return HttpResponse.json(mockConcurrencyLimit);
+			}),
+		);
+
+		renderWithSuspense(
 			<ResolvedResourceDisplay
 				resourceType="concurrency-limit"
-				resourceId="limit-123"
+				resourceId="concurrency-limit-123"
 			/>,
 		);
 
-		// The component returns null for concurrency-limit, so the container should be empty
-		expect(container.textContent).toBe("");
+		await waitFor(() => {
+			expect(screen.getByText("my-concurrency-limit")).toBeInTheDocument();
+		});
 	});
 });

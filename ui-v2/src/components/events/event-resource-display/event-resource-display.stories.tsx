@@ -9,6 +9,7 @@ import {
 	createFakeFlow,
 	createFakeFlowRun,
 	createFakeTaskRun,
+	createFakeTaskRunConcurrencyLimit,
 	createFakeWorkPool,
 	createFakeWorkQueue,
 } from "@/mocks";
@@ -17,6 +18,7 @@ import { EventResourceDisplay } from "./event-resource-display";
 import {
 	AutomationResourceDisplay,
 	BlockDocumentResourceDisplay,
+	ConcurrencyLimitResourceDisplay,
 	DeploymentResourceDisplay,
 	FlowResourceDisplay,
 	FlowRunResourceDisplay,
@@ -66,6 +68,10 @@ const mockAutomation = createFakeAutomation({
 const mockBlockDocument = createFakeBlockDocument({
 	id: "block-document-123",
 	name: "my-block",
+});
+const mockConcurrencyLimit = createFakeTaskRunConcurrencyLimit({
+	id: "concurrency-limit-123",
+	tag: "my-concurrency-limit",
 });
 
 const meta = {
@@ -220,6 +226,23 @@ export const BlockDocumentDisplay: StoryObj<
 			handlers: [
 				http.get(buildApiUrl("/block_documents/:id"), () => {
 					return HttpResponse.json(mockBlockDocument);
+				}),
+			],
+		},
+	},
+};
+
+export const ConcurrencyLimitDisplay: StoryObj<
+	typeof ConcurrencyLimitResourceDisplay
+> = {
+	render: () => (
+		<ConcurrencyLimitResourceDisplay resourceId="concurrency-limit-123" />
+	),
+	parameters: {
+		msw: {
+			handlers: [
+				http.get(buildApiUrl("/concurrency_limits/:id"), () => {
+					return HttpResponse.json(mockConcurrencyLimit);
 				}),
 			],
 		},

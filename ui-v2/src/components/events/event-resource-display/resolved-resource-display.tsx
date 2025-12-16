@@ -1,6 +1,7 @@
 import {
 	AutomationResourceDisplay,
 	BlockDocumentResourceDisplay,
+	ConcurrencyLimitResourceDisplay,
 	DeploymentResourceDisplay,
 	FlowResourceDisplay,
 	FlowRunResourceDisplay,
@@ -70,9 +71,12 @@ export function ResolvedResourceDisplay({
 				/>
 			);
 		case "concurrency-limit":
-			// TODO: ConcurrencyLimitResourceDisplay is blocked by OSS-7267
-			// The buildGetConcurrencyLimitQuery function doesn't exist yet
-			return null;
+			return (
+				<ConcurrencyLimitResourceDisplay
+					resourceId={resourceId}
+					className={className}
+				/>
+			);
 		default:
 			return null;
 	}

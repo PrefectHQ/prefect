@@ -4,6 +4,7 @@ import { buildGetBlockDocumentQuery } from "@/api/block-documents";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { buildGetFlowRunDetailsQuery } from "@/api/flow-runs";
 import { buildFLowDetailsQuery } from "@/api/flows";
+import { buildGetConcurrencyLimitQuery } from "@/api/task-run-concurrency-limits";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { buildGetWorkPoolQuery } from "@/api/work-pools";
 import { buildGetWorkQueueQuery } from "@/api/work-queues";
@@ -135,6 +136,22 @@ export function BlockDocumentResourceDisplay({
 		<ResourceDisplayWithIcon
 			resourceType="block-document"
 			displayText={blockDocument.name ?? resourceId}
+			className={className}
+		/>
+	);
+}
+
+export function ConcurrencyLimitResourceDisplay({
+	resourceId,
+	className,
+}: ResourceDisplayProps) {
+	const { data: concurrencyLimit } = useSuspenseQuery(
+		buildGetConcurrencyLimitQuery(resourceId),
+	);
+	return (
+		<ResourceDisplayWithIcon
+			resourceType="concurrency-limit"
+			displayText={concurrencyLimit.tag ?? resourceId}
 			className={className}
 		/>
 	);
