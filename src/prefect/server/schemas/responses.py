@@ -369,9 +369,6 @@ class TaskRunResponse(ORMBaseModel):
         description="The version of the task executed in this task run.",
         examples=["1.0"],
     )
-    parameters: dict[str, Any] = Field(
-        default_factory=dict, description="Parameters for the task run."
-    )
     task_inputs: dict[
         str,
         list[
@@ -383,11 +380,6 @@ class TaskRunResponse(ORMBaseModel):
             ]
         ],
     ] = Field(default_factory=dict, description="Inputs provided to the task run.")
-    context: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional context for the task run.",
-        examples=[{"my_var": "my_val"}],
-    )
     empirical_policy: schemas.core.TaskRunPolicy = Field(
         default_factory=schemas.core.TaskRunPolicy,
         description="The task run's empirical retry policy.",

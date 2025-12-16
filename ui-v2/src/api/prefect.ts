@@ -10744,25 +10744,11 @@ export interface components {
              */
             task_version?: string | null;
             /**
-             * Parameters
-             * @description Parameters for the task run.
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            /**
              * Task Inputs
              * @description Inputs provided to the task run.
              */
             task_inputs?: {
                 [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
-            };
-            /**
-             * Context
-             * @description Additional context for the task run.
-             */
-            context?: {
-                [key: string]: unknown;
             };
             /** @description The task run's empirical retry policy. */
             empirical_policy?: components["schemas"]["TaskRunPolicy"];
