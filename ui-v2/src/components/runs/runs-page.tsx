@@ -48,6 +48,10 @@ type RunsPageProps = {
 	onTabChange: (tab: string) => void;
 	flowRunsCount: number;
 	taskRunsCount: number;
+	/** Whether any flow runs exist (unfiltered) - used for empty state check */
+	hasAnyFlowRuns: boolean;
+	/** Whether any task runs exist (unfiltered) - used for empty state check */
+	hasAnyTaskRuns: boolean;
 	// Flow runs props
 	flowRuns: FlowRun[];
 	flowRunsPages: number;
@@ -90,6 +94,8 @@ export const RunsPage = ({
 	onTabChange,
 	flowRunsCount,
 	taskRunsCount,
+	hasAnyFlowRuns,
+	hasAnyTaskRuns,
 	// Flow runs props
 	flowRuns,
 	flowRunsPages,
@@ -126,7 +132,8 @@ export const RunsPage = ({
 	onTaskRunSearchChange,
 	onClearTaskRunFilters,
 }: RunsPageProps) => {
-	const isEmpty = flowRunsCount === 0 && taskRunsCount === 0;
+	// Use unfiltered counts for empty state check (no runs exist at all)
+	const isEmpty = !hasAnyFlowRuns && !hasAnyTaskRuns;
 
 	// Flow runs selection
 	const [selectedRows, setSelectedRows, { onSelectRow }] =

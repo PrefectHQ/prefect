@@ -523,12 +523,12 @@ function RouteComponent() {
 	const [taskRunsSort, onTaskRunsSortChange] = useTaskRunsSort();
 	const [taskRunSearch, onTaskRunSearchChange] = useTaskRunSearch();
 
-	// Use useSuspenseQueries for count queries (stable keys, won't cause suspense on search change)
-	const [{ data: flowRunsCount }, { data: taskRunsCount }] = useSuspenseQueries(
-		{
+	// Use useSuspenseQueries for unfiltered count queries (stable keys, won't cause suspense on search change)
+	// These are used to determine if the app has ANY runs at all (for empty state)
+	const [{ data: flowRunsCountAll }, { data: taskRunsCountAll }] =
+		useSuspenseQueries({
 			queries: [buildCountFlowRunsQuery(), buildCountTaskRunsQuery()],
-		},
-	);
+		});
 
 	// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
@@ -598,8 +598,10 @@ function RouteComponent() {
 		<RunsPage
 			tab={tab}
 			onTabChange={onTabChange}
-			flowRunsCount={flowRunsCount}
-			taskRunsCount={taskRunsCount}
+			flowRunsCount={flowRunsPage?.count ?? 0}
+			taskRunsCount={taskRunsPage?.count ?? 0}
+			hasAnyFlowRuns={(flowRunsCountAll ?? 0) > 0}
+			hasAnyTaskRuns={(taskRunsCountAll ?? 0) > 0}
 			flowRuns={flowRuns}
 			flowRunsPages={flowRunsPage?.pages ?? 0}
 			pagination={pagination}
