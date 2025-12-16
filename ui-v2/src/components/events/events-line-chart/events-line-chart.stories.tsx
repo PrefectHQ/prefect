@@ -91,14 +91,6 @@ export const WithSpike: Story = {
 	},
 };
 
-export const WithSelection: Story = {
-	args: {
-		data: generateMockData(twentyFourHoursAgo, 24, "random"),
-		selectionStart: new Date(twentyFourHoursAgo.getTime() + 6 * 3600000),
-		selectionEnd: new Date(twentyFourHoursAgo.getTime() + 12 * 3600000),
-	},
-};
-
 export const Empty: Story = {
 	args: {
 		data: [],

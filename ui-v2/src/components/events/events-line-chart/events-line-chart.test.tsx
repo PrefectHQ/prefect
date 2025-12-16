@@ -54,31 +54,6 @@ describe("EventsLineChart", () => {
 		expect(container.firstChild).toHaveClass("custom-class");
 	});
 
-	it("renders selection area when selectionStart and selectionEnd are provided", () => {
-		const selectionStart = new Date(twentyFourHoursAgo.getTime() + 6 * 3600000);
-		const selectionEnd = new Date(twentyFourHoursAgo.getTime() + 12 * 3600000);
-
-		render(
-			<EventsLineChart
-				{...defaultProps}
-				selectionStart={selectionStart}
-				selectionEnd={selectionEnd}
-			/>,
-		);
-
-		expect(screen.getByRole("application")).toBeInTheDocument();
-	});
-
-	it("does not render selection area when only selectionStart is provided", () => {
-		const selectionStart = new Date(twentyFourHoursAgo.getTime() + 6 * 3600000);
-
-		render(
-			<EventsLineChart {...defaultProps} selectionStart={selectionStart} />,
-		);
-
-		expect(screen.getByRole("application")).toBeInTheDocument();
-	});
-
 	it("calls onCursorChange with null on mouse leave", () => {
 		const onCursorChange = vi.fn();
 		render(
