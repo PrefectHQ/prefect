@@ -32,6 +32,7 @@ type EventsTimelineProps = {
 
 type EventTimelineItemProps = {
 	event: Event;
+	isLast: boolean;
 	onEventClick?: (eventName: string) => void;
 	onResourceClick?: (resourceId: string) => void;
 };
@@ -49,17 +50,23 @@ function EventTimestamp({ occurred }: { occurred: string }) {
 	);
 }
 
-function TimelinePoint({ event }: { event: Event }) {
+function TimelinePoint({ event, isLast }: { event: Event; isLast: boolean }) {
 	const resourceId = event.resource["prefect.resource.id"] || "";
 	const resourceType = parseResourceType(resourceId);
 	const iconId = RESOURCE_ICONS[resourceType];
 
 	return (
-		<div className="relative flex items-start justify-center w-10 h-full">
-			{/* Vertical line */}
-			<div className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 bg-border -z-10" />
+		<div className="relative flex items-start justify-center w-10">
+			{/* Vertical line - extends from top to bottom, hidden for last item below the icon */}
+			<div
+				className={cn(
+					"absolute left-1/2 w-px -translate-x-1/2 bg-border",
+					isLast ? "top-0 h-5" : "top-0 bottom-0",
+				)}
+				style={{ top: "-1rem", bottom: isLast ? "auto" : "-1rem" }}
+			/>
 			{/* Icon circle */}
-			<div className="flex items-center justify-center w-10 h-10 rounded-full bg-background border border-border">
+			<div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-background border border-border">
 				<Icon id={iconId} className="h-5 w-5 text-muted-foreground" />
 			</div>
 		</div>
@@ -189,6 +196,7 @@ function EventRelatedResources({
 
 function EventTimelineItem({
 	event,
+	isLast,
 	onEventClick,
 	onResourceClick,
 }: EventTimelineItemProps) {
@@ -200,7 +208,7 @@ function EventTimelineItem({
 			<EventTimestamp occurred={event.occurred} />
 
 			{/* Point column with icon and vertical line */}
-			<TimelinePoint event={event} />
+			<TimelinePoint event={event} isLast={isLast} />
 
 			{/* Content column */}
 			<Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -268,10 +276,11 @@ export function EventsTimeline({
 
 	return (
 		<ol className={cn("list-none p-0 m-0", className)}>
-			{events.map((event) => (
+			{events.map((event, index) => (
 				<li key={event.id}>
 					<EventTimelineItem
 						event={event}
+						isLast={index === events.length - 1}
 						onEventClick={onEventClick}
 						onResourceClick={onResourceClick}
 					/>
