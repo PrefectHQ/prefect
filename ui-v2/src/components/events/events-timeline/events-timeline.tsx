@@ -13,7 +13,10 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { JsonView } from "@/components/ui/json-view";
 import { cn } from "@/utils";
-import { EventResourceDisplay } from "../event-resource-display";
+import {
+	EventResourceDisplay,
+	EventResourceLink,
+} from "../event-resource-display";
 import {
 	parseResourceType,
 	RESOURCE_ICONS,
@@ -26,7 +29,6 @@ type Event = components["schemas"]["ReceivedEvent"];
 type EventsTimelineProps = {
 	events: Event[];
 	onEventClick?: (eventName: string) => void;
-	onResourceClick?: (resourceId: string) => void;
 	className?: string;
 };
 
@@ -34,7 +36,6 @@ type EventTimelineItemProps = {
 	event: Event;
 	isLast: boolean;
 	onEventClick?: (eventName: string) => void;
-	onResourceClick?: (resourceId: string) => void;
 };
 
 function EventTimestamp({ occurred }: { occurred: string }) {
@@ -121,10 +122,8 @@ function getResourceName(resource: Record<string, string>): string | null {
 
 function EventRelatedResources({
 	related,
-	onResourceClick,
 }: {
 	related: components["schemas"]["RelatedResource"][];
-	onResourceClick?: (resourceId: string) => void;
 }) {
 	if (!related || related.length === 0) {
 		return null;
@@ -156,24 +155,15 @@ function EventRelatedResources({
 					const iconId = RESOURCE_ICONS[resourceType];
 
 					return (
-						<div
+						<EventResourceLink
 							key={resourceId}
-							className="flex items-center gap-2 text-sm text-muted-foreground"
+							resource={resource}
+							className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:underline"
 						>
 							{typeLabel && <span>{typeLabel}</span>}
-							<Icon id={iconId} className="h-4 w-4 text-muted-foreground" />
-							{onResourceClick ? (
-								<button
-									type="button"
-									onClick={() => onResourceClick(resourceId)}
-									className="hover:underline"
-								>
-									{displayText}
-								</button>
-							) : (
-								<span>{displayText}</span>
-							)}
-						</div>
+							<Icon id={iconId} className="h-4 w-4" />
+							<span>{displayText}</span>
+						</EventResourceLink>
 					);
 				})}
 				{tags.length > 0 && (
@@ -198,7 +188,6 @@ function EventTimelineItem({
 	event,
 	isLast,
 	onEventClick,
-	onResourceClick,
 }: EventTimelineItemProps) {
 	const [isOpen, setIsOpen] = useState(false);
 
@@ -221,10 +210,7 @@ function EventTimelineItem({
 							/>
 							<EventResourceDisplay event={event} />
 							{event.related && event.related.length > 0 && (
-								<EventRelatedResources
-									related={event.related}
-									onResourceClick={onResourceClick}
-								/>
+								<EventRelatedResources related={event.related} />
 							)}
 						</div>
 					</CardHeader>
@@ -267,7 +253,6 @@ function EventTimelineItem({
 export function EventsTimeline({
 	events,
 	onEventClick,
-	onResourceClick,
 	className,
 }: EventsTimelineProps) {
 	if (!events || events.length === 0) {
@@ -282,7 +267,6 @@ export function EventsTimeline({
 						event={event}
 						isLast={index === events.length - 1}
 						onEventClick={onEventClick}
-						onResourceClick={onResourceClick}
 					/>
 				</li>
 			))}
