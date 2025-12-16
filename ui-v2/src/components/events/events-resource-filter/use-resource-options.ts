@@ -1,4 +1,4 @@
-import { useSuspenseQueries } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { buildListAutomationsQuery } from "@/api/automations";
 import { buildListFilterBlockDocumentsQuery } from "@/api/block-documents";
@@ -28,7 +28,7 @@ export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
 		{ data: flows },
 		{ data: workPools },
 		{ data: workQueues },
-	] = useSuspenseQueries({
+	] = useQueries({
 		queries: [
 			buildListAutomationsQuery(),
 			buildListFilterBlockDocumentsQuery(),
@@ -42,7 +42,7 @@ export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
 	const resourceOptions = useMemo(() => {
 		const options: ResourceOption[] = [];
 
-		for (const a of automations) {
+		for (const a of automations ?? []) {
 			options.push({
 				id: a.id,
 				name: a.name,
@@ -51,7 +51,7 @@ export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
 			});
 		}
 
-		for (const b of blocks) {
+		for (const b of blocks ?? []) {
 			options.push({
 				id: b.id,
 				name: b.name ?? "",
@@ -60,7 +60,7 @@ export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
 			});
 		}
 
-		for (const d of deployments) {
+		for (const d of deployments ?? []) {
 			options.push({
 				id: d.id,
 				name: d.name,
@@ -69,7 +69,7 @@ export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
 			});
 		}
 
-		for (const f of flows) {
+		for (const f of flows ?? []) {
 			options.push({
 				id: f.id,
 				name: f.name,
@@ -78,7 +78,7 @@ export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
 			});
 		}
 
-		for (const wp of workPools) {
+		for (const wp of workPools ?? []) {
 			options.push({
 				id: wp.name,
 				name: wp.name,
@@ -87,7 +87,7 @@ export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
 			});
 		}
 
-		for (const wq of workQueues) {
+		for (const wq of workQueues ?? []) {
 			options.push({
 				id: wq.id,
 				name: wq.name,

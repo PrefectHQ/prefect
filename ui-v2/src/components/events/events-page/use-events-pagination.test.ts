@@ -453,6 +453,11 @@ describe("useEventsPagination", () => {
 				expect(result.current.currentPage).toBe(1);
 			});
 
+			// Wait for the new filter's first page data to be loaded and token to be stored
+			await waitFor(() => {
+				expect(result.current.events[0].id).toBe("filter-2");
+			});
+
 			act(() => {
 				result.current.goToPage(2);
 			});
