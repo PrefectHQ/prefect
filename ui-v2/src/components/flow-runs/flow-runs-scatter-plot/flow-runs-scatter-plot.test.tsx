@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import { createFakeSimpleFlowRuns } from "@/mocks";
 import { FlowRunsScatterPlot } from "./flow-runs-scatter-plot";
@@ -7,13 +8,17 @@ describe("FlowRunsScatterPlot", () => {
 	it("renders the scatter plot when history data is provided", () => {
 		const history = createFakeSimpleFlowRuns(10);
 
-		render(<FlowRunsScatterPlot history={history} />);
+		render(<FlowRunsScatterPlot history={history} />, {
+			wrapper: createWrapper(),
+		});
 
 		expect(screen.getByTestId("scatter-plot")).toBeInTheDocument();
 	});
 
 	it("returns null when history is empty", () => {
-		const { container } = render(<FlowRunsScatterPlot history={[]} />);
+		const { container } = render(<FlowRunsScatterPlot history={[]} />, {
+			wrapper: createWrapper(),
+		});
 
 		expect(container.firstChild).toBeNull();
 	});
@@ -29,6 +34,7 @@ describe("FlowRunsScatterPlot", () => {
 				startDate={startDate}
 				endDate={endDate}
 			/>,
+			{ wrapper: createWrapper() },
 		);
 
 		expect(screen.getByTestId("scatter-plot")).toBeInTheDocument();
@@ -37,7 +43,9 @@ describe("FlowRunsScatterPlot", () => {
 	it("is hidden on small screens via CSS class", () => {
 		const history = createFakeSimpleFlowRuns(3);
 
-		render(<FlowRunsScatterPlot history={history} />);
+		render(<FlowRunsScatterPlot history={history} />, {
+			wrapper: createWrapper(),
+		});
 
 		const scatterPlot = screen.getByTestId("scatter-plot");
 		expect(scatterPlot).toHaveClass("hidden", "md:block");
