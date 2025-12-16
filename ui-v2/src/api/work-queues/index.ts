@@ -1,6 +1,7 @@
 export {
 	buildFilterWorkPoolWorkQueuesQuery,
 	buildFilterWorkQueuesQuery,
+	buildGetWorkQueueQuery,
 	buildWorkQueueDetailsQuery,
 	type WorkQueue,
 	type WorkQueuesFilter,
