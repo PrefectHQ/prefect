@@ -82,7 +82,9 @@ const FlowRunsListStory = () => {
 		return MOCK_DATA.filter((flowRun) =>
 			flowRun.name?.toLocaleLowerCase().includes(search.toLowerCase()),
 		).filter((flowRun) =>
-			filters.size === 0 ? flowRun : filters.has(flowRun.state?.name as string),
+			filters.size === 0
+				? flowRun
+				: filters.has(flowRun.state?.name as FlowRunState),
 		);
 	}, [filters, search]);
 
