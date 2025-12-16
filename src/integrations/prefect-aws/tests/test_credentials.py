@@ -4,6 +4,7 @@ from botocore.client import BaseClient
 from moto import mock_aws
 from prefect_aws.credentials import (
     AwsCredentials,
+    AwsCodeCommitCredentials,
     ClientType,
     MinIOCredentials,
     _get_client_cached,
@@ -232,3 +233,72 @@ def test_minio_credentials_nested_client_parameters_are_hashable():
 
     assert client is _client
     assert _get_client_cached.cache_info().hits == 1
+
+
+def test_codecommit_credentials_format_git_credentials():
+    """Test that CodeCommit credentials return URL with SigV4 signature embedded."""
+    with mock_aws():
+        aws_creds = AwsCredentials(
+            aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
+            aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            region_name="us-east-1",
+        )
+        codecommit_creds = AwsCodeCommitCredentials(aws_credentials=aws_creds)
+
+        url = "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"
+        result = codecommit_creds.format_git_credentials(url)
+
+        # Verify URL structure
+        assert result.startswith("https://")
+        assert "@git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo" in result
+        # Verify it contains the access key (URL encoded) and signature
+        assert "AKIAIOSFODNN7EXAMPLE" in result or "%" in result
+
+
+def test_codecommit_credentials_format_git_credentials_with_session_token():
+    """Test that CodeCommit credentials work with temporary credentials (session token)."""
+    with mock_aws():
+        aws_creds = AwsCredentials(
+            aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
+            aws_secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            aws_session_token="temporary-session-token",
+            region_name="us-east-1",
+        )
+        codecommit_creds = AwsCodeCommitCredentials(aws_credentials=aws_creds)
+
+        url = "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"
+        result = codecommit_creds.format_git_credentials(url)
+
+        # Verify URL structure
+        assert result.startswith("https://")
+        assert "@git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo" in result
+        assert "AKIAIOSFODNN7EXAMPLE" in result 
+        assert "%25temporary-session-token:" in result
+
+
+def test_codecommit_credentials_format_git_credentials_instance_role():
+    """Test that CodeCommit credentials return URL with SigV4 signature embedded."""
+    with mock_aws():
+        aws_creds = AwsCredentials()
+        codecommit_creds = AwsCodeCommitCredentials(aws_credentials=aws_creds)
+
+        url = "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"
+        result = codecommit_creds.format_git_credentials(url)
+
+        # Verify URL structure
+        assert result.startswith("https://")
+        assert "@git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo" in result
+        # Verify it contains the access key (URL encoded) and signature
+        assert "FOOBARKEY" in result
+
+
+def test_codecommit_credentials_format_git_credentials_no_credentials_raises():
+    """Test that missing AWS credentials raises ValueError."""
+    # Create AwsCredentials without any credentials configured
+    # This will fail when trying to get credentials from the session
+    aws_creds = AwsCredentials()
+    codecommit_creds = AwsCodeCommitCredentials(aws_credentials=aws_creds)
+
+    url = "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"
+    with pytest.raises(ValueError, match="AWS credentials are not available"):
+        codecommit_creds.format_git_credentials(url)

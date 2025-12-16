@@ -1,11 +1,18 @@
 """Module handling AWS credentials"""
 
+import datetime
 from enum import Enum
 from functools import lru_cache
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union, Annotated
 
 import boto3
+import botocore.auth
+import botocore.awsrequest
+import botocore.compat
+from urllib.parse import urlparse
+
+from boto3 import Session
 from pydantic import ConfigDict, Field, SecretStr
 
 from prefect.blocks.abstract import CredentialsBlock
@@ -25,6 +32,7 @@ class ClientType(Enum):
     ECS = "ecs"
     BATCH = "batch"
     SECRETS_MANAGER = "secretsmanager"
+    CODECOMMIT = "codecommit"
 
 
 @lru_cache(maxsize=8, typed=True)
@@ -183,6 +191,136 @@ class AwsCredentials(CredentialsBlock):
             An authenticated Secrets Manager client.
         """
         return self.get_client(client_type=ClientType.SECRETS_MANAGER)
+
+
+class AwsCodeCommitCredentials(CredentialsBlock):
+    """
+    Block used to manage authentication with AWS CodeCommit for Git operations.
+    Uses SigV4 signing to generate authenticated Git URLs.
+
+    Attributes:
+        aws_credentials: An AwsCredentials block containing AWS authentication details.
+
+    Example:        
+        Use as part of a Git clone step in a Prefect deployment:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.git_clone:
+                repository: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo
+                credentials: "{{ prefect.blocks.aws-codecommit-credentials.my-codecommit-credentials-block }}"
+        ```        
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
+    _block_type_name = "AWS CodeCommit Credentials"
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
+
+    aws_credentials: AwsCredentials = Field(
+        default=...,
+        description="AWS credentials block for authentication.",
+        title="AWS Credentials"
+    )
+    
+    @staticmethod
+    def _get_parts_from_url(url: str) -> tuple[str, str, str]:
+        """
+        Extract region and repository name from the given CodeCommit URL.
+
+        Args:
+            url: Repository URL (e.g., "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo.git")
+
+        Returns:
+            A tuple containing (region, domain name, path)
+        """
+        parsed = urlparse(url)
+             
+        hostname_parts = parsed.hostname.split(".")
+        region = hostname_parts[1]
+        
+        return region, parsed.hostname, parsed.path
+
+    @staticmethod
+    def _sign_codecommit_request(
+        hostname: str, 
+        path: str, 
+        region: str, 
+        credentials: Any
+    ) -> str:
+        """
+        Generate a SigV4 signature for a CodeCommit Git request.
+
+        Args:
+            hostname: CodeCommit hostname (e.g., git-codecommit.us-east-1.amazonaws.com)
+            path: Request path (e.g., /v1/repos/my-repo)
+            region: AWS region
+            credentials: Botocore credentials object
+
+        Returns:
+            Signature string in format: {timestamp}Z{signature}
+        """
+        request = botocore.awsrequest.AWSRequest(
+            method="GIT", url=f"https://{hostname}{path}"
+        )
+        request.context["timestamp"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S")
+
+        signer = botocore.auth.SigV4Auth(credentials, "codecommit", region)
+        canonical_request = f"GIT\n{path}\n\nhost:{hostname}\n\nhost\n"
+        string_to_sign = signer.string_to_sign(request, canonical_request)
+        signature = signer.signature(string_to_sign, request)
+        return f"{request.context['timestamp']}Z{signature}"
+
+    def format_git_credentials(self, url: str) -> str:
+        """
+        Format and return the full Git URL with AWS CodeCommit credentials embedded
+        using SigV4 signing.
+
+        Args:
+            url: Repository URL (e.g., "https://github.com/org/repo.git")
+
+        Returns:
+            Complete URL with credentials embedded in format:
+            https://{username}:{signature}@git-codecommit.{region}.{domain}/v1/repos/{repository}
+
+        Raises:
+            ValueError: If credentials are not available
+        """        
+        # Extract region from the URL
+        region, hostname, path = self._get_parts_from_url(url)
+
+        # Get credentials from the AWS credentials block
+        session = self.aws_credentials.get_boto3_session()
+        credentials = session.get_credentials()
+
+        if not credentials:
+            raise ValueError(
+                "AWS credentials are not available. Please configure your "
+                "AWS credentials in the AwsCredentials block."
+            )
+
+        # Generate the signature
+        signature = self._sign_codecommit_request(
+            hostname, path, region, credentials
+        )
+
+        # Format username: access_key + optional token (for temporary credentials)
+        token = f"%{credentials.token}" if credentials.token else ""
+        username = botocore.compat.quote(
+            f"{credentials.access_key}{token}", safe=""
+        )
+
+        # Construct the final URL
+        return f"https://{username}:{signature}@{hostname}{path}"
+    
+    def get_client(self) -> boto3.client:
+        """
+        Gets an authenticated CodeCommit client.
+
+        Returns:
+            An authenticated CodeCommit client.
+        """
+        return self.aws_credentials.get_client(client_type=ClientType.CODECOMMIT)
 
 
 class MinIOCredentials(CredentialsBlock):
