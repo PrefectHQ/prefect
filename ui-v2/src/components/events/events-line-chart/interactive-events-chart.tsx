@@ -109,6 +109,8 @@ export function InteractiveEventsChart({
 				data={data}
 				className="h-full w-full"
 				showAxis={false}
+				zoomStart={zoomStart}
+				zoomEnd={zoomEnd}
 				selectionStart={selectionStart}
 				selectionEnd={selectionEnd}
 			/>
