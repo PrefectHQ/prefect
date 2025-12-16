@@ -1,6 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
+import { Suspense } from "react";
 import { describe, expect, it } from "vitest";
 import type { Event } from "@/api/events";
+import { createFakeFlowRun } from "@/mocks";
 import {
 	EventResourceDisplay,
 	ResourceDisplaySkeleton,
@@ -97,12 +101,31 @@ describe("EventResourceDisplay", () => {
 		expect(screen.getByText("My Limit")).toBeInTheDocument();
 	});
 
-	it("renders extracted ID when no resource name is provided", () => {
+	it("renders extracted ID when no resource name is provided", async () => {
+		// When no resource name is provided, the component fetches the resource name via API
+		const mockFlowRun = createFakeFlowRun({
+			id: "abc-123",
+			name: "fetched-flow-run-name",
+		});
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(mockFlowRun);
+			}),
+		);
+
 		const event = createMockEvent("prefect.flow-run.abc-123");
-		render(<EventResourceDisplay event={event} />);
+		render(
+			<Suspense fallback={<div>Loading...</div>}>
+				<EventResourceDisplay event={event} />
+			</Suspense>,
+			{ wrapper: createWrapper() },
+		);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
-		expect(screen.getByText("abc-123")).toBeInTheDocument();
+		// The component now fetches the resource name via API
+		await waitFor(() => {
+			expect(screen.getByText("fetched-flow-run-name")).toBeInTheDocument();
+		});
 	});
 
 	it("renders raw resource ID for unknown resource types", () => {
