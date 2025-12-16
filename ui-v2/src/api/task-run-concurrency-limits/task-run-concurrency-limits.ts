@@ -72,6 +72,10 @@ export const buildDetailTaskRunConcurrencyLimitsQuery = (id: string) =>
 		queryFn: () => fetchTaskRunConcurrencyLimit(id),
 	});
 
+// Alias for consistency with other query factory naming conventions
+export const buildGetConcurrencyLimitQuery =
+	buildDetailTaskRunConcurrencyLimitsQuery;
+
 /**
  *
  * @param filter

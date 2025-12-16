@@ -1,6 +1,7 @@
 export {
 	buildConcurrenyLimitDetailsActiveRunsQuery,
 	buildDetailTaskRunConcurrencyLimitsQuery,
+	buildGetConcurrencyLimitQuery,
 	buildListTaskRunConcurrencyLimitsQuery,
 	type TaskRunConcurrencyLimit,
 	useCreateTaskRunConcurrencyLimit,
