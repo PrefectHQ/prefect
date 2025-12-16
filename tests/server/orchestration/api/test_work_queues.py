@@ -204,7 +204,12 @@ class TestUpdateWorkQueue:
         events = [
             event for client in AssertingEventsClient.all for event in client.events
         ]
-        assert len(events) == 1
+        # Expect both status event and updated event for concurrency_limit
+        assert len(events) == 2
+        # Verify we have both a status event and an updated event
+        event_types = {event.event for event in events}
+        assert "prefect.work-queue.paused" in event_types
+        assert "prefect.work-queue.updated" in event_types
 
     async def test_update_work_queue_to_paused(
         self,
@@ -312,8 +317,26 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "PAUSED"
 
-        # ensure no events emitted for already paused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
+        # Since concurrency_limit changed, we should get an updated event
+        # (status didn't change, so no status event)
+        AssertingEventsClient.assert_emitted_event_count(1)
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{paused_work_queue.id}",
+                "prefect.resource.name": paused_work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
+                    "concurrency_limit": {
+                        "from": None,
+                        "to": 3,
+                    }
+                },
+            },
+        )
 
     async def test_update_work_queue_to_unpaused_when_already_unpaused_does_not_emit_event(
         self,
@@ -339,8 +362,26 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "READY"
 
-        # ensure no events emitted for already unpaused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
+        # Since concurrency_limit changed, we should get an updated event
+        # (status didn't change, so no status event)
+        AssertingEventsClient.assert_emitted_event_count(1)
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{ready_work_queue.id}",
+                "prefect.resource.name": ready_work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
+                    "concurrency_limit": {
+                        "from": None,
+                        "to": 3,
+                    }
+                },
+            },
+        )
 
     async def test_update_work_queue_to_unpaused_with_no_last_polled_sets_not_ready_status(
         self,
@@ -556,6 +597,198 @@ class TestUpdateWorkQueue:
                 }
             ],
         )
+
+    async def test_update_work_queue_emits_updated_event_for_concurrency_limit(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that updating concurrency_limit emits prefect.work-queue.updated event."""
+        assert work_queue.concurrency_limit is None
+
+        new_data = schemas.actions.WorkQueueUpdate(concurrency_limit=10).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=new_data,
+        )
+
+        assert response.status_code == 204
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
+                    "concurrency_limit": {
+                        "from": None,
+                        "to": 10,
+                    }
+                },
+            },
+            related=[
+                {
+                    "prefect.resource.id": f"prefect.work-pool.{work_queue.work_pool.id}",
+                    "prefect.resource.name": work_queue.work_pool.name,
+                    "prefect.work-pool.type": work_queue.work_pool.type,
+                    "prefect.resource.role": "work-pool",
+                }
+            ],
+        )
+
+    async def test_update_work_queue_emits_updated_event_for_description(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that updating description emits prefect.work-queue.updated event."""
+        original_description = work_queue.description or ""
+
+        new_data = schemas.actions.WorkQueueUpdate(
+            description="Updated description"
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=new_data,
+        )
+
+        assert response.status_code == 204
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["description"],
+                "updates": {
+                    "description": {
+                        "from": original_description,
+                        "to": "Updated description",
+                    }
+                },
+            },
+        )
+
+    async def test_update_work_queue_emits_updated_event_for_priority(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that updating priority emits prefect.work-queue.updated event."""
+        original_priority = work_queue.priority
+
+        new_data = schemas.actions.WorkQueueUpdate(priority=5).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=new_data,
+        )
+
+        assert response.status_code == 204
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["priority"],
+                "updates": {
+                    "priority": {
+                        "from": original_priority,
+                        "to": 5,
+                    }
+                },
+            },
+        )
+
+    async def test_update_work_queue_emits_updated_event_for_multiple_fields(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that updating multiple fields emits single event with all changes."""
+        original_description = work_queue.description or ""
+        original_concurrency_limit = work_queue.concurrency_limit
+
+        new_data = schemas.actions.WorkQueueUpdate(
+            description="Multi update",
+            concurrency_limit=20,
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=new_data,
+        )
+
+        assert response.status_code == 204
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["description", "concurrency_limit"],
+                "updates": {
+                    "description": {
+                        "from": original_description,
+                        "to": "Multi update",
+                    },
+                    "concurrency_limit": {
+                        "from": original_concurrency_limit,
+                        "to": 20,
+                    },
+                },
+            },
+        )
+
+    async def test_update_work_queue_no_event_for_noop_update(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that no event is emitted when updating to the same value."""
+        # Set initial concurrency limit
+        await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json={"concurrency_limit": 10},
+        )
+        AssertingEventsClient.reset()
+
+        # Update to same value
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json={"concurrency_limit": 10},
+        )
+
+        assert response.status_code == 204
+
+        # Should not emit updated event (only status event if status changed)
+        events = [
+            event
+            for client in AssertingEventsClient.all
+            for event in client.events
+            if event.event == "prefect.work-queue.updated"
+        ]
+        assert len(events) == 0
 
 
 class TestReadWorkQueue:
