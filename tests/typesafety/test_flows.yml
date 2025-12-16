@@ -47,3 +47,34 @@
   out: "main:6: note: Revealed type is \"\
       builtins.int\
     \""
+
+- case: prefect_flow_async_call
+  main: |
+    from prefect import flow
+    @flow
+    async def foo(bar: str) -> int:
+        return 42
+    
+    async def main() -> None:
+       ret = await foo(bar="baz")
+       reveal_type(ret)
+  out: "main:8: note: Revealed type is \"\
+      builtins.int\
+    \""
+
+- case: prefect_flow_async_call_wrong_args
+  regex: yes
+  main: |
+    from prefect import flow
+    @flow
+    async def foo(bar: str) -> int:
+        return 42
+    
+    async def main() -> None:
+       ret = await foo(None)
+  out: |
+    main:7: error: No overload variant of "__call__" of "Flow" matches argument type "None"  \[call-overload\]
+    main:7: note: Possible overload variants:
+    main:7: note:     def __call__.*
+    main:7: note:     def __call__.*
+    main:7: note:     def __call__.*
