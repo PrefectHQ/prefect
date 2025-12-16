@@ -137,21 +137,18 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	);
 
 	// Handlers for filtering events by time from timeline
-	// TODO: OSS-7261 - Add onFilterEventsSince and onFilterEventsUntil props to EventsTimeline
 	const handleFilterEventsSince = useCallback(
-		(date: string) => {
-			const since = new Date(date);
-			setSelectionStart(since);
+		(date: Date) => {
+			setSelectionStart(date);
 			setSelectionEnd(zoomEnd);
 		},
 		[zoomEnd],
 	);
 
 	const handleFilterEventsUntil = useCallback(
-		(date: string) => {
-			const until = new Date(date);
+		(date: Date) => {
 			setSelectionStart(zoomStart);
-			setSelectionEnd(until);
+			setSelectionEnd(date);
 		},
 		[zoomStart],
 	);
@@ -168,10 +165,6 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 		window.addEventListener("scroll", handleScroll);
 		return () => window.removeEventListener("scroll", handleScroll);
 	}, []);
-
-	// Keep handlers in scope for future use when EventsTimeline supports them
-	void handleFilterEventsSince;
-	void handleFilterEventsUntil;
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -244,7 +237,11 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 				</EmptyState>
 			) : (
 				<>
-					<EventsTimeline events={events} />
+					<EventsTimeline
+						events={events}
+						onFilterEventsSince={handleFilterEventsSince}
+						onFilterEventsUntil={handleFilterEventsUntil}
+					/>
 
 					{/* Pagination */}
 					{totalPages > 1 && (
