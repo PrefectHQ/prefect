@@ -34,6 +34,7 @@ import {
 	type TaskRunSortFilters,
 } from "@/components/task-runs/task-runs-list";
 import { mapValueToRange } from "@/components/ui/date-range-select";
+import { useRunsFilters } from "@/hooks/use-runs-filters";
 
 const searchParams = z.object({
 	tab: z.enum(["flow-runs", "task-runs"]).optional().default("flow-runs"),
@@ -371,181 +372,6 @@ const useFlowRunSearch = () => {
 	return [search["flow-run-search"], onFlowRunSearchChange] as const;
 };
 
-const useStateFilter = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const selectedStates = useMemo(
-		() => new Set<FlowRunState>(parseStateFilter(search.state ?? "")),
-		[search.state],
-	);
-
-	const onStateFilterChange = useCallback(
-		(states: Set<FlowRunState>) => {
-			const stateArray = Array.from(states);
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					state: stateArray.length > 0 ? stateArray.join(",") : "",
-					page: 1, // Reset pagination when filter changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [selectedStates, onStateFilterChange] as const;
-};
-
-const useDateRange = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const dateRange: DateRangeUrlState = useMemo(
-		() => ({
-			range: search.range,
-			start: search.start,
-			end: search.end,
-		}),
-		[search.range, search.start, search.end],
-	);
-
-	const onDateRangeChange = useCallback(
-		(newDateRange: DateRangeUrlState) => {
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					range: newDateRange.range,
-					start: newDateRange.start,
-					end: newDateRange.end,
-					page: 1, // Reset pagination when date range changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [dateRange, onDateRangeChange] as const;
-};
-
-const useFlowFilter = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const selectedFlows = useMemo(
-		() => new Set<string>(parseFlowsFilter(search.flows ?? "")),
-		[search.flows],
-	);
-
-	const onFlowFilterChange = useCallback(
-		(flows: Set<string>) => {
-			const flowsArray = Array.from(flows);
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					flows: flowsArray.length > 0 ? flowsArray.join(",") : "",
-					page: 1, // Reset pagination when filter changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [selectedFlows, onFlowFilterChange] as const;
-};
-
-const useDeploymentFilter = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const selectedDeployments = useMemo(
-		() => new Set<string>(parseDeploymentsFilter(search.deployments ?? "")),
-		[search.deployments],
-	);
-
-	const onDeploymentFilterChange = useCallback(
-		(deployments: Set<string>) => {
-			const deploymentsArray = Array.from(deployments);
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					deployments:
-						deploymentsArray.length > 0 ? deploymentsArray.join(",") : "",
-					page: 1, // Reset pagination when filter changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [selectedDeployments, onDeploymentFilterChange] as const;
-};
-
-const useWorkPoolFilter = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const selectedWorkPools = useMemo(
-		() => new Set<string>(parseWorkPoolsFilter(search["work-pools"] ?? "")),
-		[search["work-pools"]],
-	);
-
-	const onWorkPoolFilterChange = useCallback(
-		(workPools: Set<string>) => {
-			const workPoolsArray = Array.from(workPools);
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					"work-pools":
-						workPoolsArray.length > 0 ? workPoolsArray.join(",") : "",
-					page: 1, // Reset pagination when filter changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [selectedWorkPools, onWorkPoolFilterChange] as const;
-};
-
-const useTagsFilter = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const selectedTags = useMemo(
-		() => new Set<string>(parseTagsFilter(search.tags ?? "")),
-		[search.tags],
-	);
-
-	const onTagsFilterChange = useCallback(
-		(tags: Set<string>) => {
-			const tagsArray = Array.from(tags);
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					tags: tagsArray.length > 0 ? tagsArray.join(",") : "",
-					page: 1, // Reset pagination when filter changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [selectedTags, onTagsFilterChange] as const;
-};
-
 // Task runs hooks
 const useTaskRunsPagination = () => {
 	const search = Route.useSearch();
@@ -630,12 +456,21 @@ function RouteComponent() {
 	const [hideSubflows, onHideSubflowsChange] = useHideSubflows();
 	const [tab, onTabChange] = useTab();
 	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
-	const [selectedStates, onStateFilterChange] = useStateFilter();
-	const [selectedFlows, onFlowFilterChange] = useFlowFilter();
-	const [selectedDeployments, onDeploymentFilterChange] = useDeploymentFilter();
-	const [selectedWorkPools, onWorkPoolFilterChange] = useWorkPoolFilter();
-	const [selectedTags, onTagsFilterChange] = useTagsFilter();
-	const [dateRange, onDateRangeChange] = useDateRange();
+	// Consolidated filter state
+	const {
+		states: selectedStates,
+		flows: selectedFlows,
+		deployments: selectedDeployments,
+		workPools: selectedWorkPools,
+		tags: selectedTags,
+		dateRange,
+		onStatesChange: onStateFilterChange,
+		onFlowsChange: onFlowFilterChange,
+		onDeploymentsChange: onDeploymentFilterChange,
+		onWorkPoolsChange: onWorkPoolFilterChange,
+		onTagsChange: onTagsFilterChange,
+		onDateRangeChange,
+	} = useRunsFilters();
 	// Task runs hooks
 	const [taskRunsPagination, onTaskRunsPaginationChange] =
 		useTaskRunsPagination();
