@@ -4727,3 +4727,357 @@ class TestFlowConcurrencyLimits:
 
         actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
         assert abs(actual_ttl_seconds - 720.0) < 5
+
+    async def test_enqueued_runs_acquire_slots_after_release(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """
+        Test that runs in AwaitingConcurrencySlot can acquire slots after they're released.
+
+        This tests the full end-to-end flow using the actual orchestration:
+        1. Run 1 acquires a slot (limit=1)
+        2. Run 2 is rejected to AwaitingConcurrencySlot with correct next_scheduled_start_time
+        3. Run 1 completes, releasing its slot
+        4. Run 2 should be able to acquire the freed slot
+
+        Regression test for: https://github.com/PrefectHQ/prefect/issues/XXXXX
+        """
+        from prefect.server.orchestration.core_policy import CoreFlowPolicy
+
+        # Create deployment with concurrency limit of 1
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        # Create two flow runs for the deployment
+        run1 = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+            ),
+        )
+        run2 = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Scheduled(),
+            ),
+        )
+        await session.commit()
+
+        # Transition Run 1: Scheduled -> Pending (should acquire slot)
+        result1 = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run1.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result1.status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+
+        # Transition Run 2: Scheduled -> Pending (should be rejected to AwaitingConcurrencySlot)
+        result2 = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run2.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result2.status == SetStateStatus.REJECT
+        assert result2.state is not None
+        assert result2.state.name == "AwaitingConcurrencySlot"
+        assert result2.state.type == states.StateType.SCHEDULED
+
+        # Verify the next_scheduled_start_time is set correctly on run2
+        # This is critical for the worker to pick up the run later
+        await session.refresh(run2)
+        assert run2.next_scheduled_start_time is not None
+        # The scheduled time should be in the future (now + concurrency_slot_wait_seconds)
+        assert run2.next_scheduled_start_time > now("UTC")
+
+        # Transition Run 1: Pending -> Running
+        result1_running = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run1.id,
+            state=states.Running(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result1_running.status == SetStateStatus.ACCEPT
+
+        # Transition Run 1: Running -> Completed (should release slot)
+        result1_completed = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run1.id,
+            state=states.Completed(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result1_completed.status == SetStateStatus.ACCEPT
+
+        # Verify slot is released
+        await assert_deployment_concurrency_limit(session, deployment, 1, 0)
+
+        # Now Run 2 should be able to acquire the freed slot
+        # Simulate the worker picking up the run after scheduled_time
+        result2_retry = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run2.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result2_retry.status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(session, deployment, 1, 1)
+
+    async def test_enqueued_runs_visible_in_worker_polling_query(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """
+        Test that runs in AwaitingConcurrencySlot are returned by the worker polling query
+        after their next_scheduled_start_time has passed.
+
+        This tests the actual query that workers use to find scheduled runs.
+
+        Regression test for: https://github.com/PrefectHQ/prefect/issues/XXXXX
+        """
+        from datetime import timedelta
+
+        from prefect.server.models import workers
+        from prefect.server.orchestration.core_policy import CoreFlowPolicy
+
+        # Create work pool (which auto-creates a default queue)
+        work_pool = await workers.create_work_pool(
+            session=session,
+            work_pool=schemas.core.WorkPool(
+                name=f"test-pool-{uuid4()}",
+                type="test",
+            ),
+        )
+        await session.commit()
+
+        # Get the default work queue that was auto-created
+        work_queue = await workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=work_pool.name,
+            work_queue_name="default",
+        )
+
+        # Create deployment with concurrency limit of 1
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        # Associate with work queue
+        deployment.work_queue_id = work_queue.id
+        await session.commit()
+
+        # Create two flow runs for the deployment, both associated with work queue
+        run1 = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                work_queue_id=work_queue.id,
+                state=states.Scheduled(),
+            ),
+        )
+        run2 = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                work_queue_id=work_queue.id,
+                state=states.Scheduled(),
+            ),
+        )
+        await session.commit()
+
+        # Both runs should be visible in the polling query initially
+        scheduled_runs = await workers.get_scheduled_flow_runs(
+            session=session,
+            work_pool_ids=[work_pool.id],
+            scheduled_before=now("UTC") + timedelta(minutes=5),
+        )
+        run_ids = [r.flow_run.id for r in scheduled_runs]
+        assert run1.id in run_ids, "Run 1 should be in initial scheduled runs"
+        assert run2.id in run_ids, "Run 2 should be in initial scheduled runs"
+
+        # Transition Run 1: Scheduled -> Pending (should acquire slot)
+        result1 = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run1.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result1.status == SetStateStatus.ACCEPT
+
+        # Transition Run 2: Scheduled -> Pending (should be rejected to AwaitingConcurrencySlot)
+        result2 = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run2.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result2.status == SetStateStatus.REJECT
+        assert result2.state is not None
+        assert result2.state.name == "AwaitingConcurrencySlot"
+
+        # Verify Run 2's next_scheduled_start_time is in the future
+        await session.refresh(run2)
+        assert run2.next_scheduled_start_time is not None
+        next_scheduled_time = run2.next_scheduled_start_time
+
+        # Query for runs scheduled BEFORE the next_scheduled_start_time (simulating worker poll)
+        # Run 2 should NOT be returned because its time hasn't come yet
+        scheduled_runs_before = await workers.get_scheduled_flow_runs(
+            session=session,
+            work_pool_ids=[work_pool.id],
+            scheduled_before=next_scheduled_time - timedelta(seconds=1),
+        )
+        run_ids_before = [r.flow_run.id for r in scheduled_runs_before]
+        assert run2.id not in run_ids_before, (
+            "Run 2 should NOT be returned before its scheduled time"
+        )
+
+        # Query for runs scheduled AFTER the next_scheduled_start_time has passed
+        # Run 2 SHOULD be returned
+        scheduled_runs_after = await workers.get_scheduled_flow_runs(
+            session=session,
+            work_pool_ids=[work_pool.id],
+            scheduled_before=next_scheduled_time + timedelta(seconds=1),
+        )
+        run_ids_after = [r.flow_run.id for r in scheduled_runs_after]
+        assert run2.id in run_ids_after, (
+            f"Run 2 should be returned after its scheduled time. "
+            f"next_scheduled_start_time={next_scheduled_time}, "
+            f"scheduled_before={next_scheduled_time + timedelta(seconds=1)}"
+        )
+
+    async def test_awaiting_concurrency_slot_visible_within_worker_prefetch_window(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """
+        Regression test for deployment concurrency slot starvation bug.
+
+        When a flow run is rejected to AwaitingConcurrencySlot, its scheduled_time
+        must be within the worker's prefetch window (default 10 seconds) to ensure
+        the worker can pick it up on its next poll cycle.
+
+        The bug: If concurrency_slot_wait_seconds (server) > prefetch_seconds (worker),
+        runs become invisible to the worker, causing them to stay stuck indefinitely.
+        """
+        from datetime import timedelta
+
+        from prefect.server.models import workers
+        from prefect.server.orchestration.core_policy import CoreFlowPolicy
+        from prefect.settings import get_current_settings
+
+        # Create work pool and get its default queue
+        work_pool = await workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=f"test-pool-{uuid4()!s}",
+                type="prefect-agent",
+            ),
+        )
+        await session.commit()
+
+        work_queue = await workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=work_pool.name,
+            work_queue_name="default",
+        )
+        assert work_queue is not None
+
+        # Create deployment with concurrency limit of 1
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        deployment.work_queue_id = work_queue.id
+        await session.commit()
+
+        # Create 2 flow runs
+        run1 = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                work_queue_id=work_queue.id,
+                state=states.Scheduled(),
+            ),
+        )
+        run2 = await flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                work_queue_id=work_queue.id,
+                state=states.Scheduled(),
+            ),
+        )
+        await session.commit()
+
+        # Run 1 acquires the slot
+        result1 = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run1.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result1.status == SetStateStatus.ACCEPT
+        await session.commit()
+
+        # Run 2 gets rejected to AwaitingConcurrencySlot
+        result2 = await flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=run2.id,
+            state=states.Pending(),
+            flow_policy=CoreFlowPolicy,
+        )
+        assert result2.status == SetStateStatus.REJECT
+        assert result2.state is not None
+        assert result2.state.name == "AwaitingConcurrencySlot"
+        await session.commit()
+
+        # Get the current settings to check prefetch_seconds
+        settings = get_current_settings()
+        worker_prefetch_seconds = settings.worker.prefetch_seconds
+        server_slot_wait_seconds = (
+            settings.server.deployments.concurrency_slot_wait_seconds
+        )
+
+        # The slot wait time must be less than the worker prefetch window
+        # to ensure runs in AwaitingConcurrencySlot are visible to workers
+        assert server_slot_wait_seconds < worker_prefetch_seconds, (
+            f"concurrency_slot_wait_seconds ({server_slot_wait_seconds}s) must be less than "
+            f"worker prefetch_seconds ({worker_prefetch_seconds}s) to prevent runs from "
+            f"being invisible to workers. This causes runs to get stuck in "
+            f"AwaitingConcurrencySlot indefinitely."
+        )
+
+        # Verify that when polling with the default prefetch window,
+        # the run is visible immediately (within the prefetch window)
+        await session.refresh(run2)
+        assert run2.next_scheduled_start_time is not None
+
+        # The run should be visible to a worker polling with prefetch_seconds lookahead
+        scheduled_runs = await workers.get_scheduled_flow_runs(
+            session=session,
+            work_pool_ids=[work_pool.id],
+            scheduled_before=now("UTC") + timedelta(seconds=worker_prefetch_seconds),
+        )
+        run_ids = [r.flow_run.id for r in scheduled_runs]
+        assert run2.id in run_ids, (
+            f"Run in AwaitingConcurrencySlot should be visible within worker's "
+            f"prefetch window ({worker_prefetch_seconds}s). "
+            f"next_scheduled_start_time={run2.next_scheduled_start_time}, "
+            f"server_slot_wait_seconds={server_slot_wait_seconds}s"
+        )

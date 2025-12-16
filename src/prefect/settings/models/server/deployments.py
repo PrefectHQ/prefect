@@ -12,11 +12,14 @@ class ServerDeploymentsSettings(PrefectBaseSettings):
     )
 
     concurrency_slot_wait_seconds: float = Field(
-        default=30.0,
+        default=5.0,
         ge=0.0,
         description=(
             "The number of seconds to wait before retrying when a deployment flow run"
-            " cannot secure a concurrency slot from the server."
+            " cannot secure a concurrency slot from the server. This value should be less"
+            " than the worker's prefetch_seconds setting (default 10s) to ensure runs in"
+            " AwaitingConcurrencySlot state become visible to workers within their polling"
+            " window."
         ),
         validation_alias=AliasChoices(
             AliasPath("concurrency_slot_wait_seconds"),
