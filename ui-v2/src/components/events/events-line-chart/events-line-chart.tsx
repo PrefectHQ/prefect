@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
-import { Area, AreaChart, ReferenceArea, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, XAxis, YAxis } from "recharts";
 import type { EventsCount } from "@/api/events";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { cn } from "@/utils";
@@ -49,14 +49,8 @@ export type EventsLineChartProps = {
 	zoomStart?: Date;
 	/** Current zoom range end */
 	zoomEnd?: Date;
-	/** Selection range start (for filtering) */
-	selectionStart?: Date | null;
-	/** Selection range end (for filtering) */
-	selectionEnd?: Date | null;
 	/** Called when zoom range changes (via scroll wheel) */
 	onZoomChange?: (start: Date, end: Date) => void;
-	/** Called when selection range changes (via drag) */
-	onSelectionChange?: (start: Date | null, end: Date | null) => void;
 	/** Called when mouse hovers over chart with timestamp */
 	onCursorChange?: (timestamp: Date | null) => void;
 };
@@ -76,16 +70,7 @@ export const EventsLineChart = forwardRef<
 	EventsLineChartRef,
 	EventsLineChartProps
 >(function EventsLineChart(
-	{
-		data,
-		className,
-		showAxis = true,
-		zoomStart,
-		zoomEnd,
-		selectionStart,
-		selectionEnd,
-		onCursorChange,
-	},
+	{ data, className, showAxis = true, zoomStart, zoomEnd, onCursorChange },
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -139,15 +124,6 @@ export const EventsLineChart = forwardRef<
 		onCursorChange?.(null);
 	};
 
-	// Calculate selection area bounds
-	const selectionArea = useMemo(() => {
-		if (!selectionStart || !selectionEnd) return null;
-		return {
-			x1: selectionStart.getTime(),
-			x2: selectionEnd.getTime(),
-		};
-	}, [selectionStart, selectionEnd]);
-
 	return (
 		<div ref={containerRef} className={cn("relative", className)}>
 			<ChartContainer
@@ -185,17 +161,6 @@ export const EventsLineChart = forwardRef<
 					/>
 					<YAxis hide domain={[0, (max: number) => Math.max(1, max)]} />
 					<ChartTooltip content={<EventsTooltipContent />} />
-					{/* Selection highlight area */}
-					{selectionArea && (
-						<ReferenceArea
-							x1={selectionArea.x1}
-							x2={selectionArea.x2}
-							fill="hsl(var(--primary))"
-							fillOpacity={0.2}
-							stroke="hsl(var(--primary))"
-							strokeOpacity={0.5}
-						/>
-					)}
 					<Area
 						type="monotone"
 						dataKey="count"
