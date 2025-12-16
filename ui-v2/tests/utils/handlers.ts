@@ -107,6 +107,17 @@ const deploymentsHandlers = [
 ];
 
 const flowHandlers = [
+	http.get(buildApiUrl("/flows/:id"), () => {
+		return HttpResponse.json({
+			id: "1",
+			name: "Flow 1",
+			tags: [],
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			labels: {},
+		});
+	}),
+
 	http.post(buildApiUrl("/flows/paginate"), () => {
 		return HttpResponse.json({
 			results: [
@@ -137,6 +148,25 @@ const flowHandlers = [
 ];
 
 const flowRunHandlers = [
+	http.get(buildApiUrl("/flow_runs/:id"), () => {
+		return HttpResponse.json({
+			id: "1",
+			name: "test-flow-run",
+			flow_id: "flow-1",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			tags: [],
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			state: {
+				id: "state-1",
+				type: "COMPLETED",
+				name: "Completed",
+				timestamp: new Date().toISOString(),
+			},
+		});
+	}),
+
 	http.post(buildApiUrl("/flow_runs/filter"), () => {
 		return HttpResponse.json([
 			{ id: "1", name: "Flow 1", tags: [] },

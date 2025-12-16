@@ -2,7 +2,7 @@ import { randPastDate } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
 import { createFakeSimpleFlowRuns } from "@/mocks";
-import { routerDecorator } from "@/storybook/utils";
+import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { FlowRunsScatterPlot } from ".";
 
 export default {
@@ -16,7 +16,7 @@ export default {
 		startDate: randPastDate({ years: 0.1 }),
 		endDate: new Date(),
 	},
-	decorators: [routerDecorator],
+	decorators: [reactQueryDecorator, routerDecorator],
 	render: function Render(args: ComponentProps<typeof FlowRunsScatterPlot>) {
 		// Wrap in a container with explicit width to ensure ResponsiveContainer can measure
 		// The component uses "hidden md:block" so we need a wide enough container
