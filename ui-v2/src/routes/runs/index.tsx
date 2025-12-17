@@ -9,7 +9,9 @@ import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import {
 	buildCountFlowRunsQuery,
+	buildFlowRunHistoryQuery,
 	buildPaginateFlowRunsQuery,
+	type FlowRunHistoryFilter,
 	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
 import {
@@ -272,12 +274,80 @@ const buildTaskRunsPaginationBody = (
 	};
 };
 
+const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
+	const hideSubflows = search?.["hide-subflows"];
+	const stateFilters = parseStateFilter(search?.state ?? "");
+	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
+	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
+	const workPoolsFilter = parseWorkPoolsFilter(search?.["work-pools"] ?? "");
+	const tagsFilter = parseTagsFilter(search?.tags ?? "");
+	const dateRangeFilter = getDateRangeFilter(search);
+
+	// Map state names to state types for the API filter
+	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
+	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
+	const deploymentIds =
+		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
+	const workPoolNames =
+		workPoolsFilter.length > 0 ? workPoolsFilter : undefined;
+
+	// Build flow_runs filter only if we have filters to apply
+	const hasFilters =
+		hideSubflows || stateNames || tagsFilter.length > 0 || dateRangeFilter;
+	const flowRunsFilter = hasFilters
+		? {
+				operator: "and_" as const,
+				...(hideSubflows && {
+					parent_task_run_id: { operator: "and_" as const, is_null_: true },
+				}),
+				...(stateNames && {
+					state: {
+						operator: "and_" as const,
+						name: { any_: stateNames },
+					},
+				}),
+				...(tagsFilter.length > 0 && {
+					tags: { operator: "and_" as const, any_: tagsFilter },
+				}),
+				...(dateRangeFilter && {
+					expected_start_time: dateRangeFilter,
+				}),
+			}
+		: undefined;
+
+	// Build flows filter for filtering by flow_id
+	const flowsFilterBody = flowIds
+		? { operator: "and_" as const, id: { any_: flowIds } }
+		: undefined;
+
+	// Build deployments filter for filtering by deployment_id
+	const deploymentsFilterBody = deploymentIds
+		? { operator: "and_" as const, id: { any_: deploymentIds } }
+		: undefined;
+
+	// Build work_pools filter for filtering by work pool name
+	const workPoolsFilterBody = workPoolNames
+		? { operator: "and_" as const, name: { any_: workPoolNames } }
+		: undefined;
+
+	return {
+		sort: "EXPECTED_START_TIME_DESC",
+		limit: 1000,
+		offset: 0,
+		flow_runs: flowRunsFilter,
+		flows: flowsFilterBody,
+		deployments: deploymentsFilterBody,
+		work_pools: workPoolsFilterBody,
+	};
+};
+
 export const Route = createFileRoute("/runs/")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
 	loaderDeps: ({ search }) => ({
 		flowRunsDeps: buildPaginationBody(search),
 		taskRunsDeps: buildTaskRunsPaginationBody(search),
+		historyDeps: buildHistoryFilter(search),
 	}),
 	loader: ({ deps, context }) => {
 		// Prefetch all queries without blocking the loader
@@ -289,6 +359,9 @@ export const Route = createFileRoute("/runs/")({
 		);
 		void context.queryClient.prefetchQuery(
 			buildPaginateTaskRunsQuery(deps.taskRunsDeps, 30_000),
+		);
+		void context.queryClient.prefetchQuery(
+			buildFlowRunHistoryQuery(deps.historyDeps, 30_000),
 		);
 
 		// Background async chain: prefetch task run counts for each flow run
@@ -541,8 +614,26 @@ function RouteComponent() {
 		buildPaginateTaskRunsQuery(buildTaskRunsPaginationBody(search), 30_000),
 	);
 
+	// Use useQuery for flow run history (scatter plot) with 30-second polling
+	const { data: flowRunHistory } = useQuery(
+		buildFlowRunHistoryQuery(buildHistoryFilter(search), 30_000),
+	);
+
 	const flowRuns = flowRunsPage?.results ?? [];
 	const taskRuns = taskRunsPage?.results ?? [];
+
+	// Extract date range from search params for the scatter plot
+	const scatterPlotDateRange = useMemo(() => {
+		const dateRangeFilter = getDateRangeFilter(search);
+		return {
+			startDate: dateRangeFilter?.after_
+				? new Date(dateRangeFilter.after_)
+				: undefined,
+			endDate: dateRangeFilter?.before_
+				? new Date(dateRangeFilter.before_)
+				: undefined,
+		};
+	}, [search]);
 
 	// Prefetch task run counts for the current page's flow runs
 	// This ensures the data is ready when FlowRunCard renders
@@ -625,6 +716,9 @@ function RouteComponent() {
 			onWorkPoolFilterChange={onWorkPoolFilterChange}
 			dateRange={dateRange}
 			onDateRangeChange={onDateRangeChange}
+			// Scatter plot props
+			flowRunHistory={flowRunHistory ?? []}
+			scatterPlotDateRange={scatterPlotDateRange}
 			// Task runs props
 			taskRuns={taskRuns}
 			taskRunsPages={taskRunsPage?.pages ?? 0}

@@ -154,17 +154,69 @@ const FlowRunTooltip = ({ active, payload }: FlowRunTooltipProps) => {
 	);
 };
 
-const formatYAxisTick = (value: number): string => {
-	if (value === 0) return "0s";
-	return formatDistanceStrict(0, value * 1000, { addSuffix: false });
+const createYAxisTickFormatter = (maxDuration: number) => {
+	return (value: number): string => {
+		if (value === 0) return "0s";
+		// For very small durations (< 1 second), show milliseconds
+		if (maxDuration < 1) {
+			return `${Math.round(value * 1000)}ms`;
+		}
+		// For small durations (< 10 seconds), show one decimal
+		if (maxDuration < 10) {
+			return `${value.toFixed(1)}s`;
+		}
+		// For durations < 60 seconds, show integer seconds
+		if (maxDuration < 60) {
+			return `${Math.round(value)}s`;
+		}
+		// For larger durations, use the humanized format
+		return formatDistanceStrict(0, value * 1000, { addSuffix: false });
+	};
 };
 
-const formatXAxisTick = (value: number): string => {
-	const date = new Date(value);
-	return date.toLocaleDateString(undefined, {
-		month: "short",
-		day: "numeric",
-	});
+const createXAxisTickFormatter = (rangeMs: number, minDeltaMs: number) => {
+	const oneMinute = 60 * 1000;
+	const oneHour = 60 * oneMinute;
+	const oneDay = 24 * oneHour;
+
+	return (value: number): string => {
+		const date = new Date(value);
+
+		// If data points are very close (< 1 second apart) or range is very small, show with fractional seconds
+		if (minDeltaMs < 1000 || rangeMs < 10_000) {
+			const seconds = date.getSeconds();
+			const ms = date.getMilliseconds();
+			const timeStr = date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+			// Append seconds and tenths of a second
+			return `${timeStr}:${seconds.toString().padStart(2, "0")}.${Math.floor(ms / 100)}`;
+		}
+
+		// If data points are within a minute apart or range is small, show with seconds
+		if (minDeltaMs < oneMinute || rangeMs < 10 * oneMinute) {
+			return date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+				second: "2-digit",
+			});
+		}
+
+		// If range is less than a day, show time (hours and minutes)
+		if (rangeMs < oneDay) {
+			return date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+		}
+
+		// Otherwise show date
+		return date.toLocaleDateString(undefined, {
+			month: "short",
+			day: "numeric",
+		});
+	};
 };
 
 export const FlowRunsScatterPlot = ({
@@ -184,17 +236,66 @@ export const FlowRunsScatterPlot = ({
 		}));
 	}, [history]);
 
-	const xDomain = useMemo(() => {
+	// Compute actual numeric domain for x-axis (needed for adaptive formatting)
+	const { xDomain, xDomainMin, xDomainMax } = useMemo(() => {
 		if (startDate && endDate) {
-			return [startDate.getTime(), endDate.getTime()];
+			return {
+				xDomain: [startDate.getTime(), endDate.getTime()] as [number, number],
+				xDomainMin: startDate.getTime(),
+				xDomainMax: endDate.getTime(),
+			};
 		}
 		if (chartData.length === 0) {
 			const now = Date.now();
 			const dayAgo = now - 24 * 60 * 60 * 1000;
-			return [dayAgo, now];
+			return {
+				xDomain: [dayAgo, now] as [number, number],
+				xDomainMin: dayAgo,
+				xDomainMax: now,
+			};
 		}
-		return ["dataMin", "dataMax"] as const;
-	}, [startDate, endDate, chartData.length]);
+		// Compute from data
+		const timestamps = chartData.map((d) => d.x);
+		const min = Math.min(...timestamps);
+		const max = Math.max(...timestamps);
+		return {
+			xDomain: [min, max] as [number, number],
+			xDomainMin: min,
+			xDomainMax: max,
+		};
+	}, [startDate, endDate, chartData]);
+
+	// Compute max duration for adaptive y-axis formatting
+	const maxDuration = useMemo(() => {
+		if (chartData.length === 0) return 60;
+		return Math.max(...chartData.map((d) => d.y));
+	}, [chartData]);
+
+	// Compute minimum delta between data points for adaptive x-axis formatting
+	const minDeltaMs = useMemo(() => {
+		if (chartData.length < 2) return Number.POSITIVE_INFINITY;
+		const sortedTimestamps = chartData.map((d) => d.x).sort((a, b) => a - b);
+		let minDelta = Number.POSITIVE_INFINITY;
+		for (let i = 1; i < sortedTimestamps.length; i++) {
+			const delta = sortedTimestamps[i] - sortedTimestamps[i - 1];
+			if (delta > 0 && delta < minDelta) {
+				minDelta = delta;
+			}
+		}
+		return minDelta;
+	}, [chartData]);
+
+	// Create memoized formatters based on domain
+	const rangeMs = xDomainMax - xDomainMin;
+	const formatXAxisTick = useMemo(
+		() => createXAxisTickFormatter(rangeMs, minDeltaMs),
+		[rangeMs, minDeltaMs],
+	);
+
+	const formatYAxisTick = useMemo(
+		() => createYAxisTickFormatter(maxDuration),
+		[maxDuration],
+	);
 
 	if (history.length === 0) {
 		return null;
