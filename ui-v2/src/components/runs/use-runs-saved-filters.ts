@@ -1,5 +1,9 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
+import {
+	DATE_RANGE_PRESETS,
+	type DateRangePreset,
+} from "@/components/flow-runs/flow-runs-list";
 import type { SavedFilter as SavedFiltersMenuFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/saved-filters-menu";
 import {
 	type SavedFilter,
@@ -58,17 +62,24 @@ function filterValuesToUrlParams(filters: SavedFilterValues): {
 	deployments: string;
 	"work-pools": string;
 	tags: string;
-	range: string | undefined;
+	range: DateRangePreset | undefined;
 	start: string | undefined;
 	end: string | undefined;
 } {
+	// Validate that the range is a valid preset
+	const range =
+		filters.range &&
+		DATE_RANGE_PRESETS.includes(filters.range as DateRangePreset)
+			? (filters.range as DateRangePreset)
+			: undefined;
+
 	return {
 		state: filters.state?.join(",") ?? "",
 		flows: filters.flows?.join(",") ?? "",
 		deployments: filters.deployments?.join(",") ?? "",
 		"work-pools": filters.workPools?.join(",") ?? "",
 		tags: filters.tags?.join(",") ?? "",
-		range: filters.range,
+		range,
 		start: filters.start,
 		end: filters.end,
 	};
