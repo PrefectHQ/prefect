@@ -3,8 +3,8 @@ from boto3.session import Session
 from botocore.client import BaseClient
 from moto import mock_aws
 from prefect_aws.credentials import (
-    AwsCredentials,
     AwsCodeCommitCredentials,
+    AwsCredentials,
     ClientType,
     MinIOCredentials,
     _get_client_cached,
@@ -272,7 +272,7 @@ def test_codecommit_credentials_format_git_credentials_with_session_token():
         # Verify URL structure
         assert result.startswith("https://")
         assert "@git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo" in result
-        assert "AKIAIOSFODNN7EXAMPLE" in result 
+        assert "AKIAIOSFODNN7EXAMPLE" in result
         assert "%25temporary-session-token:" in result
 
 

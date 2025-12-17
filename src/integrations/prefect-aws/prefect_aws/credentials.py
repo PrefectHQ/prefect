@@ -4,15 +4,13 @@ import datetime
 from enum import Enum
 from functools import lru_cache
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Optional, Union, Annotated
+from typing import TYPE_CHECKING, Any, Optional, Union
+from urllib.parse import urlparse
 
 import boto3
 import botocore.auth
 import botocore.awsrequest
 import botocore.compat
-from urllib.parse import urlparse
-
-from boto3 import Session
 from pydantic import ConfigDict, Field, SecretStr
 
 from prefect.blocks.abstract import CredentialsBlock
@@ -201,14 +199,14 @@ class AwsCodeCommitCredentials(CredentialsBlock):
     Attributes:
         aws_credentials: An AwsCredentials block containing AWS authentication details.
 
-    Example:        
+    Example:
         Use as part of a Git clone step in a Prefect deployment:
         ```yaml
         pull:
             - prefect.deployments.steps.git_clone:
                 repository: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo
                 credentials: "{{ prefect.blocks.aws-codecommit-credentials.my-codecommit-credentials-block }}"
-        ```        
+        ```
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -220,9 +218,9 @@ class AwsCodeCommitCredentials(CredentialsBlock):
     aws_credentials: AwsCredentials = Field(
         default=...,
         description="AWS credentials block for authentication.",
-        title="AWS Credentials"
+        title="AWS Credentials",
     )
-    
+
     @staticmethod
     def _get_parts_from_url(url: str) -> tuple[str, str, str]:
         """
@@ -235,18 +233,15 @@ class AwsCodeCommitCredentials(CredentialsBlock):
             A tuple containing (region, domain name, path)
         """
         parsed = urlparse(url)
-             
+
         hostname_parts = parsed.hostname.split(".")
         region = hostname_parts[1]
-        
+
         return region, parsed.hostname, parsed.path
 
     @staticmethod
     def _sign_codecommit_request(
-        hostname: str, 
-        path: str, 
-        region: str, 
-        credentials: Any
+        hostname: str, path: str, region: str, credentials: Any
     ) -> str:
         """
         Generate a SigV4 signature for a CodeCommit Git request.
@@ -263,7 +258,9 @@ class AwsCodeCommitCredentials(CredentialsBlock):
         request = botocore.awsrequest.AWSRequest(
             method="GIT", url=f"https://{hostname}{path}"
         )
-        request.context["timestamp"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S")
+        request.context["timestamp"] = datetime.datetime.now(
+            datetime.timezone.utc
+        ).strftime("%Y%m%dT%H%M%S")
 
         signer = botocore.auth.SigV4Auth(credentials, "codecommit", region)
         canonical_request = f"GIT\n{path}\n\nhost:{hostname}\n\nhost\n"
@@ -285,7 +282,7 @@ class AwsCodeCommitCredentials(CredentialsBlock):
 
         Raises:
             ValueError: If credentials are not available
-        """        
+        """
         # Extract region from the URL
         region, hostname, path = self._get_parts_from_url(url)
 
@@ -300,19 +297,15 @@ class AwsCodeCommitCredentials(CredentialsBlock):
             )
 
         # Generate the signature
-        signature = self._sign_codecommit_request(
-            hostname, path, region, credentials
-        )
+        signature = self._sign_codecommit_request(hostname, path, region, credentials)
 
         # Format username: access_key + optional token (for temporary credentials)
         token = f"%{credentials.token}" if credentials.token else ""
-        username = botocore.compat.quote(
-            f"{credentials.access_key}{token}", safe=""
-        )
+        username = botocore.compat.quote(f"{credentials.access_key}{token}", safe="")
 
         # Construct the final URL
         return f"https://{username}:{signature}@{hostname}{path}"
-    
+
     def get_client(self) -> boto3.client:
         """
         Gets an authenticated CodeCommit client.
