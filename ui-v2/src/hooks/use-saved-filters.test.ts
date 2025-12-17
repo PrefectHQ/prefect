@@ -248,7 +248,7 @@ describe("useSavedFilters", () => {
 	it("sets and clears default filter", () => {
 		const { result } = renderHook(() => useSavedFilters());
 
-		let savedFilter: SavedFilter;
+		let savedFilter: SavedFilter | undefined;
 		act(() => {
 			savedFilter = result.current.saveFilter({
 				name: "My Filter",
@@ -256,37 +256,52 @@ describe("useSavedFilters", () => {
 			});
 		});
 
+		if (!savedFilter) {
+			throw new Error("Expected savedFilter to be created");
+		}
+
+		const filterId = savedFilter.id;
+
 		act(() => {
-			result.current.setDefaultFilter(savedFilter.id);
+			result.current.setDefaultFilter(filterId);
 		});
 
-		expect(result.current.defaultFilterId).toBe(savedFilter.id);
-		expect(result.current.isDefaultFilter(savedFilter.id)).toBe(true);
+		expect(result.current.defaultFilterId).toBe(filterId);
+		expect(result.current.isDefaultFilter(filterId)).toBe(true);
 
 		act(() => {
 			result.current.setDefaultFilter(null);
 		});
 
 		expect(result.current.defaultFilterId).toBeNull();
-		expect(result.current.isDefaultFilter(savedFilter.id)).toBe(false);
+		expect(result.current.isDefaultFilter(filterId)).toBe(false);
 	});
 
 	it("clears default filter when deleting the default filter", () => {
 		const { result } = renderHook(() => useSavedFilters());
 
-		let savedFilter: SavedFilter;
+		let savedFilter: SavedFilter | undefined;
 		act(() => {
 			savedFilter = result.current.saveFilter({
 				name: "My Filter",
 				filters: { state: ["Completed"] },
 			});
+			if (!savedFilter) {
+				throw new Error("Expected savedFilter to be created");
+			}
 			result.current.setDefaultFilter(savedFilter.id);
 		});
 
-		expect(result.current.defaultFilterId).toBe(savedFilter.id);
+		if (!savedFilter) {
+			throw new Error("Expected savedFilter to be created");
+		}
+
+		const filterId = savedFilter.id;
+
+		expect(result.current.defaultFilterId).toBe(filterId);
 
 		act(() => {
-			result.current.deleteFilter(savedFilter.id);
+			result.current.deleteFilter(filterId);
 		});
 
 		expect(result.current.defaultFilterId).toBeNull();
@@ -295,13 +310,17 @@ describe("useSavedFilters", () => {
 	it("gets filter by id", () => {
 		const { result } = renderHook(() => useSavedFilters());
 
-		let savedFilter: SavedFilter;
+		let savedFilter: SavedFilter | undefined;
 		act(() => {
 			savedFilter = result.current.saveFilter({
 				name: "My Filter",
 				filters: { state: ["Completed"] },
 			});
 		});
+
+		if (!savedFilter) {
+			throw new Error("Expected savedFilter to be created");
+		}
 
 		const found = result.current.getFilterById(savedFilter.id);
 		expect(found).toBeDefined();
