@@ -31,6 +31,7 @@ import {
 	urlStateToDateRangeValue,
 } from "@/components/flow-runs/flow-runs-list";
 import { RunsPage } from "@/components/runs/runs-page";
+import { useRunsSavedFilters } from "@/components/runs/use-runs-saved-filters";
 import {
 	TASK_RUN_SORT_FILTERS,
 	type TaskRunSortFilters,
@@ -652,6 +653,20 @@ function RouteComponent() {
 	const [taskRunsSort, onTaskRunsSortChange] = useTaskRunsSort();
 	const [taskRunSearch, onTaskRunSearchChange] = useTaskRunSearch();
 
+	// Saved filters hook
+	const {
+		currentFilter,
+		savedFiltersForMenu,
+		onSelectFilter,
+		onSaveFilter,
+		onDeleteFilter,
+		onSetDefault,
+		onRemoveDefault,
+		isSaveDialogOpen,
+		closeSaveDialog,
+		confirmSave,
+	} = useRunsSavedFilters();
+
 	// Use useSuspenseQueries for unfiltered count queries (stable keys, won't cause suspense on search change)
 	// These are used to determine if the app has ANY runs at all (for empty state)
 	const [{ data: flowRunsCountAll }, { data: taskRunsCountAll }] =
@@ -786,6 +801,17 @@ function RouteComponent() {
 			taskRunSearch={taskRunSearch}
 			onTaskRunSearchChange={onTaskRunSearchChange}
 			onClearTaskRunFilters={onClearTaskRunFilters}
+			// Saved filters props
+			currentFilter={currentFilter}
+			savedFilters={savedFiltersForMenu}
+			onSelectFilter={onSelectFilter}
+			onSaveFilter={onSaveFilter}
+			onDeleteFilter={onDeleteFilter}
+			onSetDefault={onSetDefault}
+			onRemoveDefault={onRemoveDefault}
+			isSaveDialogOpen={isSaveDialogOpen}
+			onCloseSaveDialog={closeSaveDialog}
+			onConfirmSave={confirmSave}
 		/>
 	);
 }
