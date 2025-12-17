@@ -254,10 +254,10 @@ def test_aws_credentials_assume_role_basic():
     Test that AwsCredentials can assume a role when role_arn is provided.
     """
     role_arn = "arn:aws:iam::123456789012:role/TestRole"
-    
+
     # Create credentials with role_arn
     credentials = AwsCredentials(role_arn=role_arn, region_name="us-east-1")
-    
+
     # Mock the base session and STS client
     with patch("prefect_aws.credentials.boto3.Session") as mock_session_class:
         mock_base_session = mock_session_class.return_value
@@ -270,17 +270,17 @@ def test_aws_credentials_assume_role_basic():
                 "Expiration": "2024-01-01T00:00:00Z",
             }
         }
-        
+
         # Create a real session for the assumed role
         def session_side_effect(*args, **kwargs):
             return Session(*args, **kwargs)
-        
+
         mock_session_class.side_effect = session_side_effect
-        
+
         session = credentials.get_boto3_session()
         assert isinstance(session, Session)
         assert session.region_name == "us-east-1"
-        
+
         # Verify we can create a client with the assumed role session
         with mock_aws():
             s3_client = session.client("s3")
@@ -293,13 +293,13 @@ def test_aws_credentials_assume_role_with_custom_session_name():
     """
     role_arn = "arn:aws:iam::123456789012:role/TestRole"
     custom_session_name = "my-custom-session"
-    
+
     credentials = AwsCredentials(
         role_arn=role_arn,
         region_name="us-east-1",
         assume_role_kwargs={"RoleSessionName": custom_session_name},
     )
-    
+
     # Mock the base session and STS client
     with patch("prefect_aws.credentials.boto3.Session") as mock_session_class:
         mock_base_session = mock_session_class.return_value
@@ -312,9 +312,9 @@ def test_aws_credentials_assume_role_with_custom_session_name():
                 "Expiration": "2024-01-01T00:00:00Z",
             }
         }
-        
+
         session = credentials.get_boto3_session()
-        
+
         # Verify assume_role was called with the custom session name
         mock_sts_client.assume_role.assert_called_once()
         call_args = mock_sts_client.assume_role.call_args
@@ -327,10 +327,10 @@ def test_aws_credentials_assume_role_generates_default_session_name():
     Test that AwsCredentials generates a default RoleSessionName when not provided.
     """
     role_arn = "arn:aws:iam::123456789012:role/TestRole"
-    
+
     # Create credentials with role_arn but no RoleSessionName
     credentials = AwsCredentials(role_arn=role_arn, region_name="us-east-1")
-    
+
     # Mock the base session and STS client
     with patch("prefect_aws.credentials.boto3.Session") as mock_session_class:
         mock_base_session = mock_session_class.return_value
@@ -343,9 +343,9 @@ def test_aws_credentials_assume_role_generates_default_session_name():
                 "Expiration": "2024-01-01T00:00:00Z",
             }
         }
-        
+
         session = credentials.get_boto3_session()
-        
+
         # Verify assume_role was called with a generated session name
         mock_sts_client.assume_role.assert_called_once()
         call_args = mock_sts_client.assume_role.call_args
@@ -359,7 +359,7 @@ def test_aws_credentials_assume_role_with_additional_kwargs():
     Test that AwsCredentials passes additional assume_role_kwargs to assume_role.
     """
     role_arn = "arn:aws:iam::123456789012:role/TestRole"
-    
+
     # Create credentials with additional assume_role_kwargs
     credentials = AwsCredentials(
         role_arn=role_arn,
@@ -370,7 +370,7 @@ def test_aws_credentials_assume_role_with_additional_kwargs():
             "ExternalId": "unique-external-id",
         },
     )
-    
+
     # Mock the base session and STS client
     with patch("prefect_aws.credentials.boto3.Session") as mock_session_class:
         mock_base_session = mock_session_class.return_value
@@ -383,9 +383,9 @@ def test_aws_credentials_assume_role_with_additional_kwargs():
                 "Expiration": "2024-01-01T00:00:00Z",
             }
         }
-        
+
         session = credentials.get_boto3_session()
-        
+
         # Verify assume_role was called with all parameters
         mock_sts_client.assume_role.assert_called_once()
         call_args = mock_sts_client.assume_role.call_args
@@ -401,7 +401,7 @@ def test_aws_credentials_hash_includes_role_arn():
     """
     credentials1 = AwsCredentials(role_arn="arn:aws:iam::123456789012:role/Role1")
     credentials2 = AwsCredentials(role_arn="arn:aws:iam::123456789012:role/Role2")
-    
+
     assert hash(credentials1) != hash(credentials2)
 
 
@@ -417,7 +417,7 @@ def test_aws_credentials_hash_includes_assume_role_kwargs():
         role_arn="arn:aws:iam::123456789012:role/Role1",
         assume_role_kwargs={"DurationSeconds": 7200},
     )
-    
+
     assert hash(credentials1) != hash(credentials2)
 
 
@@ -437,7 +437,7 @@ def test_aws_credentials_hash_with_nested_assume_role_kwargs():
             ],
         },
     )
-    
+
     # Should not raise TypeError: unhashable type
     assert hash(credentials) is not None
 
@@ -454,10 +454,10 @@ def test_aws_credentials_assume_role_hash_changes_cause_cache_invalidation():
         role_arn="arn:aws:iam::123456789012:role/Role2",
         region_name="us-east-1",
     )
-    
+
     # Different role_arn should result in different hashes
     assert hash(credentials1) != hash(credentials2)
-    
+
     # This ensures that cache will be invalidated when role_arn changes
     # because the hash is used as part of the cache key
 
@@ -468,40 +468,47 @@ def test_aws_credentials_assume_role_uses_temporary_credentials():
     """
     role_arn = "arn:aws:iam::123456789012:role/TestRole"
     credentials = AwsCredentials(role_arn=role_arn, region_name="us-east-1")
-    
+
     expected_credentials = {
         "AccessKeyId": "ASIAEXAMPLE123",
         "SecretAccessKey": "secret123",
         "SessionToken": "token123",
         "Expiration": "2024-01-01T00:00:00Z",
     }
-    
+
     # Mock the base session and STS client
     with patch("prefect_aws.credentials.boto3.Session") as mock_session_class:
         mock_base_session = mock_session_class.return_value
         mock_sts_client = mock_base_session.client.return_value
-        mock_sts_client.assume_role.return_value = {
-            "Credentials": expected_credentials
-        }
-        
+        mock_sts_client.assume_role.return_value = {"Credentials": expected_credentials}
+
         # Create a real session instance for the assumed role session
         # We need to track the calls to Session constructor
         session_calls = []
-        
+
         def session_side_effect(*args, **kwargs):
             session = Session(*args, **kwargs)
             session_calls.append(kwargs)
             return session
-        
+
         mock_session_class.side_effect = session_side_effect
-        
+
         session = credentials.get_boto3_session()
-        
+
         # Verify the session was created with the temporary credentials
         # Check that Session was called with the assumed role credentials
         assert len(session_calls) >= 1
         # The last call should be for the assumed role session
         assumed_session_kwargs = session_calls[-1]
-        assert assumed_session_kwargs["aws_access_key_id"] == expected_credentials["AccessKeyId"]
-        assert assumed_session_kwargs["aws_secret_access_key"] == expected_credentials["SecretAccessKey"]
-        assert assumed_session_kwargs["aws_session_token"] == expected_credentials["SessionToken"]
+        assert (
+            assumed_session_kwargs["aws_access_key_id"]
+            == expected_credentials["AccessKeyId"]
+        )
+        assert (
+            assumed_session_kwargs["aws_secret_access_key"]
+            == expected_credentials["SecretAccessKey"]
+        )
+        assert (
+            assumed_session_kwargs["aws_session_token"]
+            == expected_credentials["SessionToken"]
+        )

@@ -189,30 +189,34 @@ class AwsCredentials(CredentialsBlock):
         # If role_arn is provided, assume the role
         if self.role_arn:
             sts_client = base_session.client("sts")
-            
+
             # Prepare assume_role parameters
             assume_role_params = {
                 "RoleArn": self.role_arn,
             }
-            
+
             # Get parameters from assume_role_kwargs
             kwargs_override = self.assume_role_kwargs.get_params_override()
-            
+
             # Add RoleSessionName if provided, otherwise generate a default
             if "RoleSessionName" in kwargs_override:
-                assume_role_params["RoleSessionName"] = kwargs_override["RoleSessionName"]
+                assume_role_params["RoleSessionName"] = kwargs_override[
+                    "RoleSessionName"
+                ]
             else:
-                assume_role_params["RoleSessionName"] = f"prefect-session-{uuid.uuid4().hex[:8]}"
-            
+                assume_role_params["RoleSessionName"] = (
+                    f"prefect-session-{uuid.uuid4().hex[:8]}"
+                )
+
             # Add all other assume_role_kwargs (excluding RoleSessionName if it was in kwargs_override)
             for key, value in kwargs_override.items():
                 if key != "RoleSessionName":  # Already handled above
                     assume_role_params[key] = value
-            
+
             # Assume the role
             response = sts_client.assume_role(**assume_role_params)
             credentials = response["Credentials"]
-            
+
             # Create a new session with the assumed role credentials
             return boto3.Session(
                 aws_access_key_id=credentials["AccessKeyId"],
