@@ -1,5 +1,5 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Suspense, useEffect, useState } from "react";
 import { buildEventsHistoryQuery } from "@/api/events";
 import {
 	buildEventsCountFilterFromSearch,
@@ -7,7 +7,7 @@ import {
 	type EventsSearchParams,
 	getDateRangeFromSearch,
 } from "@/api/events/filters";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	type DateRangeSelectValue,
 	RichDateRangeSelector,
@@ -18,6 +18,7 @@ import {
 	EmptyStateIcon,
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
+import { Label } from "@/components/ui/label";
 import {
 	Pagination,
 	PaginationContent,
@@ -40,40 +41,25 @@ export type EventsPageProps = {
 };
 
 export function EventsPage({ search, onSearchChange }: EventsPageProps) {
-	// Get the initial date range using the same logic as the route loader
+	// Get the date range using the same logic as the route loader
 	// This ensures query keys match and prevents infinite Suspense retries
-	const initialDateRange = getDateRangeFromSearch(search);
+	const dateRange = getDateRangeFromSearch(search);
 
-	// Chart zoom state (separate from filter date range)
-	const [zoomStart, setZoomStart] = useState<Date>(
-		() => new Date(initialDateRange.from),
-	);
-	const [zoomEnd, setZoomEnd] = useState<Date>(
-		() => new Date(initialDateRange.to),
-	);
-
-	// Chart selection state (overrides zoom for filtering)
-	const [selectionStart, setSelectionStart] = useState<Date | null>(null);
-	const [selectionEnd, setSelectionEnd] = useState<Date | null>(null);
-
-	// Build filters - use selection if present, otherwise use zoom/search dates
-	const effectiveSearch: EventsSearchParams = {
-		...search,
-		...(selectionStart && selectionEnd
-			? {
-					rangeType: "range" as const,
-					start: selectionStart.toISOString(),
-					end: selectionEnd.toISOString(),
-				}
-			: {}),
-	};
-
-	const eventsFilter = buildEventsFilterFromSearch(effectiveSearch);
+	const eventsFilter = buildEventsFilterFromSearch(search);
 	const countFilter = buildEventsCountFilterFromSearch({
 		...search,
 		rangeType: "range",
-		start: zoomStart.toISOString(),
-		end: zoomEnd.toISOString(),
+		start: dateRange.from,
+		end: dateRange.to,
+	});
+
+	// Create separate filter for type dropdown (without event filter)
+	// This ensures all event types are shown regardless of current selection
+	const countFilterForTypeDropdown = buildEventsCountFilterFromSearch({
+		resource: search.resource,
+		rangeType: "range",
+		start: dateRange.from,
+		end: dateRange.to,
 	});
 
 	// Pagination
@@ -87,9 +73,7 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	} = useEventsPagination({ filter: eventsFilter });
 
 	// Chart histogram data
-	const { data: historyData } = useSuspenseQuery(
-		buildEventsHistoryQuery(countFilter),
-	);
+	const { data: historyData } = useQuery(buildEventsHistoryQuery(countFilter));
 
 	// Handlers - using correct property names that match EventsSearchParams
 	const handleResourceIdsChange = (resourceIds: string[]) => {
@@ -101,19 +85,9 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	};
 
 	const handleDateRangeChange = (value: DateRangeSelectValue) => {
-		// Clear selection when date range changes
-		setSelectionStart(null);
-		setSelectionEnd(null);
-
 		if (value?.type === "span") {
-			const newEnd = new Date();
-			const newStart = new Date(newEnd.getTime() + value.seconds * 1000);
-			setZoomStart(newStart);
-			setZoomEnd(newEnd);
 			onSearchChange({ rangeType: "span", seconds: value.seconds });
 		} else if (value?.type === "range") {
-			setZoomStart(value.startDate);
-			setZoomEnd(value.endDate);
 			onSearchChange({
 				rangeType: "range",
 				start: value.startDate.toISOString(),
@@ -121,19 +95,6 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 			});
 		}
 	};
-
-	const handleZoomChange = useCallback((start: Date, end: Date) => {
-		setZoomStart(start);
-		setZoomEnd(end);
-	}, []);
-
-	const handleSelectionChange = useCallback(
-		(start: Date | null, end: Date | null) => {
-			setSelectionStart(start);
-			setSelectionEnd(end);
-		},
-		[],
-	);
 
 	// Sticky chart behavior
 	const [isChartSticky, setIsChartSticky] = useState(false);
@@ -155,32 +116,26 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 			</div>
 
 			{/* Filters */}
-			<div className="flex flex-wrap gap-4">
-				<Suspense fallback={<Skeleton className="h-10 w-48" />}>
-					<EventsResourceFilter
-						selectedResourceIds={search.resource ?? []}
-						onResourceIdsChange={handleResourceIdsChange}
-					/>
-				</Suspense>
-				<Suspense fallback={<Skeleton className="h-10 w-48" />}>
-					<EventsTypeFilter
-						filter={countFilter}
-						selectedEventTypes={search.event ?? []}
-						onEventTypesChange={handleEventTypesChange}
-					/>
-				</Suspense>
-				<RichDateRangeSelector
-					value={
-						search.rangeType === "range" && search.start && search.end
-							? {
-									type: "range",
-									startDate: new Date(search.start),
-									endDate: new Date(search.end),
-								}
-							: { type: "span", seconds: search.seconds ?? -86400 }
-					}
-					onValueChange={handleDateRangeChange}
-				/>
+			<div className="grid grid-cols-1 gap-4 sm:grid-cols-[2fr_1fr]">
+				<div className="flex flex-col gap-1">
+					<Label>Resource</Label>
+					<Suspense fallback={<Skeleton className="h-10 w-full" />}>
+						<EventsResourceFilter
+							selectedResourceIds={search.resource ?? []}
+							onResourceIdsChange={handleResourceIdsChange}
+						/>
+					</Suspense>
+				</div>
+				<div className="flex flex-col gap-1">
+					<Label>Events</Label>
+					<Suspense fallback={<Skeleton className="h-10 w-full" />}>
+						<EventsTypeFilter
+							filter={countFilterForTypeDropdown}
+							selectedEventTypes={search.event ?? []}
+							onEventTypesChange={handleEventTypesChange}
+						/>
+					</Suspense>
+				</div>
 			</div>
 
 			{/* Chart - sticky when scrolling */}
@@ -190,20 +145,27 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 					isChartSticky && "shadow-lg",
 				)}
 			>
-				<CardHeader className="pb-2">
-					<CardTitle className="text-base">Event Activity</CardTitle>
-				</CardHeader>
-				<CardContent>
+				<CardContent className="pt-6">
 					<InteractiveEventsChart
-						data={historyData}
+						data={historyData ?? []}
 						className="h-32"
-						zoomStart={zoomStart}
-						zoomEnd={zoomEnd}
-						onZoomChange={handleZoomChange}
-						onSelectionChange={handleSelectionChange}
-						selectionStart={selectionStart}
-						selectionEnd={selectionEnd}
+						startDate={new Date(dateRange.from)}
+						endDate={new Date(dateRange.to)}
 					/>
+					<div className="flex justify-center pt-3">
+						<RichDateRangeSelector
+							value={
+								search.rangeType === "range" && search.start && search.end
+									? {
+											type: "range",
+											startDate: new Date(search.start),
+											endDate: new Date(search.end),
+										}
+									: { type: "span", seconds: search.seconds ?? -86400 }
+							}
+							onValueChange={handleDateRangeChange}
+						/>
+					</div>
 				</CardContent>
 			</Card>
 

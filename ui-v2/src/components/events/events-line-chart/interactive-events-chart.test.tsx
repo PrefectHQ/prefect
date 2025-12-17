@@ -1,6 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import type { EventsCount } from "@/api/events";
 import { InteractiveEventsChart } from "./interactive-events-chart";
 
@@ -30,9 +29,8 @@ describe("InteractiveEventsChart", () => {
 
 	const defaultProps = {
 		data: generateMockData(twentyFourHoursAgo, 24),
-		zoomStart: twentyFourHoursAgo,
-		zoomEnd: now,
-		onZoomChange: vi.fn(),
+		startDate: twentyFourHoursAgo,
+		endDate: now,
 	};
 
 	it("renders without crashing", () => {
@@ -52,138 +50,5 @@ describe("InteractiveEventsChart", () => {
 			<InteractiveEventsChart {...defaultProps} className="custom-class" />,
 		);
 		expect(container.firstChild).toHaveClass("custom-class");
-	});
-
-	it("does not show clear selection button when no selection exists", () => {
-		render(<InteractiveEventsChart {...defaultProps} />);
-		expect(screen.queryByText("Clear selection")).not.toBeInTheDocument();
-	});
-
-	it("shows clear selection button when selection exists (controlled mode)", () => {
-		const selectionStart = new Date(twentyFourHoursAgo.getTime() + 6 * 3600000);
-		const selectionEnd = new Date(twentyFourHoursAgo.getTime() + 12 * 3600000);
-
-		render(
-			<InteractiveEventsChart
-				{...defaultProps}
-				selectionStart={selectionStart}
-				selectionEnd={selectionEnd}
-			/>,
-		);
-
-		expect(screen.getByText("Clear selection")).toBeInTheDocument();
-	});
-
-	it("calls onSelectionChange with null values when clear selection is clicked", async () => {
-		const user = userEvent.setup();
-		const onSelectionChange = vi.fn();
-		const selectionStart = new Date(twentyFourHoursAgo.getTime() + 6 * 3600000);
-		const selectionEnd = new Date(twentyFourHoursAgo.getTime() + 12 * 3600000);
-
-		render(
-			<InteractiveEventsChart
-				{...defaultProps}
-				selectionStart={selectionStart}
-				selectionEnd={selectionEnd}
-				onSelectionChange={onSelectionChange}
-			/>,
-		);
-
-		const clearButton = screen.getByText("Clear selection");
-		await user.click(clearButton);
-
-		expect(onSelectionChange).toHaveBeenCalledWith(null, null);
-	});
-
-	it("renders selection area when selectionStart and selectionEnd are provided", () => {
-		const selectionStart = new Date(twentyFourHoursAgo.getTime() + 6 * 3600000);
-		const selectionEnd = new Date(twentyFourHoursAgo.getTime() + 12 * 3600000);
-
-		render(
-			<InteractiveEventsChart
-				{...defaultProps}
-				selectionStart={selectionStart}
-				selectionEnd={selectionEnd}
-			/>,
-		);
-
-		expect(screen.getByText("Clear selection")).toBeInTheDocument();
-	});
-
-	it("does not show clear selection button when only selectionStart is provided", () => {
-		const selectionStart = new Date(twentyFourHoursAgo.getTime() + 6 * 3600000);
-
-		render(
-			<InteractiveEventsChart
-				{...defaultProps}
-				selectionStart={selectionStart}
-			/>,
-		);
-
-		expect(screen.queryByText("Clear selection")).not.toBeInTheDocument();
-	});
-
-	it("does not show clear selection button when only selectionEnd is provided", () => {
-		const selectionEnd = new Date(twentyFourHoursAgo.getTime() + 12 * 3600000);
-
-		render(
-			<InteractiveEventsChart {...defaultProps} selectionEnd={selectionEnd} />,
-		);
-
-		expect(screen.queryByText("Clear selection")).not.toBeInTheDocument();
-	});
-
-	it("passes onZoomChange to zoom hook", () => {
-		const onZoomChange = vi.fn();
-
-		const { container } = render(
-			<InteractiveEventsChart {...defaultProps} onZoomChange={onZoomChange} />,
-		);
-
-		expect(container.firstChild).toBeInTheDocument();
-	});
-
-	it("passes onSelectionChange to selection hook", () => {
-		const onSelectionChange = vi.fn();
-
-		const { container } = render(
-			<InteractiveEventsChart
-				{...defaultProps}
-				onSelectionChange={onSelectionChange}
-			/>,
-		);
-
-		expect(container.firstChild).toBeInTheDocument();
-	});
-
-	it("applies select-none class to prevent text selection during drag", () => {
-		const { container } = render(<InteractiveEventsChart {...defaultProps} />);
-		expect(container.firstChild).toHaveClass("select-none");
-	});
-
-	it("renders with controlled selection values", () => {
-		const selectionStart = new Date(twentyFourHoursAgo.getTime() + 6 * 3600000);
-		const selectionEnd = new Date(twentyFourHoursAgo.getTime() + 12 * 3600000);
-
-		const { rerender } = render(
-			<InteractiveEventsChart
-				{...defaultProps}
-				selectionStart={selectionStart}
-				selectionEnd={selectionEnd}
-			/>,
-		);
-
-		expect(screen.getByText("Clear selection")).toBeInTheDocument();
-
-		// Update controlled values to null
-		rerender(
-			<InteractiveEventsChart
-				{...defaultProps}
-				selectionStart={null}
-				selectionEnd={null}
-			/>,
-		);
-
-		expect(screen.queryByText("Clear selection")).not.toBeInTheDocument();
 	});
 });

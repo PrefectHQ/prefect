@@ -325,4 +325,87 @@ describe("EventsTypeFilter", () => {
 			expect(checkbox).toHaveAttribute("data-state", "checked");
 		});
 	});
+
+	it("shows all event types in dropdown even when some are selected", async () => {
+		const user = userEvent.setup();
+		render(
+			<EventsTypeFilter
+				filter={DEFAULT_FILTER}
+				selectedEventTypes={["prefect.flow-run.*"]}
+				onEventTypesChange={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		const trigger = await screen.findByRole("button", {
+			name: /filter by event type/i,
+		});
+		await user.click(trigger);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("option", { name: /all event types/i }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("option", { name: "prefect.*" }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("option", { name: "prefect.flow-run.*" }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("option", { name: "prefect.task-run.*" }),
+			).toBeInTheDocument();
+		});
+	});
+
+	it("allows adding additional event types to existing selection", async () => {
+		const onChange = vi.fn();
+		const user = userEvent.setup();
+		render(
+			<EventsTypeFilter
+				filter={DEFAULT_FILTER}
+				selectedEventTypes={["prefect.flow-run.*"]}
+				onEventTypesChange={onChange}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		const trigger = await screen.findByRole("button", {
+			name: /filter by event type/i,
+		});
+		await user.click(trigger);
+
+		const listbox = await screen.findByRole("listbox");
+		const option = await within(listbox).findByText("prefect.task-run.*");
+		await user.click(option);
+
+		expect(onChange).toHaveBeenCalledWith([
+			"prefect.flow-run.*",
+			"prefect.task-run.*",
+		]);
+	});
+
+	it("allows removing event types from selection while keeping others", async () => {
+		const onChange = vi.fn();
+		const user = userEvent.setup();
+		render(
+			<EventsTypeFilter
+				filter={DEFAULT_FILTER}
+				selectedEventTypes={["prefect.flow-run.*", "prefect.task-run.*"]}
+				onEventTypesChange={onChange}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		const trigger = await screen.findByRole("button", {
+			name: /filter by event type/i,
+		});
+		await user.click(trigger);
+
+		const listbox = await screen.findByRole("listbox");
+		const option = await within(listbox).findByText("prefect.flow-run.*");
+		await user.click(option);
+
+		expect(onChange).toHaveBeenCalledWith(["prefect.task-run.*"]);
+	});
 });
