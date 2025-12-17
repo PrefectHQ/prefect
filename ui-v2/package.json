@@ -86,6 +86,7 @@
     "@eslint/js": "^9.39.2",
     "@storybook/addon-docs": "^10.1.10",
     "@storybook/addon-themes": "^10.1.10",
+    "@storybook/react": "^10.1.10",
     "@storybook/react-vite": "^10.1.10",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/typography": "^0.5.19",
