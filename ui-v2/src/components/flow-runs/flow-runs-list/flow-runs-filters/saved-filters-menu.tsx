@@ -80,7 +80,7 @@ export const SavedFiltersMenu = ({
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="outline" className="gap-2">
-						<Icon id="Bookmark" className="size-4" />
+						<Icon id="SlidersVertical" className="size-4" />
 						<span>{displayName}</span>
 						<Icon id="ChevronDown" className="size-4" />
 					</Button>
@@ -94,7 +94,7 @@ export const SavedFiltersMenu = ({
 						>
 							<span>{filter.name}</span>
 							{filter.isDefault && (
-								<Icon id="Star" className="size-4 text-yellow-500" />
+								<Icon id="CircleCheck" className="size-4 text-green-500" />
 							)}
 						</DropdownMenuItem>
 					))}
@@ -105,7 +105,7 @@ export const SavedFiltersMenu = ({
 
 					{canSave && (
 						<DropdownMenuItem onClick={onSave}>
-							<Icon id="Save" className="mr-2 size-4" />
+							<Icon id="Plus" className="mr-2 size-4" />
 							Save current filters
 						</DropdownMenuItem>
 					)}
@@ -122,7 +122,7 @@ export const SavedFiltersMenu = ({
 
 					{canToggleDefault && (
 						<DropdownMenuItem onClick={handleToggleDefault}>
-							<Icon id="Star" className="mr-2 size-4" />
+							<Icon id="CircleCheck" className="mr-2 size-4" />
 							{currentFilter?.isDefault
 								? "Remove as default"
 								: "Set as default"}
