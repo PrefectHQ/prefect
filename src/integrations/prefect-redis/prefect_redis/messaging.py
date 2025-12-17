@@ -25,9 +25,10 @@ from typing import (
 import orjson
 from pydantic import BeforeValidator, Field
 from redis.asyncio import Redis
-from redis.exceptions import ResponseError
+from redis.exceptions import RedisError, ResponseError
 from typing_extensions import Self
 
+from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect.logging import get_logger
 from prefect.server.utilities.messaging import Cache as _Cache
 from prefect.server.utilities.messaging import Consumer as _Consumer
@@ -38,7 +39,7 @@ from prefect.server.utilities.messaging import (
 )
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
-from prefect_redis.client import get_async_redis_client
+from prefect_redis.client import clear_cached_clients, get_async_redis_client
 
 logger = get_logger(__name__)
 
@@ -388,46 +389,75 @@ class Consumer(_Consumer):
             start_id = next_start_id
 
     async def run(self, handler: MessageHandler) -> None:
-        redis_client: Redis = get_async_redis_client()
+        attempt = 0
+        base_delay = 1.0
+        max_delay = 60.0
 
-        # Ensure stream and group exist before processing messages
-        await self._ensure_stream_and_group(redis_client)
-
-        # Process messages
-        while True:
-            if self.should_process_pending_messages:
-                try:
-                    await self.process_pending_messages(
-                        handler, redis_client, self._read_batch_size
-                    )
-                except StopConsumer:
-                    return
-
-            # Read new messages
+        while True:  # Outer loop for connection resilience
             try:
-                stream_entries = await redis_client.xreadgroup(
-                    groupname=self.group,
-                    consumername=self.name,
-                    streams={self.stream: ">"},
-                    count=self._read_batch_size,
-                    block=int(self.block.total_seconds() * 1000),
-                )
-            except ResponseError as e:
-                logger.error(f"Failed to read from stream: {e}")
-                raise
+                redis_client: Redis = get_async_redis_client()
 
-            if not stream_entries:
-                await self._trim_stream_if_necessary()
-                continue
+                # Ensure stream and group exist before processing messages
+                await self._ensure_stream_and_group(redis_client)
 
-            acker = partial(redis_client.xack, self.stream, self.group)
+                # Reset attempt counter on successful connection
+                if attempt > 0:
+                    logger.info(
+                        f"Consumer {self.name} reconnected to Redis successfully"
+                    )
+                attempt = 0
 
-            for _, messages in stream_entries:
-                for message_id, message in messages:
+                # Process messages
+                while True:
+                    if self.should_process_pending_messages:
+                        try:
+                            await self.process_pending_messages(
+                                handler, redis_client, self._read_batch_size
+                            )
+                        except StopConsumer:
+                            return
+
+                    # Read new messages
                     try:
-                        await self._handle_message(message_id, message, handler, acker)
-                    except StopConsumer:
-                        return
+                        stream_entries = await redis_client.xreadgroup(
+                            groupname=self.group,
+                            consumername=self.name,
+                            streams={self.stream: ">"},
+                            count=self._read_batch_size,
+                            block=int(self.block.total_seconds() * 1000),
+                        )
+                    except ResponseError as e:
+                        logger.error(f"Failed to read from stream: {e}")
+                        raise
+
+                    if not stream_entries:
+                        await self._trim_stream_if_necessary()
+                        continue
+
+                    acker = partial(redis_client.xack, self.stream, self.group)
+
+                    for _, messages in stream_entries:
+                        for message_id, message in messages:
+                            try:
+                                await self._handle_message(
+                                    message_id, message, handler, acker
+                                )
+                            except StopConsumer:
+                                return
+
+            except RedisError as e:
+                # Connection lost or Redis error - log and retry with backoff
+                delay = exponential_backoff_with_jitter(attempt, base_delay, max_delay)
+                logger.warning(
+                    f"Redis connection error in consumer {self.name}, "
+                    f"reconnecting in {delay:.1f}s (attempt {attempt + 1}): {e}"
+                )
+
+                # Clear cached clients to force fresh connections
+                await clear_cached_clients()
+
+                await asyncio.sleep(delay)
+                attempt += 1
 
     async def _handle_message(
         self,
