@@ -1,3 +1,10 @@
+export {
+	EventActionMenu,
+	EventDetailsDisplay,
+	EventDetailsHeader,
+	EventDetailsPage,
+	EventDetailsTabs,
+} from "./event-details-page";
 export { EventResourceDisplay } from "./event-resource-display";
 export type {
 	ChartInterval,
