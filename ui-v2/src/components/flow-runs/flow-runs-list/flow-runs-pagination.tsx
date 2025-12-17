@@ -15,7 +15,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 
-const PAGINATION_INCREMENTS = [5, 10, 25, 50];
+const PAGINATION_INCREMENTS = [5, 10, 25, 50, 100];
 
 export type PaginationState = {
 	limit: number;
