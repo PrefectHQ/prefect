@@ -52,12 +52,12 @@ export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
 		"yyyy/MM/dd hh:mm:ss a",
 	);
 
-	const relatedResources = event.related.filter((resource) => {
+	const relatedResources = (event.related ?? []).filter((resource) => {
 		const role = getResourceRole(resource);
 		return role !== "tag";
 	});
 
-	const tags = event.related.filter((resource) => {
+	const tags = (event.related ?? []).filter((resource) => {
 		const role = getResourceRole(resource);
 		return role === "tag";
 	});
