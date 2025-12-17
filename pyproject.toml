@@ -174,6 +174,7 @@ dev = [
     "opentelemetry-instrumentation>=0.48b0,<1.0.0",
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
+    "ty>=0.0.2",
 ]
 
 perf = ["logfire[fastapi,sqlalchemy]>=3.14.0", "pyinstrument>=5.0.0"]
@@ -287,6 +288,47 @@ filterwarnings = [
     "ignore::pluggy.PluggyTeardownRaisedWarning",
 ]
 
+[tool.ty]
+# ty is our new type checker - see https://astral.sh/blog/ty
+# starting with permissive rules, will tighten over time
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.ty.src]
+include = ["src/prefect"]
+exclude = ["**/migrations/**"]
+
+[tool.ty.rules]
+# high-volume rules - ignore for now, gradually enable
+invalid-argument-type = "ignore"  # 370 errors
+possibly-missing-attribute = "ignore"  # 139 warnings
+unresolved-attribute = "ignore"   # 134 errors
+invalid-return-type = "ignore"    # 134 errors
+invalid-assignment = "ignore"     # 95 errors
+invalid-parameter-default = "ignore"  # 71 errors
+unknown-argument = "ignore"       # 30 errors
+non-subscriptable = "ignore"      # 27 errors
+invalid-await = "ignore"          # 25 errors
+invalid-method-override = "ignore"  # 23 errors
+unresolved-import = "ignore"      # 18 errors
+no-matching-overload = "ignore"   # 18 errors
+unsupported-operator = "ignore"   # 11 errors
+invalid-raise = "ignore"          # 5 errors
+not-iterable = "ignore"           # 4 errors
+invalid-type-form = "ignore"      # 4 errors
+call-non-callable = "ignore"      # 4 errors
+redundant-cast = "ignore"         # 4 warnings
+parameter-already-assigned = "ignore"  # 3 errors
+invalid-context-manager = "ignore"  # 2 errors
+deprecated = "ignore"             # 2 warnings
+invalid-declaration = "ignore"    # 1 error
+index-out-of-bounds = "ignore"    # 1 error
+too-many-positional-arguments = "ignore"  # 1 error
+missing-argument = "ignore"       # 1 error
+
+# mypy config - kept for pytest-mypy-plugins typesafety tests
+# see tests/typesafety/ - these tests verify type stub correctness
 [tool.mypy]
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
