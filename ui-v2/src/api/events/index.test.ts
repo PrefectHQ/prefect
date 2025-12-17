@@ -151,7 +151,9 @@ describe("events api", () => {
 
 			const query = buildGetEventQuery(eventId, eventDate);
 
-			await expect(query.queryFn({} as never)).rejects.toThrow(
+			expect(query.queryFn).toBeDefined();
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			await expect(query.queryFn!({} as any)).rejects.toThrow(
 				"Event not found",
 			);
 		});

@@ -223,6 +223,7 @@ export const buildGetEventQuery = (eventId: string, eventDate: Date) => {
 						since: startDate.toISOString(),
 						until: endDate.toISOString(),
 					},
+					order: "DESC",
 				},
 				limit: 1,
 			};
