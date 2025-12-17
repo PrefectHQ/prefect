@@ -78,7 +78,6 @@ dependencies = [
     "uvicorn>=0.14.0,!=0.29.0",
     "websockets>=15.0.1,<16.0",
     "whenever>=0.7.3,<0.10.0; python_version>='3.13'",
-    "uv>=0.6.0",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
     "pydocket>=0.13.0",
@@ -97,6 +96,9 @@ otel = [
     "opentelemetry-instrumentation-logging>=0.48b0,<1.0.0",
     "opentelemetry-test-utils>=0.48b0,<1.0.0",
 ]
+
+# bundles extra for bundle features (requires uv)
+bundles = ["uv>=0.6.0"]
 
 # Infrastructure extras
 aws = ["prefect-aws>=0.5.8"]

@@ -38,14 +38,18 @@ logger: logging.Logger = get_logger(__name__)
 
 
 def _get_uv_path() -> str:
+    """
+    Get the path to the uv binary.
+
+    First tries to use the uv Python package to find the binary.
+    Falls back to "uv" string (assumes uv is in PATH).
+    """
     try:
         import uv
 
-        uv_path = uv.find_uv_bin()
+        return uv.find_uv_bin()
     except (ImportError, ModuleNotFoundError, FileNotFoundError):
-        uv_path = "uv"
-
-    return uv_path
+        return "uv"
 
 
 class SerializedBundle(TypedDict):
