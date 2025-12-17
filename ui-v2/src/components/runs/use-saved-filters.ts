@@ -4,7 +4,7 @@ import type {
 	DateRangeUrlState,
 } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/date-range-url-state";
 import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
-import { useLocalStorage } from "./use-local-storage";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
 /**
  * LocalStorage Key Naming Convention
