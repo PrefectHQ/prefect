@@ -45,6 +45,13 @@ export const queryKeyFactory = {
 	history: () => [...queryKeyFactory.all(), "history"] as const,
 	historyFilter: (filter: EventsCountFilter) =>
 		[...queryKeyFactory.history(), filter] as const,
+	detail: (eventId: string, eventDate?: Date) =>
+		[
+			...queryKeyFactory.all(),
+			"detail",
+			eventId,
+			eventDate?.toISOString(),
+		] as const,
 };
 
 /**
@@ -199,5 +206,37 @@ export const buildEventsNextPageQuery = (nextPageUrl: string) =>
 		},
 		staleTime: Number.POSITIVE_INFINITY,
 	});
+
+export const buildGetEventQuery = (eventId: string, eventDate: Date) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.detail(eventId, eventDate),
+		queryFn: async () => {
+			const startDate = new Date(eventDate);
+			startDate.setHours(0, 0, 0, 0);
+			const endDate = new Date(startDate);
+			endDate.setDate(endDate.getDate() + 1);
+
+			const filter: EventsFilter = {
+				filter: {
+					id: { id: [eventId] },
+					occurred: {
+						since: startDate.toISOString(),
+						until: endDate.toISOString(),
+					},
+				},
+				limit: 1,
+			};
+
+			const res = await getQueryService().POST("/events/filter", {
+				body: filter,
+			});
+			if (!res.data?.events?.[0]) {
+				throw new Error("Event not found");
+			}
+			return res.data.events[0];
+		},
+		staleTime: 60_000,
+	});
+};
 
 export * from "./filters";
