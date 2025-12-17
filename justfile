@@ -155,6 +155,39 @@ prepare-integration-release PACKAGE:
     echo "  1. Review the generated release notes"
     echo "  2. Open a PR to add the release notes to the docs"
 
+# Check for nvm installation
+check-nvm:
+    #!/usr/bin/env bash
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+
+    if ! command -v nvm >/dev/null 2>&1; then
+        echo "nvm is not installed."
+        echo "To install nvm, run:"
+        echo "  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
+        exit 1
+    fi
+
+# Install ui-v2 dependencies
+ui-v2-install: check-nvm
+    #!/usr/bin/env bash
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+
+    cd ui-v2
+    nvm install
+    npm install
+
+# Start the v2 React UI dev server
+ui-v2: ui-v2-install
+    #!/usr/bin/env bash
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+
+    cd ui-v2
+    nvm use
+    npm run dev
+
 # TODO: consider these for GHA (https://just.systems/man/en/github-actions.html)
 
 # - uses: extractions/setup-just@v2
