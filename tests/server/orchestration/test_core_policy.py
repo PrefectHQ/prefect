@@ -27,7 +27,6 @@ from prefect.server.orchestration.core_policy import (
     BypassCancellingFlowRunsWithNoInfra,
     CacheInsertion,
     CacheRetrieval,
-    CopyDeploymentConcurrencyLeaseID,
     CopyScheduledTime,
     CopyTaskParametersID,
     EnforceCancellingToCancelledTransition,
@@ -48,6 +47,7 @@ from prefect.server.orchestration.core_policy import (
     SecureFlowConcurrencySlots,
     SecureTaskConcurrencySlots,
     UpdateFlowRunTrackerOnTasks,
+    ValidateDeploymentConcurrencyAtRunning,
     WaitForScheduledTime,
 )
 from prefect.server.orchestration.rules import (
@@ -3754,7 +3754,9 @@ class TestFlowConcurrencyLimits:
 
             async with contextlib.AsyncExitStack() as stack:
                 ctx1_running = await stack.enter_async_context(
-                    CopyDeploymentConcurrencyLeaseID(ctx1_running, *running_transition)
+                    ValidateDeploymentConcurrencyAtRunning(
+                        ctx1_running, *running_transition
+                    )
                 )
                 await ctx1_running.validate_proposed_state()
 
