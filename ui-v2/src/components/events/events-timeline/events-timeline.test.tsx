@@ -1,11 +1,54 @@
-import { render, screen } from "@testing-library/react";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	Outlet,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createContext, type ReactNode, useContext } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { components } from "@/api/prefect";
 import { EventsTimeline } from "./events-timeline";
 import { formatEventLabel, getEventPrefixes } from "./utilities";
 
 type Event = components["schemas"]["ReceivedEvent"];
+
+const TestChildrenContext = createContext<ReactNode>(null);
+
+function RenderTestChildren() {
+	const children = useContext(TestChildrenContext);
+	return (
+		<>
+			{children}
+			<Outlet />
+		</>
+	);
+}
+
+const renderWithRouter = async (ui: ReactNode) => {
+	const rootRoute = createRootRoute({
+		component: RenderTestChildren,
+	});
+
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+	});
+
+	const result = render(
+		<TestChildrenContext.Provider value={ui}>
+			<RouterProvider router={router} />
+		</TestChildrenContext.Provider>,
+	);
+
+	await waitFor(() => {
+		expect(router.state.status).toBe("idle");
+	});
+
+	return result;
+};
 
 const createMockEvent = (overrides: Partial<Event> = {}): Event => ({
 	id: crypto.randomUUID(),
@@ -82,12 +125,14 @@ describe("formatEventLabel", () => {
 });
 
 describe("EventsTimeline", () => {
-	it("returns null when events array is empty", () => {
-		const { container } = render(<EventsTimeline events={[]} />);
-		expect(container.firstChild).toBeNull();
+	it("returns null when events array is empty", async () => {
+		const { container } = await renderWithRouter(
+			<EventsTimeline events={[]} />,
+		);
+		expect(container.querySelector("ol")).toBeNull();
 	});
 
-	it("renders events when provided", () => {
+	it("renders events when provided", async () => {
 		const events = [
 			createMockEvent({
 				id: "event-1",
@@ -99,13 +144,13 @@ describe("EventsTimeline", () => {
 			}),
 		];
 
-		render(<EventsTimeline events={events} />);
+		await renderWithRouter(<EventsTimeline events={events} />);
 
 		expect(screen.getByText("Flow Run Completed")).toBeInTheDocument();
 		expect(screen.getByText("prefect.flow-run.Completed")).toBeInTheDocument();
 	});
 
-	it("renders multiple events", () => {
+	it("renders multiple events", async () => {
 		const events = [
 			createMockEvent({
 				id: "event-1",
@@ -117,13 +162,13 @@ describe("EventsTimeline", () => {
 			}),
 		];
 
-		render(<EventsTimeline events={events} />);
+		await renderWithRouter(<EventsTimeline events={events} />);
 
 		expect(screen.getByText("Flow Run Completed")).toBeInTheDocument();
 		expect(screen.getByText("Task Run Failed")).toBeInTheDocument();
 	});
 
-	it("displays resource information", () => {
+	it("displays resource information", async () => {
 		const events = [
 			createMockEvent({
 				id: "event-1",
@@ -134,12 +179,12 @@ describe("EventsTimeline", () => {
 			}),
 		];
 
-		render(<EventsTimeline events={events} />);
+		await renderWithRouter(<EventsTimeline events={events} />);
 
 		expect(screen.getByText("my-test-flow")).toBeInTheDocument();
 	});
 
-	it("displays related resources with tags as badges", () => {
+	it("displays related resources with tags as badges", async () => {
 		const events = [
 			createMockEvent({
 				id: "event-1",
@@ -152,7 +197,7 @@ describe("EventsTimeline", () => {
 			}),
 		];
 
-		render(<EventsTimeline events={events} />);
+		await renderWithRouter(<EventsTimeline events={events} />);
 
 		expect(screen.getByText("production")).toBeInTheDocument();
 	});
@@ -167,7 +212,9 @@ describe("EventsTimeline", () => {
 			}),
 		];
 
-		render(<EventsTimeline events={events} onEventClick={onEventClick} />);
+		await renderWithRouter(
+			<EventsTimeline events={events} onEventClick={onEventClick} />,
+		);
 
 		await user.click(screen.getByText("Flow Run Completed"));
 
@@ -183,7 +230,7 @@ describe("EventsTimeline", () => {
 			}),
 		];
 
-		render(<EventsTimeline events={events} />);
+		await renderWithRouter(<EventsTimeline events={events} />);
 
 		const expandButton = screen.getByRole("button", {
 			name: /expand event details/i,
@@ -195,12 +242,12 @@ describe("EventsTimeline", () => {
 		).toBeInTheDocument();
 	});
 
-	it("applies custom className", () => {
+	it("applies custom className", async () => {
 		const events = [createMockEvent({ id: "event-1" })];
-		const { container } = render(
+		const { container } = await renderWithRouter(
 			<EventsTimeline events={events} className="custom-class" />,
 		);
 
-		expect(container.firstChild).toHaveClass("custom-class");
+		expect(container.querySelector("ol")).toHaveClass("custom-class");
 	});
 });
