@@ -493,9 +493,13 @@ function RouteComponent() {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	// localStorage persistence for pagination limit (matches Vue implementation)
-	const [storedLimit, setStoredLimit] = useLocalStorage(
-		"workspace-runs-list-limit",
+	// localStorage persistence for pagination limits (separate keys for flow runs and task runs)
+	const [storedFlowRunsLimit, setStoredFlowRunsLimit] = useLocalStorage(
+		"workspace-flow-runs-list-limit",
+		100,
+	);
+	const [storedTaskRunsLimit, setStoredTaskRunsLimit] = useLocalStorage(
+		"workspace-task-runs-list-limit",
 		100,
 	);
 
@@ -515,30 +519,38 @@ function RouteComponent() {
 				to: ".",
 				search: (prev) => ({
 					...prev,
-					...(needsFlowRunsLimit && { limit: storedLimit }),
-					...(needsTaskRunsLimit && { "task-runs-limit": storedLimit }),
+					...(needsFlowRunsLimit && { limit: storedFlowRunsLimit }),
+					...(needsTaskRunsLimit && {
+						"task-runs-limit": storedTaskRunsLimit,
+					}),
 				}),
 				replace: true,
 			});
 		}
-	}, [navigate, search.limit, search["task-runs-limit"], storedLimit]);
-
-	// When URL limit changes (user interaction), save to localStorage
-	// Only save from the active tab to avoid ping-pong loops between the two limits
-	useEffect(() => {
-		const activeLimit =
-			search.tab === "task-runs" ? search["task-runs-limit"] : search.limit;
-
-		if (activeLimit !== undefined && activeLimit !== storedLimit) {
-			setStoredLimit(activeLimit);
-		}
 	}, [
-		search.tab,
+		navigate,
 		search.limit,
 		search["task-runs-limit"],
-		storedLimit,
-		setStoredLimit,
+		storedFlowRunsLimit,
+		storedTaskRunsLimit,
 	]);
+
+	// When flow runs URL limit changes (user interaction), save to localStorage
+	useEffect(() => {
+		if (search.limit !== undefined && search.limit !== storedFlowRunsLimit) {
+			setStoredFlowRunsLimit(search.limit);
+		}
+	}, [search.limit, storedFlowRunsLimit, setStoredFlowRunsLimit]);
+
+	// When task runs URL limit changes (user interaction), save to localStorage
+	useEffect(() => {
+		if (
+			search["task-runs-limit"] !== undefined &&
+			search["task-runs-limit"] !== storedTaskRunsLimit
+		) {
+			setStoredTaskRunsLimit(search["task-runs-limit"]);
+		}
+	}, [search["task-runs-limit"], storedTaskRunsLimit, setStoredTaskRunsLimit]);
 
 	// Flow runs hooks
 	const [pagination, onPaginationChange] = usePagination();
