@@ -198,6 +198,9 @@ const RunsPageWithState = ({
 			onTagsFilterChange={setSelectedTags}
 			dateRange={dateRange}
 			onDateRangeChange={setDateRange}
+			// Scatter plot props
+			flowRunHistory={[]}
+			scatterPlotDateRange={{}}
 			// Task runs props
 			taskRuns={initialTaskRuns}
 			taskRunsPages={initialTaskRunsPages}

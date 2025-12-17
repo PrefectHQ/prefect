@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
-import type { FlowRun } from "@/api/flow-runs";
+import type { FlowRun, SimpleFlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { TaskRunResponse } from "@/api/task-runs";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
@@ -20,6 +20,7 @@ import {
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
 import { WorkPoolFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/work-pool-filter";
+import { FlowRunsScatterPlot } from "@/components/flow-runs/flow-runs-scatter-plot";
 import {
 	type TaskRunSortFilters,
 	TaskRunsList,
@@ -76,6 +77,9 @@ type RunsPageProps = {
 	onWorkPoolFilterChange: (workPools: Set<string>) => void;
 	dateRange: DateRangeUrlState;
 	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
+	// Scatter plot props
+	flowRunHistory: SimpleFlowRun[];
+	scatterPlotDateRange: { startDate?: Date; endDate?: Date };
 	// Task runs props
 	taskRuns: TaskRunResponse[];
 	taskRunsPages: number;
@@ -120,6 +124,9 @@ export const RunsPage = ({
 	onWorkPoolFilterChange,
 	dateRange,
 	onDateRangeChange,
+	// Scatter plot props
+	flowRunHistory,
+	scatterPlotDateRange,
 	// Task runs props
 	taskRuns,
 	taskRunsPages,
@@ -216,6 +223,11 @@ export const RunsPage = ({
 				</div>
 				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
 			</div>
+			<FlowRunsScatterPlot
+				history={flowRunHistory}
+				startDate={scatterPlotDateRange.startDate}
+				endDate={scatterPlotDateRange.endDate}
+			/>
 			<Tabs value={tab} onValueChange={onTabChange}>
 				<TabsList>
 					<TabsTrigger value="flow-runs">Flow Runs</TabsTrigger>
