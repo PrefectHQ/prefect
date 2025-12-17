@@ -117,7 +117,7 @@ export const CreateFlowRunForm = ({
 								</FormLabel>
 								<FormControl>
 									<FlowRunStartInput
-										value={field.value}
+										value={field.value ?? null}
 										onValueChange={field.onChange}
 									/>
 								</FormControl>
