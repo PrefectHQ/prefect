@@ -158,6 +158,7 @@ function EventRelatedResources({
 						<EventResourceLink
 							key={resourceId}
 							resource={resource}
+							relatedResources={related}
 							className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:underline"
 						>
 							{typeLabel && <span>{typeLabel}</span>}

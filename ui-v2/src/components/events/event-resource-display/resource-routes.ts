@@ -17,8 +17,22 @@ function getResourceName(resource: RelatedResource): string | null {
 	);
 }
 
+function findWorkPoolInRelated(
+	relatedResources: RelatedResource[],
+): RelatedResource | null {
+	for (const resource of relatedResources) {
+		const resourceId = resource["prefect.resource.id"] || "";
+		const resourceType = parseResourceType(resourceId);
+		if (resourceType === "work-pool") {
+			return resource;
+		}
+	}
+	return null;
+}
+
 export function getResourceRoute(
 	resource: RelatedResource,
+	relatedResources: RelatedResource[] = [],
 ): ResourceRouteConfig | null {
 	const resourceId = resource["prefect.resource.id"] || "";
 	const resourceType = parseResourceType(resourceId);
@@ -72,10 +86,28 @@ export function getResourceRoute(
 				to: "/concurrency-limits/concurrency-limit/$id",
 				params: { id: extractedId },
 			};
-		case "work-queue":
+		case "work-queue": {
 			// Work queues require both work pool name and queue name
-			// which we don't have from the resource alone, so skip linking
-			return null;
+			// Try to find the work pool in related resources
+			const workQueueName = getResourceName(resource);
+			if (!workQueueName) {
+				return null;
+			}
+			const workPool = findWorkPoolInRelated(relatedResources);
+			if (!workPool) {
+				return null;
+			}
+			const workPoolId = workPool["prefect.resource.id"] || "";
+			const workPoolExtractedId = extractResourceId(workPoolId);
+			const workPoolName = getResourceName(workPool) || workPoolExtractedId;
+			if (!workPoolName) {
+				return null;
+			}
+			return {
+				to: "/work-pools/work-pool/$workPoolName/queue/$workQueueName",
+				params: { workPoolName, workQueueName },
+			};
+		}
 		default:
 			return null;
 	}
