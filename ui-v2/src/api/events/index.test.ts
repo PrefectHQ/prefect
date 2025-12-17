@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import type { EventsCountFilter, EventsFilter } from ".";
 import { buildGetEventQuery, queryKeyFactory } from ".";
@@ -151,11 +152,20 @@ describe("events api", () => {
 
 			const query = buildGetEventQuery(eventId, eventDate);
 
-			expect(query.queryFn).toBeDefined();
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			await expect(query.queryFn!({} as any)).rejects.toThrow(
-				"Event not found",
-			);
+			const queryFn = query.queryFn;
+			if (!queryFn) {
+				throw new Error("Expected queryFn to be defined");
+			}
+
+			const client = new QueryClient();
+			const ctx = {
+				client,
+				queryKey: query.queryKey,
+				signal: new AbortController().signal,
+				meta: undefined,
+			} as unknown as Parameters<typeof queryFn>[0];
+
+			await expect(queryFn(ctx)).rejects.toThrow("Event not found");
 		});
 	});
 });
