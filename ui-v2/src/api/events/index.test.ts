@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import { describe, expect, it, vi } from "vitest";
 import type { EventsCountFilter, EventsFilter } from ".";
-import { queryKeyFactory } from ".";
+import { buildGetEventQuery, queryKeyFactory } from ".";
 
 describe("events api", () => {
 	describe("queryKeyFactory", () => {
@@ -91,6 +92,80 @@ describe("events api", () => {
 			expect(listFilterKey.slice(0, 3)).toEqual(listsFilterKey);
 			expect(listsFilterKey.slice(0, 2)).toEqual(listsKey);
 			expect(listsKey.slice(0, 1)).toEqual(allKey);
+		});
+
+		it("generates correct detail query key with eventId", () => {
+			const eventId = "test-event-123";
+			expect(queryKeyFactory.detail(eventId)).toEqual([
+				"events",
+				"detail",
+				eventId,
+				undefined,
+			]);
+		});
+
+		it("generates correct detail query key with eventId and eventDate", () => {
+			const eventId = "test-event-123";
+			const eventDate = new Date("2024-06-15T14:30:00.000Z");
+			expect(queryKeyFactory.detail(eventId, eventDate)).toEqual([
+				"events",
+				"detail",
+				eventId,
+				eventDate.toISOString(),
+			]);
+		});
+	});
+
+	describe("buildGetEventQuery", () => {
+		it("creates query with correct queryKey including eventId and eventDate", () => {
+			const eventId = "test-event-123";
+			const eventDate = new Date("2024-06-15T14:30:00.000Z");
+
+			const query = buildGetEventQuery(eventId, eventDate);
+
+			expect(query.queryKey).toEqual([
+				"events",
+				"detail",
+				eventId,
+				eventDate.toISOString(),
+			]);
+		});
+
+		it("returns query options with correct staleTime", () => {
+			const eventId = "test-event-123";
+			const eventDate = new Date("2024-06-15T14:30:00.000Z");
+
+			const query = buildGetEventQuery(eventId, eventDate);
+
+			expect(query.staleTime).toBe(60_000);
+		});
+
+		it("throws 'Event not found' error when no event is returned", async () => {
+			const eventId = "nonexistent-event";
+			const eventDate = new Date("2024-06-15T14:30:00.000Z");
+
+			vi.mock("../service", () => ({
+				getQueryService: () => ({
+					POST: vi.fn().mockResolvedValue({ data: { events: [] } }),
+				}),
+			}));
+
+			const query = buildGetEventQuery(eventId, eventDate);
+
+			const queryFn = query.queryFn;
+			if (!queryFn) {
+				throw new Error("Expected queryFn to be defined");
+			}
+
+			const client = new QueryClient();
+			const ctx = {
+				client,
+				queryKey: query.queryKey,
+				signal: new AbortController().signal,
+				meta: undefined,
+			} as unknown as Parameters<typeof queryFn>[0];
+
+			await expect(queryFn(ctx)).rejects.toThrow("Event not found");
 		});
 	});
 });
