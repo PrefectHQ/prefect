@@ -524,20 +524,21 @@ function RouteComponent() {
 	}, [navigate, search.limit, search["task-runs-limit"], storedLimit]);
 
 	// When URL limit changes (user interaction), save to localStorage
+	// Only save from the active tab to avoid ping-pong loops between the two limits
 	useEffect(() => {
-		if (search.limit !== undefined && search.limit !== storedLimit) {
-			setStoredLimit(search.limit);
-		}
-	}, [search.limit, storedLimit, setStoredLimit]);
+		const activeLimit =
+			search.tab === "task-runs" ? search["task-runs-limit"] : search.limit;
 
-	useEffect(() => {
-		if (
-			search["task-runs-limit"] !== undefined &&
-			search["task-runs-limit"] !== storedLimit
-		) {
-			setStoredLimit(search["task-runs-limit"]);
+		if (activeLimit !== undefined && activeLimit !== storedLimit) {
+			setStoredLimit(activeLimit);
 		}
-	}, [search["task-runs-limit"], storedLimit, setStoredLimit]);
+	}, [
+		search.tab,
+		search.limit,
+		search["task-runs-limit"],
+		storedLimit,
+		setStoredLimit,
+	]);
 
 	// Flow runs hooks
 	const [pagination, onPaginationChange] = usePagination();
