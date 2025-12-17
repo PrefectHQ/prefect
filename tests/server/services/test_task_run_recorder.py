@@ -42,7 +42,9 @@ async def test_start_and_stop_service():
 
 @pytest.fixture
 async def task_run_recorder_handler() -> AsyncGenerator[MessageHandler, None]:
-    async with task_run_recorder.consumer(write_batch_size=1, flush_every=1) as handler:
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=1, max_persist_retries=5
+    ) as handler:
         yield handler
 
 
@@ -764,7 +766,7 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
 
     service = task_run_recorder.TaskRunRecorder()
 
-    service_task = asyncio.create_task(service.start())
+    service_task = asyncio.create_task(service.start(max_persist_retries=0))
     await service.started_event.wait()
     service.consumer.subscription.dead_letter_queue_path = tmp_path / "dlq"
 
@@ -878,7 +880,9 @@ async def test_lost_followers_are_recorded_periodically(
         "prefect.server.services.task_run_recorder.record_lost_follower_task_run_events",
         record_lost_follower_task_run_events_mock,
     )
-    async with task_run_recorder.consumer(write_batch_size=1, flush_every=1):
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=1, max_persist_retries=5
+    ):
         await asyncio.sleep(1)
         assert record_lost_follower_task_run_events_mock.await_count >= 1
 
@@ -896,7 +900,7 @@ async def test_batch_recording_of_task_run_events(
     completed_event.occurred = frozen_now + timedelta(minutes=2)
 
     async with task_run_recorder.consumer(
-        write_batch_size=3, flush_every=10
+        write_batch_size=3, flush_every=10, max_persist_retries=5
     ) as handler:
         with caplog.at_level("DEBUG"):
             await handler(message(pending_event))
@@ -930,7 +934,7 @@ async def test_batch_record_timer_flush(
     completed_event.occurred = frozen_now + timedelta(minutes=2)
 
     async with task_run_recorder.consumer(
-        write_batch_size=10, flush_every=1
+        write_batch_size=10, flush_every=1, max_persist_retries=5
     ) as handler:
         with caplog.at_level("DEBUG"):
             await handler(message(pending_event))
@@ -1169,3 +1173,65 @@ async def test_subsequent_updates_move_update_timestamp(session: AsyncSession):
     assert second_update_timestamp is not None
 
     assert second_update_timestamp > first_update_timestamp
+
+
+async def test_event_retried_on_persist_failure(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that events are retried when handle_task_run_events fails."""
+    call_count = 0
+
+    async def mock_handle_task_run_events(events, depth=0):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("Simulated DB failure")
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.handle_task_run_events",
+        mock_handle_task_run_events,
+    )
+
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=1, max_persist_retries=2
+    ) as handler:
+        with caplog.at_level("ERROR"):
+            await handler(message(pending_event))
+            await asyncio.sleep(1.5)
+
+    assert call_count == 2
+    assert "1 to retry" in caplog.text
+    assert "0 dropped" in caplog.text
+
+
+async def test_event_dropped_after_max_retries_exceeded(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that events are dropped after exceeding max_persist_retries."""
+    call_count = 0
+
+    async def mock_handle_task_run_events(events, depth=0):
+        nonlocal call_count
+        call_count += 1
+        raise Exception("Simulated persistent DB failure")
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.handle_task_run_events",
+        mock_handle_task_run_events,
+    )
+
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=1, max_persist_retries=1
+    ) as handler:
+        with caplog.at_level("ERROR"):
+            await handler(message(pending_event))
+            await asyncio.sleep(1.5)
+
+    assert call_count == 2
+    assert "Dropping event" in caplog.text
+    assert "after 2 failed attempts" in caplog.text
+    assert "1 dropped" in caplog.text

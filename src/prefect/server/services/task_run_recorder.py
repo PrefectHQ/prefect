@@ -43,6 +43,8 @@ if TYPE_CHECKING:
 
 logger: "logging.Logger" = get_logger(__name__)
 
+DEFAULT_PERSIST_MAX_RETRIES = 5
+
 
 @db_injector
 async def _insert_task_run_states(
@@ -300,7 +302,9 @@ class RetryableEvent(BaseModel):
 
 @asynccontextmanager
 async def consumer(
-    write_batch_size: int, flush_every: int
+    write_batch_size: int,
+    flush_every: int,
+    max_persist_retries: int = DEFAULT_PERSIST_MAX_RETRIES,
 ) -> AsyncGenerator[MessageHandler, None]:
     logger.info(
         f"Creating TaskRunRecorder consumer with batch size {write_batch_size} and flush every {flush_every} seconds"
@@ -323,8 +327,25 @@ async def consumer(
         try:
             await handle_task_run_events([batch.event for batch in batch])
         except Exception:
-            logger.error(f"Error flushing {len(batch)} events", exc_info=True)
-            raise
+            dropped = 0
+            to_retry = 0
+            for item in batch:
+                item.persist_attempts += 1
+                if item.persist_attempts <= max_persist_retries:
+                    to_retry += 1
+                    await queue.put(item)
+                else:
+                    dropped += 1
+                    logger.error(
+                        f"Dropping event {item.event.id} after {item.persist_attempts} failed attempts"
+                    )
+            logger.error(
+                f"Error flushing {len(batch)} events ({to_retry} to retry, {dropped} dropped)",
+                exc_info=True,
+            )
+
+            if dropped > 0:
+                raise
 
     async def flush_periodically():
         try:
@@ -396,7 +417,9 @@ class TaskRunRecorder(RunInEphemeralServers, Service):
     def started_event(self, value: asyncio.Event) -> None:
         self._started_event = value
 
-    async def start(self) -> NoReturn:
+    async def start(
+        self, max_persist_retries: int = DEFAULT_PERSIST_MAX_RETRIES
+    ) -> NoReturn:
         assert self.consumer_task is None, "TaskRunRecorder already started"
         self.consumer: Consumer = create_consumer(
             "events",
@@ -408,6 +431,7 @@ class TaskRunRecorder(RunInEphemeralServers, Service):
         async with consumer(
             write_batch_size=self.service_settings().batch_size,
             flush_every=int(self.service_settings().flush_interval),
+            max_persist_retries=max_persist_retries,
         ) as handler:
             self.consumer_task = asyncio.create_task(self.consumer.run(handler))
             self.metrics_task = asyncio.create_task(log_metrics_periodically())
