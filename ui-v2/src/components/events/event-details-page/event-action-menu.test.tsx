@@ -52,6 +52,26 @@ describe("EventActionMenu", () => {
 		expect(screen.getByRole("menuitem", { name: /copy id/i })).toBeVisible();
 	});
 
+	it("shows Automate option in dropdown menu", async () => {
+		const user = userEvent.setup();
+		const event = createFakeEvent();
+
+		await waitFor(() =>
+			render(
+				<>
+					<Toaster />
+					<EventActionMenuRouter event={event} />
+				</>,
+			),
+		);
+
+		await user.click(
+			screen.getByRole("button", { name: /event actions/i, hidden: true }),
+		);
+
+		expect(screen.getByRole("menuitem", { name: /automate/i })).toBeVisible();
+	});
+
 	it("copies the event id and shows toast notification", async () => {
 		const user = userEvent.setup();
 		const event = createFakeEvent({ id: "test-event-id-123" });

@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import type { Event } from "@/api/events";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,12 @@ export function EventActionMenu({ event }: EventActionMenuProps) {
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
+				<Link to="/automations/create">
+					<DropdownMenuItem>
+						<Icon id="Zap" className="mr-2 size-4" />
+						Automate
+					</DropdownMenuItem>
+				</Link>
 				<DropdownMenuItem onClick={handleCopyId}>
 					<Icon id="Copy" className="mr-2 size-4" />
 					Copy ID
