@@ -200,6 +200,17 @@ class AwsCodeCommitCredentials(CredentialsBlock):
         aws_credentials: An AwsCredentials block containing AWS authentication details.
 
     Example:
+        Load stored credentials:
+        ```python
+        from prefect_aws import AwsCodeCommitCredentials, AwsCredentials
+        aws_credentials = AwsCredentials.load("MY_CREDENTIALS")
+        aws_codecommit_credentials = AwsCodeCommitCredentials(aws_credentials=aws_credentials)
+
+        signed_url = aws_codecommit_credentials.format_git_credentials(
+            "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"
+        )
+        ```
+
         Use as part of a Git clone step in a Prefect deployment:
         ```yaml
         pull:
