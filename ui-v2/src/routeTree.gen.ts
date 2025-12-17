@@ -37,6 +37,7 @@ import { Route as AutomationsAutomationIdRouteImport } from './routes/automation
 import { Route as ArtifactsKeyKeyRouteImport } from './routes/artifacts/key.$key'
 import { Route as ArtifactsArtifactIdRouteImport } from './routes/artifacts/artifact.$id'
 import { Route as WorkPoolsWorkPoolWorkPoolNameEditRouteImport } from './routes/work-pools/work-pool_.$workPoolName.edit'
+import { Route as EventsEventEventDateEventIdRouteImport } from './routes/events/event.$eventDate.$eventId'
 import { Route as DeploymentsDeploymentIdRunRouteImport } from './routes/deployments/deployment_.$id.run'
 import { Route as DeploymentsDeploymentIdEditRouteImport } from './routes/deployments/deployment_.$id.edit'
 import { Route as DeploymentsDeploymentIdDuplicateRouteImport } from './routes/deployments/deployment_.$id.duplicate'
@@ -188,6 +189,12 @@ const WorkPoolsWorkPoolWorkPoolNameEditRoute =
     path: '/work-pools/work-pool/$workPoolName/edit',
     getParentRoute: () => rootRouteImport,
   } as any)
+const EventsEventEventDateEventIdRoute =
+  EventsEventEventDateEventIdRouteImport.update({
+    id: '/event/$eventDate/$eventId',
+    path: '/event/$eventDate/$eventId',
+    getParentRoute: () => EventsRoute,
+  } as any)
 const DeploymentsDeploymentIdRunRoute =
   DeploymentsDeploymentIdRunRouteImport.update({
     id: '/deployments/deployment_/$id/run',
@@ -232,7 +239,7 @@ const WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/events': typeof EventsRoute
+  '/events': typeof EventsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -263,13 +270,14 @@ export interface FileRoutesByFullPath {
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events/event/$eventDate/$eventId': typeof EventsEventEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/edit': typeof WorkPoolsWorkPoolWorkPoolNameEditRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/events': typeof EventsRoute
+  '/events': typeof EventsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -300,6 +308,7 @@ export interface FileRoutesByTo {
   '/deployments/deployment/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events/event/$eventDate/$eventId': typeof EventsEventEventDateEventIdRoute
   '/work-pools/work-pool/$workPoolName/edit': typeof WorkPoolsWorkPoolWorkPoolNameEditRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
@@ -307,7 +316,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/events': typeof EventsRoute
+  '/events': typeof EventsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
@@ -338,6 +347,7 @@ export interface FileRoutesById {
   '/deployments/deployment_/$id/duplicate': typeof DeploymentsDeploymentIdDuplicateRoute
   '/deployments/deployment_/$id/edit': typeof DeploymentsDeploymentIdEditRoute
   '/deployments/deployment_/$id/run': typeof DeploymentsDeploymentIdRunRoute
+  '/events/event/$eventDate/$eventId': typeof EventsEventEventDateEventIdRoute
   '/work-pools/work-pool_/$workPoolName/edit': typeof WorkPoolsWorkPoolWorkPoolNameEditRoute
   '/work-pools/work-pool/$workPoolName/queue/$workQueueName': typeof WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRoute
 }
@@ -377,6 +387,7 @@ export interface FileRouteTypes {
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
     | '/deployments/deployment/$id/run'
+    | '/events/event/$eventDate/$eventId'
     | '/work-pools/work-pool/$workPoolName/edit'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesByTo: FileRoutesByTo
@@ -414,6 +425,7 @@ export interface FileRouteTypes {
     | '/deployments/deployment/$id/duplicate'
     | '/deployments/deployment/$id/edit'
     | '/deployments/deployment/$id/run'
+    | '/events/event/$eventDate/$eventId'
     | '/work-pools/work-pool/$workPoolName/edit'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   id:
@@ -451,6 +463,7 @@ export interface FileRouteTypes {
     | '/deployments/deployment_/$id/duplicate'
     | '/deployments/deployment_/$id/edit'
     | '/deployments/deployment_/$id/run'
+    | '/events/event/$eventDate/$eventId'
     | '/work-pools/work-pool_/$workPoolName/edit'
     | '/work-pools/work-pool/$workPoolName/queue/$workQueueName'
   fileRoutesById: FileRoutesById
@@ -458,7 +471,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
-  EventsRoute: typeof EventsRoute
+  EventsRoute: typeof EventsRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   VariablesRoute: typeof VariablesRoute
   AutomationsCreateRoute: typeof AutomationsCreateRoute
@@ -689,6 +702,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkPoolsWorkPoolWorkPoolNameEditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/events/event/$eventDate/$eventId': {
+      id: '/events/event/$eventDate/$eventId'
+      path: '/event/$eventDate/$eventId'
+      fullPath: '/events/event/$eventDate/$eventId'
+      preLoaderRoute: typeof EventsEventEventDateEventIdRouteImport
+      parentRoute: typeof EventsRoute
+    }
     '/deployments/deployment_/$id/run': {
       id: '/deployments/deployment_/$id/run'
       path: '/deployments/deployment/$id/run'
@@ -741,6 +761,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface EventsRouteChildren {
+  EventsEventEventDateEventIdRoute: typeof EventsEventEventDateEventIdRoute
+}
+
+const EventsRouteChildren: EventsRouteChildren = {
+  EventsEventEventDateEventIdRoute: EventsEventEventDateEventIdRoute,
+}
+
+const EventsRouteWithChildren =
+  EventsRoute._addFileChildren(EventsRouteChildren)
+
 interface AutomationsAutomationIdRouteChildren {
   AutomationsAutomationIdEditRoute: typeof AutomationsAutomationIdEditRoute
 }
@@ -773,7 +804,7 @@ const WorkPoolsWorkPoolWorkPoolNameRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
-  EventsRoute: EventsRoute,
+  EventsRoute: EventsRouteWithChildren,
   SettingsRoute: SettingsRoute,
   VariablesRoute: VariablesRoute,
   AutomationsCreateRoute: AutomationsCreateRoute,
