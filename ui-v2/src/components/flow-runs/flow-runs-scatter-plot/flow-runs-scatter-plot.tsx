@@ -154,17 +154,45 @@ const FlowRunTooltip = ({ active, payload }: FlowRunTooltipProps) => {
 	);
 };
 
-const formatYAxisTick = (value: number): string => {
-	if (value === 0) return "0s";
-	return formatDistanceStrict(0, value * 1000, { addSuffix: false });
+const createYAxisTickFormatter = (maxDuration: number) => {
+	return (value: number): string => {
+		if (value === 0) return "0s";
+		// For very small durations (< 1 second), show milliseconds
+		if (maxDuration < 1) {
+			return `${Math.round(value * 1000)}ms`;
+		}
+		// For small durations (< 10 seconds), show one decimal
+		if (maxDuration < 10) {
+			return `${value.toFixed(1)}s`;
+		}
+		// For durations < 60 seconds, show integer seconds
+		if (maxDuration < 60) {
+			return `${Math.round(value)}s`;
+		}
+		// For larger durations, use the humanized format
+		return formatDistanceStrict(0, value * 1000, { addSuffix: false });
+	};
 };
 
-const formatXAxisTick = (value: number): string => {
-	const date = new Date(value);
-	return date.toLocaleDateString(undefined, {
-		month: "short",
-		day: "numeric",
-	});
+const createXAxisTickFormatter = (domainMin: number, domainMax: number) => {
+	const rangeMs = domainMax - domainMin;
+	const oneDay = 24 * 60 * 60 * 1000;
+
+	return (value: number): string => {
+		const date = new Date(value);
+		// If range is less than a day, show time
+		if (rangeMs < oneDay) {
+			return date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+		}
+		// Otherwise show date
+		return date.toLocaleDateString(undefined, {
+			month: "short",
+			day: "numeric",
+		});
+	};
 };
 
 export const FlowRunsScatterPlot = ({
@@ -184,17 +212,51 @@ export const FlowRunsScatterPlot = ({
 		}));
 	}, [history]);
 
-	const xDomain = useMemo(() => {
+	// Compute actual numeric domain for x-axis (needed for adaptive formatting)
+	const { xDomain, xDomainMin, xDomainMax } = useMemo(() => {
 		if (startDate && endDate) {
-			return [startDate.getTime(), endDate.getTime()];
+			return {
+				xDomain: [startDate.getTime(), endDate.getTime()] as [number, number],
+				xDomainMin: startDate.getTime(),
+				xDomainMax: endDate.getTime(),
+			};
 		}
 		if (chartData.length === 0) {
 			const now = Date.now();
 			const dayAgo = now - 24 * 60 * 60 * 1000;
-			return [dayAgo, now];
+			return {
+				xDomain: [dayAgo, now] as [number, number],
+				xDomainMin: dayAgo,
+				xDomainMax: now,
+			};
 		}
-		return ["dataMin", "dataMax"] as const;
-	}, [startDate, endDate, chartData.length]);
+		// Compute from data
+		const timestamps = chartData.map((d) => d.x);
+		const min = Math.min(...timestamps);
+		const max = Math.max(...timestamps);
+		return {
+			xDomain: [min, max] as [number, number],
+			xDomainMin: min,
+			xDomainMax: max,
+		};
+	}, [startDate, endDate, chartData]);
+
+	// Compute max duration for adaptive y-axis formatting
+	const maxDuration = useMemo(() => {
+		if (chartData.length === 0) return 60;
+		return Math.max(...chartData.map((d) => d.y));
+	}, [chartData]);
+
+	// Create memoized formatters based on domain
+	const formatXAxisTick = useMemo(
+		() => createXAxisTickFormatter(xDomainMin, xDomainMax),
+		[xDomainMin, xDomainMax],
+	);
+
+	const formatYAxisTick = useMemo(
+		() => createYAxisTickFormatter(maxDuration),
+		[maxDuration],
+	);
 
 	if (history.length === 0) {
 		return null;
