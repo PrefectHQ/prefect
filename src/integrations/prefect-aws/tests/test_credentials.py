@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import boto3
 import pytest
 from boto3.session import Session
 from botocore.client import BaseClient
@@ -313,7 +312,7 @@ def test_aws_credentials_assume_role_with_custom_session_name():
             }
         }
 
-        session = credentials.get_boto3_session()
+        credentials.get_boto3_session()
 
         # Verify assume_role was called with the custom session name
         mock_sts_client.assume_role.assert_called_once()
@@ -344,7 +343,7 @@ def test_aws_credentials_assume_role_generates_default_session_name():
             }
         }
 
-        session = credentials.get_boto3_session()
+        credentials.get_boto3_session()
 
         # Verify assume_role was called with a generated session name
         mock_sts_client.assume_role.assert_called_once()
@@ -384,7 +383,7 @@ def test_aws_credentials_assume_role_with_additional_kwargs():
             }
         }
 
-        session = credentials.get_boto3_session()
+        credentials.get_boto3_session()
 
         # Verify assume_role was called with all parameters
         mock_sts_client.assume_role.assert_called_once()
@@ -493,7 +492,7 @@ def test_aws_credentials_assume_role_uses_temporary_credentials():
 
         mock_session_class.side_effect = session_side_effect
 
-        session = credentials.get_boto3_session()
+        credentials.get_boto3_session()
 
         # Verify the session was created with the temporary credentials
         # Check that Session was called with the assumed role credentials
