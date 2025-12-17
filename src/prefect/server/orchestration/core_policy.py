@@ -564,7 +564,12 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
             deployment_id=context.run.deployment_id,
         )
         if not deployment:
-            await self.abort_transition("Deployment not found.")
+            # If the deployment was deleted, cancel the run rather than leaving it
+            # stuck forever. The run can't execute without its deployment anyway.
+            await self.reject_transition(
+                state=states.Cancelled(message="Deployment was deleted."),
+                reason="Deployment was deleted.",
+            )
             return
 
         if (

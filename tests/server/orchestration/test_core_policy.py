@@ -4729,3 +4729,85 @@ class TestFlowConcurrencyLimits:
 
         actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
         assert abs(actual_ttl_seconds - 720.0) < 5
+
+    async def test_deleted_deployment_allows_transition_instead_of_abort(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """
+        Test that when a deployment is deleted while runs are in AwaitingConcurrencySlot,
+        the orchestration allows the transition to proceed (or at minimum doesn't block it
+        with ABORT).
+
+        This reproduces a bug where runs get stuck forever in AwaitingConcurrencySlot
+        because the deployment was deleted and SecureFlowConcurrencySlots ABORTs with
+        "Deployment not found" instead of allowing the transition.
+
+        The fix should allow runs with deleted deployments to transition since there's
+        no concurrency limit to enforce anymore.
+        """
+        # Create deployment with concurrency limit
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        deployment_id = deployment.id
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # First run should be accepted (takes the only slot)
+        ctx1 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment_id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx1, *pending_transition)
+            )
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        # Second run should be rejected (no slots available)
+        ctx2 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment_id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx2 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx2, *pending_transition)
+            )
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert ctx2.proposed_state.name == "AwaitingConcurrencySlot"
+
+        # Now delete the deployment
+        await deployments.delete_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        await session.commit()
+
+        # The second run is now orphaned - its deployment no longer exists
+        # Try to transition from AwaitingConcurrencySlot to PENDING again
+        # This should NOT abort with "Deployment not found" - the run should be allowed
+        # to proceed since there's no deployment concurrency to enforce
+        ctx3 = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment_id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx3 = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx3, *pending_transition)
+            )
+            await ctx3.validate_proposed_state()
+
+        # The run should be cancelled since the deployment was deleted
+        # (it can't execute without its deployment anyway)
+        assert ctx3.response_status == SetStateStatus.REJECT, (
+            f"Run with deleted deployment should be rejected to Cancelled, "
+            f"got {ctx3.response_status}: {ctx3.response_details}"
+        )
+        assert ctx3.proposed_state.type == states.StateType.CANCELLED
+        assert ctx3.proposed_state.message == "Deployment was deleted."
