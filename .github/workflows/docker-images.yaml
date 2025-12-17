@@ -167,21 +167,3 @@ jobs:
       prefect_version: ${{ github.ref_name }}
       prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION }}
     secrets: inherit
-
-  trigger-oss-testbed-update:
-    name: Trigger OSS testbed image update
-    needs: publish-docker-images
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger cluster-deployment workflow
-        run: |
-          # Construct the Kubernetes image tag (e.g., 3.4.16-python3.11-kubernetes)
-          # Use the tag input if provided (workflow_dispatch), otherwise use ref_name (release event)
-          IMAGE_TAG="${{ github.event.inputs.tag || github.ref_name }}-python3.11-kubernetes"
-          
-          gh workflow run update-prefect-image-version.yaml \
-            --repo PrefectHQ/cluster-deployment \
-            --ref main \
-            --field image_tag="$IMAGE_TAG"
-        env:
-          GH_TOKEN: ${{ secrets.CLUSTER_DEPLOYMENT_ACTIONS_RW }}
