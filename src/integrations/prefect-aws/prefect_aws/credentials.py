@@ -306,7 +306,7 @@ class AwsCodeCommitCredentials(CredentialsBlock):
         # Construct the final URL
         return f"https://{username}:{signature}@{hostname}{path}"
 
-    def get_client(self) -> boto3.client:
+    def get_client(self):
         """
         Gets an authenticated CodeCommit client.
 
