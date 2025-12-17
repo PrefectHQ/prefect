@@ -109,10 +109,10 @@ class AwsCredentials(CredentialsBlock):
         description="Extra parameters to initialize the Client.",
         title="AWS Client Parameters",
     )
-    role_arn: Optional[str] = Field(
+    assume_role_arn: Optional[str] = Field(
         default=None,
         description="The ARN of the IAM role to assume.",
-        title="Role ARN",
+        title="Assume Role ARN",
     )
     assume_role_kwargs: AssumeRoleParameters = Field(
         default_factory=AssumeRoleParameters,
@@ -128,7 +128,7 @@ class AwsCredentials(CredentialsBlock):
             hash(self.profile_name),
             hash(self.region_name),
             hash(self.aws_client_parameters),
-            hash(self.role_arn),
+            hash(self.assume_role_arn),
             hash(self.assume_role_kwargs),
         )
         return hash(field_hashes)
@@ -138,7 +138,7 @@ class AwsCredentials(CredentialsBlock):
         Returns an authenticated boto3 session that can be used to create clients
         for AWS services.
 
-        If `role_arn` is provided, this method will assume the specified IAM role
+        If `assume_role_arn` is provided, this method will assume the specified IAM role
         and return a session with the temporary credentials from the assumed role.
 
         Example:
@@ -154,7 +154,7 @@ class AwsCredentials(CredentialsBlock):
             Create a session with assume role:
             ```python
             aws_credentials = AwsCredentials(
-                role_arn="arn:aws:iam::123456789012:role/MyRole"
+                assume_role_arn="arn:aws:iam::123456789012:role/MyRole"
             )
             s3_client = aws_credentials.get_boto3_session().client("s3")
             ```
@@ -162,7 +162,7 @@ class AwsCredentials(CredentialsBlock):
             Create a session with assume role and additional parameters:
             ```python
             aws_credentials = AwsCredentials(
-                role_arn="arn:aws:iam::123456789012:role/MyRole",
+                assume_role_arn="arn:aws:iam::123456789012:role/MyRole",
                 assume_role_kwargs={
                     "RoleSessionName": "my-session",
                     "DurationSeconds": 3600,
@@ -186,13 +186,13 @@ class AwsCredentials(CredentialsBlock):
             region_name=self.region_name,
         )
 
-        # If role_arn is provided, assume the role
-        if self.role_arn:
+        # If assume_role_arn is provided, assume the role
+        if self.assume_role_arn:
             sts_client = base_session.client("sts")
 
             # Prepare assume_role parameters
             assume_role_params = {
-                "RoleArn": self.role_arn,
+                "RoleArn": self.assume_role_arn,
             }
 
             # Get parameters from assume_role_kwargs

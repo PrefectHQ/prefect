@@ -236,9 +236,9 @@ def test_minio_credentials_nested_client_parameters_are_hashable():
     assert _get_client_cached.cache_info().hits == 1
 
 
-def test_aws_credentials_without_role_arn_works():
+def test_aws_credentials_without_assume_role_arn_works():
     """
-    Test that AwsCredentials works normally when role_arn is not provided.
+    Test that AwsCredentials works normally when assume_role_arn is not provided.
     This ensures backward compatibility.
     """
     with mock_aws():
@@ -250,12 +250,14 @@ def test_aws_credentials_without_role_arn_works():
 
 def test_aws_credentials_assume_role_basic():
     """
-    Test that AwsCredentials can assume a role when role_arn is provided.
+    Test that AwsCredentials can assume a role when assume_role_arn is provided.
     """
-    role_arn = "arn:aws:iam::123456789012:role/TestRole"
+    assume_role_arn = "arn:aws:iam::123456789012:role/TestRole"
 
-    # Create credentials with role_arn
-    credentials = AwsCredentials(role_arn=role_arn, region_name="us-east-1")
+    # Create credentials with assume_role_arn
+    credentials = AwsCredentials(
+        assume_role_arn=assume_role_arn, region_name="us-east-1"
+    )
 
     with mock_aws():
         # Mock the base session and STS client
@@ -290,11 +292,11 @@ def test_aws_credentials_assume_role_with_custom_session_name():
     """
     Test that AwsCredentials uses custom RoleSessionName when provided.
     """
-    role_arn = "arn:aws:iam::123456789012:role/TestRole"
+    assume_role_arn = "arn:aws:iam::123456789012:role/TestRole"
     custom_session_name = "my-custom-session"
 
     credentials = AwsCredentials(
-        role_arn=role_arn,
+        assume_role_arn=assume_role_arn,
         region_name="us-east-1",
         assume_role_kwargs={"RoleSessionName": custom_session_name},
     )
@@ -318,7 +320,7 @@ def test_aws_credentials_assume_role_with_custom_session_name():
             # Verify assume_role was called with the custom session name
             mock_sts_client.assume_role.assert_called_once()
             call_args = mock_sts_client.assume_role.call_args
-            assert call_args.kwargs["RoleArn"] == role_arn
+            assert call_args.kwargs["RoleArn"] == assume_role_arn
             assert call_args.kwargs["RoleSessionName"] == custom_session_name
 
 
@@ -326,13 +328,13 @@ def test_aws_credentials_assume_role_with_static_key_credentials():
     """
     Test that AwsCredentials can assume a role when static AWS credentials are provided.
     """
-    role_arn = "arn:aws:iam::123456789012:role/TestRole"
+    assume_role_arn = "arn:aws:iam::123456789012:role/TestRole"
 
-    # Create credentials with static keys and role_arn
+    # Create credentials with static keys and assume_role_arn
     credentials = AwsCredentials(
         aws_access_key_id="AKIAEXAMPLE",
         aws_secret_access_key="secret",
-        role_arn=role_arn,
+        assume_role_arn=assume_role_arn,
         region_name="us-east-1",
     )
 
@@ -348,10 +350,12 @@ def test_aws_credentials_assume_role_generates_default_session_name():
     """
     Test that AwsCredentials generates a default RoleSessionName when not provided.
     """
-    role_arn = "arn:aws:iam::123456789012:role/TestRole"
+    assume_role_arn = "arn:aws:iam::123456789012:role/TestRole"
 
-    # Create credentials with role_arn but no RoleSessionName
-    credentials = AwsCredentials(role_arn=role_arn, region_name="us-east-1")
+    # Create credentials with assume_role_arn but no RoleSessionName
+    credentials = AwsCredentials(
+        assume_role_arn=assume_role_arn, region_name="us-east-1"
+    )
 
     with mock_aws():
         # Mock the base session and STS client
@@ -372,7 +376,7 @@ def test_aws_credentials_assume_role_generates_default_session_name():
             # Verify assume_role was called with a generated session name
             mock_sts_client.assume_role.assert_called_once()
             call_args = mock_sts_client.assume_role.call_args
-            assert call_args.kwargs["RoleArn"] == role_arn
+            assert call_args.kwargs["RoleArn"] == assume_role_arn
             assert "RoleSessionName" in call_args.kwargs
             assert call_args.kwargs["RoleSessionName"].startswith("prefect-session-")
 
@@ -381,11 +385,11 @@ def test_aws_credentials_assume_role_with_additional_kwargs():
     """
     Test that AwsCredentials passes additional assume_role_kwargs to assume_role.
     """
-    role_arn = "arn:aws:iam::123456789012:role/TestRole"
+    assume_role_arn = "arn:aws:iam::123456789012:role/TestRole"
 
     # Create credentials with additional assume_role_kwargs
     credentials = AwsCredentials(
-        role_arn=role_arn,
+        assume_role_arn=assume_role_arn,
         region_name="us-east-1",
         assume_role_kwargs={
             "RoleSessionName": "my-session",
@@ -412,18 +416,22 @@ def test_aws_credentials_assume_role_with_additional_kwargs():
         # Verify assume_role was called with all parameters
         mock_sts_client.assume_role.assert_called_once()
         call_args = mock_sts_client.assume_role.call_args
-        assert call_args.kwargs["RoleArn"] == role_arn
+        assert call_args.kwargs["RoleArn"] == assume_role_arn
         assert call_args.kwargs["RoleSessionName"] == "my-session"
         assert call_args.kwargs["DurationSeconds"] == 3600
         assert call_args.kwargs["ExternalId"] == "unique-external-id"
 
 
-def test_aws_credentials_hash_includes_role_arn():
+def test_aws_credentials_hash_includes_assume_role_arn():
     """
-    Test that hash changes when role_arn changes.
+    Test that hash changes when assume_role_arn changes.
     """
-    credentials1 = AwsCredentials(role_arn="arn:aws:iam::123456789012:role/Role1")
-    credentials2 = AwsCredentials(role_arn="arn:aws:iam::123456789012:role/Role2")
+    credentials1 = AwsCredentials(
+        assume_role_arn="arn:aws:iam::123456789012:role/Role1"
+    )
+    credentials2 = AwsCredentials(
+        assume_role_arn="arn:aws:iam::123456789012:role/Role2"
+    )
 
     assert hash(credentials1) != hash(credentials2)
 
@@ -433,11 +441,11 @@ def test_aws_credentials_hash_includes_assume_role_kwargs():
     Test that hash changes when assume_role_kwargs changes.
     """
     credentials1 = AwsCredentials(
-        role_arn="arn:aws:iam::123456789012:role/Role1",
+        assume_role_arn="arn:aws:iam::123456789012:role/Role1",
         assume_role_kwargs={"DurationSeconds": 3600},
     )
     credentials2 = AwsCredentials(
-        role_arn="arn:aws:iam::123456789012:role/Role1",
+        assume_role_arn="arn:aws:iam::123456789012:role/Role1",
         assume_role_kwargs={"DurationSeconds": 7200},
     )
 
@@ -449,7 +457,7 @@ def test_aws_credentials_hash_with_nested_assume_role_kwargs():
     Test that hash works with nested structures in assume_role_kwargs (e.g., Tags, PolicyArns).
     """
     credentials = AwsCredentials(
-        role_arn="arn:aws:iam::123456789012:role/Role1",
+        assume_role_arn="arn:aws:iam::123456789012:role/Role1",
         assume_role_kwargs={
             "Tags": [
                 {"Key": "Project", "Value": "MyProject"},
@@ -467,19 +475,19 @@ def test_aws_credentials_hash_with_nested_assume_role_kwargs():
 
 def test_aws_credentials_assume_role_hash_changes_cause_cache_invalidation():
     """
-    Test that changing role_arn causes hash to change, which will cause cache invalidation.
+    Test that changing assume_role_arn causes hash to change, which will cause cache invalidation.
     """
     credentials1 = AwsCredentials(
-        role_arn="arn:aws:iam::123456789012:role/Role1",
+        assume_role_arn="arn:aws:iam::123456789012:role/Role1",
         region_name="us-east-1",
     )
     credentials2 = AwsCredentials(
-        role_arn="arn:aws:iam::123456789012:role/Role2",
+        assume_role_arn="arn:aws:iam::123456789012:role/Role2",
         region_name="us-east-1",
     )
 
-    # Different role_arn should result in different hashes
+    # Different assume_role_arn should result in different hashes
     assert hash(credentials1) != hash(credentials2)
 
-    # This ensures that cache will be invalidated when role_arn changes
+    # This ensures that cache will be invalidated when assume_role_arn changes
     # because the hash is used as part of the cache key
