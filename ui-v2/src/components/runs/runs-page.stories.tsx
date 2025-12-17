@@ -116,6 +116,8 @@ const RunsPageWithState = ({
 	initialSelectedStates = new Set<FlowRunState>(),
 	initialDateRange = {},
 	initialSelectedFlows = new Set<string>(),
+	initialSelectedDeployments = new Set<string>(),
+	initialSelectedWorkPools = new Set<string>(),
 }: {
 	initialFlowRuns?: typeof MOCK_FLOW_RUNS;
 	initialFlowRunsCount?: number;
@@ -128,6 +130,8 @@ const RunsPageWithState = ({
 	initialSelectedStates?: Set<FlowRunState>;
 	initialDateRange?: DateRangeUrlState;
 	initialSelectedFlows?: Set<string>;
+	initialSelectedDeployments?: Set<string>;
+	initialSelectedWorkPools?: Set<string>;
 }) => {
 	const [tab, setTab] = useState<"flow-runs" | "task-runs">("flow-runs");
 	const [pagination, setPagination] = useState<PaginationState>({
@@ -144,6 +148,13 @@ const RunsPageWithState = ({
 		useState<DateRangeUrlState>(initialDateRange);
 	const [selectedFlows, setSelectedFlows] =
 		useState<Set<string>>(initialSelectedFlows);
+	const [selectedDeployments, setSelectedDeployments] = useState<Set<string>>(
+		initialSelectedDeployments,
+	);
+	const [selectedWorkPools, setSelectedWorkPools] = useState<Set<string>>(
+		initialSelectedWorkPools,
+	);
+	const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
 
 	// Task runs state
 	const [taskRunsPagination, setTaskRunsPagination] = useState<PaginationState>(
@@ -163,6 +174,8 @@ const RunsPageWithState = ({
 			onTabChange={(newTab) => setTab(newTab as "flow-runs" | "task-runs")}
 			flowRunsCount={initialFlowRunsCount}
 			taskRunsCount={initialTaskRunsCount}
+			hasAnyFlowRuns={initialFlowRunsCount > 0 || initialFlowRuns.length > 0}
+			hasAnyTaskRuns={initialTaskRunsCount > 0 || initialTaskRuns.length > 0}
 			flowRuns={initialFlowRuns}
 			flowRunsPages={initialPages}
 			pagination={pagination}
@@ -177,6 +190,12 @@ const RunsPageWithState = ({
 			onStateFilterChange={setSelectedStates}
 			selectedFlows={selectedFlows}
 			onFlowFilterChange={setSelectedFlows}
+			selectedDeployments={selectedDeployments}
+			onDeploymentFilterChange={setSelectedDeployments}
+			selectedWorkPools={selectedWorkPools}
+			onWorkPoolFilterChange={setSelectedWorkPools}
+			selectedTags={selectedTags}
+			onTagsFilterChange={setSelectedTags}
 			dateRange={dateRange}
 			onDateRangeChange={setDateRange}
 			// Task runs props

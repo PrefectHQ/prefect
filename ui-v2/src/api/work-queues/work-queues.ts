@@ -23,6 +23,7 @@ export type WorkPookWorkQueuesFilter =
  * workPoolFilters	=>  ['work-queues', 'list', 'filters', workPoolName, { ...filters }]
  * details			=> 	['work-queues', 'details']
  * detail			=> 	['work-queues', 'detail', workPoolName, workQueueName]
+ * detailById		=> 	['work-queues', 'details', 'by-id', id]
  * ```
  */
 export const queryKeyFactory = {
@@ -36,6 +37,8 @@ export const queryKeyFactory = {
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (workPoolName: string, workQueueName: string) =>
 		[...queryKeyFactory.details(), workPoolName, workQueueName] as const,
+	detailById: (id: string) =>
+		[...queryKeyFactory.details(), "by-id", id] as const,
 };
 
 // ----------------------------
@@ -143,6 +146,31 @@ export const buildWorkQueueDetailsQuery = (
 				"/work_pools/{work_pool_name}/queues/{name}",
 				{ params: { path: { work_pool_name, name } } },
 			);
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+	});
+
+/**
+ * Builds a query configuration for fetching a work queue by ID
+ *
+ * @param id - The work queue ID
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const query = useQuery(buildGetWorkQueueQuery('work-queue-id'));
+ * ```
+ */
+export const buildGetWorkQueueQuery = (id: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory.detailById(id),
+		queryFn: async () => {
+			const res = await getQueryService().GET("/work_queues/{id}", {
+				params: { path: { id } },
+			});
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}

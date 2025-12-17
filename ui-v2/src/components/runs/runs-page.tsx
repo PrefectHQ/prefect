@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import type { ChangeEvent } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { TaskRunResponse } from "@/api/task-runs";
@@ -6,6 +7,7 @@ import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
 	DateRangeFilter,
 	type DateRangeUrlState,
+	DeploymentFilter,
 	FlowFilter,
 	type FlowRunState,
 	FlowRunsList,
@@ -17,6 +19,7 @@ import {
 } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
+import { WorkPoolFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/work-pool-filter";
 import {
 	type TaskRunSortFilters,
 	TaskRunsList,
@@ -37,6 +40,7 @@ import { SearchInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
 
 type RunsPageProps = {
@@ -44,6 +48,10 @@ type RunsPageProps = {
 	onTabChange: (tab: string) => void;
 	flowRunsCount: number;
 	taskRunsCount: number;
+	/** Whether any flow runs exist (unfiltered) - used for empty state check */
+	hasAnyFlowRuns: boolean;
+	/** Whether any task runs exist (unfiltered) - used for empty state check */
+	hasAnyTaskRuns: boolean;
 	// Flow runs props
 	flowRuns: FlowRun[];
 	flowRunsPages: number;
@@ -60,6 +68,12 @@ type RunsPageProps = {
 	onStateFilterChange: (states: Set<FlowRunState>) => void;
 	selectedFlows: Set<string>;
 	onFlowFilterChange: (flows: Set<string>) => void;
+	selectedDeployments: Set<string>;
+	onDeploymentFilterChange: (deployments: Set<string>) => void;
+	selectedTags: Set<string>;
+	onTagsFilterChange: (tags: Set<string>) => void;
+	selectedWorkPools: Set<string>;
+	onWorkPoolFilterChange: (workPools: Set<string>) => void;
 	dateRange: DateRangeUrlState;
 	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
 	// Task runs props
@@ -80,6 +94,8 @@ export const RunsPage = ({
 	onTabChange,
 	flowRunsCount,
 	taskRunsCount,
+	hasAnyFlowRuns,
+	hasAnyTaskRuns,
 	// Flow runs props
 	flowRuns,
 	flowRunsPages,
@@ -96,6 +112,12 @@ export const RunsPage = ({
 	onStateFilterChange,
 	selectedFlows,
 	onFlowFilterChange,
+	selectedDeployments,
+	onDeploymentFilterChange,
+	selectedTags,
+	onTagsFilterChange,
+	selectedWorkPools,
+	onWorkPoolFilterChange,
 	dateRange,
 	onDateRangeChange,
 	// Task runs props
@@ -110,7 +132,8 @@ export const RunsPage = ({
 	onTaskRunSearchChange,
 	onClearTaskRunFilters,
 }: RunsPageProps) => {
-	const isEmpty = flowRunsCount === 0 && taskRunsCount === 0;
+	// Use unfiltered counts for empty state check (no runs exist at all)
+	const isEmpty = !hasAnyFlowRuns && !hasAnyTaskRuns;
 
 	// Flow runs selection
 	const [selectedRows, setSelectedRows, { onSelectRow }] =
@@ -167,6 +190,28 @@ export const RunsPage = ({
 					<FlowFilter
 						selectedFlows={selectedFlows}
 						onSelectFlows={onFlowFilterChange}
+					/>
+				</div>
+				<div className="w-64">
+					<DeploymentFilter
+						selectedDeployments={selectedDeployments}
+						onSelectDeployments={onDeploymentFilterChange}
+					/>
+				</div>
+				<div className="w-64">
+					<TagsInput
+						value={Array.from(selectedTags)}
+						onChange={(e: string[] | ChangeEvent<HTMLInputElement>) => {
+							const tags = Array.isArray(e) ? e : [];
+							onTagsFilterChange(new Set(tags));
+						}}
+						placeholder="Filter by tags"
+					/>
+				</div>
+				<div className="w-64">
+					<WorkPoolFilter
+						selectedWorkPools={selectedWorkPools}
+						onSelectWorkPools={onWorkPoolFilterChange}
 					/>
 				</div>
 				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />

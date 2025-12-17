@@ -26,6 +26,11 @@ export type FlowRunsPaginateFilter =
 export type FlowRunsCountFilter =
 	components["schemas"]["Body_count_flow_runs_flow_runs_count_post"];
 
+export type FlowRunHistoryFilter =
+	components["schemas"]["Body_read_flow_run_history_ui_flow_runs_history_post"];
+
+export type SimpleFlowRun = components["schemas"]["SimpleFlowRun"];
+
 export type CreateNewFlowRun = components["schemas"]["DeploymentFlowRunCreate"];
 
 /**
@@ -103,6 +108,9 @@ export const queryKeyFactory = {
 	lateness: () => [...queryKeyFactory.all(), "lateness"] as const,
 	latenessWithFilter: (filter: FlowRunsFilter) =>
 		[...queryKeyFactory.lateness(), filter] as const,
+	history: () => [...queryKeyFactory.all(), "history"] as const,
+	historyWithFilter: (filter: FlowRunHistoryFilter) =>
+		[...queryKeyFactory.history(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
@@ -273,6 +281,41 @@ export const buildAverageLatenessFlowRunsQuery = (
 		},
 		refetchInterval,
 		placeholderData: keepPreviousData,
+	});
+
+/**
+ * Builds a query configuration for fetching flow run history for scatter plot visualization
+ *
+ * @param filter - Filter parameters for the flow run history query.
+ * @param refetchInterval - Interval for refetching the history (default 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: history } = useSuspenseQuery(buildFlowRunHistoryQuery({
+ *   sort: "EXPECTED_START_TIME_DESC",
+ *   limit: 1000
+ * }));
+ * ```
+ */
+export const buildFlowRunHistoryQuery = (
+	filter: FlowRunHistoryFilter = {
+		sort: "EXPECTED_START_TIME_DESC",
+		limit: 1000,
+		offset: 0,
+	},
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.historyWithFilter(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/ui/flow_runs/history", {
+				body: filter,
+			});
+			return res.data ?? ([] satisfies SimpleFlowRun[]);
+		},
+		staleTime: 1000,
+		refetchInterval,
 	});
 
 // ----- ✍🏼 Mutations 🗄️

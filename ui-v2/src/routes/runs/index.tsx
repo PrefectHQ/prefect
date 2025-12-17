@@ -34,6 +34,7 @@ import {
 	type TaskRunSortFilters,
 } from "@/components/task-runs/task-runs-list";
 import { mapValueToRange } from "@/components/ui/date-range-select";
+import { useRunsFilters } from "@/hooks/use-runs-filters";
 
 const searchParams = z.object({
 	tab: z.enum(["flow-runs", "task-runs"]).optional().default("flow-runs"),
@@ -45,6 +46,9 @@ const searchParams = z.object({
 	"flow-run-search": z.string().optional().default(""),
 	state: z.string().optional().default(""),
 	flows: z.string().optional().default(""),
+	deployments: z.string().optional().default(""),
+	"work-pools": z.string().optional().default(""),
+	tags: z.string().optional().default(""),
 	range: z.enum(DATE_RANGE_PRESETS).optional(),
 	start: z.string().optional(),
 	end: z.string().optional(),
@@ -106,20 +110,51 @@ const parseFlowsFilter = (flowsString: string): string[] => {
 	return flowsString.split(",").filter((s) => s.trim().length > 0);
 };
 
+// Helper to parse deployments string to array of deployment IDs
+const parseDeploymentsFilter = (deploymentsString: string): string[] => {
+	if (!deploymentsString) return [];
+	return deploymentsString.split(",").filter((s) => s.trim().length > 0);
+};
+
+// Helper to parse work pools string to array of work pool names
+const parseWorkPoolsFilter = (workPoolsString: string): string[] => {
+	if (!workPoolsString) return [];
+	return workPoolsString.split(",").filter((s) => s.trim().length > 0);
+};
+
+// Helper to parse tags string to array of tag strings
+const parseTagsFilter = (tagsString: string): string[] => {
+	if (!tagsString) return [];
+	return tagsString.split(",").filter((s) => s.trim().length > 0);
+};
+
 const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 	const hideSubflows = search?.["hide-subflows"];
 	const flowRunSearch = search?.["flow-run-search"];
 	const stateFilters = parseStateFilter(search?.state ?? "");
 	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
+	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
+	const workPoolsFilter = parseWorkPoolsFilter(search?.["work-pools"] ?? "");
+	const tagsFilter = parseTagsFilter(search?.tags ?? "");
 	const dateRangeFilter = getDateRangeFilter(search);
 
 	// Map state names to state types for the API filter
 	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
 	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
+	const deploymentIds =
+		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
+	const workPoolNames =
+		workPoolsFilter.length > 0 ? workPoolsFilter : undefined;
 
 	// Build flow_runs filter only if we have filters to apply
 	const hasFilters =
-		hideSubflows || flowRunSearch || stateNames || flowIds || dateRangeFilter;
+		hideSubflows ||
+		flowRunSearch ||
+		stateNames ||
+		flowIds ||
+		deploymentIds ||
+		tagsFilter.length > 0 ||
+		dateRangeFilter;
 	const flowRunsFilter = hasFilters
 		? {
 				operator: "and_" as const,
@@ -135,6 +170,9 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 						name: { any_: stateNames },
 					},
 				}),
+				...(tagsFilter.length > 0 && {
+					tags: { operator: "and_" as const, any_: tagsFilter },
+				}),
 				...(dateRangeFilter && {
 					expected_start_time: dateRangeFilter,
 				}),
@@ -146,12 +184,24 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 		? { operator: "and_" as const, id: { any_: flowIds } }
 		: undefined;
 
+	// Build deployments filter for filtering by deployment_id
+	const deploymentsFilterBody = deploymentIds
+		? { operator: "and_" as const, id: { any_: deploymentIds } }
+		: undefined;
+
+	// Build work_pools filter for filtering by work pool name
+	const workPoolsFilterBody = workPoolNames
+		? { operator: "and_" as const, name: { any_: workPoolNames } }
+		: undefined;
+
 	return {
 		page: search?.page ?? 1,
 		limit: search?.limit ?? 10,
 		sort: search?.sort ?? "START_TIME_DESC",
 		flow_runs: flowRunsFilter,
 		flows: flowsFilterBody,
+		deployments: deploymentsFilterBody,
+		work_pools: workPoolsFilterBody,
 	};
 };
 
@@ -159,8 +209,13 @@ const buildTaskRunsPaginationBody = (
 	search?: SearchParams,
 ): TaskRunsPaginateFilter => {
 	const taskRunSearch = search?.["task-run-search"];
+	const stateFilters = parseStateFilter(search?.state ?? "");
+	const flowsFilter = parseFlowsFilter(search?.flows ?? "");
+	const deploymentsFilter = parseDeploymentsFilter(search?.deployments ?? "");
+	const tagsFilter = parseTagsFilter(search?.tags ?? "");
+	const dateRangeFilter = getDateRangeFilter(search);
 
-	// Build task_runs filter only if we have filters to apply
+	// Build task_runs filter only if we have task-specific filters to apply
 	const taskRunsFilter = taskRunSearch
 		? {
 				operator: "and_" as const,
@@ -168,11 +223,52 @@ const buildTaskRunsPaginationBody = (
 			}
 		: undefined;
 
+	// Build flow_runs filter from shared filters (state, tags, date range)
+	// These filters apply to the flow runs that the task runs belong to
+	const stateNames = stateFilters.length > 0 ? stateFilters : undefined;
+	const hasFlowRunsFilters =
+		stateNames || tagsFilter.length > 0 || dateRangeFilter;
+	const flowRunsFilter = hasFlowRunsFilters
+		? {
+				operator: "and_" as const,
+				...(stateNames && {
+					state: {
+						operator: "and_" as const,
+						name: { any_: stateNames },
+					},
+				}),
+				...(tagsFilter.length > 0 && {
+					tags: { operator: "and_" as const, any_: tagsFilter },
+				}),
+				...(dateRangeFilter && {
+					expected_start_time: dateRangeFilter,
+				}),
+			}
+		: undefined;
+
+	// Build flows filter for filtering by flow_id
+	const flowIds = flowsFilter.length > 0 ? flowsFilter : undefined;
+	const flowsFilterBody = flowIds
+		? { operator: "and_" as const, id: { any_: flowIds } }
+		: undefined;
+
+	// Build deployments filter for filtering by deployment_id
+	const deploymentIds =
+		deploymentsFilter.length > 0 ? deploymentsFilter : undefined;
+	const deploymentsFilterBody = deploymentIds
+		? { operator: "and_" as const, id: { any_: deploymentIds } }
+		: undefined;
+
+	// Note: work_pools filter is NOT supported by the task_runs/paginate endpoint
+
 	return {
 		page: search?.["task-runs-page"] ?? 1,
 		limit: search?.["task-runs-limit"] ?? 10,
 		sort: search?.["task-runs-sort"] ?? "EXPECTED_START_TIME_DESC",
 		task_runs: taskRunsFilter,
+		flow_runs: flowRunsFilter,
+		flows: flowsFilterBody,
+		deployments: deploymentsFilterBody,
 	};
 };
 
@@ -322,95 +418,6 @@ const useFlowRunSearch = () => {
 	return [search["flow-run-search"], onFlowRunSearchChange] as const;
 };
 
-const useStateFilter = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const selectedStates = useMemo(
-		() => new Set<FlowRunState>(parseStateFilter(search.state ?? "")),
-		[search.state],
-	);
-
-	const onStateFilterChange = useCallback(
-		(states: Set<FlowRunState>) => {
-			const stateArray = Array.from(states);
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					state: stateArray.length > 0 ? stateArray.join(",") : "",
-					page: 1, // Reset pagination when filter changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [selectedStates, onStateFilterChange] as const;
-};
-
-const useDateRange = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const dateRange: DateRangeUrlState = useMemo(
-		() => ({
-			range: search.range,
-			start: search.start,
-			end: search.end,
-		}),
-		[search.range, search.start, search.end],
-	);
-
-	const onDateRangeChange = useCallback(
-		(newDateRange: DateRangeUrlState) => {
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					range: newDateRange.range,
-					start: newDateRange.start,
-					end: newDateRange.end,
-					page: 1, // Reset pagination when date range changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [dateRange, onDateRangeChange] as const;
-};
-
-const useFlowFilter = () => {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const selectedFlows = useMemo(
-		() => new Set<string>(parseFlowsFilter(search.flows ?? "")),
-		[search.flows],
-	);
-
-	const onFlowFilterChange = useCallback(
-		(flows: Set<string>) => {
-			const flowsArray = Array.from(flows);
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					flows: flowsArray.length > 0 ? flowsArray.join(",") : "",
-					page: 1, // Reset pagination when filter changes
-				}),
-				replace: true,
-			});
-		},
-		[navigate],
-	);
-
-	return [selectedFlows, onFlowFilterChange] as const;
-};
-
 // Task runs hooks
 const useTaskRunsPagination = () => {
 	const search = Route.useSearch();
@@ -495,21 +502,33 @@ function RouteComponent() {
 	const [hideSubflows, onHideSubflowsChange] = useHideSubflows();
 	const [tab, onTabChange] = useTab();
 	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
-	const [selectedStates, onStateFilterChange] = useStateFilter();
-	const [selectedFlows, onFlowFilterChange] = useFlowFilter();
-	const [dateRange, onDateRangeChange] = useDateRange();
+	// Consolidated filter state
+	const {
+		states: selectedStates,
+		flows: selectedFlows,
+		deployments: selectedDeployments,
+		workPools: selectedWorkPools,
+		tags: selectedTags,
+		dateRange,
+		onStatesChange: onStateFilterChange,
+		onFlowsChange: onFlowFilterChange,
+		onDeploymentsChange: onDeploymentFilterChange,
+		onWorkPoolsChange: onWorkPoolFilterChange,
+		onTagsChange: onTagsFilterChange,
+		onDateRangeChange,
+	} = useRunsFilters();
 	// Task runs hooks
 	const [taskRunsPagination, onTaskRunsPaginationChange] =
 		useTaskRunsPagination();
 	const [taskRunsSort, onTaskRunsSortChange] = useTaskRunsSort();
 	const [taskRunSearch, onTaskRunSearchChange] = useTaskRunSearch();
 
-	// Use useSuspenseQueries for count queries (stable keys, won't cause suspense on search change)
-	const [{ data: flowRunsCount }, { data: taskRunsCount }] = useSuspenseQueries(
-		{
+	// Use useSuspenseQueries for unfiltered count queries (stable keys, won't cause suspense on search change)
+	// These are used to determine if the app has ANY runs at all (for empty state)
+	const [{ data: flowRunsCountAll }, { data: taskRunsCountAll }] =
+		useSuspenseQueries({
 			queries: [buildCountFlowRunsQuery(), buildCountTaskRunsQuery()],
-		},
-	);
+		});
 
 	// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
@@ -579,8 +598,10 @@ function RouteComponent() {
 		<RunsPage
 			tab={tab}
 			onTabChange={onTabChange}
-			flowRunsCount={flowRunsCount}
-			taskRunsCount={taskRunsCount}
+			flowRunsCount={flowRunsPage?.count ?? 0}
+			taskRunsCount={taskRunsPage?.count ?? 0}
+			hasAnyFlowRuns={(flowRunsCountAll ?? 0) > 0}
+			hasAnyTaskRuns={(taskRunsCountAll ?? 0) > 0}
 			flowRuns={flowRuns}
 			flowRunsPages={flowRunsPage?.pages ?? 0}
 			pagination={pagination}
@@ -596,6 +617,12 @@ function RouteComponent() {
 			onStateFilterChange={onStateFilterChange}
 			selectedFlows={selectedFlows}
 			onFlowFilterChange={onFlowFilterChange}
+			selectedDeployments={selectedDeployments}
+			onDeploymentFilterChange={onDeploymentFilterChange}
+			selectedTags={selectedTags}
+			onTagsFilterChange={onTagsFilterChange}
+			selectedWorkPools={selectedWorkPools}
+			onWorkPoolFilterChange={onWorkPoolFilterChange}
 			dateRange={dateRange}
 			onDateRangeChange={onDateRangeChange}
 			// Task runs props

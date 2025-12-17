@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 import anyio
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.objects import (
@@ -42,9 +43,7 @@ from prefect.states import (
     Paused,
     Suspended,
 )
-from prefect.utilities.asyncutils import (
-    sync_compatible,
-)
+from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.engine import (
     propose_state,
 )
@@ -459,10 +458,33 @@ async def suspend_flow_run(
         raise Pause(state=state)
 
 
-@sync_compatible
-async def resume_flow_run(
+async def aresume_flow_run(
     flow_run_id: UUID, run_input: dict[str, Any] | None = None
 ) -> None:
+    """
+    Resumes a paused flow asynchronously.
+
+    Args:
+        flow_run_id: the flow_run_id to resume
+        run_input: a dictionary of inputs to provide to the flow run.
+    """
+    async with get_client() as client:
+        flow_run = await client.read_flow_run(flow_run_id)
+
+        if not flow_run.state or not flow_run.state.is_paused():
+            raise NotPausedError("Cannot resume a run that isn't paused!")
+
+        response = await client.resume_flow_run(flow_run_id, run_input=run_input)
+
+    if response.status == SetStateStatus.REJECT:
+        if response.state and response.state.type == StateType.FAILED:
+            raise FlowPauseTimeout("Flow run can no longer be resumed.")
+        else:
+            raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
+
+
+@async_dispatch(aresume_flow_run)
+def resume_flow_run(flow_run_id: UUID, run_input: dict[str, Any] | None = None) -> None:
     """
     Resumes a paused flow.
 
@@ -470,17 +492,16 @@ async def resume_flow_run(
         flow_run_id: the flow_run_id to resume
         run_input: a dictionary of inputs to provide to the flow run.
     """
-    client = get_client()
-    async with client:
-        flow_run = await client.read_flow_run(flow_run_id)
+    with get_client(sync_client=True) as client:
+        flow_run = client.read_flow_run(flow_run_id)
 
-        if not flow_run.state.is_paused():
+        if not flow_run.state or not flow_run.state.is_paused():
             raise NotPausedError("Cannot resume a run that isn't paused!")
 
-        response = await client.resume_flow_run(flow_run_id, run_input=run_input)
+        response = client.resume_flow_run(flow_run_id, run_input=run_input)
 
     if response.status == SetStateStatus.REJECT:
-        if response.state.type == StateType.FAILED:
+        if response.state and response.state.type == StateType.FAILED:
             raise FlowPauseTimeout("Flow run can no longer be resumed.")
         else:
             raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
