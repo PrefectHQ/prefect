@@ -34,6 +34,7 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
+from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     import logging
@@ -216,8 +217,6 @@ class ReceivedEvent(Event):
     def url(self) -> Optional[str]:
         """Returns the UI URL for this event, allowing users to link to events
         in automation templates without parsing date strings."""
-        from prefect.utilities.urls import url_for
-
         return url_for(self, url_type="ui")
 
     def as_database_row(self) -> dict[str, Any]:

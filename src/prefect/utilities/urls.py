@@ -189,16 +189,6 @@ def url_for(
     else:
         name = convert_class_to_name(obj)
 
-    # Handle server-side ReceivedEvent which is a different class but has the same
-    # structure as the client-side ReceivedEvent
-    if name == "received-event" or (
-        hasattr(obj, "__class__")
-        and obj.__class__.__name__ == "ReceivedEvent"
-        and hasattr(obj, "occurred")
-        and hasattr(obj, "received")
-    ):
-        name = "received-event"
-
     # Can't do an isinstance check here because the client build
     # doesn't have access to that server schema.
     if name == "work-queue-with-status":
