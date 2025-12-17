@@ -114,7 +114,6 @@ export const WithCallbacks: Story = {
 	args: {
 		events: MOCK_EVENTS,
 		onEventClick: fn(),
-		onResourceClick: fn(),
 	},
 };
 
