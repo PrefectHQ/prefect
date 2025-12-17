@@ -29,14 +29,12 @@ type Event = components["schemas"]["ReceivedEvent"];
 
 type EventsTimelineProps = {
 	events: Event[];
-	onEventClick?: (eventName: string) => void;
 	className?: string;
 };
 
 type EventTimelineItemProps = {
 	event: Event;
 	isLast: boolean;
-	onEventClick?: (eventName: string) => void;
 };
 
 function EventTimestamp({ occurred }: { occurred: string }) {
@@ -89,12 +87,10 @@ function EventNameWithPrefixes({
 	eventId,
 	eventName,
 	occurred,
-	onEventClick,
 }: {
 	eventId: string;
 	eventName: string;
 	occurred: string;
-	onEventClick?: (eventName: string) => void;
 }) {
 	const label = formatEventLabel(eventName);
 	const eventDate = formatRouteDate(new Date(occurred));
@@ -105,7 +101,6 @@ function EventNameWithPrefixes({
 				to="/events/event/$eventDate/$eventId"
 				params={{ eventDate, eventId }}
 				className="text-left font-medium hover:underline"
-				onClick={onEventClick ? () => onEventClick(eventName) : undefined}
 			>
 				{label}
 			</Link>
@@ -198,11 +193,7 @@ function EventRelatedResources({
 	);
 }
 
-function EventTimelineItem({
-	event,
-	isLast,
-	onEventClick,
-}: EventTimelineItemProps) {
+function EventTimelineItem({ event, isLast }: EventTimelineItemProps) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (
@@ -222,7 +213,6 @@ function EventTimelineItem({
 								eventId={event.id}
 								eventName={event.event}
 								occurred={event.occurred}
-								onEventClick={onEventClick}
 							/>
 							<EventResourceDisplay event={event} />
 							{event.related && event.related.length > 0 && (
@@ -266,11 +256,7 @@ function EventTimelineItem({
 	);
 }
 
-export function EventsTimeline({
-	events,
-	onEventClick,
-	className,
-}: EventsTimelineProps) {
+export function EventsTimeline({ events, className }: EventsTimelineProps) {
 	if (!events || events.length === 0) {
 		return null;
 	}
@@ -282,7 +268,6 @@ export function EventsTimeline({
 					<EventTimelineItem
 						event={event}
 						isLast={index === events.length - 1}
-						onEventClick={onEventClick}
 					/>
 				</li>
 			))}

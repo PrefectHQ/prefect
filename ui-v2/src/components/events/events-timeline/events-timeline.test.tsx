@@ -8,7 +8,7 @@ import {
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createContext, type ReactNode, useContext } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { components } from "@/api/prefect";
 import { EventsTimeline } from "./events-timeline";
 import { formatEventLabel, getEventPrefixes } from "./utilities";
@@ -200,25 +200,6 @@ describe("EventsTimeline", () => {
 		await renderWithRouter(<EventsTimeline events={events} />);
 
 		expect(screen.getByText("production")).toBeInTheDocument();
-	});
-
-	it("calls onEventClick when event name is clicked", async () => {
-		const user = userEvent.setup();
-		const onEventClick = vi.fn();
-		const events = [
-			createMockEvent({
-				id: "event-1",
-				event: "prefect.flow-run.Completed",
-			}),
-		];
-
-		await renderWithRouter(
-			<EventsTimeline events={events} onEventClick={onEventClick} />,
-		);
-
-		await user.click(screen.getByText("Flow Run Completed"));
-
-		expect(onEventClick).toHaveBeenCalledWith("prefect.flow-run.Completed");
 	});
 
 	it("expands to show raw JSON when expand button is clicked", async () => {

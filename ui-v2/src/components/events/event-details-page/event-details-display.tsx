@@ -2,7 +2,10 @@ import { format } from "date-fns";
 import type { Event } from "@/api/events";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icons";
-import { EventResourceDisplay } from "../event-resource-display";
+import {
+	EventResourceDisplay,
+	EventResourceLink,
+} from "../event-resource-display";
 import {
 	parseResourceType,
 	RESOURCE_ICONS,
@@ -83,11 +86,16 @@ export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
 								resourceName || resourceId.split(".").pop() || resourceId;
 
 							return (
-								<div key={resourceId} className="flex items-center gap-2">
+								<EventResourceLink
+									key={resourceId}
+									resource={resource}
+									relatedResources={event.related ?? []}
+									className="flex items-center gap-2 hover:underline"
+								>
 									{typeLabel && <span>{typeLabel}</span>}
 									<Icon id={iconId} className="h-4 w-4 text-muted-foreground" />
 									<span>{displayText}</span>
-								</div>
+								</EventResourceLink>
 							);
 						})}
 
