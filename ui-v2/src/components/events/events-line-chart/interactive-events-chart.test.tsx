@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { EventsCount } from "@/api/events";
 import { InteractiveEventsChart } from "./interactive-events-chart";
 
@@ -29,9 +29,8 @@ describe("InteractiveEventsChart", () => {
 
 	const defaultProps = {
 		data: generateMockData(twentyFourHoursAgo, 24),
-		zoomStart: twentyFourHoursAgo,
-		zoomEnd: now,
-		onZoomChange: vi.fn(),
+		startDate: twentyFourHoursAgo,
+		endDate: now,
 	};
 
 	it("renders without crashing", () => {
@@ -51,20 +50,5 @@ describe("InteractiveEventsChart", () => {
 			<InteractiveEventsChart {...defaultProps} className="custom-class" />,
 		);
 		expect(container.firstChild).toHaveClass("custom-class");
-	});
-
-	it("passes onZoomChange to zoom hook", () => {
-		const onZoomChange = vi.fn();
-
-		const { container } = render(
-			<InteractiveEventsChart {...defaultProps} onZoomChange={onZoomChange} />,
-		);
-
-		expect(container.firstChild).toBeInTheDocument();
-	});
-
-	it("applies select-none class to prevent text selection", () => {
-		const { container } = render(<InteractiveEventsChart {...defaultProps} />);
-		expect(container.firstChild).toHaveClass("select-none");
 	});
 });
