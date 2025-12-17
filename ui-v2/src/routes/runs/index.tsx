@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import {
 	buildCountFlowRunsQuery,
@@ -36,13 +36,14 @@ import {
 	type TaskRunSortFilters,
 } from "@/components/task-runs/task-runs-list";
 import { mapValueToRange } from "@/components/ui/date-range-select";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useRunsFilters } from "@/hooks/use-runs-filters";
 
 const searchParams = z.object({
 	tab: z.enum(["flow-runs", "task-runs"]).optional().default("flow-runs"),
 	// Flow runs pagination params
 	page: z.number().int().positive().optional().default(1).catch(1),
-	limit: z.number().int().positive().optional().default(10).catch(10),
+	limit: z.number().int().positive().optional().catch(undefined),
 	sort: z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
 	"hide-subflows": z.boolean().optional().default(false),
 	"flow-run-search": z.string().optional().default(""),
@@ -56,13 +57,7 @@ const searchParams = z.object({
 	end: z.string().optional(),
 	// Task runs pagination params
 	"task-runs-page": z.number().int().positive().optional().default(1).catch(1),
-	"task-runs-limit": z
-		.number()
-		.int()
-		.positive()
-		.optional()
-		.default(10)
-		.catch(10),
+	"task-runs-limit": z.number().int().positive().optional().catch(undefined),
 	"task-runs-sort": z
 		.enum(TASK_RUN_SORT_FILTERS)
 		.optional()
@@ -198,7 +193,7 @@ const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
 
 	return {
 		page: search?.page ?? 1,
-		limit: search?.limit ?? 10,
+		limit: search?.limit ?? 100,
 		sort: search?.sort ?? "START_TIME_DESC",
 		flow_runs: flowRunsFilter,
 		flows: flowsFilterBody,
@@ -265,7 +260,7 @@ const buildTaskRunsPaginationBody = (
 
 	return {
 		page: search?.["task-runs-page"] ?? 1,
-		limit: search?.["task-runs-limit"] ?? 10,
+		limit: search?.["task-runs-limit"] ?? 100,
 		sort: search?.["task-runs-sort"] ?? "EXPECTED_START_TIME_DESC",
 		task_runs: taskRunsFilter,
 		flow_runs: flowRunsFilter,
@@ -388,7 +383,7 @@ const usePagination = () => {
 	const pagination: PaginationState = useMemo(
 		() => ({
 			page: search.page ?? 1,
-			limit: search.limit ?? 10,
+			limit: search.limit ?? 100,
 		}),
 		[search.page, search.limit],
 	);
@@ -499,7 +494,7 @@ const useTaskRunsPagination = () => {
 	const pagination: PaginationState = useMemo(
 		() => ({
 			page: search["task-runs-page"] ?? 1,
-			limit: search["task-runs-limit"] ?? 10,
+			limit: search["task-runs-limit"] ?? 100,
 		}),
 		[search["task-runs-page"], search["task-runs-limit"]],
 	);
@@ -569,6 +564,67 @@ const useTaskRunSearch = () => {
 function RouteComponent() {
 	const queryClient = useQueryClient();
 	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	// localStorage persistence for pagination limits (separate keys for flow runs and task runs)
+	const [storedFlowRunsLimit, setStoredFlowRunsLimit] = useLocalStorage(
+		"workspace-flow-runs-list-limit",
+		100,
+	);
+	const [storedTaskRunsLimit, setStoredTaskRunsLimit] = useLocalStorage(
+		"workspace-task-runs-list-limit",
+		100,
+	);
+
+	// Track if we've done the initial URL sync to avoid re-running on every render
+	const hasInitializedRef = useRef(false);
+
+	// On mount - if URL limit is undefined (not explicitly set), use localStorage value
+	useEffect(() => {
+		if (hasInitializedRef.current) return;
+		hasInitializedRef.current = true;
+
+		const needsFlowRunsLimit = search.limit === undefined;
+		const needsTaskRunsLimit = search["task-runs-limit"] === undefined;
+
+		if (needsFlowRunsLimit || needsTaskRunsLimit) {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					...(needsFlowRunsLimit && { limit: storedFlowRunsLimit }),
+					...(needsTaskRunsLimit && {
+						"task-runs-limit": storedTaskRunsLimit,
+					}),
+				}),
+				replace: true,
+			});
+		}
+	}, [
+		navigate,
+		search.limit,
+		search["task-runs-limit"],
+		storedFlowRunsLimit,
+		storedTaskRunsLimit,
+	]);
+
+	// When flow runs URL limit changes (user interaction), save to localStorage
+	useEffect(() => {
+		if (search.limit !== undefined && search.limit !== storedFlowRunsLimit) {
+			setStoredFlowRunsLimit(search.limit);
+		}
+	}, [search.limit, storedFlowRunsLimit, setStoredFlowRunsLimit]);
+
+	// When task runs URL limit changes (user interaction), save to localStorage
+	useEffect(() => {
+		if (
+			search["task-runs-limit"] !== undefined &&
+			search["task-runs-limit"] !== storedTaskRunsLimit
+		) {
+			setStoredTaskRunsLimit(search["task-runs-limit"]);
+		}
+	}, [search["task-runs-limit"], storedTaskRunsLimit, setStoredTaskRunsLimit]);
+
 	// Flow runs hooks
 	const [pagination, onPaginationChange] = usePagination();
 	const [sort, onSortChange] = useSort();
