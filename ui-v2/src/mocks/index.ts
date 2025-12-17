@@ -10,6 +10,7 @@ export {
 	createFakeDeployment,
 	createFakeDeploymentWithFlow,
 } from "./create-fake-deployment";
+export { createFakeEvent } from "./create-fake-event";
 export { createFakeFlow } from "./create-fake-flow";
 export {
 	createFakeFlowRun,
