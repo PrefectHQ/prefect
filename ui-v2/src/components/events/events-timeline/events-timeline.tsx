@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -74,28 +75,40 @@ function TimelinePoint({ event, isLast }: { event: Event; isLast: boolean }) {
 	);
 }
 
+/**
+ * Formats a Date object as YYYY-MM-DD for use in route parameters.
+ */
+function formatRouteDate(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
 function EventNameWithPrefixes({
+	eventId,
 	eventName,
+	occurred,
 	onEventClick,
 }: {
+	eventId: string;
 	eventName: string;
+	occurred: string;
 	onEventClick?: (eventName: string) => void;
 }) {
 	const label = formatEventLabel(eventName);
+	const eventDate = formatRouteDate(new Date(occurred));
 
 	return (
 		<div className="flex flex-col gap-0.5">
-			{onEventClick ? (
-				<button
-					type="button"
-					onClick={() => onEventClick(eventName)}
-					className="text-left font-medium hover:underline"
-				>
-					{label}
-				</button>
-			) : (
-				<span className="font-medium">{label}</span>
-			)}
+			<Link
+				to="/events/event/$eventDate/$eventId"
+				params={{ eventDate, eventId }}
+				className="text-left font-medium hover:underline"
+				onClick={onEventClick ? () => onEventClick(eventName) : undefined}
+			>
+				{label}
+			</Link>
 			<span className="text-xs text-muted-foreground font-mono">
 				{eventName}
 			</span>
@@ -206,7 +219,9 @@ function EventTimelineItem({
 					<CardHeader className="py-0">
 						<div className="flex flex-col gap-3">
 							<EventNameWithPrefixes
+								eventId={event.id}
 								eventName={event.event}
+								occurred={event.occurred}
 								onEventClick={onEventClick}
 							/>
 							<EventResourceDisplay event={event} />
