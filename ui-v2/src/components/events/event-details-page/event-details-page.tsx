@@ -29,7 +29,7 @@ export function EventDetailsPage({
 				<EventActionMenu event={event} />
 			</div>
 			<Card>
-				<CardContent className="pt-6">
+				<CardContent>
 					<EventDetailsTabs
 						event={event}
 						defaultTab={defaultTab}

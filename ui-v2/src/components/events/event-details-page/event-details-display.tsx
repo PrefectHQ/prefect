@@ -8,7 +8,6 @@ import {
 	RESOURCE_ICONS,
 	RESOURCE_TYPE_LABELS,
 } from "../event-resource-display/resource-types";
-import { formatEventLabel } from "../events-timeline";
 
 type EventDetailsDisplayProps = {
 	event: Event;
@@ -40,7 +39,6 @@ function getResourceName(resource: Record<string, string>): string | null {
 }
 
 export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
-	const eventLabel = formatEventLabel(event.event);
 	const occurredFormatted = format(
 		new Date(event.occurred),
 		"yyyy/MM/dd hh:mm:ss a",
@@ -60,7 +58,7 @@ export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
 		<div className="flex flex-col gap-4">
 			<dl>
 				<FieldLabel>Event</FieldLabel>
-				<FieldValue>{eventLabel}</FieldValue>
+				<FieldValue>{event.event}</FieldValue>
 			</dl>
 
 			<dl>
