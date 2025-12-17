@@ -14,19 +14,13 @@ type EventDetailsDisplayProps = {
 	event: Event;
 };
 
-type KeyValueProps = {
-	label: string;
-	children: React.ReactNode;
-};
+const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+	<dt className="text-sm font-medium">{children}</dt>
+);
 
-function KeyValue({ label, children }: KeyValueProps) {
-	return (
-		<div className="flex flex-col gap-0.5">
-			<span className="text-sm font-medium">{label}</span>
-			<div className="text-sm">{children}</div>
-		</div>
-	);
-}
+const FieldValue = ({ children }: { children: React.ReactNode }) => (
+	<dd className="text-sm">{children}</dd>
+);
 
 function getResourceRole(resource: Record<string, string>): string | null {
 	return resource["prefect.resource.role"] || null;
@@ -64,15 +58,22 @@ export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<KeyValue label="Event">{eventLabel}</KeyValue>
+			<dl>
+				<FieldLabel>Event</FieldLabel>
+				<FieldValue>{eventLabel}</FieldValue>
+			</dl>
 
-			<KeyValue label="Occurred">{occurredFormatted}</KeyValue>
+			<dl>
+				<FieldLabel>Occurred</FieldLabel>
+				<FieldValue>{occurredFormatted}</FieldValue>
+			</dl>
 
 			<EventResourceDisplay event={event} />
 
 			{(relatedResources.length > 0 || tags.length > 0) && (
-				<KeyValue label="Related Resources">
-					<div className="flex flex-col gap-2">
+				<dl>
+					<FieldLabel>Related Resources</FieldLabel>
+					<dd className="flex flex-col gap-2 text-sm">
 						{relatedResources.map((resource) => {
 							const resourceId = getResourceId(resource);
 							const resourceName = getResourceName(resource);
@@ -107,8 +108,8 @@ export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
 								})}
 							</div>
 						)}
-					</div>
-				</KeyValue>
+					</dd>
+				</dl>
 			)}
 		</div>
 	);
