@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { buildEventsHistoryQuery } from "@/api/events";
 import {
 	buildEventsCountFilterFromSearch,
@@ -41,24 +41,16 @@ export type EventsPageProps = {
 };
 
 export function EventsPage({ search, onSearchChange }: EventsPageProps) {
-	// Get the initial date range using the same logic as the route loader
+	// Get the date range using the same logic as the route loader
 	// This ensures query keys match and prevents infinite Suspense retries
-	const initialDateRange = getDateRangeFromSearch(search);
-
-	// Chart zoom state (separate from filter date range)
-	const [zoomStart, setZoomStart] = useState<Date>(
-		() => new Date(initialDateRange.from),
-	);
-	const [zoomEnd, setZoomEnd] = useState<Date>(
-		() => new Date(initialDateRange.to),
-	);
+	const dateRange = getDateRangeFromSearch(search);
 
 	const eventsFilter = buildEventsFilterFromSearch(search);
 	const countFilter = buildEventsCountFilterFromSearch({
 		...search,
 		rangeType: "range",
-		start: zoomStart.toISOString(),
-		end: zoomEnd.toISOString(),
+		start: dateRange.from,
+		end: dateRange.to,
 	});
 
 	// Create separate filter for type dropdown (without event filter)
@@ -66,8 +58,8 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 	const countFilterForTypeDropdown = buildEventsCountFilterFromSearch({
 		resource: search.resource,
 		rangeType: "range",
-		start: zoomStart.toISOString(),
-		end: zoomEnd.toISOString(),
+		start: dateRange.from,
+		end: dateRange.to,
 	});
 
 	// Pagination
@@ -94,14 +86,8 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 
 	const handleDateRangeChange = (value: DateRangeSelectValue) => {
 		if (value?.type === "span") {
-			const newEnd = new Date();
-			const newStart = new Date(newEnd.getTime() + value.seconds * 1000);
-			setZoomStart(newStart);
-			setZoomEnd(newEnd);
 			onSearchChange({ rangeType: "span", seconds: value.seconds });
 		} else if (value?.type === "range") {
-			setZoomStart(value.startDate);
-			setZoomEnd(value.endDate);
 			onSearchChange({
 				rangeType: "range",
 				start: value.startDate.toISOString(),
@@ -109,11 +95,6 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 			});
 		}
 	};
-
-	const handleZoomChange = useCallback((start: Date, end: Date) => {
-		setZoomStart(start);
-		setZoomEnd(end);
-	}, []);
 
 	// Sticky chart behavior
 	const [isChartSticky, setIsChartSticky] = useState(false);
@@ -168,9 +149,8 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 					<InteractiveEventsChart
 						data={historyData ?? []}
 						className="h-32"
-						zoomStart={zoomStart}
-						zoomEnd={zoomEnd}
-						onZoomChange={handleZoomChange}
+						startDate={new Date(dateRange.from)}
+						endDate={new Date(dateRange.to)}
 					/>
 					<div className="flex justify-center pt-3">
 						<RichDateRangeSelector

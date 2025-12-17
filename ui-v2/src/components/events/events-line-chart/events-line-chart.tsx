@@ -45,12 +45,10 @@ export type EventsLineChartProps = {
 	className?: string;
 	/** Whether to show the X-axis with time labels (default: true) */
 	showAxis?: boolean;
-	/** Current zoom range start */
-	zoomStart?: Date;
-	/** Current zoom range end */
-	zoomEnd?: Date;
-	/** Called when zoom range changes (via scroll wheel) */
-	onZoomChange?: (start: Date, end: Date) => void;
+	/** Date range start for chart display */
+	startDate?: Date;
+	/** Date range end for chart display */
+	endDate?: Date;
 	/** Called when mouse hovers over chart with timestamp */
 	onCursorChange?: (timestamp: Date | null) => void;
 };
@@ -70,7 +68,7 @@ export const EventsLineChart = forwardRef<
 	EventsLineChartRef,
 	EventsLineChartProps
 >(function EventsLineChart(
-	{ data, className, showAxis = true, zoomStart, zoomEnd, onCursorChange },
+	{ data, className, showAxis = true, startDate, endDate, onCursorChange },
 	ref,
 ) {
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -88,11 +86,11 @@ export const EventsLineChart = forwardRef<
 			label: item.label,
 		}));
 
-		// Ensure we have boundary points at zoomStart and zoomEnd so the line
+		// Ensure we have boundary points at startDate and endDate so the line
 		// extends across the full chart width (matching Vue implementation)
-		if (zoomStart && zoomEnd) {
-			const startTime = zoomStart.getTime();
-			const endTime = zoomEnd.getTime();
+		if (startDate && endDate) {
+			const startTime = startDate.getTime();
+			const endTime = endDate.getTime();
 
 			// Add start boundary point if not present
 			if (points.length === 0 || points[0].time > startTime) {
@@ -106,7 +104,7 @@ export const EventsLineChart = forwardRef<
 		}
 
 		return points;
-	}, [data, zoomStart, zoomEnd]);
+	}, [data, startDate, endDate]);
 
 	const handleMouseMove = (state: { activeLabel?: string | number }) => {
 		if (state.activeLabel !== undefined && onCursorChange) {
