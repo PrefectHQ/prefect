@@ -4,7 +4,7 @@ import socket
 import urllib.parse
 from logging import Logger
 from string import Formatter
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -189,6 +189,16 @@ def url_for(
     else:
         name = convert_class_to_name(obj)
 
+    # Handle server-side ReceivedEvent which is a different class but has the same
+    # structure as the client-side ReceivedEvent
+    if name == "received-event" or (
+        hasattr(obj, "__class__")
+        and obj.__class__.__name__ == "ReceivedEvent"
+        and hasattr(obj, "occurred")
+        and hasattr(obj, "received")
+    ):
+        name = "received-event"
+
     # Can't do an isinstance check here because the client build
     # doesn't have access to that server schema.
     if name == "work-queue-with-status":
@@ -251,9 +261,13 @@ def url_for(
     )
     assert url_format is not None
 
-    if isinstance(obj, ReceivedEvent):
+    # Use duck-typing to handle both client-side and server-side ReceivedEvent
+    if name == "received-event" and hasattr(obj, "occurred"):
+        # Cast to ReceivedEvent for type checking - we've verified it has the
+        # required attributes via hasattr and name check above
+        event = cast(ReceivedEvent, obj)
         url = url_format.format(
-            occurred=obj.occurred.strftime("%Y-%m-%d"), obj_id=obj_id
+            occurred=event.occurred.strftime("%Y-%m-%d"), obj_id=obj_id
         )
     else:
         obj_keys = [

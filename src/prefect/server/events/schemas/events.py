@@ -212,6 +212,14 @@ class ReceivedEvent(Event):
         description="When the event was received by Prefect Cloud",
     )
 
+    @property
+    def url(self) -> Optional[str]:
+        """Returns the UI URL for this event, allowing users to link to events
+        in automation templates without parsing date strings."""
+        from prefect.utilities.urls import url_for
+
+        return url_for(self, url_type="ui")
+
     def as_database_row(self) -> dict[str, Any]:
         row = self.model_dump()
         row["resource_id"] = self.resource.id
