@@ -5,6 +5,7 @@ Internal utilities for tests.
 from __future__ import annotations
 
 import atexit
+import inspect
 import shutil
 import warnings
 from contextlib import ExitStack, contextmanager
@@ -31,6 +32,7 @@ from prefect.results import (
 from prefect.serializers import Serializer
 from prefect.server.api.server import SubprocessASGIServer
 from prefect.states import State
+from prefect.utilities.asyncutils import run_coro_as_sync
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
@@ -172,9 +174,26 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         )
         yield
         # drain the logs before stopping the server to avoid connection errors on shutdown
-        APILogWorker.instance().drain()
-        # drain events to prevent stale events from leaking into subsequent test harnesses
-        EventsWorker.drain_all()
+        # When running in an async context, drain() and drain_all() return awaitables.
+        # We use a wrapper coroutine passed to run_coro_as_sync to ensure the awaitable
+        # is created and awaited on the same loop, avoiding cross-loop issues (issue #19762)
+
+        async def drain_workers():
+            try:
+                result = APILogWorker.instance().drain()
+                if inspect.isawaitable(result):
+                    await result
+            except RuntimeError:
+                # Worker may not have been started
+                pass
+
+            # drain events to prevent stale events from leaking into subsequent test harnesses
+            result = EventsWorker.drain_all()
+            if inspect.isawaitable(result):
+                await result
+
+        run_coro_as_sync(drain_workers())
+
         test_server.stop()
 
 
