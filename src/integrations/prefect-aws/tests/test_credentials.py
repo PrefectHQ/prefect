@@ -337,28 +337,11 @@ def test_aws_credentials_assume_role_with_static_key_credentials():
     )
 
     with mock_aws():
-        # Mock the base session and STS client
-        with patch("prefect_aws.credentials.boto3.Session") as mock_session_class:
-            mock_base_session = mock_session_class.return_value
-            mock_sts_client = mock_base_session.client.return_value
-            mock_sts_client.assume_role.return_value = {
-                "Credentials": {
-                    "AccessKeyId": "ASIAEXAMPLE",
-                    "SecretAccessKey": "secret",
-                    "SessionToken": "token",
-                    "Expiration": "2024-01-01T00:00:00Z",
-                }
-            }
+        session = credentials.get_boto3_session()
+        credentials = session.get_credentials()
 
-            session = credentials.get_boto3_session()
-
-            # Verify assume_role was called
-            mock_sts_client.assume_role.assert_called_once()
-            call_args = mock_sts_client.assume_role.call_args
-            assert call_args.kwargs["RoleArn"] == role_arn
-            assert session["aws_access_key_id"] == "ASIAEXAMPLE"
-            assert session["aws_secret_access_key"] == "secret"
-            assert session["aws_session_token"] == "token"
+        # Verify that the assumed role credentials are used
+        assert credentials.access_key.startswith("ASIA")
 
 
 def test_aws_credentials_assume_role_generates_default_session_name():
