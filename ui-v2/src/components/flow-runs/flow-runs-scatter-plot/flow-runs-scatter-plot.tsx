@@ -174,19 +174,43 @@ const createYAxisTickFormatter = (maxDuration: number) => {
 	};
 };
 
-const createXAxisTickFormatter = (domainMin: number, domainMax: number) => {
-	const rangeMs = domainMax - domainMin;
-	const oneDay = 24 * 60 * 60 * 1000;
+const createXAxisTickFormatter = (rangeMs: number, minDeltaMs: number) => {
+	const oneMinute = 60 * 1000;
+	const oneHour = 60 * oneMinute;
+	const oneDay = 24 * oneHour;
 
 	return (value: number): string => {
 		const date = new Date(value);
-		// If range is less than a day, show time
+
+		// If data points are very close (< 1 second apart) or range is very small, show with fractional seconds
+		if (minDeltaMs < 1000 || rangeMs < 10_000) {
+			const seconds = date.getSeconds();
+			const ms = date.getMilliseconds();
+			const timeStr = date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+			// Append seconds and tenths of a second
+			return `${timeStr}:${seconds.toString().padStart(2, "0")}.${Math.floor(ms / 100)}`;
+		}
+
+		// If data points are within a minute apart or range is small, show with seconds
+		if (minDeltaMs < oneMinute || rangeMs < 10 * oneMinute) {
+			return date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+				second: "2-digit",
+			});
+		}
+
+		// If range is less than a day, show time (hours and minutes)
 		if (rangeMs < oneDay) {
 			return date.toLocaleTimeString(undefined, {
 				hour: "2-digit",
 				minute: "2-digit",
 			});
 		}
+
 		// Otherwise show date
 		return date.toLocaleDateString(undefined, {
 			month: "short",
@@ -247,10 +271,25 @@ export const FlowRunsScatterPlot = ({
 		return Math.max(...chartData.map((d) => d.y));
 	}, [chartData]);
 
+	// Compute minimum delta between data points for adaptive x-axis formatting
+	const minDeltaMs = useMemo(() => {
+		if (chartData.length < 2) return Number.POSITIVE_INFINITY;
+		const sortedTimestamps = chartData.map((d) => d.x).sort((a, b) => a - b);
+		let minDelta = Number.POSITIVE_INFINITY;
+		for (let i = 1; i < sortedTimestamps.length; i++) {
+			const delta = sortedTimestamps[i] - sortedTimestamps[i - 1];
+			if (delta > 0 && delta < minDelta) {
+				minDelta = delta;
+			}
+		}
+		return minDelta;
+	}, [chartData]);
+
 	// Create memoized formatters based on domain
+	const rangeMs = xDomainMax - xDomainMin;
 	const formatXAxisTick = useMemo(
-		() => createXAxisTickFormatter(xDomainMin, xDomainMax),
-		[xDomainMin, xDomainMax],
+		() => createXAxisTickFormatter(rangeMs, minDeltaMs),
+		[rangeMs, minDeltaMs],
 	);
 
 	const formatYAxisTick = useMemo(
