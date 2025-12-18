@@ -47,6 +47,13 @@ class MyDataclass:
 
 
 @dataclass
+class GenericDataclass(Generic[T]):
+    """Generic dataclass for testing non-Pydantic generic serialization."""
+
+    data: T
+
+
+@dataclass
 class MyDataclassBytes:
     x: int
     y: bytes
@@ -422,6 +429,22 @@ class TestJSONSerializer:
         loaded = serializer.loads(serialized)
         assert loaded.data == "hello"
         assert loaded.message == "success"
+
+    def test_dataclass_generic_model_roundtrip(self):
+        """Test that non-Pydantic generic models still work correctly.
+
+        Ensures the fix for Pydantic generics doesn't break standard
+        Generic dataclasses, which don't have the bracketed name issue.
+        """
+        serializer = JSONSerializer()
+
+        # Non-Pydantic generics don't create distinct classes per parameterization
+        result = GenericDataclass[str](data="hello")
+        serialized = serializer.dumps(result)
+
+        # Verify roundtrip works
+        loaded = serializer.loads(serialized)
+        assert loaded.data == "hello"
 
 
 class TestCompressedSerializer:
