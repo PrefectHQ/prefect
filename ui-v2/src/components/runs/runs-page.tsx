@@ -17,6 +17,10 @@ import {
 	type SortFilters,
 	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
+import {
+	type SavedFilter,
+	SavedFiltersMenu,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/saved-filters-menu";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
 import { WorkPoolFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/work-pool-filter";
@@ -43,6 +47,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
+import { SaveFilterDialog } from "./save-filter-dialog";
 
 type RunsPageProps = {
 	tab: "flow-runs" | "task-runs";
@@ -91,6 +96,17 @@ type RunsPageProps = {
 	taskRunSearch: string;
 	onTaskRunSearchChange: (search: string) => void;
 	onClearTaskRunFilters: () => void;
+	// Saved filters props
+	currentFilter: SavedFilter | null;
+	savedFilters: SavedFilter[];
+	onSelectFilter: (filter: SavedFilter) => void;
+	onSaveFilter: () => void;
+	onDeleteFilter: (id: string) => void;
+	onSetDefault: (id: string) => void;
+	onRemoveDefault: (id: string) => void;
+	isSaveDialogOpen: boolean;
+	onCloseSaveDialog: () => void;
+	onConfirmSave: (name: string) => void;
 };
 
 export const RunsPage = ({
@@ -138,6 +154,17 @@ export const RunsPage = ({
 	taskRunSearch,
 	onTaskRunSearchChange,
 	onClearTaskRunFilters,
+	// Saved filters props
+	currentFilter,
+	savedFilters,
+	onSelectFilter,
+	onSaveFilter,
+	onDeleteFilter,
+	onSetDefault,
+	onRemoveDefault,
+	isSaveDialogOpen,
+	onCloseSaveDialog,
+	onConfirmSave,
 }: RunsPageProps) => {
 	// Use unfiltered counts for empty state check (no runs exist at all)
 	const isEmpty = !hasAnyFlowRuns && !hasAnyTaskRuns;
@@ -222,7 +249,21 @@ export const RunsPage = ({
 					/>
 				</div>
 				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
+				<SavedFiltersMenu
+					currentFilter={currentFilter}
+					savedFilters={savedFilters}
+					onSelect={onSelectFilter}
+					onSave={onSaveFilter}
+					onDelete={onDeleteFilter}
+					onSetDefault={onSetDefault}
+					onRemoveDefault={onRemoveDefault}
+				/>
 			</div>
+			<SaveFilterDialog
+				open={isSaveDialogOpen}
+				onOpenChange={onCloseSaveDialog}
+				onSave={onConfirmSave}
+			/>
 			<FlowRunsScatterPlot
 				history={flowRunHistory}
 				startDate={scatterPlotDateRange.startDate}
