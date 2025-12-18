@@ -3,7 +3,6 @@ Routes for interacting with Deployment objects.
 """
 
 import datetime
-import logging
 from typing import List, Optional
 from uuid import UUID
 
@@ -15,7 +14,6 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.starlette import status
-from prefect.logging import get_logger
 from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
@@ -49,7 +47,6 @@ from prefect.settings import get_current_settings
 
 router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
-logger: logging.Logger = get_logger(__name__)
 
 
 def _multiple_schedules_error(deployment_id) -> HTTPException:
