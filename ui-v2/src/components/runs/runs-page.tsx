@@ -48,6 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
 import { SaveFilterDialog } from "./save-filter-dialog";
+import { isSystemFilter } from "./use-saved-filters";
 
 type RunsPageProps = {
 	tab: "flow-runs" | "task-runs";
@@ -222,6 +223,10 @@ export const RunsPage = ({
 					onDelete={onDeleteFilter}
 					onSetDefault={onSetDefault}
 					onRemoveDefault={onRemoveDefault}
+					permissions={{
+						canSave: true,
+						canDelete: !isSystemFilter(currentFilter?.id ?? null),
+					}}
 				/>
 			</div>
 			<div className="flex flex-col gap-2">
