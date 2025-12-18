@@ -350,7 +350,7 @@ export function RichDateRangeSelector({
 						id={id}
 						variant="outline"
 						className={cn(
-							"rounded-none border-x-0 min-w-64 justify-start text-left font-normal",
+							"rounded-none border-x-0 min-w-64 flex-1 justify-start text-left font-normal",
 							isPlaceholder && "text-muted-foreground",
 						)}
 						disabled={disabled}
