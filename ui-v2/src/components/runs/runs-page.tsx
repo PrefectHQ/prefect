@@ -241,29 +241,29 @@ export const RunsPage = ({
 						/>
 					</div>
 				</div>
-				<div className="flex flex-wrap gap-2 md:grid md:grid-flow-col md:auto-cols-fr">
-					<div className="flex flex-col gap-1 w-full md:w-auto">
+				<div className="flex flex-wrap gap-2 lg:grid lg:grid-flow-col lg:auto-cols-fr">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
 						<Label className="text-xs text-muted-foreground">Flows</Label>
 						<FlowFilter
 							selectedFlows={selectedFlows}
 							onSelectFlows={onFlowFilterChange}
 						/>
 					</div>
-					<div className="flex flex-col gap-1 w-full md:w-auto">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
 						<Label className="text-xs text-muted-foreground">Deployments</Label>
 						<DeploymentFilter
 							selectedDeployments={selectedDeployments}
 							onSelectDeployments={onDeploymentFilterChange}
 						/>
 					</div>
-					<div className="flex flex-col gap-1 w-full md:w-auto">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
 						<Label className="text-xs text-muted-foreground">Work Pools</Label>
 						<WorkPoolFilter
 							selectedWorkPools={selectedWorkPools}
 							onSelectWorkPools={onWorkPoolFilterChange}
 						/>
 					</div>
-					<div className="flex flex-col gap-1 w-full md:w-auto">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
 						<Label className="text-xs text-muted-foreground">Tags</Label>
 						<TagsInput
 							value={Array.from(selectedTags)}
