@@ -346,7 +346,7 @@ export const FlowRunsScatterPlot = ({
 			data-testid="scatter-plot"
 		>
 			<ResponsiveContainer width="100%" height="100%">
-				<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+				<ScatterChart>
 					<XAxis
 						type="number"
 						dataKey="x"

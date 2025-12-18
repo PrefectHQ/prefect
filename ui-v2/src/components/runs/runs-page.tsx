@@ -33,6 +33,7 @@ import {
 	TaskRunsSortFilter,
 	useTaskRunsSelectedRows,
 } from "@/components/task-runs/task-runs-list";
+import { Card, CardContent } from "@/components/ui/card";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
 	EmptyState,
@@ -281,11 +282,6 @@ export const RunsPage = ({
 				onOpenChange={onCloseSaveDialog}
 				onSave={onConfirmSave}
 			/>
-			<FlowRunsScatterPlot
-				history={flowRunHistory}
-				startDate={scatterPlotDateRange.startDate}
-				endDate={scatterPlotDateRange.endDate}
-			/>
 			<Tabs value={tab} onValueChange={onTabChange}>
 				<TabsList>
 					<TabsTrigger value="flow-runs">Flow Runs</TabsTrigger>
@@ -293,6 +289,15 @@ export const RunsPage = ({
 				</TabsList>
 				<TabsContent value="flow-runs">
 					<div className="flex flex-col gap-4">
+						<Card>
+							<CardContent>
+								<FlowRunsScatterPlot
+									history={flowRunHistory}
+									startDate={scatterPlotDateRange.startDate}
+									endDate={scatterPlotDateRange.endDate}
+								/>
+							</CardContent>
+						</Card>
 						<div className="flex items-center justify-between">
 							<FlowRunsRowCount
 								count={flowRunsCount}
