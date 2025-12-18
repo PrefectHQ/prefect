@@ -2,13 +2,15 @@ import { format } from "date-fns";
 import type { Event } from "@/api/events";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icons";
-import { EventResourceDisplay } from "../event-resource-display";
+import {
+	EventResourceDisplay,
+	EventResourceLink,
+} from "../event-resource-display";
 import {
 	parseResourceType,
 	RESOURCE_ICONS,
 	RESOURCE_TYPE_LABELS,
 } from "../event-resource-display/resource-types";
-import { formatEventLabel } from "../events-timeline";
 
 type EventDetailsDisplayProps = {
 	event: Event;
@@ -40,7 +42,6 @@ function getResourceName(resource: Record<string, string>): string | null {
 }
 
 export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
-	const eventLabel = formatEventLabel(event.event);
 	const occurredFormatted = format(
 		new Date(event.occurred),
 		"yyyy/MM/dd hh:mm:ss a",
@@ -60,7 +61,7 @@ export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
 		<div className="flex flex-col gap-4">
 			<dl>
 				<FieldLabel>Event</FieldLabel>
-				<FieldValue>{eventLabel}</FieldValue>
+				<FieldValue>{event.event}</FieldValue>
 			</dl>
 
 			<dl>
@@ -85,11 +86,16 @@ export function EventDetailsDisplay({ event }: EventDetailsDisplayProps) {
 								resourceName || resourceId.split(".").pop() || resourceId;
 
 							return (
-								<div key={resourceId} className="flex items-center gap-2">
+								<EventResourceLink
+									key={resourceId}
+									resource={resource}
+									relatedResources={event.related ?? []}
+									className="flex items-center gap-2 hover:underline"
+								>
 									{typeLabel && <span>{typeLabel}</span>}
 									<Icon id={iconId} className="h-4 w-4 text-muted-foreground" />
 									<span>{displayText}</span>
-								</div>
+								</EventResourceLink>
 							);
 						})}
 

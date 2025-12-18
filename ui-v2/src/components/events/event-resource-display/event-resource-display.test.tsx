@@ -1,7 +1,15 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	Outlet,
+	RouterProvider,
+} from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
-import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { buildApiUrl, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { Suspense } from "react";
+import { createContext, type ReactNode, Suspense, useContext } from "react";
 import { describe, expect, it } from "vitest";
 import type { Event } from "@/api/events";
 import { createFakeFlowRun } from "@/mocks";
@@ -10,6 +18,45 @@ import {
 	ResourceDisplaySkeleton,
 	ResourceDisplayWithIcon,
 } from "./event-resource-display";
+
+const TestChildrenContext = createContext<ReactNode>(null);
+
+function RenderTestChildren() {
+	const children = useContext(TestChildrenContext);
+	return (
+		<>
+			{children}
+			<Outlet />
+		</>
+	);
+}
+
+const renderWithRouter = async (ui: ReactNode) => {
+	const rootRoute = createRootRoute({
+		component: RenderTestChildren,
+	});
+
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+	});
+
+	const queryClient = new QueryClient();
+
+	const result = render(
+		<QueryClientProvider client={queryClient}>
+			<TestChildrenContext.Provider value={ui}>
+				<RouterProvider router={router} />
+			</TestChildrenContext.Provider>
+		</QueryClientProvider>,
+	);
+
+	await waitFor(() => {
+		expect(router.state.status).toBe("idle");
+	});
+
+	return result;
+};
 
 const createMockEvent = (resourceId: string, resourceName?: string): Event => ({
 	id: "test-event-id",
@@ -25,77 +72,77 @@ const createMockEvent = (resourceId: string, resourceName?: string): Event => ({
 });
 
 describe("EventResourceDisplay", () => {
-	it("renders with resource name and icon for flow-run", () => {
+	it("renders with resource name and icon for flow-run", async () => {
 		const event = createMockEvent("prefect.flow-run.abc-123", "My Flow Run");
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("My Flow Run")).toBeInTheDocument();
 	});
 
-	it("renders with resource name and icon for deployment", () => {
+	it("renders with resource name and icon for deployment", async () => {
 		const event = createMockEvent(
 			"prefect.deployment.abc-123",
 			"My Deployment",
 		);
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("My Deployment")).toBeInTheDocument();
 	});
 
-	it("renders with resource name and icon for flow", () => {
+	it("renders with resource name and icon for flow", async () => {
 		const event = createMockEvent("prefect.flow.abc-123", "My Flow");
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("My Flow")).toBeInTheDocument();
 	});
 
-	it("renders with resource name and icon for work-pool", () => {
+	it("renders with resource name and icon for work-pool", async () => {
 		const event = createMockEvent("prefect.work-pool.abc-123", "My Work Pool");
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("My Work Pool")).toBeInTheDocument();
 	});
 
-	it("renders with resource name and icon for work-queue", () => {
+	it("renders with resource name and icon for work-queue", async () => {
 		const event = createMockEvent(
 			"prefect.work-queue.abc-123",
 			"My Work Queue",
 		);
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("My Work Queue")).toBeInTheDocument();
 	});
 
-	it("renders with resource name and icon for automation", () => {
+	it("renders with resource name and icon for automation", async () => {
 		const event = createMockEvent(
 			"prefect.automation.abc-123",
 			"My Automation",
 		);
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("My Automation")).toBeInTheDocument();
 	});
 
-	it("renders with resource name and icon for block-document", () => {
+	it("renders with resource name and icon for block-document", async () => {
 		const event = createMockEvent("prefect.block-document.abc-123", "My Block");
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("My Block")).toBeInTheDocument();
 	});
 
-	it("renders with resource name and icon for concurrency-limit", () => {
+	it("renders with resource name and icon for concurrency-limit", async () => {
 		const event = createMockEvent(
 			"prefect.concurrency-limit.abc-123",
 			"My Limit",
 		);
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("My Limit")).toBeInTheDocument();
@@ -114,11 +161,10 @@ describe("EventResourceDisplay", () => {
 		);
 
 		const event = createMockEvent("prefect.flow-run.abc-123");
-		render(
+		await renderWithRouter(
 			<Suspense fallback={<div>Loading...</div>}>
 				<EventResourceDisplay event={event} />
 			</Suspense>,
-			{ wrapper: createWrapper() },
 		);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
@@ -128,9 +174,9 @@ describe("EventResourceDisplay", () => {
 		});
 	});
 
-	it("renders raw resource ID for unknown resource types", () => {
+	it("renders raw resource ID for unknown resource types", async () => {
 		const event = createMockEvent("some.unknown.resource");
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		// "Resource" appears twice: once as section header, once as type label for unknown types
 		const resourceTexts = screen.getAllByText("Resource");
@@ -138,7 +184,7 @@ describe("EventResourceDisplay", () => {
 		expect(screen.getByText("resource")).toBeInTheDocument();
 	});
 
-	it("renders Unknown when no resource information is available", () => {
+	it("renders Unknown when no resource information is available", async () => {
 		const event: Event = {
 			id: "test-event-id",
 			occurred: new Date().toISOString(),
@@ -148,22 +194,22 @@ describe("EventResourceDisplay", () => {
 			payload: {},
 			received: new Date().toISOString(),
 		};
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Resource")).toBeInTheDocument();
 		expect(screen.getByText("Unknown")).toBeInTheDocument();
 	});
 
-	it("applies custom className", () => {
+	it("applies custom className", async () => {
 		const event = createMockEvent("prefect.flow-run.abc-123", "My Flow Run");
-		const { container } = render(
+		const { container } = await renderWithRouter(
 			<EventResourceDisplay event={event} className="custom-class" />,
 		);
 
 		expect(container.firstChild).toHaveClass("custom-class");
 	});
 
-	it("uses prefect.name as fallback for resource name", () => {
+	it("uses prefect.name as fallback for resource name", async () => {
 		const event: Event = {
 			id: "test-event-id",
 			occurred: new Date().toISOString(),
@@ -176,12 +222,12 @@ describe("EventResourceDisplay", () => {
 			payload: {},
 			received: new Date().toISOString(),
 		};
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Fallback Name")).toBeInTheDocument();
 	});
 
-	it("uses prefect-cloud.name as fallback for resource name", () => {
+	it("uses prefect-cloud.name as fallback for resource name", async () => {
 		const event: Event = {
 			id: "test-event-id",
 			occurred: new Date().toISOString(),
@@ -194,7 +240,7 @@ describe("EventResourceDisplay", () => {
 			payload: {},
 			received: new Date().toISOString(),
 		};
-		render(<EventResourceDisplay event={event} />);
+		await renderWithRouter(<EventResourceDisplay event={event} />);
 
 		expect(screen.getByText("Cloud Name")).toBeInTheDocument();
 	});
