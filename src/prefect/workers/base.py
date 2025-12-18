@@ -536,7 +536,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids: set[UUID] = set()
-        self._cancelling_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
         self._worker_metadata_sent = False
 
@@ -1538,13 +1537,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             run_logger.debug(
                 f"Flow run '{flow_run.id}' was deleted before it could be marked as cancelled"
             )
-
-        # Do not remove the flow run from the cancelling set immediately because
-        # the API caches responses for the `read_flow_runs` and we do not want to
-        # duplicate cancellations.
-        await self._schedule_task(
-            60 * 10, self._cancelling_flow_run_ids.remove, flow_run.id
-        )
 
     async def _set_work_pool_template(
         self, work_pool: "WorkPool", job_template: dict[str, Any]
