@@ -691,7 +691,8 @@ function RouteComponent() {
 		buildPaginateTaskRunsQuery(buildTaskRunsPaginationBody(search), 30_000),
 	);
 
-	// Use useQuery for flow run history (scatter plot) with 30-second polling
+	// Use useQuery for flow run history (scatter plot) to leverage placeholderData: keepPreviousData
+	// This prevents the scatter plot from flickering when search/filter changes
 	const { data: flowRunHistory } = useQuery(
 		buildFlowRunHistoryQuery(buildHistoryFilter(search), 30_000),
 	);
