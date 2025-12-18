@@ -31,7 +31,10 @@ import {
 	urlStateToDateRangeValue,
 } from "@/components/flow-runs/flow-runs-list";
 import { RunsPage } from "@/components/runs/runs-page";
-import { useRunsSavedFilters } from "@/components/runs/use-runs-saved-filters";
+import {
+	useApplyDefaultFilterOnMount,
+	useRunsSavedFilters,
+} from "@/components/runs/use-runs-saved-filters";
 import {
 	TASK_RUN_SORT_FILTERS,
 	type TaskRunSortFilters,
@@ -666,6 +669,9 @@ function RouteComponent() {
 		closeSaveDialog,
 		confirmSave,
 	} = useRunsSavedFilters();
+
+	// Apply default filter on initial page load (if one is set and no filters are active)
+	useApplyDefaultFilterOnMount();
 
 	// Use useSuspenseQueries for unfiltered count queries (stable keys, won't cause suspense on search change)
 	// These are used to determine if the app has ANY runs at all (for empty state)

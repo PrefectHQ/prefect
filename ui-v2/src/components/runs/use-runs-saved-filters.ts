@@ -1,5 +1,5 @@
 import { getRouteApi } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DateRangePreset } from "@/components/flow-runs/flow-runs-list";
 import type { SavedFilter as SavedFiltersMenuFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/saved-filters-menu";
 import {
@@ -269,21 +269,26 @@ export function useRunsSavedFilters(): UseRunsSavedFiltersReturn {
 /**
  * Hook to apply the default filter on initial page load.
  * Should be called in the route component.
+ *
+ * This hook will apply the default saved filter (if one is set) when:
+ * 1. The page first loads
+ * 2. No filters are currently active in the URL
+ *
+ * It uses a ref guard to ensure the default filter is only applied once per mount,
+ * preventing issues with React StrictMode and edge cases where navigation might
+ * not change the URL.
  */
 export function useApplyDefaultFilterOnMount(): void {
 	const navigate = routeApi.useNavigate();
 	const search = routeApi.useSearch();
 	const { savedFilters, defaultFilterId, getFilterById } = useSavedFilters();
 
-	// Check if we should apply default filter on mount
-	useMemo(() => {
-		// Only apply if:
-		// 1. There's a default filter set
-		// 2. No filters are currently active in URL
-		// 3. We have saved filters loaded
-		if (!defaultFilterId || savedFilters.length === 0) return;
+	// Ref to track if we've already applied the default filter this mount
+	const didApplyRef = useRef(false);
 
-		const hasActiveFilters =
+	// Compute whether there are any active filters in the URL
+	const hasActiveFilters = useMemo(() => {
+		return !!(
 			search.state ||
 			search.flows ||
 			search.deployments ||
@@ -291,12 +296,26 @@ export function useApplyDefaultFilterOnMount(): void {
 			search.tags ||
 			search.range ||
 			search.start ||
-			search.end;
+			search.end
+		);
+	}, [search]);
 
+	useEffect(() => {
+		// Only apply once per mount
+		if (didApplyRef.current) return;
+
+		// Only apply if:
+		// 1. There's a default filter set
+		// 2. No filters are currently active in URL
+		// 3. We have saved filters loaded
+		if (!defaultFilterId || savedFilters.length === 0) return;
 		if (hasActiveFilters) return;
 
 		const defaultFilter = getFilterById(defaultFilterId);
 		if (!defaultFilter) return;
+
+		// Mark as applied before navigating
+		didApplyRef.current = true;
 
 		const urlParams = filterValuesToUrlParams(defaultFilter.filters);
 
@@ -305,8 +324,15 @@ export function useApplyDefaultFilterOnMount(): void {
 			search: (prev) => ({
 				...prev,
 				...urlParams,
+				page: 1, // Reset pagination when applying default filter
 			}),
 			replace: true,
 		});
-	}, [defaultFilterId, savedFilters.length, search, getFilterById, navigate]);
+	}, [
+		defaultFilterId,
+		savedFilters,
+		hasActiveFilters,
+		getFilterById,
+		navigate,
+	]);
 }
