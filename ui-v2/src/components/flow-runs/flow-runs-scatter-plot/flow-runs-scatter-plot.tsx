@@ -318,10 +318,10 @@ export const FlowRunsScatterPlot = ({
 		[maxDuration],
 	);
 
-	// Calculate explicit tick values for evenly spaced x-axis ticks (matching Vue implementation)
+	// Calculate explicit tick values for evenly spaced x-axis ticks
 	// Target ~100px spacing between ticks for visually even distribution
 	const xAxisTicks = useMemo(() => {
-		const tickSpacing = 100; // pixels between ticks (matching Vue implementation)
+		const tickSpacing = 100; // pixels between ticks
 		const chartMargin = 60; // left (40) + right (20) margins from ScatterChart
 		const availableWidth = containerWidth - chartMargin;
 		const tickCount = Math.max(2, Math.ceil(availableWidth / tickSpacing));
