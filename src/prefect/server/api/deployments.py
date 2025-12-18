@@ -414,13 +414,7 @@ async def update_deployment(
                         # If FK not set yet, get ID from relationship object
                         # (happens when new limit was just created)
                         concurrency_limit_id = updated_deployment.global_concurrency_limit.id
-                    
-                    if not concurrency_limit_id:
-                        logger.error(
-                            f"Deployment {deployment_id} has no concurrency_limit_id after update. "
-                            f"global_concurrency_limit exists: {updated_deployment.global_concurrency_limit is not None}"
-                        )
-                
+
                 if updated_deployment and concurrency_limit_id:
                     # Query RUNNING flows for this deployment
                     running_flows = await models.flow_runs.read_flow_runs(
