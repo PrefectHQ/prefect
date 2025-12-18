@@ -16,7 +16,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { type WorkPoolEditFormValues, workPoolEditSchema } from "./schema";
+import { BaseJobTemplateFormSection } from "../create/infrastructure-configuration-step/base-job-template-form-section";
+import {
+	type WorkerBaseJobTemplate,
+	type WorkPoolEditFormValues,
+	workPoolEditSchema,
+} from "./schema";
 
 type WorkPoolEditFormProps = {
 	workPool: WorkPool;
@@ -31,8 +36,14 @@ export const WorkPoolEditForm = ({ workPool }: WorkPoolEditFormProps) => {
 		defaultValues: {
 			description: workPool.description ?? "",
 			concurrencyLimit: workPool.concurrency_limit ?? null,
+			baseJobTemplate: workPool.base_job_template as Record<string, unknown>,
 		},
 	});
+
+	const baseJobTemplate = form.watch("baseJobTemplate") as
+		| WorkerBaseJobTemplate
+		| undefined;
+	const showBaseJobTemplateSection = workPool.type !== "prefect-agent";
 
 	const handleCancel = () => {
 		router.history.back();
@@ -45,6 +56,7 @@ export const WorkPoolEditForm = ({ workPool }: WorkPoolEditFormProps) => {
 				workPool: {
 					description: data.description || null,
 					concurrency_limit: data.concurrencyLimit,
+					base_job_template: data.baseJobTemplate,
 				},
 			},
 			{
@@ -65,13 +77,13 @@ export const WorkPoolEditForm = ({ workPool }: WorkPoolEditFormProps) => {
 	};
 
 	return (
-		<Card>
-			<CardContent className="pt-6">
-				<Form {...form}>
-					<form
-						onSubmit={(e) => void form.handleSubmit(handleSubmit)(e)}
-						className="space-y-6"
-					>
+		<Form {...form}>
+			<form
+				onSubmit={(e) => void form.handleSubmit(handleSubmit)(e)}
+				className="space-y-6"
+			>
+				<Card>
+					<CardContent className="pt-6 space-y-6">
 						<div className="space-y-2">
 							<Label htmlFor="work-pool-name">Name</Label>
 							<Input id="work-pool-name" value={workPool.name} disabled />
@@ -124,23 +136,32 @@ export const WorkPoolEditForm = ({ workPool }: WorkPoolEditFormProps) => {
 							<Label htmlFor="work-pool-type">Type</Label>
 							<Input id="work-pool-type" value={workPool.type} disabled />
 						</div>
+					</CardContent>
+				</Card>
 
-						<div className="flex justify-end gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={handleCancel}
-								disabled={isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={isPending}>
-								{isPending ? "Saving..." : "Save"}
-							</Button>
-						</div>
-					</form>
-				</Form>
-			</CardContent>
-		</Card>
+				{showBaseJobTemplateSection && (
+					<BaseJobTemplateFormSection
+						baseJobTemplate={baseJobTemplate}
+						onBaseJobTemplateChange={(value) => {
+							form.setValue("baseJobTemplate", value);
+						}}
+					/>
+				)}
+
+				<div className="flex justify-end gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={handleCancel}
+						disabled={isPending}
+					>
+						Cancel
+					</Button>
+					<Button type="submit" disabled={isPending}>
+						{isPending ? "Saving..." : "Save"}
+					</Button>
+				</div>
+			</form>
+		</Form>
 	);
 };
