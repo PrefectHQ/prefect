@@ -8,10 +8,12 @@ export {
 	useDeleteWorkPool,
 	usePauseWorkPool,
 	useResumeWorkPool,
+	useUpdateWorkPool,
 	type WorkPool,
 	type WorkPoolCreate,
 	type WorkPoolStatus,
 	type WorkPoolsCountFilter,
 	type WorkPoolsFilter,
+	type WorkPoolUpdate,
 	type WorkPoolWorker,
 } from "./work-pools";
