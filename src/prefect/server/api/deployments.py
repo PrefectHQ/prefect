@@ -37,6 +37,13 @@ from prefect.utilities.schema_tools.validation import (
     ValidationError,
     validate,
 )
+from prefect.server.concurrency.lease_storage import (
+    ConcurrencyLeaseHolder,
+    ConcurrencyLimitLeaseMetadata,
+    get_concurrency_lease_storage,
+)
+from prefect.server.models import concurrency_limits_v2
+from prefect.settings import get_current_settings
 
 router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -383,11 +390,86 @@ async def update_deployment(
             # One of them once the new limitations added to previous one
             # Another one related to more limitations (decreament) on the new deployment
             if limitation_added or limitation_decreased:
-                # TODO: Query RUNNING flows and retroactively acquire leases
-                if limitation_added:
-                    print("Added - need to apply to RUNNING flows")
-                else:
-                    print("Decreased - need to check RUNNING flows")
+                # Refresh deployment to get updated concurrency_limit_id
+                await session.refresh(existing_deployment)
+                updated_deployment = await models.deployments.read_deployment(
+                    session=session,
+                    deployment_id=deployment_id
+                )
+                
+                if updated_deployment and updated_deployment.concurrency_limit_id:
+                    # Query RUNNING flows for this deployment
+                    running_flows = await models.flow_runs.read_flow_runs(
+                        session=session,
+                        deployment_filter=schemas.filters.DeploymentFilter(
+                            id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+                        ),
+                        flow_run_filter=schemas.filters.FlowRunFilter(
+                            state=schemas.filters.FlowRunFilterState(
+                                type=schemas.filters.FlowRunFilterStateType(
+                                    any_=[schemas.states.StateType.RUNNING]
+                                )
+                            )
+                        ),
+                    )
+                    
+                    # Retroactively acquire leases for RUNNING flows
+                    if running_flows:
+                        concurrency_limit_id = updated_deployment.concurrency_limit_id
+                        new_limit = new_limit_value
+                        
+                        # Get grace period from deployment options or settings
+                        concurrency_options = updated_deployment.concurrency_options
+                        grace_period = None
+                        if concurrency_options is not None:
+                            if isinstance(concurrency_options, dict):
+                                concurrency_options = schemas.core.ConcurrencyOptions.model_validate(
+                                    concurrency_options
+                                )
+                            grace_period = concurrency_options.grace_period_seconds
+                        
+                        if grace_period is None:
+                            settings = get_current_settings()
+                            grace_period = settings.server.concurrency.initial_deployment_lease_duration
+                        
+                        # Process flows up to the limit (or all if limit was just added)
+                        flows_to_process = running_flows
+                        slots_acquired_count = 0
+
+                        if limitation_decreased:
+                            # Only process up to the new limit
+                            flows_to_process = running_flows[:new_limit]
+                        
+                        lease_storage = get_concurrency_lease_storage()
+                        
+                        for flow_run in flows_to_process:
+                            # If limit was decreased, stop once we've reached the new limit
+                            if limitation_decreased and slots_acquired_count >= new_limit:
+                                break
+
+                            # Try to increment active slots
+                            acquired = await concurrency_limits_v2.bulk_increment_active_slots(
+                                session=session,
+                                concurrency_limit_ids=[concurrency_limit_id],
+                                slots=1,
+                            )
+                            
+                            if acquired:
+                                slots_acquired_count += 1
+                                # Create lease for this flow run
+                                _ = await lease_storage.create_lease(
+                                    resource_ids=[concurrency_limit_id],
+                                    metadata=ConcurrencyLimitLeaseMetadata(
+                                        slots=1,
+                                        holder=ConcurrencyLeaseHolder(
+                                            type="flow_run",
+                                            id=str(flow_run.id),
+                                        ),
+                                    ),
+                                    ttl=datetime.timedelta(seconds=grace_period),
+                                )
+                                # Note: We can't store lease_id in flow_run.state since it's already RUNNING
+                                # The lease will be cleaned up when the flow finishes via ReleaseFlowConcurrencySlots
             
 
     if not result:
