@@ -9,124 +9,46 @@ sidebarTitle: scheduler
 
 The Scheduler service.
 
+This service schedules flow runs from deployments with active schedules.
+
+
+## Functions
+
+### `schedule_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+schedule_deployments(perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.scheduler.loop_seconds))) -> None
+```
+
+
+Main scheduler - schedules flow runs from deployments with active schedules.
+
+Schedule flow runs by:
+- Querying for deployments with active schedules
+- Generating the next set of flow runs based on each deployment's schedule
+- Inserting all scheduled flow runs into the database
+
+
+### `schedule_recent_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+schedule_recent_deployments(perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.scheduler.recent_deployments_loop_seconds))) -> None
+```
+
+
+Recent deployments scheduler - schedules deployments that were updated very recently.
+
+This scheduler runs on a tight loop and ensures that runs from newly-created or
+updated deployments are rapidly scheduled without waiting for the main scheduler.
+
+Note that scheduling is idempotent, so it's okay for this scheduler to attempt
+to schedule the same deployments as the main scheduler.
+
 
 ## Classes
 
-### `TryAgain` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TryAgain` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Internal control-flow exception used to retry the Scheduler's main loop
 
-
-### `Scheduler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-
-Schedules flow runs from deployments.
-
-
-**Methods:**
-
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-run_once(self, db: PrefectDBInterface) -> None
-```
-
-Schedule flow runs by:
-
-- Querying for deployments with active schedules
-- Generating the next set of flow runs based on each deployments schedule
-- Inserting all scheduled flow runs into the database
-
-All inserted flow runs are committed to the database at the termination of the
-loop.
-
-
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-run_once(self) -> None
-```
-
-Represents one loop of the service.
-
-Subclasses must override this method.
-
-To actually run the service once, call `LoopService().start(loops=1)`
-instead of `LoopService().run_once()`, because this method will not invoke setup
-and teardown methods properly.
-
-
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-service_settings(cls) -> ServicesBaseSetting
-```
-
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-start(self, loops: None = None) -> NoReturn
-```
-
-Run the service indefinitely.
-
-
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-stop(self, block: bool = True) -> None
-```
-
-Gracefully stops a running LoopService and optionally blocks until the
-service stops.
-
-**Args:**
-- `block`: if True, blocks until the service is
-finished running. Otherwise it requests a stop and returns but
-the service may still be running a final loop.
-
-
-### `RecentDeploymentsScheduler` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-
-Schedules deployments that were updated very recently
-
-This scheduler can run on a tight loop and ensure that runs from
-newly-created or updated deployments are rapidly scheduled without having to
-wait for the "main" scheduler to complete its loop.
-
-Note that scheduling is idempotent, so its ok for this scheduler to attempt
-to schedule the same deployments as the main scheduler. It's purpose is to
-accelerate scheduling for any deployments that users are interacting with.
-
-
-**Methods:**
-
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-run_once(self, db: PrefectDBInterface) -> None
-```
-
-Schedule flow runs by:
-
-- Querying for deployments with active schedules
-- Generating the next set of flow runs based on each deployments schedule
-- Inserting all scheduled flow runs into the database
-
-All inserted flow runs are committed to the database at the termination of the
-loop.
-
-
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-service_settings(cls) -> ServicesBaseSetting
-```
-
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-service_settings(cls) -> ServicesBaseSetting
-```
