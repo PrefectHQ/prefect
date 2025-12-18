@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { formatDistanceStrict } from "date-fns";
 import humanizeDuration from "humanize-duration";
 import { Calendar, ChevronRight, Clock } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	ResponsiveContainer,
 	Scatter,
@@ -203,18 +203,35 @@ const createXAxisTickFormatter = (rangeMs: number, minDeltaMs: number) => {
 			});
 		}
 
-		// If range is less than a day, show time (hours and minutes)
-		if (rangeMs < oneDay) {
+		// For multi-day ranges, show date on day boundaries (midnight) and time otherwise
+		// This follows the Vue implementation pattern from formatLabel
+		if (rangeMs >= oneDay) {
+			// Check if this tick falls on a day boundary (midnight)
+			const isStartOfDay =
+				date.getHours() === 0 &&
+				date.getMinutes() === 0 &&
+				date.getSeconds() === 0 &&
+				date.getMilliseconds() === 0;
+
+			if (isStartOfDay) {
+				// Show date for day boundaries (e.g., "Mon 15" or "Dec 15")
+				return date.toLocaleDateString(undefined, {
+					weekday: "short",
+					day: "numeric",
+				});
+			}
+
+			// Show time for non-boundary ticks
 			return date.toLocaleTimeString(undefined, {
 				hour: "2-digit",
 				minute: "2-digit",
 			});
 		}
 
-		// Otherwise show date
-		return date.toLocaleDateString(undefined, {
-			month: "short",
-			day: "numeric",
+		// If range is less than a day, show time (hours and minutes)
+		return date.toLocaleTimeString(undefined, {
+			hour: "2-digit",
+			minute: "2-digit",
 		});
 	};
 };
@@ -224,6 +241,27 @@ export const FlowRunsScatterPlot = ({
 	startDate,
 	endDate,
 }: FlowRunsScatterPlotProps) => {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [containerWidth, setContainerWidth] = useState(0);
+
+	// Track container width for dynamic tick count calculation
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				setContainerWidth(entry.contentRect.width);
+			}
+		});
+
+		resizeObserver.observe(container);
+		// Set initial width
+		setContainerWidth(container.getBoundingClientRect().width);
+
+		return () => resizeObserver.disconnect();
+	}, []);
+
 	const chartData = useMemo<ChartDataPoint[]>(() => {
 		return history.map((item) => ({
 			x: new Date(item.timestamp).getTime(),
@@ -297,19 +335,94 @@ export const FlowRunsScatterPlot = ({
 		[maxDuration],
 	);
 
+	// Calculate explicit tick values for evenly spaced x-axis ticks
+	// Target ~100px spacing between ticks for visually even distribution
+	// For multi-day ranges, include midnight boundaries to show day changes
+	const xAxisTicks = useMemo(() => {
+		const tickSpacing = 100; // pixels between ticks
+		const chartMargin = 60; // left (40) + right (20) margins from ScatterChart
+		const availableWidth = containerWidth - chartMargin;
+		const tickCount = Math.max(2, Math.ceil(availableWidth / tickSpacing));
+
+		const oneDay = 24 * 60 * 60 * 1000;
+		const rangeMs = xDomainMax - xDomainMin;
+
+		// For multi-day ranges, generate ticks that include midnight boundaries
+		if (rangeMs >= oneDay) {
+			const ticks: number[] = [];
+
+			// Find the first midnight after xDomainMin
+			const startDate = new Date(xDomainMin);
+			const firstMidnight = new Date(startDate);
+			firstMidnight.setHours(24, 0, 0, 0); // Next midnight
+
+			// Add start tick
+			ticks.push(xDomainMin);
+
+			// Add midnight boundaries
+			let currentMidnight = firstMidnight.getTime();
+			while (currentMidnight < xDomainMax) {
+				ticks.push(currentMidnight);
+				currentMidnight += oneDay;
+			}
+
+			// Add end tick if not too close to last tick
+			const lastTick = ticks[ticks.length - 1];
+			if (xDomainMax - lastTick > rangeMs / tickCount / 2) {
+				ticks.push(xDomainMax);
+			}
+
+			// If we have too few ticks, add intermediate ticks between midnights
+			if (ticks.length < tickCount) {
+				const newTicks: number[] = [];
+				for (let i = 0; i < ticks.length - 1; i++) {
+					newTicks.push(ticks[i]);
+					const gap = ticks[i + 1] - ticks[i];
+					const intermediateCount = Math.max(
+						1,
+						Math.floor(gap / (rangeMs / tickCount)),
+					);
+					if (intermediateCount > 1) {
+						const intermediateStep = gap / intermediateCount;
+						for (let j = 1; j < intermediateCount; j++) {
+							newTicks.push(ticks[i] + intermediateStep * j);
+						}
+					}
+				}
+				newTicks.push(ticks[ticks.length - 1]);
+				return newTicks;
+			}
+
+			return ticks;
+		}
+
+		// For single-day ranges, generate evenly spaced ticks
+		const ticks: number[] = [];
+		const step = (xDomainMax - xDomainMin) / (tickCount - 1);
+		for (let i = 0; i < tickCount; i++) {
+			ticks.push(xDomainMin + step * i);
+		}
+		return ticks;
+	}, [containerWidth, xDomainMin, xDomainMax]);
+
 	if (history.length === 0) {
 		return null;
 	}
 
 	return (
-		<div className="hidden md:block w-full h-64" data-testid="scatter-plot">
+		<div
+			ref={containerRef}
+			className="hidden md:block w-full h-64"
+			data-testid="scatter-plot"
+		>
 			<ResponsiveContainer width="100%" height="100%">
-				<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+				<ScatterChart>
 					<XAxis
 						type="number"
 						dataKey="x"
 						scale="time"
 						domain={xDomain}
+						ticks={xAxisTicks}
 						tickFormatter={formatXAxisTick}
 						tick={{ fontSize: 12 }}
 						tickLine={false}
