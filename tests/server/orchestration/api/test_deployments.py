@@ -2563,6 +2563,170 @@ class TestUpdateDeployment:
             in response.json()["exception_detail"][0]["msg"]
         )
 
+    async def test_update_deployment_retroactively_applies_concurrency_limit_to_running_flows(
+        self,
+        client,
+        deployment,
+        session,
+        db,
+    ):
+        """
+        Test for issue #19404: When a concurrency limit is set on a deployment
+        while flows are already RUNNING, those flows should retroactively acquire
+        leases and count toward the limit.
+        """
+        # Create deployment without concurrency limit
+        assert deployment.global_concurrency_limit is None
+
+        # Create 5 flow runs and set them to RUNNING
+        running_flow_runs = []
+        for i in range(5):
+            flow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=deployment.flow_id,
+                    deployment_id=deployment.id,
+                    state=schemas.states.Pending(),
+                ),
+            )
+            # Set to RUNNING state (bypassing orchestration to simulate already running)
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=schemas.states.Running(),
+                force=True,  # Force to bypass orchestration
+            )
+            running_flow_runs.append(flow_run)
+        
+        await session.commit()
+        await session.refresh(deployment)
+
+        # Verify no concurrency limit exists yet
+        assert deployment.global_concurrency_limit is None
+
+        # Update deployment to add concurrency limit of 2
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"concurrency_limit": 2}
+        )
+        assert response.status_code == 204
+
+        # Re-query deployment to get updated concurrency limit
+        # Use a fresh session to avoid cached/stale data
+        async with db.session_context() as fresh_session:
+            updated_deployment = await models.deployments.read_deployment(
+                session=fresh_session, deployment_id=deployment.id
+            )
+
+            # Verify concurrency_limit_id was set
+            assert updated_deployment.concurrency_limit_id is not None, (
+                "concurrency_limit_id should be set after updating deployment"
+            )
+
+            # Verify concurrency limit was created
+            assert updated_deployment.global_concurrency_limit is not None, (
+                "global_concurrency_limit should be created after updating deployment"
+            )
+            assert updated_deployment.global_concurrency_limit.limit == 2
+
+            # Verify that the first 2 RUNNING flows retroactively acquired slots
+            # (the limit is 2, so only 2 slots should be acquired)
+            assert updated_deployment.global_concurrency_limit.active_slots == 2, (
+                f"Expected 2 active slots (first 2 RUNNING flows), "
+                f"but got {updated_deployment.global_concurrency_limit.active_slots}"
+            )
+
+            # Store the concurrency limit ID for use outside this context
+            concurrency_limit_id = updated_deployment.concurrency_limit_id
+
+        # Verify that new flow runs are blocked (limit is reached)
+        # Check if we can acquire a slot (should fail because limit is reached)
+        from prefect.server.models import concurrency_limits_v2
+
+        assert concurrency_limit_id is not None, "Concurrency limit ID should be set"
+
+        acquired = await concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[concurrency_limit_id],
+            slots=1,
+        )
+        assert not acquired, (
+            "New flow run should not be able to acquire a slot "
+            "because the limit (2) is already reached by RUNNING flows"
+        )
+
+    async def test_update_deployment_retroactively_applies_decreased_concurrency_limit(
+        self,
+        client,
+        deployment,
+        session,
+        db,
+    ):
+        """
+        Test that when a concurrency limit is decreased while flows are RUNNING,
+        only flows up to the new limit acquire slots retroactively.
+        """
+        # Create deployment with concurrency limit of 5
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"concurrency_limit": 5}
+        )
+        assert response.status_code == 204
+        async with db.session_context() as fresh_session:
+            temp_deployment = await models.deployments.read_deployment(
+                session=fresh_session, deployment_id=deployment.id
+            )
+            assert temp_deployment.global_concurrency_limit.limit == 5
+
+        # Create 5 flow runs and set them to RUNNING (bypassing orchestration)
+        # These flows won't have slots because they bypassed SecureFlowConcurrencySlots
+        running_flow_runs = []
+        for i in range(5):
+            flow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=deployment.flow_id,
+                    deployment_id=deployment.id,
+                    state=schemas.states.Pending(),
+                ),
+            )
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=schemas.states.Running(),
+                force=True,  # Force to bypass orchestration
+            )
+            running_flow_runs.append(flow_run)
+
+        await session.commit()
+
+        # Verify no slots were acquired initially (because we used force=True)
+        # Note: If slots were acquired, that's okay - the important part is testing
+        # that after decreasing the limit, only the first N flows have slots
+
+        # Decrease concurrency limit to 2
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json={"concurrency_limit": 2}
+        )
+        assert response.status_code == 204
+
+        # Re-query deployment to get updated concurrency limit
+        # Use a fresh session to avoid cached/stale data
+        async with db.session_context() as fresh_session:
+            updated_deployment = await models.deployments.read_deployment(
+                session=fresh_session, deployment_id=deployment.id
+            )
+
+            # Verify concurrency_limit_id was set
+            assert updated_deployment.concurrency_limit_id is not None
+
+            # Verify limit was decreased
+            assert updated_deployment.global_concurrency_limit.limit == 2
+
+            # Verify that the first 2 RUNNING flows retroactively acquired slots
+            assert updated_deployment.global_concurrency_limit.active_slots == 2, (
+                f"Expected 2 active slots (first 2 RUNNING flows after limit decrease), "
+                f"but got {updated_deployment.global_concurrency_limit.active_slots}"
+            )
+
 
 class TestGetScheduledFlowRuns:
     @pytest.fixture

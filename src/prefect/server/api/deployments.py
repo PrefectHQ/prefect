@@ -3,6 +3,7 @@ Routes for interacting with Deployment objects.
 """
 
 import datetime
+import logging
 from typing import List, Optional
 from uuid import UUID
 
@@ -14,6 +15,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.starlette import status
+from prefect.logging import get_logger
 from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
@@ -46,6 +48,8 @@ from prefect.server.models import concurrency_limits_v2
 from prefect.settings import get_current_settings
 
 router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
+
+logger: logging.Logger = get_logger(__name__)
 
 
 def _multiple_schedules_error(deployment_id) -> HTTPException:
@@ -343,6 +347,17 @@ async def update_deployment(
                     detail="Concurrency limit not found",
                 )
 
+        # IMPLEMENTATION FOR ISSUE 19404
+        # Capture previous limit value BEFORE update_deployment modifies it
+        update_dict = deployment.model_dump(exclude_unset=True)
+        concurrency_limit_was_provided = "concurrency_limit" in update_dict
+
+        previous_limit_value = None
+        if concurrency_limit_was_provided:
+            # Get the previous limit value BEFORE update_deployment modifies it
+            if existing_deployment.global_concurrency_limit:
+                previous_limit_value = existing_deployment.global_concurrency_limit.limit
+
         result = await models.deployments.update_deployment(
             session=session,
             deployment_id=deployment_id,
@@ -371,33 +386,45 @@ async def update_deployment(
                 ],
             )
 
-        # IMPLEMENTATION FOR ISSUE 19404
-        update_dict = deployment.model_dump(exclude_unset=True)
-        concurrency_limit_was_provided = "concurrency_limit" in update_dict
-
+        # Continue with retroactive lease acquisition
         if concurrency_limit_was_provided:
-            # Get the previous limit value (or None if no limit existed)
-            previous_limit_value = None
-            if existing_deployment.global_concurrency_limit:
-                previous_limit_value = existing_deployment.global_concurrency_limit.limit
             
             new_limit_value = deployment.concurrency_limit
             limitation_added = previous_limit_value is None and new_limit_value is not None
             limitation_decreased = (previous_limit_value is not None 
             and new_limit_value is not None 
             and previous_limit_value > new_limit_value)
+            
             # Only care about cases where we need to retroactively apply limits
             # One of them once the new limitations added to previous one
             # Another one related to more limitations (decreament) on the new deployment
             if limitation_added or limitation_decreased:
-                # Refresh deployment to get updated concurrency_limit_id
+                # Flush session to ensure concurrency_limit_id is set after update_deployment
+                # This ensures any new ConcurrencyLimitV2 objects get their IDs
+                await session.flush()
+
+                # Refresh deployment to get updated concurrency_limit_id and relationship
+                # Refresh entire object to avoid greenlet errors when accessing attributes
                 await session.refresh(existing_deployment)
-                updated_deployment = await models.deployments.read_deployment(
-                    session=session,
-                    deployment_id=deployment_id
-                )
+                updated_deployment = existing_deployment
                 
-                if updated_deployment and updated_deployment.concurrency_limit_id:
+                # Get concurrency_limit_id - try FK first, then relationship object
+                concurrency_limit_id = None
+                if updated_deployment:
+                    if updated_deployment.concurrency_limit_id:
+                        concurrency_limit_id = updated_deployment.concurrency_limit_id
+                    elif updated_deployment.global_concurrency_limit:
+                        # If FK not set yet, get ID from relationship object
+                        # (happens when new limit was just created)
+                        concurrency_limit_id = updated_deployment.global_concurrency_limit.id
+                    
+                    if not concurrency_limit_id:
+                        logger.error(
+                            f"Deployment {deployment_id} has no concurrency_limit_id after update. "
+                            f"global_concurrency_limit exists: {updated_deployment.global_concurrency_limit is not None}"
+                        )
+                
+                if updated_deployment and concurrency_limit_id:
                     # Query RUNNING flows for this deployment
                     running_flows = await models.flow_runs.read_flow_runs(
                         session=session,
@@ -415,7 +442,6 @@ async def update_deployment(
                     
                     # Retroactively acquire leases for RUNNING flows
                     if running_flows:
-                        concurrency_limit_id = updated_deployment.concurrency_limit_id
                         new_limit = new_limit_value
                         
                         # Get grace period from deployment options or settings
