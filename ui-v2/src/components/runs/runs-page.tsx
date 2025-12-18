@@ -225,15 +225,15 @@ export const RunsPage = ({
 				/>
 			</div>
 			<div className="flex flex-col gap-2">
-				<div className="flex flex-wrap gap-2 md:grid md:grid-flow-col md:auto-cols-fr">
-					<div className="flex flex-col gap-1 w-full md:w-auto">
+				<div className="flex flex-wrap gap-2 lg:grid lg:grid-flow-col lg:auto-cols-fr">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
 						<Label className="text-xs text-muted-foreground">Date Range</Label>
 						<DateRangeFilter
 							value={dateRange}
 							onValueChange={onDateRangeChange}
 						/>
 					</div>
-					<div className="flex flex-col gap-1 w-full md:w-auto">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
 						<Label className="text-xs text-muted-foreground">States</Label>
 						<StateFilter
 							selectedFilters={selectedStates}
