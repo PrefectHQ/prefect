@@ -10,79 +10,44 @@ sidebarTitle: cancellation_cleanup
 The CancellationCleanup service. Responsible for cancelling tasks and subflows that haven't finished.
 
 
-## Classes
+## Functions
 
-### `CancellationCleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-
-Cancels tasks and subflows of flow runs that have been cancelled
-
-
-**Methods:**
-
-#### `clean_up_cancelled_flow_run_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `cancel_child_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-clean_up_cancelled_flow_run_task_runs(self, db: PrefectDBInterface) -> None
+cancel_child_task_runs(flow_run_id: Annotated[UUID, Logged]) -> None
 ```
 
-#### `clean_up_cancelled_subflow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+Cancel child task runs of a cancelled flow run (docket task).
+
+
+### `cancel_subflow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-clean_up_cancelled_subflow_runs(self, db: PrefectDBInterface) -> None
+cancel_subflow_run(subflow_run_id: Annotated[UUID, Logged]) -> None
 ```
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+Cancel a subflow run whose parent flow run was cancelled (docket task).
+
+
+### `monitor_cancelled_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_once(self, db: PrefectDBInterface) -> None
+monitor_cancelled_flow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None
 ```
 
-- cancels active tasks belonging to recently cancelled flow runs
-- cancels any active subflow that belongs to a cancelled flow
+
+Monitor for cancelled flow runs and schedule child task cancellation.
 
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `monitor_subflow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_once(self) -> None
+monitor_subflow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None
 ```
 
-Represents one loop of the service.
 
-Subclasses must override this method.
-
-To actually run the service once, call `LoopService().start(loops=1)`
-instead of `LoopService().run_once()`, because this method will not invoke setup
-and teardown methods properly.
-
-
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-service_settings(cls) -> ServicesBaseSetting
-```
-
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-start(self, loops: None = None) -> NoReturn
-```
-
-Run the service indefinitely.
-
-
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-stop(self, block: bool = True) -> None
-```
-
-Gracefully stops a running LoopService and optionally blocks until the
-service stops.
-
-**Args:**
-- `block`: if True, blocks until the service is
-finished running. Otherwise it requests a stop and returns but
-the service may still be running a final loop.
+Monitor for subflow runs that need to be cancelled.
 

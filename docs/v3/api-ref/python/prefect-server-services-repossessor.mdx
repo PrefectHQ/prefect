@@ -5,63 +5,29 @@ sidebarTitle: repossessor
 
 # `prefect.server.services.repossessor`
 
-## Classes
-
-### `Repossessor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
-Handles the reconciliation of expired leases; no tow truck dependency.
+The Repossessor service. Handles reconciliation of expired concurrency leases.
 
 
-**Methods:**
+## Functions
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `revoke_expired_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_once(self) -> None
+revoke_expired_lease(lease_id: Annotated[UUID, Logged]) -> None
 ```
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+Revoke a single expired lease (docket task).
+
+
+### `monitor_expired_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_once(self) -> None
+monitor_expired_leases(docket: Docket = CurrentDocket(), lease_storage: ConcurrencyLeaseStorage = Depends(get_concurrency_lease_storage), perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.repossessor.loop_seconds))) -> None
 ```
 
-Represents one loop of the service.
 
-Subclasses must override this method.
-
-To actually run the service once, call `LoopService().start(loops=1)`
-instead of `LoopService().run_once()`, because this method will not invoke setup
-and teardown methods properly.
-
-
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-service_settings(cls) -> ServicesBaseSetting
-```
-
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-start(self, loops: None = None) -> NoReturn
-```
-
-Run the service indefinitely.
-
-
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-stop(self, block: bool = True) -> None
-```
-
-Gracefully stops a running LoopService and optionally blocks until the
-service stops.
-
-**Args:**
-- `block`: if True, blocks until the service is
-finished running. Otherwise it requests a stop and returns but
-the service may still be running a final loop.
+Monitor for expired leases and schedule revocation tasks.
 
