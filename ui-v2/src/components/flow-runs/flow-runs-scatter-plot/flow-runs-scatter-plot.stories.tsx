@@ -1,7 +1,10 @@
 import { randPastDate } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { ComponentProps } from "react";
-import { createFakeSimpleFlowRuns } from "@/mocks";
+import {
+	createFakeSimpleFlowRuns,
+	createFakeSimpleFlowRunsMultiDay,
+} from "@/mocks";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { FlowRunsScatterPlot } from ".";
 
@@ -51,5 +54,28 @@ export const FewDataPoints: Story = {
 		startDate: randPastDate({ years: 0.1 }),
 		endDate: new Date(),
 		history: createFakeSimpleFlowRuns(5),
+	},
+};
+
+/**
+ * Multi-day story to test x-axis formatting when the time range spans multiple days.
+ * Day boundaries (midnight) should show the date (e.g., "Mon 15") while other ticks show time.
+ */
+export const MultiDay: Story = {
+	args: {
+		startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+		endDate: new Date(),
+		history: createFakeSimpleFlowRunsMultiDay(30, 3),
+	},
+};
+
+/**
+ * Week-long story to test x-axis formatting over a longer time range.
+ */
+export const WeekLong: Story = {
+	args: {
+		startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+		endDate: new Date(),
+		history: createFakeSimpleFlowRunsMultiDay(50, 7),
 	},
 };
