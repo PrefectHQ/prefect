@@ -212,43 +212,8 @@ export const RunsPage = ({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<RunsHeader />
-			<div className="flex items-center gap-4">
-				<div className="w-64">
-					<StateFilter
-						selectedFilters={selectedStates}
-						onSelectFilter={onStateFilterChange}
-					/>
-				</div>
-				<div className="w-64">
-					<FlowFilter
-						selectedFlows={selectedFlows}
-						onSelectFlows={onFlowFilterChange}
-					/>
-				</div>
-				<div className="w-64">
-					<DeploymentFilter
-						selectedDeployments={selectedDeployments}
-						onSelectDeployments={onDeploymentFilterChange}
-					/>
-				</div>
-				<div className="w-64">
-					<TagsInput
-						value={Array.from(selectedTags)}
-						onChange={(e: string[] | ChangeEvent<HTMLInputElement>) => {
-							const tags = Array.isArray(e) ? e : [];
-							onTagsFilterChange(new Set(tags));
-						}}
-						placeholder="Filter by tags"
-					/>
-				</div>
-				<div className="w-64">
-					<WorkPoolFilter
-						selectedWorkPools={selectedWorkPools}
-						onSelectWorkPools={onWorkPoolFilterChange}
-					/>
-				</div>
-				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
+			<div className="flex items-center justify-between">
+				<RunsHeader />
 				<SavedFiltersMenu
 					currentFilter={currentFilter}
 					savedFilters={savedFilters}
@@ -258,6 +223,58 @@ export const RunsPage = ({
 					onSetDefault={onSetDefault}
 					onRemoveDefault={onRemoveDefault}
 				/>
+			</div>
+			<div className="flex flex-col gap-2">
+				<div className="flex flex-wrap gap-2 lg:grid lg:grid-flow-col lg:auto-cols-fr">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Date Range</Label>
+						<DateRangeFilter
+							value={dateRange}
+							onValueChange={onDateRangeChange}
+						/>
+					</div>
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">States</Label>
+						<StateFilter
+							selectedFilters={selectedStates}
+							onSelectFilter={onStateFilterChange}
+						/>
+					</div>
+				</div>
+				<div className="flex flex-wrap gap-2 lg:grid lg:grid-flow-col lg:auto-cols-fr">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Flows</Label>
+						<FlowFilter
+							selectedFlows={selectedFlows}
+							onSelectFlows={onFlowFilterChange}
+						/>
+					</div>
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Deployments</Label>
+						<DeploymentFilter
+							selectedDeployments={selectedDeployments}
+							onSelectDeployments={onDeploymentFilterChange}
+						/>
+					</div>
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Work Pools</Label>
+						<WorkPoolFilter
+							selectedWorkPools={selectedWorkPools}
+							onSelectWorkPools={onWorkPoolFilterChange}
+						/>
+					</div>
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Tags</Label>
+						<TagsInput
+							value={Array.from(selectedTags)}
+							onChange={(e: string[] | ChangeEvent<HTMLInputElement>) => {
+								const tags = Array.isArray(e) ? e : [];
+								onTagsFilterChange(new Set(tags));
+							}}
+							placeholder="All tags"
+						/>
+					</div>
+				</div>
 			</div>
 			<SaveFilterDialog
 				open={isSaveDialogOpen}
