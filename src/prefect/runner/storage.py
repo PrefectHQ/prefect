@@ -919,7 +919,36 @@ def _format_token_from_credentials(
     if username:
         return f"{username}:{user_provided_token}"
 
-    # Fallback for plain dict credentials without a block
+    # Netloc-based provider detection for dict credentials (e.g., from YAML block references).
+    # When credentials come from deployment YAML like:
+    #   credentials: "{{ prefect.blocks.gitlab-credentials.my-block }}"
+    # they resolve to dicts, not Block instances, so the protocol check above doesn't apply.
+    # This provides sensible defaults for common git providers.
+    if "bitbucketserver" in netloc:
+        if ":" not in user_provided_token:
+            raise ValueError(
+                "Please provide a `username` and a `password` or `token` in your"
+                " BitBucketCredentials block to clone a repo from BitBucket Server."
+            )
+        return user_provided_token
+
+    elif "bitbucket" in netloc:
+        if (
+            user_provided_token.startswith("x-token-auth:")
+            or ":" in user_provided_token
+        ):
+            return user_provided_token
+        return f"x-token-auth:{user_provided_token}"
+
+    elif "gitlab" in netloc:
+        if user_provided_token.startswith("oauth2:"):
+            return user_provided_token
+        # Deploy tokens contain ":" (username:token format) and should not get oauth2: prefix
+        if ":" in user_provided_token:
+            return user_provided_token
+        return f"oauth2:{user_provided_token}"
+
+    # GitHub and other providers: plain token
     return user_provided_token
 
 
