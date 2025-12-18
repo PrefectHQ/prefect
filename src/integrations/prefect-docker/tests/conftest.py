@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import contextmanager
-from typing import Generator, Optional
+from typing import Generator
 from unittest.mock import MagicMock, patch
 
 from anyio import to_thread
@@ -21,7 +21,7 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def test_database_connection_url() -> Optional[str]:
+def test_database_connection_url() -> str | None:
     """
     Provide a test database connection URL fixture.
 
