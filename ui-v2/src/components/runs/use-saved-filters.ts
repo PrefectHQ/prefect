@@ -3,7 +3,10 @@ import type {
 	DateRangePreset,
 	DateRangeUrlState,
 } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/date-range-url-state";
-import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import {
+	FLOW_RUN_STATES_WITHOUT_SCHEDULED,
+	type FlowRunState,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
 /**
@@ -22,6 +25,52 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
  */
 const SAVED_FILTERS_STORAGE_KEY = "prefect-ui-v2-saved-filters";
 const DEFAULT_FILTER_ID_STORAGE_KEY = "prefect-ui-v2-default-filter-id";
+
+/**
+ * System filter IDs - prefixed to distinguish from user-generated IDs.
+ * These filters are always available and cannot be deleted.
+ */
+export const SYSTEM_FILTER_PAST_WEEK_ID = "system-past-week";
+export const SYSTEM_FILTER_HIDE_SCHEDULED_ID = "system-hide-scheduled";
+
+/**
+ * Checks if a filter ID belongs to a system filter.
+ * System filters cannot be deleted or modified.
+ */
+export function isSystemFilter(id: string | null): boolean {
+	return (
+		id === SYSTEM_FILTER_PAST_WEEK_ID || id === SYSTEM_FILTER_HIDE_SCHEDULED_ID
+	);
+}
+
+/**
+ * System filters that are always available in the saved filters menu.
+ * These match the Vue UI's systemSavedSearches from prefect-ui-library.
+ *
+ * - "Past week": Default filter applied on page load, filters to last 7 days
+ * - "Hide scheduled runs": Filters to last 7 days and excludes scheduled-type states
+ */
+export const SYSTEM_FILTERS: SavedFilter[] = [
+	{
+		id: SYSTEM_FILTER_PAST_WEEK_ID,
+		name: "Past week",
+		filters: { range: "past-7-days" },
+	},
+	{
+		id: SYSTEM_FILTER_HIDE_SCHEDULED_ID,
+		name: "Hide scheduled runs",
+		filters: {
+			range: "past-7-days",
+			state: [...FLOW_RUN_STATES_WITHOUT_SCHEDULED],
+		},
+	},
+];
+
+/**
+ * The default system filter to apply when no filters are active and no user default is set.
+ * Matches Vue's systemDefaultSavedSearch.
+ */
+export const SYSTEM_DEFAULT_FILTER = SYSTEM_FILTERS[0];
 
 /**
  * Filter values stored in a SavedFilter.
@@ -218,14 +267,20 @@ export type UseSavedFiltersReturn = {
  * 3. Map URL param names using URL_PARAM_TO_FILTER_KEY_MAP / FILTER_KEY_TO_URL_PARAM_MAP
  */
 export function useSavedFilters(): UseSavedFiltersReturn {
-	const [savedFilters, setSavedFilters] = useLocalStorage<SavedFilter[]>(
-		SAVED_FILTERS_STORAGE_KEY,
-		[],
-	);
+	const [userSavedFilters, setUserSavedFilters] = useLocalStorage<
+		SavedFilter[]
+	>(SAVED_FILTERS_STORAGE_KEY, []);
 
 	const [defaultFilterId, setDefaultFilterId] = useLocalStorage<string | null>(
 		DEFAULT_FILTER_ID_STORAGE_KEY,
 		null,
+	);
+
+	// Combine system filters with user-saved filters
+	// System filters appear first, followed by user-saved filters
+	const savedFilters = useMemo(
+		() => [...SYSTEM_FILTERS, ...userSavedFilters],
+		[userSavedFilters],
 	);
 
 	const saveFilter = useCallback(
@@ -235,23 +290,23 @@ export function useSavedFilters(): UseSavedFiltersReturn {
 				name: filterCreate.name,
 				filters: filterCreate.filters,
 			};
-			setSavedFilters((prev) => [...prev, newFilter]);
+			setUserSavedFilters((prev) => [...prev, newFilter]);
 			return newFilter;
 		},
-		[setSavedFilters],
+		[setUserSavedFilters],
 	);
 
 	const deleteFilter = useCallback(
 		(filterId: string): void => {
-			setSavedFilters((prev) => prev.filter((f) => f.id !== filterId));
+			setUserSavedFilters((prev) => prev.filter((f) => f.id !== filterId));
 			setDefaultFilterId((prev) => (prev === filterId ? null : prev));
 		},
-		[setSavedFilters, setDefaultFilterId],
+		[setUserSavedFilters, setDefaultFilterId],
 	);
 
 	const updateFilter = useCallback(
 		(filterId: string, updates: Partial<SavedFilterCreate>): void => {
-			setSavedFilters((prev) =>
+			setUserSavedFilters((prev) =>
 				prev.map((f) =>
 					f.id === filterId
 						? {
@@ -265,7 +320,7 @@ export function useSavedFilters(): UseSavedFiltersReturn {
 				),
 			);
 		},
-		[setSavedFilters],
+		[setUserSavedFilters],
 	);
 
 	const setDefaultFilter = useCallback(
