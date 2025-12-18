@@ -242,13 +242,20 @@ async def test_uses_image_setting(
     assert call_image == "foo"
 
 
-async def test_uses_credentials(
+async def test_uses_credentials_when_pulling_image(
     mock_docker_client,
     flow_run,
     default_docker_worker_job_configuration,
-    registry_credentials,
 ):
-    default_docker_worker_job_configuration.registry_credentials = registry_credentials
+    """Test that credentials are used when an image pull is required."""
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+    # Use "latest" tag which triggers a pull by default
+    default_docker_worker_job_configuration.image = "prefect:latest"
+    default_docker_worker_job_configuration.registry_credentials = credentials
     async with DockerWorker(work_pool_name="test") as worker:
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
@@ -259,6 +266,98 @@ async def test_uses_credentials(
         registry="registry.hub.docker.com",
         reauth=True,
     )
+    mock_docker_client.images.pull.assert_called_once()
+
+
+async def test_does_not_login_when_image_exists_locally(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+):
+    """Test that login is skipped when image already exists locally.
+
+    This improves resilience when registries are unavailable, as flows
+    can still run using cached images without requiring authentication.
+    See: https://github.com/PrefectHQ/prefect/issues/19865
+    """
+    from docker.models.images import Image
+
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+
+    # Image exists locally
+    mock_docker_client.images.get.return_value = Image()
+
+    # Use a non-latest tag with IF_NOT_PRESENT policy (the default for non-latest tags)
+    default_docker_worker_job_configuration.image = "prefect:omega"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    # Login should NOT be called since the image exists locally
+    mock_docker_client.login.assert_not_called()
+    # Image should NOT be pulled
+    mock_docker_client.images.pull.assert_not_called()
+
+
+async def test_does_not_login_when_pull_policy_is_never(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+):
+    """Test that login is skipped when pull policy is NEVER."""
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+    default_docker_worker_job_configuration.image_pull_policy = "Never"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    # Login should NOT be called since we never pull
+    mock_docker_client.login.assert_not_called()
+    mock_docker_client.images.pull.assert_not_called()
+
+
+async def test_uses_credentials_with_always_pull_policy(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+):
+    """Test that credentials are used when pull policy is ALWAYS."""
+    from docker.models.images import Image
+
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+
+    # Even if image exists locally
+    mock_docker_client.images.get.return_value = Image()
+
+    default_docker_worker_job_configuration.image = "prefect:omega"
+    default_docker_worker_job_configuration.image_pull_policy = "Always"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    # Login SHOULD be called because we always pull
+    mock_docker_client.login.assert_called_once_with(
+        username="my_username",
+        password="my_password",
+        registry="registry.hub.docker.com",
+        reauth=True,
+    )
+    mock_docker_client.images.pull.assert_called_once()
 
 
 async def test_uses_volumes_setting(

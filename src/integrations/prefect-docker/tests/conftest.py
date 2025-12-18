@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import contextmanager
-from typing import Generator
+from typing import Generator, Optional
 from unittest.mock import MagicMock, patch
 
 from anyio import to_thread
@@ -18,6 +18,18 @@ with silence_docker_warnings():
     from docker.models.containers import Container
 
 import pytest
+
+
+@pytest.fixture(scope="session")
+def test_database_connection_url() -> Optional[str]:
+    """
+    Provide a test database connection URL fixture.
+
+    This fixture is required by hosted_api_server from prefect.testing.fixtures.
+    For the prefect-docker integration tests, we don't need a real database URL
+    since most tests use mocked Docker clients and don't require a running server.
+    """
+    return None
 
 
 @pytest.fixture(scope="session", autouse=True)
