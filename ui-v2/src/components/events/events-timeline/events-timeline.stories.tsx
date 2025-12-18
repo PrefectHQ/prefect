@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "storybook/test";
 import type { components } from "@/api/prefect";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { EventsTimeline } from "./events-timeline";
@@ -107,13 +106,6 @@ type Story = StoryObj<typeof EventsTimeline>;
 export const Default: Story = {
 	args: {
 		events: MOCK_EVENTS,
-	},
-};
-
-export const WithCallbacks: Story = {
-	args: {
-		events: MOCK_EVENTS,
-		onEventClick: fn(),
 	},
 };
 
