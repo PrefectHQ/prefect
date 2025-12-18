@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { formatDistanceStrict } from "date-fns";
 import humanizeDuration from "humanize-duration";
 import { Calendar, ChevronRight, Clock } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	ResponsiveContainer,
 	Scatter,
@@ -224,6 +224,27 @@ export const FlowRunsScatterPlot = ({
 	startDate,
 	endDate,
 }: FlowRunsScatterPlotProps) => {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [containerWidth, setContainerWidth] = useState(0);
+
+	// Track container width for dynamic tick count calculation
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				setContainerWidth(entry.contentRect.width);
+			}
+		});
+
+		resizeObserver.observe(container);
+		// Set initial width
+		setContainerWidth(container.getBoundingClientRect().width);
+
+		return () => resizeObserver.disconnect();
+	}, []);
+
 	const chartData = useMemo<ChartDataPoint[]>(() => {
 		return history.map((item) => ({
 			x: new Date(item.timestamp).getTime(),
@@ -297,12 +318,26 @@ export const FlowRunsScatterPlot = ({
 		[maxDuration],
 	);
 
+	// Calculate dynamic tick count based on chart width (matching Vue implementation)
+	// Target ~100px spacing between ticks for visually even distribution
+	const xAxisTickCount = useMemo(() => {
+		const tickSpacing = 100; // pixels between ticks (matching Vue implementation)
+		const chartMargin = 60; // left (40) + right (20) margins from ScatterChart
+		const availableWidth = containerWidth - chartMargin;
+		const ticks = availableWidth / tickSpacing;
+		return Math.max(2, Math.ceil(ticks));
+	}, [containerWidth]);
+
 	if (history.length === 0) {
 		return null;
 	}
 
 	return (
-		<div className="hidden md:block w-full h-64" data-testid="scatter-plot">
+		<div
+			ref={containerRef}
+			className="hidden md:block w-full h-64"
+			data-testid="scatter-plot"
+		>
 			<ResponsiveContainer width="100%" height="100%">
 				<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
 					<XAxis
@@ -310,6 +345,7 @@ export const FlowRunsScatterPlot = ({
 						dataKey="x"
 						scale="time"
 						domain={xDomain}
+						tickCount={xAxisTickCount}
 						tickFormatter={formatXAxisTick}
 						tick={{ fontSize: 12 }}
 						tickLine={false}
