@@ -336,9 +336,6 @@ async def update_deployment(
                     detail="Concurrency limit not found",
                 )
 
-        # MY ENTRY POINT
-
-
         result = await models.deployments.update_deployment(
             session=session,
             deployment_id=deployment_id,
@@ -366,6 +363,33 @@ async def update_deployment(
                     for schedule in schedules_to_create
                 ],
             )
+
+        # IMPLEMENTATION FOR ISSUE 19404
+        update_dict = deployment.model_dump(exclude_unset=True)
+        concurrency_limit_was_provided = "concurrency_limit" in update_dict
+
+        if concurrency_limit_was_provided:
+            # Get the previous limit value (or None if no limit existed)
+            previous_limit_value = None
+            if existing_deployment.global_concurrency_limit:
+                previous_limit_value = existing_deployment.global_concurrency_limit.limit
+            
+            new_limit_value = deployment.concurrency_limit
+            limitation_added = previous_limit_value is None and new_limit_value is not None
+            limitation_decreased = (previous_limit_value is not None 
+            and new_limit_value is not None 
+            and previous_limit_value > new_limit_value)
+            # Only care about cases where we need to retroactively apply limits
+            # One of them once the new limitations added to previous one
+            # Another one related to more limitations (decreament) on the new deployment
+            if limitation_added or limitation_decreased:
+                # TODO: Query RUNNING flows and retroactively acquire leases
+                if limitation_added:
+                    print("Added - need to apply to RUNNING flows")
+                else:
+                    print("Decreased - need to check RUNNING flows")
+            
+
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
