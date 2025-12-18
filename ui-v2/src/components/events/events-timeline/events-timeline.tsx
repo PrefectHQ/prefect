@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -28,14 +29,12 @@ type Event = components["schemas"]["ReceivedEvent"];
 
 type EventsTimelineProps = {
 	events: Event[];
-	onEventClick?: (eventName: string) => void;
 	className?: string;
 };
 
 type EventTimelineItemProps = {
 	event: Event;
 	isLast: boolean;
-	onEventClick?: (eventName: string) => void;
 };
 
 function EventTimestamp({ occurred }: { occurred: string }) {
@@ -74,28 +73,37 @@ function TimelinePoint({ event, isLast }: { event: Event; isLast: boolean }) {
 	);
 }
 
+/**
+ * Formats a Date object as YYYY-MM-DD for use in route parameters.
+ */
+function formatRouteDate(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
 function EventNameWithPrefixes({
+	eventId,
 	eventName,
-	onEventClick,
+	occurred,
 }: {
+	eventId: string;
 	eventName: string;
-	onEventClick?: (eventName: string) => void;
+	occurred: string;
 }) {
 	const label = formatEventLabel(eventName);
+	const eventDate = formatRouteDate(new Date(occurred));
 
 	return (
 		<div className="flex flex-col gap-0.5">
-			{onEventClick ? (
-				<button
-					type="button"
-					onClick={() => onEventClick(eventName)}
-					className="text-left font-medium hover:underline"
-				>
-					{label}
-				</button>
-			) : (
-				<span className="font-medium">{label}</span>
-			)}
+			<Link
+				to="/events/event/$eventDate/$eventId"
+				params={{ eventDate, eventId }}
+				className="text-left font-medium hover:underline"
+			>
+				{label}
+			</Link>
 			<span className="text-xs text-muted-foreground font-mono">
 				{eventName}
 			</span>
@@ -185,11 +193,7 @@ function EventRelatedResources({
 	);
 }
 
-function EventTimelineItem({
-	event,
-	isLast,
-	onEventClick,
-}: EventTimelineItemProps) {
+function EventTimelineItem({ event, isLast }: EventTimelineItemProps) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (
@@ -206,8 +210,9 @@ function EventTimelineItem({
 					<CardHeader className="py-0">
 						<div className="flex flex-col gap-3">
 							<EventNameWithPrefixes
+								eventId={event.id}
 								eventName={event.event}
-								onEventClick={onEventClick}
+								occurred={event.occurred}
 							/>
 							<EventResourceDisplay event={event} />
 							{event.related && event.related.length > 0 && (
@@ -251,11 +256,7 @@ function EventTimelineItem({
 	);
 }
 
-export function EventsTimeline({
-	events,
-	onEventClick,
-	className,
-}: EventsTimelineProps) {
+export function EventsTimeline({ events, className }: EventsTimelineProps) {
 	if (!events || events.length === 0) {
 		return null;
 	}
@@ -267,7 +268,6 @@ export function EventsTimeline({
 					<EventTimelineItem
 						event={event}
 						isLast={index === events.length - 1}
-						onEventClick={onEventClick}
 					/>
 				</li>
 			))}
