@@ -3,7 +3,7 @@ import io
 import json
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generic, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -30,10 +30,27 @@ class MyModel(BaseModel):
     y: uuid.UUID
 
 
+T = TypeVar("T")
+
+
+class GenericResult(BaseModel, Generic[T]):
+    """Generic model for testing JSON serialization of parameterized types."""
+
+    data: T | None = None
+    message: str = ""
+
+
 @dataclass
 class MyDataclass:
     x: int
     y: str
+
+
+@dataclass
+class GenericDataclass(Generic[T]):
+    """Generic dataclass for testing non-Pydantic generic serialization."""
+
+    data: T
 
 
 @dataclass
@@ -386,6 +403,48 @@ class TestJSONSerializer:
     def test_does_not_allow_default_collision(self):
         with pytest.raises(ValidationError):
             JSONSerializer(dumps_kwargs={"default": "foo"})
+
+    def test_pydantic_generic_model_roundtrip(self):
+        """Test that Pydantic generic models with type parameters can be serialized.
+
+        Regression test for: https://github.com/PrefectHQ/prefect/issues/XXXX
+
+        When using parameterized generics like `APIResult[str]`, the class name
+        includes brackets which cannot be imported. The serializer should extract
+        the origin class for proper roundtrip serialization.
+        """
+        serializer = JSONSerializer()
+
+        # Test with concrete type parameter
+        result = GenericResult[str](data="hello", message="success")
+        serialized = serializer.dumps(result)
+
+        # Verify the serialized class name doesn't include type parameters
+        decoded = json.loads(serialized)
+        assert "[" not in decoded["__class__"], (
+            f"Class name should not contain brackets: {decoded['__class__']}"
+        )
+
+        # Verify roundtrip works
+        loaded = serializer.loads(serialized)
+        assert loaded.data == "hello"
+        assert loaded.message == "success"
+
+    def test_dataclass_generic_model_roundtrip(self):
+        """Test that non-Pydantic generic models still work correctly.
+
+        Ensures the fix for Pydantic generics doesn't break standard
+        Generic dataclasses, which don't have the bracketed name issue.
+        """
+        serializer = JSONSerializer()
+
+        # Non-Pydantic generics don't create distinct classes per parameterization
+        result = GenericDataclass[str](data="hello")
+        serialized = serializer.dumps(result)
+
+        # Verify roundtrip works
+        loaded = serializer.loads(serialized)
+        assert loaded.data == "hello"
 
 
 class TestCompressedSerializer:

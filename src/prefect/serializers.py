@@ -41,6 +41,21 @@ D = TypeVar("D", default=Any)
 _TYPE_ADAPTER_CACHE: dict[str, TypeAdapter[Any]] = {}
 
 
+def _get_importable_class(cls: type) -> type:
+    """
+    Get an importable class from a potentially parameterized generic.
+
+    For Pydantic generic models like `APIResult[str]`, the class name includes
+    type parameters (e.g., `APIResult[str]`) which cannot be imported. This
+    function extracts the origin class (e.g., `APIResult`) which can be imported.
+    """
+    if hasattr(cls, "__pydantic_generic_metadata__"):
+        origin = cls.__pydantic_generic_metadata__.get("origin")
+        if origin is not None:
+            return origin
+    return cls
+
+
 def prefect_json_object_encoder(obj: Any) -> Any:
     """
     `JSONEncoder.default` for encoding objects into JSON with extended type support.
@@ -58,8 +73,9 @@ def prefect_json_object_encoder(obj: Any) -> Any:
             ),
         }
     else:
+        importable_class = _get_importable_class(obj.__class__)
         return {
-            "__class__": to_qualified_name(obj.__class__),
+            "__class__": to_qualified_name(importable_class),
             "data": custom_pydantic_encoder({}, obj),
         }
 
