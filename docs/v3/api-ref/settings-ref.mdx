@@ -2391,6 +2391,30 @@ The number of task runs the task run recorder will attempt to read from the mess
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE`
 
+### `batch_size`
+The number of task runs the task run recorder will attempt to insert in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.task_run_recorder.batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE`
+
+### `flush_interval`
+The maximum number of seconds between flushes of the task run recorder.
+
+**Type**: `number`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.services.task_run_recorder.flush_interval`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_FLUSH_INTERVAL`
+
 ---
 ## ServerServicesTriggersSettings
 Settings for controlling the triggers service

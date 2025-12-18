@@ -1275,6 +1275,7 @@
                           "v3/api-ref/python/prefect-server-services-foreman",
                           "v3/api-ref/python/prefect-server-services-late_runs",
                           "v3/api-ref/python/prefect-server-services-pause_expirations",
+                          "v3/api-ref/python/prefect-server-services-perpetual_services",
                           "v3/api-ref/python/prefect-server-services-repossessor",
                           "v3/api-ref/python/prefect-server-services-scheduler",
                           "v3/api-ref/python/prefect-server-services-task_run_recorder",
