@@ -314,6 +314,7 @@ export const buildFlowRunHistoryQuery = (
 			});
 			return res.data ?? ([] satisfies SimpleFlowRun[]);
 		},
+		placeholderData: keepPreviousData,
 		staleTime: 1000,
 		refetchInterval,
 	});
