@@ -15,6 +15,7 @@ export type WorkPoolsCountFilter =
 	components["schemas"]["Body_count_work_pools_work_pools_count_post"];
 export type WorkPoolWorker = components["schemas"]["WorkerResponse"];
 export type WorkPoolStatus = components["schemas"]["WorkPoolStatus"];
+export type WorkPoolUpdate = components["schemas"]["WorkPoolUpdate"];
 
 /**
  * Query key factory for work pools-related queries
@@ -239,6 +240,38 @@ export const useCreateWorkPool = () => {
 	});
 
 	return { createWorkPool, ...rest };
+};
+
+/**
+ * Hook for updating a work pool
+ * @returns Mutation for updating a work pool
+ */
+export const useUpdateWorkPool = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: updateWorkPool, ...rest } = useMutation({
+		mutationFn: ({
+			name,
+			workPool,
+		}: {
+			name: string;
+			workPool: WorkPoolUpdate;
+		}) =>
+			getQueryService().PATCH("/work_pools/{name}", {
+				params: { path: { name } },
+				body: workPool,
+			}),
+		onSuccess: (_, { name }) => {
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.detail(name),
+			});
+		},
+	});
+
+	return { updateWorkPool, ...rest };
 };
 
 /**

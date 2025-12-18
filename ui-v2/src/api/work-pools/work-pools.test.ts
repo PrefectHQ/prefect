@@ -12,6 +12,7 @@ import {
 	useDeleteWorkPool,
 	usePauseWorkPool,
 	useResumeWorkPool,
+	useUpdateWorkPool,
 	type WorkPool,
 } from "./work-pools";
 
@@ -137,6 +138,38 @@ describe("work pool hooks", () => {
 
 		// ------------ Invoke mutation
 		act(() => result.current.deleteWorkPool(MOCK_WORK_POOL_NAME));
+
+		// ------------ Assert
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+	});
+
+	/**
+	 * Data Management:
+	 * - Asserts update mutation API is called
+	 * - Upon update mutation API being called, cache is invalidated
+	 */
+	it("useUpdateWorkPool() invalidates cache", async () => {
+		const queryClient = new QueryClient();
+
+		// ------------ Mock API requests
+		server.use(
+			http.patch(buildApiUrl(`/work_pools/${MOCK_WORK_POOL_NAME}`), () => {
+				return HttpResponse.json({});
+			}),
+		);
+
+		// ------------ Initialize hooks to test
+		const { result } = renderHook(useUpdateWorkPool, {
+			wrapper: createWrapper({ queryClient }),
+		});
+
+		// ------------ Invoke mutation
+		act(() =>
+			result.current.updateWorkPool({
+				name: MOCK_WORK_POOL_NAME,
+				workPool: { description: "Updated description" },
+			}),
+		);
 
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
