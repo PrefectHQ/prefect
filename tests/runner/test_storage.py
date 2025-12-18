@@ -713,6 +713,118 @@ class TestGitRepository:
                 ],
             )
 
+        async def test_dict_credentials_gitlab_gets_oauth2_prefix(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials (from YAML block references) get oauth2: prefix
+            for GitLab URLs.
+
+            When using YAML like:
+                credentials: "{{ prefect.blocks.gitlab-credentials.my-block }}"
+            the credentials resolve to a dict, not a Block instance.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/19861
+            """
+            # Dict credentials simulate what resolve_block_document_references returns
+            repo = GitRepository(
+                url="https://gitlab.com/org/repo.git",
+                credentials={"token": "my-gitlab-token"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:my-gitlab-token@gitlab.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_bitbucket_gets_x_token_auth_prefix(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials (from YAML block references) get x-token-auth:
+            prefix for BitBucket Cloud URLs.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/19861
+            """
+            repo = GitRepository(
+                url="https://bitbucket.org/org/repo.git",
+                credentials={"token": "my-bitbucket-token"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://x-token-auth:my-bitbucket-token@bitbucket.org/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_github_plain_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials for GitHub use plain token (no prefix).
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/19861
+            """
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"token": "my-github-token"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://my-github-token@github.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_gitlab_deploy_token_no_prefix(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials with deploy token format (username:token)
+            don't get oauth2: prefix for GitLab.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/19861
+            """
+            repo = GitRepository(
+                url="https://gitlab.com/org/repo.git",
+                credentials={"token": "deploy-user:deploy-token"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://deploy-user:deploy-token@gitlab.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
     class TestToPullStep:
         async def test_to_pull_step_with_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")
