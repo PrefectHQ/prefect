@@ -721,19 +721,22 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
     ) -> Tuple["Container", Event]:
         """Creates and starts a Docker container."""
         docker_client = self._get_client()
-        if configuration.registry_credentials:
-            self._logger.info("Logging into Docker registry...")
-            docker_client.login(
-                username=configuration.registry_credentials.username,
-                password=configuration.registry_credentials.password.get_secret_value(),
-                registry=configuration.registry_credentials.registry_url,
-                reauth=configuration.registry_credentials.reauth,
-            )
         container_settings = self._build_container_settings(
             docker_client, configuration
         )
 
         if self._should_pull_image(docker_client, configuration=configuration):
+            # Only authenticate to the registry when we actually need to pull an image.
+            # This prevents unnecessary authentication attempts when the image already
+            # exists locally, improving resilience when registries are unavailable.
+            if configuration.registry_credentials:
+                self._logger.info("Logging into Docker registry...")
+                docker_client.login(
+                    username=configuration.registry_credentials.username,
+                    password=configuration.registry_credentials.password.get_secret_value(),
+                    registry=configuration.registry_credentials.registry_url,
+                    reauth=configuration.registry_credentials.reauth,
+                )
             self._logger.info(f"Pulling image {configuration.image!r}...")
             self._pull_image(docker_client, configuration)
 

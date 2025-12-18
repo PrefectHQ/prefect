@@ -20,6 +20,18 @@ with silence_docker_warnings():
 import pytest
 
 
+@pytest.fixture(scope="session")
+def test_database_connection_url() -> str | None:
+    """
+    Provide a test database connection URL fixture.
+
+    This fixture is required by hosted_api_server from prefect.testing.fixtures.
+    For the prefect-docker integration tests, we don't need a real database URL
+    since most tests use mocked Docker clients and don't require a running server.
+    """
+    return None
+
+
 @pytest.fixture(scope="session", autouse=True)
 def prefect_db():
     """
