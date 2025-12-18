@@ -24,6 +24,7 @@ export { createFakeServerSettings } from "./create-fake-server-settings";
 export {
 	createFakeSimpleFlowRun,
 	createFakeSimpleFlowRuns,
+	createFakeSimpleFlowRunsMultiDay,
 } from "./create-fake-simple-flow-run";
 export { createFakeState } from "./create-fake-state";
 export { createFakeTaskRunConcurrencyLimit } from "./create-fake-take-run-concurrency-limit";
