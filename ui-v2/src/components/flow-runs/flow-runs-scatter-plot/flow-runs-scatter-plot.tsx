@@ -318,15 +318,22 @@ export const FlowRunsScatterPlot = ({
 		[maxDuration],
 	);
 
-	// Calculate dynamic tick count based on chart width (matching Vue implementation)
+	// Calculate explicit tick values for evenly spaced x-axis ticks (matching Vue implementation)
 	// Target ~100px spacing between ticks for visually even distribution
-	const xAxisTickCount = useMemo(() => {
+	const xAxisTicks = useMemo(() => {
 		const tickSpacing = 100; // pixels between ticks (matching Vue implementation)
 		const chartMargin = 60; // left (40) + right (20) margins from ScatterChart
 		const availableWidth = containerWidth - chartMargin;
-		const ticks = availableWidth / tickSpacing;
-		return Math.max(2, Math.ceil(ticks));
-	}, [containerWidth]);
+		const tickCount = Math.max(2, Math.ceil(availableWidth / tickSpacing));
+
+		// Generate evenly spaced tick values across the domain
+		const ticks: number[] = [];
+		const step = (xDomainMax - xDomainMin) / (tickCount - 1);
+		for (let i = 0; i < tickCount; i++) {
+			ticks.push(xDomainMin + step * i);
+		}
+		return ticks;
+	}, [containerWidth, xDomainMin, xDomainMax]);
 
 	if (history.length === 0) {
 		return null;
@@ -345,7 +352,7 @@ export const FlowRunsScatterPlot = ({
 						dataKey="x"
 						scale="time"
 						domain={xDomain}
-						tickCount={xAxisTickCount}
+						ticks={xAxisTicks}
 						tickFormatter={formatXAxisTick}
 						tick={{ fontSize: 12 }}
 						tickLine={false}
