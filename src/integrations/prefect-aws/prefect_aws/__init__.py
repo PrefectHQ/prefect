@@ -1,5 +1,5 @@
 from . import _version
-from .credentials import AwsCredentials, MinIOCredentials
+from .credentials import AwsCredentials, AwsCodeCommitCredentials, MinIOCredentials
 from .client_parameters import AwsClientParameters
 from .lambda_function import LambdaFunction
 from .s3 import S3Bucket
@@ -8,6 +8,7 @@ from .workers import ECSWorker
 
 __all__ = [
     "AwsCredentials",
+    "AwsCodeCommitCredentials",
     "AwsClientParameters",
     "LambdaFunction",
     "MinIOCredentials",
