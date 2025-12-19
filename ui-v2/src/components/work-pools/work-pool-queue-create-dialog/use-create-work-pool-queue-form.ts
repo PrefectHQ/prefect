@@ -1,8 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useCreateWorkPoolQueueMutation } from "@/api/work-pool-queues";
+import {
+	useCreateWorkPoolQueueMutation,
+	useUpdateWorkPoolQueueMutation,
+	type WorkPoolQueue,
+} from "@/api/work-pool-queues";
 
 const formSchema = z.object({
 	name: z
@@ -60,6 +65,102 @@ export const DEFAULT_VALUES = {
 	priority: null,
 } as const;
 
+type UseCreateOrEditWorkPoolQueueFormOptions = {
+	workPoolName: string;
+	queueToEdit?: WorkPoolQueue;
+	onSubmit: () => void;
+};
+
+export const useCreateOrEditWorkPoolQueueForm = ({
+	workPoolName,
+	queueToEdit,
+	onSubmit,
+}: UseCreateOrEditWorkPoolQueueFormOptions) => {
+	const { mutate: createWorkPoolQueue, isPending: isCreateLoading } =
+		useCreateWorkPoolQueueMutation();
+	const { mutate: updateWorkPoolQueue, isPending: isUpdateLoading } =
+		useUpdateWorkPoolQueueMutation();
+
+	const form = useForm({
+		resolver: zodResolver(formSchema),
+		defaultValues: DEFAULT_VALUES,
+	});
+
+	// Sync form data with queue-to-edit data
+	useEffect(() => {
+		if (queueToEdit) {
+			form.reset({
+				name: queueToEdit.name,
+				description: queueToEdit.description ?? "",
+				is_paused: queueToEdit.is_paused ?? false,
+				concurrency_limit: queueToEdit.concurrency_limit ?? null,
+				priority: queueToEdit.priority ?? null,
+			});
+		} else {
+			form.reset(DEFAULT_VALUES);
+		}
+	}, [form, queueToEdit]);
+
+	const saveOrUpdate = (values: z.infer<typeof formSchema>) => {
+		const workQueueData = {
+			...values,
+			description: values.description || null,
+		};
+
+		if (queueToEdit) {
+			updateWorkPoolQueue(
+				{
+					workPoolName,
+					queueName: queueToEdit.name,
+					workQueueData: {
+						...workQueueData,
+						is_paused:
+							workQueueData.is_paused ?? queueToEdit.is_paused ?? false,
+					},
+				},
+				{
+					onSuccess: () => {
+						toast.success("Work queue updated");
+						form.reset(DEFAULT_VALUES);
+						onSubmit();
+					},
+					onError: (error) => {
+						const message =
+							error.message || "Unknown error while updating work queue.";
+						form.setError("root", { message });
+					},
+				},
+			);
+		} else {
+			createWorkPoolQueue(
+				{
+					workPoolName,
+					workQueueData,
+				},
+				{
+					onSuccess: () => {
+						toast.success("Work queue created");
+						form.reset(DEFAULT_VALUES);
+						onSubmit();
+					},
+					onError: (error) => {
+						const message =
+							error.message || "Unknown error while creating work queue.";
+						form.setError("root", { message });
+					},
+				},
+			);
+		}
+	};
+
+	return {
+		form,
+		saveOrUpdate,
+		isLoading: isCreateLoading || isUpdateLoading,
+	};
+};
+
+// Backwards compatible alias for create-only usage
 type UseCreateWorkPoolQueueFormOptions = {
 	workPoolName: string;
 	onSubmit: () => void;
@@ -69,43 +170,14 @@ export const useCreateWorkPoolQueueForm = ({
 	workPoolName,
 	onSubmit,
 }: UseCreateWorkPoolQueueFormOptions) => {
-	const { mutate: createWorkPoolQueue, isPending: isLoading } =
-		useCreateWorkPoolQueueMutation();
-
-	const form = useForm({
-		resolver: zodResolver(formSchema),
-		defaultValues: DEFAULT_VALUES,
+	const { form, saveOrUpdate, isLoading } = useCreateOrEditWorkPoolQueueForm({
+		workPoolName,
+		onSubmit,
 	});
-
-	const create = (values: z.infer<typeof formSchema>) => {
-		const workQueueData = {
-			...values,
-			description: values.description || null,
-		};
-
-		createWorkPoolQueue(
-			{
-				workPoolName,
-				workQueueData,
-			},
-			{
-				onSuccess: () => {
-					toast.success("Work queue created");
-					form.reset(DEFAULT_VALUES);
-					onSubmit();
-				},
-				onError: (error) => {
-					const message =
-						error.message || "Unknown error while creating work queue.";
-					form.setError("root", { message });
-				},
-			},
-		);
-	};
 
 	return {
 		form,
-		create,
+		create: saveOrUpdate,
 		isLoading,
 	};
 };

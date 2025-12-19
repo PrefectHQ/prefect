@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -25,45 +25,43 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import {
-	DEFAULT_VALUES,
-	useCreateWorkPoolQueueForm,
-} from "./use-create-work-pool-queue-form";
+import { useCreateOrEditWorkPoolQueueForm } from "./use-create-work-pool-queue-form";
 
-type WorkPoolQueueCreateDialogProps = {
+type WorkPoolQueueCreateOrEditDialogProps = {
 	workPoolName: string;
+	queueToEdit?: WorkPoolQueue;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onSubmit: () => void;
 };
 
-export const WorkPoolQueueCreateDialog = ({
+export const WorkPoolQueueCreateOrEditDialog = ({
 	workPoolName,
+	queueToEdit,
 	open,
 	onOpenChange,
 	onSubmit,
-}: WorkPoolQueueCreateDialogProps) => {
-	const { form, isLoading, create } = useCreateWorkPoolQueueForm({
+}: WorkPoolQueueCreateOrEditDialogProps) => {
+	const { form, isLoading, saveOrUpdate } = useCreateOrEditWorkPoolQueueForm({
 		workPoolName,
+		queueToEdit,
 		onSubmit,
 	});
 
-	useEffect(() => {
-		if (open) {
-			form.reset(DEFAULT_VALUES);
-		}
-	}, [open, form]);
+	const isEditMode = !!queueToEdit;
+	const dialogTitle = isEditMode ? "Edit Work Queue" : "Create Work Queue";
+	const submitButtonText = isEditMode ? "Save" : "Create Work Queue";
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent aria-describedby={undefined}>
 				<DialogHeader>
-					<DialogTitle>Create Work Queue</DialogTitle>
+					<DialogTitle>{dialogTitle}</DialogTitle>
 				</DialogHeader>
 
 				<Form {...form}>
 					<form
-						onSubmit={(e) => void form.handleSubmit(create)(e)}
+						onSubmit={(e) => void form.handleSubmit(saveOrUpdate)(e)}
 						className="space-y-4"
 					>
 						<FormMessage>{form.formState.errors.root?.message}</FormMessage>
@@ -139,7 +137,7 @@ export const WorkPoolQueueCreateDialog = ({
 								<Button variant="outline">Cancel</Button>
 							</DialogTrigger>
 							<Button type="submit" loading={isLoading}>
-								Create Work Queue
+								{submitButtonText}
 							</Button>
 						</DialogFooter>
 					</form>
@@ -147,4 +145,18 @@ export const WorkPoolQueueCreateDialog = ({
 			</DialogContent>
 		</Dialog>
 	);
+};
+
+// Backwards compatible alias for create-only usage
+type WorkPoolQueueCreateDialogProps = {
+	workPoolName: string;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onSubmit: () => void;
+};
+
+export const WorkPoolQueueCreateDialog = (
+	props: WorkPoolQueueCreateDialogProps,
+) => {
+	return <WorkPoolQueueCreateOrEditDialog {...props} />;
 };

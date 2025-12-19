@@ -8,6 +8,10 @@ vi.mock("@/api/work-pool-queues", () => ({
 		mutate: vi.fn(),
 		isPending: false,
 	}),
+	useUpdateWorkPoolQueueMutation: () => ({
+		mutate: vi.fn(),
+		isPending: false,
+	}),
 }));
 
 describe("useCreateWorkPoolQueueForm", () => {

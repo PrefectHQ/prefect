@@ -7,6 +7,7 @@ import type { WorkPoolQueue } from "@/api/work-pool-queues";
 export const useWorkPoolQueueMenu = (queue: WorkPoolQueue) => {
 	const navigate = useNavigate();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [showEditDialog, setShowEditDialog] = useState(false);
 
 	const handleCopyId = () => {
 		void navigator.clipboard.writeText(queue.id);
@@ -14,12 +15,10 @@ export const useWorkPoolQueueMenu = (queue: WorkPoolQueue) => {
 	};
 
 	const handleEdit = () => {
-		// TODO: Navigate to edit queue page when route exists
-		console.log("Edit queue:", queue.name);
+		setShowEditDialog(true);
 	};
 
 	const handleAutomate = () => {
-		// TODO: Navigate to automation creation when route supports queue relations
 		void navigate({
 			to: "/automations/create",
 		});
@@ -59,6 +58,8 @@ export const useWorkPoolQueueMenu = (queue: WorkPoolQueue) => {
 		menuItems,
 		showDeleteDialog,
 		setShowDeleteDialog,
+		showEditDialog,
+		setShowEditDialog,
 		triggerIcon: MoreVertical,
 	};
 };
