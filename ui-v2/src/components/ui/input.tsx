@@ -55,10 +55,13 @@ const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
 		const debouncedValue = useDebounce(state.value, debounceMs);
 
 		useEffect(() => {
-			if (debouncedValue && state.event) {
+			// Only fire onChange when debounced value matches the current state value
+			// and we have an event to pass. This ensures the debounce is complete
+			// and handles empty string values correctly (not using truthiness check).
+			if (debouncedValue === state.value && state.event) {
 				onChange?.(state.event);
 			}
-		}, [debouncedValue, onChange, state.event]);
+		}, [debouncedValue, onChange, state.event, state.value]);
 
 		useEffect(() => {
 			setState({ value });

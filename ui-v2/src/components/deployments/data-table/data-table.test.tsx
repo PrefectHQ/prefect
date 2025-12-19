@@ -361,9 +361,12 @@ describe("DeploymentsDataTable", () => {
 		await user.clear(nameSearchInput);
 		await user.type(nameSearchInput, "my-deployment");
 
-		expect(onColumnFiltersChange).toHaveBeenCalledWith([
-			{ id: "flowOrDeploymentName", value: "my-deployment" },
-		]);
+		// Wait for the debounced callback to be called (SearchInput has 200ms debounce)
+		await waitFor(() => {
+			expect(onColumnFiltersChange).toHaveBeenCalledWith([
+				{ id: "flowOrDeploymentName", value: "my-deployment" },
+			]);
+		});
 	});
 
 	it("calls onColumnFiltersChange on tags search", async () => {
