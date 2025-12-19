@@ -183,3 +183,67 @@ export const DockerWorkPool: Story = {
 		},
 	},
 };
+
+export const WithBaseJobTemplate: Story = {
+	args: {
+		workPool: createFakeWorkPool({
+			name: "process-pool-with-template",
+			description: "Process work pool with base job template",
+			concurrency_limit: 10,
+			type: "process",
+			base_job_template: {
+				job_configuration: {
+					image: "python:3.9",
+					env: { NODE_ENV: "production" },
+					command: ["python", "main.py"],
+				},
+				variables: {
+					type: "object",
+					properties: {
+						image: {
+							type: "string",
+							default: "python:3.9",
+							title: "Docker Image",
+							description: "The Docker image to use",
+						},
+						env: {
+							type: "object",
+							default: {},
+							title: "Environment Variables",
+						},
+					},
+				},
+			},
+		}),
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.patch("http://localhost:4200/api/work_pools/:name", () => {
+					return new HttpResponse(null, { status: 204 });
+				}),
+			],
+		},
+	},
+};
+
+export const PrefectAgentWorkPool: Story = {
+	args: {
+		workPool: createFakeWorkPool({
+			name: "prefect-agent-pool",
+			description:
+				"Prefect Agent work pool - Base Job Template section should be hidden",
+			concurrency_limit: 10,
+			type: "prefect-agent",
+		}),
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.patch("http://localhost:4200/api/work_pools/:name", () => {
+					return new HttpResponse(null, { status: 204 });
+				}),
+			],
+		},
+	},
+};
