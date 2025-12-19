@@ -2,6 +2,20 @@
 title: prefect-redis
 ---
 
+## 0.2.8
+
+_Released on December 19, 2025_
+
+**Enhancements ➕➕**
+
+- Add retry logic for consumer reconnection on Redis errors [#19817](https://github.com/PrefectHQ/prefect/pull/19817) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Unify definition of `EventBeingProcessed` type [#19585](https://github.com/PrefectHQ/prefect/pull/19585) by [@saschwartz](https://github.com/saschwartz)
+
+**Bug Fixes 🐞**
+- Fix `anyio` `fail_after` usage [#19583](https://github.com/PrefectHQ/prefect/pull/19583) by [@saschwartz](https://github.com/saschwartz)
+
+---
+
 ## 0.2.7
 
 _Released on November 26, 2025_
@@ -11,7 +25,7 @@ _Released on November 26, 2025_
 - Parametrize xreadgroup batch size in consumer; Add EventPersister service setting for it [#19545](https://github.com/PrefectHQ/prefect/pull/19545) by [@saschwartz](https://github.com/saschwartz)
 - Also parametrize xautoclaim batch size [#19557](https://github.com/PrefectHQ/prefect/pull/19557) by [@saschwartz](https://github.com/saschwartz)
 
-**Documentation**
+**Breaking Changes**
 
 - Remove Python 3.9 support [#19273](https://github.com/PrefectHQ/prefect/pull/19273) by [@desertaxle](https://github.com/desertaxle)
 
