@@ -139,9 +139,9 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 
 			{resultArtifact?.description && (
 				<dl className="flex flex-col gap-1 mb-2">
-					<dt className="text-gray-500">Result</dt>
+					<dt className="text-muted-foreground">Result</dt>
 					<dd>
-						<div className="prose max-w-none">
+						<div className="prose max-w-none dark:prose-invert">
 							<ReactMarkdown remarkPlugins={[remarkGfm]}>
 								{resultArtifact.description}
 							</ReactMarkdown>
