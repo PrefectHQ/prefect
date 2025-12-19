@@ -9,25 +9,11 @@ import {
 import { render, waitFor } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
-import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { createFakeWorkPoolQueue } from "@/mocks";
 import {
 	WorkPoolQueuePageHeader,
 	type WorkPoolQueuePageHeaderProps,
 } from "./work-pool-queue-page-header";
-
-// Mock the sub-components that have network behavior
-vi.mock("@/components/work-pools/work-pool-queue-toggle", () => ({
-	WorkPoolQueueToggle: ({ queue }: { queue: WorkPoolQueue }) => (
-		<div data-testid="work-pool-queue-toggle">Toggle for {queue.name}</div>
-	),
-}));
-
-vi.mock("@/components/work-pools/work-pool-queue-menu", () => ({
-	WorkPoolQueueMenu: ({ queue }: { queue: WorkPoolQueue }) => (
-		<div data-testid="work-pool-queue-menu">Menu for {queue.name}</div>
-	),
-}));
 
 // Wraps component in test with a TanStack router provider
 const WorkPoolQueuePageHeaderRouter = (props: WorkPoolQueuePageHeaderProps) => {
@@ -109,7 +95,7 @@ describe("WorkPoolQueuePageHeader", () => {
 	});
 
 	it("shows actions components", async () => {
-		const { getByTestId } = await waitFor(() =>
+		const { getByRole } = await waitFor(() =>
 			render(
 				<WorkPoolQueuePageHeaderRouter
 					workPoolName="test-work-pool"
@@ -121,13 +107,17 @@ describe("WorkPoolQueuePageHeader", () => {
 			),
 		);
 
-		expect(getByTestId("work-pool-queue-toggle")).toBeTruthy();
-		expect(getByTestId("work-pool-queue-menu")).toBeTruthy();
+		// WorkPoolQueueToggle renders a switch with aria-label
+		expect(
+			getByRole("switch", { name: /pause work pool queue/i }),
+		).toBeTruthy();
+		// WorkPoolQueueMenu renders a button with "Open menu" screen reader text
+		expect(getByRole("button", { name: /open menu/i })).toBeTruthy();
 	});
 
 	it("passes onUpdate callback to actions", async () => {
 		const onUpdate = vi.fn();
-		const { getByTestId } = await waitFor(() =>
+		const { getByRole } = await waitFor(() =>
 			render(
 				<WorkPoolQueuePageHeaderRouter
 					workPoolName="test-work-pool"
@@ -140,8 +130,11 @@ describe("WorkPoolQueuePageHeader", () => {
 			),
 		);
 
-		expect(getByTestId("work-pool-queue-toggle")).toBeTruthy();
-		expect(getByTestId("work-pool-queue-menu")).toBeTruthy();
+		// Verify the action components are rendered (callback is passed internally)
+		expect(
+			getByRole("switch", { name: /pause work pool queue/i }),
+		).toBeTruthy();
+		expect(getByRole("button", { name: /open menu/i })).toBeTruthy();
 	});
 
 	it("applies custom className", async () => {
