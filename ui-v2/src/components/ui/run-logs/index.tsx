@@ -76,8 +76,8 @@ export const RunLogs = ({
 
 	if (logs.length === 0) {
 		return (
-			<div className="flex flex-col gap-2 bg-gray-100 p-2 rounded-md font-mono">
-				<span className="text-gray-500">No logs found</span>
+			<div className="flex flex-col gap-2 bg-muted p-2 rounded-md font-mono">
+				<span className="text-muted-foreground">No logs found</span>
 			</div>
 		);
 	}
@@ -86,7 +86,7 @@ export const RunLogs = ({
 		<div
 			ref={parentRef}
 			className={cn(
-				"bg-gray-100 rounded-md font-mono p-4 overflow-y-auto",
+				"bg-muted rounded-md font-mono p-4 overflow-y-auto",
 				className,
 			)}
 			role="log"
@@ -139,7 +139,7 @@ const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 			<div className="select-auto whitespace-pre-wrap break-words">
 				{log.message}
 			</div>
-			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-gray-500 truncate">
+			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-muted-foreground truncate">
 				<span>{format(log.timestamp, "pp")}</span>
 				{taskRunName && <span>{taskRunName}</span>}
 				<span className="font-bold break-all whitespace-normal">
@@ -196,11 +196,11 @@ function logLevelLabel(level: number): LogLevel {
 const LogDivider = ({ date }: { date: Date }) => {
 	return (
 		<div className="flex flex-row justify-center items-center gap-2">
-			<div className="h-[1px] w-full bg-gray-300" />
-			<span className="text-xs text-gray-500 whitespace-nowrap">
+			<div className="h-[1px] w-full bg-muted-foreground/30" />
+			<span className="text-xs text-muted-foreground whitespace-nowrap">
 				{format(date, "MMM d, yyyy")}
 			</span>
-			<div className="h-[1px] w-full bg-gray-300" />
+			<div className="h-[1px] w-full bg-muted-foreground/30" />
 		</div>
 	);
 };

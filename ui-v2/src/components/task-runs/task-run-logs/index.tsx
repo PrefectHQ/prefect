@@ -74,8 +74,8 @@ export const TaskRunLogs = ({
 				<LogSortOrder sortOrder={sortOrder} setSortOrder={setSortOrder} />
 			</div>
 			{noLogs ? (
-				<div className="flex flex-col gap-2 text-center bg-gray-100 p-2 rounded-md">
-					<span className="text-gray-500">{message}</span>
+				<div className="flex flex-col gap-2 text-center bg-muted p-2 rounded-md">
+					<span className="text-muted-foreground">{message}</span>
 				</div>
 			) : (
 				<div className="rounded-md">
