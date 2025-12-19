@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import humanizeDuration from "humanize-duration";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { buildGetTaskRunResultQuery } from "@/api/artifacts";
 import type { TaskRun } from "@/api/task-runs";
 import { Icon } from "@/components/ui/icons";
-import { Markdown } from "@/components/ui/markdown";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { formatDate } from "@/utils/date";
 
@@ -140,7 +141,11 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 				<dl className="flex flex-col gap-1 mb-2">
 					<dt className="text-gray-500">Result</dt>
 					<dd>
-						<Markdown text={resultArtifact.description} />
+						<div className="prose max-w-none">
+							<ReactMarkdown remarkPlugins={[remarkGfm]}>
+								{resultArtifact.description}
+							</ReactMarkdown>
+						</div>
 					</dd>
 				</dl>
 			)}
