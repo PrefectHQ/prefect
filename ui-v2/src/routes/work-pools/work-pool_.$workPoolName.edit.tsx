@@ -26,7 +26,7 @@ function RouteComponent() {
 	);
 
 	return (
-		<div className="flex flex-col gap-4">
+		<div className="container max-w-4xl py-6">
 			<WorkPoolEditPageHeader workPool={workPool} />
 			<WorkPoolEditForm workPool={workPool} />
 		</div>
