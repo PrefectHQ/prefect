@@ -2,9 +2,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
-import { WorkPoolQueueCreateDialog } from "./work-pool-queue-create-dialog";
+import { WorkPoolQueueCreateOrEditDialog } from "./work-pool-queue-create-dialog";
 
-describe("WorkPoolQueueCreateDialog", () => {
+describe("WorkPoolQueueCreateOrEditDialog", () => {
 	const defaultProps = {
 		workPoolName: "test-work-pool",
 		open: true,
@@ -13,7 +13,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 	};
 
 	it("renders when open", () => {
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -24,7 +24,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 	});
 
 	it("does not render when closed", () => {
-		render(<WorkPoolQueueCreateDialog {...defaultProps} open={false} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} open={false} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -32,7 +32,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 	});
 
 	it("renders all form fields", () => {
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -46,7 +46,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 
 	it("shows validation error for empty name", async () => {
 		const user = userEvent.setup();
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -62,7 +62,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 
 	it("shows validation error for invalid name characters", async () => {
 		const user = userEvent.setup();
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -87,7 +87,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 		const user = userEvent.setup();
 		const onOpenChange = vi.fn();
 		render(
-			<WorkPoolQueueCreateDialog
+			<WorkPoolQueueCreateOrEditDialog
 				{...defaultProps}
 				onOpenChange={onOpenChange}
 			/>,
@@ -104,7 +104,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 
 	it("shows loading state when creating", async () => {
 		const user = userEvent.setup();
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -125,7 +125,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 
 	it("handles concurrency limit input correctly", async () => {
 		const user = userEvent.setup();
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -137,7 +137,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 
 	it("handles priority input correctly", async () => {
 		const user = userEvent.setup();
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -148,7 +148,7 @@ describe("WorkPoolQueueCreateDialog", () => {
 	});
 
 	it("renders priority info tooltip button", () => {
-		render(<WorkPoolQueueCreateDialog {...defaultProps} />, {
+		render(<WorkPoolQueueCreateOrEditDialog {...defaultProps} />, {
 			wrapper: createWrapper(),
 		});
 

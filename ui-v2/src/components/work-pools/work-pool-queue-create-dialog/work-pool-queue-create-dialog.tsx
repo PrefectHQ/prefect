@@ -146,17 +146,3 @@ export const WorkPoolQueueCreateOrEditDialog = ({
 		</Dialog>
 	);
 };
-
-// Backwards compatible alias for create-only usage
-type WorkPoolQueueCreateDialogProps = {
-	workPoolName: string;
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onSubmit: () => void;
-};
-
-export const WorkPoolQueueCreateDialog = (
-	props: WorkPoolQueueCreateDialogProps,
-) => {
-	return <WorkPoolQueueCreateOrEditDialog {...props} />;
-};

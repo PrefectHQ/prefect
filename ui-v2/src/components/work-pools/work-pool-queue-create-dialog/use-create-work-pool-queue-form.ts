@@ -159,25 +159,3 @@ export const useCreateOrEditWorkPoolQueueForm = ({
 		isLoading: isCreateLoading || isUpdateLoading,
 	};
 };
-
-// Backwards compatible alias for create-only usage
-type UseCreateWorkPoolQueueFormOptions = {
-	workPoolName: string;
-	onSubmit: () => void;
-};
-
-export const useCreateWorkPoolQueueForm = ({
-	workPoolName,
-	onSubmit,
-}: UseCreateWorkPoolQueueFormOptions) => {
-	const { form, saveOrUpdate, isLoading } = useCreateOrEditWorkPoolQueueForm({
-		workPoolName,
-		onSubmit,
-	});
-
-	return {
-		form,
-		create: saveOrUpdate,
-		isLoading,
-	};
-};
