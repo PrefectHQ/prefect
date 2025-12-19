@@ -2,13 +2,13 @@
 Command line interface for working with assets
 """
 
-from __future__ import annotations
-
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import quote
 
+import orjson
 import typer
+from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
@@ -107,10 +107,19 @@ async def list_assets(
 @asset_app.command("inspect")
 async def inspect(
     key: str = typer.Argument(..., help="The key of the asset to inspect."),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     Inspect an asset by key.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
     confirm_logged_in()
 
     try:
@@ -118,8 +127,11 @@ async def inspect(
     except Exception as exc:
         exit_with_error(f"Error retrieving asset: {exc}")
 
-    display_table = _render_assets_into_table([asset])
-    app.console.print(display_table)
+    if output and output.lower() == "json":
+        json_output = orjson.dumps(asset, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        app.console.print(Pretty(asset))
 
 
 @asset_app.command("delete")

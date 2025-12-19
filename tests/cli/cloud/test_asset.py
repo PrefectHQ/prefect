@@ -168,6 +168,75 @@ def test_inspect_asset(respx_mock):
         )
 
 
+def test_inspect_asset_json_output(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    asset_key = "s3://my-bucket/data.csv"
+    asset = {
+        "key": asset_key,
+        "name": "My Data Asset",
+        "description": "A test asset",
+    }
+
+    respx_mock.get(
+        f"{foo_workspace.api_url()}/assets/key/s3%3A%2F%2Fmy-bucket%2Fdata.csv"
+    ).mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=asset,
+        )
+    )
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["cloud", "asset", "inspect", asset_key, "--output", "json"],
+            expected_code=0,
+            expected_output_contains=[
+                '"key": "s3://my-bucket/data.csv"',
+                '"name": "My Data Asset"',
+            ],
+        )
+
+
+def test_inspect_asset_invalid_output_format():
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["cloud", "asset", "inspect", "s3://my-bucket/data.csv", "--output", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
+
 def test_cannot_delete_asset_if_you_are_not_logged_in():
     cloud_profile = "cloud-foo"
     save_profiles(
