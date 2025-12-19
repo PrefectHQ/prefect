@@ -21,6 +21,7 @@ import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { columns as deploymentColumns } from "./deployment-columns";
+import { FlowPageHeader } from "./flow-page-header";
 import {
 	getFlowMetadata,
 	columns as metadataColumns,
@@ -150,6 +151,7 @@ export default function FlowDetail({
 
 	return (
 		<div className="container mx-auto">
+			<FlowPageHeader flow={flow} />
 			<div className="h-[200px] mb-2">
 				<FlowRunsBarChart
 					className="mb-2"
