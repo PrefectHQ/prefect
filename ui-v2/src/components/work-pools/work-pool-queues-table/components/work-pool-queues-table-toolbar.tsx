@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/utils";
-import { WorkPoolQueueCreateDialog } from "../../work-pool-queue-create-dialog";
+import { WorkPoolQueueCreateOrEditDialog } from "../../work-pool-queue-create-dialog";
 
 type WorkPoolQueuesTableToolbarProps = {
 	searchQuery: string;
@@ -66,7 +66,7 @@ export const WorkPoolQueuesTableToolbar = ({
 				</div>
 			</div>
 
-			<WorkPoolQueueCreateDialog
+			<WorkPoolQueueCreateOrEditDialog
 				workPoolName={workPoolName}
 				open={showCreateDialog}
 				onOpenChange={setShowCreateDialog}
