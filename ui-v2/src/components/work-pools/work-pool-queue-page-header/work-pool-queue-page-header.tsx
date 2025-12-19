@@ -11,7 +11,7 @@ import { cn } from "@/utils";
 import { WorkPoolQueueMenu } from "../work-pool-queue-menu";
 import { WorkPoolQueueToggle } from "../work-pool-queue-toggle";
 
-type WorkPoolQueuePageHeaderProps = {
+export type WorkPoolQueuePageHeaderProps = {
 	workPoolName: string;
 	queue: WorkPoolQueue;
 	onUpdate?: () => void;

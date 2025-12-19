@@ -1,51 +1,22 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { render, waitFor } from "@testing-library/react";
+import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { createFakeWorkPoolQueue } from "@/mocks";
-import { WorkPoolQueuePageHeader } from "./work-pool-queue-page-header";
+import {
+	WorkPoolQueuePageHeader,
+	type WorkPoolQueuePageHeaderProps,
+} from "./work-pool-queue-page-header";
 
-// Mock Tanstack Router
-vi.mock("@tanstack/react-router", async () => {
-	const actual = await vi.importActual("@tanstack/react-router");
-	return {
-		...actual,
-		Link: ({
-			children,
-			to,
-			params,
-		}: {
-			children: React.ReactNode;
-			to: string;
-			params?: Record<string, string>;
-		}) => {
-			const href = params
-				? to.replace("$workPoolName", params.workPoolName || "")
-				: to;
-			return <a href={href}>{children}</a>;
-		},
-		useNavigate: () => vi.fn(),
-		createLink:
-			() =>
-			({
-				children,
-				to,
-				params,
-			}: {
-				children: React.ReactNode;
-				to: string;
-				params?: Record<string, string>;
-			}) => {
-				const href = params
-					? to.replace("$workPoolName", params.workPoolName || "")
-					: to;
-				return <a href={href}>{children}</a>;
-			},
-	};
-});
-
-// Mock the sub-components
+// Mock the sub-components that have network behavior
 vi.mock("@/components/work-pools/work-pool-queue-toggle", () => ({
 	WorkPoolQueueToggle: ({ queue }: { queue: WorkPoolQueue }) => (
 		<div data-testid="work-pool-queue-toggle">Toggle for {queue.name}</div>
@@ -58,131 +29,160 @@ vi.mock("@/components/work-pools/work-pool-queue-menu", () => ({
 	),
 }));
 
+// Wraps component in test with a TanStack router provider
+const WorkPoolQueuePageHeaderRouter = (props: WorkPoolQueuePageHeaderProps) => {
+	const rootRoute = createRootRoute({
+		component: () => <WorkPoolQueuePageHeader {...props} />,
+	});
+
+	// Define routes that the breadcrumb links point to
+	const workPoolsRoute = createRoute({
+		getParentRoute: () => rootRoute,
+		path: "/work-pools",
+		component: () => <div>Work Pools Page</div>,
+	});
+
+	const workPoolDetailRoute = createRoute({
+		getParentRoute: () => rootRoute,
+		path: "/work-pools/work-pool/$workPoolName",
+		component: () => <div>Work Pool Detail Page</div>,
+	});
+
+	const routeTree = rootRoute.addChildren([
+		workPoolsRoute,
+		workPoolDetailRoute,
+	]);
+
+	const router = createRouter({
+		routeTree,
+		history: createMemoryHistory({
+			initialEntries: ["/"],
+		}),
+		context: { queryClient: new QueryClient() },
+	});
+
+	return <RouterProvider router={router} />;
+};
+
 const mockQueue = createFakeWorkPoolQueue({
 	name: "test-queue",
 	work_pool_name: "test-work-pool",
 	status: "READY",
 });
 
-const createWrapper = () => {
-	const queryClient = new QueryClient({
-		defaultOptions: {
-			queries: { retry: false },
-			mutations: { retry: false },
-		},
-	});
-
-	const Wrapper = ({ children }: { children: React.ReactNode }) => (
-		<QueryClientProvider client={queryClient}>
-			<TooltipProvider>{children}</TooltipProvider>
-		</QueryClientProvider>
-	);
-	Wrapper.displayName = "TestWrapper";
-	return Wrapper;
-};
-
 describe("WorkPoolQueuePageHeader", () => {
-	it("renders breadcrumbs correctly", () => {
-		const Wrapper = createWrapper();
-		render(
-			<WorkPoolQueuePageHeader
-				workPoolName="test-work-pool"
-				queue={mockQueue}
-			/>,
-			{
-				wrapper: Wrapper,
-			},
+	it("renders breadcrumbs correctly", async () => {
+		const { getByText, getByRole } = await waitFor(() =>
+			render(
+				<WorkPoolQueuePageHeaderRouter
+					workPoolName="test-work-pool"
+					queue={mockQueue}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
-		expect(screen.getByText("Work Pools")).toBeInTheDocument();
-		expect(screen.getByText("test-work-pool")).toBeInTheDocument();
+
+		expect(getByText("Work Pools")).toBeTruthy();
+		expect(getByText("test-work-pool")).toBeTruthy();
 		// Check that the queue name appears in the breadcrumb
-		const breadcrumb = screen.getByRole("navigation", { name: /breadcrumb/i });
+		const breadcrumb = getByRole("navigation", { name: /breadcrumb/i });
 		expect(breadcrumb).toHaveTextContent(mockQueue.name);
 	});
 
-	it("displays queue name in breadcrumb", () => {
-		const Wrapper = createWrapper();
-		render(
-			<WorkPoolQueuePageHeader
-				workPoolName="test-work-pool"
-				queue={mockQueue}
-			/>,
-			{
-				wrapper: Wrapper,
-			},
+	it("displays queue name in breadcrumb", async () => {
+		const { getByText } = await waitFor(() =>
+			render(
+				<WorkPoolQueuePageHeaderRouter
+					workPoolName="test-work-pool"
+					queue={mockQueue}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
+
 		// Check the queue name appears in the breadcrumb page
-		expect(screen.getByText(mockQueue.name)).toBeInTheDocument();
+		expect(getByText(mockQueue.name)).toBeTruthy();
 	});
 
-	it("shows actions components", () => {
-		const Wrapper = createWrapper();
-		render(
-			<WorkPoolQueuePageHeader
-				workPoolName="test-work-pool"
-				queue={mockQueue}
-			/>,
-			{
-				wrapper: Wrapper,
-			},
+	it("shows actions components", async () => {
+		const { getByTestId } = await waitFor(() =>
+			render(
+				<WorkPoolQueuePageHeaderRouter
+					workPoolName="test-work-pool"
+					queue={mockQueue}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
-		expect(screen.getByTestId("work-pool-queue-toggle")).toBeInTheDocument();
-		expect(screen.getByTestId("work-pool-queue-menu")).toBeInTheDocument();
+
+		expect(getByTestId("work-pool-queue-toggle")).toBeTruthy();
+		expect(getByTestId("work-pool-queue-menu")).toBeTruthy();
 	});
 
-	it("passes onUpdate callback to actions", () => {
+	it("passes onUpdate callback to actions", async () => {
 		const onUpdate = vi.fn();
-		const Wrapper = createWrapper();
-		render(
-			<WorkPoolQueuePageHeader
-				workPoolName="test-work-pool"
-				queue={mockQueue}
-				onUpdate={onUpdate}
-			/>,
-			{
-				wrapper: Wrapper,
-			},
+		const { getByTestId } = await waitFor(() =>
+			render(
+				<WorkPoolQueuePageHeaderRouter
+					workPoolName="test-work-pool"
+					queue={mockQueue}
+					onUpdate={onUpdate}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
-		expect(screen.getByTestId("work-pool-queue-toggle")).toBeInTheDocument();
-		expect(screen.getByTestId("work-pool-queue-menu")).toBeInTheDocument();
+
+		expect(getByTestId("work-pool-queue-toggle")).toBeTruthy();
+		expect(getByTestId("work-pool-queue-menu")).toBeTruthy();
 	});
 
-	it("applies custom className", () => {
-		const Wrapper = createWrapper();
-		const { container } = render(
-			<WorkPoolQueuePageHeader
-				workPoolName="test-work-pool"
-				queue={mockQueue}
-				className="custom-class"
-			/>,
-			{
-				wrapper: Wrapper,
-			},
+	it("applies custom className", async () => {
+		const { container } = await waitFor(() =>
+			render(
+				<WorkPoolQueuePageHeaderRouter
+					workPoolName="test-work-pool"
+					queue={mockQueue}
+					className="custom-class"
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
-		expect(container.querySelector(".custom-class")).toBeInTheDocument();
+
+		expect(container.querySelector(".custom-class")).toBeTruthy();
 	});
 
-	it("renders correct breadcrumb links", () => {
-		const Wrapper = createWrapper();
-		render(
-			<WorkPoolQueuePageHeader
-				workPoolName="my-pool"
-				queue={createFakeWorkPoolQueue({
-					name: "my-queue",
-					work_pool_name: "my-pool",
-				})}
-			/>,
-			{
-				wrapper: Wrapper,
-			},
+	it("renders correct breadcrumb links", async () => {
+		const { getByText } = await waitFor(() =>
+			render(
+				<WorkPoolQueuePageHeaderRouter
+					workPoolName="my-pool"
+					queue={createFakeWorkPoolQueue({
+						name: "my-queue",
+						work_pool_name: "my-pool",
+					})}
+				/>,
+				{
+					wrapper: createWrapper(),
+				},
+			),
 		);
 
 		// Check the Work Pools link
-		const workPoolsLink = screen.getByText("Work Pools").closest("a");
+		const workPoolsLink = getByText("Work Pools").closest("a");
 		expect(workPoolsLink).toHaveAttribute("href", "/work-pools");
 
 		// Check the work pool name link
-		const workPoolLink = screen.getByText("my-pool").closest("a");
+		const workPoolLink = getByText("my-pool").closest("a");
 		expect(workPoolLink).toHaveAttribute(
 			"href",
 			"/work-pools/work-pool/my-pool",
