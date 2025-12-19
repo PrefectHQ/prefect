@@ -253,6 +253,50 @@ def test_url_for_received_event_ui(received_event):
         assert url_for(obj=received_event, url_type="ui") == expected_url
 
 
+def test_url_for_server_side_received_event_ui():
+    """Test that url_for works with server-side ReceivedEvent (different class from client-side)"""
+    from prefect.server.events.schemas.events import (
+        ReceivedEvent as ServerReceivedEvent,
+    )
+    from prefect.server.events.schemas.events import Resource as ServerResource
+
+    server_event = ServerReceivedEvent(
+        occurred=now("UTC"),
+        received=now("UTC"),
+        event="was.tubular",
+        resource=ServerResource.model_validate(
+            {"prefect.resource.id": f"prefect.flow-run.{uuid.uuid4()}"}
+        ),
+        payload={"goodbye": "yellow brick road"},
+        id=uuid.uuid4(),
+    )
+    expected_url = f"{MOCK_PREFECT_UI_URL}/events/event/{server_event.occurred.strftime('%Y-%m-%d')}/{server_event.id}"
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+        assert url_for(obj=server_event, url_type="ui") == expected_url
+
+
+def test_server_side_received_event_url_property():
+    """Test that the server-side ReceivedEvent.url property returns the correct URL"""
+    from prefect.server.events.schemas.events import (
+        ReceivedEvent as ServerReceivedEvent,
+    )
+    from prefect.server.events.schemas.events import Resource as ServerResource
+
+    server_event = ServerReceivedEvent(
+        occurred=now("UTC"),
+        received=now("UTC"),
+        event="was.tubular",
+        resource=ServerResource.model_validate(
+            {"prefect.resource.id": f"prefect.flow-run.{uuid.uuid4()}"}
+        ),
+        payload={"goodbye": "yellow brick road"},
+        id=uuid.uuid4(),
+    )
+    expected_url = f"{MOCK_PREFECT_UI_URL}/events/event/{server_event.occurred.strftime('%Y-%m-%d')}/{server_event.id}"
+    with temporary_settings({PREFECT_UI_URL: MOCK_PREFECT_UI_URL}):
+        assert server_event.url == expected_url
+
+
 def test_url_for_resource_ui(resource):
     resource_id_part = resource.id.rpartition(".")[2]
     expected_url = f"{MOCK_PREFECT_UI_URL}/runs/flow-run/{resource_id_part}"

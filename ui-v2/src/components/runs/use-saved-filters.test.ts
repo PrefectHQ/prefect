@@ -8,6 +8,7 @@ import {
 	filterValuesToDateRangeUrlState,
 	type SavedFilter,
 	type SavedFilterValues,
+	SYSTEM_FILTERS,
 	URL_PARAM_TO_FILTER_KEY_MAP,
 	useSavedFilters,
 } from "./use-saved-filters";
@@ -179,9 +180,10 @@ describe("useSavedFilters", () => {
 		vi.clearAllMocks();
 	});
 
-	it("initializes with empty saved filters", () => {
+	it("initializes with system filters only", () => {
 		const { result } = renderHook(() => useSavedFilters());
-		expect(result.current.savedFilters).toEqual([]);
+		// savedFilters includes system filters by default
+		expect(result.current.savedFilters).toEqual(SYSTEM_FILTERS);
 		expect(result.current.defaultFilterId).toBeNull();
 	});
 
@@ -196,11 +198,14 @@ describe("useSavedFilters", () => {
 			});
 		});
 
-		expect(result.current.savedFilters).toHaveLength(1);
-		expect(result.current.savedFilters[0].name).toBe("My Filter");
-		expect(result.current.savedFilters[0].filters.state).toEqual(["Completed"]);
+		// savedFilters includes system filters + user-saved filters
+		expect(result.current.savedFilters).toHaveLength(SYSTEM_FILTERS.length + 1);
+		// User-saved filters come after system filters
+		const userFilter = result.current.savedFilters[SYSTEM_FILTERS.length];
+		expect(userFilter.name).toBe("My Filter");
+		expect(userFilter.filters.state).toEqual(["Completed"]);
 		expect(savedFilter).toBeDefined();
-		expect(result.current.savedFilters[0].id).toBe(savedFilter?.id);
+		expect(userFilter.id).toBe(savedFilter?.id);
 	});
 
 	it("deletes a filter", () => {
@@ -214,13 +219,15 @@ describe("useSavedFilters", () => {
 			});
 		});
 
-		expect(result.current.savedFilters).toHaveLength(1);
+		// savedFilters includes system filters + user-saved filters
+		expect(result.current.savedFilters).toHaveLength(SYSTEM_FILTERS.length + 1);
 
 		act(() => {
 			result.current.deleteFilter(savedFilter.id);
 		});
 
-		expect(result.current.savedFilters).toHaveLength(0);
+		// After deletion, only system filters remain
+		expect(result.current.savedFilters).toHaveLength(SYSTEM_FILTERS.length);
 	});
 
 	it("updates a filter", () => {
@@ -241,8 +248,10 @@ describe("useSavedFilters", () => {
 			});
 		});
 
-		expect(result.current.savedFilters[0].name).toBe("Updated Filter");
-		expect(result.current.savedFilters[0].filters.state).toEqual(["Failed"]);
+		// User-saved filters come after system filters
+		const userFilter = result.current.savedFilters[SYSTEM_FILTERS.length];
+		expect(userFilter.name).toBe("Updated Filter");
+		expect(userFilter.filters.state).toEqual(["Failed"]);
 	});
 
 	it("sets and clears default filter", () => {

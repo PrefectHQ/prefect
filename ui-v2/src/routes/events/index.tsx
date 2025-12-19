@@ -48,7 +48,7 @@ function EventsPageSkeleton() {
 	);
 }
 
-export const Route = createFileRoute("/events")({
+export const Route = createFileRoute("/events/")({
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => search,
 	wrapInSuspense: true,

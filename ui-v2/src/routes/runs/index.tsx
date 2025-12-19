@@ -32,6 +32,10 @@ import {
 } from "@/components/flow-runs/flow-runs-list";
 import { RunsPage } from "@/components/runs/runs-page";
 import {
+	useApplyDefaultFilterOnMount,
+	useRunsSavedFilters,
+} from "@/components/runs/use-runs-saved-filters";
+import {
 	TASK_RUN_SORT_FILTERS,
 	type TaskRunSortFilters,
 } from "@/components/task-runs/task-runs-list";
@@ -652,6 +656,23 @@ function RouteComponent() {
 	const [taskRunsSort, onTaskRunsSortChange] = useTaskRunsSort();
 	const [taskRunSearch, onTaskRunSearchChange] = useTaskRunSearch();
 
+	// Saved filters hook
+	const {
+		currentFilter,
+		savedFiltersForMenu,
+		onSelectFilter,
+		onSaveFilter,
+		onDeleteFilter,
+		onSetDefault,
+		onRemoveDefault,
+		isSaveDialogOpen,
+		closeSaveDialog,
+		confirmSave,
+	} = useRunsSavedFilters();
+
+	// Apply default filter on initial page load (if one is set and no filters are active)
+	useApplyDefaultFilterOnMount();
+
 	// Use useSuspenseQueries for unfiltered count queries (stable keys, won't cause suspense on search change)
 	// These are used to determine if the app has ANY runs at all (for empty state)
 	const [{ data: flowRunsCountAll }, { data: taskRunsCountAll }] =
@@ -670,7 +691,8 @@ function RouteComponent() {
 		buildPaginateTaskRunsQuery(buildTaskRunsPaginationBody(search), 30_000),
 	);
 
-	// Use useQuery for flow run history (scatter plot) with 30-second polling
+	// Use useQuery for flow run history (scatter plot) to leverage placeholderData: keepPreviousData
+	// This prevents the scatter plot from flickering when search/filter changes
 	const { data: flowRunHistory } = useQuery(
 		buildFlowRunHistoryQuery(buildHistoryFilter(search), 30_000),
 	);
@@ -786,6 +808,17 @@ function RouteComponent() {
 			taskRunSearch={taskRunSearch}
 			onTaskRunSearchChange={onTaskRunSearchChange}
 			onClearTaskRunFilters={onClearTaskRunFilters}
+			// Saved filters props
+			currentFilter={currentFilter}
+			savedFilters={savedFiltersForMenu}
+			onSelectFilter={onSelectFilter}
+			onSaveFilter={onSaveFilter}
+			onDeleteFilter={onDeleteFilter}
+			onSetDefault={onSetDefault}
+			onRemoveDefault={onRemoveDefault}
+			isSaveDialogOpen={isSaveDialogOpen}
+			onCloseSaveDialog={closeSaveDialog}
+			onConfirmSave={confirmSave}
 		/>
 	);
 }

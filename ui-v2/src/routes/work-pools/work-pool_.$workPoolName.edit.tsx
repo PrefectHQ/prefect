@@ -1,6 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { buildGetWorkPoolQuery } from "@/api/work-pools/work-pools";
+import {
+	WorkPoolEditForm,
+	WorkPoolEditPageHeader,
+} from "@/components/work-pools/edit";
 
 export const Route = createFileRoute(
 	"/work-pools/work-pool_/$workPoolName/edit",
@@ -21,5 +25,10 @@ function RouteComponent() {
 		buildGetWorkPoolQuery(workPoolName),
 	);
 
-	return <div>Editing work pool: {workPool.name}</div>;
+	return (
+		<div className="container max-w-4xl py-6">
+			<WorkPoolEditPageHeader workPool={workPool} />
+			<WorkPoolEditForm workPool={workPool} />
+		</div>
+	);
 }
