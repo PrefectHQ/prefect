@@ -22,9 +22,6 @@ Object.assign(navigator, {
 	},
 });
 
-// Mock console.log since the hook has TODO console logs
-vi.spyOn(console, "log").mockImplementation(() => {});
-
 describe("useWorkPoolQueueMenu", () => {
 	const defaultQueue = createFakeWorkPoolQueue({
 		id: "test-id",
@@ -38,6 +35,8 @@ describe("useWorkPoolQueueMenu", () => {
 		expect(result.current.menuItems).toHaveLength(4);
 		expect(result.current.showDeleteDialog).toBe(false);
 		expect(result.current.setShowDeleteDialog).toBeInstanceOf(Function);
+		expect(result.current.showEditDialog).toBe(false);
+		expect(result.current.setShowEditDialog).toBeInstanceOf(Function);
 		expect(result.current.triggerIcon).toBeDefined();
 	});
 
@@ -118,7 +117,7 @@ describe("useWorkPoolQueueMenu", () => {
 		expect(toast.success).toHaveBeenCalledWith("ID copied to clipboard");
 	});
 
-	it("handles edit action", () => {
+	it("opens edit dialog when edit action is triggered", () => {
 		const { result } = renderHook(() => useWorkPoolQueueMenu(defaultQueue));
 
 		const editItem = result.current.menuItems.find(
@@ -129,7 +128,28 @@ describe("useWorkPoolQueueMenu", () => {
 			editItem?.action();
 		});
 
-		expect(console.log).toHaveBeenCalledWith("Edit queue:", "test-queue");
+		expect(result.current.showEditDialog).toBe(true);
+	});
+
+	it("can close edit dialog", () => {
+		const { result } = renderHook(() => useWorkPoolQueueMenu(defaultQueue));
+
+		// First open the dialog
+		act(() => {
+			const editItem = result.current.menuItems.find(
+				(item) => item.label === "Edit",
+			);
+			editItem?.action();
+		});
+
+		expect(result.current.showEditDialog).toBe(true);
+
+		// Then close it
+		act(() => {
+			result.current.setShowEditDialog(false);
+		});
+
+		expect(result.current.showEditDialog).toBe(false);
 	});
 
 	it("navigates to automation creation on automate action", async () => {
@@ -241,6 +261,6 @@ describe("useWorkPoolQueueMenu", () => {
 			editItem?.action();
 		});
 
-		expect(console.log).toHaveBeenCalledWith("Edit queue:", "my-custom-queue");
+		expect(result.current.showEditDialog).toBe(true);
 	});
 });

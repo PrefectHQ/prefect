@@ -11,6 +11,7 @@ import {
 	useDeleteWorkPoolQueueMutation,
 	usePauseWorkPoolQueueMutation,
 	useResumeWorkPoolQueueMutation,
+	useUpdateWorkPoolQueueMutation,
 	type WorkPoolQueue,
 	workPoolQueuesQueryKeyFactory,
 } from "./work-pool-queues";
@@ -448,6 +449,156 @@ describe("work pool queue mutation hooks", () => {
 			// Verify list cache is invalidated
 			expect(invalidateQueriesSpy).toHaveBeenCalledWith({
 				queryKey: workPoolQueuesQueryKeyFactory.list(MOCK_WORK_POOL_NAME),
+			});
+		});
+	});
+
+	describe("useUpdateWorkPoolQueueMutation", () => {
+		it("calls PATCH API to update queue", async () => {
+			const queryClient = new QueryClient();
+			const mockWorkQueueData = {
+				name: "updated-queue",
+				description: "Updated description",
+				is_paused: false,
+				concurrency_limit: 10,
+				priority: 5,
+			};
+
+			// Mock the API endpoint
+			server.use(
+				http.patch(
+					buildApiUrl(
+						`/work_pools/${MOCK_WORK_POOL_NAME}/queues/${MOCK_QUEUE_NAME}`,
+					),
+					async ({ request }) => {
+						const body = await request.json();
+						expect(body).toEqual(mockWorkQueueData);
+						return HttpResponse.json({
+							id: "queue-id",
+							...mockWorkQueueData,
+						});
+					},
+				),
+			);
+
+			const { result } = renderHook(useUpdateWorkPoolQueueMutation, {
+				wrapper: createWrapper({ queryClient }),
+			});
+
+			// Invoke mutation
+			act(() =>
+				result.current.mutate({
+					workPoolName: MOCK_WORK_POOL_NAME,
+					queueName: MOCK_QUEUE_NAME,
+					workQueueData: mockWorkQueueData,
+				}),
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		});
+
+		it("invalidates list and detail cache on success", async () => {
+			const queryClient = new QueryClient();
+			const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+			// Mock the API endpoint
+			server.use(
+				http.patch(
+					buildApiUrl(
+						`/work_pools/${MOCK_WORK_POOL_NAME}/queues/${MOCK_QUEUE_NAME}`,
+					),
+					() => {
+						return HttpResponse.json({
+							id: "queue-id",
+							name: MOCK_QUEUE_NAME,
+						});
+					},
+				),
+			);
+
+			const { result } = renderHook(useUpdateWorkPoolQueueMutation, {
+				wrapper: createWrapper({ queryClient }),
+			});
+
+			// Invoke mutation
+			act(() =>
+				result.current.mutate({
+					workPoolName: MOCK_WORK_POOL_NAME,
+					queueName: MOCK_QUEUE_NAME,
+					workQueueData: {
+						description: "Updated description",
+						is_paused: false,
+					},
+				}),
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+			// Verify cache invalidation calls
+			expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+				queryKey: workPoolQueuesQueryKeyFactory.list(MOCK_WORK_POOL_NAME),
+			});
+			expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+				queryKey: workPoolQueuesQueryKeyFactory.detail(
+					MOCK_WORK_POOL_NAME,
+					MOCK_QUEUE_NAME,
+				),
+			});
+		});
+
+		it("invalidates new name detail cache when queue is renamed", async () => {
+			const queryClient = new QueryClient();
+			const invalidateQueriesSpy = vi.spyOn(queryClient, "invalidateQueries");
+			const newQueueName = "renamed-queue";
+
+			// Mock the API endpoint
+			server.use(
+				http.patch(
+					buildApiUrl(
+						`/work_pools/${MOCK_WORK_POOL_NAME}/queues/${MOCK_QUEUE_NAME}`,
+					),
+					() => {
+						return HttpResponse.json({
+							id: "queue-id",
+							name: newQueueName,
+						});
+					},
+				),
+			);
+
+			const { result } = renderHook(useUpdateWorkPoolQueueMutation, {
+				wrapper: createWrapper({ queryClient }),
+			});
+
+			// Invoke mutation with new name
+			act(() =>
+				result.current.mutate({
+					workPoolName: MOCK_WORK_POOL_NAME,
+					queueName: MOCK_QUEUE_NAME,
+					workQueueData: {
+						name: newQueueName,
+						is_paused: false,
+					},
+				}),
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+			// Verify cache invalidation calls include new name
+			expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+				queryKey: workPoolQueuesQueryKeyFactory.list(MOCK_WORK_POOL_NAME),
+			});
+			expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+				queryKey: workPoolQueuesQueryKeyFactory.detail(
+					MOCK_WORK_POOL_NAME,
+					MOCK_QUEUE_NAME,
+				),
+			});
+			expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+				queryKey: workPoolQueuesQueryKeyFactory.detail(
+					MOCK_WORK_POOL_NAME,
+					newQueueName,
+				),
 			});
 		});
 	});

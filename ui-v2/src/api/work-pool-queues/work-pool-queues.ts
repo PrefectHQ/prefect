@@ -217,6 +217,48 @@ export const useCreateWorkPoolQueueMutation = () => {
 };
 
 /**
+ * Hook for updating a work pool queue
+ * @returns Mutation for updating a work pool queue
+ */
+export const useUpdateWorkPoolQueueMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({
+			workPoolName,
+			queueName,
+			workQueueData,
+		}: {
+			workPoolName: string;
+			queueName: string;
+			workQueueData: WorkPoolQueueUpdate;
+		}) =>
+			getQueryService().PATCH("/work_pools/{work_pool_name}/queues/{name}", {
+				params: { path: { work_pool_name: workPoolName, name: queueName } },
+				body: workQueueData,
+			}),
+
+		onSuccess: (_, { workPoolName, queueName, workQueueData }) => {
+			void queryClient.invalidateQueries({
+				queryKey: workPoolQueuesQueryKeyFactory.list(workPoolName),
+			});
+			void queryClient.invalidateQueries({
+				queryKey: workPoolQueuesQueryKeyFactory.detail(workPoolName, queueName),
+			});
+			// If the queue was renamed, also invalidate the new name's detail query
+			if (workQueueData.name && workQueueData.name !== queueName) {
+				void queryClient.invalidateQueries({
+					queryKey: workPoolQueuesQueryKeyFactory.detail(
+						workPoolName,
+						workQueueData.name,
+					),
+				});
+			}
+		},
+	});
+};
+
+/**
  * Hook for deleting a work pool queue
  * @returns Mutation for deleting a work pool queue
  */

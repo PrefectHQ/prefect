@@ -2,11 +2,11 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { fn } from "storybook/test";
 import { reactQueryDecorator } from "@/storybook/utils/react-query-decorator";
 import { toastDecorator } from "@/storybook/utils/toast-decorator";
-import { WorkPoolQueueCreateDialog } from "./work-pool-queue-create-dialog";
+import { WorkPoolQueueCreateOrEditDialog } from "./work-pool-queue-create-dialog";
 
-const meta: Meta<typeof WorkPoolQueueCreateDialog> = {
-	title: "Components/WorkPools/WorkPoolQueueCreateDialog",
-	component: WorkPoolQueueCreateDialog,
+const meta: Meta<typeof WorkPoolQueueCreateOrEditDialog> = {
+	title: "Components/WorkPools/WorkPoolQueueCreateOrEditDialog",
+	component: WorkPoolQueueCreateOrEditDialog,
 	decorators: [toastDecorator, reactQueryDecorator],
 	args: {
 		workPoolName: "my-work-pool",
@@ -17,7 +17,7 @@ const meta: Meta<typeof WorkPoolQueueCreateDialog> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof WorkPoolQueueCreateDialog>;
+type Story = StoryObj<typeof WorkPoolQueueCreateOrEditDialog>;
 
 export const Default: Story = {};
 

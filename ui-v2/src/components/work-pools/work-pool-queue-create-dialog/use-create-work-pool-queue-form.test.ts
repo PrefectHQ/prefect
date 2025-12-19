@@ -1,16 +1,20 @@
 import { renderHook } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
-import { useCreateWorkPoolQueueForm } from "./use-create-work-pool-queue-form";
+import { useCreateOrEditWorkPoolQueueForm } from "./use-create-work-pool-queue-form";
 
 vi.mock("@/api/work-pool-queues", () => ({
 	useCreateWorkPoolQueueMutation: () => ({
 		mutate: vi.fn(),
 		isPending: false,
 	}),
+	useUpdateWorkPoolQueueMutation: () => ({
+		mutate: vi.fn(),
+		isPending: false,
+	}),
 }));
 
-describe("useCreateWorkPoolQueueForm", () => {
+describe("useCreateOrEditWorkPoolQueueForm", () => {
 	const defaultOptions = {
 		workPoolName: "test-work-pool",
 		onSubmit: vi.fn(),
@@ -18,7 +22,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("initializes with default values", () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -36,7 +40,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("validates required name field", () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -51,7 +55,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("validates name field format", () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -66,7 +70,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("accepts valid name formats", async () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -91,7 +95,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("handles numeric inputs correctly", async () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -112,7 +116,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("handles empty numeric inputs correctly", async () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -132,7 +136,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("handles positive numbers for concurrency limit", () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -147,7 +151,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("handles positive numbers for priority", () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -162,7 +166,7 @@ describe("useCreateWorkPoolQueueForm", () => {
 
 	it("returns isLoading state", () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
@@ -171,14 +175,14 @@ describe("useCreateWorkPoolQueueForm", () => {
 		expect(result.current.isLoading).toBe(false);
 	});
 
-	it("provides create function", () => {
+	it("provides saveOrUpdate function", () => {
 		const { result } = renderHook(
-			() => useCreateWorkPoolQueueForm(defaultOptions),
+			() => useCreateOrEditWorkPoolQueueForm(defaultOptions),
 			{
 				wrapper: createWrapper(),
 			},
 		);
 
-		expect(typeof result.current.create).toBe("function");
+		expect(typeof result.current.saveOrUpdate).toBe("function");
 	});
 });
