@@ -273,7 +273,7 @@ function RouteComponent() {
 						onUpdate={handleWorkPoolUpdate}
 					/>
 					{showCodeBanner && (
-						<div className="w-full bg-gray-50 py-6 px-4 rounded-lg mb-6">
+						<div className="w-full bg-muted/50 py-6 px-4 rounded-lg mb-6">
 							<div className="max-w-4xl mx-auto">
 								<CodeBanner
 									command={codeBannerCommand}
