@@ -214,9 +214,9 @@ describe("WorkPoolQueueDetails", () => {
 
 	it("displays 'None' for missing optional fields", () => {
 		const mockQueue = createFakeWorkPoolQueue({
-			priority: null,
-			created: null,
-			updated: null,
+			priority: undefined,
+			created: undefined,
+			updated: undefined,
 		});
 
 		render(
