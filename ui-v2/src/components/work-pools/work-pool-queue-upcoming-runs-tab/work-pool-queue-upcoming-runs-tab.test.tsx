@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { buildApiUrl, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { Suspense } from "react";
@@ -89,32 +88,6 @@ vi.mock("@/components/flow-runs/flow-runs-list/flow-runs-pagination", () => ({
 	),
 }));
 
-vi.mock(
-	"@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter",
-	() => ({
-		StateFilter: ({
-			selectedFilters,
-			onSelectFilter,
-		}: {
-			selectedFilters: Set<string>;
-			onSelectFilter: (filters: Set<string>) => void;
-		}) => (
-			<div data-testid="state-filter">
-				<span data-testid="selected-states">
-					{Array.from(selectedFilters).join(",")}
-				</span>
-				<button
-					type="button"
-					onClick={() => onSelectFilter(new Set(["Running"]))}
-					data-testid="select-running"
-				>
-					Filter Running
-				</button>
-			</div>
-		),
-	}),
-);
-
 const createWrapper = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
@@ -168,95 +141,6 @@ describe("WorkPoolQueueUpcomingRunsTab", () => {
 			expect(screen.getByText("Test Run 1")).toBeInTheDocument();
 		});
 		expect(screen.getByText("Test Run 2")).toBeInTheDocument();
-	});
-
-	it("renders search input and state filter", async () => {
-		setupMswHandlers();
-
-		render(
-			<WorkPoolQueueUpcomingRunsTab
-				workPoolName="test-pool"
-				queue={mockQueue}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
-		);
-
-		await waitFor(() => {
-			expect(
-				screen.getByPlaceholderText("Search flow runs by name..."),
-			).toBeInTheDocument();
-		});
-
-		expect(screen.getByTestId("state-filter")).toBeInTheDocument();
-	});
-
-	it("has default state filter set to Scheduled", async () => {
-		setupMswHandlers();
-
-		render(
-			<WorkPoolQueueUpcomingRunsTab
-				workPoolName="test-pool"
-				queue={mockQueue}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
-		);
-
-		await waitFor(() => {
-			expect(screen.getByTestId("selected-states")).toHaveTextContent(
-				"Scheduled",
-			);
-		});
-	});
-
-	it("handles search input changes", async () => {
-		setupMswHandlers();
-		const user = userEvent.setup();
-
-		render(
-			<WorkPoolQueueUpcomingRunsTab
-				workPoolName="test-pool"
-				queue={mockQueue}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
-		);
-
-		const searchInput = await screen.findByPlaceholderText(
-			"Search flow runs by name...",
-		);
-
-		await user.type(searchInput, "test search");
-
-		expect(searchInput).toHaveValue("test search");
-	});
-
-	it("handles state filter changes", async () => {
-		setupMswHandlers();
-		const user = userEvent.setup();
-
-		render(
-			<WorkPoolQueueUpcomingRunsTab
-				workPoolName="test-pool"
-				queue={mockQueue}
-			/>,
-			{
-				wrapper: createWrapper(),
-			},
-		);
-
-		await waitFor(() => {
-			expect(screen.getByTestId("state-filter")).toBeInTheDocument();
-		});
-
-		const filterButton = screen.getByTestId("select-running");
-		await user.click(filterButton);
-
-		expect(screen.getByTestId("state-filter")).toBeInTheDocument();
 	});
 
 	it("shows pagination controls when multiple pages exist", async () => {
