@@ -165,6 +165,8 @@ export const buildGetTaskRunResultQuery = (taskRunId: string) =>
 						task_run_id: { any_: [taskRunId] },
 						type: { any_: ["result"] },
 					},
+					sort: "CREATED_DESC",
+					offset: 0,
 					limit: 1,
 				},
 			});
