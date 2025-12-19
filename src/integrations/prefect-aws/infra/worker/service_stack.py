@@ -573,8 +573,12 @@ class EcsServiceStack(Stack):
             role_name=f"{self.work_pool_name.value_as_string}-task-execution-role",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
             managed_policies=[
-                iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "service-role/AmazonECSTaskExecutionRolePolicy"
+                iam.ManagedPolicy.from_managed_policy_arn(
+                    self,
+                    "AmazonECSTaskExecutionRolePolicy",
+                    Fn.sub(
+                        "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+                    ),
                 )
             ],
         )
