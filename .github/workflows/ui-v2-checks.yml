@@ -27,8 +27,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-ui:
-    name: Build ui
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
 
     steps:
@@ -37,6 +37,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: "ui-v2/.nvmrc"
+          cache: "npm"
           cache-dependency-path: "**/package-lock.json"
 
       - name: Install UI dependencies
@@ -56,9 +57,43 @@ jobs:
         working-directory: ./ui-v2
         run: npm run lint
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: "ui-v2/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install UI dependencies
+        working-directory: ./ui-v2
+        run: npm ci
+
       - name: Build UI
         working-directory: ./ui-v2
         run: npm run build
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: "ui-v2/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install UI dependencies
+        working-directory: ./ui-v2
+        run: npm ci
 
       - name: Run tests
         working-directory: ./ui-v2
