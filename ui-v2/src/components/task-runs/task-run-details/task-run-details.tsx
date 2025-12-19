@@ -1,5 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import humanizeDuration from "humanize-duration";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { buildGetTaskRunResultQuery } from "@/api/artifacts";
 import type { TaskRun } from "@/api/task-runs";
 import { Icon } from "@/components/ui/icons";
 import { TagBadge } from "@/components/ui/tag-badge";
@@ -23,6 +27,11 @@ export type TaskRunDetailsProps = {
 };
 
 export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
+	const { data: resultArtifact } = useQuery({
+		...buildGetTaskRunResultQuery(taskRun?.id ?? ""),
+		enabled: !!taskRun?.id,
+	});
+
 	if (!taskRun) {
 		return (
 			<div className="flex flex-col gap-2 bg-gray-100 p-4 rounded-md">
@@ -127,6 +136,19 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 				<dt className=" text-gray-500">Task Run ID</dt>
 				<dd className="font-mono ">{taskRun.id}</dd>
 			</dl>
+
+			{resultArtifact?.description && (
+				<dl className="flex flex-col gap-1 mb-2">
+					<dt className="text-muted-foreground">Result</dt>
+					<dd>
+						<div className="prose max-w-none dark:prose-invert">
+							<ReactMarkdown remarkPlugins={[remarkGfm]}>
+								{resultArtifact.description}
+							</ReactMarkdown>
+						</div>
+					</dd>
+				</dl>
+			)}
 
 			<div className="border-t border-gray-200 mt-2 pt-4" />
 			<h3 className="text-sm font-semibold mb-2">Task configuration</h3>

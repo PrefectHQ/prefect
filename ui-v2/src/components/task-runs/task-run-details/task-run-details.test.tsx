@@ -6,9 +6,10 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { render, waitFor } from "@testing-library/react";
-import { createWrapper } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
-import { createFakeTaskRun } from "@/mocks";
+import { createFakeArtifact, createFakeTaskRun } from "@/mocks";
 import { TaskRunDetails, type TaskRunDetailsProps } from "./task-run-details";
 
 // Wraps component in test with a Tanstack router provider
@@ -110,5 +111,99 @@ describe("TaskRunDetails", () => {
 		expect(screen.getByText("Version")).toBeInTheDocument();
 		expect(screen.getByText("Retries")).toBeInTheDocument();
 		expect(screen.getByText("Retry Delay")).toBeInTheDocument();
+	});
+
+	it("should display result artifact when present", async () => {
+		const taskRunId = "test-task-run-id";
+		const resultArtifact = createFakeArtifact({
+			task_run_id: taskRunId,
+			type: "result",
+			description: "Test result description",
+		});
+
+		server.use(
+			http.post(buildApiUrl("/artifacts/filter"), () => {
+				return HttpResponse.json([resultArtifact]);
+			}),
+		);
+
+		const taskRun = createFakeTaskRun({ id: taskRunId });
+		const screen = render(<TaskRunDetailsRouter taskRun={taskRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("Result")).toBeInTheDocument();
+		});
+		expect(screen.getByText("Test result description")).toBeInTheDocument();
+	});
+
+	it("should not display result section when no artifact exists", async () => {
+		server.use(
+			http.post(buildApiUrl("/artifacts/filter"), () => {
+				return HttpResponse.json([]);
+			}),
+		);
+
+		const taskRun = createFakeTaskRun({ id: "test-task-run-id" });
+		const screen = render(<TaskRunDetailsRouter taskRun={taskRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("Task Run ID")).toBeInTheDocument();
+		});
+		expect(screen.queryByText("Result")).not.toBeInTheDocument();
+	});
+
+	it("should not display result section when artifact has no description", async () => {
+		const taskRunId = "test-task-run-id";
+		const resultArtifact = createFakeArtifact({
+			task_run_id: taskRunId,
+			type: "result",
+			description: null,
+		});
+
+		server.use(
+			http.post(buildApiUrl("/artifacts/filter"), () => {
+				return HttpResponse.json([resultArtifact]);
+			}),
+		);
+
+		const taskRun = createFakeTaskRun({ id: taskRunId });
+		const screen = render(<TaskRunDetailsRouter taskRun={taskRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("Task Run ID")).toBeInTheDocument();
+		});
+		expect(screen.queryByText("Result")).not.toBeInTheDocument();
+	});
+
+	it("should render markdown content in result artifact", async () => {
+		const taskRunId = "test-task-run-id";
+		const resultArtifact = createFakeArtifact({
+			task_run_id: taskRunId,
+			type: "result",
+			description: "**Bold text** and *italic text*",
+		});
+
+		server.use(
+			http.post(buildApiUrl("/artifacts/filter"), () => {
+				return HttpResponse.json([resultArtifact]);
+			}),
+		);
+
+		const taskRun = createFakeTaskRun({ id: taskRunId });
+		const screen = render(<TaskRunDetailsRouter taskRun={taskRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("Result")).toBeInTheDocument();
+		});
+		expect(screen.getByText("Bold text")).toBeInTheDocument();
+		expect(screen.getByText("italic text")).toBeInTheDocument();
 	});
 });
