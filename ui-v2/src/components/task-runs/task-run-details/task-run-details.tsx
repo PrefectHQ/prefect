@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import humanizeDuration from "humanize-duration";
 import type { TaskRun } from "@/api/task-runs";
 import { Icon } from "@/components/ui/icons";
@@ -32,14 +33,18 @@ export const TaskRunDetails = ({ taskRun }: TaskRunDetailsProps) => {
 
 	return (
 		<div className="flex flex-col gap-2 p-2 text-xs">
-			{taskRun.flow_run_name && (
+			{taskRun.flow_run_name && taskRun.flow_run_id && (
 				<dl className="flex flex-col gap-1 mb-2">
 					<dt className="text-gray-500">Flow Run</dt>
 					<dd>
-						<span className="text-blue-500 hover:underline cursor-pointer flex items-center">
+						<Link
+							to="/runs/flow-run/$id"
+							params={{ id: taskRun.flow_run_id }}
+							className="text-blue-500 hover:underline cursor-pointer flex items-center"
+						>
 							<Icon id="ExternalLink" className="mr-1 size-4" />
 							{taskRun.flow_run_name}
-						</span>
+						</Link>
 					</dd>
 				</dl>
 			)}
