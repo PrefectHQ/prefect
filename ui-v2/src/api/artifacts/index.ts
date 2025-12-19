@@ -30,6 +30,7 @@ export type ArtifactsFilter =
  * count			=>   ['artifacts', 'counts', { ...filter }]
  * details          =>   ['artifacts', 'details']
  * detail           =>   ['artifacts', 'details', id]
+ * task-run-result  =>   ['artifacts', 'task-run-result', taskRunId]
  * ```
  */
 export const queryKeyFactory = {
@@ -43,6 +44,8 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	"task-run-result": (taskRunId: string) =>
+		[...queryKeyFactory.all(), "task-run-result", taskRunId] as const,
 };
 
 // ----------------------------
@@ -135,5 +138,36 @@ export const buildGetArtifactQuery = (id: string) =>
 				throw new Error("'data' expected");
 			}
 			return res.data;
+		},
+	});
+
+/**
+ * Builds a query configuration for fetching the result artifact for a task run
+ *
+ * @param taskRunId - ID of the task run to fetch the result artifact for
+ * @returns Query configuration object for use with TanStack Query that returns the first result artifact or null
+ *
+ * @example
+ * ```ts
+ * const query = buildGetTaskRunResultQuery("task-run-123");
+ * const { data } = useSuspenseQuery(query);
+ * // data is Artifact | null
+ * ```
+ */
+export const buildGetTaskRunResultQuery = (taskRunId: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory["task-run-result"](taskRunId),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/artifacts/filter", {
+				body: {
+					artifacts: {
+						operator: "and_",
+						task_run_id: { any_: [taskRunId] },
+						type: { any_: ["result"] },
+					},
+					limit: 1,
+				},
+			});
+			return res.data?.[0] ?? null;
 		},
 	});

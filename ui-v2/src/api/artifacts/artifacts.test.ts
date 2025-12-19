@@ -10,6 +10,7 @@ import {
 	type Artifact,
 	buildCountArtifactsQuery,
 	buildGetArtifactQuery,
+	buildGetTaskRunResultQuery,
 	buildListArtifactsQuery,
 } from "./index";
 
@@ -91,5 +92,49 @@ describe("artifacts queries and mutations", () => {
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toEqual(count);
+	});
+
+	it("retrieves task run result artifact", async () => {
+		// ------------ Mock API requests when cache is empty
+		const taskRunId = "test-task-run-id";
+		const mockArtifact = createFakeArtifact({
+			task_run_id: taskRunId,
+			type: "result",
+		});
+		server.use(
+			http.post(buildApiUrl("/artifacts/filter"), () => {
+				return HttpResponse.json([mockArtifact]);
+			}),
+		);
+
+		// ------------ Initialize hooks to test
+		const { result } = renderHook(
+			() => useSuspenseQuery(buildGetTaskRunResultQuery(taskRunId)),
+			{ wrapper: createWrapper() },
+		);
+
+		// ------------ Assert
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(mockArtifact);
+	});
+
+	it("returns null when no task run result artifact exists", async () => {
+		// ------------ Mock API requests when cache is empty
+		const taskRunId = "test-task-run-id-no-result";
+		server.use(
+			http.post(buildApiUrl("/artifacts/filter"), () => {
+				return HttpResponse.json([]);
+			}),
+		);
+
+		// ------------ Initialize hooks to test
+		const { result } = renderHook(
+			() => useSuspenseQuery(buildGetTaskRunResultQuery(taskRunId)),
+			{ wrapper: createWrapper() },
+		);
+
+		// ------------ Assert
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toBeNull();
 	});
 });
