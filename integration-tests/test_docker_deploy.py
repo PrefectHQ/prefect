@@ -4,8 +4,6 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
-import uv
-
 from prefect import flow, get_client
 from prefect.deployments import run_deployment
 from prefect.docker.docker_image import DockerImage
@@ -37,7 +35,7 @@ def test_docker_deploy():
     try:
         subprocess.check_call(
             [
-                uv.find_uv_bin(),
+                "uv",
                 "run",
                 "--isolated",
                 "prefect",
@@ -87,7 +85,7 @@ def test_docker_deploy():
         # Execute the flow run
         subprocess.check_call(
             [
-                uv.find_uv_bin(),
+                "uv",
                 "run",
                 "--isolated",
                 "--with",
@@ -111,7 +109,7 @@ def test_docker_deploy():
         # Cleanup
         subprocess.check_call(
             [
-                uv.find_uv_bin(),
+                "uv",
                 "run",
                 "--isolated",
                 "prefect",
