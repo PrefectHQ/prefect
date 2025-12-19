@@ -171,16 +171,22 @@ describe("WorkPoolEditForm", () => {
 		await user.click(saveButton);
 
 		await waitFor(() => {
-			expect(mockUpdateWorkPool).toHaveBeenCalledWith(
+			expect(mockUpdateWorkPool).toHaveBeenCalled();
+			const callArgs = mockUpdateWorkPool.mock.calls[0] as [
 				{
-					name: "test-work-pool",
+					name: string;
 					workPool: {
-						description: "Test description",
-						concurrency_limit: 10,
-					},
+						description: string | null;
+						concurrency_limit: number | null;
+						base_job_template: Record<string, unknown>;
+					};
 				},
-				expect.any(Object),
-			);
+				UpdateWorkPoolOptions,
+			];
+			expect(callArgs[0].name).toBe("test-work-pool");
+			expect(callArgs[0].workPool.description).toBe("Test description");
+			expect(callArgs[0].workPool.concurrency_limit).toBe(10);
+			expect(callArgs[0].workPool.base_job_template).toBeDefined();
 		});
 	});
 
@@ -295,5 +301,102 @@ describe("WorkPoolEditForm", () => {
 
 		expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+	});
+
+	describe("BaseJobTemplateFormSection", () => {
+		it("shows Base Job Template section for non-prefect-agent work pool types", () => {
+			const workPool = createFakeWorkPool({
+				name: "test-pool",
+				description: "Test",
+				concurrency_limit: 5,
+				type: "process",
+			});
+
+			render(
+				<QueryClientProvider client={queryClient}>
+					<WorkPoolEditForm workPool={workPool} />
+				</QueryClientProvider>,
+			);
+
+			expect(screen.getByText("Base Job Template")).toBeInTheDocument();
+		});
+
+		it("shows Base Job Template section for docker work pool type", () => {
+			const workPool = createFakeWorkPool({
+				name: "test-pool",
+				description: "Test",
+				concurrency_limit: 5,
+				type: "docker",
+			});
+
+			render(
+				<QueryClientProvider client={queryClient}>
+					<WorkPoolEditForm workPool={workPool} />
+				</QueryClientProvider>,
+			);
+
+			expect(screen.getByText("Base Job Template")).toBeInTheDocument();
+		});
+
+		it("hides Base Job Template section for prefect-agent work pool type", () => {
+			const workPool = createFakeWorkPool({
+				name: "test-pool",
+				description: "Test",
+				concurrency_limit: 5,
+				type: "prefect-agent",
+			});
+
+			render(
+				<QueryClientProvider client={queryClient}>
+					<WorkPoolEditForm workPool={workPool} />
+				</QueryClientProvider>,
+			);
+
+			expect(screen.queryByText("Base Job Template")).not.toBeInTheDocument();
+		});
+
+		it("includes base_job_template in form submission", async () => {
+			const user = userEvent.setup();
+			const baseJobTemplate = {
+				job_configuration: {
+					image: "python:3.9",
+				},
+				variables: {
+					type: "object",
+					properties: {},
+				},
+			};
+
+			const workPool = createFakeWorkPool({
+				name: "test-pool",
+				description: "Test description",
+				concurrency_limit: 5,
+				type: "process",
+				base_job_template: baseJobTemplate,
+			});
+
+			render(
+				<QueryClientProvider client={queryClient}>
+					<WorkPoolEditForm workPool={workPool} />
+				</QueryClientProvider>,
+			);
+
+			const saveButton = screen.getByRole("button", { name: "Save" });
+			await user.click(saveButton);
+
+			await waitFor(() => {
+				expect(mockUpdateWorkPool).toHaveBeenCalledWith(
+					{
+						name: "test-pool",
+						workPool: {
+							description: "Test description",
+							concurrency_limit: 5,
+							base_job_template: baseJobTemplate,
+						},
+					},
+					expect.any(Object),
+				);
+			});
+		});
 	});
 });
