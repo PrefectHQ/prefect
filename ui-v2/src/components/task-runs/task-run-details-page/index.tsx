@@ -7,6 +7,7 @@ import {
 	buildGetTaskRunDetailsQuery,
 	type TaskRun,
 	useDeleteTaskRun,
+	useSetTaskRunState,
 } from "@/api/task-runs";
 import { TaskRunArtifacts } from "@/components/task-runs/task-run-artifacts";
 import { TaskRunDetails } from "@/components/task-runs/task-run-details/task-run-details";
@@ -20,6 +21,10 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import {
+	ChangeStateDialog,
+	useChangeStateDialog,
+} from "@/components/ui/change-state-dialog";
 import {
 	DeleteConfirmationDialog,
 	useDeleteConfirmationDialog,
@@ -133,6 +138,46 @@ const Header = ({
 	onDeleteRunClicked: () => void;
 }) => {
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
+	const {
+		open: isChangeStateOpen,
+		onOpenChange: setChangeStateOpen,
+		openDialog: openChangeState,
+	} = useChangeStateDialog();
+	const { setTaskRunState, isPending: isChangingState } = useSetTaskRunState();
+
+	const canChangeState =
+		taskRun.state_type &&
+		["COMPLETED", "FAILED", "CANCELLED", "CRASHED"].includes(
+			taskRun.state_type,
+		);
+
+	const handleChangeState = (newState: { type: string; message?: string }) => {
+		setTaskRunState(
+			{
+				id: taskRun.id,
+				state: {
+					type: newState.type as
+						| "COMPLETED"
+						| "FAILED"
+						| "CANCELLED"
+						| "CRASHED",
+					name: newState.type.charAt(0) + newState.type.slice(1).toLowerCase(),
+					message: newState.message,
+				},
+				force: true,
+			},
+			{
+				onSuccess: () => {
+					toast.success("Task run state changed");
+					setChangeStateOpen(false);
+				},
+				onError: (error) => {
+					toast.error(error.message || "Failed to change state");
+				},
+			},
+		);
+	};
+
 	return (
 		<div className="flex flex-row justify-between">
 			<Breadcrumb>
@@ -178,13 +223,11 @@ const Header = ({
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent>
-					<DropdownMenuItem
-						onClick={() => {
-							alert("Still working on this");
-						}}
-					>
-						Change state
-					</DropdownMenuItem>
+					{canChangeState && (
+						<DropdownMenuItem onClick={openChangeState}>
+							Change state
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem
 						onClick={() => {
 							toast.success("Copied task run ID to clipboard");
@@ -207,6 +250,18 @@ const Header = ({
 				</DropdownMenuContent>
 			</DropdownMenu>
 			<DeleteConfirmationDialog {...dialogState} />
+			<ChangeStateDialog
+				open={isChangeStateOpen}
+				onOpenChange={setChangeStateOpen}
+				currentState={
+					taskRun.state
+						? { type: taskRun.state.type, name: taskRun.state.name }
+						: null
+				}
+				label="Task Run"
+				onConfirm={handleChangeState}
+				isLoading={isChangingState}
+			/>
 		</div>
 	);
 };
