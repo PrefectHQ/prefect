@@ -7,8 +7,6 @@ import {
 	buildWorkPoolQueueDetailsQuery,
 	workPoolQueuesQueryKeyFactory,
 } from "@/api/work-pool-queues";
-import { buildGetWorkPoolQuery } from "@/api/work-pools";
-import { CodeBanner } from "@/components/code-banner";
 import {
 	LayoutWell,
 	LayoutWellContent,
@@ -30,6 +28,70 @@ const searchParams = z.object({
 
 type SearchParams = z.infer<typeof searchParams>;
 
+function DetailsTabSkeleton() {
+	return (
+		<div className="space-y-6">
+			<div className="space-y-4">
+				<Skeleton className="h-4 w-48" />
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="space-y-2">
+						<Skeleton className="h-3 w-16" />
+						<Skeleton className="h-6 w-24" />
+					</div>
+					<div className="space-y-2">
+						<Skeleton className="h-3 w-20" />
+						<Skeleton className="h-6 w-32" />
+					</div>
+					<div className="space-y-2">
+						<Skeleton className="h-3 w-24" />
+						<Skeleton className="h-6 w-28" />
+					</div>
+					<div className="space-y-2">
+						<Skeleton className="h-3 w-18" />
+						<Skeleton className="h-6 w-36" />
+					</div>
+				</div>
+			</div>
+			<div className="space-y-3">
+				<Skeleton className="h-5 w-40" />
+				<div className="space-y-2">
+					<Skeleton className="h-32 w-full" />
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function UpcomingRunsTabSkeleton() {
+	return (
+		<div className="flex flex-col gap-2">
+			<Skeleton className="h-24 w-full" />
+			<Skeleton className="h-24 w-full" />
+			<Skeleton className="h-24 w-full" />
+		</div>
+	);
+}
+
+function RunsTabSkeleton() {
+	return (
+		<div className="flex flex-col gap-4">
+			<div className="flex flex-col sm:flex-row gap-4">
+				<div className="flex-1">
+					<Skeleton className="h-9 w-full" />
+				</div>
+				<div className="w-full sm:w-64">
+					<Skeleton className="h-9 w-full" />
+				</div>
+			</div>
+			<div className="flex flex-col gap-2">
+				<Skeleton className="h-24 w-full" />
+				<Skeleton className="h-24 w-full" />
+				<Skeleton className="h-24 w-full" />
+			</div>
+		</div>
+	);
+}
+
 export const Route = createFileRoute(
 	"/work-pools/work-pool/$workPoolName/queue/$workQueueName",
 )({
@@ -40,9 +102,6 @@ export const Route = createFileRoute(
 		const queue = await queryClient.ensureQueryData(
 			buildWorkPoolQueueDetailsQuery(params.workPoolName, params.workQueueName),
 		);
-
-		// Prefetch work pool data for better UX
-		void queryClient.prefetchQuery(buildGetWorkPoolQuery(params.workPoolName));
 
 		return { queue };
 	},
@@ -58,16 +117,6 @@ function RouteComponent() {
 	const { data: queue } = useSuspenseQuery(
 		buildWorkPoolQueueDetailsQuery(workPoolName, workQueueName),
 	);
-
-	const { data: workPool } = useSuspenseQuery(
-		buildGetWorkPoolQuery(workPoolName),
-	);
-
-	// Determine CLI command based on work pool type
-	const isAgentPool = workPool.type === "prefect-agent";
-	const codeBannerCommand = isAgentPool
-		? `prefect agent start --pool "${workPool.name}" --work-queue "${queue.name}"`
-		: `prefect worker start --pool "${workPool.name}"`;
 
 	const tabs = useMemo(
 		() => [
@@ -119,16 +168,6 @@ function RouteComponent() {
 						queue={queue}
 						onUpdate={handleQueueUpdate}
 					/>
-					<div className="w-full bg-muted/50 py-6 px-4 rounded-lg mb-6">
-						<div className="max-w-4xl mx-auto">
-							<CodeBanner
-								command={codeBannerCommand}
-								title="Start processing work from this queue"
-								subtitle="Run this command to start."
-								className="py-0"
-							/>
-						</div>
-					</div>
 				</LayoutWellHeader>
 
 				<div className="flex flex-col xl:flex-row xl:gap-8">
@@ -150,39 +189,7 @@ function RouteComponent() {
 							</TabsList>
 
 							<TabsContent value="Details" className="space-y-0">
-								<Suspense
-									fallback={
-										<div className="space-y-6">
-											<div className="space-y-4">
-												<Skeleton className="h-4 w-48" />
-												<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-													<div className="space-y-2">
-														<Skeleton className="h-3 w-16" />
-														<Skeleton className="h-6 w-24" />
-													</div>
-													<div className="space-y-2">
-														<Skeleton className="h-3 w-20" />
-														<Skeleton className="h-6 w-32" />
-													</div>
-													<div className="space-y-2">
-														<Skeleton className="h-3 w-24" />
-														<Skeleton className="h-6 w-28" />
-													</div>
-													<div className="space-y-2">
-														<Skeleton className="h-3 w-18" />
-														<Skeleton className="h-6 w-36" />
-													</div>
-												</div>
-											</div>
-											<div className="space-y-3">
-												<Skeleton className="h-5 w-40" />
-												<div className="space-y-2">
-													<Skeleton className="h-32 w-full" />
-												</div>
-											</div>
-										</div>
-									}
-								>
+								<Suspense fallback={<DetailsTabSkeleton />}>
 									<WorkPoolQueueDetails
 										workPoolName={workPoolName}
 										queue={queue}
@@ -191,15 +198,7 @@ function RouteComponent() {
 							</TabsContent>
 
 							<TabsContent value="Upcoming Runs" className="space-y-0">
-								<Suspense
-									fallback={
-										<div className="flex flex-col gap-2">
-											<Skeleton className="h-24 w-full" />
-											<Skeleton className="h-24 w-full" />
-											<Skeleton className="h-24 w-full" />
-										</div>
-									}
-								>
+								<Suspense fallback={<UpcomingRunsTabSkeleton />}>
 									<WorkPoolQueueUpcomingRunsTab
 										workPoolName={workPoolName}
 										queue={queue}
@@ -208,27 +207,7 @@ function RouteComponent() {
 							</TabsContent>
 
 							<TabsContent value="Runs" className="space-y-0">
-								<Suspense
-									fallback={
-										<div className="flex flex-col gap-4">
-											{/* Search and Filter Controls skeleton */}
-											<div className="flex flex-col sm:flex-row gap-4">
-												<div className="flex-1">
-													<Skeleton className="h-9 w-full" />
-												</div>
-												<div className="w-full sm:w-64">
-													<Skeleton className="h-9 w-full" />
-												</div>
-											</div>
-											{/* Flow runs list skeleton */}
-											<div className="flex flex-col gap-2">
-												<Skeleton className="h-24 w-full" />
-												<Skeleton className="h-24 w-full" />
-												<Skeleton className="h-24 w-full" />
-											</div>
-										</div>
-									}
-								>
+								<Suspense fallback={<RunsTabSkeleton />}>
 									<WorkPoolQueueRunsTab
 										workPoolName={workPoolName}
 										queue={queue}
