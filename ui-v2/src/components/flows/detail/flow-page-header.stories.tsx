@@ -1,12 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { fn } from "storybook/test";
 import { createFakeFlow } from "@/mocks";
-import { routerDecorator } from "@/storybook/utils";
+import { routerDecorator, toastDecorator } from "@/storybook/utils";
 import { FlowPageHeader } from "./flow-page-header";
 
 const meta = {
 	title: "Components/Flows/FlowPageHeader",
 	component: FlowPageHeader,
-	decorators: [routerDecorator],
+	decorators: [toastDecorator, routerDecorator],
+	args: {
+		onDelete: fn(),
+	},
 } satisfies Meta<typeof FlowPageHeader>;
 
 export default meta;
