@@ -155,6 +155,10 @@ const flowHandlers = [
 	http.post(buildApiUrl("/ui/flows/next-runs"), () => {
 		return HttpResponse.json({});
 	}),
+
+	http.delete(buildApiUrl("/flows/:id"), () => {
+		return HttpResponse.json({ status: 204 });
+	}),
 ];
 
 const flowRunHandlers = [
