@@ -1,5 +1,5 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
@@ -23,7 +23,9 @@ import { WorkPoolQueueUpcomingRunsTab } from "@/components/work-pools/work-pool-
 import { cn } from "@/utils";
 
 const searchParams = z.object({
-	tab: z.enum(["Details", "Upcoming Runs", "Runs"]).default("Upcoming Runs"),
+	queueTab: z
+		.enum(["Details", "Upcoming Runs", "Runs"])
+		.default("Upcoming Runs"),
 });
 
 type SearchParams = z.infer<typeof searchParams>;
@@ -49,8 +51,8 @@ export const Route = createFileRoute(
 
 function RouteComponent() {
 	const { workPoolName, workQueueName } = Route.useParams();
-	const { tab } = Route.useSearch();
-	const navigate = useNavigate({ from: Route.fullPath });
+	const { queueTab } = Route.useSearch();
+	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
 
 	const { data: queue } = useSuspenseQuery(
@@ -91,7 +93,8 @@ function RouteComponent() {
 	const handleTabChange = useCallback(
 		(newTab: string) => {
 			void navigate({
-				search: { tab: newTab as SearchParams["tab"] },
+				to: ".",
+				search: { queueTab: newTab as SearchParams["queueTab"] },
 			});
 		},
 		[navigate],
@@ -130,7 +133,7 @@ function RouteComponent() {
 
 				<div className="flex flex-col xl:flex-row xl:gap-8">
 					<div className="flex-1">
-						<Tabs value={tab} onValueChange={handleTabChange}>
+						<Tabs value={queueTab} onValueChange={handleTabChange}>
 							<TabsList className="flex w-full overflow-x-auto scrollbar-none">
 								{tabs.map((tabItem) => (
 									<TabsTrigger
