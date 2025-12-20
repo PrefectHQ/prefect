@@ -4,7 +4,7 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import type { JSX } from "react";
+import { type JSX, useState } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
@@ -20,6 +20,7 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DeleteFlowDialog } from "./delete-flow-dialog";
 import { columns as deploymentColumns } from "./deployment-columns";
 import { FlowPageHeader } from "./flow-page-header";
 import {
@@ -105,6 +106,7 @@ export default function FlowDetail({
 	tab: "runs" | "deployments" | "details";
 }): JSX.Element {
 	const navigate = useNavigate();
+	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
 	const flowRunTable = useReactTable({
 		data: flowRuns,
@@ -150,56 +152,61 @@ export default function FlowDetail({
 	});
 
 	return (
-		<div className="container mx-auto">
-			<FlowPageHeader
-				flow={flow}
-				onDelete={() => {
-					console.log("Delete flow", flow.id);
-				}}
-			/>
-			<div className="h-[200px] mb-2">
-				<FlowRunsBarChart
-					className="mb-2"
-					flowName={flow.name}
-					flowRuns={activity}
-					endWindow={new Date(Date.now())}
-					startWindow={new Date(Date.now() - 1000 * 60 * 24 * 7)}
+		<>
+			<div className="container mx-auto">
+				<FlowPageHeader
+					flow={flow}
+					onDelete={() => setShowDeleteDialog(true)}
 				/>
+				<div className="h-[200px] mb-2">
+					<FlowRunsBarChart
+						className="mb-2"
+						flowName={flow.name}
+						flowRuns={activity}
+						endWindow={new Date(Date.now())}
+						startWindow={new Date(Date.now() - 1000 * 60 * 24 * 7)}
+					/>
+				</div>
+				<Tabs
+					value={tab}
+					onValueChange={(value) =>
+						void navigate({
+							to: ".",
+							search: (prev) => ({
+								...prev,
+								tab: value as "runs" | "deployments" | "details",
+							}),
+						})
+					}
+				>
+					<TabsList>
+						<TabsTrigger value="runs">Runs</TabsTrigger>
+						<TabsTrigger value="deployments">Deployments</TabsTrigger>
+						<TabsTrigger value="details">Details</TabsTrigger>
+					</TabsList>
+					<TabsContent value="runs">
+						<header className="mb-2 flex flex-row justify-between">
+							<SearchComponent />
+							<div className="flex space-x-4">
+								{/* <FilterComponent /> */}
+								<SortComponent />
+							</div>
+						</header>
+						<DataTable table={flowRunTable} />
+					</TabsContent>
+					<TabsContent value="deployments">
+						<DataTable table={deploymentsTable} />
+					</TabsContent>
+					<TabsContent value="details">
+						<DataTable table={metadataTable} />
+					</TabsContent>
+				</Tabs>
 			</div>
-			<Tabs
-				value={tab}
-				onValueChange={(value) =>
-					void navigate({
-						to: ".",
-						search: (prev) => ({
-							...prev,
-							tab: value as "runs" | "deployments" | "details",
-						}),
-					})
-				}
-			>
-				<TabsList>
-					<TabsTrigger value="runs">Runs</TabsTrigger>
-					<TabsTrigger value="deployments">Deployments</TabsTrigger>
-					<TabsTrigger value="details">Details</TabsTrigger>
-				</TabsList>
-				<TabsContent value="runs">
-					<header className="mb-2 flex flex-row justify-between">
-						<SearchComponent />
-						<div className="flex space-x-4">
-							{/* <FilterComponent /> */}
-							<SortComponent />
-						</div>
-					</header>
-					<DataTable table={flowRunTable} />
-				</TabsContent>
-				<TabsContent value="deployments">
-					<DataTable table={deploymentsTable} />
-				</TabsContent>
-				<TabsContent value="details">
-					<DataTable table={metadataTable} />
-				</TabsContent>
-			</Tabs>
-		</div>
+			<DeleteFlowDialog
+				flow={flow}
+				open={showDeleteDialog}
+				onOpenChange={setShowDeleteDialog}
+			/>
+		</>
 	);
 }
