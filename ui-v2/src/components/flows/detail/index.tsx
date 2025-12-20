@@ -151,7 +151,12 @@ export default function FlowDetail({
 
 	return (
 		<div className="container mx-auto">
-			<FlowPageHeader flow={flow} />
+			<FlowPageHeader
+				flow={flow}
+				onDelete={() => {
+					console.log("Delete flow", flow.id);
+				}}
+			/>
 			<div className="h-[200px] mb-2">
 				<FlowRunsBarChart
 					className="mb-2"
