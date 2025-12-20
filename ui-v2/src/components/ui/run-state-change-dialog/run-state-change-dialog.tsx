@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { RUN_STATES, type RunStates } from "@/api/flow-runs/constants";
@@ -19,15 +19,8 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
-import {
-	Select,
-	SelectContent,
-	SelectGroup,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { StateBadge } from "@/components/ui/state-badge";
+import { StateSelect } from "@/components/ui/state-select";
 import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({
@@ -72,12 +65,6 @@ export const RunStateChangeDialog = ({
 		},
 	});
 
-	const stateOptions = useMemo(
-		() =>
-			Object.entries(RUN_STATES).filter(([key]) => key !== currentState.type),
-		[currentState.type],
-	);
-
 	const isSubmitDisabled = isSubmitting || !form.watch("state");
 
 	const onSubmit = async (values: RunStateFormValues) => {
@@ -119,37 +106,11 @@ export const RunStateChangeDialog = ({
 								<FormItem className="w-full">
 									<FormLabel>Desired State</FormLabel>
 									<FormControl>
-										<Select {...field} onValueChange={field.onChange}>
-											<SelectTrigger
-												aria-label="select state"
-												className="w-full"
-											>
-												<SelectValue placeholder="Select state">
-													{field.value && (
-														<StateBadge
-															type={field.value}
-															name={RUN_STATES[field.value]}
-														/>
-													)}
-												</SelectValue>
-											</SelectTrigger>
-											<SelectContent className="w-full min-w-[300px]">
-												<SelectGroup>
-													{stateOptions.map(([key, value]) => (
-														<SelectItem
-															key={key}
-															value={key}
-															className="flex items-center"
-														>
-															<StateBadge
-																type={key as components["schemas"]["StateType"]}
-																name={value}
-															/>
-														</SelectItem>
-													))}
-												</SelectGroup>
-											</SelectContent>
-										</Select>
+										<StateSelect
+											value={field.value}
+											onValueChange={field.onChange}
+											excludeState={currentState.type ?? undefined}
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>

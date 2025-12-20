@@ -1,5 +1,5 @@
 import { useFormContext } from "react-hook-form";
-import type { components } from "@/api/prefect";
+import { RUN_STATES } from "@/api/flow-runs/constants";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
 	FormControl,
@@ -9,32 +9,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectGroup,
-	SelectItem,
-	SelectLabel,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+import { StateSelect } from "@/components/ui/state-select";
 import { Textarea } from "@/components/ui/textarea";
-
-const FLOW_STATES = {
-	COMPLETED: "Completed",
-	RUNNING: "Running",
-	SCHEDULED: "Scheduled",
-	PENDING: "Pending",
-	FAILED: "Failed",
-	CANCELLED: "Cancelled",
-	CANCELLING: "Cancelling",
-	CRASHED: "Crashed",
-	PAUSED: "Paused",
-} as const satisfies Record<
-	components["schemas"]["StateType"],
-	Capitalize<Lowercase<components["schemas"]["StateType"]>>
->;
-type FlowStates = keyof typeof FLOW_STATES;
 
 type ChangeFlowRunStateFieldsProps = {
 	index: number;
@@ -55,21 +31,7 @@ export const ChangeFlowRunStateFields = ({
 					<FormItem>
 						<FormLabel>State</FormLabel>
 						<FormControl>
-							<Select {...field} onValueChange={field.onChange}>
-								<SelectTrigger aria-label="select state">
-									<SelectValue placeholder="Select state" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectGroup>
-										<SelectLabel>Actions</SelectLabel>
-										{Object.keys(FLOW_STATES).map((key) => (
-											<SelectItem key={key} value={key}>
-												{FLOW_STATES[key as FlowStates]}
-											</SelectItem>
-										))}
-									</SelectGroup>
-								</SelectContent>
-							</Select>
+							<StateSelect value={field.value} onValueChange={field.onChange} />
 						</FormControl>
 						<FormMessage />
 					</FormItem>
@@ -86,7 +48,7 @@ export const ChangeFlowRunStateFields = ({
 								type="text"
 								{...field}
 								value={field.value ?? ""}
-								placeholder={FLOW_STATES[stateField]}
+								placeholder={stateField ? RUN_STATES[stateField] : undefined}
 							/>
 						</FormControl>
 						<FormMessage />
