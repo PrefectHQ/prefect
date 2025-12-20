@@ -255,7 +255,13 @@ const Header = ({
 				onOpenChange={setChangeStateOpen}
 				currentState={
 					taskRun.state
-						? { type: taskRun.state.type, name: taskRun.state.name }
+						? {
+								type: taskRun.state.type,
+								name:
+									taskRun.state.name ??
+									taskRun.state.type.charAt(0) +
+										taskRun.state.type.slice(1).toLowerCase(),
+							}
 						: null
 				}
 				label="Task Run"
