@@ -8,7 +8,6 @@ import { type JSX, useState } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
-import FlowRunsBarChart from "@/components/flow-runs/activity-chart/activity-chart";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -17,6 +16,10 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	FlowRunActivityBarChart,
+	FlowRunActivityBarGraphTooltipProvider,
+} from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -151,6 +154,12 @@ export default function FlowDetail({
 		},
 	});
 
+	// Enrich flow runs with flow object
+	const enrichedFlowRuns = activity.map((flowRun) => ({
+		...flowRun,
+		flow: flow,
+	}));
+
 	return (
 		<>
 			<div className="container mx-auto">
@@ -159,13 +168,15 @@ export default function FlowDetail({
 					onDelete={() => setShowDeleteDialog(true)}
 				/>
 				<div className="h-[200px] mb-2">
-					<FlowRunsBarChart
-						className="mb-2"
-						flowName={flow.name}
-						flowRuns={activity}
-						endWindow={new Date(Date.now())}
-						startWindow={new Date(Date.now() - 1000 * 60 * 24 * 7)}
-					/>
+					<FlowRunActivityBarGraphTooltipProvider>
+						<FlowRunActivityBarChart
+							enrichedFlowRuns={enrichedFlowRuns}
+							startDate={new Date(Date.now() - 1000 * 60 * 24 * 7)}
+							endDate={new Date(Date.now())}
+							numberOfBars={24}
+							className="mb-2"
+						/>
+					</FlowRunActivityBarGraphTooltipProvider>
 				</div>
 				<Tabs
 					value={tab}
