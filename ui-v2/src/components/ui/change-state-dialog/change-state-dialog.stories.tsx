@@ -1,27 +1,22 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { fn } from "storybook/test";
 import { Button } from "@/components/ui/button";
 import { StateBadge } from "@/components/ui/state-badge";
 import { toastDecorator } from "@/storybook/utils";
 import { ChangeStateDialog, useChangeStateDialog } from "./index";
 
-const meta = {
+const meta: Meta<typeof ChangeStateDialog> = {
 	title: "UI/ChangeStateDialog",
 	component: ChangeStateDialog,
 	parameters: {
 		layout: "centered",
 	},
 	decorators: [toastDecorator],
-	args: {
-		onOpenChange: fn(),
-		onConfirm: fn(),
-	},
-} satisfies Meta<typeof ChangeStateDialog>;
+};
 
 export default meta;
-type Story = StoryObj<typeof meta>;
+type Story = StoryObj<typeof ChangeStateDialog>;
 
 const InteractiveDemo = () => {
 	const { open, onOpenChange, openDialog } = useChangeStateDialog();
