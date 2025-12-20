@@ -8,9 +8,11 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import { createContext, type ReactNode, useContext } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createFakeFlow } from "@/mocks";
 import { FlowPageHeader } from "./flow-page-header";
+
+const mockOnDelete = vi.fn();
 
 const TestChildrenContext = createContext<ReactNode>(null);
 
@@ -63,7 +65,9 @@ describe("FlowPageHeader", () => {
 			const flow = createFakeFlow({
 				name: "my-test-flow",
 			});
-			await renderWithProviders(<FlowPageHeader flow={flow} />);
+			await renderWithProviders(
+				<FlowPageHeader flow={flow} onDelete={mockOnDelete} />,
+			);
 
 			const link = screen.getByRole("link", { name: "Flows" });
 			expect(link).toBeVisible();
@@ -73,7 +77,9 @@ describe("FlowPageHeader", () => {
 			const flow = createFakeFlow({
 				name: "my-test-flow",
 			});
-			await renderWithProviders(<FlowPageHeader flow={flow} />);
+			await renderWithProviders(
+				<FlowPageHeader flow={flow} onDelete={mockOnDelete} />,
+			);
 
 			const link = screen.getByRole("link", { name: "Flows" });
 			expect(link).toHaveAttribute("href", "/flows");
@@ -83,7 +89,9 @@ describe("FlowPageHeader", () => {
 			const flow = createFakeFlow({
 				name: "my-etl-flow",
 			});
-			await renderWithProviders(<FlowPageHeader flow={flow} />);
+			await renderWithProviders(
+				<FlowPageHeader flow={flow} onDelete={mockOnDelete} />,
+			);
 
 			expect(screen.getByText("my-etl-flow")).toBeVisible();
 		});
@@ -92,7 +100,9 @@ describe("FlowPageHeader", () => {
 			const flow = createFakeFlow({
 				name: "my-very-long-flow-name-that-might-cause-wrapping",
 			});
-			await renderWithProviders(<FlowPageHeader flow={flow} />);
+			await renderWithProviders(
+				<FlowPageHeader flow={flow} onDelete={mockOnDelete} />,
+			);
 
 			expect(
 				screen.getByText("my-very-long-flow-name-that-might-cause-wrapping"),
@@ -104,7 +114,7 @@ describe("FlowPageHeader", () => {
 				name: "my-test-flow",
 			});
 			const { container } = await renderWithProviders(
-				<FlowPageHeader flow={flow} />,
+				<FlowPageHeader flow={flow} onDelete={mockOnDelete} />,
 			);
 
 			const separator = container.querySelector(
