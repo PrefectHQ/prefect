@@ -232,6 +232,46 @@ Alternatively, edit `~/.gemini/settings.json` directly:
 
 </Accordion>
 
+<Accordion title="Kiro">
+
+Add the Prefect MCP server to Kiro by creating or editing `.kiro/settings/mcp.json` in your workspace:
+
+```json
+{
+  "mcpServers": {
+    "prefect": {
+      "command": "uvx",
+      "args": ["--from", "prefect-mcp", "prefect-mcp-server"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+To use explicit credentials, add an `env` section:
+
+```json
+{
+  "mcpServers": {
+    "prefect": {
+      "command": "uvx",
+      "args": ["--from", "prefect-mcp", "prefect-mcp-server"],
+      "env": {
+        "PREFECT_API_URL": "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]",
+        "PREFECT_API_KEY": "your-cloud-api-key"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
+```
+
+The server will appear in the MCP Server view in Kiro's feature panel once connected.
+
+</Accordion>
+
 </AccordionGroup>
 
 ## Credentials configuration
