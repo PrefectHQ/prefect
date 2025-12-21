@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
 import { createFakeArtifact, createFakeTaskRun } from "@/mocks";
-import { reactQueryDecorator } from "@/storybook/utils";
+import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { TaskRunArtifacts } from ".";
 
 const mockTaskRun = createFakeTaskRun({ id: "task-run-1" });
@@ -34,7 +34,7 @@ const mockArtifacts = [
 const meta = {
 	title: "Components/TaskRuns/TaskRunArtifacts",
 	component: TaskRunArtifacts,
-	decorators: [reactQueryDecorator],
+	decorators: [routerDecorator, reactQueryDecorator],
 	parameters: {
 		msw: {
 			handlers: [
