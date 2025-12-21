@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
+import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -8,25 +9,21 @@ import {
 	TaskRunsPagination,
 } from "./task-runs-pagination";
 
+type TaskRunsPaginationProps = ComponentProps<typeof TaskRunsPagination>;
+
 describe("TaskRunsPagination", () => {
 	beforeEach(() => {
 		mockPointerEvents();
 	});
 
 	const createDefaultProps = (
-		overrides: Partial<{
-			count: number;
-			pages: number;
-			pagination: PaginationState;
-			onChangePagination: ReturnType<typeof vi.fn>;
-			onPrefetchPage: ReturnType<typeof vi.fn>;
-		}> = {},
-	) => ({
+		overrides: Partial<TaskRunsPaginationProps> = {},
+	): TaskRunsPaginationProps => ({
 		count: 100,
 		pages: 10,
 		pagination: { limit: 10, page: 1 },
-		onChangePagination: vi.fn(),
-		onPrefetchPage: vi.fn(),
+		onChangePagination: vi.fn<(pagination: PaginationState) => void>(),
+		onPrefetchPage: vi.fn<(page: number) => void>(),
 		...overrides,
 	});
 
