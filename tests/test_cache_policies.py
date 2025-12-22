@@ -1,7 +1,7 @@
 import itertools
 from dataclasses import dataclass
 from typing import Callable
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -308,69 +308,6 @@ class TestTaskSourcePolicy:
         assert key_a is not None
         assert key_b is not None
         assert key_a != key_b
-
-    def test_stored_source_code_stability(self):
-        """Test that the same source code produces the same key consistently."""
-        policy = TaskSource()
-
-        mock_task = MagicMock()
-        mock_task.source_code = "def my_task():\n    return 'hello'"
-
-        task_ctx = TaskRunContext.model_construct(task=mock_task)
-
-        key1 = policy.compute_key(task_ctx=task_ctx, inputs=None, flow_parameters=None)
-        key2 = policy.compute_key(task_ctx=task_ctx, inputs=None, flow_parameters=None)
-
-        # Same source code should produce same key
-        assert key1 == key2
-
-    def test_returns_none_when_getsource_raises_typeerror(self):
-        """Test that TaskSource returns None when getsource raises TypeError."""
-        policy = TaskSource()
-
-        def dummy_fn():
-            pass
-
-        class MockTask:
-            source_code = None
-            fn = dummy_fn
-
-        task_ctx = TaskRunContext.model_construct(task=MockTask())
-
-        # When source_code is None and getsource raises TypeError for both
-        # the task and task.fn.__class__, should return None
-        with patch(
-            "prefect.cache_policies.inspect.getsource",
-            side_effect=TypeError("not a module, class, method, function, etc."),
-        ):
-            key = policy.compute_key(
-                task_ctx=task_ctx, inputs=None, flow_parameters=None
-            )
-
-        # Should return None when source is unavailable
-        assert key is None
-
-    def test_returns_none_when_getsource_raises_oserror_with_source_message(self):
-        """Test that TaskSource returns None when getsource raises OSError with 'source code' message."""
-        policy = TaskSource()
-
-        class MockTask:
-            source_code = None
-
-        task_ctx = TaskRunContext.model_construct(task=MockTask())
-
-        # When source_code is None and getsource raises OSError with "source code" in message
-        for os_error_msg in ["could not get source code", "source code not available"]:
-            with patch(
-                "prefect.cache_policies.inspect.getsource",
-                side_effect=OSError(os_error_msg),
-            ):
-                key = policy.compute_key(
-                    task_ctx=task_ctx, inputs=None, flow_parameters=None
-                )
-
-            # Should return None when source is unavailable
-            assert key is None
 
 
 class TestDefaultPolicy:

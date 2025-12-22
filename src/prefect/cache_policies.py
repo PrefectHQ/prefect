@@ -1,6 +1,7 @@
 import inspect
 from copy import deepcopy
 from dataclasses import dataclass, field
+from logging import Logger
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -16,6 +17,7 @@ from typing_extensions import Self
 
 from prefect.context import TaskRunContext
 from prefect.exceptions import HashError
+from prefect.logging import get_logger
 from prefect.utilities.hashing import hash_objects
 
 if TYPE_CHECKING:
@@ -24,6 +26,8 @@ if TYPE_CHECKING:
     from prefect.transactions import IsolationLevel
 
 STABLE_TRANSFORMS: dict[type, Callable[[Any], Any]] = {}
+
+logger: Logger = get_logger(__name__)
 
 
 def _register_stable_transforms() -> None:
@@ -293,23 +297,21 @@ class TaskSource(CachePolicy):
             return None
 
         # Use stored source code if available (works after cloudpickle serialization)
-        source_code = getattr(task_ctx.task, "source_code", None)
-        if source_code is not None:
-            return hash_objects(source_code, raise_on_failure=True)
+        lines = getattr(task_ctx.task, "source_code", None)
+        if lines is not None:
+            return hash_objects(lines, raise_on_failure=True)
 
         # Fall back to inspect.getsource for local execution
         try:
             lines = inspect.getsource(task_ctx.task)
         except TypeError:
-            try:
-                lines = inspect.getsource(task_ctx.task.fn.__class__)
-            except (TypeError, OSError):
-                return None
+            lines = inspect.getsource(task_ctx.task.fn.__class__)
         except OSError as exc:
             if "source code" in str(exc):
-                return None
+                lines = task_ctx.task.fn.__code__.co_code
             else:
                 raise
+
         return hash_objects(lines, raise_on_failure=True)
 
 
