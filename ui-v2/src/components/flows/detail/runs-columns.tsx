@@ -20,12 +20,13 @@ export const columns: ColumnDef<FlowRun>[] = [
 	{
 		accessorKey: "state",
 		header: "State",
-		cell: ({ row }) => (
-			<StateBadge
-				type={row.original.state?.type}
-				name={row.original.state?.name}
-			/>
-		),
+		cell: ({ row }) =>
+			row.original.state?.type ? (
+				<StateBadge
+					type={row.original.state.type}
+					name={row.original.state.name}
+				/>
+			) : null,
 	},
 	{
 		accessorKey: "name",
