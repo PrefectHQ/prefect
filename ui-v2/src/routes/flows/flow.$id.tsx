@@ -1,6 +1,7 @@
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
@@ -12,6 +13,7 @@ import {
 	buildDeploymentsCountByFlowQuery,
 	buildFLowDetailsQuery,
 } from "@/api/flows";
+import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import FlowDetail from "@/components/flows/detail";
 
 // Route for /flows/flow/$id
@@ -69,9 +71,36 @@ const filterFlowRunsBySearchParams = (
 	return filter;
 };
 
+const useStateFilter = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const selectedStates = useMemo(
+		() => new Set((search["runs.flowRuns.state.name"] || []) as FlowRunState[]),
+		[search["runs.flowRuns.state.name"]],
+	);
+
+	const onSelectFilter = useCallback(
+		(states: Set<FlowRunState>) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"runs.flowRuns.state.name": Array.from(states),
+					"runs.page": 0,
+				}),
+			});
+		},
+		[navigate],
+	);
+
+	return { selectedStates, onSelectFilter };
+};
+
 const FlowDetailRoute = () => {
 	const { id } = Route.useParams();
 	const search = Route.useSearch();
+	const { selectedStates, onSelectFilter } = useStateFilter();
 	const [
 		{ data: flow },
 		{ data: flowRuns },
@@ -110,6 +139,8 @@ const FlowDetailRoute = () => {
 			deployments={deployments}
 			activity={activity}
 			tab={search.tab}
+			selectedStates={selectedStates}
+			onSelectFilter={onSelectFilter}
 		/>
 	);
 };

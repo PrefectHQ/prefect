@@ -9,6 +9,8 @@ import { type JSX, useCallback, useMemo, useState } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
+import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
+import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import {
@@ -34,7 +36,6 @@ import {
 	columns as metadataColumns,
 } from "./metadata-columns";
 import { columns as flowRunColumns } from "./runs-columns";
-import { FlowDetailStateFilter } from "./state-filter";
 
 const SearchComponent = () => {
 	const navigate = useNavigate();
@@ -108,12 +109,16 @@ export default function FlowDetail({
 	activity,
 	deployments,
 	tab = "runs",
+	selectedStates,
+	onSelectFilter,
 }: {
 	flow: Flow;
 	flowRuns: FlowRun[];
 	activity: FlowRun[];
 	deployments: components["schemas"]["DeploymentResponse"][];
 	tab: "runs" | "deployments" | "details";
+	selectedStates: Set<FlowRunState>;
+	onSelectFilter: (states: Set<FlowRunState>) => void;
 }): JSX.Element {
 	const navigate = useNavigate();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -242,7 +247,10 @@ export default function FlowDetail({
 						<header className="mb-2 flex flex-row justify-between">
 							<SearchComponent />
 							<div className="flex space-x-4">
-								<FlowDetailStateFilter />
+								<StateFilter
+									selectedFilters={selectedStates}
+									onSelectFilter={onSelectFilter}
+								/>
 								<SortComponent />
 							</div>
 						</header>
