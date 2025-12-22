@@ -79,9 +79,9 @@ function buildFlowStatsFilters(flowId: string): {
 			},
 		},
 		totalTaskRuns: {
-			flow_runs: {
+			flows: {
 				operator: "and_",
-				flow_id: { any_: [flowId] },
+				id: { any_: [flowId] },
 			},
 			task_runs: {
 				operator: "and_",
@@ -92,9 +92,9 @@ function buildFlowStatsFilters(flowId: string): {
 			},
 		},
 		completedTaskRuns: {
-			flow_runs: {
+			flows: {
 				operator: "and_",
-				flow_id: { any_: [flowId] },
+				id: { any_: [flowId] },
 			},
 			task_runs: {
 				operator: "and_",
@@ -105,9 +105,9 @@ function buildFlowStatsFilters(flowId: string): {
 			},
 		},
 		failedTaskRuns: {
-			flow_runs: {
+			flows: {
 				operator: "and_",
-				flow_id: { any_: [flowId] },
+				id: { any_: [flowId] },
 			},
 			task_runs: {
 				operator: "and_",

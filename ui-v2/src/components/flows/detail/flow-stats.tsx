@@ -39,9 +39,9 @@ export function FlowStats({ flowId }: FlowStatsProps) {
 
 	const totalTaskRunsFilter: TaskRunsCountFilter = useMemo(
 		() => ({
-			flow_runs: {
+			flows: {
 				operator: "and_",
-				flow_id: { any_: [flowId] },
+				id: { any_: [flowId] },
 			},
 			task_runs: {
 				operator: "and_",
@@ -56,9 +56,9 @@ export function FlowStats({ flowId }: FlowStatsProps) {
 
 	const completedTaskRunsFilter: TaskRunsCountFilter = useMemo(
 		() => ({
-			flow_runs: {
+			flows: {
 				operator: "and_",
-				flow_id: { any_: [flowId] },
+				id: { any_: [flowId] },
 			},
 			task_runs: {
 				operator: "and_",
@@ -73,9 +73,9 @@ export function FlowStats({ flowId }: FlowStatsProps) {
 
 	const failedTaskRunsFilter: TaskRunsCountFilter = useMemo(
 		() => ({
-			flow_runs: {
+			flows: {
 				operator: "and_",
-				flow_id: { any_: [flowId] },
+				id: { any_: [flowId] },
 			},
 			task_runs: {
 				operator: "and_",
