@@ -161,6 +161,62 @@ class TestTaskKey:
         assert tt.task_key.startswith("Funky-")
 
 
+class TestTaskSourceCode:
+    def test_source_code_captured_for_function(self):
+        @task
+        def my_task():
+            return 42
+
+        assert my_task.source_code is not None
+        assert "def my_task" in my_task.source_code
+        assert "return 42" in my_task.source_code
+
+    def test_source_code_is_none_for_callable_object(self):
+        class MyCallable:
+            def __call__(self):
+                return 42
+
+        callable_obj = MyCallable()
+        my_task = Task(fn=callable_obj)
+
+        # Callable objects don't have source code accessible via inspect.getsource
+        assert my_task.source_code is None
+
+    def test_source_code_survives_cloudpickle(self):
+        import cloudpickle
+
+        @task
+        def my_task():
+            return "hello"
+
+        # Verify source code is captured
+        original_source = my_task.source_code
+        assert original_source is not None
+        assert "def my_task" in original_source
+
+        # Serialize and deserialize the task
+        pickled = cloudpickle.dumps(my_task)
+        restored_task = cloudpickle.loads(pickled)
+
+        # Source code should survive serialization
+        assert restored_task.source_code == original_source
+
+    def test_source_code_different_for_different_tasks(self):
+        @task
+        def task_a():
+            return "a"
+
+        @task
+        def task_b():
+            return "b"
+
+        assert task_a.source_code is not None
+        assert task_b.source_code is not None
+        assert task_a.source_code != task_b.source_code
+        assert "task_a" in task_a.source_code
+        assert "task_b" in task_b.source_code
+
+
 class TestTaskRunName:
     def test_run_name_default(self):
         @task
