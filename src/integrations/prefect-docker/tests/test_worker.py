@@ -19,6 +19,7 @@ from prefect_docker.worker import (
 from pydantic import TypeAdapter, ValidationError
 
 import prefect.main  # noqa
+from prefect import get_client
 from prefect.client.schemas import FlowRun
 from prefect.events import RelatedResource
 from prefect.settings import (
@@ -1370,3 +1371,121 @@ async def test_docker_client_overwrite_timeout_configuration(
         _ = worker._get_client()
 
         mocked_from_env.assert_called_once_with(timeout=30)
+
+
+class TestSubmitAdhocRunWithFlowRunParameter:
+    """Tests for _submit_adhoc_run with the flow_run parameter for retry functionality."""
+
+    @pytest.fixture
+    async def work_pool(self):
+        """Create a Docker work pool for testing."""
+        async with get_client() as client:
+            work_pool = await client.create_work_pool(
+                name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
+                type="docker",
+            )
+            yield work_pool
+            try:
+                await client.delete_work_pool(work_pool.name)
+            except Exception:
+                pass
+
+    @pytest.fixture
+    def test_flow(self):
+        """Create a test flow for use in tests."""
+        from prefect import flow
+
+        @flow
+        def my_test_flow():
+            return "success"
+
+        return my_test_flow
+
+    async def test_submit_adhoc_run_with_existing_flow_run_reuses_id(
+        self, mock_docker_client, work_pool, test_flow
+    ):
+        """Test that _submit_adhoc_run with flow_run parameter reuses the flow run ID."""
+        from prefect.states import Failed
+
+        async with get_client() as client:
+            # Create an initial flow run in a failed state
+            initial_flow_run = await client.create_flow_run(
+                test_flow,
+                parameters={},
+                state=Failed(),
+            )
+            initial_run_count = initial_flow_run.run_count
+
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                # Submit with the existing flow run (retry scenario)
+                await worker._submit_adhoc_run(
+                    flow=test_flow,
+                    parameters={},
+                    flow_run=initial_flow_run,
+                )
+
+            # Verify the flow run was reused (run_count should be incremented)
+            retried_flow_run = await client.read_flow_run(initial_flow_run.id)
+            assert retried_flow_run.run_count > initial_run_count
+
+    async def test_submit_adhoc_run_with_existing_flow_run_sets_pending_state(
+        self, mock_docker_client, work_pool, test_flow
+    ):
+        """Test that _submit_adhoc_run sets the state to Pending when retrying."""
+        from prefect.client.schemas.objects import StateType
+        from prefect.states import Failed
+
+        async with get_client() as client:
+            # Create an initial flow run in a failed state
+            initial_flow_run = await client.create_flow_run(
+                test_flow,
+                parameters={},
+                state=Failed(),
+            )
+            assert initial_flow_run.state.type == StateType.FAILED
+
+            # Track the state that was set
+            original_set_flow_run_state = client.set_flow_run_state
+            set_state_calls = []
+
+            async def tracking_set_flow_run_state(flow_run_id, state, **kwargs):
+                set_state_calls.append((flow_run_id, state))
+                return await original_set_flow_run_state(flow_run_id, state, **kwargs)
+
+            client.set_flow_run_state = tracking_set_flow_run_state
+
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                # Override the client in the worker
+                worker._client = client
+
+                await worker._submit_adhoc_run(
+                    flow=test_flow,
+                    parameters={},
+                    flow_run=initial_flow_run,
+                )
+
+            # Verify set_flow_run_state was called with a Pending state
+            assert len(set_state_calls) >= 1
+            flow_run_id, state = set_state_calls[0]
+            assert flow_run_id == initial_flow_run.id
+            assert state.type == StateType.PENDING
+
+    async def test_submit_adhoc_run_without_flow_run_creates_new_run(
+        self, mock_docker_client, work_pool, test_flow
+    ):
+        """Test that _submit_adhoc_run creates a new flow run when flow_run is None."""
+        async with get_client() as client:
+            # Count flow runs before
+            initial_flow_runs = await client.read_flow_runs()
+            initial_count = len(initial_flow_runs)
+
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                await worker._submit_adhoc_run(
+                    flow=test_flow,
+                    parameters={},
+                    # flow_run is None - should create a new one
+                )
+
+            # Verify a new flow run was created
+            final_flow_runs = await client.read_flow_runs()
+            assert len(final_flow_runs) > initial_count
