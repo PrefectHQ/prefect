@@ -21,6 +21,7 @@ from pydantic import TypeAdapter, ValidationError
 import prefect.main  # noqa
 from prefect import get_client
 from prefect.client.schemas import FlowRun
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.events import RelatedResource
 from prefect.settings import (
     PREFECT_API_URL,
@@ -1381,8 +1382,10 @@ class TestSubmitAdhocRunWithFlowRunParameter:
         """Create a Docker work pool for testing."""
         async with get_client() as client:
             work_pool = await client.create_work_pool(
-                name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
-                type="docker",
+                work_pool=WorkPoolCreate(
+                    name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
+                    type="docker",
+                ),
             )
             yield work_pool
             try:
