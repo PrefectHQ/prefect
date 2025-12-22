@@ -1408,6 +1408,7 @@ class TestSubmitAdhocRunWithFlowRunParameter:
         self, mock_docker_client, work_pool, test_flow
     ):
         """Test that _submit_adhoc_run with flow_run parameter reuses the flow run ID."""
+        from prefect.client.schemas.objects import StateType
         from prefect.states import Failed
 
         async with get_client() as client:
@@ -1417,7 +1418,6 @@ class TestSubmitAdhocRunWithFlowRunParameter:
                 parameters={},
                 state=Failed(),
             )
-            initial_run_count = initial_flow_run.run_count
 
             async with DockerWorker(work_pool_name=work_pool.name) as worker:
                 # Submit with the existing flow run (retry scenario)
@@ -1427,9 +1427,10 @@ class TestSubmitAdhocRunWithFlowRunParameter:
                     flow_run=initial_flow_run,
                 )
 
-            # Verify the flow run was reused (run_count should be incremented)
+            # The flow run should have been reused (same ID) and state set to Pending
             retried_flow_run = await client.read_flow_run(initial_flow_run.id)
-            assert retried_flow_run.run_count > initial_run_count
+            assert retried_flow_run.state is not None
+            assert retried_flow_run.state.type == StateType.PENDING
 
     async def test_submit_adhoc_run_with_existing_flow_run_sets_pending_state(
         self, mock_docker_client, work_pool, test_flow
