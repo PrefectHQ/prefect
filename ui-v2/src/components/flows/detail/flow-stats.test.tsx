@@ -6,14 +6,39 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen } from "@testing-library/react";
-import { buildApiUrl, createWrapper, server } from "@tests/utils";
-import { HttpResponse, http } from "msw";
-import { describe, expect, it } from "vitest";
+import { createWrapper } from "@tests/utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	buildCountFlowRunsQuery,
+	type FlowRunsCountFilter,
+} from "@/api/flow-runs";
+import {
+	buildCountTaskRunsQuery,
+	type TaskRunsCountFilter,
+} from "@/api/task-runs";
 import { FlowStats } from "./flow-stats";
 
 const TEST_FLOW_ID = "test-flow-id";
+const REFETCH_INTERVAL = 30_000;
+const MOCK_DATE = "2024-01-15T00:00:00.000Z";
+const MOCK_PAST_WEEK_DATE = "2024-01-08T00:00:00.000Z";
 
-const FlowStatsRouter = ({ flowId }: { flowId: string }) => {
+beforeEach(() => {
+	vi.useFakeTimers({ shouldAdvanceTime: true });
+	vi.setSystemTime(new Date(MOCK_DATE));
+});
+
+afterEach(() => {
+	vi.useRealTimers();
+});
+
+const FlowStatsRouter = ({
+	flowId,
+	queryClient,
+}: {
+	flowId: string;
+	queryClient: QueryClient;
+}) => {
 	const rootRoute = createRootRoute({
 		component: () => <FlowStats flowId={flowId} />,
 	});
@@ -23,55 +48,115 @@ const FlowStatsRouter = ({ flowId }: { flowId: string }) => {
 		history: createMemoryHistory({
 			initialEntries: ["/"],
 		}),
-		context: { queryClient: new QueryClient() },
+		context: { queryClient },
 	});
 	return <RouterProvider router={router} />;
 };
 
-const createMswHandlers = (counts: {
-	flowRuns: number;
-	totalTaskRuns: number;
-	completedTaskRuns: number;
-	failedTaskRuns: number;
-}) => [
-	http.post(buildApiUrl("/flow_runs/count"), () => {
-		return HttpResponse.json(counts.flowRuns);
-	}),
-	http.post(buildApiUrl("/task_runs/count"), async ({ request }) => {
-		const body = (await request.json()) as {
-			task_runs?: { state?: { type?: { any_?: string[] } } };
-		};
-		const stateTypes = body?.task_runs?.state?.type?.any_ ?? [];
+const setupFlowStatsQueries = (
+	queryClient: QueryClient,
+	flowId: string,
+	counts: {
+		flowRuns: number;
+		totalTaskRuns: number;
+		completedTaskRuns: number;
+		failedTaskRuns: number;
+	},
+) => {
+	const flowRunsCountFilter: FlowRunsCountFilter = {
+		flows: {
+			operator: "and_",
+			id: { any_: [flowId] },
+		},
+		flow_runs: {
+			operator: "and_",
+			start_time: {
+				after_: MOCK_PAST_WEEK_DATE,
+			},
+		},
+	};
 
-		if (stateTypes.includes("COMPLETED") && stateTypes.length === 1) {
-			return HttpResponse.json(counts.completedTaskRuns);
-		}
-		if (
-			stateTypes.includes("FAILED") &&
-			stateTypes.includes("CRASHED") &&
-			stateTypes.length === 2
-		) {
-			return HttpResponse.json(counts.failedTaskRuns);
-		}
-		return HttpResponse.json(counts.totalTaskRuns);
-	}),
-];
+	const totalTaskRunsFilter: TaskRunsCountFilter = {
+		flows: {
+			operator: "and_",
+			id: { any_: [flowId] },
+		},
+		task_runs: {
+			operator: "and_",
+			state: {
+				operator: "and_",
+				type: { any_: ["COMPLETED", "FAILED", "CRASHED", "RUNNING"] },
+			},
+		},
+	};
+
+	const completedTaskRunsFilter: TaskRunsCountFilter = {
+		flows: {
+			operator: "and_",
+			id: { any_: [flowId] },
+		},
+		task_runs: {
+			operator: "and_",
+			state: {
+				operator: "and_",
+				type: { any_: ["COMPLETED"] },
+			},
+		},
+	};
+
+	const failedTaskRunsFilter: TaskRunsCountFilter = {
+		flows: {
+			operator: "and_",
+			id: { any_: [flowId] },
+		},
+		task_runs: {
+			operator: "and_",
+			state: {
+				operator: "and_",
+				type: { any_: ["FAILED", "CRASHED"] },
+			},
+		},
+	};
+
+	queryClient.setQueryData(
+		buildCountFlowRunsQuery(flowRunsCountFilter, REFETCH_INTERVAL).queryKey,
+		counts.flowRuns,
+	);
+
+	queryClient.setQueryData(
+		buildCountTaskRunsQuery(totalTaskRunsFilter, REFETCH_INTERVAL).queryKey,
+		counts.totalTaskRuns,
+	);
+
+	queryClient.setQueryData(
+		buildCountTaskRunsQuery(completedTaskRunsFilter, REFETCH_INTERVAL).queryKey,
+		counts.completedTaskRuns,
+	);
+
+	queryClient.setQueryData(
+		buildCountTaskRunsQuery(failedTaskRunsFilter, REFETCH_INTERVAL).queryKey,
+		counts.failedTaskRuns,
+	);
+};
 
 describe("FlowStats", () => {
 	it("renders flow stats with all four cards", async () => {
-		server.use(
-			...createMswHandlers({
-				flowRuns: 10,
-				totalTaskRuns: 100,
-				completedTaskRuns: 80,
-				failedTaskRuns: 20,
-			}),
-		);
-
 		const queryClient = new QueryClient();
+		setupFlowStatsQueries(queryClient, TEST_FLOW_ID, {
+			flowRuns: 10,
+			totalTaskRuns: 100,
+			completedTaskRuns: 80,
+			failedTaskRuns: 20,
+		});
+
 		const wrapper = createWrapper({ queryClient });
 
-		render(<FlowStatsRouter flowId={TEST_FLOW_ID} />, { wrapper });
+		render(
+			<FlowStatsRouter flowId={TEST_FLOW_ID} queryClient={queryClient} />,
+			{
+				wrapper,
+			},
+		);
 
 		expect(
 			await screen.findByText("Flow Runs (Past Week)"),
@@ -82,19 +167,22 @@ describe("FlowStats", () => {
 	});
 
 	it("displays correct flow runs count", async () => {
-		server.use(
-			...createMswHandlers({
-				flowRuns: 42,
-				totalTaskRuns: 100,
-				completedTaskRuns: 80,
-				failedTaskRuns: 20,
-			}),
-		);
-
 		const queryClient = new QueryClient();
+		setupFlowStatsQueries(queryClient, TEST_FLOW_ID, {
+			flowRuns: 42,
+			totalTaskRuns: 100,
+			completedTaskRuns: 80,
+			failedTaskRuns: 20,
+		});
+
 		const wrapper = createWrapper({ queryClient });
 
-		render(<FlowStatsRouter flowId={TEST_FLOW_ID} />, { wrapper });
+		render(
+			<FlowStatsRouter flowId={TEST_FLOW_ID} queryClient={queryClient} />,
+			{
+				wrapper,
+			},
+		);
 
 		expect(await screen.findByTestId("flow-runs-count")).toHaveTextContent(
 			"42",
@@ -102,19 +190,22 @@ describe("FlowStats", () => {
 	});
 
 	it("displays correct task runs counts", async () => {
-		server.use(
-			...createMswHandlers({
-				flowRuns: 10,
-				totalTaskRuns: 150,
-				completedTaskRuns: 120,
-				failedTaskRuns: 30,
-			}),
-		);
-
 		const queryClient = new QueryClient();
+		setupFlowStatsQueries(queryClient, TEST_FLOW_ID, {
+			flowRuns: 10,
+			totalTaskRuns: 150,
+			completedTaskRuns: 120,
+			failedTaskRuns: 30,
+		});
+
 		const wrapper = createWrapper({ queryClient });
 
-		render(<FlowStatsRouter flowId={TEST_FLOW_ID} />, { wrapper });
+		render(
+			<FlowStatsRouter flowId={TEST_FLOW_ID} queryClient={queryClient} />,
+			{
+				wrapper,
+			},
+		);
 
 		expect(await screen.findByTestId("total-task-runs")).toHaveTextContent(
 			"150",
@@ -124,19 +215,22 @@ describe("FlowStats", () => {
 	});
 
 	it("displays zero counts correctly", async () => {
-		server.use(
-			...createMswHandlers({
-				flowRuns: 0,
-				totalTaskRuns: 0,
-				completedTaskRuns: 0,
-				failedTaskRuns: 0,
-			}),
-		);
-
 		const queryClient = new QueryClient();
+		setupFlowStatsQueries(queryClient, TEST_FLOW_ID, {
+			flowRuns: 0,
+			totalTaskRuns: 0,
+			completedTaskRuns: 0,
+			failedTaskRuns: 0,
+		});
+
 		const wrapper = createWrapper({ queryClient });
 
-		render(<FlowStatsRouter flowId={TEST_FLOW_ID} />, { wrapper });
+		render(
+			<FlowStatsRouter flowId={TEST_FLOW_ID} queryClient={queryClient} />,
+			{
+				wrapper,
+			},
+		);
 
 		expect(await screen.findByTestId("flow-runs-count")).toHaveTextContent("0");
 		expect(screen.getByTestId("total-task-runs")).toHaveTextContent("0");
@@ -146,19 +240,20 @@ describe("FlowStats", () => {
 
 	it("renders with different flow ID", async () => {
 		const differentFlowId = "different-flow-id";
-		server.use(
-			...createMswHandlers({
-				flowRuns: 5,
-				totalTaskRuns: 50,
-				completedTaskRuns: 45,
-				failedTaskRuns: 5,
-			}),
-		);
-
 		const queryClient = new QueryClient();
+		setupFlowStatsQueries(queryClient, differentFlowId, {
+			flowRuns: 5,
+			totalTaskRuns: 50,
+			completedTaskRuns: 45,
+			failedTaskRuns: 5,
+		});
+
 		const wrapper = createWrapper({ queryClient });
 
-		render(<FlowStatsRouter flowId={differentFlowId} />, { wrapper });
+		render(
+			<FlowStatsRouter flowId={differentFlowId} queryClient={queryClient} />,
+			{ wrapper },
+		);
 
 		expect(await screen.findByTestId("flow-runs-count")).toHaveTextContent("5");
 		expect(screen.getByTestId("total-task-runs")).toHaveTextContent("50");
