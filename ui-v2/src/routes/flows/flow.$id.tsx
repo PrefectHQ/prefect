@@ -114,43 +114,28 @@ const FlowDetailRoute = () => {
 	const { id } = Route.useParams();
 	const search = Route.useSearch();
 	const { selectedStates, onSelectFilter } = useStateFilter();
-	const [
-		{ data: flow },
-		{ data: flowRuns },
-		{ data: activity },
-		{ data: deployments },
-	] = useSuspenseQueries({
-		queries: [
-			buildFLowDetailsQuery(id),
-			buildFilterFlowRunsQuery({
-				...filterFlowRunsBySearchParams(search),
-				flows: { operator: "and_", id: { any_: [id] } },
-			}),
-			buildFilterFlowRunsQuery({
-				flows: { operator: "and_", id: { any_: [id] } },
-				flow_runs: {
-					operator: "and_",
-					start_time: { is_null_: false },
-				},
-				offset: 0,
-				limit: 60,
-				sort: "START_TIME_DESC",
-			}),
-			buildFilterDeploymentsQuery({
-				sort: "CREATED_DESC",
-				offset: search["deployments.page"] * search["deployments.limit"],
-				limit: search["deployments.limit"],
-				flows: { operator: "and_", id: { any_: [id] } },
-			}),
-		],
-	});
+	const [{ data: flow }, { data: flowRuns }, { data: deployments }] =
+		useSuspenseQueries({
+			queries: [
+				buildFLowDetailsQuery(id),
+				buildFilterFlowRunsQuery({
+					...filterFlowRunsBySearchParams(search),
+					flows: { operator: "and_", id: { any_: [id] } },
+				}),
+				buildFilterDeploymentsQuery({
+					sort: "CREATED_DESC",
+					offset: search["deployments.page"] * search["deployments.limit"],
+					limit: search["deployments.limit"],
+					flows: { operator: "and_", id: { any_: [id] } },
+				}),
+			],
+		});
 
 	return (
 		<FlowDetail
 			flow={flow}
 			flowRuns={flowRuns}
 			deployments={deployments}
-			activity={activity}
 			tab={search.tab}
 			selectedStates={selectedStates}
 			onSelectFilter={onSelectFilter}

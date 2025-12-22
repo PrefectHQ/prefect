@@ -45,8 +45,8 @@ describe("FlowStatsSummary", () => {
 
 		it("buildTotalTaskRunsCountFilter creates correct filter", () => {
 			const filter = buildTotalTaskRunsCountFilter(flowId);
-			expect(filter.flow_runs).toBeDefined();
-			expect(filter.flow_runs?.flow_id?.any_).toEqual([flowId]);
+			expect(filter.flows).toBeDefined();
+			expect(filter.flows?.id?.any_).toEqual([flowId]);
 			expect(filter.task_runs?.state?.type?.any_).toEqual([
 				"COMPLETED",
 				"FAILED",
@@ -57,13 +57,13 @@ describe("FlowStatsSummary", () => {
 
 		it("buildCompletedTaskRunsCountFilter creates correct filter", () => {
 			const filter = buildCompletedTaskRunsCountFilter(flowId);
-			expect(filter.flow_runs).toBeDefined();
+			expect(filter.flows).toBeDefined();
 			expect(filter.task_runs?.state?.type?.any_).toEqual(["COMPLETED"]);
 		});
 
 		it("buildFailedTaskRunsCountFilter creates correct filter", () => {
 			const filter = buildFailedTaskRunsCountFilter(flowId);
-			expect(filter.flow_runs).toBeDefined();
+			expect(filter.flows).toBeDefined();
 			expect(filter.task_runs?.state?.type?.any_).toEqual([
 				"FAILED",
 				"CRASHED",
@@ -72,14 +72,14 @@ describe("FlowStatsSummary", () => {
 
 		it("buildRunningTaskRunsCountFilter creates correct filter", () => {
 			const filter = buildRunningTaskRunsCountFilter(flowId);
-			expect(filter.flow_runs).toBeDefined();
+			expect(filter.flows).toBeDefined();
 			expect(filter.task_runs?.state?.type?.any_).toEqual(["RUNNING"]);
 		});
 
 		it("buildTaskRunsHistoryFilterForFlow creates correct filter", () => {
 			const filter = buildTaskRunsHistoryFilterForFlow(flowId);
-			expect(filter.flow_runs).toBeDefined();
-			expect(filter.flow_runs?.flow_id?.any_).toEqual([flowId]);
+			expect(filter.flows).toBeDefined();
+			expect(filter.flows?.id?.any_).toEqual([flowId]);
 			expect(filter.history_interval_seconds).toBeDefined();
 		});
 	});

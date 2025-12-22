@@ -36,11 +36,11 @@ const chartConfig = {
 
 /**
  * Builds the base filter for task run count queries for a specific flow.
- * This filters task runs by flow_runs that belong to the given flow.
+ * This filters task runs by flows that match the given flow ID.
  */
 function buildBaseCountFilter(flowId: string): {
 	task_runs: NonNullable<TaskRunsCountFilter["task_runs"]>;
-	flow_runs: NonNullable<TaskRunsCountFilter["flow_runs"]>;
+	flows: NonNullable<TaskRunsCountFilter["flows"]>;
 } {
 	return {
 		task_runs: {
@@ -49,9 +49,9 @@ function buildBaseCountFilter(flowId: string): {
 				exists_: false,
 			},
 		},
-		flow_runs: {
+		flows: {
 			operator: "and_",
-			flow_id: {
+			id: {
 				any_: [flowId],
 			},
 		},
@@ -163,9 +163,9 @@ export function buildTaskRunsHistoryFilterForFlow(
 		history_start,
 		history_end,
 		history_interval_seconds: historyInterval,
-		flow_runs: {
+		flows: {
 			operator: "and_",
-			flow_id: {
+			id: {
 				any_: [flowId],
 			},
 		},
