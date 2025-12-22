@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
 	getCoreRowModel,
 	getPaginationRowModel,
+	type RowSelectionState,
 	useReactTable,
 } from "@tanstack/react-table";
 import { subWeeks } from "date-fns";
@@ -31,6 +32,7 @@ import useDebounce from "@/hooks/use-debounce";
 import { DeleteFlowDialog } from "./delete-flow-dialog";
 import { columns as deploymentColumns } from "./deployment-columns";
 import { FlowPageHeader } from "./flow-page-header";
+import { FlowRunsDeleteButton } from "./flow-runs-delete-button";
 import {
 	getFlowMetadata,
 	columns as metadataColumns,
@@ -123,6 +125,7 @@ export default function FlowDetail({
 	const navigate = useNavigate();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
+	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
 
 	const chartRef = useCallback((node: HTMLDivElement | null) => {
@@ -144,11 +147,14 @@ export default function FlowDetail({
 		columns: flowRunColumns,
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
-		initialState: {
+		onRowSelectionChange: setRowSelection,
+		getRowId: (row) => row.id,
+		state: {
 			pagination: {
 				pageIndex: 0,
 				pageSize: 10,
 			},
+			rowSelection,
 		},
 	});
 
@@ -245,7 +251,19 @@ export default function FlowDetail({
 					</TabsList>
 					<TabsContent value="runs">
 						<header className="mb-2 flex flex-row justify-between">
-							<SearchComponent />
+							<div className="flex items-center space-x-4">
+								{Object.keys(rowSelection).length > 0 ? (
+									<p className="text-sm text-muted-foreground flex items-center">
+										{Object.keys(rowSelection).length} selected
+										<FlowRunsDeleteButton
+											selected={Object.keys(rowSelection)}
+											onDelete={() => setRowSelection({})}
+										/>
+									</p>
+								) : (
+									<SearchComponent />
+								)}
+							</div>
 							<div className="flex space-x-4">
 								<StateFilter
 									selectedFilters={selectedStates}
