@@ -8,10 +8,7 @@ import {
 import { render, screen } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	buildCountFlowRunsQuery,
-	type FlowRunsCountFilter,
-} from "@/api/flow-runs";
+import { queryKeyFactory as flowRunsQueryKeyFactory } from "@/api/flow-runs";
 import {
 	buildCountTaskRunsQuery,
 	type TaskRunsCountFilter,
@@ -21,7 +18,6 @@ import { FlowStats } from "./flow-stats";
 const TEST_FLOW_ID = "test-flow-id";
 const REFETCH_INTERVAL = 30_000;
 const MOCK_DATE = "2024-01-15T00:00:00.000Z";
-const MOCK_PAST_WEEK_DATE = "2024-01-08T00:00:00.000Z";
 
 beforeEach(() => {
 	vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -40,9 +36,7 @@ const FlowStatsRouter = ({
 	queryClient: QueryClient;
 }) => {
 	const rootRoute = createRootRoute({
-		component: () => (
-			<FlowStats flowId={flowId} pastWeekStartDate={MOCK_PAST_WEEK_DATE} />
-		),
+		component: () => <FlowStats flowId={flowId} />,
 	});
 
 	const router = createRouter({
@@ -65,18 +59,10 @@ const setupFlowStatsQueries = (
 		failedTaskRuns: number;
 	},
 ) => {
-	const flowRunsCountFilter: FlowRunsCountFilter = {
-		flows: {
-			operator: "and_",
-			id: { any_: [flowId] },
-		},
-		flow_runs: {
-			operator: "and_",
-			start_time: {
-				after_: MOCK_PAST_WEEK_DATE,
-			},
-		},
-	};
+	queryClient.setQueryData(
+		flowRunsQueryKeyFactory.countByFlowPastWeek(flowId),
+		counts.flowRuns,
+	);
 
 	const totalTaskRunsFilter: TaskRunsCountFilter = {
 		flows: {
@@ -119,11 +105,6 @@ const setupFlowStatsQueries = (
 			},
 		},
 	};
-
-	queryClient.setQueryData(
-		buildCountFlowRunsQuery(flowRunsCountFilter, REFETCH_INTERVAL).queryKey,
-		counts.flowRuns,
-	);
 
 	queryClient.setQueryData(
 		buildCountTaskRunsQuery(totalTaskRunsFilter, REFETCH_INTERVAL).queryKey,

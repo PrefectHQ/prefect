@@ -1,9 +1,6 @@
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
-import {
-	buildCountFlowRunsQuery,
-	type FlowRunsCountFilter,
-} from "@/api/flow-runs";
+import { buildCountFlowRunsByFlowPastWeekQuery } from "@/api/flow-runs";
 import {
 	buildCountTaskRunsQuery,
 	type TaskRunsCountFilter,
@@ -12,28 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type FlowStatsProps = {
 	flowId: string;
-	pastWeekStartDate: string;
 };
 
 const REFETCH_INTERVAL = 30_000;
 
-export function FlowStats({ flowId, pastWeekStartDate }: FlowStatsProps) {
-	const flowRunsCountFilter: FlowRunsCountFilter = useMemo(
-		() => ({
-			flows: {
-				operator: "and_",
-				id: { any_: [flowId] },
-			},
-			flow_runs: {
-				operator: "and_",
-				start_time: {
-					after_: pastWeekStartDate,
-				},
-			},
-		}),
-		[flowId, pastWeekStartDate],
-	);
-
+export function FlowStats({ flowId }: FlowStatsProps) {
 	const totalTaskRunsFilter: TaskRunsCountFilter = useMemo(
 		() => ({
 			flows: {
@@ -92,7 +72,7 @@ export function FlowStats({ flowId, pastWeekStartDate }: FlowStatsProps) {
 		{ data: failedTaskRuns },
 	] = useSuspenseQueries({
 		queries: [
-			buildCountFlowRunsQuery(flowRunsCountFilter, REFETCH_INTERVAL),
+			buildCountFlowRunsByFlowPastWeekQuery(flowId, REFETCH_INTERVAL),
 			buildCountTaskRunsQuery(totalTaskRunsFilter, REFETCH_INTERVAL),
 			buildCountTaskRunsQuery(completedTaskRunsFilter, REFETCH_INTERVAL),
 			buildCountTaskRunsQuery(failedTaskRunsFilter, REFETCH_INTERVAL),

@@ -105,6 +105,8 @@ export const queryKeyFactory = {
 	counts: () => [...queryKeyFactory.all(), "count"] as const,
 	count: (filter: FlowRunsCountFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
+	countByFlowPastWeek: (flowId: string) =>
+		[...queryKeyFactory.counts(), "byFlow", flowId, "pastWeek"] as const,
 	lateness: () => [...queryKeyFactory.all(), "lateness"] as const,
 	latenessWithFilter: (filter: FlowRunsFilter) =>
 		[...queryKeyFactory.lateness(), filter] as const,
@@ -239,6 +241,37 @@ export const buildCountFlowRunsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.count(filter),
 		queryFn: async () => {
+			const res = await getQueryService().POST("/flow_runs/count", {
+				body: filter,
+			});
+			return res.data ?? 0;
+		},
+		refetchInterval,
+		placeholderData: keepPreviousData,
+	});
+
+export const buildCountFlowRunsByFlowPastWeekQuery = (
+	flowId: string,
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.countByFlowPastWeek(flowId),
+		queryFn: async () => {
+			const pastWeekStartDate = new Date(
+				Date.now() - 7 * 24 * 60 * 60 * 1000,
+			).toISOString();
+			const filter: FlowRunsCountFilter = {
+				flows: {
+					operator: "and_",
+					id: { any_: [flowId] },
+				},
+				flow_runs: {
+					operator: "and_",
+					start_time: {
+						after_: pastWeekStartDate,
+					},
+				},
+			};
 			const res = await getQueryService().POST("/flow_runs/count", {
 				body: filter,
 			});

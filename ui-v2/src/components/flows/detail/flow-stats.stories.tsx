@@ -41,9 +41,6 @@ const meta = {
 	decorators: [routerDecorator, reactQueryDecorator],
 	args: {
 		flowId: "test-flow-id",
-		pastWeekStartDate: new Date(
-			Date.now() - 7 * 24 * 60 * 60 * 1000,
-		).toISOString(),
 	},
 } satisfies Meta<typeof FlowStats>;
 

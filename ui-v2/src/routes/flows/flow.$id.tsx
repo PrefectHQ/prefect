@@ -5,9 +5,8 @@ import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
-	buildCountFlowRunsQuery,
+	buildCountFlowRunsByFlowPastWeekQuery,
 	buildFilterFlowRunsQuery,
-	type FlowRunsCountFilter,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
 import {
@@ -55,32 +54,12 @@ const searchParams = z
 
 const REFETCH_INTERVAL = 30_000;
 
-function getPastWeekStartDate(): string {
-	return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-}
-
-function buildFlowStatsFilters(
-	flowId: string,
-	pastWeekStartDate: string,
-): {
-	flowRunsCount: FlowRunsCountFilter;
+function buildTaskRunsStatsFilters(flowId: string): {
 	totalTaskRuns: TaskRunsCountFilter;
 	completedTaskRuns: TaskRunsCountFilter;
 	failedTaskRuns: TaskRunsCountFilter;
 } {
 	return {
-		flowRunsCount: {
-			flows: {
-				operator: "and_",
-				id: { any_: [flowId] },
-			},
-			flow_runs: {
-				operator: "and_",
-				start_time: {
-					after_: pastWeekStartDate,
-				},
-			},
-		},
 		totalTaskRuns: {
 			flows: {
 				operator: "and_",
@@ -176,7 +155,6 @@ const FlowDetailRoute = () => {
 	const { id } = Route.useParams();
 	const search = Route.useSearch();
 	const { selectedStates, onSelectFilter } = useStateFilter();
-	const pastWeekStartDate = useMemo(() => getPastWeekStartDate(), []);
 	const [
 		{ data: flow },
 		{ data: flowRuns },
@@ -217,7 +195,6 @@ const FlowDetailRoute = () => {
 			tab={search.tab}
 			selectedStates={selectedStates}
 			onSelectFilter={onSelectFilter}
-			pastWeekStartDate={pastWeekStartDate}
 		/>
 	);
 };
@@ -227,20 +204,22 @@ export const Route = createFileRoute("/flows/flow/$id")({
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => search,
 	loader: async ({ params: { id }, context, deps }) => {
-		const pastWeekStartDate = getPastWeekStartDate();
-		const statsFilters = buildFlowStatsFilters(id, pastWeekStartDate);
+		const taskRunsFilters = buildTaskRunsStatsFilters(id);
 
 		void context.queryClient.prefetchQuery(
-			buildCountFlowRunsQuery(statsFilters.flowRunsCount, REFETCH_INTERVAL),
+			buildCountFlowRunsByFlowPastWeekQuery(id, REFETCH_INTERVAL),
 		);
 		void context.queryClient.prefetchQuery(
-			buildCountTaskRunsQuery(statsFilters.totalTaskRuns, REFETCH_INTERVAL),
+			buildCountTaskRunsQuery(taskRunsFilters.totalTaskRuns, REFETCH_INTERVAL),
 		);
 		void context.queryClient.prefetchQuery(
-			buildCountTaskRunsQuery(statsFilters.completedTaskRuns, REFETCH_INTERVAL),
+			buildCountTaskRunsQuery(
+				taskRunsFilters.completedTaskRuns,
+				REFETCH_INTERVAL,
+			),
 		);
 		void context.queryClient.prefetchQuery(
-			buildCountTaskRunsQuery(statsFilters.failedTaskRuns, REFETCH_INTERVAL),
+			buildCountTaskRunsQuery(taskRunsFilters.failedTaskRuns, REFETCH_INTERVAL),
 		);
 
 		return await Promise.all([
@@ -248,11 +227,6 @@ export const Route = createFileRoute("/flows/flow/$id")({
 			context.queryClient.ensureQueryData(
 				buildFilterFlowRunsQuery({
 					...filterFlowRunsBySearchParams(deps),
-					flows: { operator: "and_", id: { any_: [id] } },
-				}),
-			),
-			context.queryClient.ensureQueryData(
-				buildCountFlowRunsQuery({
 					flows: { operator: "and_", id: { any_: [id] } },
 				}),
 			),
