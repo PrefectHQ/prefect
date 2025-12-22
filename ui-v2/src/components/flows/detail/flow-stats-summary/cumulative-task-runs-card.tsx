@@ -143,19 +143,29 @@ export function buildRunningTaskRunsCountFilter(
 }
 
 /**
+ * Gets a stable timestamp rounded to the start of the current hour.
+ * This ensures query key stability between prefetch and render.
+ */
+function getStableHourBoundary(): Date {
+	const now = new Date();
+	now.setMinutes(0, 0, 0);
+	return now;
+}
+
+/**
  * Builds the filter for task runs history for a specific flow.
- * The date range is computed inside queryFn to avoid query key instability.
+ * Uses stable hour-boundary timestamps to ensure query key stability with Suspense.
  */
 export function buildTaskRunsHistoryFilterForFlow(
 	flowId: string,
 ): TaskRunsHistoryFilter {
-	const now = new Date();
-	const startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+	const endDate = getStableHourBoundary();
+	const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
 
 	const history_start = startDate.toISOString();
-	const history_end = now.toISOString();
+	const history_end = endDate.toISOString();
 	const timeSpanInSeconds = Math.floor(
-		(now.getTime() - startDate.getTime()) / 1000,
+		(endDate.getTime() - startDate.getTime()) / 1000,
 	);
 	const historyInterval = Math.max(1, Math.floor(timeSpanInSeconds / 20));
 

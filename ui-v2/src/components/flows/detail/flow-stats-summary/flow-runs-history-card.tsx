@@ -84,12 +84,13 @@ export function FlowRunsHistoryCard({
 	}, []);
 
 	const effectiveNumberOfBars = debouncedNumberOfBars || numberOfBars;
-	const queryLimit = Math.max(effectiveNumberOfBars, 60);
+	// Use a fixed limit of 60 to ensure query key stability with prefetch
+	const QUERY_LIMIT = 60;
 
 	const [{ data: flowRuns }, { data: totalCount }] = useSuspenseQueries({
 		queries: [
 			buildFilterFlowRunsQuery(
-				buildFlowRunsHistoryFilter(flowId, queryLimit),
+				buildFlowRunsHistoryFilter(flowId, QUERY_LIMIT),
 				REFETCH_INTERVAL,
 			),
 			buildCountFlowRunsQuery(
