@@ -34,6 +34,7 @@ import {
 	columns as metadataColumns,
 } from "./metadata-columns";
 import { columns as flowRunColumns } from "./runs-columns";
+import { FlowDetailStateFilter } from "./state-filter";
 
 const SearchComponent = () => {
 	const navigate = useNavigate();
@@ -241,7 +242,7 @@ export default function FlowDetail({
 						<header className="mb-2 flex flex-row justify-between">
 							<SearchComponent />
 							<div className="flex space-x-4">
-								{/* <FilterComponent /> */}
+								<FlowDetailStateFilter />
 								<SortComponent />
 							</div>
 						</header>
