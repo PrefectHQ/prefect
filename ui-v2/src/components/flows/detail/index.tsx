@@ -209,7 +209,7 @@ export default function FlowDetail({
 									selectedFilters={selectedStates}
 									onSelectFilter={onSelectFilter}
 								/>
-								<SortFilter value={sort} onValueChange={onSortChange} />
+								<SortFilter value={sort} onSelect={onSortChange} />
 							</div>
 						</header>
 						<FlowRunsRowCount count={flowRunsCount} />
