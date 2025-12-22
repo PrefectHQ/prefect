@@ -31,6 +31,7 @@ import useDebounce from "@/hooks/use-debounce";
 import { DeleteFlowDialog } from "./delete-flow-dialog";
 import { columns as deploymentColumns } from "./deployment-columns";
 import { FlowPageHeader } from "./flow-page-header";
+import { FlowStats } from "./flow-stats";
 import {
 	getFlowMetadata,
 	columns as metadataColumns,
@@ -210,6 +211,9 @@ export default function FlowDetail({
 					flow={flow}
 					onDelete={() => setShowDeleteDialog(true)}
 				/>
+				<div className="mb-4">
+					<FlowStats flowId={flow.id} />
+				</div>
 				<div className="mb-2 w-full" ref={chartRef}>
 					{effectiveNumberOfBars === 0 ? (
 						<Skeleton className="h-48 w-full" />

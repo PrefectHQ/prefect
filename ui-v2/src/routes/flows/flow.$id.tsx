@@ -7,12 +7,17 @@ import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
+	type FlowRunsCountFilter,
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
 import {
 	buildDeploymentsCountByFlowQuery,
 	buildFLowDetailsQuery,
 } from "@/api/flows";
+import {
+	buildCountTaskRunsQuery,
+	type TaskRunsCountFilter,
+} from "@/api/task-runs";
 import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import FlowDetail from "@/components/flows/detail";
 
@@ -47,6 +52,73 @@ const searchParams = z
 	})
 	.optional()
 	.default({});
+
+const REFETCH_INTERVAL = 30_000;
+
+function getPastWeekStartDate(): string {
+	return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function buildFlowStatsFilters(flowId: string): {
+	flowRunsCount: FlowRunsCountFilter;
+	totalTaskRuns: TaskRunsCountFilter;
+	completedTaskRuns: TaskRunsCountFilter;
+	failedTaskRuns: TaskRunsCountFilter;
+} {
+	return {
+		flowRunsCount: {
+			flows: {
+				operator: "and_",
+				id: { any_: [flowId] },
+			},
+			flow_runs: {
+				operator: "and_",
+				start_time: {
+					after_: getPastWeekStartDate(),
+				},
+			},
+		},
+		totalTaskRuns: {
+			flow_runs: {
+				operator: "and_",
+				flow_id: { any_: [flowId] },
+			},
+			task_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["COMPLETED", "FAILED", "CRASHED", "RUNNING"] },
+				},
+			},
+		},
+		completedTaskRuns: {
+			flow_runs: {
+				operator: "and_",
+				flow_id: { any_: [flowId] },
+			},
+			task_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["COMPLETED"] },
+				},
+			},
+		},
+		failedTaskRuns: {
+			flow_runs: {
+				operator: "and_",
+				flow_id: { any_: [flowId] },
+			},
+			task_runs: {
+				operator: "and_",
+				state: {
+					operator: "and_",
+					type: { any_: ["FAILED", "CRASHED"] },
+				},
+			},
+		},
+	};
+}
 
 const filterFlowRunsBySearchParams = (
 	search: z.infer<typeof searchParams>,
@@ -150,6 +222,21 @@ export const Route = createFileRoute("/flows/flow/$id")({
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => search,
 	loader: async ({ params: { id }, context, deps }) => {
+		const statsFilters = buildFlowStatsFilters(id);
+
+		void context.queryClient.prefetchQuery(
+			buildCountFlowRunsQuery(statsFilters.flowRunsCount, REFETCH_INTERVAL),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(statsFilters.totalTaskRuns, REFETCH_INTERVAL),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(statsFilters.completedTaskRuns, REFETCH_INTERVAL),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(statsFilters.failedTaskRuns, REFETCH_INTERVAL),
+		);
+
 		return await Promise.all([
 			context.queryClient.ensureQueryData(buildFLowDetailsQuery(id)),
 			context.queryClient.ensureQueryData(
