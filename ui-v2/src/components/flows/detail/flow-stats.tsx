@@ -12,15 +12,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type FlowStatsProps = {
 	flowId: string;
+	pastWeekStartDate: string;
 };
 
 const REFETCH_INTERVAL = 30_000;
 
-function getPastWeekStartDate(): string {
-	return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-}
-
-export function FlowStats({ flowId }: FlowStatsProps) {
+export function FlowStats({ flowId, pastWeekStartDate }: FlowStatsProps) {
 	const flowRunsCountFilter: FlowRunsCountFilter = useMemo(
 		() => ({
 			flows: {
@@ -30,11 +27,11 @@ export function FlowStats({ flowId }: FlowStatsProps) {
 			flow_runs: {
 				operator: "and_",
 				start_time: {
-					after_: getPastWeekStartDate(),
+					after_: pastWeekStartDate,
 				},
 			},
 		}),
-		[flowId],
+		[flowId, pastWeekStartDate],
 	);
 
 	const totalTaskRunsFilter: TaskRunsCountFilter = useMemo(

@@ -40,7 +40,9 @@ const FlowStatsRouter = ({
 	queryClient: QueryClient;
 }) => {
 	const rootRoute = createRootRoute({
-		component: () => <FlowStats flowId={flowId} />,
+		component: () => (
+			<FlowStats flowId={flowId} pastWeekStartDate={MOCK_PAST_WEEK_DATE} />
+		),
 	});
 
 	const router = createRouter({

@@ -112,6 +112,7 @@ export default function FlowDetail({
 	tab = "runs",
 	selectedStates,
 	onSelectFilter,
+	pastWeekStartDate,
 }: {
 	flow: Flow;
 	flowRuns: FlowRun[];
@@ -120,6 +121,7 @@ export default function FlowDetail({
 	tab: "runs" | "deployments" | "details";
 	selectedStates: Set<FlowRunState>;
 	onSelectFilter: (states: Set<FlowRunState>) => void;
+	pastWeekStartDate: string;
 }): JSX.Element {
 	const navigate = useNavigate();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -212,7 +214,7 @@ export default function FlowDetail({
 					onDelete={() => setShowDeleteDialog(true)}
 				/>
 				<div className="mb-4">
-					<FlowStats flowId={flow.id} />
+					<FlowStats flowId={flow.id} pastWeekStartDate={pastWeekStartDate} />
 				</div>
 				<div className="mb-2 w-full" ref={chartRef}>
 					{effectiveNumberOfBars === 0 ? (

@@ -59,7 +59,10 @@ function getPastWeekStartDate(): string {
 	return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
-function buildFlowStatsFilters(flowId: string): {
+function buildFlowStatsFilters(
+	flowId: string,
+	pastWeekStartDate: string,
+): {
 	flowRunsCount: FlowRunsCountFilter;
 	totalTaskRuns: TaskRunsCountFilter;
 	completedTaskRuns: TaskRunsCountFilter;
@@ -74,7 +77,7 @@ function buildFlowStatsFilters(flowId: string): {
 			flow_runs: {
 				operator: "and_",
 				start_time: {
-					after_: getPastWeekStartDate(),
+					after_: pastWeekStartDate,
 				},
 			},
 		},
@@ -173,6 +176,7 @@ const FlowDetailRoute = () => {
 	const { id } = Route.useParams();
 	const search = Route.useSearch();
 	const { selectedStates, onSelectFilter } = useStateFilter();
+	const pastWeekStartDate = useMemo(() => getPastWeekStartDate(), []);
 	const [
 		{ data: flow },
 		{ data: flowRuns },
@@ -213,6 +217,7 @@ const FlowDetailRoute = () => {
 			tab={search.tab}
 			selectedStates={selectedStates}
 			onSelectFilter={onSelectFilter}
+			pastWeekStartDate={pastWeekStartDate}
 		/>
 	);
 };
@@ -222,7 +227,8 @@ export const Route = createFileRoute("/flows/flow/$id")({
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => search,
 	loader: async ({ params: { id }, context, deps }) => {
-		const statsFilters = buildFlowStatsFilters(id);
+		const pastWeekStartDate = getPastWeekStartDate();
+		const statsFilters = buildFlowStatsFilters(id, pastWeekStartDate);
 
 		void context.queryClient.prefetchQuery(
 			buildCountFlowRunsQuery(statsFilters.flowRunsCount, REFETCH_INTERVAL),
