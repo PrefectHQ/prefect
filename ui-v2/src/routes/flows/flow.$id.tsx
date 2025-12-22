@@ -13,8 +13,21 @@ import {
 	buildDeploymentsCountByFlowQuery,
 	buildFLowDetailsQuery,
 } from "@/api/flows";
+import {
+	buildCountTaskRunsQuery,
+	buildTaskRunsHistoryQuery,
+} from "@/api/task-runs";
 import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import FlowDetail from "@/components/flows/detail";
+import {
+	buildCompletedTaskRunsCountFilter,
+	buildFailedTaskRunsCountFilter,
+	buildFlowRunsCountFilterForHistory,
+	buildFlowRunsHistoryFilter,
+	buildRunningTaskRunsCountFilter,
+	buildTaskRunsHistoryFilterForFlow,
+	buildTotalTaskRunsCountFilter,
+} from "@/components/flows/detail/flow-stats-summary";
 
 // Route for /flows/flow/$id
 
@@ -149,32 +162,79 @@ export const Route = createFileRoute("/flows/flow/$id")({
 	component: FlowDetailRoute,
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => search,
-	loader: async ({ params: { id }, context, deps }) => {
-		return await Promise.all([
-			context.queryClient.ensureQueryData(buildFLowDetailsQuery(id)),
-			context.queryClient.ensureQueryData(
-				buildFilterFlowRunsQuery({
-					...filterFlowRunsBySearchParams(deps),
-					flows: { operator: "and_", id: { any_: [id] } },
-				}),
+	loader: ({ params: { id }, context, deps }) => {
+		const REFETCH_INTERVAL = 30_000;
+
+		void context.queryClient.prefetchQuery(buildFLowDetailsQuery(id));
+		void context.queryClient.prefetchQuery(
+			buildFilterFlowRunsQuery({
+				...filterFlowRunsBySearchParams(deps),
+				flows: { operator: "and_", id: { any_: [id] } },
+			}),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountFlowRunsQuery({
+				flows: { operator: "and_", id: { any_: [id] } },
+			}),
+		);
+		void context.queryClient.prefetchQuery(
+			buildFilterDeploymentsQuery({
+				sort: "CREATED_DESC",
+				offset: deps["runs.page"] * deps["runs.limit"],
+				limit: deps["runs.limit"],
+				flows: { operator: "and_", id: { any_: [id] } },
+			}),
+		);
+		void context.queryClient.prefetchQuery(
+			buildDeploymentsCountByFlowQuery([id]),
+		);
+
+		// Prefetch FlowStatsSummary queries
+		// FlowRunsHistoryCard queries
+		void context.queryClient.prefetchQuery(
+			buildFilterFlowRunsQuery(
+				buildFlowRunsHistoryFilter(id, 60),
+				REFETCH_INTERVAL,
 			),
-			context.queryClient.ensureQueryData(
-				buildCountFlowRunsQuery({
-					flows: { operator: "and_", id: { any_: [id] } },
-				}),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountFlowRunsQuery(
+				buildFlowRunsCountFilterForHistory(id),
+				REFETCH_INTERVAL,
 			),
-			context.queryClient.ensureQueryData(
-				buildFilterDeploymentsQuery({
-					sort: "CREATED_DESC",
-					offset: deps["runs.page"] * deps["runs.limit"],
-					limit: deps["runs.limit"],
-					flows: { operator: "and_", id: { any_: [id] } },
-				}),
+		);
+
+		// CumulativeTaskRunsCard queries
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(
+				buildTotalTaskRunsCountFilter(id),
+				REFETCH_INTERVAL,
 			),
-			context.queryClient.ensureQueryData(
-				buildDeploymentsCountByFlowQuery([id]),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(
+				buildCompletedTaskRunsCountFilter(id),
+				REFETCH_INTERVAL,
 			),
-		]);
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(
+				buildFailedTaskRunsCountFilter(id),
+				REFETCH_INTERVAL,
+			),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(
+				buildRunningTaskRunsCountFilter(id),
+				REFETCH_INTERVAL,
+			),
+		);
+		void context.queryClient.prefetchQuery(
+			buildTaskRunsHistoryQuery(
+				buildTaskRunsHistoryFilterForFlow(id),
+				REFETCH_INTERVAL,
+			),
+		);
 	},
 	wrapInSuspense: true,
 });
