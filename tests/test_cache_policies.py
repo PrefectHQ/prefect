@@ -283,35 +283,94 @@ class TestTaskSourcePolicy:
 
         assert key != new_key
 
-    def test_source_fallback_behavior(self):
+    def test_uses_stored_source_code(self):
+        """Test that TaskSource uses stored source_code attribute when available."""
         policy = TaskSource()
-
-        def task_a_fn():
-            pass
-
-        def task_b_fn():
-            return 1
 
         mock_task_a = MagicMock()
         mock_task_b = MagicMock()
 
-        mock_task_a.fn = task_a_fn
-        mock_task_b.fn = task_b_fn
+        # Set different source code on each mock task
+        mock_task_a.source_code = "def task_a():\n    return 'a'"
+        mock_task_b.source_code = "def task_b():\n    return 'b'"
 
         task_ctx_a = TaskRunContext.model_construct(task=mock_task_a)
         task_ctx_b = TaskRunContext.model_construct(task=mock_task_b)
 
-        for os_error_msg in {"could not get source code", "source code not available"}:
-            with patch("inspect.getsource", side_effect=OSError(os_error_msg)):
-                fallback_key_a = policy.compute_key(
-                    task_ctx=task_ctx_a, inputs=None, flow_parameters=None
-                )
-                fallback_key_b = policy.compute_key(
-                    task_ctx=task_ctx_b, inputs=None, flow_parameters=None
+        key_a = policy.compute_key(
+            task_ctx=task_ctx_a, inputs=None, flow_parameters=None
+        )
+        key_b = policy.compute_key(
+            task_ctx=task_ctx_b, inputs=None, flow_parameters=None
+        )
+
+        # Keys should be generated and different for different source code
+        assert key_a is not None
+        assert key_b is not None
+        assert key_a != key_b
+
+    def test_stored_source_code_stability(self):
+        """Test that the same source code produces the same key consistently."""
+        policy = TaskSource()
+
+        mock_task = MagicMock()
+        mock_task.source_code = "def my_task():\n    return 'hello'"
+
+        task_ctx = TaskRunContext.model_construct(task=mock_task)
+
+        key1 = policy.compute_key(task_ctx=task_ctx, inputs=None, flow_parameters=None)
+        key2 = policy.compute_key(task_ctx=task_ctx, inputs=None, flow_parameters=None)
+
+        # Same source code should produce same key
+        assert key1 == key2
+
+    def test_returns_none_when_getsource_raises_typeerror(self):
+        """Test that TaskSource returns None when getsource raises TypeError."""
+        policy = TaskSource()
+
+        def dummy_fn():
+            pass
+
+        class MockTask:
+            source_code = None
+            fn = dummy_fn
+
+        task_ctx = TaskRunContext.model_construct(task=MockTask())
+
+        # When source_code is None and getsource raises TypeError for both
+        # the task and task.fn.__class__, should return None
+        with patch(
+            "prefect.cache_policies.inspect.getsource",
+            side_effect=TypeError("not a module, class, method, function, etc."),
+        ):
+            key = policy.compute_key(
+                task_ctx=task_ctx, inputs=None, flow_parameters=None
+            )
+
+        # Should return None when source is unavailable
+        assert key is None
+
+    def test_returns_none_when_getsource_raises_oserror_with_source_message(self):
+        """Test that TaskSource returns None when getsource raises OSError with 'source code' message."""
+        policy = TaskSource()
+
+        class MockTask:
+            source_code = None
+
+        task_ctx = TaskRunContext.model_construct(task=MockTask())
+
+        # When source_code is None and getsource raises OSError with "source code" in message
+        for os_error_msg in ["could not get source code", "source code not available"]:
+            with patch(
+                "prefect.cache_policies.inspect.getsource",
+                side_effect=OSError(os_error_msg),
+            ):
+                key = policy.compute_key(
+                    task_ctx=task_ctx, inputs=None, flow_parameters=None
                 )
 
-            assert fallback_key_a and fallback_key_b
-            assert fallback_key_a != fallback_key_b
+            # Should return None when source is unavailable
+            assert key is None
 
 
 class TestDefaultPolicy:

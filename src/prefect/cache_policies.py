@@ -291,13 +291,23 @@ class TaskSource(CachePolicy):
     ) -> Optional[str]:
         if not task_ctx:
             return None
+
+        # Use stored source code if available (works after cloudpickle serialization)
+        source_code = getattr(task_ctx.task, "source_code", None)
+        if source_code is not None:
+            return hash_objects(source_code, raise_on_failure=True)
+
+        # Fall back to inspect.getsource for local execution
         try:
             lines = inspect.getsource(task_ctx.task)
         except TypeError:
-            lines = inspect.getsource(task_ctx.task.fn.__class__)
+            try:
+                lines = inspect.getsource(task_ctx.task.fn.__class__)
+            except (TypeError, OSError):
+                return None
         except OSError as exc:
             if "source code" in str(exc):
-                lines = task_ctx.task.fn.__code__.co_code
+                return None
             else:
                 raise
         return hash_objects(lines, raise_on_failure=True)
