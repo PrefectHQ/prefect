@@ -510,6 +510,261 @@ class TestCancelFlowRun:
         )
 
 
+class TestFlowRunRetry:
+    async def test_retry_nonexistent_flow_run_by_id(self):
+        """Test retrying a flow run that doesn't exist (by UUID)."""
+        bad_id = str(uuid4())
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "retry", bad_id],
+            expected_code=1,
+            expected_output_contains="not found",
+        )
+
+    async def test_retry_nonexistent_flow_run_by_name(self):
+        """Test retrying a flow run that doesn't exist (by name)."""
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "retry", "nonexistent-flow-run-name"],
+            expected_code=1,
+            expected_output_contains="not found",
+        )
+
+    async def test_retry_by_name_unique(self, prefect_client: PrefectClient):
+        """Test retrying a flow run by name when name is unique."""
+        # Create a deployment
+        flow_id = await prefect_client.create_flow(hello_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+        )
+
+        # Create a flow run with a unique name and deployment, then set to failed state
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id,
+            name="unique-test-flow-run",
+        )
+        # Set to terminal state for retry
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id, state=Failed(), force=True
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "retry", "unique-test-flow-run"],
+            expected_code=0,
+            expected_output_contains="scheduled for retry",
+        )
+
+        # Verify the correct flow run was retried
+        updated_run = await prefect_client.read_flow_run(flow_run.id)
+        assert updated_run.state.type == StateType.SCHEDULED
+
+    async def test_retry_by_name_multiple_matches(self, prefect_client: PrefectClient):
+        """Test that retrying by name shows error when multiple flow runs match."""
+        # Create a deployment
+        flow_id = await prefect_client.create_flow(hello_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment-multi",
+        )
+
+        # Create two flow runs with the same name
+        flow_run1 = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id,
+            name="duplicate-name",
+        )
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run1.id, state=Failed(), force=True
+        )
+
+        flow_run2 = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id,
+            name="duplicate-name",
+        )
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run2.id, state=Completed(), force=True
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "retry", "duplicate-name"],
+            expected_code=1,
+            expected_output_contains=[
+                "Multiple flow runs found",
+                str(flow_run1.id),
+                str(flow_run2.id),
+                "Please retry using an explicit flow run ID",
+            ],
+        )
+
+    @pytest.mark.parametrize("state", [Running, Pending, Scheduled])
+    async def test_retry_non_terminal_flow_run(
+        self, prefect_client: PrefectClient, state: State
+    ):
+        """Test retrying a flow run that's not in a terminal state."""
+        flow_run = await prefect_client.create_flow_run(
+            flow=hello_flow,
+            state=state(),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "retry", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="cannot be retried",
+        )
+
+    async def test_retry_without_deployment_requires_entrypoint(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that retrying without deployment requires --entrypoint."""
+        flow_run = await prefect_client.create_flow_run(
+            flow=hello_flow,
+            state=Failed(),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "retry", str(flow_run.id)],
+            expected_code=1,
+            expected_output_contains="does not have an associated deployment",
+        )
+
+    async def test_retry_with_deployment_schedules_run(
+        self, prefect_client: PrefectClient
+    ):
+        """Test that retrying with deployment sets state to Scheduled."""
+        # Create a deployment
+        flow_id = await prefect_client.create_flow(hello_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment-retry",
+        )
+
+        # Create a flow run with deployment
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id,
+        )
+        # Set to failed state
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id, state=Failed(), force=True
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "retry", str(flow_run.id)],
+            expected_code=0,
+            expected_output_contains="scheduled for retry",
+        )
+
+        # Verify state changed to Scheduled
+        updated_run = await prefect_client.read_flow_run(flow_run.id)
+        assert updated_run.state.type == StateType.SCHEDULED
+
+    @pytest.mark.parametrize("state", [Completed, Failed, Cancelled, Crashed])
+    async def test_retry_terminal_states(
+        self, prefect_client: PrefectClient, state: State
+    ):
+        """Test retrying flow runs in various terminal states."""
+        # Create a deployment
+        flow_id = await prefect_client.create_flow(hello_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test-deployment-{state.__name__}",
+        )
+
+        # Create a flow run with deployment
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id,
+        )
+        # Set to the specific terminal state
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id, state=state(), force=True
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "retry", str(flow_run.id)],
+            expected_code=0,
+            expected_output_contains="scheduled for retry",
+        )
+
+        # Verify state changed to Scheduled
+        updated_run = await prefect_client.read_flow_run(flow_run.id)
+        assert updated_run.state.type == StateType.SCHEDULED
+
+    async def test_retry_invalid_entrypoint(self, prefect_client: PrefectClient):
+        """Test that an invalid entrypoint returns error."""
+        flow_run = await prefect_client.create_flow_run(
+            flow=hello_flow,
+            state=Failed(),
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "retry",
+                str(flow_run.id),
+                "--entrypoint",
+                "/nonexistent/path.py:flow",
+            ],
+            expected_code=1,
+            expected_output_contains="Failed to load flow from entrypoint",
+        )
+
+
+class TestFlowRunRetryIntegration:
+    async def test_retry_local_execution_with_entrypoint(
+        self, prefect_client: PrefectClient, tmp_path
+    ):
+        """Test retrying a flow run locally with entrypoint."""
+        # Create a test flow file
+        flow_file = tmp_path / "test_flow.py"
+        flow_file.write_text(
+            """
+from prefect import flow
+
+@flow
+def my_test_flow(value: int = 42):
+    return value * 2
+"""
+        )
+
+        @flow
+        def my_test_flow(value: int = 42):
+            return value * 2
+
+        # Create a failed flow run without deployment
+        flow_run = await prefect_client.create_flow_run(
+            flow=my_test_flow,
+            parameters={"value": 10},
+            state=Failed(message="Initial failure"),
+        )
+        initial_run_count = flow_run.run_count
+
+        # Retry with entrypoint
+        entrypoint = f"{flow_file}:my_test_flow"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "retry",
+                str(flow_run.id),
+                "--entrypoint",
+                entrypoint,
+            ],
+            expected_code=0,
+            expected_output_contains="completed successfully",
+        )
+
+        # Verify same flow run ID was used and run_count incremented
+        updated_run = await prefect_client.read_flow_run(flow_run.id)
+        assert updated_run.state.type == StateType.COMPLETED
+        assert updated_run.run_count > initial_run_count
+
+
 @pytest.fixture()
 def flow_run_factory(
     prefect_client: PrefectClient,

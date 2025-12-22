@@ -399,10 +399,12 @@ async def retry(
         # Branch based on deployment association
         if flow_run.deployment_id:
             # Deployment-based retry: set state to Scheduled and exit
+            # Use force=True to bypass orchestration rules that prevent state transitions
+            # from terminal states (e.g., CANCELLED -> SCHEDULED)
             scheduled_state = Scheduled(message="Retried via CLI")
             try:
                 result = await client.set_flow_run_state(
-                    flow_run_id=flow_run_id, state=scheduled_state
+                    flow_run_id=flow_run_id, state=scheduled_state, force=True
                 )
             except ObjectNotFound:
                 exit_with_error(f"Flow run '{flow_run_id}' not found!")
