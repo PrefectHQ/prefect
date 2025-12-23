@@ -1,13 +1,18 @@
-import { useSuspenseQueries } from "@tanstack/react-query";
+import {
+	useQuery,
+	useQueryClient,
+	useSuspenseQueries,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
-	type FlowRunsFilter,
+	buildPaginateFlowRunsQuery,
+	type FlowRunsPaginateFilter,
 } from "@/api/flow-runs";
 import {
 	buildDeploymentsCountByFlowQuery,
@@ -15,8 +20,14 @@ import {
 } from "@/api/flows";
 import {
 	buildCountTaskRunsQuery,
+	buildGetFlowRunsTaskRunsCountQuery,
 	buildTaskRunsHistoryQuery,
 } from "@/api/task-runs";
+import {
+	type PaginationState,
+	SORT_FILTERS,
+	type SortFilters,
+} from "@/components/flow-runs/flow-runs-list";
 import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import FlowDetail from "@/components/flows/detail";
 import {
@@ -43,13 +54,10 @@ import {
 const searchParams = z
 	.object({
 		tab: z.enum(["runs", "deployments", "details"]).optional().default("runs"),
-		"runs.page": z.number().int().nonnegative().optional().default(0),
+		"runs.page": z.number().int().positive().optional().default(1),
 		"runs.limit": z.number().int().positive().max(100).optional().default(10),
-		"runs.sort": z
-			.enum(["START_TIME_DESC", "START_TIME_ASC", "EXPECTED_START_TIME_DESC"])
-			.optional()
-			.default("START_TIME_DESC"),
-		"runs.flowRuns.nameLike": z.string().optional(),
+		"runs.sort": z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
+		"runs.flowRuns.nameLike": z.string().optional().default(""),
 		"runs.flowRuns.state.name": z.array(z.string()).optional(),
 		type: z.enum(["span", "range"]).optional(),
 		seconds: z.number().int().positive().optional(),
@@ -61,27 +69,108 @@ const searchParams = z
 	.optional()
 	.default({});
 
-const filterFlowRunsBySearchParams = (
-	search: z.infer<typeof searchParams>,
-): FlowRunsFilter => {
-	const filter: FlowRunsFilter = {
-		sort: search["runs.sort"],
+type SearchParams = z.infer<typeof searchParams>;
+
+const buildPaginationBody = (
+	search: SearchParams,
+	flowId: string,
+): FlowRunsPaginateFilter => {
+	const flowRunSearch = search["runs.flowRuns.nameLike"];
+	const stateFilters = search["runs.flowRuns.state.name"] ?? [];
+
+	const hasFilters = flowRunSearch || stateFilters.length > 0;
+	const flowRunsFilter = hasFilters
+		? {
+				operator: "and_" as const,
+				...(flowRunSearch && {
+					name: { like_: flowRunSearch },
+				}),
+				...(stateFilters.length > 0 && {
+					state: {
+						operator: "and_" as const,
+						name: { any_: stateFilters },
+					},
+				}),
+			}
+		: undefined;
+
+	return {
+		page: search["runs.page"],
 		limit: search["runs.limit"],
-		offset: search["runs.page"] * search["runs.limit"],
-		flow_runs: {
-			operator: "and_",
-			state: {
-				operator: "and_",
-				name: {
-					any_: search["runs.flowRuns.state.name"],
-				},
-			},
-			name: {
-				like_: search["runs.flowRuns.nameLike"],
-			},
-		},
+		sort: search["runs.sort"],
+		flow_runs: flowRunsFilter,
+		flows: { operator: "and_" as const, id: { any_: [flowId] } },
 	};
-	return filter;
+};
+
+const usePagination = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const pagination: PaginationState = useMemo(
+		() => ({
+			page: search["runs.page"],
+			limit: search["runs.limit"],
+		}),
+		[search["runs.page"], search["runs.limit"]],
+	);
+
+	const onPaginationChange = useCallback(
+		(newPagination: PaginationState) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"runs.page": newPagination.page,
+					"runs.limit": newPagination.limit,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [pagination, onPaginationChange] as const;
+};
+
+const useSort = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onSortChange = useCallback(
+		(sort: SortFilters) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, "runs.sort": sort, "runs.page": 1 }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search["runs.sort"], onSortChange] as const;
+};
+
+const useFlowRunSearch = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onFlowRunSearchChange = useCallback(
+		(flowRunSearch: string) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"runs.flowRuns.nameLike": flowRunSearch,
+					"runs.page": 1,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search["runs.flowRuns.nameLike"], onFlowRunSearchChange] as const;
 };
 
 const useStateFilter = () => {
@@ -100,8 +189,9 @@ const useStateFilter = () => {
 				search: (prev) => ({
 					...prev,
 					"runs.flowRuns.state.name": Array.from(states),
-					"runs.page": 0,
+					"runs.page": 1,
 				}),
+				replace: true,
 			});
 		},
 		[navigate],
@@ -111,32 +201,89 @@ const useStateFilter = () => {
 };
 
 const FlowDetailRoute = () => {
+	const queryClient = useQueryClient();
 	const { id } = Route.useParams();
 	const search = Route.useSearch();
+
+	// Navigation hooks
+	const [pagination, onPaginationChange] = usePagination();
+	const [sort, onSortChange] = useSort();
+	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
 	const { selectedStates, onSelectFilter } = useStateFilter();
-	const [{ data: flow }, { data: flowRuns }, { data: deployments }] =
-		useSuspenseQueries({
-			queries: [
-				buildFLowDetailsQuery(id),
-				buildFilterFlowRunsQuery({
-					...filterFlowRunsBySearchParams(search),
-					flows: { operator: "and_", id: { any_: [id] } },
-				}),
-				buildFilterDeploymentsQuery({
-					sort: "CREATED_DESC",
-					offset: search["deployments.page"] * search["deployments.limit"],
-					limit: search["deployments.limit"],
-					flows: { operator: "and_", id: { any_: [id] } },
-				}),
-			],
-		});
+
+	// Suspense queries for stable data (flow, deployments)
+	const [{ data: flow }, { data: deployments }] = useSuspenseQueries({
+		queries: [
+			buildFLowDetailsQuery(id),
+			buildFilterDeploymentsQuery({
+				sort: "CREATED_DESC",
+				offset: search["deployments.page"] * search["deployments.limit"],
+				limit: search["deployments.limit"],
+				flows: { operator: "and_", id: { any_: [id] } },
+			}),
+		],
+	});
+
+	// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
+	// This prevents the page from suspending when search/filter changes
+	const { data: flowRunsPage } = useQuery(
+		buildPaginateFlowRunsQuery(buildPaginationBody(search, id), 30_000),
+	);
+
+	const flowRuns = flowRunsPage?.results ?? [];
+
+	// Prefetch task run counts for the current page's flow runs
+	// This ensures the data is ready when FlowRunCard renders
+	useEffect(() => {
+		const flowRunIds = flowRuns.map((run) => run.id);
+		if (flowRunIds.length > 0) {
+			void queryClient.prefetchQuery(
+				buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+			);
+		}
+	}, [queryClient, flowRuns]);
+
+	// Prefetch handler for pagination hover
+	const onPrefetchPage = useCallback(
+		(page: number) => {
+			const filter = buildPaginationBody(
+				{
+					...search,
+					"runs.page": page,
+				},
+				id,
+			);
+			// Prefetch the page data, then chain prefetch of task run counts
+			void (async () => {
+				const pageData = await queryClient.ensureQueryData(
+					buildPaginateFlowRunsQuery(filter, 30_000),
+				);
+				const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+				if (flowRunIds.length > 0) {
+					void queryClient.prefetchQuery(
+						buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+					);
+				}
+			})();
+		},
+		[queryClient, search, id],
+	);
 
 	return (
 		<FlowDetail
 			flow={flow}
 			flowRuns={flowRuns}
+			flowRunsCount={flowRunsPage?.count ?? 0}
+			flowRunsPages={flowRunsPage?.pages ?? 0}
 			deployments={deployments}
 			tab={search.tab}
+			pagination={pagination}
+			onPaginationChange={onPaginationChange}
+			onPrefetchPage={onPrefetchPage}
+			sort={sort}
+			onSortChange={onSortChange}
+			flowRunSearch={flowRunSearch}
+			onFlowRunSearchChange={onFlowRunSearchChange}
 			selectedStates={selectedStates}
 			onSelectFilter={onSelectFilter}
 		/>
@@ -146,30 +293,36 @@ const FlowDetailRoute = () => {
 export const Route = createFileRoute("/flows/flow/$id")({
 	component: FlowDetailRoute,
 	validateSearch: zodValidator(searchParams),
-	loaderDeps: ({ search }) => search,
+	loaderDeps: ({ search }) => ({
+		flowRunsDeps: search,
+	}),
 	loader: ({ params: { id }, context, deps }) => {
 		const REFETCH_INTERVAL = 30_000;
 
+		// Prefetch flow details
 		void context.queryClient.prefetchQuery(buildFLowDetailsQuery(id));
+
+		// Prefetch paginated flow runs without blocking (uses keepPreviousData)
 		void context.queryClient.prefetchQuery(
-			buildFilterFlowRunsQuery({
-				...filterFlowRunsBySearchParams(deps),
-				flows: { operator: "and_", id: { any_: [id] } },
-			}),
+			buildPaginateFlowRunsQuery(
+				buildPaginationBody(deps.flowRunsDeps, id),
+				30_000,
+			),
 		);
-		void context.queryClient.prefetchQuery(
-			buildCountFlowRunsQuery({
-				flows: { operator: "and_", id: { any_: [id] } },
-			}),
-		);
+
+		// Prefetch deployments
 		void context.queryClient.prefetchQuery(
 			buildFilterDeploymentsQuery({
 				sort: "CREATED_DESC",
-				offset: deps["runs.page"] * deps["runs.limit"],
-				limit: deps["runs.limit"],
+				offset:
+					deps.flowRunsDeps["deployments.page"] *
+					deps.flowRunsDeps["deployments.limit"],
+				limit: deps.flowRunsDeps["deployments.limit"],
 				flows: { operator: "and_", id: { any_: [id] } },
 			}),
 		);
+
+		// Prefetch deployments count
 		void context.queryClient.prefetchQuery(
 			buildDeploymentsCountByFlowQuery([id]),
 		);
@@ -220,6 +373,26 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				REFETCH_INTERVAL,
 			),
 		);
+
+		// Background async chain: prefetch task run counts for each flow run
+		// This prevents suspense when FlowRunCard renders
+		void (async () => {
+			const pageData = await context.queryClient.ensureQueryData(
+				buildPaginateFlowRunsQuery(
+					buildPaginationBody(deps.flowRunsDeps, id),
+					30_000,
+				),
+			);
+			const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+			if (flowRunIds.length > 0) {
+				void context.queryClient.prefetchQuery(
+					buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+				);
+			}
+		})();
+
+		// Ensure flow details are loaded (critical data)
+		return context.queryClient.ensureQueryData(buildFLowDetailsQuery(id));
 	},
 	wrapInSuspense: true,
 });
