@@ -16,6 +16,7 @@ import {
 	FlowRunsRowCount,
 	type PaginationState,
 	type SortFilters,
+	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
@@ -74,6 +75,8 @@ export default function FlowDetail({
 }): JSX.Element {
 	const navigate = useNavigate();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [selectedRows, setSelectedRows, { onSelectRow, clearSet }] =
+		useFlowRunsSelectedRows();
 
 	const deploymentsTable = useReactTable({
 		data: deployments,
@@ -98,7 +101,8 @@ export default function FlowDetail({
 	const onClearFilters = useCallback(() => {
 		onFlowRunSearchChange("");
 		onSelectFilter(new Set());
-	}, [onFlowRunSearchChange, onSelectFilter]);
+		clearSet();
+	}, [onFlowRunSearchChange, onSelectFilter, clearSet]);
 
 	// Handler for deployment tags that satisfies both ChangeEventHandler and (tags: string[]) => void
 	// This is needed because TagsInput's onChange prop type is an intersection of both signatures
@@ -152,9 +156,16 @@ export default function FlowDetail({
 								<SortFilter value={sort} onSelect={onSortChange} />
 							</div>
 						</header>
-						<FlowRunsRowCount count={flowRunsCount} />
+						<FlowRunsRowCount
+							count={flowRunsCount}
+							results={enrichedFlowRuns}
+							selectedRows={selectedRows}
+							setSelectedRows={setSelectedRows}
+						/>
 						<FlowRunsList
 							flowRuns={enrichedFlowRuns}
+							selectedRows={selectedRows}
+							onSelect={onSelectRow}
 							onClearFilters={onClearFilters}
 						/>
 						<FlowRunsPagination
