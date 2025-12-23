@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
+import { DeploymentStatusBadge } from "@/components/deployments/deployment-status-badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -22,7 +23,7 @@ export const columns: ColumnDef<Deployment>[] = [
 		accessorKey: "status",
 		header: "Status",
 		cell: ({ row }) => {
-			return row.original.status;
+			return <DeploymentStatusBadge deployment={row.original} />;
 		},
 	},
 	{
