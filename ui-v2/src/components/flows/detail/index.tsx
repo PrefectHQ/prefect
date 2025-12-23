@@ -21,6 +21,7 @@ import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filt
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
 import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import { DataTable } from "@/components/ui/data-table";
+import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { SearchInput } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagsInput } from "@/components/ui/tags-input";
@@ -177,7 +178,12 @@ export default function FlowDetail({
 								onChange={handleDeploymentTagsChange}
 							/>
 						</header>
-						<DataTable table={deploymentsTable} />
+						<FlowRunActivityBarGraphTooltipProvider>
+							{/* Override table container overflow to allow chart tooltips to escape */}
+							<div className="[&_[data-slot=table-container]]:overflow-visible">
+								<DataTable table={deploymentsTable} />
+							</div>
+						</FlowRunActivityBarGraphTooltipProvider>
 					</TabsContent>
 					<TabsContent value="details">
 						<FlowDetails flow={flow} />
