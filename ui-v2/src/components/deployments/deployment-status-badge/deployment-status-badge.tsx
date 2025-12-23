@@ -42,7 +42,7 @@ export const DeploymentStatusBadge = ({
 				className={cn("flex items-center space-x-1", className)}
 			>
 				<Pause className="h-2 w-2 text-muted-foreground" />
-				<span>Disabled</span>
+				<span>Paused</span>
 			</Badge>
 		);
 	}

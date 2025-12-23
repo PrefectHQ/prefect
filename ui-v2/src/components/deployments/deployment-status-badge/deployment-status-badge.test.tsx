@@ -26,24 +26,24 @@ describe("DeploymentStatusBadge", () => {
 		expect(badge).toHaveClass("bg-secondary", "text-secondary-foreground");
 	});
 
-	it("renders disabled status when paused is true", () => {
+	it("renders paused status when paused is true", () => {
 		render(
 			<DeploymentStatusBadge deployment={{ status: "READY", paused: true }} />,
 		);
 
-		expect(screen.getByText("Disabled")).toBeInTheDocument();
+		expect(screen.getByText("Paused")).toBeInTheDocument();
 		const badge = document.querySelector("[data-slot='badge']");
 		expect(badge).toHaveClass("bg-secondary", "text-secondary-foreground");
 	});
 
-	it("shows disabled status regardless of underlying status when paused", () => {
+	it("shows paused status regardless of underlying status when paused", () => {
 		render(
 			<DeploymentStatusBadge
 				deployment={{ status: "NOT_READY", paused: true }}
 			/>,
 		);
 
-		expect(screen.getByText("Disabled")).toBeInTheDocument();
+		expect(screen.getByText("Paused")).toBeInTheDocument();
 		expect(screen.queryByText("Not Ready")).not.toBeInTheDocument();
 	});
 

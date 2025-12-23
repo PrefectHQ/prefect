@@ -31,7 +31,7 @@ export const NotReady: Story = {
 	},
 };
 
-export const Disabled: Story = {
+export const Paused: Story = {
 	args: {
 		deployment: {
 			status: "READY",
@@ -62,7 +62,7 @@ export const AllStatuses: Story = {
 			<div className="flex items-center space-x-2">
 				<DeploymentStatusBadge deployment={{ status: "READY", paused: true }} />
 				<span className="text-sm text-muted-foreground">
-					Deployment is paused (disabled)
+					Deployment is paused
 				</span>
 			</div>
 		</div>
