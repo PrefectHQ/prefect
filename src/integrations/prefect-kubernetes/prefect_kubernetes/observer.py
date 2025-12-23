@@ -44,6 +44,7 @@ settings = KubernetesSettings()
 
 events_client: EventsClient | None = None
 orchestration_client: PrefectClient | None = None
+_startup_event_semaphore: asyncio.Semaphore | None = None
 
 
 @kopf.on.startup()
@@ -56,6 +57,10 @@ async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
     logger.info("Initializing clients")
     global events_client
     global orchestration_client
+    global _startup_event_semaphore
+    _startup_event_semaphore = asyncio.Semaphore(
+        settings.observer.startup_event_concurrency
+    )
     orchestration_client = await get_client().__aenter__()
     events_client = await get_events_client().__aenter__()
     logger.info("Clients successfully initialized")
@@ -124,30 +129,37 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     if event_type is None:
         if orchestration_client is None:
             raise RuntimeError("Orchestration client not initialized")
+        if _startup_event_semaphore is None:
+            raise RuntimeError("Startup event semaphore not initialized")
 
-        # Use the Kubernetes event timestamp for the filter to avoid "Query time range is too large" error
-        event_filter = EventFilter(
-            event=EventNameFilter(name=[f"prefect.kubernetes.pod.{phase.lower()}"]),
-            resource=EventResourceFilter(
-                id=[f"prefect.kubernetes.pod.{uid}"],
-            ),
-            occurred=EventOccurredFilter(
-                since=(
-                    k8s_created_time
-                    if k8s_created_time
-                    else (datetime.now(timezone.utc) - timedelta(hours=1))
-                )
-            ),
-        )
+        # Use semaphore to limit concurrent API calls during startup to prevent
+        # overwhelming the API server when there are many existing pods/jobs
+        async with _startup_event_semaphore:
+            # Use the Kubernetes event timestamp for the filter to avoid "Query time range is too large" error
+            event_filter = EventFilter(
+                event=EventNameFilter(name=[f"prefect.kubernetes.pod.{phase.lower()}"]),
+                resource=EventResourceFilter(
+                    id=[f"prefect.kubernetes.pod.{uid}"],
+                ),
+                occurred=EventOccurredFilter(
+                    since=(
+                        k8s_created_time
+                        if k8s_created_time
+                        else (datetime.now(timezone.utc) - timedelta(hours=1))
+                    )
+                ),
+            )
 
-        response = await orchestration_client.request(
-            "POST",
-            "/events/filter",
-            json=dict(filter=event_filter.model_dump(exclude_unset=True, mode="json")),
-        )
-        # If the event already exists, we don't need to emit a new one.
-        if response.json()["events"]:
-            return
+            response = await orchestration_client.request(
+                "POST",
+                "/events/filter",
+                json=dict(
+                    filter=event_filter.model_dump(exclude_unset=True, mode="json")
+                ),
+            )
+            # If the event already exists, we don't need to emit a new one.
+            if response.json()["events"]:
+                return
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",

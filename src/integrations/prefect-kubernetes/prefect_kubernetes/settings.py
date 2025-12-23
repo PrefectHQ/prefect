@@ -56,6 +56,13 @@ class KubernetesObserverSettings(PrefectBaseSettings):
         "should be provided in the format `key=value`.",
     )
 
+    startup_event_concurrency: int = Field(
+        default=5,
+        description="Maximum number of concurrent API calls when checking for "
+        "duplicate events during observer startup. This helps prevent overloading "
+        "the API server when there are many existing pods/jobs in the cluster.",
+    )
+
 
 class KubernetesWorkerSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "kubernetes", "worker"))
