@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from logging import Logger
 from typing import Any, AsyncGenerator, Callable
 
 from docket import Docket, Worker
@@ -21,7 +22,7 @@ from prefect.server.services.perpetual_services import (
 )
 from prefect.server.services.repossessor import revoke_expired_lease
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 # Task functions to register with docket for background processing
 task_functions: list[Callable[..., Any]] = [
