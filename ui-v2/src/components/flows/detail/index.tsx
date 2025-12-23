@@ -118,7 +118,7 @@ export default function FlowDetail({
 
 	return (
 		<>
-			<div className="container mx-auto">
+			<div className="container mx-auto flex flex-col gap-4">
 				<FlowPageHeader
 					flow={flow}
 					onDelete={() => setShowDeleteDialog(true)}
@@ -141,27 +141,28 @@ export default function FlowDetail({
 						<TabsTrigger value="deployments">Deployments</TabsTrigger>
 						<TabsTrigger value="details">Details</TabsTrigger>
 					</TabsList>
-					<TabsContent value="runs">
-						<header className="mb-2 flex flex-row justify-between">
-							<SearchInput
-								placeholder="Run names"
-								value={flowRunSearch ?? ""}
-								onChange={(e) => onFlowRunSearchChange(e.target.value)}
+					<TabsContent value="runs" className="flex flex-col gap-4">
+						<div className="flex items-center justify-between">
+							<FlowRunsRowCount
+								count={flowRunsCount}
+								results={enrichedFlowRuns}
+								selectedRows={selectedRows}
+								setSelectedRows={setSelectedRows}
 							/>
-							<div className="flex space-x-4">
+							<div className="flex items-center gap-4">
+								<SearchInput
+									placeholder="Search by run name"
+									value={flowRunSearch ?? ""}
+									onChange={(e) => onFlowRunSearchChange(e.target.value)}
+									className="w-64"
+								/>
 								<StateFilter
 									selectedFilters={selectedStates}
 									onSelectFilter={onSelectFilter}
 								/>
 								<SortFilter value={sort} onSelect={onSortChange} />
 							</div>
-						</header>
-						<FlowRunsRowCount
-							count={flowRunsCount}
-							results={enrichedFlowRuns}
-							selectedRows={selectedRows}
-							setSelectedRows={setSelectedRows}
-						/>
+						</div>
 						<FlowRunsList
 							flowRuns={enrichedFlowRuns}
 							selectedRows={selectedRows}
