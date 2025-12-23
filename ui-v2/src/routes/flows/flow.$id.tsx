@@ -39,6 +39,7 @@ import {
 	buildTaskRunsHistoryFilterForFlow,
 	buildTotalTaskRunsCountFilter,
 } from "@/components/flows/detail/flow-stats-summary/query-filters";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/flow/$id
 
@@ -224,7 +225,10 @@ const FlowDetailRoute = () => {
 		],
 	});
 
-	// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
+	// Set page title based on flow name
+	usePageTitle(flow?.name ? `Flow: ${flow.name}` : "Flow");
+
+	// Use useQuery for paginated flow runsto leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
 	const { data: flowRunsPage } = useQuery(
 		buildPaginateFlowRunsQuery(buildPaginationBody(search, id), 30_000),
