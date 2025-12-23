@@ -45,6 +45,8 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { usePageTitle } from "@/hooks/use-page-title";
+import { useStateFavicon } from "@/hooks/use-state-favicon";
 
 type TaskRunDetailsPageProps = {
 	id: string;
@@ -66,6 +68,12 @@ export const TaskRunDetailsPage = ({
 	});
 	const { deleteTaskRun } = useDeleteTaskRun();
 	const { navigate } = useRouter();
+
+	// Set page title based on task run name
+	usePageTitle(taskRun?.name ? `Task Run: ${taskRun.name}` : "Task Run");
+
+	// Set favicon based on task run state
+	useStateFavicon(taskRun?.state_type);
 
 	useEffect(() => {
 		if (taskRun.state_type === "RUNNING" || taskRun.state_type === "PENDING") {
@@ -183,7 +191,11 @@ const Header = ({
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
-						<BreadcrumbLink to="/runs" className="text-xl font-semibold">
+						<BreadcrumbLink
+							to="/runs"
+							search={{ tab: "task-runs" }}
+							className="text-xl font-semibold"
+						>
 							Runs
 						</BreadcrumbLink>
 					</BreadcrumbItem>
@@ -365,6 +377,10 @@ const ArtifactsSkeleton = () => {
 
 const TaskInputs = ({ taskRun }: { taskRun: TaskRun }) => {
 	return (
-		<JsonInput value={JSON.stringify(taskRun.task_inputs, null, 2)} disabled />
+		<JsonInput
+			value={JSON.stringify(taskRun.task_inputs, null, 2)}
+			disabled
+			copy
+		/>
 	);
 };
