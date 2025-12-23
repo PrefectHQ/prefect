@@ -4,6 +4,7 @@ from typing import Any, AsyncGenerator, Callable
 
 from docket import Docket, Worker
 
+from prefect.logging import get_logger
 from prefect.server.api.flow_runs import delete_flow_run_logs
 from prefect.server.api.task_runs import delete_task_run_logs
 from prefect.server.events.services import triggers as _triggers_module  # noqa: F401
@@ -19,6 +20,8 @@ from prefect.server.services.perpetual_services import (
     register_and_schedule_perpetual_services,
 )
 from prefect.server.services.repossessor import revoke_expired_lease
+
+logger = get_logger(__name__)
 
 # Task functions to register with docket for background processing
 task_functions: list[Callable[..., Any]] = [
@@ -62,6 +65,16 @@ async def background_worker(
         if worker_task:
             worker_task.cancel()
             try:
-                await worker_task
+                logger.debug(
+                    "Waiting for background worker to finish after cancellation..."
+                )
+                await asyncio.wait_for(worker_task, timeout=5.0)
+                logger.debug(
+                    "Background worker finished successfully after cancellation"
+                )
+            except asyncio.TimeoutError:
+                logger.debug(
+                    "Background worker did not finish within 5 seconds after cancellation. Proceeding with shutdown"
+                )
             except asyncio.CancelledError:
                 pass
