@@ -165,7 +165,10 @@ export default function FlowDetail({
 					</TabsContent>
 					<TabsContent value="deployments">
 						<FlowRunActivityBarGraphTooltipProvider>
-							<DataTable table={deploymentsTable} />
+							{/* Override table container overflow to allow chart tooltips to escape */}
+							<div className="[&_[data-slot=table-container]]:overflow-visible">
+								<DataTable table={deploymentsTable} />
+							</div>
 						</FlowRunActivityBarGraphTooltipProvider>
 					</TabsContent>
 					<TabsContent value="details">
