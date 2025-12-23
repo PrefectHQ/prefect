@@ -141,7 +141,7 @@ export default function FlowDetail({
 						<TabsTrigger value="deployments">Deployments</TabsTrigger>
 						<TabsTrigger value="details">Details</TabsTrigger>
 					</TabsList>
-					<TabsContent value="runs">
+					<TabsContent value="runs" className="flex flex-col gap-4">
 						<div className="flex items-center justify-between">
 							<FlowRunsRowCount
 								count={flowRunsCount}
