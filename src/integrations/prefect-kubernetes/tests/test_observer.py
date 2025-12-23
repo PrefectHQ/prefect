@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -54,6 +55,11 @@ def mock_orchestration_client(monkeypatch: pytest.MonkeyPatch):
     )
     monkeypatch.setattr(
         "prefect_kubernetes.observer.orchestration_client", orchestration_client
+    )
+    # Initialize the startup event semaphore for tests
+    monkeypatch.setattr(
+        "prefect_kubernetes.observer._startup_event_semaphore",
+        asyncio.Semaphore(5),
     )
     return orchestration_client
 
@@ -276,6 +282,68 @@ class TestReplicatePodEvent:
         mock_events_client.emit.assert_called_once()
         emitted_event = mock_events_client.emit.call_args[1]["event"]
         assert emitted_event.event == f"prefect.kubernetes.pod.{phase.lower()}"
+
+    async def test_startup_event_semaphore_limits_concurrency(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that startup event deduplication respects semaphore concurrency limit"""
+        # Track concurrent requests
+        concurrent_count = 0
+        max_concurrent = 0
+        semaphore_limit = 2
+
+        # Set up a semaphore with a small limit for testing
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._startup_event_semaphore",
+            asyncio.Semaphore(semaphore_limit),
+        )
+
+        # Configure mock to return no existing events so we can track the full request
+        json_response = MagicMock()
+        json_response.json.return_value = {"events": []}
+        mock_orchestration_client.request.return_value = json_response
+
+        async def slow_request(*args, **kwargs):
+            nonlocal concurrent_count, max_concurrent
+            concurrent_count += 1
+            max_concurrent = max(max_concurrent, concurrent_count)
+            await asyncio.sleep(0.1)  # Simulate network delay
+            concurrent_count -= 1
+            return json_response
+
+        mock_orchestration_client.request.side_effect = slow_request
+
+        # Launch multiple startup events concurrently
+        tasks = []
+        for i in range(5):
+            tasks.append(
+                asyncio.create_task(
+                    _replicate_pod_event(
+                        event={"type": None},
+                        uid=str(uuid.uuid4()),
+                        name=f"test-{i}",
+                        namespace="test",
+                        labels={
+                            "prefect.io/flow-run-id": str(uuid.uuid4()),
+                            "prefect.io/flow-run-name": f"test-run-{i}",
+                        },
+                        status={"phase": "Running"},
+                        logger=MagicMock(),
+                    )
+                )
+            )
+
+        await asyncio.gather(*tasks)
+
+        # Verify the semaphore limited concurrency
+        assert max_concurrent <= semaphore_limit, (
+            f"Expected max {semaphore_limit} concurrent requests, but got {max_concurrent}"
+        )
+        # Verify all requests were eventually made
+        assert mock_orchestration_client.request.call_count == 5
 
 
 class TestStartAndStopObserver:
