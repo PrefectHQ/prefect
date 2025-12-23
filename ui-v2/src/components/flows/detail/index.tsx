@@ -4,6 +4,7 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import type { ChangeEvent } from "react";
 import { type JSX, useCallback, useState } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
@@ -22,6 +23,7 @@ import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-ru
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TagsInput } from "@/components/ui/tags-input";
 import { DeleteFlowDialog } from "./delete-flow-dialog";
 import { columns as deploymentColumns } from "./deployment-columns";
 import { FlowPageHeader } from "./flow-page-header";
@@ -47,6 +49,10 @@ export default function FlowDetail({
 	onFlowRunSearchChange,
 	selectedStates,
 	onSelectFilter,
+	deploymentSearch,
+	onDeploymentSearchChange,
+	deploymentTags,
+	onDeploymentTagsChange,
 }: {
 	flow: Flow;
 	flowRuns: FlowRun[];
@@ -63,6 +69,10 @@ export default function FlowDetail({
 	onFlowRunSearchChange: (search: string) => void;
 	selectedStates: Set<FlowRunState>;
 	onSelectFilter: (states: Set<FlowRunState>) => void;
+	deploymentSearch: string | undefined;
+	onDeploymentSearchChange: (search: string) => void;
+	deploymentTags: string[];
+	onDeploymentTagsChange: (tags: string[]) => void;
 }): JSX.Element {
 	const navigate = useNavigate();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -108,6 +118,18 @@ export default function FlowDetail({
 		onFlowRunSearchChange("");
 		onSelectFilter(new Set());
 	}, [onFlowRunSearchChange, onSelectFilter]);
+
+	// Handler for deployment tags that satisfies both ChangeEventHandler and (tags: string[]) => void
+	// This is needed because TagsInput's onChange prop type is an intersection of both signatures
+	const handleDeploymentTagsChange: React.ChangeEventHandler<HTMLInputElement> &
+		((tags: string[]) => void) = useCallback(
+		(e: string[] | ChangeEvent<HTMLInputElement>) => {
+			if (Array.isArray(e)) {
+				onDeploymentTagsChange(e);
+			}
+		},
+		[onDeploymentTagsChange],
+	);
 
 	return (
 		<>
@@ -163,6 +185,18 @@ export default function FlowDetail({
 						/>
 					</TabsContent>
 					<TabsContent value="deployments">
+						<header className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+							<SearchInput
+								placeholder="Search deployments..."
+								value={deploymentSearch ?? ""}
+								onChange={(e) => onDeploymentSearchChange(e.target.value)}
+							/>
+							<TagsInput
+								placeholder="Filter by tags"
+								value={deploymentTags}
+								onChange={handleDeploymentTagsChange}
+							/>
+						</header>
 						<DataTable table={deploymentsTable} />
 					</TabsContent>
 					<TabsContent value="details">
