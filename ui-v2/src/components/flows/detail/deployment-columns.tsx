@@ -8,6 +8,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
@@ -22,7 +23,10 @@ export const columns: ColumnDef<Deployment>[] = [
 		accessorKey: "status",
 		header: "Status",
 		cell: ({ row }) => {
-			return row.original.status;
+			const status = row.original.paused
+				? "PAUSED"
+				: (row.original.status ?? "NOT_READY");
+			return <StatusBadge status={status} />;
 		},
 	},
 	{
