@@ -2,12 +2,30 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFavicon } from "./use-favicon";
 
+type FaviconArg = Parameters<typeof useFavicon>[0];
+
 describe("useFavicon", () => {
 	let favicon16: HTMLLinkElement;
 	let favicon32: HTMLLinkElement;
 	let favicon16Dark: HTMLLinkElement;
 	let favicon32Dark: HTMLLinkElement;
-	let matchMediaMock: ReturnType<typeof vi.fn>;
+	const originalMatchMedia = window.matchMedia;
+
+	const createMatchMediaMock = (prefersDark: boolean) => {
+		return vi.fn().mockImplementation((query: string) => ({
+			matches:
+				prefersDark === true
+					? query === "(prefers-color-scheme: dark)"
+					: query === "(prefers-color-scheme: light)",
+			media: query,
+			onchange: null,
+			addListener: vi.fn(),
+			removeListener: vi.fn(),
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+			dispatchEvent: vi.fn(),
+		})) as unknown as typeof window.matchMedia;
+	};
 
 	beforeEach(() => {
 		// Create mock favicon elements
@@ -32,17 +50,10 @@ describe("useFavicon", () => {
 		document.head.appendChild(favicon32Dark);
 
 		// Mock matchMedia to return light mode by default
-		matchMediaMock = vi.fn().mockImplementation((query: string) => ({
-			matches: query === "(prefers-color-scheme: light)",
-			media: query,
-			onchange: null,
-			addListener: vi.fn(),
-			removeListener: vi.fn(),
-			addEventListener: vi.fn(),
-			removeEventListener: vi.fn(),
-			dispatchEvent: vi.fn(),
-		}));
-		window.matchMedia = matchMediaMock;
+		Object.defineProperty(window, "matchMedia", {
+			writable: true,
+			value: createMatchMediaMock(false),
+		});
 	});
 
 	afterEach(() => {
@@ -51,6 +62,11 @@ describe("useFavicon", () => {
 		favicon32.remove();
 		favicon16Dark.remove();
 		favicon32Dark.remove();
+		// Restore original matchMedia
+		Object.defineProperty(window, "matchMedia", {
+			writable: true,
+			value: originalMatchMedia,
+		});
 		vi.restoreAllMocks();
 	});
 
@@ -98,16 +114,10 @@ describe("useFavicon", () => {
 
 	it("uses dark favicon elements when prefers-color-scheme is dark", () => {
 		// Mock dark mode
-		matchMediaMock.mockImplementation((query: string) => ({
-			matches: query === "(prefers-color-scheme: dark)",
-			media: query,
-			onchange: null,
-			addListener: vi.fn(),
-			removeListener: vi.fn(),
-			addEventListener: vi.fn(),
-			removeEventListener: vi.fn(),
-			dispatchEvent: vi.fn(),
-		}));
+		Object.defineProperty(window, "matchMedia", {
+			writable: true,
+			value: createMatchMediaMock(true),
+		});
 
 		renderHook(() => useFavicon("SCHEDULED"));
 
@@ -117,16 +127,10 @@ describe("useFavicon", () => {
 
 	it("resets to dark favicon on unmount when in dark mode", () => {
 		// Mock dark mode
-		matchMediaMock.mockImplementation((query: string) => ({
-			matches: query === "(prefers-color-scheme: dark)",
-			media: query,
-			onchange: null,
-			addListener: vi.fn(),
-			removeListener: vi.fn(),
-			addEventListener: vi.fn(),
-			removeEventListener: vi.fn(),
-			dispatchEvent: vi.fn(),
-		}));
+		Object.defineProperty(window, "matchMedia", {
+			writable: true,
+			value: createMatchMediaMock(true),
+		});
 
 		const { unmount } = renderHook(() => useFavicon("CRASHED"));
 
@@ -142,14 +146,15 @@ describe("useFavicon", () => {
 	});
 
 	it("updates favicon when stateType changes", () => {
-		const { rerender } = renderHook(({ stateType }) => useFavicon(stateType), {
-			initialProps: { stateType: "PENDING" as const },
-		});
+		const { rerender } = renderHook(
+			({ stateType }: { stateType: FaviconArg }) => useFavicon(stateType),
+			{ initialProps: { stateType: "PENDING" } },
+		);
 
 		expect(favicon16.getAttribute("href")).toBe("/pending.svg");
 		expect(favicon32.getAttribute("href")).toBe("/pending.svg");
 
-		rerender({ stateType: "COMPLETED" as const });
+		rerender({ stateType: "COMPLETED" });
 
 		expect(favicon16.getAttribute("href")).toBe("/completed.svg");
 		expect(favicon32.getAttribute("href")).toBe("/completed.svg");
@@ -185,17 +190,20 @@ describe("useFavicon", () => {
 	});
 
 	it("handles no-preference color scheme by using light mode favicons", () => {
-		// Mock no-preference
-		matchMediaMock.mockImplementation(() => ({
-			matches: false,
-			media: "",
-			onchange: null,
-			addListener: vi.fn(),
-			removeListener: vi.fn(),
-			addEventListener: vi.fn(),
-			removeEventListener: vi.fn(),
-			dispatchEvent: vi.fn(),
-		}));
+		// Mock no-preference (neither dark nor light matches)
+		Object.defineProperty(window, "matchMedia", {
+			writable: true,
+			value: vi.fn().mockImplementation(() => ({
+				matches: false,
+				media: "",
+				onchange: null,
+				addListener: vi.fn(),
+				removeListener: vi.fn(),
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn(),
+				dispatchEvent: vi.fn(),
+			})) as unknown as typeof window.matchMedia,
+		});
 
 		renderHook(() => useFavicon("FAILED"));
 
