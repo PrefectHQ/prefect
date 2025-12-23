@@ -116,8 +116,6 @@ export const columns: ColumnDef<Deployment>[] = [
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuItem>Quick run</DropdownMenuItem>
-						<DropdownMenuItem>Custom run</DropdownMenuItem>
 						<DropdownMenuItem
 							onClick={() =>
 								void navigator.clipboard.writeText(row.original.id)
@@ -125,11 +123,6 @@ export const columns: ColumnDef<Deployment>[] = [
 						>
 							Copy ID
 						</DropdownMenuItem>
-						<DropdownMenuItem>Edit</DropdownMenuItem>
-						<DropdownMenuItem>Delete</DropdownMenuItem>
-						<DropdownMenuItem>Duplicate</DropdownMenuItem>
-						<DropdownMenuItem>Manage Access</DropdownMenuItem>
-						<DropdownMenuItem>Add to incident</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			);
