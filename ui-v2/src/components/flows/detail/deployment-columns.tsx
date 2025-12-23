@@ -1,6 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
-import { DeploymentStatusBadge } from "@/components/deployments/deployment-status-badge";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -9,6 +8,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
@@ -23,7 +23,10 @@ export const columns: ColumnDef<Deployment>[] = [
 		accessorKey: "status",
 		header: "Status",
 		cell: ({ row }) => {
-			return <DeploymentStatusBadge deployment={row.original} />;
+			const status = row.original.paused
+				? "PAUSED"
+				: (row.original.status ?? "NOT_READY");
+			return <StatusBadge status={status} />;
 		},
 	},
 	{
