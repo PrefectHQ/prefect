@@ -255,4 +255,77 @@ describe("FlowRunDetailsPage", () => {
 			screen.getByRole("tab", { name: "Job Variables" }),
 		).toBeInTheDocument();
 	});
+
+	it("renders FlowRunDetails in the sidebar area", async () => {
+		const flowRunWithTags = createFakeFlowRun({
+			name: "test-flow-run",
+			tags: ["tag1", "tag2"],
+			run_count: 3,
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(flowRunWithTags);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		// FlowRunDetails should show run count and flow run ID in the sidebar
+		expect(screen.getByText("Run Count")).toBeInTheDocument();
+		expect(screen.getByText("3")).toBeInTheDocument();
+		expect(screen.getByText("Flow Run ID")).toBeInTheDocument();
+	});
+
+	it("renders FlowRunDetails in the Details tab content when selected", async () => {
+		const user = userEvent.setup();
+		const flowRunWithTags = createFakeFlowRun({
+			name: "test-flow-run",
+			tags: ["unique-tag-for-test"],
+			run_count: 5,
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(flowRunWithTags);
+			}),
+		);
+
+		// Start with Logs tab selected, then switch to Details
+		renderFlowRunDetailsPage({ tab: "Logs" });
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		// Click on Details tab (visible on mobile)
+		const detailsTab = screen.getByRole("tab", { name: "Details" });
+		await user.click(detailsTab);
+
+		expect(mockOnTabChange).toHaveBeenCalledWith("Details");
+	});
+
+	it("has Details tab with responsive class for mobile visibility", async () => {
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const detailsTab = screen.getByRole("tab", { name: "Details" });
+		// The Details tab should have lg:hidden class to hide on desktop
+		expect(detailsTab).toHaveClass("lg:hidden");
+	});
 });
