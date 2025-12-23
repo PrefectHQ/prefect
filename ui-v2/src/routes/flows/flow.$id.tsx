@@ -39,6 +39,7 @@ import {
 	buildTaskRunsHistoryFilterForFlow,
 	buildTotalTaskRunsCountFilter,
 } from "@/components/flows/detail/flow-stats-summary/query-filters";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/flow/$id
 
@@ -65,6 +66,8 @@ const searchParams = z
 		endDateTime: z.date().optional(),
 		"deployments.page": z.number().int().nonnegative().optional().default(0),
 		"deployments.limit": z.number().int().positive().optional().default(10),
+		"deployments.nameLike": z.string().optional(),
+		"deployments.tags": z.array(z.string()).optional(),
 	})
 	.optional()
 	.default({});
@@ -200,31 +203,90 @@ const useStateFilter = () => {
 	return { selectedStates, onSelectFilter };
 };
 
+const useDeploymentSearch = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onDeploymentSearchChange = useCallback(
+		(deploymentSearch: string) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"deployments.nameLike": deploymentSearch || undefined,
+					"deployments.page": 0,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search["deployments.nameLike"], onDeploymentSearchChange] as const;
+};
+
+const useDeploymentTagsFilter = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onDeploymentTagsChange = useCallback(
+		(tags: string[]) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"deployments.tags": tags.length > 0 ? tags : undefined,
+					"deployments.page": 0,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search["deployments.tags"] ?? [], onDeploymentTagsChange] as const;
+};
+
 const FlowDetailRoute = () => {
 	const queryClient = useQueryClient();
 	const { id } = Route.useParams();
 	const search = Route.useSearch();
 
-	// Navigation hooks
+	// Navigation hooks for flow runs
 	const [pagination, onPaginationChange] = usePagination();
 	const [sort, onSortChange] = useSort();
 	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
 	const { selectedStates, onSelectFilter } = useStateFilter();
 
-	// Suspense queries for stable data (flow, deployments)
-	const [{ data: flow }, { data: deployments }] = useSuspenseQueries({
-		queries: [
-			buildFLowDetailsQuery(id),
-			buildFilterDeploymentsQuery({
-				sort: "CREATED_DESC",
-				offset: search["deployments.page"] * search["deployments.limit"],
-				limit: search["deployments.limit"],
-				flows: { operator: "and_", id: { any_: [id] } },
-			}),
-		],
+	// Navigation hooks for deployments
+	const [deploymentSearch, onDeploymentSearchChange] = useDeploymentSearch();
+	const [deploymentTags, onDeploymentTagsChange] = useDeploymentTagsFilter();
+
+	// Suspense queries for stable data (flow)
+	const [{ data: flow }] = useSuspenseQueries({
+		queries: [buildFLowDetailsQuery(id)],
 	});
 
-	// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
+	// Use useQuery for deployments to leverage placeholderData: keepPreviousData
+	// This prevents the page from suspending when search/filter changes
+	const { data: deployments } = useQuery(
+		buildFilterDeploymentsQuery({
+			sort: "CREATED_DESC",
+			offset: search["deployments.page"] * search["deployments.limit"],
+			limit: search["deployments.limit"],
+			flows: { operator: "and_", id: { any_: [id] } },
+			deployments: {
+				operator: "and_",
+				flow_or_deployment_name: { like_: search["deployments.nameLike"] },
+				tags: { operator: "and_", all_: search["deployments.tags"] || [] },
+			},
+		}),
+	);
+
+	// Set page title based on flow name
+	usePageTitle(flow?.name ? `Flow: ${flow.name}` : "Flow");
+
+	// Use useQuery for paginated flow runsto leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
 	const { data: flowRunsPage } = useQuery(
 		buildPaginateFlowRunsQuery(buildPaginationBody(search, id), 30_000),
@@ -275,7 +337,7 @@ const FlowDetailRoute = () => {
 			flowRuns={flowRuns}
 			flowRunsCount={flowRunsPage?.count ?? 0}
 			flowRunsPages={flowRunsPage?.pages ?? 0}
-			deployments={deployments}
+			deployments={deployments ?? []}
 			tab={search.tab}
 			pagination={pagination}
 			onPaginationChange={onPaginationChange}
@@ -286,6 +348,10 @@ const FlowDetailRoute = () => {
 			onFlowRunSearchChange={onFlowRunSearchChange}
 			selectedStates={selectedStates}
 			onSelectFilter={onSelectFilter}
+			deploymentSearch={deploymentSearch}
+			onDeploymentSearchChange={onDeploymentSearchChange}
+			deploymentTags={deploymentTags}
+			onDeploymentTagsChange={onDeploymentTagsChange}
 		/>
 	);
 };
@@ -310,7 +376,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 			),
 		);
 
-		// Prefetch deployments
+		// Prefetch deployments with filter parameters
 		void context.queryClient.prefetchQuery(
 			buildFilterDeploymentsQuery({
 				sort: "CREATED_DESC",
@@ -319,6 +385,16 @@ export const Route = createFileRoute("/flows/flow/$id")({
 					deps.flowRunsDeps["deployments.limit"],
 				limit: deps.flowRunsDeps["deployments.limit"],
 				flows: { operator: "and_", id: { any_: [id] } },
+				deployments: {
+					operator: "and_",
+					flow_or_deployment_name: {
+						like_: deps.flowRunsDeps["deployments.nameLike"],
+					},
+					tags: {
+						operator: "and_",
+						all_: deps.flowRunsDeps["deployments.tags"] || [],
+					},
+				},
 			}),
 		);
 
