@@ -27,7 +27,7 @@ import {
 	buildRunningTaskRunsCountFilter,
 	buildTaskRunsHistoryFilterForFlow,
 	buildTotalTaskRunsCountFilter,
-} from "@/components/flows/detail/flow-stats-summary";
+} from "@/components/flows/detail/flow-stats-summary/query-filters";
 
 // Route for /flows/flow/$id
 

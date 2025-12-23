@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FlowStatsSummary } from "./index";
 import {
 	buildCompletedTaskRunsCountFilter,
 	buildFailedTaskRunsCountFilter,
@@ -7,8 +8,7 @@ import {
 	buildRunningTaskRunsCountFilter,
 	buildTaskRunsHistoryFilterForFlow,
 	buildTotalTaskRunsCountFilter,
-	FlowStatsSummary,
-} from "./index";
+} from "./query-filters";
 
 describe("FlowStatsSummary", () => {
 	it("exports the FlowStatsSummary component", () => {
