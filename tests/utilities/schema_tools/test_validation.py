@@ -1977,6 +1977,42 @@ class TestPreprocessSchemaPydanticV1Tuples:
         }
 
 
+class TestPreprocessSchemaBlockTypes:
+    """Regression tests for block type handling in preprocess_schema.
+
+    See: https://github.com/PrefectHQ/prefect/issues/19935
+    """
+
+    def test_block_type_slug_with_mismatched_title_does_not_raise(self):
+        """When a definition has block_type_slug and the dict key differs from
+        the title, preprocess_schema should not raise RuntimeError.
+
+        This bug occurred because the code modified schema["definitions"] while
+        iterating over it - adding a new key when title != dict key.
+        """
+        schema = {
+            "properties": {
+                "my_block": {"$ref": "#/definitions/prefect__blocks__system__Secret"}
+            },
+            "definitions": {
+                # Key is the full module path, but title is just "Secret"
+                "prefect__blocks__system__Secret": {
+                    "title": "Secret",  # Different from the dict key!
+                    "block_type_slug": "secret",
+                    "type": "object",
+                    "properties": {"value": {"type": "string"}},
+                }
+            },
+        }
+
+        # This should not raise RuntimeError: dictionary changed size during iteration
+        result = preprocess_schema(schema)
+
+        # The schema should be transformed to include oneOf for block reference
+        assert "Secret" in result["definitions"]
+        assert "oneOf" in result["definitions"]["Secret"]
+
+
 class TestPreprocessSchemaPydanticV2Tuples:
     # We should always be conforming to PydanticV2 and there should
     # be no unintended changes here.
