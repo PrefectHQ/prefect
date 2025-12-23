@@ -65,13 +65,22 @@ describe("FormattedDate", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("does not show tooltip for absolute format by default", () => {
+	it("shows tooltip with raw ISO string for absolute format", async () => {
+		const user = userEvent.setup();
 		render(<FormattedDate date={testDate} format="absolute" />);
 
 		expect(screen.getByText("Jan 15, 2024 at 2:30 PM")).toBeInTheDocument();
-		expect(
-			document.querySelector("[data-slot='tooltip-trigger']"),
-		).not.toBeInTheDocument();
+
+		// Should show tooltip on hover with raw ISO string
+		const dateElement = document.querySelector("[data-slot='tooltip-trigger']");
+		expect(dateElement).toBeInTheDocument();
+		if (dateElement) {
+			await user.hover(dateElement);
+			const tooltip = await screen.findByRole("tooltip");
+			expect(tooltip).toBeInTheDocument();
+			// Tooltip should contain the raw ISO string
+			expect(tooltip).toHaveTextContent(testDate);
+		}
 	});
 
 	it("handles null date", () => {
