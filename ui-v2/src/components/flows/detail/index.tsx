@@ -20,6 +20,7 @@ import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filt
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
 import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import { DataTable } from "@/components/ui/data-table";
+import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { SearchInput } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeleteFlowDialog } from "./delete-flow-dialog";
@@ -163,7 +164,9 @@ export default function FlowDetail({
 						/>
 					</TabsContent>
 					<TabsContent value="deployments">
-						<DataTable table={deploymentsTable} />
+						<FlowRunActivityBarGraphTooltipProvider>
+							<DataTable table={deploymentsTable} />
+						</FlowRunActivityBarGraphTooltipProvider>
 					</TabsContent>
 					<TabsContent value="details">
 						<DataTable table={metadataTable} />

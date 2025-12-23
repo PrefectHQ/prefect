@@ -8,6 +8,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
+import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
 
@@ -88,6 +89,14 @@ export const columns: ColumnDef<Deployment>[] = [
 				})}
 			</div>
 		),
+	},
+	{
+		accessorKey: "activity",
+		header: "Activity",
+		cell: ({ row }) => {
+			if (!row.original.id) return null;
+			return <MiniDeploymentActivity deploymentId={row.original.id} />;
+		},
 	},
 	{
 		id: "actions",
