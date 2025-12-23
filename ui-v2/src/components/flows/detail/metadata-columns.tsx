@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
+import { FormattedDate } from "@/components/ui/formatted-date";
 
 type Flow = components["schemas"]["Flow"];
 type FlowMetadata = { attribute: string; value: string | string[] | null };
@@ -15,7 +16,21 @@ export const columns: ColumnDef<FlowMetadata>[] = [
 	{
 		accessorKey: "value",
 		header: "Value",
-		cell: ({ row }) => row.original.value,
+		cell: ({ row }) => {
+			const { attribute, value } = row.original;
+
+			// Format date fields
+			if ((attribute === "Created" || attribute === "Updated") && value) {
+				return <FormattedDate date={value as string} format="absolute" />;
+			}
+
+			// Handle arrays (like Tags)
+			if (Array.isArray(value)) {
+				return value.join(", ");
+			}
+
+			return value;
+		},
 	},
 ];
 
