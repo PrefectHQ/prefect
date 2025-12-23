@@ -9,7 +9,7 @@ type FlowStatsSummaryProps = {
 
 export function FlowStatsSummary({ flowId, flow }: FlowStatsSummaryProps) {
 	return (
-		<div className="grid gap-5 md:grid-cols-[2fr_1fr] mb-4">
+		<div className="grid gap-5 md:grid-cols-[2fr_1fr]">
 			<FlowRunsHistoryCard flowId={flowId} flow={flow} />
 			<CumulativeTaskRunsCard flowId={flowId} />
 		</div>

@@ -118,7 +118,7 @@ export default function FlowDetail({
 
 	return (
 		<>
-			<div className="container mx-auto">
+			<div className="container mx-auto flex flex-col gap-4">
 				<FlowPageHeader
 					flow={flow}
 					onDelete={() => setShowDeleteDialog(true)}
