@@ -26,12 +26,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagsInput } from "@/components/ui/tags-input";
 import { DeleteFlowDialog } from "./delete-flow-dialog";
 import { columns as deploymentColumns } from "./deployment-columns";
+import { FlowDetails } from "./flow-details";
 import { FlowPageHeader } from "./flow-page-header";
 import { FlowStatsSummary } from "./flow-stats-summary";
-import {
-	getFlowMetadata,
-	columns as metadataColumns,
-} from "./metadata-columns";
 
 export default function FlowDetail({
 	flow,
@@ -82,23 +79,6 @@ export default function FlowDetail({
 		columns: deploymentColumns,
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 10,
-			},
-		},
-	});
-
-	const metadataTable = useReactTable({
-		columns: metadataColumns,
-		data: getFlowMetadata(flow),
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		onPaginationChange: (pagination) => {
-			console.log(pagination);
-			return pagination;
-		},
 		initialState: {
 			pagination: {
 				pageIndex: 0,
@@ -200,7 +180,7 @@ export default function FlowDetail({
 						<DataTable table={deploymentsTable} />
 					</TabsContent>
 					<TabsContent value="details">
-						<DataTable table={metadataTable} />
+						<FlowDetails flow={flow} />
 					</TabsContent>
 				</Tabs>
 			</div>
