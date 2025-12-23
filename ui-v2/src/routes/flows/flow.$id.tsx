@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import {
+	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
 	buildPaginateFlowRunsQuery,
 	type FlowRunsPaginateFilter,
@@ -17,7 +18,11 @@ import {
 	buildDeploymentsCountByFlowQuery,
 	buildFLowDetailsQuery,
 } from "@/api/flows";
-import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
+import {
+	buildCountTaskRunsQuery,
+	buildGetFlowRunsTaskRunsCountQuery,
+	buildTaskRunsHistoryQuery,
+} from "@/api/task-runs";
 import {
 	type PaginationState,
 	SORT_FILTERS,
@@ -25,6 +30,15 @@ import {
 } from "@/components/flow-runs/flow-runs-list";
 import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
 import FlowDetail from "@/components/flows/detail";
+import {
+	buildCompletedTaskRunsCountFilter,
+	buildFailedTaskRunsCountFilter,
+	buildFlowRunsCountFilterForHistory,
+	buildFlowRunsHistoryFilter,
+	buildRunningTaskRunsCountFilter,
+	buildTaskRunsHistoryFilterForFlow,
+	buildTotalTaskRunsCountFilter,
+} from "@/components/flows/detail/flow-stats-summary/query-filters";
 
 // Route for /flows/flow/$id
 
@@ -197,29 +211,18 @@ const FlowDetailRoute = () => {
 	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
 	const { selectedStates, onSelectFilter } = useStateFilter();
 
-	// Suspense queries for stable data (flow, activity, deployments)
-	const [{ data: flow }, { data: activity }, { data: deployments }] =
-		useSuspenseQueries({
-			queries: [
-				buildFLowDetailsQuery(id),
-				buildFilterFlowRunsQuery({
-					flows: { operator: "and_", id: { any_: [id] } },
-					flow_runs: {
-						operator: "and_",
-						start_time: { is_null_: false },
-					},
-					offset: 0,
-					limit: 60,
-					sort: "START_TIME_DESC",
-				}),
-				buildFilterDeploymentsQuery({
-					sort: "CREATED_DESC",
-					offset: search["deployments.page"] * search["deployments.limit"],
-					limit: search["deployments.limit"],
-					flows: { operator: "and_", id: { any_: [id] } },
-				}),
-			],
-		});
+	// Suspense queries for stable data (flow, deployments)
+	const [{ data: flow }, { data: deployments }] = useSuspenseQueries({
+		queries: [
+			buildFLowDetailsQuery(id),
+			buildFilterDeploymentsQuery({
+				sort: "CREATED_DESC",
+				offset: search["deployments.page"] * search["deployments.limit"],
+				limit: search["deployments.limit"],
+				flows: { operator: "and_", id: { any_: [id] } },
+			}),
+		],
+	});
 
 	// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
@@ -273,7 +276,6 @@ const FlowDetailRoute = () => {
 			flowRunsCount={flowRunsPage?.count ?? 0}
 			flowRunsPages={flowRunsPage?.pages ?? 0}
 			deployments={deployments}
-			activity={activity}
 			tab={search.tab}
 			pagination={pagination}
 			onPaginationChange={onPaginationChange}
@@ -295,26 +297,17 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		flowRunsDeps: search,
 	}),
 	loader: ({ params: { id }, context, deps }) => {
+		const REFETCH_INTERVAL = 30_000;
+
+		// Prefetch flow details
+		void context.queryClient.prefetchQuery(buildFLowDetailsQuery(id));
+
 		// Prefetch paginated flow runs without blocking (uses keepPreviousData)
 		void context.queryClient.prefetchQuery(
 			buildPaginateFlowRunsQuery(
 				buildPaginationBody(deps.flowRunsDeps, id),
 				30_000,
 			),
-		);
-
-		// Prefetch activity data for the bar chart
-		void context.queryClient.prefetchQuery(
-			buildFilterFlowRunsQuery({
-				flows: { operator: "and_", id: { any_: [id] } },
-				flow_runs: {
-					operator: "and_",
-					start_time: { is_null_: false },
-				},
-				offset: 0,
-				limit: 60,
-				sort: "START_TIME_DESC",
-			}),
 		);
 
 		// Prefetch deployments
@@ -332,6 +325,53 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		// Prefetch deployments count
 		void context.queryClient.prefetchQuery(
 			buildDeploymentsCountByFlowQuery([id]),
+		);
+
+		// Prefetch FlowStatsSummary queries
+		// FlowRunsHistoryCard queries
+		void context.queryClient.prefetchQuery(
+			buildFilterFlowRunsQuery(
+				buildFlowRunsHistoryFilter(id, 60),
+				REFETCH_INTERVAL,
+			),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountFlowRunsQuery(
+				buildFlowRunsCountFilterForHistory(id),
+				REFETCH_INTERVAL,
+			),
+		);
+
+		// CumulativeTaskRunsCard queries
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(
+				buildTotalTaskRunsCountFilter(id),
+				REFETCH_INTERVAL,
+			),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(
+				buildCompletedTaskRunsCountFilter(id),
+				REFETCH_INTERVAL,
+			),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(
+				buildFailedTaskRunsCountFilter(id),
+				REFETCH_INTERVAL,
+			),
+		);
+		void context.queryClient.prefetchQuery(
+			buildCountTaskRunsQuery(
+				buildRunningTaskRunsCountFilter(id),
+				REFETCH_INTERVAL,
+			),
+		);
+		void context.queryClient.prefetchQuery(
+			buildTaskRunsHistoryQuery(
+				buildTaskRunsHistoryFilterForFlow(id),
+				REFETCH_INTERVAL,
+			),
 		);
 
 		// Background async chain: prefetch task run counts for each flow run
