@@ -3,6 +3,7 @@ Tests for the PrefectDbtRunner class and related functionality.
 """
 
 import json
+import threading
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -1432,3 +1433,129 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         assert result2.success is True
         # Verify invoke was called twice
         assert mock_dbt_runner_class.return_value.invoke.call_count == 2
+
+
+class TestPrefectDbtRunnerParallelExecution:
+    """Test parallel execution safeguards.
+
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/19927
+
+    dbt's adapter uses a singleton pattern (FACTORY.adapters) and the connection
+    manager uses thread_connections that are shared across all dbtRunner instances.
+    When one invoke() finishes, cleanup_connections() clears ALL connections,
+    which can break concurrent invocations. The module-level lock serializes
+    invocations to prevent this corruption.
+    """
+
+    def test_module_level_lock_exists(self):
+        """Test that the module-level lock for serializing dbt invocations exists."""
+        from prefect_dbt.core import runner
+
+        assert hasattr(runner, "_DBT_INVOKE_LOCK")
+        assert isinstance(runner._DBT_INVOKE_LOCK, type(threading.Lock()))
+
+    def test_invoke_uses_module_level_lock(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that invoke() uses the module-level lock to serialize invocations."""
+        from prefect_dbt.core import runner as runner_module
+
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        lock_acquired = []
+
+        original_invoke = mock_dbt_runner_class.return_value.invoke
+
+        def track_lock_state(*args, **kwargs):
+            # Check if lock is held when dbtRunner.invoke is called
+            # If lock is held, acquire() will return False with blocking=False
+            lock_is_held = not runner_module._DBT_INVOKE_LOCK.acquire(blocking=False)
+            if not lock_is_held:
+                # We acquired it, so release it
+                runner_module._DBT_INVOKE_LOCK.release()
+            lock_acquired.append(lock_is_held)
+            return original_invoke(*args, **kwargs)
+
+        mock_dbt_runner_class.return_value.invoke.side_effect = track_lock_state
+
+        runner.invoke(["run"])
+
+        # The lock should have been held when dbtRunner.invoke was called
+        assert lock_acquired == [True], "Lock should be held during dbtRunner.invoke()"
+
+
+class TestPrefectDbtRunnerManifestLoadingRetry:
+    """Test manifest loading retry logic.
+
+    The manifest loading now includes retry logic with exponential backoff
+    to handle race conditions when dbt is still writing the manifest file
+    and a callback tries to read it.
+    """
+
+    def test_manifest_loading_retries_on_json_decode_error(self, tmp_path: Path):
+        """Test that manifest loading retries on JSON decode errors."""
+        manifest_path = tmp_path / "target" / "manifest.json"
+        manifest_path.parent.mkdir(parents=True)
+
+        # First write partial JSON, then write valid JSON
+        call_count = [0]
+        original_open = open
+
+        def mock_open_with_partial_json(path, *args, **kwargs):
+            if str(path) == str(manifest_path):
+                call_count[0] += 1
+                if call_count[0] == 1:
+                    # First read: return partial/invalid JSON
+                    from io import StringIO
+
+                    return StringIO('{"nodes": {')
+                else:
+                    # Subsequent reads: return valid JSON
+                    return StringIO(
+                        '{"nodes": {}, "metadata": {"adapter_type": "test"}}'
+                    )
+            return original_open(path, *args, **kwargs)
+
+        runner = PrefectDbtRunner()
+        runner._project_dir = tmp_path
+        runner._target_path = Path("target")
+
+        # Write valid manifest file (will be used after mocked reads)
+        manifest_path.write_text('{"nodes": {}, "metadata": {"adapter_type": "test"}}')
+
+        with patch("prefect_dbt.core.runner.Manifest.from_dict") as mock_from_dict:
+            mock_manifest = Mock(spec=Manifest)
+            mock_from_dict.return_value = mock_manifest
+
+            # Should succeed without error due to retry logic
+            result = runner.manifest
+
+            assert result == mock_manifest
+
+    def test_manifest_loading_raises_after_max_retries(self, tmp_path: Path):
+        """Test that manifest loading raises after exhausting retries."""
+        manifest_path = tmp_path / "target" / "manifest.json"
+        manifest_path.parent.mkdir(parents=True)
+
+        # Write permanently invalid JSON
+        manifest_path.write_text('{"nodes": {')
+
+        runner = PrefectDbtRunner()
+        runner._project_dir = tmp_path
+        runner._target_path = Path("target")
+
+        with pytest.raises(ValueError, match="Failed to parse manifest"):
+            _ = runner.manifest
+
+    def test_manifest_loading_file_not_found_not_retried(self, tmp_path: Path):
+        """Test that FileNotFoundError is not retried (immediate failure)."""
+        runner = PrefectDbtRunner()
+        runner._project_dir = tmp_path
+        runner._target_path = Path("target")
+
+        # Don't create the manifest file
+        with pytest.raises(ValueError, match="Manifest file not found"):
+            _ = runner.manifest

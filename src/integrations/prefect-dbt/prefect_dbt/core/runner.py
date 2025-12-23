@@ -6,6 +6,7 @@ import json
 import os
 import queue
 import threading
+import time
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
@@ -30,6 +31,7 @@ from dbt_common.events.base_types import EventLevel, EventMsg
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger
+from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset, AssetProperties
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
@@ -74,6 +76,14 @@ SETTINGS_CONFIG = [
     ("log_level", "--log-level", EventLevel),
 ]
 FAILURE_MSG = '{resource_type} {resource_name} {status}ed with message: "{message}"'
+
+# Module-level lock to serialize dbt invocations within the same process.
+# This is necessary because dbt's adapter uses a singleton pattern (FACTORY.adapters)
+# and the connection manager uses thread_connections that are shared across all
+# dbtRunner instances. When one invoke() finishes, cleanup_connections() clears
+# ALL connections, which breaks concurrent invocations.
+# See: https://github.com/PrefectHQ/prefect/issues/19927
+_DBT_INVOKE_LOCK = threading.Lock()
 
 
 def execute_dbt_node(
@@ -205,15 +215,33 @@ class PrefectDbtRunner:
         self._graph = Graph(linker.graph)
 
     def _set_manifest_from_project_dir(self):
-        try:
-            with open(
-                os.path.join(self.project_dir, self.target_path, "manifest.json"), "r"
-            ) as f:
-                self._manifest = Manifest.from_dict(json.load(f))  # type: ignore[reportUnknownMemberType]
-        except FileNotFoundError:
-            raise ValueError(
-                f"Manifest file not found in {os.path.join(self.project_dir, self.target_path, 'manifest.json')}"
-            )
+        manifest_path = os.path.join(
+            self.project_dir, self.target_path, "manifest.json"
+        )
+
+        # Retry loading manifest in case dbt is still writing it.
+        # This can happen when callbacks fire while dbt is mid-write.
+        max_retries = 5
+
+        for attempt in range(max_retries):
+            try:
+                with open(manifest_path, "r") as f:
+                    self._manifest = Manifest.from_dict(json.load(f))  # type: ignore[reportUnknownMemberType]
+                return
+            except FileNotFoundError:
+                raise ValueError(f"Manifest file not found in {manifest_path}")
+            except json.JSONDecodeError:
+                # Manifest file may be partially written, retry after delay
+                if attempt < max_retries - 1:
+                    delay = exponential_backoff_with_jitter(
+                        attempt, base_delay=0.1, max_delay=2.0
+                    )
+                    time.sleep(delay)
+                else:
+                    raise ValueError(
+                        f"Failed to parse manifest at {manifest_path} after {max_retries} attempts. "
+                        "The file may be corrupted or still being written."
+                    )
 
     def _get_node_prefect_config(
         self, manifest_node: Union[ManifestNode, SourceDefinition]
@@ -1078,9 +1106,12 @@ class PrefectDbtRunner:
         with self.settings.resolve_profiles_yml() as profiles_dir:
             invoke_kwargs["profiles_dir"] = profiles_dir
 
-            res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
-                kwargs_to_args(invoke_kwargs, args_copy)
-            )
+            # Serialize dbt invocations to prevent connection pool corruption.
+            # See module-level _DBT_INVOKE_LOCK comment for details.
+            with _DBT_INVOKE_LOCK:
+                res = dbtRunner(callbacks=callbacks).invoke(  # type: ignore[reportUnknownMemberType]
+                    kwargs_to_args(invoke_kwargs, args_copy)
+                )
 
         # Wait for callback queue to drain after dbt execution completes
         # Since dbt execution is complete, no new events will be added.
