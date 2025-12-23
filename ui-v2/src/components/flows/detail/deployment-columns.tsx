@@ -8,6 +8,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
 
@@ -21,7 +23,10 @@ export const columns: ColumnDef<Deployment>[] = [
 		accessorKey: "status",
 		header: "Status",
 		cell: ({ row }) => {
-			return row.original.status;
+			const status = row.original.paused
+				? "PAUSED"
+				: (row.original.status ?? "NOT_READY");
+			return <StatusBadge status={status} />;
 		},
 	},
 	{
@@ -90,6 +95,14 @@ export const columns: ColumnDef<Deployment>[] = [
 		),
 	},
 	{
+		accessorKey: "activity",
+		header: "Activity",
+		cell: ({ row }) => {
+			if (!row.original.id) return null;
+			return <MiniDeploymentActivity deploymentId={row.original.id} />;
+		},
+	},
+	{
 		id: "actions",
 		cell: ({ row }) => {
 			if (!row.original.id) return null;
@@ -103,8 +116,6 @@ export const columns: ColumnDef<Deployment>[] = [
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
-						<DropdownMenuItem>Quick run</DropdownMenuItem>
-						<DropdownMenuItem>Custom run</DropdownMenuItem>
 						<DropdownMenuItem
 							onClick={() =>
 								void navigator.clipboard.writeText(row.original.id)
@@ -112,11 +123,6 @@ export const columns: ColumnDef<Deployment>[] = [
 						>
 							Copy ID
 						</DropdownMenuItem>
-						<DropdownMenuItem>Edit</DropdownMenuItem>
-						<DropdownMenuItem>Delete</DropdownMenuItem>
-						<DropdownMenuItem>Duplicate</DropdownMenuItem>
-						<DropdownMenuItem>Manage Access</DropdownMenuItem>
-						<DropdownMenuItem>Add to incident</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			);

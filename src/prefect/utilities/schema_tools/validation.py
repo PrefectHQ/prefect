@@ -257,7 +257,7 @@ def preprocess_schema(
 
     if "definitions" in schema:  # Also process definitions for reused models
         definitions = cast(dict[str, Any], schema["definitions"])
-        for definition in definitions.values():
+        for definition in list(definitions.values()):
             if "properties" in definition:
                 required_fields = definition.get("required", [])
                 process_properties(
