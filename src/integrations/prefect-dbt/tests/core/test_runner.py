@@ -777,53 +777,81 @@ class TestPrefectDbtRunnerManifestNodeOperations:
 
         assert result == []
 
+    @pytest.mark.parametrize(
+        "depends_on",
+        [
+            # 1 level
+            ["model.test_project.ephemeral_staging"],
+            # 2 levels
+            ["model.test_project.another_ephemeral_staging"],
+            # multiple paths, duplicates
+            [
+                "model.test_project.another_ephemeral_staging",
+                "model.test_project.ephemeral_staging",
+            ],
+            # multiple paths, duplicates, including regular
+            [
+                "model.test_project.another_ephemeral_staging",
+                "model.test_project.ephemeral_staging",
+                "model.test_project.regular_model",
+            ],
+        ],
+    )
     def test_get_upstream_manifest_nodes_and_configs_skips_ephemeral_models(
-        self, mock_manifest, mock_manifest_node
+        self, mock_manifest, mock_manifest_node, depends_on
     ):
-        """Test that ephemeral models (which have relation_name=None) are skipped.
+        """
+        Ephemeral models must be transparent dependency nodes.
 
-        Ephemeral models in dbt are CTEs that get inlined into downstream models.
-        They don't create database objects, so relation_name is None by design.
-        The runner should skip these rather than raising an error.
-
-        See: https://github.com/PrefectHQ/prefect/issues/19706
+        For any depth and any number of paths, only real upstream models
+        should be returned, without duplicates.
         """
         runner = PrefectDbtRunner(manifest=mock_manifest)
 
-        # Create an ephemeral model (relation_name=None is expected for ephemeral)
-        ephemeral_node = Mock(spec=ManifestNode)
-        ephemeral_node.unique_id = "model.test_project.ephemeral_staging"
-        ephemeral_node.config = Mock()
-        ephemeral_node.config.meta = {"prefect": {}}
-        ephemeral_node.config.materialized = "ephemeral"
-        ephemeral_node.relation_name = None  # Expected for ephemeral models
-        ephemeral_node.resource_type = NodeType.Model
-        ephemeral_node.depends_on_nodes = []
-
-        # Create a regular model with relation_name
         regular_node = Mock(spec=ManifestNode)
         regular_node.unique_id = "model.test_project.regular_model"
         regular_node.config = Mock()
         regular_node.config.meta = {"prefect": {}}
         regular_node.config.materialized = "view"
         regular_node.relation_name = "test_db.test_schema.regular_model"
+        regular_node.is_ephemeral = False
         regular_node.resource_type = NodeType.Model
         regular_node.depends_on_nodes = []
 
+        ephemeral_node = Mock(spec=ManifestNode)
+        ephemeral_node.unique_id = "model.test_project.ephemeral_staging"
+        ephemeral_node.config = Mock()
+        ephemeral_node.config.meta = {"prefect": {}}
+        ephemeral_node.config.materialized = "ephemeral"
+        ephemeral_node.relation_name = None  # Expected for ephemeral models
+        ephemeral_node.is_ephemeral = True
+        ephemeral_node.resource_type = NodeType.Model
+        ephemeral_node.depends_on_nodes = ["model.test_project.regular_model"]
+
+        another_ephemeral_node = Mock(spec=ManifestNode)
+        another_ephemeral_node.unique_id = (
+            "model.test_project.another_ephemeral_staging"
+        )
+        another_ephemeral_node.config = Mock()
+        another_ephemeral_node.config.meta = {"prefect": {}}
+        another_ephemeral_node.config.materialized = "ephemeral"
+        another_ephemeral_node.relation_name = None  # Expected for ephemeral models
+        another_ephemeral_node.is_ephemeral = True
+        another_ephemeral_node.resource_type = NodeType.Model
+        another_ephemeral_node.depends_on_nodes = [
+            "model.test_project.ephemeral_staging"
+        ]
+
         mock_manifest.nodes = {
+            "model.test_project.another_ephemeral_staging": another_ephemeral_node,
             "model.test_project.ephemeral_staging": ephemeral_node,
             "model.test_project.regular_model": regular_node,
         }
-        # The main node depends on both an ephemeral and a regular model
-        mock_manifest_node.depends_on_nodes = [
-            "model.test_project.ephemeral_staging",
-            "model.test_project.regular_model",
-        ]
 
-        # Should NOT raise - ephemeral models should be skipped
+        mock_manifest_node.depends_on_nodes = depends_on
+
         result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
 
-        # Only the regular model should be returned (ephemeral skipped)
         assert len(result) == 1
         assert result[0][0].unique_id == "model.test_project.regular_model"
 

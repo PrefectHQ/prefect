@@ -227,32 +227,45 @@ class PrefectDbtRunner:
         self,
         manifest_node: ManifestNode,
     ) -> list[tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]]:
-        """Get upstream nodes for a given node"""
+        """
+        Get upstream nodes for a given node.
+        Ephemeral nodes are traversed recursively to find non-ephemeral dependencies.
+        """
         upstream_manifest_nodes: list[
             tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]
         ] = []
+        visited: set[str] = set()
 
-        for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
-            depends_manifest_node = self.manifest.nodes.get(
-                depends_on_node  # type: ignore[reportUnknownMemberType]
-            ) or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+        def collect(node: ManifestNode):
+            for depends_on_node in node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
+                if depends_on_node in visited:
+                    continue
+                visited.add(depends_on_node)
 
-            if not depends_manifest_node:
-                continue
-
-            # Skip nodes without relation_name. This primarily occurs for ephemeral
-            # models which are CTEs that don't create database objects. We skip rather
-            # than error because nodes without relation_name can't be tracked as assets.
-            if not depends_manifest_node.relation_name:
-                continue
-
-            upstream_manifest_nodes.append(
-                (
-                    depends_manifest_node,
-                    self._get_node_prefect_config(depends_manifest_node),
+                depends_manifest_node = (
+                    self.manifest.nodes.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+                    or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
                 )
-            )
 
+                if not depends_manifest_node:
+                    continue
+
+                # recursive for ephemerals
+                if (
+                    not depends_manifest_node.relation_name
+                    and depends_manifest_node.is_ephemeral
+                ):
+                    collect(depends_manifest_node)
+                    continue
+
+                upstream_manifest_nodes.append(
+                    (
+                        depends_manifest_node,
+                        self._get_node_prefect_config(depends_manifest_node),
+                    )
+                )
+
+        collect(manifest_node)
         return upstream_manifest_nodes
 
     def _get_compiled_code_path(self, manifest_node: ManifestNode) -> Path:
@@ -625,19 +638,27 @@ class PrefectDbtRunner:
                     logger.error(self.get_dbt_event_msg(event))
 
         def _process_node_started_sync(event: EventMsg) -> None:
-            """Actual node started logic - runs in background thread."""
+            """
+            Actual node started logic - runs in background thread.
+            Skips nodes that are ephemeral.
+            """
             node_id = self._get_dbt_event_node_id(event)
             if node_id in self._skipped_nodes:
                 return
 
             manifest_node, prefect_config = self._get_manifest_node_and_config(node_id)
 
-            if manifest_node:
-                enable_assets = (
-                    prefect_config.get("enable_assets", True)
-                    and not self.disable_assets
-                )
-                self._call_task(task_state, manifest_node, context, enable_assets)
+            if not manifest_node:
+                return
+
+            if isinstance(manifest_node, ManifestNode) and manifest_node.is_ephemeral:
+                self._skipped_nodes.add(node_id)
+                return
+
+            enable_assets = (
+                prefect_config.get("enable_assets", True) and not self.disable_assets
+            )
+            self._call_task(task_state, manifest_node, context, enable_assets)
 
         def _process_node_finished_sync(event: EventMsg) -> None:
             """Actual node finished logic - runs in background thread."""
