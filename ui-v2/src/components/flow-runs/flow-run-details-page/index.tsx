@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FlowRunDetails } from "./flow-run-details";
 
 type FlowRunDetailsTabOptions =
 	| "Logs"
@@ -99,11 +100,13 @@ export const FlowRunDetailsPage = ({
 					taskRunsContent={<PlaceholderContent label="Task Runs" />}
 					subflowRunsContent={<PlaceholderContent label="Subflow Runs" />}
 					artifactsContent={<PlaceholderContent label="Artifacts" />}
-					detailsContent={<PlaceholderContent label="Details" />}
+					detailsContent={<FlowRunDetails flowRun={flowRun} />}
 					parametersContent={<PlaceholderContent label="Parameters" />}
 					jobVariablesContent={<PlaceholderContent label="Job Variables" />}
 				/>
-				<FlowRunDetailsSidebar flowRun={flowRun} />
+				<div className="hidden lg:block">
+					<FlowRunDetails flowRun={flowRun} />
+				</div>
 			</div>
 		</div>
 	);
@@ -296,70 +299,6 @@ const TabsLayout = ({
 			<TabsContent value="Parameters">{parametersContent}</TabsContent>
 			<TabsContent value="JobVariables">{jobVariablesContent}</TabsContent>
 		</Tabs>
-	);
-};
-
-const FlowRunDetailsSidebar = ({ flowRun }: { flowRun: FlowRun }) => {
-	return (
-		<div className="hidden lg:block">
-			<div className="rounded-lg border p-4">
-				<h3 className="font-semibold mb-4">Details</h3>
-				<div className="space-y-3 text-sm">
-					<div>
-						<span className="text-muted-foreground">Flow Run ID</span>
-						<p className="font-mono text-xs break-all">{flowRun.id}</p>
-					</div>
-					{flowRun.flow_id && (
-						<div>
-							<span className="text-muted-foreground">Flow ID</span>
-							<p className="font-mono text-xs break-all">{flowRun.flow_id}</p>
-						</div>
-					)}
-					{flowRun.deployment_id && (
-						<div>
-							<span className="text-muted-foreground">Deployment ID</span>
-							<p className="font-mono text-xs break-all">
-								{flowRun.deployment_id}
-							</p>
-						</div>
-					)}
-					{flowRun.start_time && (
-						<div>
-							<span className="text-muted-foreground">Start Time</span>
-							<p>{new Date(flowRun.start_time).toLocaleString()}</p>
-						</div>
-					)}
-					{flowRun.end_time && (
-						<div>
-							<span className="text-muted-foreground">End Time</span>
-							<p>{new Date(flowRun.end_time).toLocaleString()}</p>
-						</div>
-					)}
-					{flowRun.total_run_time !== undefined &&
-						flowRun.total_run_time > 0 && (
-							<div>
-								<span className="text-muted-foreground">Duration</span>
-								<p>{flowRun.total_run_time.toFixed(2)}s</p>
-							</div>
-						)}
-					{flowRun.tags && flowRun.tags.length > 0 && (
-						<div>
-							<span className="text-muted-foreground">Tags</span>
-							<div className="flex flex-wrap gap-1 mt-1">
-								{flowRun.tags.map((tag) => (
-									<span
-										key={tag}
-										className="px-2 py-0.5 bg-muted rounded text-xs"
-									>
-										{tag}
-									</span>
-								))}
-							</div>
-						</div>
-					)}
-				</div>
-			</div>
-		</div>
 	);
 };
 
