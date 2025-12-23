@@ -1,10 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useFavicon } from "./use-favicon";
+import { useStateFavicon } from "./use-state-favicon";
 
-type FaviconArg = Parameters<typeof useFavicon>[0];
+type FaviconArg = Parameters<typeof useStateFavicon>[0];
 
-describe("useFavicon", () => {
+describe("useStateFavicon", () => {
 	let favicon16: HTMLLinkElement;
 	let favicon32: HTMLLinkElement;
 	let favicon16Dark: HTMLLinkElement;
@@ -71,35 +71,35 @@ describe("useFavicon", () => {
 	});
 
 	it("sets favicon to state-specific SVG when stateType is provided", () => {
-		renderHook(() => useFavicon("COMPLETED"));
+		renderHook(() => useStateFavicon("COMPLETED"));
 
 		expect(favicon16.getAttribute("href")).toBe("/completed.svg");
 		expect(favicon32.getAttribute("href")).toBe("/completed.svg");
 	});
 
 	it("converts state type to lowercase for favicon path", () => {
-		renderHook(() => useFavicon("FAILED"));
+		renderHook(() => useStateFavicon("FAILED"));
 
 		expect(favicon16.getAttribute("href")).toBe("/failed.svg");
 		expect(favicon32.getAttribute("href")).toBe("/failed.svg");
 	});
 
 	it("does not change favicon when stateType is null", () => {
-		renderHook(() => useFavicon(null));
+		renderHook(() => useStateFavicon(null));
 
 		expect(favicon16.getAttribute("href")).toBe("/favicon-16x16.png");
 		expect(favicon32.getAttribute("href")).toBe("/favicon-32x32.png");
 	});
 
 	it("does not change favicon when stateType is undefined", () => {
-		renderHook(() => useFavicon(undefined));
+		renderHook(() => useStateFavicon(undefined));
 
 		expect(favicon16.getAttribute("href")).toBe("/favicon-16x16.png");
 		expect(favicon32.getAttribute("href")).toBe("/favicon-32x32.png");
 	});
 
 	it("resets favicon to default on unmount in light mode", () => {
-		const { unmount } = renderHook(() => useFavicon("RUNNING"));
+		const { unmount } = renderHook(() => useStateFavicon("RUNNING"));
 
 		expect(favicon16.getAttribute("href")).toBe("/running.svg");
 		expect(favicon32.getAttribute("href")).toBe("/running.svg");
@@ -119,7 +119,7 @@ describe("useFavicon", () => {
 			value: createMatchMediaMock(true),
 		});
 
-		renderHook(() => useFavicon("SCHEDULED"));
+		renderHook(() => useStateFavicon("SCHEDULED"));
 
 		expect(favicon16Dark.getAttribute("href")).toBe("/scheduled.svg");
 		expect(favicon32Dark.getAttribute("href")).toBe("/scheduled.svg");
@@ -132,7 +132,7 @@ describe("useFavicon", () => {
 			value: createMatchMediaMock(true),
 		});
 
-		const { unmount } = renderHook(() => useFavicon("CRASHED"));
+		const { unmount } = renderHook(() => useStateFavicon("CRASHED"));
 
 		expect(favicon16Dark.getAttribute("href")).toBe("/crashed.svg");
 		expect(favicon32Dark.getAttribute("href")).toBe("/crashed.svg");
@@ -147,7 +147,7 @@ describe("useFavicon", () => {
 
 	it("updates favicon when stateType changes", () => {
 		const { rerender } = renderHook(
-			({ stateType }: { stateType: FaviconArg }) => useFavicon(stateType),
+			({ stateType }: { stateType: FaviconArg }) => useStateFavicon(stateType),
 			{ initialProps: { stateType: "PENDING" } },
 		);
 
@@ -174,7 +174,7 @@ describe("useFavicon", () => {
 		] as const;
 
 		for (const stateType of stateTypes) {
-			const { unmount } = renderHook(() => useFavicon(stateType));
+			const { unmount } = renderHook(() => useStateFavicon(stateType));
 
 			expect(favicon16.getAttribute("href")).toBe(
 				`/${stateType.toLowerCase()}.svg`,
@@ -205,7 +205,7 @@ describe("useFavicon", () => {
 			})) as unknown as typeof window.matchMedia,
 		});
 
-		renderHook(() => useFavicon("FAILED"));
+		renderHook(() => useStateFavicon("FAILED"));
 
 		// Should use light mode favicons (favicon-16, favicon-32)
 		expect(favicon16.getAttribute("href")).toBe("/failed.svg");

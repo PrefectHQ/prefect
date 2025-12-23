@@ -45,8 +45,8 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useFavicon } from "@/hooks/use-favicon";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useStateFavicon } from "@/hooks/use-state-favicon";
 
 type TaskRunDetailsPageProps = {
 	id: string;
@@ -73,7 +73,7 @@ export const TaskRunDetailsPage = ({
 	usePageTitle(taskRun?.name ? `Task Run: ${taskRun.name}` : "Task Run");
 
 	// Set favicon based on task run state
-	useFavicon(taskRun?.state_type);
+	useStateFavicon(taskRun?.state_type);
 
 	useEffect(() => {
 		if (taskRun.state_type === "RUNNING" || taskRun.state_type === "PENDING") {

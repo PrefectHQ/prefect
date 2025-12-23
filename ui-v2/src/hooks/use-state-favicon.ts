@@ -31,10 +31,10 @@ function getPreferredColorScheme(): "dark" | "light" | "no-preference" {
  * @example
  * ```tsx
  * // Set favicon based on task run state
- * useFavicon(taskRun.state_type);
+ * useStateFavicon(taskRun.state_type);
  * ```
  */
-export function useFavicon(stateType: StateType | null | undefined): void {
+export function useStateFavicon(stateType: StateType | null | undefined): void {
 	useEffect(() => {
 		const colorScheme = getPreferredColorScheme();
 		const favicon16 =
