@@ -4,6 +4,7 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import type { ChangeEvent } from "react";
 import { type JSX, useCallback, useState } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
@@ -118,6 +119,18 @@ export default function FlowDetail({
 		onSelectFilter(new Set());
 	}, [onFlowRunSearchChange, onSelectFilter]);
 
+	// Handler for deployment tags that satisfies both ChangeEventHandler and (tags: string[]) => void
+	// This is needed because TagsInput's onChange prop type is an intersection of both signatures
+	const handleDeploymentTagsChange: React.ChangeEventHandler<HTMLInputElement> &
+		((tags: string[]) => void) = useCallback(
+		(e: string[] | ChangeEvent<HTMLInputElement>) => {
+			if (Array.isArray(e)) {
+				onDeploymentTagsChange(e);
+			}
+		},
+		[onDeploymentTagsChange],
+	);
+
 	return (
 		<>
 			<div className="container mx-auto">
@@ -181,7 +194,7 @@ export default function FlowDetail({
 							<TagsInput
 								placeholder="Filter by tags"
 								value={deploymentTags}
-								onChange={onDeploymentTagsChange}
+								onChange={handleDeploymentTagsChange}
 							/>
 						</header>
 						<DataTable table={deploymentsTable} />
