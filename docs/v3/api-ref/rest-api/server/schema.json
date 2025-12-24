@@ -26295,12 +26295,6 @@
                             "1.0"
                         ]
                     },
-                    "parameters": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Parameters",
-                        "description": "Parameters for the task run."
-                    },
                     "task_inputs": {
                         "additionalProperties": {
                             "items": {
@@ -26324,17 +26318,6 @@
                         "type": "object",
                         "title": "Task Inputs",
                         "description": "Inputs provided to the task run."
-                    },
-                    "context": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Context",
-                        "description": "Additional context for the task run.",
-                        "examples": [
-                            {
-                                "my_var": "my_val"
-                            }
-                        ]
                     },
                     "empirical_policy": {
                         "$ref": "#/components/schemas/TaskRunPolicy",

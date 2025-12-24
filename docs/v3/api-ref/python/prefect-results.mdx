@@ -148,6 +148,17 @@ Get the current result store.
 
 Manages the storage and retrieval of results.
 
+**Attributes:**
+- `result_storage`: The storage for result records. If not provided, the default
+result storage will be used.
+- `metadata_storage`: The storage for result record metadata. If not provided,
+the metadata will be stored alongside the results.
+- `lock_manager`: The lock manager to use for locking result records. If not provided,
+the store cannot be used in transactions with the SERIALIZABLE isolation level.
+- `cache_result_in_memory`: Whether to cache results in memory.
+- `serializer`: The serializer to use for results.
+- `storage_key_fn`: The function to generate storage keys.
+
 
 **Methods:**
 

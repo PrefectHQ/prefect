@@ -141,3 +141,20 @@ A dataclass representing a schedule.
 
 Note that only one of `interval`, `cron`, or `rrule` can be defined at a time.
 
+**Attributes:**
+- `interval`: A timedelta representing the frequency of the schedule.
+- `cron`: A valid cron string (e.g. "0 0 * * *").
+- `rrule`: A valid RRule string (e.g. "RRULE\:FREQ=DAILY;INTERVAL=1").
+- `timezone`: A valid timezone string in IANA tzdata format (e.g. America/New_York).
+- `anchor_date`: An anchor date to schedule increments against; if not provided,
+the current timestamp will be used.
+- `day_or`: Control how `day` and `day_of_week` entries are handled.
+Defaults to True, matching cron which connects those values using
+OR. If the switch is set to False, the values are connected using AND.
+This behaves like fcron and enables you to e.g. define a job that
+executes each 2nd friday of a month by setting the days of month and
+the weekday.
+- `active`: Whether or not the schedule is active.
+- `parameters`: A dictionary containing parameter overrides for the schedule.
+- `slug`: A unique identifier for the schedule.
+

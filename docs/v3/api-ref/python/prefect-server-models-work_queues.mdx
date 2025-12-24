@@ -13,7 +13,7 @@ Intended for internal use by the Prefect REST API.
 
 ## Functions
 
-### `create_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_work_queue(db: PrefectDBInterface, session: AsyncSession, work_queue: Union[schemas.core.WorkQueue, schemas.actions.WorkQueueCreate]) -> orm_models.WorkQueue
@@ -32,7 +32,7 @@ If a WorkQueue with the same name exists, an error will be thrown.
 - orm_models.WorkQueue: the newly-created or updated WorkQueue
 
 
-### `read_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_queue(db: PrefectDBInterface, session: AsyncSession, work_queue_id: Union[UUID, PrefectUUID]) -> Optional[orm_models.WorkQueue]
@@ -49,7 +49,7 @@ Reads a WorkQueue by id.
 - orm_models.WorkQueue: the WorkQueue
 
 
-### `read_work_queue_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queue_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_queue_by_name(db: PrefectDBInterface, session: AsyncSession, name: str) -> Optional[orm_models.WorkQueue]
@@ -66,7 +66,7 @@ Reads a WorkQueue by id.
 - orm_models.WorkQueue: the WorkQueue
 
 
-### `read_work_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_queues(db: PrefectDBInterface, session: AsyncSession, offset: Optional[int] = None, limit: Optional[int] = None, work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None) -> Sequence[orm_models.WorkQueue]
@@ -85,13 +85,13 @@ Returns:
     Sequence[orm_models.WorkQueue]: WorkQueues
 
 
-### `is_last_polled_recent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_last_polled_recent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_last_polled_recent(last_polled: Optional[DateTime]) -> bool
 ```
 
-### `update_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_work_queue(db: PrefectDBInterface, session: AsyncSession, work_queue_id: UUID, work_queue: schemas.actions.WorkQueueUpdate, emit_status_change: Optional[Callable[[orm_models.WorkQueue], Awaitable[None]]] = None) -> bool
@@ -109,7 +109,7 @@ Update a WorkQueue by id.
 - whether or not the WorkQueue was updated
 
 
-### `delete_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_work_queue(db: PrefectDBInterface, session: AsyncSession, work_queue_id: UUID) -> bool
@@ -126,7 +126,7 @@ Delete a WorkQueue by id.
 - whether or not the WorkQueue was deleted
 
 
-### `get_runs_in_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_runs_in_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L359" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_runs_in_work_queue(db: PrefectDBInterface, session: AsyncSession, work_queue_id: UUID, limit: Optional[int] = None, scheduled_before: Optional[datetime.datetime] = None) -> Tuple[orm_models.WorkQueue, Sequence[orm_models.FlowRun]]
@@ -144,7 +144,7 @@ the work queue's concurrency limit. If `limit` exceeds the work
 queue's concurrency limit, it will be ignored.
 
 
-### `ensure_work_queue_exists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L430" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ensure_work_queue_exists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ensure_work_queue_exists(session: AsyncSession, name: str) -> orm_models.WorkQueue
@@ -158,7 +158,7 @@ Useful when working with deployments, agents, and flow runs that automatically c
 Will also create a work pool queue in the default agent pool to facilitate migration to work pools.
 
 
-### `read_work_queue_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queue_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_work_queue_status(session: AsyncSession, work_queue_id: UUID) -> schemas.core.WorkQueueStatusDetail
@@ -175,7 +175,7 @@ Get work queue status by id.
 - Information about the status of the work queue.
 
 
-### `record_work_queue_polls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L517" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `record_work_queue_polls` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L561" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_work_queue_polls(db: PrefectDBInterface, session: AsyncSession, polled_work_queue_ids: Sequence[UUID], ready_work_queue_ids: Sequence[UUID]) -> None
@@ -186,20 +186,30 @@ Record that the given work queues were polled, and also update the given
 ready_work_queue_ids to READY.
 
 
-### `mark_work_queues_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L542" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mark_work_queues_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L586" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mark_work_queues_ready() -> None
 ```
 
-### `mark_work_queues_not_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L582" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mark_work_queues_not_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L626" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mark_work_queues_not_ready(db: PrefectDBInterface, work_queue_ids: Iterable[UUID]) -> None
 ```
 
-### `emit_work_queue_status_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `emit_work_queue_status_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L664" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_work_queue_status_event(db: PrefectDBInterface, work_queue: orm_models.WorkQueue) -> None
+```
+
+
+Emit an event when work queue fields are updated.
+
+
+### `emit_work_queue_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/work_queues.py#L679" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+emit_work_queue_updated_event(session: AsyncSession, work_queue: orm_models.WorkQueue, changed_fields: Dict[str, Dict[str, Any]]) -> None
 ```

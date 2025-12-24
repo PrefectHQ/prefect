@@ -41,3 +41,23 @@ work_queue_status_event(session: AsyncSession, work_queue: 'ORMWorkQueue', occur
 ```python
 work_pool_status_event(event_id: UUID, occurred: DateTime, pre_update_work_pool: Optional['ORMWorkPool'], work_pool: 'ORMWorkPool') -> Event
 ```
+
+### `work_pool_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/events.py#L422" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+work_pool_updated_event(session: AsyncSession, work_pool: 'ORMWorkPool', changed_fields: Dict[str, Dict[str, Any]], occurred: DateTime) -> Event
+```
+
+
+Create an event for work pool field updates (non-status).
+
+
+### `work_queue_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/events.py#L448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+work_queue_updated_event(session: AsyncSession, work_queue: 'ORMWorkQueue', changed_fields: Dict[str, Dict[str, Any]], occurred: DateTime) -> Event
+```
+
+
+Create an event for work queue field updates (non-status).
+
