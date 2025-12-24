@@ -13,6 +13,8 @@ from types import FrameType
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
+from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
+
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun
@@ -36,7 +38,7 @@ from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger
 from prefect.runner import Runner
-from prefect.states import State
+from prefect.states import State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.urls import url_for
@@ -446,7 +448,7 @@ async def retry(
 
                 try:
                     # Use the retry method which handles remote execution
-                    await flow.retry(flow_run, return_state=True)
+                    await flow.retry(flow_run)
                 except Exception as exc:
                     exit_with_error(f"Flow run failed: {exc}")
 
@@ -483,12 +485,27 @@ async def retry(
                 # Re-fetch the flow run to get updated state
                 flow_run = await client.read_flow_run(flow_run_id)
 
+                try:
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        flow.fn, flow_run.parameters if flow_run else {}
+                    )
+                    parameters = get_call_parameters(flow.fn, call_args, call_kwargs)
+                except Exception as exc:
+                    state = await exception_to_crashed_state(exc)
+                    await client.set_flow_run_state(
+                        flow_run_id=flow_run_id, state=state, force=True
+                    )
+                    exit_with_error(
+                        "Failed to use parameters from previous attempt. Please ensure the flow signature has not changed since the last run."
+                    )
+
                 # Execute the flow synchronously, reusing the existing flow run
                 try:
                     run_flow(
                         flow=flow,
                         flow_run=flow_run,
                         return_type="state",
+                        parameters=parameters,
                     )
                 except Exception as exc:
                     exit_with_error(f"Flow run failed: {exc}")

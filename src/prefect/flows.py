@@ -2207,7 +2207,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
     async def retry(
         self,
         flow_run: "FlowRun",
-        return_state: bool = False,
     ) -> R | State[R]:
         """
         EXPERIMENTAL: This method is experimental and may be removed or changed in future
@@ -2251,9 +2250,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
                     job_variables=self.job_variables,
                     flow_run=flow_run,
                 )
-                if return_state:
-                    await future.wait_async()
-                    return future.state
                 return await future.aresult()
         except (ExceptionGroup, BaseExceptionGroup) as exc:
             # For less verbose tracebacks
