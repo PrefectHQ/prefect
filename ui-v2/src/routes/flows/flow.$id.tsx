@@ -7,10 +7,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import {
-	buildCountDeploymentsQuery,
-	buildPaginateDeploymentsQuery,
-} from "@/api/deployments";
+import { buildPaginateDeploymentsQuery } from "@/api/deployments";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
@@ -222,7 +219,7 @@ const useDeploymentSearch = () => {
 				search: (prev) => ({
 					...prev,
 					"deployments.nameLike": deploymentSearch || undefined,
-					"deployments.page": 0,
+					"deployments.page": 1,
 				}),
 				replace: true,
 			});
@@ -346,18 +343,6 @@ const FlowDetailRoute = () => {
 		}),
 	);
 
-	// Fetch deployments count for accurate total
-	const { data: deploymentsCount } = useQuery(
-		buildCountDeploymentsQuery({
-			flows: { operator: "and_", id: { any_: [id] } },
-			deployments: {
-				operator: "and_",
-				flow_or_deployment_name: { like_: search["deployments.nameLike"] },
-				tags: { operator: "and_", all_: search["deployments.tags"] || [] },
-			},
-		}),
-	);
-
 	// Set page title based on flow name
 	usePageTitle(flow?.name ? `Flow: ${flow.name}` : "Flow");
 
@@ -413,7 +398,7 @@ const FlowDetailRoute = () => {
 			flowRunsCount={flowRunsPage?.count ?? 0}
 			flowRunsPages={flowRunsPage?.pages ?? 0}
 			deployments={deploymentsPage?.results ?? []}
-			deploymentsCount={deploymentsCount ?? 0}
+			deploymentsCount={deploymentsPage?.count ?? 0}
 			deploymentsPages={deploymentsPage?.pages ?? 0}
 			tab={search.tab}
 			pagination={pagination}
@@ -463,23 +448,6 @@ export const Route = createFileRoute("/flows/flow/$id")({
 				sort: deps.flowRunsDeps["deployments.sort"],
 				page: deps.flowRunsDeps["deployments.page"],
 				limit: deps.flowRunsDeps["deployments.limit"],
-				flows: { operator: "and_", id: { any_: [id] } },
-				deployments: {
-					operator: "and_",
-					flow_or_deployment_name: {
-						like_: deps.flowRunsDeps["deployments.nameLike"],
-					},
-					tags: {
-						operator: "and_",
-						all_: deps.flowRunsDeps["deployments.tags"] || [],
-					},
-				},
-			}),
-		);
-
-		// Prefetch deployments count for accurate total
-		void context.queryClient.prefetchQuery(
-			buildCountDeploymentsQuery({
 				flows: { operator: "and_", id: { any_: [id] } },
 				deployments: {
 					operator: "and_",
