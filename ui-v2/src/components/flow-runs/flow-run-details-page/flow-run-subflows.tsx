@@ -171,13 +171,13 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="grid grid-cols-12 items-center gap-2">
-				<div className="flex flex-col gap-1 xl:col-span-3 md:col-span-12 col-span-6 md:order-0 order-3">
+				<div className="flex flex-col gap-1 xl:col-span-3 md:col-span-12 col-span-6 md:order-0 order-2">
 					<Typography variant="bodySmall" className="text-muted-foreground">
 						{countData} Subflow run{countData !== 1 ? "s" : ""}
 					</Typography>
 				</div>
 
-				<div className="xl:col-span-3 md:col-span-4 col-span-12 md:order-1 order-0">
+				<div className="xl:col-span-4 col-span-12 md:order-1 order-0">
 					<SearchInput
 						value={search}
 						onChange={handleSearchChange}
@@ -186,13 +186,13 @@ export const FlowRunSubflows = ({ parentFlowRunId }: FlowRunSubflowsProps) => {
 						debounceMs={300}
 					/>
 				</div>
-				<div className="xl:col-span-3 md:col-span-4 col-span-12 md:order-2 order-1">
+				<div className="xl:col-span-3 md:col-span-6 col-span-12 md:order-2 order-1">
 					<StateFilter
 						selectedFilters={stateFilter}
 						onSelectFilter={handleStateFilterChange}
 					/>
 				</div>
-				<div className="md:border-l md:border-border md:pl-2 xl:col-span-3 md:col-span-4 col-span-6 md:order-3 order-2">
+				<div className="xl:border-l xl:border-border xl:pl-2 xl:col-span-2 md:col-span-6 col-span-6 md:order-3 order-3">
 					<SortFilter value={sort} onSelect={handleSortChange} />
 				</div>
 			</div>
