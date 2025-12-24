@@ -19,6 +19,9 @@ const TEMPLATE_TRIGGERS = {
 
 export type TemplateTriggers = keyof typeof TEMPLATE_TRIGGERS;
 
+// Type alias for consistency with ticket specification
+export type TriggerTemplate = TemplateTriggers;
+
 type AutomationsTriggerTemplateSelectProps = {
 	onValueChange: (value: TemplateTriggers) => void;
 	value?: TemplateTriggers;
