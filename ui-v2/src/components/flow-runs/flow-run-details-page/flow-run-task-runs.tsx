@@ -220,7 +220,7 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 					/>
 				</div>
 				{/* Sort - last column with left border on desktop */}
-				<div className="md:border-l md:border-border md:pl-2 xl:col-span-2 md:col-span-6 col-span-6 md:order-4 order-4">
+				<div className="xl:border-l xl:border-border xl:pl-2 xl:col-span-2 md:col-span-6 col-span-6 md:order-4 order-4">
 					<TaskRunsSortFilter value={sort} onSelect={handleSortChange} />
 				</div>
 			</div>
