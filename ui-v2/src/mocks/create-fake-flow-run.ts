@@ -17,7 +17,7 @@ import { createFakeFlow } from "./create-fake-flow";
 import { createFakeState } from "./create-fake-state";
 
 export const createFakeFlowRun = (overrides?: Partial<FlowRun>): FlowRun => {
-	const state = createFakeState();
+	const state = overrides?.state ?? createFakeState();
 
 	return {
 		id: randUuid(),
