@@ -3,7 +3,8 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useState } from "react";
+import type { ChangeEvent } from "react";
+import { useMemo, useState } from "react";
 import {
 	buildCountTaskRunsQuery,
 	buildPaginateTaskRunsQuery,
@@ -17,6 +18,7 @@ import {
 } from "@/components/task-runs/task-runs-list";
 import type { PaginationState } from "@/components/task-runs/task-runs-list/task-runs-pagination";
 import { SearchInput } from "@/components/ui/input";
+import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
 import useDebounce from "@/hooks/use-debounce";
 
@@ -28,6 +30,7 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState("");
 	const [stateFilter, setStateFilter] = useState<Set<string>>(new Set());
+	const [tagsFilter, setTagsFilter] = useState<Set<string>>(new Set());
 	const [sort, setSort] = useState<TaskRunSortFilters>(
 		"EXPECTED_START_TIME_DESC",
 	);
@@ -66,6 +69,13 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 									name: { any_: Array.from(stateFilter) },
 								}
 							: undefined,
+					tags:
+						tagsFilter.size > 0
+							? {
+									operator: "and_",
+									all_: Array.from(tagsFilter),
+								}
+							: undefined,
 				},
 				sort,
 				page: pagination.page,
@@ -90,9 +100,18 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 		setPagination((prev) => ({ ...prev, page: 1 }));
 	};
 
+	const handleTagsFilterChange = (
+		tags: string[] | ChangeEvent<HTMLInputElement>,
+	) => {
+		const newTags = Array.isArray(tags) ? tags : [];
+		setTagsFilter(new Set(newTags));
+		setPagination((prev) => ({ ...prev, page: 1 }));
+	};
+
 	const handleClearFilters = () => {
 		setSearch("");
 		setStateFilter(new Set());
+		setTagsFilter(new Set());
 		setPagination((prev) => ({ ...prev, page: 1 }));
 	};
 
@@ -116,6 +135,13 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 										name: { any_: Array.from(stateFilter) },
 									}
 								: undefined,
+						tags:
+							tagsFilter.size > 0
+								? {
+										operator: "and_",
+										all_: Array.from(tagsFilter),
+									}
+								: undefined,
 					},
 					sort,
 					page,
@@ -126,7 +152,20 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 		);
 	};
 
-	const hasFilters = search || stateFilter.size > 0;
+	const hasFilters = search || stateFilter.size > 0 || tagsFilter.size > 0;
+
+	// Calculate state summary from paginated results
+	const stateSummary = useMemo(() => {
+		if (!paginatedData?.results) return null;
+		const stateCounts = new Map<string, number>();
+		for (const taskRun of paginatedData.results) {
+			const stateName = String(taskRun.state_name ?? "Unknown");
+			stateCounts.set(stateName, (stateCounts.get(stateName) ?? 0) + 1);
+		}
+		return Array.from(stateCounts.entries())
+			.map(([name, count]) => `${count} ${name}`)
+			.join(", ");
+	}, [paginatedData?.results]);
 
 	if (countData === 0) {
 		return (
@@ -140,26 +179,41 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex items-center justify-between">
-				<Typography variant="bodySmall" className="text-muted-foreground">
-					{countData} Task Run{countData !== 1 ? "s" : ""}
-				</Typography>
-			</div>
+			<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+				<div className="flex flex-col">
+					<Typography variant="bodySmall" className="text-muted-foreground">
+						{countData} Task run{countData !== 1 ? "s" : ""}
+					</Typography>
+					{stateSummary && (
+						<Typography
+							variant="bodySmall"
+							className="text-muted-foreground text-xs"
+						>
+							({stateSummary})
+						</Typography>
+					)}
+				</div>
 
-			<div className="flex flex-col sm:flex-row gap-2">
-				<div className="flex-1">
+				<div className="flex flex-wrap items-center gap-2">
 					<SearchInput
 						value={search}
 						onChange={handleSearchChange}
-						placeholder="Search task runs..."
+						placeholder="Search by run name"
+						aria-label="Search by run name"
+						className="w-48"
 						debounceMs={300}
 					/>
-				</div>
-				<div className="flex gap-2">
-					<div className="w-48">
+					<div className="w-40">
 						<TaskRunStateFilter
 							selectedFilters={stateFilter}
 							onSelectFilter={handleStateFilterChange}
+						/>
+					</div>
+					<div className="w-32">
+						<TagsInput
+							value={Array.from(tagsFilter)}
+							onChange={handleTagsFilterChange}
+							placeholder="All tags"
 						/>
 					</div>
 					<div className="w-40">
