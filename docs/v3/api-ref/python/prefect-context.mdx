@@ -194,6 +194,13 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
@@ -252,6 +259,13 @@ model_copy(self: Self) -> Self
 ```
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
+
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
 
 **Returns:**
 - A new model instance.
@@ -312,6 +326,13 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
@@ -330,6 +351,10 @@ Serialize the context model to a dictionary that can be pickled with cloudpickle
 
 The base context for a flow or task run. Data in this context will always be
 available when `get_run_context` is called.
+
+**Attributes:**
+- `start_time`: The time the run context was entered
+- `client`: The Prefect client instance being used for API communication
 
 
 **Methods:**
@@ -350,6 +375,13 @@ model_copy(self: Self) -> Self
 ```
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
+
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
 
 **Returns:**
 - A new model instance.
@@ -376,6 +408,20 @@ Serialize the context model to a dictionary that can be pickled with cloudpickle
 The context for a flow run. Data in this context is only available from within a
 flow run function.
 
+**Attributes:**
+- `flow`: The flow instance associated with the run
+- `flow_run`: The API metadata for the flow run
+- `task_runner`: The task runner instance being used for the flow run
+- `run_results`: A mapping of result ids to run states for this flow run
+- `log_prints`: Whether to log print statements from the flow run
+- `parameters`: The parameters passed to the flow run
+- `detached`: Flag indicating if context has been serialized and sent to remote infrastructure
+- `result_store`: The result store used to persist results
+- `persist_result`: Whether to persist the flow run result
+- `task_run_dynamic_keys`: Counter for task calls allowing unique keys
+- `observed_flow_pauses`: Counter for flow pauses
+- `events`: Events worker to emit events
+
 
 **Methods:**
 
@@ -397,6 +443,10 @@ serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 The context for a task run. Data in this context is only available from within a
 task run function.
 
+**Attributes:**
+- `task`: The task instance associated with the task run
+- `task_run`: The API metadata for this task run
+
 
 **Methods:**
 
@@ -417,6 +467,14 @@ serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 
 The asset context for a materializing task run. Contains all asset-related information needed
 for asset event emission and downstream asset dependency propagation.
+
+**Attributes:**
+- `direct_asset_dependencies`: Assets that this task directly depends on (from task.asset_deps)
+- `downstream_assets`: Assets that this task will create/materialize (from MaterializingTask.assets)
+- `upstream_assets`: Assets from upstream task dependencies
+- `materialized_by`: Tool that materialized the assets (from MaterializingTask.materialized_by)
+- `task_run_id`: ID of the associated task run
+- `materialization_metadata`: Metadata for materialized assets
 
 
 **Methods:**
@@ -499,6 +557,13 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
@@ -544,6 +609,9 @@ Update the flow run context with assets that should be propagated downstream.
 
 The context for `prefect.tags` management.
 
+**Attributes:**
+- `current_tags`: A set of current tags in the context
+
 
 **Methods:**
 
@@ -570,6 +638,13 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
@@ -589,6 +664,10 @@ Serialize the context model to a dictionary that can be pickled with cloudpickle
 The context for a Prefect settings.
 
 This allows for safe concurrent access and modification of settings.
+
+**Attributes:**
+- `profile`: The profile that is in use.
+- `settings`: The complete settings model.
 
 
 **Methods:**
@@ -615,6 +694,13 @@ model_copy(self: Self) -> Self
 ```
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
+
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
 
 **Returns:**
 - A new model instance.

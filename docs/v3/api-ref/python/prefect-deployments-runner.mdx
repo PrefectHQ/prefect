@@ -111,6 +111,32 @@ Raised when an error occurs while applying a deployment.
 
 A Prefect RunnerDeployment definition, used for specifying and building deployments.
 
+**Attributes:**
+- `name`: A name for the deployment (required).
+- `version`: An optional version for the deployment; defaults to the flow's version
+- `description`: An optional description of the deployment; defaults to the flow's
+description
+- `tags`: An optional list of tags to associate with this deployment; note that tags
+are used only for organizational purposes. For delegating work to workers,
+see `work_queue_name`.
+- `schedule`: A schedule to run this deployment on, once registered
+- `parameters`: A dictionary of parameter values to pass to runs created from this
+deployment
+- `path`: The path to the working directory for the workflow, relative to remote
+storage or, if stored on a local filesystem, an absolute path
+- `entrypoint`: The path to the entrypoint for the workflow, always relative to the
+`path`
+- `parameter_openapi_schema`: The parameter schema of the flow, including defaults.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for this deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
 
 **Methods:**
 

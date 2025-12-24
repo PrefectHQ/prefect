@@ -12,6 +12,16 @@ sidebarTitle: docker_image
 
 Configuration used to build and push a Docker image for a deployment.
 
+**Attributes:**
+- `name`: The name of the Docker image to build, including the registry and
+repository.
+- `tag`: The tag to apply to the built image.
+- `dockerfile`: The path to the Dockerfile to use for building the image. If
+not provided, a default Dockerfile will be generated.
+- `**build_kwargs`: Additional keyword arguments to pass to the Docker build request.
+See the [`docker-py` documentation](https\://docker-py.readthedocs.io/en/stable/images.html#docker.models.images.ImageCollection.build)
+for more information.
+
 
 **Methods:**
 
