@@ -35,6 +35,7 @@ import {
 import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlowRunDetails } from "./flow-run-details";
+import { FlowRunLogs } from "./flow-run-logs";
 
 type FlowRunDetailsTabOptions =
 	| "Logs"
@@ -96,7 +97,7 @@ export const FlowRunDetailsPage = ({
 				<TabsLayout
 					currentTab={tab}
 					onTabChange={onTabChange}
-					logsContent={<PlaceholderContent label="Logs" />}
+					logsContent={<FlowRunLogs flowRun={flowRun} />}
 					taskRunsContent={<PlaceholderContent label="Task Runs" />}
 					subflowRunsContent={<PlaceholderContent label="Subflow Runs" />}
 					artifactsContent={<PlaceholderContent label="Artifacts" />}
