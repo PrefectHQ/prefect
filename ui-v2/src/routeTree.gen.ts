@@ -29,6 +29,7 @@ import { Route as WorkPoolsWorkPoolWorkPoolNameRouteImport } from './routes/work
 import { Route as RunsTaskRunIdRouteImport } from './routes/runs/task-run.$id'
 import { Route as RunsFlowRunIdRouteImport } from './routes/runs/flow-run.$id'
 import { Route as FlowsFlowIdRouteImport } from './routes/flows/flow.$id'
+import { Route as FlowRunsFlowRunIdRouteImport } from './routes/flow-runs/flow-run.$id'
 import { Route as DeploymentsDeploymentIdRouteImport } from './routes/deployments/deployment.$id'
 import { Route as ConcurrencyLimitsConcurrencyLimitIdRouteImport } from './routes/concurrency-limits/concurrency-limit.$id'
 import { Route as BlocksCatalogSlugRouteImport } from './routes/blocks/catalog_.$slug'
@@ -147,6 +148,11 @@ const FlowsFlowIdRoute = FlowsFlowIdRouteImport.update({
   path: '/flows/flow/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FlowRunsFlowRunIdRoute = FlowRunsFlowRunIdRouteImport.update({
+  id: '/flow-runs/flow-run/$id',
+  path: '/flow-runs/flow-run/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeploymentsDeploymentIdRoute = DeploymentsDeploymentIdRouteImport.update({
   id: '/deployments/deployment/$id',
   path: '/deployments/deployment/$id',
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/blocks/catalog/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
+  '/flow-runs/flow-run/$id': typeof FlowRunsFlowRunIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
@@ -298,6 +305,7 @@ export interface FileRoutesByTo {
   '/blocks/catalog/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
+  '/flow-runs/flow-run/$id': typeof FlowRunsFlowRunIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/blocks/catalog_/$slug': typeof BlocksCatalogSlugRoute
   '/concurrency-limits/concurrency-limit/$id': typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   '/deployments/deployment/$id': typeof DeploymentsDeploymentIdRoute
+  '/flow-runs/flow-run/$id': typeof FlowRunsFlowRunIdRoute
   '/flows/flow/$id': typeof FlowsFlowIdRoute
   '/runs/flow-run/$id': typeof RunsFlowRunIdRoute
   '/runs/task-run/$id': typeof RunsTaskRunIdRoute
@@ -377,6 +386,7 @@ export interface FileRouteTypes {
     | '/blocks/catalog/$slug'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
+    | '/flow-runs/flow-run/$id'
     | '/flows/flow/$id'
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
@@ -415,6 +425,7 @@ export interface FileRouteTypes {
     | '/blocks/catalog/$slug'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
+    | '/flow-runs/flow-run/$id'
     | '/flows/flow/$id'
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
@@ -453,6 +464,7 @@ export interface FileRouteTypes {
     | '/blocks/catalog_/$slug'
     | '/concurrency-limits/concurrency-limit/$id'
     | '/deployments/deployment/$id'
+    | '/flow-runs/flow-run/$id'
     | '/flows/flow/$id'
     | '/runs/flow-run/$id'
     | '/runs/task-run/$id'
@@ -492,6 +504,7 @@ export interface RootRouteChildren {
   BlocksCatalogSlugRoute: typeof BlocksCatalogSlugRoute
   ConcurrencyLimitsConcurrencyLimitIdRoute: typeof ConcurrencyLimitsConcurrencyLimitIdRoute
   DeploymentsDeploymentIdRoute: typeof DeploymentsDeploymentIdRoute
+  FlowRunsFlowRunIdRoute: typeof FlowRunsFlowRunIdRoute
   FlowsFlowIdRoute: typeof FlowsFlowIdRoute
   RunsFlowRunIdRoute: typeof RunsFlowRunIdRoute
   RunsTaskRunIdRoute: typeof RunsTaskRunIdRoute
@@ -645,6 +658,13 @@ declare module '@tanstack/react-router' {
       path: '/flows/flow/$id'
       fullPath: '/flows/flow/$id'
       preLoaderRoute: typeof FlowsFlowIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/flow-runs/flow-run/$id': {
+      id: '/flow-runs/flow-run/$id'
+      path: '/flow-runs/flow-run/$id'
+      fullPath: '/flow-runs/flow-run/$id'
+      preLoaderRoute: typeof FlowRunsFlowRunIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deployments/deployment/$id': {
@@ -816,6 +836,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConcurrencyLimitsConcurrencyLimitIdRoute:
     ConcurrencyLimitsConcurrencyLimitIdRoute,
   DeploymentsDeploymentIdRoute: DeploymentsDeploymentIdRoute,
+  FlowRunsFlowRunIdRoute: FlowRunsFlowRunIdRoute,
   FlowsFlowIdRoute: FlowsFlowIdRoute,
   RunsFlowRunIdRoute: RunsFlowRunIdRoute,
   RunsTaskRunIdRoute: RunsTaskRunIdRoute,
