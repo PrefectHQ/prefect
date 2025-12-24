@@ -15,17 +15,20 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Typography } from "@/components/ui/typography";
+import { cn } from "@/utils";
 
 const MAX_FILTERS_DISPLAYED = 2;
 
 type TaskRunStateFilterProps = {
 	selectedFilters: Set<string>;
 	onSelectFilter: (filters: Set<string>) => void;
+	className?: string;
 };
 
 export const TaskRunStateFilter = ({
 	selectedFilters,
 	onSelectFilter,
+	className,
 }: TaskRunStateFilterProps) => {
 	const [open, setOpen] = useState(false);
 
@@ -101,7 +104,10 @@ export const TaskRunStateFilter = ({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" className="justify-between w-full">
+				<Button
+					variant="outline"
+					className={cn("justify-between w-full", className)}
+				>
 					<span className="flex-1 min-w-0">{renderSelectedTags()}</span>
 					<Icon id="ChevronDown" className="ml-2 size-4 shrink-0" />
 				</Button>

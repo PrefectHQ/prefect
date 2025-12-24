@@ -179,46 +179,49 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-				<div className="flex flex-col">
+			{/* Mobile: controls on top, count/sort on bottom. Desktop: count | controls | sort */}
+			<div className="grid grid-cols-12 items-center gap-2">
+				{/* Count - first column */}
+				<div className="flex flex-col gap-1 xl:col-span-3 md:col-span-12 col-span-6 md:order-0 order-3">
 					<Typography variant="bodySmall" className="text-muted-foreground">
 						{countData} Task run{countData !== 1 ? "s" : ""}
 					</Typography>
 					{stateSummary && (
 						<Typography
 							variant="bodySmall"
-							className="text-muted-foreground text-xs"
+							className="text-muted-foreground text-xs capitalize"
 						>
 							({stateSummary})
 						</Typography>
 					)}
 				</div>
 
-				<div className="flex flex-wrap items-center gap-2">
+				{/* Controls - middle column */}
+				<div className="xl:col-span-3 md:col-span-6 col-span-12 md:order-1 order-0">
 					<SearchInput
 						value={search}
 						onChange={handleSearchChange}
 						placeholder="Search by run name"
 						aria-label="Search by run name"
-						className="w-48"
 						debounceMs={300}
 					/>
-					<div className="w-40">
-						<TaskRunStateFilter
-							selectedFilters={stateFilter}
-							onSelectFilter={handleStateFilterChange}
-						/>
-					</div>
-					<div className="w-32">
-						<TagsInput
-							value={Array.from(tagsFilter)}
-							onChange={handleTagsFilterChange}
-							placeholder="All tags"
-						/>
-					</div>
-					<div className="w-40">
-						<TaskRunsSortFilter value={sort} onSelect={handleSortChange} />
-					</div>
+				</div>
+				<div className="xl:col-span-2 md:col-span-6 col-span-12 md:order-2 order-1">
+					<TaskRunStateFilter
+						selectedFilters={stateFilter}
+						onSelectFilter={handleStateFilterChange}
+					/>
+				</div>
+				<div className="xl:col-span-2 md:col-span-6 col-span-12 md:order-3 order-2">
+					<TagsInput
+						value={Array.from(tagsFilter)}
+						onChange={handleTagsFilterChange}
+						placeholder="All tags"
+					/>
+				</div>
+				{/* Sort - last column with left border on desktop */}
+				<div className="md:border-l md:border-border md:pl-2 xl:col-span-2 md:col-span-6 col-span-6 md:order-4 order-4">
+					<TaskRunsSortFilter value={sort} onSelect={handleSortChange} />
 				</div>
 			</div>
 
