@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
 	buildGetFlowRunDetailsQuery,
@@ -32,6 +32,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlowRunDetails } from "./flow-run-details";
@@ -97,7 +98,11 @@ export const FlowRunDetailsPage = ({
 				<TabsLayout
 					currentTab={tab}
 					onTabChange={onTabChange}
-					logsContent={<FlowRunLogs flowRun={flowRun} />}
+					logsContent={
+						<Suspense fallback={<LogsSkeleton />}>
+							<FlowRunLogs flowRun={flowRun} />
+						</Suspense>
+					}
 					taskRunsContent={<PlaceholderContent label="Task Runs" />}
 					subflowRunsContent={<PlaceholderContent label="Subflow Runs" />}
 					artifactsContent={<PlaceholderContent label="Artifacts" />}
@@ -309,6 +314,18 @@ const PlaceholderContent = ({ label }: { label: string }) => {
 			<p className="text-muted-foreground">
 				{label} content will be added here
 			</p>
+		</div>
+	);
+};
+
+const LogsSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-2">
+			<div className="flex flex-row gap-2 justify-end">
+				<Skeleton className="h-8 w-25" />
+				<Skeleton className="h-8 w-32" />
+			</div>
+			<Skeleton className="h-32" />
 		</div>
 	);
 };
