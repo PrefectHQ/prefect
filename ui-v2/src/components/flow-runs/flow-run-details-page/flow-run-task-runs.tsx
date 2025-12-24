@@ -159,7 +159,7 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 		if (!paginatedData?.results) return null;
 		const stateCounts = new Map<string, number>();
 		for (const taskRun of paginatedData.results) {
-			const stateName = String(taskRun.state_name ?? "Unknown");
+			const stateName = String(taskRun.state?.name ?? "Unknown");
 			stateCounts.set(stateName, (stateCounts.get(stateName) ?? 0) + 1);
 		}
 		return Array.from(stateCounts.entries())
