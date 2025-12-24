@@ -12,20 +12,32 @@ import {
 	type AutomationWizardSchema as TAutomationWizardSchema,
 } from "./automation-schema";
 import { DetailsStep } from "./details-step";
+import { TriggerStep } from "./trigger-step";
 
-const WIZARD_STEPS = ["Actions", "Details"] as const;
+const WIZARD_STEPS = ["Trigger", "Actions", "Details"] as const;
 type WizardStep = (typeof WIZARD_STEPS)[number];
 
 export const AutomationWizard = () => {
 	const stepper = useStepper(WIZARD_STEPS.length);
 	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
-		defaultValues: { actions: [{ type: undefined }] },
+		defaultValues: {
+			actions: [{ type: undefined }],
+			trigger: {
+				type: "event",
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
+			},
+		},
 	});
 
 	const currentStep = WIZARD_STEPS[stepper.currentStep];
 	const WIZARD_STEPS_MAP = {
-		Trigger: { render: () => <div>TODO</div>, trigger: async () => {} },
+		Trigger: {
+			render: () => <TriggerStep />,
+			trigger: () => form.trigger("trigger"),
+		},
 		Actions: {
 			render: () => <ActionsStep />,
 			trigger: () => form.trigger("actions"),
