@@ -963,6 +963,30 @@ class TestCustomWebhook:
                 secrets={"token": "someSecretToken"},
             )
 
+    async def test_string_form_data(self):
+        """Test that form_data accepts a string for raw body content.
+
+        This enables forwarding pre-constructed JSON from automation bodies.
+        See: https://github.com/PrefectHQ/prefect/issues/19949
+        """
+        with respx.mock(using="httpx") as xmock:
+            xmock.post("https://example.com/")
+
+            custom_block = CustomWebhookNotificationBlock(
+                name="test name",
+                url="https://example.com/",
+                form_data="{{body}}",
+                headers={"Content-Type": "application/json"},
+            )
+            # Simulate automation passing JSON as the body
+            await custom_block.notify(
+                '{"flow_name": "my-flow", "state": "Failed"}', "subject"
+            )
+
+            last_req = xmock.calls.last.request
+            assert last_req.content == b'{"flow_name": "my-flow", "state": "Failed"}'
+            assert last_req.headers["Content-Type"] == "application/json"
+
 
 class TestSendgridEmail:
     URL_PARAMS = {
