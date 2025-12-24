@@ -62,6 +62,33 @@ Prefect uses the Boto3 library under the hood.
 To find credentials for authentication, any data not provided to the block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
 Prefect creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
 
+#### IAM Role Assumption
+
+`AwsCredentials` supports assuming IAM roles for cross-account access or enhanced security. When `assume_role_arn` is provided, `get_boto3_session()` automatically assumes the role and returns a session with temporary credentials.
+
+```python
+AwsCredentials(
+    aws_access_key_id="PLACEHOLDER",
+    aws_secret_access_key="PLACEHOLDER",
+    region_name="us-east-2",
+    assume_role_arn="arn:aws:iam::123456789012:role/MyRole",
+    assume_role_kwargs={
+        "RoleSessionName": "my-session",
+        "DurationSeconds": 3600,
+        "ExternalId": "unique-external-id"
+    }
+).save("BLOCK-NAME-PLACEHOLDER")
+```
+
+Available `assume_role_kwargs` parameters include:
+- `RoleSessionName`: Session name for the assumed role
+- `DurationSeconds`: Session duration (900-43200 seconds)
+- `ExternalId`: Unique identifier for third-party access
+- `Policy`: Inline session policy (JSON string)
+- `PolicyArns`: List of managed policy ARNs
+- `Tags`: Session tags for attribution
+- `SerialNumber` and `TokenCode`: For MFA authentication
+
 ### S3
 
 Create a block for reading and writing files to S3.
