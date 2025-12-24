@@ -844,11 +844,12 @@ class CustomWebhookNotificationBlock(NotificationBlock):
             ' "{{tokenFromSecrets}}"}'
         ],
     )
-    form_data: Optional[dict[str, str]] = Field(
+    form_data: Optional[dict[str, str] | str] = Field(
         default=None,
         title="Form Data",
         description=(
-            "Send form data as payload. Should not be used together with _JSON Data_."
+            "Send form data as payload. Should not be used together with _JSON Data_. "
+            "Can be a dictionary for form-encoded data or a string for raw body content."
         ),
         examples=[
             '{"text": "{{subject}}\\n{{body}}", "title": "{{name}}", "token":'
@@ -882,13 +883,18 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                 "name": self.name,
             }
         )
+        # httpx uses 'data' for form-encoded dicts, 'content' for raw string/bytes
+        if isinstance(self.form_data, str):
+            data_key = "content"
+        else:
+            data_key = "data"
         # do substution
         return apply_values(
             {
                 "method": self.method,
                 "url": self.url,
                 "params": self.params,
-                "data": self.form_data,
+                data_key: self.form_data,
                 "json": self.json_data,
                 "headers": self.headers,
                 "cookies": self.cookies,
