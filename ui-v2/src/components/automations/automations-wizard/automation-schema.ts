@@ -98,9 +98,43 @@ const SendNotificationSchema = z.object({
 	subject: z.string(),
 });
 
+//----- Triggers
+
+// Trigger template type (for UI selection)
+export const TriggerTemplateSchema = z.enum([
+	"deployment-status",
+	"flow-run-state",
+	"work-pool-status",
+	"work-queue-status",
+	"custom",
+]);
+export type TriggerTemplate = z.infer<typeof TriggerTemplateSchema>;
+
+// Trigger posture
+const TriggerPostureSchema = z.enum(["Reactive", "Proactive"]);
+export type TriggerPosture = z.infer<typeof TriggerPostureSchema>;
+
+// Event trigger schema (the primary trigger type for form mode)
+export const EventTriggerSchema = z.object({
+	type: z.literal("event"),
+	posture: TriggerPostureSchema,
+	threshold: z.number().min(1).default(1),
+	within: z.number().min(0).default(0),
+	// Match conditions
+	match: z.record(z.union([z.string(), z.array(z.string())])).optional(),
+	match_related: z
+		.record(z.union([z.string(), z.array(z.string())]))
+		.optional(),
+	for_each: z.array(z.string()).optional(),
+	after: z.array(z.string()).optional(),
+	expect: z.array(z.string()).optional(),
+});
+export type EventTrigger = z.infer<typeof EventTriggerSchema>;
+
 export const AutomationWizardSchema = z.object({
-	name: z.string(),
+	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
+	trigger: EventTriggerSchema,
 	actions: z.array(
 		z.union([
 			DoNothingSchema,
