@@ -9,6 +9,7 @@ import {
 	useDeleteFlowRun,
 	useSetFlowRunState,
 } from "@/api/flow-runs";
+import { FlowRunGraph } from "@/components/flow-runs/flow-run-graph";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -18,6 +19,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	ChangeStateDialog,
 	useChangeStateDialog,
@@ -64,12 +66,14 @@ export const FlowRunDetailsPage = ({
 	onTabChange,
 }: FlowRunDetailsPageProps) => {
 	const [refetchInterval, setRefetchInterval] = useState<number | false>(false);
+	const [fullscreen, setFullscreen] = useState(false);
 	const { data: flowRun } = useSuspenseQuery({
 		...buildGetFlowRunDetailsQuery(id),
 		refetchInterval,
 	});
 	const { deleteFlowRun } = useDeleteFlowRun();
 	const { navigate } = useRouter();
+	const isPending = flowRun.state_type === "PENDING";
 
 	useEffect(() => {
 		if (flowRun.state_type === "RUNNING" || flowRun.state_type === "PENDING") {
@@ -99,6 +103,17 @@ export const FlowRunDetailsPage = ({
 			<div className="flex flex-col gap-2">
 				<Header flowRun={flowRun} onDeleteRunClicked={onDeleteRunClicked} />
 			</div>
+			{!isPending && (
+				<Card>
+					<CardContent className="p-0">
+						<FlowRunGraph
+							flowRunId={flowRun.id}
+							fullscreen={fullscreen}
+							onFullscreenChange={setFullscreen}
+						/>
+					</CardContent>
+				</Card>
+			)}
 			<div className="grid lg:grid-cols-[1fr_250px] grid-cols-[1fr] gap-4">
 				<TabsLayout
 					currentTab={tab}

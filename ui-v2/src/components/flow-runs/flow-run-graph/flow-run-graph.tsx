@@ -11,6 +11,7 @@ import {
 	updateViewportFromDateRange,
 	type ViewportDateRange,
 } from "@prefecthq/graphs";
+import { useTheme } from "next-themes";
 import {
 	type CSSProperties,
 	useCallback,
@@ -48,6 +49,7 @@ export function FlowRunGraph({
 }: FlowRunGraphProps) {
 	const stageRef = useRef<HTMLDivElement>(null);
 	const [internalFullscreen, setInternalFullscreen] = useState(false);
+	const { resolvedTheme } = useTheme();
 
 	const fullscreen = controlledFullscreen ?? internalFullscreen;
 
@@ -72,9 +74,9 @@ export function FlowRunGraph({
 					background: stateTypeColors[event.type],
 				}),
 			}),
-			theme: "light",
+			theme: resolvedTheme === "dark" ? "dark" : "light",
 		}),
-		[flowRunId],
+		[flowRunId, resolvedTheme],
 	);
 
 	useEffect(() => {

@@ -15,6 +15,31 @@ import { Toaster } from "@/components/ui/sonner";
 import { createFakeFlowRun, createFakeState } from "@/mocks";
 import { FlowRunDetailsPage } from ".";
 
+vi.mock("@/components/flow-runs/flow-run-graph", () => ({
+	FlowRunGraph: ({
+		flowRunId,
+		fullscreen,
+		onFullscreenChange,
+	}: {
+		flowRunId: string;
+		fullscreen: boolean;
+		onFullscreenChange: (fullscreen: boolean) => void;
+	}) => (
+		<div data-testid="flow-run-graph" data-flow-run-id={flowRunId}>
+			<span data-testid="fullscreen-state">
+				{fullscreen ? "true" : "false"}
+			</span>
+			<button
+				type="button"
+				data-testid="toggle-fullscreen"
+				onClick={() => onFullscreenChange(!fullscreen)}
+			>
+				Toggle Fullscreen
+			</button>
+		</div>
+	),
+}));
+
 describe("FlowRunDetailsPage", () => {
 	const mockFlowRun = createFakeFlowRun({
 		name: "test-flow-run",
@@ -330,5 +355,130 @@ describe("FlowRunDetailsPage", () => {
 		const detailsTab = screen.getByRole("tab", { name: "Details" });
 		// The Details tab should have lg:hidden class to hide on desktop
 		expect(detailsTab).toHaveClass("lg:hidden");
+	});
+
+	it("renders FlowRunGraph for non-pending flow runs", async () => {
+		const completedFlowRun = createFakeFlowRun({
+			name: "completed-flow-run",
+			state_type: "COMPLETED",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(completedFlowRun);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("completed-flow-run")).toBeInTheDocument();
+		});
+
+		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();
+		expect(screen.getByTestId("flow-run-graph")).toHaveAttribute(
+			"data-flow-run-id",
+			completedFlowRun.id,
+		);
+	});
+
+	it("hides FlowRunGraph when flow run state is PENDING", async () => {
+		const pendingFlowRun = createFakeFlowRun({
+			name: "pending-flow-run",
+			state_type: "PENDING",
+			state: createFakeState({
+				type: "PENDING",
+				name: "Pending",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(pendingFlowRun);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("pending-flow-run")).toBeInTheDocument();
+		});
+
+		expect(screen.queryByTestId("flow-run-graph")).not.toBeInTheDocument();
+	});
+
+	it("renders FlowRunGraph for FAILED flow runs", async () => {
+		const failedFlowRun = createFakeFlowRun({
+			name: "failed-flow-run",
+			state_type: "FAILED",
+			state: createFakeState({
+				type: "FAILED",
+				name: "Failed",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(failedFlowRun);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("failed-flow-run")).toBeInTheDocument();
+		});
+
+		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();
+	});
+
+	it("renders FlowRunGraph for RUNNING flow runs", async () => {
+		const runningFlowRun = createFakeFlowRun({
+			name: "running-flow-run-graph",
+			state_type: "RUNNING",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		});
+
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id"), () => {
+				return HttpResponse.json(runningFlowRun);
+			}),
+		);
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("running-flow-run-graph")).toBeInTheDocument();
+		});
+
+		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();
+	});
+
+	it("manages fullscreen state correctly", async () => {
+		const user = userEvent.setup();
+
+		renderFlowRunDetailsPage();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();
+		expect(screen.getByTestId("fullscreen-state")).toHaveTextContent("false");
+
+		await user.click(screen.getByTestId("toggle-fullscreen"));
+
+		expect(screen.getByTestId("fullscreen-state")).toHaveTextContent("true");
+
+		await user.click(screen.getByTestId("toggle-fullscreen"));
+
+		expect(screen.getByTestId("fullscreen-state")).toHaveTextContent("false");
 	});
 });
