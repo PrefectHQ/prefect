@@ -1,3 +1,4 @@
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import {
 	getCoreRowModel,
 	type RowSelectionState,
@@ -30,7 +31,6 @@ import {
 import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
 import { columns as baseDeploymentColumns } from "./deployment-columns";
-import { DeploymentsPagination } from "./deployments-pagination";
 
 type DeploymentSort = components["schemas"]["DeploymentSort"];
 
@@ -74,6 +74,23 @@ export const FlowDeploymentsTab = ({
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const { deleteDeployment } = useDeleteDeployment();
 
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			const currentPagination: PaginationState = {
+				pageIndex: deploymentPagination.page - 1,
+				pageSize: deploymentPagination.limit,
+			};
+			const newPagination =
+				typeof updater === "function" ? updater(currentPagination) : updater;
+			onDeploymentPaginationChange({
+				page: newPagination.pageIndex + 1,
+				limit: newPagination.pageSize,
+			});
+			setRowSelection({});
+		},
+		[deploymentPagination, onDeploymentPaginationChange],
+	);
+
 	const deploymentsTable = useReactTable({
 		data: deployments,
 		columns: baseDeploymentColumns,
@@ -88,6 +105,7 @@ export const FlowDeploymentsTab = ({
 			},
 		},
 		onRowSelectionChange: setRowSelection,
+		onPaginationChange: handlePaginationChange,
 		getRowId: (row) => row.id,
 	});
 
@@ -110,14 +128,6 @@ export const FlowDeploymentsTab = ({
 			}
 		},
 		[onDeploymentTagsChange],
-	);
-
-	const handlePaginationChange = useCallback(
-		(newPagination: { page: number; limit: number }) => {
-			onDeploymentPaginationChange(newPagination);
-			setRowSelection({});
-		},
-		[onDeploymentPaginationChange],
 	);
 
 	return (
@@ -193,15 +203,6 @@ export const FlowDeploymentsTab = ({
 					<DataTable table={deploymentsTable} />
 				</div>
 			</FlowRunActivityBarGraphTooltipProvider>
-
-			{deploymentsPages > 0 && (
-				<DeploymentsPagination
-					pagination={deploymentPagination}
-					onChangePagination={handlePaginationChange}
-					count={deploymentsCount}
-					pages={deploymentsPages}
-				/>
-			)}
 
 			<Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
 				<DialogContent>
