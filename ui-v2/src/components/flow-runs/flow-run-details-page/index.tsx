@@ -40,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlowRunArtifacts } from "./flow-run-artifacts";
 import { FlowRunDetails } from "./flow-run-details";
 import { FlowRunLogs } from "./flow-run-logs";
+import { FlowRunSubflows } from "./flow-run-subflows";
 import { FlowRunTaskRuns } from "./flow-run-task-runs";
 
 type FlowRunDetailsTabOptions =
@@ -113,7 +114,11 @@ export const FlowRunDetailsPage = ({
 							<FlowRunTaskRuns flowRunId={id} />
 						</Suspense>
 					}
-					subflowRunsContent={<PlaceholderContent label="Subflow Runs" />}
+					subflowRunsContent={
+						<Suspense fallback={<SubflowsSkeleton />}>
+							<FlowRunSubflows parentFlowRunId={id} />
+						</Suspense>
+					}
 					artifactsContent={
 						<Suspense fallback={<ArtifactsSkeleton />}>
 							<FlowRunArtifacts flowRun={flowRun} />
@@ -371,16 +376,6 @@ const TabsLayout = ({
 	);
 };
 
-const PlaceholderContent = ({ label }: { label: string }) => {
-	return (
-		<div className="flex items-center justify-center h-48 border rounded-lg bg-muted/50">
-			<p className="text-muted-foreground">
-				{label} content will be added here
-			</p>
-		</div>
-	);
-};
-
 const LogsSkeleton = () => {
 	return (
 		<div className="flex flex-col gap-2">
@@ -426,6 +421,28 @@ const ArtifactsSkeleton = () => {
 				<Skeleton className="h-40" />
 				<Skeleton className="h-40" />
 				<Skeleton className="h-40" />
+			</div>
+		</div>
+	);
+};
+
+const SubflowsSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-4">
+			<div className="flex items-center justify-between">
+				<Skeleton className="h-4 w-24" />
+			</div>
+			<div className="flex flex-col sm:flex-row gap-2">
+				<Skeleton className="h-9 flex-1" />
+				<div className="flex gap-2">
+					<Skeleton className="h-9 w-48" />
+					<Skeleton className="h-9 w-40" />
+				</div>
+			</div>
+			<div className="flex flex-col gap-2">
+				<Skeleton className="h-24" />
+				<Skeleton className="h-24" />
+				<Skeleton className="h-24" />
 			</div>
 		</div>
 	);
