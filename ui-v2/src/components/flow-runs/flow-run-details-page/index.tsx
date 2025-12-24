@@ -37,6 +37,7 @@ import { JsonInput } from "@/components/ui/json-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FlowRunArtifacts } from "./flow-run-artifacts";
 import { FlowRunDetails } from "./flow-run-details";
 import { FlowRunLogs } from "./flow-run-logs";
 
@@ -107,7 +108,7 @@ export const FlowRunDetailsPage = ({
 					}
 					taskRunsContent={<PlaceholderContent label="Task Runs" />}
 					subflowRunsContent={<PlaceholderContent label="Subflow Runs" />}
-					artifactsContent={<PlaceholderContent label="Artifacts" />}
+					artifactsContent={<FlowRunArtifacts flowRun={flowRun} />}
 					detailsContent={<FlowRunDetails flowRun={flowRun} />}
 					parametersContent={
 						<div className="space-y-4">
