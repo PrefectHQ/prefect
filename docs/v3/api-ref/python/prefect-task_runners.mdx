@@ -81,6 +81,10 @@ submit(self, task: 'Task[P, R | CoroutineType[Any, Any, R]]', parameters: dict[s
 
 A task runner that executes tasks in a separate thread pool.
 
+**Attributes:**
+- `max_workers`: The maximum number of threads to use for executing tasks.
+Defaults to `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS` or `sys.maxsize`.
+
 **Examples:**
 
 Use a thread pool task runner with a flow:
@@ -208,6 +212,10 @@ A task runner that executes tasks in a separate process pool.
 This task runner uses `ProcessPoolExecutor` to run tasks in separate processes,
 providing true parallelism for CPU-bound tasks and process isolation. Tasks
 are executed with proper context propagation and error handling.
+
+**Attributes:**
+- `max_workers`: The maximum number of processes to use for executing tasks.
+Defaults to `multiprocessing.cpu_count()` if `PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS` is not set.
 
 **Examples:**
 
