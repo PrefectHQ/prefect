@@ -47,7 +47,7 @@ async def background_worker(
     webserver_only: bool = False,
 ) -> AsyncGenerator[None, None]:
     worker_task: asyncio.Task[None] | None = None
-    try:
+    async with Worker(docket) as worker:
         # Register background task functions
         docket.register_collection(
             "prefect.server.api.background_workers:task_functions"
@@ -58,24 +58,14 @@ async def background_worker(
             docket, ephemeral=ephemeral, webserver_only=webserver_only
         )
 
-        async with Worker(docket) as worker:
+        try:
             worker_task = asyncio.create_task(worker.run_forever())
             yield
 
-    finally:
-        if worker_task:
-            worker_task.cancel()
-            try:
-                logger.debug(
-                    "Waiting for background worker to finish after cancellation..."
-                )
-                await asyncio.wait_for(worker_task, timeout=5.0)
-                logger.debug(
-                    "Background worker finished successfully after cancellation"
-                )
-            except asyncio.TimeoutError:
-                logger.debug(
-                    "Background worker did not finish within 5 seconds after cancellation. Proceeding with shutdown"
-                )
-            except asyncio.CancelledError:
-                pass
+        finally:
+            if worker_task:
+                worker_task.cancel()
+                try:
+                    await worker_task
+                except asyncio.CancelledError:
+                    pass
