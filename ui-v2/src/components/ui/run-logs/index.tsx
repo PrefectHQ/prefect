@@ -36,6 +36,7 @@ export const RunLogs = ({
 		getScrollElement: () => parentRef.current,
 		estimateSize: () => 75,
 		overscan: 5,
+		getItemKey: (index) => logs[index]?.id ?? index,
 	});
 
 	const virtualItems = virtualize
@@ -104,12 +105,13 @@ export const RunLogs = ({
 					return (
 						<li
 							key={log.id}
+							data-index={virtualRow.index}
+							ref={virtualizer.measureElement}
 							style={{
 								position: "absolute",
 								top: 0,
 								left: 0,
 								width: "100%",
-								height: `${virtualRow.size}px`,
 								transform: `translateY(${virtualRow.start}px)`,
 							}}
 						>
