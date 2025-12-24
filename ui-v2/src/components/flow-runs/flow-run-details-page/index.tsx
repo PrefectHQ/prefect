@@ -40,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlowRunArtifacts } from "./flow-run-artifacts";
 import { FlowRunDetails } from "./flow-run-details";
 import { FlowRunLogs } from "./flow-run-logs";
+import { FlowRunTaskRuns } from "./flow-run-task-runs";
 
 type FlowRunDetailsTabOptions =
 	| "Logs"
@@ -106,7 +107,11 @@ export const FlowRunDetailsPage = ({
 							<FlowRunLogs flowRun={flowRun} />
 						</Suspense>
 					}
-					taskRunsContent={<PlaceholderContent label="Task Runs" />}
+					taskRunsContent={
+						<Suspense fallback={<TaskRunsSkeleton />}>
+							<FlowRunTaskRuns flowRunId={id} />
+						</Suspense>
+					}
 					subflowRunsContent={<PlaceholderContent label="Subflow Runs" />}
 					artifactsContent={
 						<Suspense fallback={<ArtifactsSkeleton />}>
@@ -379,6 +384,28 @@ const LogsSkeleton = () => {
 				<Skeleton className="h-8 w-32" />
 			</div>
 			<Skeleton className="h-32" />
+		</div>
+	);
+};
+
+const TaskRunsSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-4">
+			<div className="flex items-center justify-between">
+				<Skeleton className="h-4 w-24" />
+			</div>
+			<div className="flex flex-col sm:flex-row gap-2">
+				<Skeleton className="h-9 flex-1" />
+				<div className="flex gap-2">
+					<Skeleton className="h-9 w-48" />
+					<Skeleton className="h-9 w-40" />
+				</div>
+			</div>
+			<div className="flex flex-col gap-2">
+				<Skeleton className="h-24" />
+				<Skeleton className="h-24" />
+				<Skeleton className="h-24" />
+			</div>
 		</div>
 	);
 };
