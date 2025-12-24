@@ -373,7 +373,7 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
     async def wait_async(self, timeout: float | None = None) -> None:
         if self._final_state:
             logger.debug(
-                "Final state already set for %s. Returning...", self.task_run_id
+                "Final state already set for %s. Returning...", self.flow_run_id
             )
             return
 
@@ -425,7 +425,7 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
             await self.wait_async(timeout=timeout)
             if not self._final_state:
                 raise TimeoutError(
-                    f"Task run {self.task_run_id} did not complete within {timeout} seconds"
+                    f"Flow run {self.flow_run_id} did not complete within {timeout} seconds"
                 )
 
         return await self._final_state.aresult(raise_on_failure=raise_on_failure)
