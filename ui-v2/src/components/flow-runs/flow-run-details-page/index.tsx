@@ -19,6 +19,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	ChangeStateDialog,
 	useChangeStateDialog,
@@ -103,13 +104,15 @@ export const FlowRunDetailsPage = ({
 				<Header flowRun={flowRun} onDeleteRunClicked={onDeleteRunClicked} />
 			</div>
 			{!isPending && (
-				<div className="mb-4">
-					<FlowRunGraph
-						flowRunId={flowRun.id}
-						fullscreen={fullscreen}
-						onFullscreenChange={setFullscreen}
-					/>
-				</div>
+				<Card>
+					<CardContent className="p-0">
+						<FlowRunGraph
+							flowRunId={flowRun.id}
+							fullscreen={fullscreen}
+							onFullscreenChange={setFullscreen}
+						/>
+					</CardContent>
+				</Card>
 			)}
 			<div className="grid lg:grid-cols-[1fr_250px] grid-cols-[1fr] gap-4">
 				<TabsLayout
