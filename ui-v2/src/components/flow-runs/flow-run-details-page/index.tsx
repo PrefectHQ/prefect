@@ -360,7 +360,9 @@ const TabsLayout = ({
 				{flowRun.state_type !== "PENDING" && (
 					<TabsTrigger value="TaskRuns">Task Runs</TabsTrigger>
 				)}
-				<TabsTrigger value="SubflowRuns">Subflow Runs</TabsTrigger>
+				{flowRun.state_type !== "PENDING" && (
+					<TabsTrigger value="SubflowRuns">Subflow Runs</TabsTrigger>
+				)}
 				<TabsTrigger value="Artifacts">Artifacts</TabsTrigger>
 				<TabsTrigger value="Parameters">Parameters</TabsTrigger>
 				<TabsTrigger value="JobVariables">Job Variables</TabsTrigger>
