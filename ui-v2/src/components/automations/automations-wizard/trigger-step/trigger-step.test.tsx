@@ -42,7 +42,7 @@ describe("TriggerStep", () => {
 		expect(screen.getByLabelText("Trigger Template")).toBeVisible();
 	});
 
-	it("shows placeholder text when template is selected", async () => {
+	it("shows placeholder text when deployment-status template is selected", async () => {
 		const user = userEvent.setup();
 
 		render(<TriggerStepFormContainer />);
@@ -51,11 +51,11 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Deployment status" }));
 
 		expect(
-			screen.getByText("Template selected: deployment-status"),
+			screen.getByText("Deployment status trigger fields coming soon"),
 		).toBeVisible();
 	});
 
-	it("can select flow-run-state template", async () => {
+	it("can select flow-run-state template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
 		render(<TriggerStepFormContainer />);
@@ -63,7 +63,9 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Flow run state" }));
 
-		expect(screen.getByText("Template selected: flow-run-state")).toBeVisible();
+		// Should show the FlowRunStateTriggerFields component
+		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Threshold")).toBeVisible();
 	});
 
 	it("can select work-pool-status template", async () => {
@@ -75,7 +77,7 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Work pool status" }));
 
 		expect(
-			screen.getByText("Template selected: work-pool-status"),
+			screen.getByText("Work pool status trigger fields coming soon"),
 		).toBeVisible();
 	});
 
@@ -88,7 +90,7 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Work queue status" }));
 
 		expect(
-			screen.getByText("Template selected: work-queue-status"),
+			screen.getByText("Work queue status trigger fields coming soon"),
 		).toBeVisible();
 	});
 
@@ -100,6 +102,6 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Custom" }));
 
-		expect(screen.getByText("Template selected: custom")).toBeVisible();
+		expect(screen.getByText("Custom trigger fields coming soon")).toBeVisible();
 	});
 });
