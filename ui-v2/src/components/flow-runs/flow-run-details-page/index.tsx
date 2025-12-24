@@ -108,7 +108,11 @@ export const FlowRunDetailsPage = ({
 					}
 					taskRunsContent={<PlaceholderContent label="Task Runs" />}
 					subflowRunsContent={<PlaceholderContent label="Subflow Runs" />}
-					artifactsContent={<FlowRunArtifacts flowRun={flowRun} />}
+					artifactsContent={
+						<Suspense fallback={<ArtifactsSkeleton />}>
+							<FlowRunArtifacts flowRun={flowRun} />
+						</Suspense>
+					}
 					detailsContent={<FlowRunDetails flowRun={flowRun} />}
 					parametersContent={
 						<div className="space-y-4">
@@ -375,6 +379,22 @@ const LogsSkeleton = () => {
 				<Skeleton className="h-8 w-32" />
 			</div>
 			<Skeleton className="h-32" />
+		</div>
+	);
+};
+
+const ArtifactsSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-2">
+			<div className="flex flex-row justify-end">
+				<Skeleton className="h-8 w-12" />
+			</div>
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+				<Skeleton className="h-40" />
+				<Skeleton className="h-40" />
+				<Skeleton className="h-40" />
+				<Skeleton className="h-40" />
+			</div>
 		</div>
 	);
 };
