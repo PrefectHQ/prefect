@@ -480,6 +480,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         parameters: dict[str, Any] | None = None,
         job_variables: dict[str, Any] | None = None,
         task_status: anyio.abc.TaskStatus[FlowRun] | None = None,
+        flow_run: FlowRun | None = None,
     ):
         """
         Submit a flow to run in a Docker container.
@@ -542,13 +543,22 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             job_variables = (job_variables or {}) | {
                 "command": " ".join(execute_command)
             }
-        flow_run = await self.client.create_flow_run(
-            flow,
-            parameters=parameters,
-            state=Pending(),
-            job_variables=job_variables,
-            work_pool_name=self.work_pool.name,
-        )
+
+        if flow_run is None:
+            flow_run = await self.client.create_flow_run(
+                flow,
+                parameters=parameters,
+                state=Pending(),
+                job_variables=job_variables,
+                work_pool_name=self.work_pool.name,
+            )
+        else:
+            # Reuse existing flow run - set state to Pending for retry
+            await self.client.set_flow_run_state(
+                flow_run.id,
+                Pending(),
+                force=True,
+            )
         if task_status is not None:
             # Emit the flow run object to .submit to allow it to return a future as soon as possible
             task_status.started(flow_run)

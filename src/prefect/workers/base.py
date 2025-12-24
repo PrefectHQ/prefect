@@ -766,6 +766,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         flow: "Flow[..., FR]",
         parameters: dict[str, Any] | None = None,
         job_variables: dict[str, Any] | None = None,
+        flow_run: "FlowRun | None" = None,
     ) -> "PrefectFlowRunFuture[FR]":
         """
         EXPERIMENTAL: The interface for this method is subject to change.
@@ -775,9 +776,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         Args:
             flow: The flow to submit
             parameters: The parameters to pass to the flow
+            job_variables: Job variables for infrastructure configuration
+            flow_run: Optional existing flow run to retry (reuses ID instead of creating new)
 
         Returns:
-            A flow run object
+            A flow run future
         """
         warnings.warn(
             "Ad-hoc flow submission via workers is experimental. The interface "
@@ -793,6 +796,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 flow=flow,
                 parameters=parameters,
                 job_variables=job_variables,
+                flow_run=flow_run,
             ),
         )
         return PrefectFlowRunFuture(flow_run_id=flow_run.id)
@@ -803,9 +807,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         parameters: dict[str, Any] | None = None,
         job_variables: dict[str, Any] | None = None,
         task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
+        flow_run: "FlowRun | None" = None,
     ):
         """
         Submits a flow for the worker to kick off execution for.
+
+        Args:
+            flow: The flow to submit
+            parameters: The parameters to pass to the flow
+            job_variables: Job variables for infrastructure configuration
+            task_status: Task status for signaling when the flow run is ready
+            flow_run: Optional existing flow run to retry (reuses ID instead of creating new)
         """
         from prefect._experimental.bundles import (
             aupload_bundle_to_storage,
@@ -862,28 +874,40 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         job_variables = (job_variables or {}) | {"command": " ".join(execute_command)}
         parameters = parameters or {}
 
-        # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
-        parent_task_run = None
-        if flow_run_ctx := FlowRunContext.get():
-            parent_task = Task[Any, Any](
-                name=flow.name,
-                fn=flow.fn,
-                version=flow.version,
-            )
-            parent_task_run = await parent_task.create_run(
-                flow_run_context=flow_run_ctx,
-                parameters=parameters,
-            )
+        if flow_run is None:
+            # Create new flow run (standard behavior)
+            # Create a parent task run if this is a child flow run to ensure it shows up as a child flow in the UI
+            parent_task_run = None
+            if flow_run_ctx := FlowRunContext.get():
+                parent_task = Task[Any, Any](
+                    name=flow.name,
+                    fn=flow.fn,
+                    version=flow.version,
+                )
+                parent_task_run = await parent_task.create_run(
+                    flow_run_context=flow_run_ctx,
+                    parameters=parameters,
+                )
 
-        flow_run = await self.client.create_flow_run(
-            flow,
-            parameters=flow.serialize_parameters(parameters),
-            state=Pending(),
-            job_variables=job_variables,
-            work_pool_name=self.work_pool.name,
-            tags=TagsContext.get().current_tags,
-            parent_task_run_id=getattr(parent_task_run, "id", None),
-        )
+            flow_run = await self.client.create_flow_run(
+                flow,
+                parameters=flow.serialize_parameters(parameters),
+                state=Pending(),
+                job_variables=job_variables,
+                work_pool_name=self.work_pool.name,
+                tags=TagsContext.get().current_tags,
+                parent_task_run_id=getattr(parent_task_run, "id", None),
+            )
+        else:
+            # Reuse existing flow run - set state to Pending for retry
+            await self.client.set_flow_run_state(
+                flow_run_id=flow_run.id,
+                state=Pending(message="Retrying on remote infrastructure"),
+                force=True,
+            )
+            # Re-fetch to get updated state
+            flow_run = await self.client.read_flow_run(flow_run.id)
+
         if task_status is not None:
             # Emit the flow run object to .submit to allow it to return a future as soon as possible
             task_status.started(flow_run)

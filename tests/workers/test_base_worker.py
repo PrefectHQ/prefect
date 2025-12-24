@@ -2817,6 +2817,102 @@ class TestSubmit:
 
         assert initiate_run_spy.call_count == 1
 
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_with_existing_flow_run_reuses_flow_run_id(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        """Test that submit() with an existing flow_run reuses the flow run ID."""
+
+        class RetryableWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
+            type = "retryable"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow():
+            return "success"
+
+        async with RetryableWorker(work_pool_name=work_pool.name) as worker:
+            # First submit to create a flow run
+            with pytest.warns(FutureWarning):
+                initial_future = await worker.submit(test_flow)
+                assert isinstance(initial_future, PrefectFlowRunFuture)
+
+            initial_flow_run = await prefect_client.read_flow_run(
+                initial_future.flow_run_id
+            )
+
+            # Now submit again with the existing flow run to retry it
+            with pytest.warns(FutureWarning):
+                retry_future = await worker.submit(test_flow, flow_run=initial_flow_run)
+                assert isinstance(retry_future, PrefectFlowRunFuture)
+
+            # Should reuse the same flow run ID
+            assert retry_future.flow_run_id == initial_future.flow_run_id
+
+            # The state should be set to Pending for retry
+            retried_flow_run = await prefect_client.read_flow_run(
+                retry_future.flow_run_id
+            )
+            assert retried_flow_run.state is not None
+            assert retried_flow_run.state.type == StateType.PENDING
+
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_with_existing_flow_run_sets_state_to_pending(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        """Test that submit() with an existing flow_run sets the state to Pending."""
+
+        class StateTrackingWorker(
+            BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
+        ):
+            type = "state-tracking"
+            job_configuration = BaseJobConfiguration
+            observed_states: list[str] = []
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                # Record the state when the run method is called
+                current_run = await self.client.read_flow_run(flow_run.id)
+                if current_run.state:
+                    self.observed_states.append(current_run.state.type.value)
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow():
+            return "done"
+
+        async with StateTrackingWorker(work_pool_name=work_pool.name) as worker:
+            # First submit creates a new flow run
+            with pytest.warns(FutureWarning):
+                initial_future = await worker.submit(test_flow)
+
+            initial_flow_run = await prefect_client.read_flow_run(
+                initial_future.flow_run_id
+            )
+
+            # Now submit again with the existing flow run
+            with pytest.warns(FutureWarning):
+                await worker.submit(test_flow, flow_run=initial_flow_run)
+
+            # The state should have been set to Pending before the retry
+            assert "PENDING" in worker.observed_states
+
 
 class TestBackwardsCompatibility:
     async def test_backwards_compatibility_with_old_prepare_for_flow_run(

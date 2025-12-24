@@ -531,3 +531,120 @@ async def test_task_status_receives_pid(
         )
 
         fake_status.started.assert_called_once_with(int(result.identifier))
+
+
+async def test_submit_adhoc_run_with_existing_flow_run_reuses_id(
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that _submit_adhoc_run with flow_run parameter reuses the flow run ID."""
+    # Mock execute_bundle to prevent actual execution
+    mock_execute_bundle = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+    )
+
+    @flow
+    def test_flow():
+        return "success"
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        # Create an initial flow run
+        initial_flow_run = await prefect_client.create_flow_run(
+            test_flow,
+            parameters={},
+            state=client_schemas.State(type=client_schemas.StateType.FAILED),
+        )
+
+        # Call _submit_adhoc_run with the existing flow run to retry it
+        await worker._submit_adhoc_run(
+            flow=test_flow,
+            parameters={},
+            flow_run=initial_flow_run,
+        )
+
+        # The flow run should have been reused (same ID) and state set to Pending
+        retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
+
+        # State should be Pending (set before retry execution)
+        assert retried_flow_run.state is not None
+        assert retried_flow_run.state.type == client_schemas.StateType.PENDING
+
+
+async def test_submit_adhoc_run_with_existing_flow_run_sets_pending_state(
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that _submit_adhoc_run sets the state to Pending when retrying."""
+    # Mock execute_bundle to prevent actual execution
+    mock_execute_bundle = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+    )
+
+    @flow
+    def test_flow():
+        return "done"
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        # Create an initial flow run with FAILED state
+        initial_flow_run = await prefect_client.create_flow_run(
+            test_flow,
+            parameters={},
+            state=client_schemas.State(type=client_schemas.StateType.FAILED),
+        )
+
+        # Verify initial state is FAILED
+        assert initial_flow_run.state is not None
+        assert initial_flow_run.state.type == client_schemas.StateType.FAILED
+
+        # Call _submit_adhoc_run with the existing flow run
+        await worker._submit_adhoc_run(
+            flow=test_flow,
+            parameters={},
+            flow_run=initial_flow_run,
+        )
+
+        # execute_bundle should have been called (which means state was set to Pending first)
+        mock_execute_bundle.assert_called()
+
+        # Verify the flow run state was set to Pending before execution
+        retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
+        # The state should have been set to Pending (or a subsequent state after execution)
+        # Since we mocked execute_bundle, the state should still be Pending
+        assert retried_flow_run.state is not None
+        assert retried_flow_run.state.type == client_schemas.StateType.PENDING
+
+
+async def test_submit_adhoc_run_without_flow_run_creates_new_run(
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that _submit_adhoc_run creates a new flow run when flow_run is None."""
+    # Mock execute_bundle to prevent actual execution
+    mock_execute_bundle = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+    )
+
+    @flow
+    def test_flow():
+        return "new run"
+
+    # Get initial count of flow runs
+    initial_flow_runs = await prefect_client.read_flow_runs()
+    initial_count = len(initial_flow_runs)
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        # Call _submit_adhoc_run without flow_run parameter
+        await worker._submit_adhoc_run(
+            flow=test_flow,
+            parameters={},
+        )
+
+    # A new flow run should have been created
+    final_flow_runs = await prefect_client.read_flow_runs()
+    assert len(final_flow_runs) > initial_count
