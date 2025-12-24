@@ -42,7 +42,8 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 		buildCountTaskRunsQuery(
 			{
 				task_runs: {
-					flow_run_id: { any_: [flowRunId] },
+					operator: "and_",
+					flow_run_id: { operator: "and_", any_: [flowRunId], is_null_: false },
 					subflow_runs: { exists_: false },
 				},
 			},
@@ -54,12 +55,16 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 		buildPaginateTaskRunsQuery(
 			{
 				task_runs: {
-					flow_run_id: { any_: [flowRunId] },
+					operator: "and_",
+					flow_run_id: { operator: "and_", any_: [flowRunId], is_null_: false },
 					subflow_runs: { exists_: false },
 					name: debouncedSearch ? { like_: debouncedSearch } : undefined,
 					state:
 						stateFilter.size > 0
-							? { name: { any_: Array.from(stateFilter) } }
+							? {
+									operator: "and_",
+									name: { any_: Array.from(stateFilter) },
+								}
 							: undefined,
 				},
 				sort,
@@ -96,12 +101,20 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 			buildPaginateTaskRunsQuery(
 				{
 					task_runs: {
-						flow_run_id: { any_: [flowRunId] },
+						operator: "and_",
+						flow_run_id: {
+							operator: "and_",
+							any_: [flowRunId],
+							is_null_: false,
+						},
 						subflow_runs: { exists_: false },
 						name: debouncedSearch ? { like_: debouncedSearch } : undefined,
 						state:
 							stateFilter.size > 0
-								? { name: { any_: Array.from(stateFilter) } }
+								? {
+										operator: "and_",
+										name: { any_: Array.from(stateFilter) },
+									}
 								: undefined,
 					},
 					sort,
