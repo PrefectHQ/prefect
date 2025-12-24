@@ -32,6 +32,8 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Icon } from "@/components/ui/icons";
+import { JsonInput } from "@/components/ui/json-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -107,8 +109,54 @@ export const FlowRunDetailsPage = ({
 					subflowRunsContent={<PlaceholderContent label="Subflow Runs" />}
 					artifactsContent={<PlaceholderContent label="Artifacts" />}
 					detailsContent={<FlowRunDetails flowRun={flowRun} />}
-					parametersContent={<PlaceholderContent label="Parameters" />}
-					jobVariablesContent={<PlaceholderContent label="Job Variables" />}
+					parametersContent={
+						<div className="space-y-4">
+							<div className="flex justify-end">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										toast.success("Copied parameters to clipboard");
+										void navigator.clipboard.writeText(
+											JSON.stringify(flowRun.parameters ?? {}, null, 2),
+										);
+									}}
+								>
+									<Icon id="Copy" className="size-4 mr-2" />
+									Copy parameters
+								</Button>
+							</div>
+							<JsonInput
+								value={JSON.stringify(flowRun.parameters ?? {}, null, 2)}
+								disabled
+								className="min-h-[200px]"
+							/>
+						</div>
+					}
+					jobVariablesContent={
+						<div className="space-y-4">
+							<div className="flex justify-end">
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										toast.success("Copied job variables to clipboard");
+										void navigator.clipboard.writeText(
+											JSON.stringify(flowRun.job_variables ?? {}, null, 2),
+										);
+									}}
+								>
+									<Icon id="Copy" className="size-4 mr-2" />
+									Copy job variables
+								</Button>
+							</div>
+							<JsonInput
+								value={JSON.stringify(flowRun.job_variables ?? {}, null, 2)}
+								disabled
+								className="min-h-[200px]"
+							/>
+						</div>
+					}
 				/>
 				<div className="hidden lg:block">
 					<FlowRunDetails flowRun={flowRun} />
