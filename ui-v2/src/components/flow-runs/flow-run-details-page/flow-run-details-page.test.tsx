@@ -73,6 +73,9 @@ describe("FlowRunDetailsPage", () => {
 			http.get(buildApiUrl("/flow_runs/:id"), () => {
 				return HttpResponse.json(mockFlowRun);
 			}),
+			http.post(buildApiUrl("/logs/filter"), () => {
+				return HttpResponse.json([]);
+			}),
 		);
 	});
 
