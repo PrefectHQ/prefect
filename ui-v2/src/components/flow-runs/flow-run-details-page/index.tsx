@@ -102,6 +102,7 @@ export const FlowRunDetailsPage = ({
 				<TabsLayout
 					currentTab={tab}
 					onTabChange={onTabChange}
+					flowRun={flowRun}
 					logsContent={
 						<Suspense fallback={<LogsSkeleton />}>
 							<FlowRunLogs flowRun={flowRun} />
@@ -307,6 +308,7 @@ const Header = ({
 const TabsLayout = ({
 	currentTab,
 	onTabChange,
+	flowRun,
 	logsContent,
 	taskRunsContent,
 	subflowRunsContent,
@@ -317,6 +319,7 @@ const TabsLayout = ({
 }: {
 	currentTab: FlowRunDetailsTabOptions;
 	onTabChange: (tab: FlowRunDetailsTabOptions) => void;
+	flowRun: FlowRun;
 	logsContent: React.ReactNode;
 	taskRunsContent: React.ReactNode;
 	subflowRunsContent: React.ReactNode;
@@ -349,7 +352,9 @@ const TabsLayout = ({
 					Details
 				</TabsTrigger>
 				<TabsTrigger value="Logs">Logs</TabsTrigger>
-				<TabsTrigger value="TaskRuns">Task Runs</TabsTrigger>
+				{flowRun.state_type !== "PENDING" && (
+					<TabsTrigger value="TaskRuns">Task Runs</TabsTrigger>
+				)}
 				<TabsTrigger value="SubflowRuns">Subflow Runs</TabsTrigger>
 				<TabsTrigger value="Artifacts">Artifacts</TabsTrigger>
 				<TabsTrigger value="Parameters">Parameters</TabsTrigger>
