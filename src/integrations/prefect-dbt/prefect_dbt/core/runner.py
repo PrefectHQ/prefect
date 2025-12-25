@@ -659,10 +659,7 @@ class PrefectDbtRunner:
             if not manifest_node:
                 return
 
-            if (
-                node_id in self.manifest.nodes
-                and manifest_node.config.materialized == "ephemeral"
-            ):
+            if manifest_node.config.materialized == "ephemeral":
                 self._skipped_nodes.add(node_id)
                 return
 
