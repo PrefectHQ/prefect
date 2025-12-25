@@ -814,7 +814,6 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         regular_node.config.meta = {"prefect": {}}
         regular_node.config.materialized = "view"
         regular_node.relation_name = "test_db.test_schema.regular_model"
-        regular_node.is_ephemeral = False
         regular_node.resource_type = NodeType.Model
         regular_node.depends_on_nodes = []
 
@@ -824,7 +823,6 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         ephemeral_node.config.meta = {"prefect": {}}
         ephemeral_node.config.materialized = "ephemeral"
         ephemeral_node.relation_name = None  # Expected for ephemeral models
-        ephemeral_node.is_ephemeral = True
         ephemeral_node.resource_type = NodeType.Model
         ephemeral_node.depends_on_nodes = ["model.test_project.regular_model"]
 
@@ -835,8 +833,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         another_ephemeral_node.config = Mock()
         another_ephemeral_node.config.meta = {"prefect": {}}
         another_ephemeral_node.config.materialized = "ephemeral"
-        another_ephemeral_node.relation_name = None  # Expected for ephemeral models
-        another_ephemeral_node.is_ephemeral = True
+        another_ephemeral_node.relation_name = None
         another_ephemeral_node.resource_type = NodeType.Model
         another_ephemeral_node.depends_on_nodes = [
             "model.test_project.ephemeral_staging"

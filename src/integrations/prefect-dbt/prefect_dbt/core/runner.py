@@ -230,13 +230,14 @@ class PrefectDbtRunner:
         """
         Get upstream nodes for a given node.
         Ephemeral nodes are traversed recursively to find non-ephemeral dependencies.
+        Sources without relation_name are ignored.
         """
         upstream_manifest_nodes: list[
             tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]
         ] = []
         visited: set[str] = set()
 
-        def collect(node: ManifestNode):
+        def collect(node: ManifestNode | SourceDefinition):
             for depends_on_node in node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
                 if depends_on_node in visited:
                     continue
@@ -250,10 +251,17 @@ class PrefectDbtRunner:
                 if not depends_manifest_node:
                     continue
 
+                # sources without relation_name
+                if (
+                    depends_on_node in self.manifest.sources
+                    and not depends_manifest_node.relation_name
+                ):
+                    continue
+
                 # recursive for ephemerals
                 if (
-                    not depends_manifest_node.relation_name
-                    and depends_manifest_node.is_ephemeral
+                    depends_on_node in self.manifest.nodes
+                    and depends_manifest_node.config.materialized == "ephemeral"
                 ):
                     collect(depends_manifest_node)
                     continue
@@ -651,7 +659,10 @@ class PrefectDbtRunner:
             if not manifest_node:
                 return
 
-            if isinstance(manifest_node, ManifestNode) and manifest_node.is_ephemeral:
+            if (
+                node_id in self.manifest.nodes
+                and manifest_node.config.materialized == "ephemeral"
+            ):
                 self._skipped_nodes.add(node_id)
                 return
 
