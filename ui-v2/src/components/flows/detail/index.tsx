@@ -1,10 +1,4 @@
 import { useNavigate } from "@tanstack/react-router";
-import {
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import type { ChangeEvent } from "react";
 import { type JSX, useCallback, useState } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
@@ -21,13 +15,10 @@ import {
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
 import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
-import { DataTable } from "@/components/ui/data-table";
-import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { SearchInput } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TagsInput } from "@/components/ui/tags-input";
 import { DeleteFlowDialog } from "./delete-flow-dialog";
-import { columns as deploymentColumns } from "./deployment-columns";
+import { FlowDeploymentsTab } from "./flow-deployments-tab";
 import { FlowDetails } from "./flow-details";
 import { FlowPageHeader } from "./flow-page-header";
 import { FlowStatsSummary } from "./flow-stats-summary";
@@ -38,6 +29,8 @@ export default function FlowDetail({
 	flowRunsCount,
 	flowRunsPages,
 	deployments,
+	deploymentsCount,
+	deploymentsPages,
 	tab = "runs",
 	pagination,
 	onPaginationChange,
@@ -52,12 +45,18 @@ export default function FlowDetail({
 	onDeploymentSearchChange,
 	deploymentTags,
 	onDeploymentTagsChange,
+	deploymentSort,
+	onDeploymentSortChange,
+	deploymentPagination,
+	onDeploymentPaginationChange,
 }: {
 	flow: Flow;
 	flowRuns: FlowRun[];
 	flowRunsCount: number;
 	flowRunsPages: number;
 	deployments: components["schemas"]["DeploymentResponse"][];
+	deploymentsCount: number;
+	deploymentsPages: number;
 	tab: "runs" | "deployments" | "details";
 	pagination: PaginationState;
 	onPaginationChange: (pagination: PaginationState) => void;
@@ -72,24 +71,20 @@ export default function FlowDetail({
 	onDeploymentSearchChange: (search: string) => void;
 	deploymentTags: string[];
 	onDeploymentTagsChange: (tags: string[]) => void;
+	deploymentSort: components["schemas"]["DeploymentSort"];
+	onDeploymentSortChange: (
+		sort: components["schemas"]["DeploymentSort"],
+	) => void;
+	deploymentPagination: { page: number; limit: number };
+	onDeploymentPaginationChange: (pagination: {
+		page: number;
+		limit: number;
+	}) => void;
 }): JSX.Element {
 	const navigate = useNavigate();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const [selectedRows, setSelectedRows, { onSelectRow, clearSet }] =
 		useFlowRunsSelectedRows();
-
-	const deploymentsTable = useReactTable({
-		data: deployments,
-		columns: deploymentColumns,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 10,
-			},
-		},
-	});
 
 	// Enrich paginated flow runs with flow object for the list
 	const enrichedFlowRuns: FlowRunCardData[] = flowRuns.map((flowRun) => ({
@@ -103,18 +98,6 @@ export default function FlowDetail({
 		onSelectFilter(new Set());
 		clearSet();
 	}, [onFlowRunSearchChange, onSelectFilter, clearSet]);
-
-	// Handler for deployment tags that satisfies both ChangeEventHandler and (tags: string[]) => void
-	// This is needed because TagsInput's onChange prop type is an intersection of both signatures
-	const handleDeploymentTagsChange: React.ChangeEventHandler<HTMLInputElement> &
-		((tags: string[]) => void) = useCallback(
-		(e: string[] | ChangeEvent<HTMLInputElement>) => {
-			if (Array.isArray(e)) {
-				onDeploymentTagsChange(e);
-			}
-		},
-		[onDeploymentTagsChange],
-	);
 
 	return (
 		<>
@@ -178,24 +161,19 @@ export default function FlowDetail({
 						/>
 					</TabsContent>
 					<TabsContent value="deployments">
-						<header className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-							<SearchInput
-								placeholder="Search deployments..."
-								value={deploymentSearch ?? ""}
-								onChange={(e) => onDeploymentSearchChange(e.target.value)}
-							/>
-							<TagsInput
-								placeholder="Filter by tags"
-								value={deploymentTags}
-								onChange={handleDeploymentTagsChange}
-							/>
-						</header>
-						<FlowRunActivityBarGraphTooltipProvider>
-							{/* Override table container overflow to allow chart tooltips to escape */}
-							<div className="[&_[data-slot=table-container]]:overflow-visible">
-								<DataTable table={deploymentsTable} />
-							</div>
-						</FlowRunActivityBarGraphTooltipProvider>
+						<FlowDeploymentsTab
+							deployments={deployments}
+							deploymentsCount={deploymentsCount}
+							deploymentsPages={deploymentsPages}
+							deploymentSearch={deploymentSearch}
+							onDeploymentSearchChange={onDeploymentSearchChange}
+							deploymentTags={deploymentTags}
+							onDeploymentTagsChange={onDeploymentTagsChange}
+							deploymentSort={deploymentSort}
+							onDeploymentSortChange={onDeploymentSortChange}
+							deploymentPagination={deploymentPagination}
+							onDeploymentPaginationChange={onDeploymentPaginationChange}
+						/>
 					</TabsContent>
 					<TabsContent value="details">
 						<FlowDetails flow={flow} />
