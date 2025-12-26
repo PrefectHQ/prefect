@@ -33,7 +33,8 @@ export const columns: ColumnDef<Deployment>[] = [
 		),
 		enableSorting: false,
 		enableHiding: false,
-		maxSize: 10,
+		maxSize: 20,
+		minSize: 20,
 	},
 	{
 		accessorKey: "name",
@@ -148,5 +149,7 @@ export const columns: ColumnDef<Deployment>[] = [
 				</DropdownMenu>
 			);
 		},
+		minSize: 30,
+		maxSize: 30,
 	},
 ];
