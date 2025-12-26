@@ -9,6 +9,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
+import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
@@ -70,51 +71,12 @@ export const columns: ColumnDef<Deployment>[] = [
 	{
 		accessorKey: "schedules",
 		header: "Schedules",
-		cell: ({ row }) => (
-			<div className="flex flex-col gap-1">
-				{row.original.schedules?.map((schedule) => {
-					if (
-						schedule.schedule &&
-						typeof schedule.schedule === "object" &&
-						"cron" in schedule.schedule
-					) {
-						const cronExpression = schedule.schedule.cron;
-						return (
-							<span key={schedule.id} className="text-xs">
-								Cron: {cronExpression}
-							</span>
-						);
-					}
-					if (
-						schedule.schedule &&
-						typeof schedule.schedule === "object" &&
-						"interval" in schedule.schedule
-					) {
-						return (
-							<span key={schedule.id} className="text-xs">
-								Interval: {schedule.schedule.interval} seconds
-							</span>
-						);
-					}
-					if (
-						schedule.schedule &&
-						typeof schedule.schedule === "object" &&
-						"rrule" in schedule.schedule
-					) {
-						return (
-							<span key={schedule.id} className="text-xs">
-								RRule: {schedule.schedule.rrule}
-							</span>
-						);
-					}
-					return (
-						<span key={schedule.id} className="text-xs">
-							{JSON.stringify(schedule.schedule)}
-						</span>
-					);
-				})}
-			</div>
-		),
+		cell: ({ row }) => {
+			const schedules = row.original.schedules;
+			if (!schedules || schedules.length === 0) return null;
+			return <ScheduleBadgeGroup schedules={schedules} />;
+		},
+		size: 150,
 	},
 	{
 		accessorKey: "activity",
