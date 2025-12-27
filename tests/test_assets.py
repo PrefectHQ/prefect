@@ -1819,7 +1819,9 @@ def test_direct_materialization_from_task(asserting_events_worker: EventsWorker)
 
 
 @pytest.mark.usefixtures("reset_worker_events")
-def test_direct_materialization_with_dependencies(asserting_events_worker: EventsWorker):
+def test_direct_materialization_with_dependencies(
+    asserting_events_worker: EventsWorker,
+):
     """Test that directly materialized assets can have upstream dependencies."""
     upstream_asset = Asset(key="s3://bucket/upstream.csv")
     downstream_asset = Asset(key="s3://bucket/downstream.csv")
@@ -1854,13 +1856,17 @@ def test_direct_materialization_outside_context():
     asset = Asset(key="s3://bucket/error.csv")
 
     # Should raise RuntimeError when called outside of execution context
-    with pytest.raises(RuntimeError, match="Cannot materialize assets outside of a flow or task context"):
+    with pytest.raises(
+        RuntimeError,
+        match="Cannot materialize assets outside of a flow or task context",
+    ):
         materialize(asset)
 
 
 @pytest.mark.usefixtures("reset_worker_events")
 def test_direct_materialization_with_string_key(asserting_events_worker: EventsWorker):
     """Test direct materialization with string asset keys."""
+
     @flow
     def flow_with_string_key():
         materialize("s3://bucket/string_key.csv")
