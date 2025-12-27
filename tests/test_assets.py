@@ -1855,12 +1855,12 @@ def test_direct_materialization_outside_context():
     """Test that direct materialization raises an error outside of flow/task context."""
     asset = Asset(key="s3://bucket/error.csv")
 
-    # Should raise RuntimeError when called outside of execution context
+    materialize_callable = materialize(asset)
     with pytest.raises(
         RuntimeError,
         match="Cannot materialize assets outside of a flow or task context",
     ):
-        materialize(asset)
+        materialize_callable()  
 
 
 @pytest.mark.usefixtures("reset_worker_events")
