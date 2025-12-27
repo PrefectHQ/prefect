@@ -69,7 +69,6 @@ class _MaterializeCallable:
         asset_objects = [Asset(key=a) if isinstance(a, str) else a for a in self.assets]
 
         # Try to get existing AssetContext (e.g., from within a task)
-        # The task engine should have created this for tasks, but we handle the case where it doesn't exist
         asset_ctx = AssetContext.get()
 
         # If no AssetContext exists, try to create one
@@ -79,7 +78,6 @@ class _MaterializeCallable:
 
             if task_run_ctx is not None:
                 # We're in a task context - create AssetContext from task
-                # Note: The task engine should have created this, but we create it as a fallback
                 asset_ctx = AssetContext.from_task_and_inputs(
                     task=task_run_ctx.task,
                     task_run_id=task_run_ctx.task_run.id,
@@ -89,7 +87,6 @@ class _MaterializeCallable:
             elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
                 # We're in a flow context but not in a task
                 # Create a minimal AssetContext without task association
-                # For flow-level materialization, we'll emit events directly
                 asset_ctx = AssetContext(
                     downstream_assets=set(),
                     upstream_assets=set(),
@@ -117,7 +114,6 @@ class _MaterializeCallable:
             asset_ctx.update_tracked_assets()
         else:
             # For flow-level materialization (no task_run_id), emit events directly
-            # Create a completed state to emit success events
             from prefect.states import Completed
 
             completed_state = Completed()
@@ -168,15 +164,12 @@ def materialize(
     materialize_obj = _MaterializeCallable(assets, by, **task_kwargs)
 
     # Check if we're in an execution context where we can materialize directly
-    # We only materialize immediately if we're in a task or flow execution context
-    # (not at definition time, which would break decorator usage)
     try:
         from prefect.context import EngineContext, TaskRunContext
 
         task_ctx = TaskRunContext.get()
         flow_ctx = EngineContext.get()
 
-        # Only materialize immediately if we're in an active execution context
         # This distinguishes between definition time (decorator) and execution time (direct call)
         if task_ctx is not None or (
             flow_ctx is not None and flow_ctx.flow_run is not None
