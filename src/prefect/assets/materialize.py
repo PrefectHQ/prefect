@@ -63,13 +63,10 @@ class _MaterializeCallable:
         """
         Materialize assets directly in the current context.
         """
-        from prefect.context import AssetContext, TaskRunContext, EngineContext
-        from prefect.states import State
+        from prefect.context import AssetContext, EngineContext, TaskRunContext
 
         # Normalize assets to Asset objects
-        asset_objects = [
-            Asset(key=a) if isinstance(a, str) else a for a in self.assets
-        ]
+        asset_objects = [Asset(key=a) if isinstance(a, str) else a for a in self.assets]
 
         # Try to get existing AssetContext (e.g., from within a task)
         # The task engine should have created this for tasks, but we handle the case where it doesn't exist
@@ -174,14 +171,16 @@ def materialize(
     # We only materialize immediately if we're in a task or flow execution context
     # (not at definition time, which would break decorator usage)
     try:
-        from prefect.context import TaskRunContext, EngineContext
+        from prefect.context import EngineContext, TaskRunContext
 
         task_ctx = TaskRunContext.get()
         flow_ctx = EngineContext.get()
 
         # Only materialize immediately if we're in an active execution context
         # This distinguishes between definition time (decorator) and execution time (direct call)
-        if task_ctx is not None or (flow_ctx is not None and flow_ctx.flow_run is not None):
+        if task_ctx is not None or (
+            flow_ctx is not None and flow_ctx.flow_run is not None
+        ):
             # We're in an execution context - materialize immediately
             materialize_obj._materialize_directly()
             materialize_obj._materialized = True
