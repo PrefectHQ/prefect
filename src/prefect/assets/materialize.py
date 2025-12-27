@@ -25,6 +25,14 @@ class _MaterializeCallable:
         by: str | None = None,
         **task_kwargs: Unpack[TaskOptions],
     ):
+        """
+        Initialize the materialize callable.
+
+        Args:
+            assets: Assets to materialize
+            by: Optional tool that materialized the asset
+            **task_kwargs: Additional task configuration (only used when used as decorator)
+        """
         self.assets = assets
         self.by = by
         self.task_kwargs = task_kwargs
