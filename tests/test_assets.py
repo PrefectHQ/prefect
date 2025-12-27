@@ -1756,3 +1756,121 @@ def test_materialization_from_regular_task(asserting_events_worker: EventsWorker
 
     # Should have flow-run context
     assert any(r.id.startswith("prefect.flow-run.") for r in mat_evt.related)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_direct_materialization_from_flow(asserting_events_worker: EventsWorker):
+    """Test materializing assets directly from a flow without using @materialize decorator."""
+    asset1 = Asset(key="s3://bucket/direct1.csv")
+    asset2 = Asset(key="s3://bucket/direct2.csv")
+
+    @flow
+    def direct_materialization_flow():
+        # Materialize assets directly in the flow
+        materialize(asset1)
+        materialize(asset2, by="custom_tool")
+
+    direct_materialization_flow()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    mat_events = _materialization_events(events)
+
+    # Should have 2 materialization events
+    assert len(mat_events) == 2
+
+    # Check both assets were materialized
+    evt1 = _event_with_resource_id(mat_events, asset1.key)
+    evt2 = _event_with_resource_id(mat_events, asset2.key)
+
+    assert evt1.event == "prefect.asset.materialization.succeeded"
+    assert evt2.event == "prefect.asset.materialization.succeeded"
+
+    # Check that asset2 has the materialized_by tool
+    assert _has_related_of_role(evt2, "asset-materialized-by")
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_direct_materialization_from_task(asserting_events_worker: EventsWorker):
+    """Test materializing assets directly from a task."""
+    asset = Asset(key="s3://bucket/task_direct.csv")
+
+    @task
+    def regular_task():
+        # Materialize asset directly in the task
+        materialize(asset)
+        return "done"
+
+    @flow
+    def flow_with_direct_materialization():
+        regular_task()
+
+    flow_with_direct_materialization()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    mat_events = _materialization_events(events)
+
+    # Should have 1 materialization event
+    assert len(mat_events) == 1
+
+    evt = _event_with_resource_id(mat_events, asset.key)
+    assert evt.event == "prefect.asset.materialization.succeeded"
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_direct_materialization_with_dependencies(asserting_events_worker: EventsWorker):
+    """Test that directly materialized assets can have upstream dependencies."""
+    upstream_asset = Asset(key="s3://bucket/upstream.csv")
+    downstream_asset = Asset(key="s3://bucket/downstream.csv")
+
+    @materialize(upstream_asset)
+    def create_upstream():
+        return "upstream_data"
+
+    @flow
+    def flow_with_dependencies():
+        upstream_result = create_upstream()
+        # Materialize downstream asset directly, which should inherit upstream dependency
+        materialize(downstream_asset)
+        return upstream_result
+
+    flow_with_dependencies()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    mat_events = _materialization_events(events)
+
+    # Should have 2 materialization events
+    assert len(mat_events) == 2
+
+    downstream_evt = _event_with_resource_id(mat_events, downstream_asset.key)
+    # The downstream asset should have the upstream asset as a dependency
+    assert _has_upstream_asset(downstream_evt, upstream_asset.key)
+
+
+def test_direct_materialization_outside_context():
+    """Test that direct materialization raises an error outside of flow/task context."""
+    asset = Asset(key="s3://bucket/error.csv")
+
+    # Should raise RuntimeError when called outside of execution context
+    with pytest.raises(RuntimeError, match="Cannot materialize assets outside of a flow or task context"):
+        materialize(asset)
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_direct_materialization_with_string_key(asserting_events_worker: EventsWorker):
+    """Test direct materialization with string asset keys."""
+    @flow
+    def flow_with_string_key():
+        materialize("s3://bucket/string_key.csv")
+
+    flow_with_string_key()
+    asserting_events_worker.drain()
+
+    events = _asset_events(asserting_events_worker)
+    mat_events = _materialization_events(events)
+
+    assert len(mat_events) == 1
+    evt = _event_with_resource_id(mat_events, "s3://bucket/string_key.csv")
+    assert evt.event == "prefect.asset.materialization.succeeded"
