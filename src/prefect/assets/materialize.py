@@ -86,10 +86,17 @@ class _MaterializeCallable:
                 )
                 asset_ctx.set()
             elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
-                # We're in a flow context but not in a task, Create a minimal AssetContext without task association
+                # We're in a flow context but not in a task
+                # Collect upstream assets from all task runs in this flow
+                upstream_assets = set()
+                if flow_run_ctx.task_run_assets:
+                    for task_assets in flow_run_ctx.task_run_assets.values():
+                        upstream_assets.update(task_assets)
+
+                # Create a minimal AssetContext without task association
                 asset_ctx = AssetContext(
                     downstream_assets=set(),
-                    upstream_assets=set(),
+                    upstream_assets=upstream_assets,
                     direct_asset_dependencies=set(),
                     materialized_by=self.by,
                     task_run_id=None,
@@ -101,11 +108,23 @@ class _MaterializeCallable:
                     "Cannot materialize assets outside of a flow or task context. "
                     "Use @materialize as a decorator or call materialize() from within a flow or task."
                 )
+        else:
+            # Reusing existing AssetContext - update upstream assets from flow run context
+            # if we're in a flow context (not a task context)
+            if asset_ctx.task_run_id is None:
+                flow_run_ctx = EngineContext.get()
+                if flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
+                    # Update upstream assets from all task runs in this flow
+                    upstream_assets = set()
+                    if flow_run_ctx.task_run_assets:
+                        for task_assets in flow_run_ctx.task_run_assets.values():
+                            upstream_assets.update(task_assets)
+                    asset_ctx.upstream_assets = upstream_assets
 
         # Add assets to downstream_assets
         asset_ctx.downstream_assets.update(asset_objects)
 
-        # Update materialized_by if provided
+        # Update materialized_by if provided (only if not already set to preserve existing value)
         if self.by is not None:
             asset_ctx.materialized_by = self.by
 
@@ -114,11 +133,14 @@ class _MaterializeCallable:
             asset_ctx.update_tracked_assets()
         else:
             # For flow-level materialization (no task_run_id), emit events directly
-            if AssetContext.get() is not asset_ctx:
+            # Make sure the AssetContext is set in the context before emitting
+            current_ctx = AssetContext.get()
+            if current_ctx is not asset_ctx:
                 asset_ctx.set()
             from prefect.states import Completed
 
             completed_state = Completed()
+            # Emit events - they will be processed asynchronously by the EventsWorker
             asset_ctx.emit_events(completed_state)
 
 
