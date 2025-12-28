@@ -53,7 +53,8 @@ class _MaterializeCallable:
                 fn=fn, assets=self.assets, materialized_by=self.by, **self.task_kwargs
             )
         else:
-            # Direct materialization: materialize(asset)
+            # Direct materialization: materialize(asset)() or materialize(asset) when called directly
+            # This will raise an error if not in a context
             if not self._materialized:
                 self._materialize_directly()
                 self._materialized = True
@@ -85,8 +86,7 @@ class _MaterializeCallable:
                 )
                 asset_ctx.set()
             elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
-                # We're in a flow context but not in a task
-                # Create a minimal AssetContext without task association
+                # We're in a flow context but not in a task, Create a minimal AssetContext without task association
                 asset_ctx = AssetContext(
                     downstream_assets=set(),
                     upstream_assets=set(),
@@ -114,6 +114,8 @@ class _MaterializeCallable:
             asset_ctx.update_tracked_assets()
         else:
             # For flow-level materialization (no task_run_id), emit events directly
+            if AssetContext.get() is not asset_ctx:
+                asset_ctx.set()
             from prefect.states import Completed
 
             completed_state = Completed()
@@ -178,9 +180,14 @@ def materialize(
             materialize_obj._materialize_directly()
             materialize_obj._materialized = True
             return None
+        else:
+            # Return callable - it will handle both decorator and direct call cases
+            # When used as decorator: __call__(fn) returns MaterializingTask (works)
+            # When called directly: __call__(None) tries to materialize and fails (raises error)
+            return materialize_obj
     except Exception:
-        # If context access fails, assume decorator usage
-        pass
+        # If context access fails, assume decorator usage and return callable
+        return materialize_obj
 
-    # Return the callable for decorator use
+    # Return the callable for decorator use (fallback)
     return materialize_obj
