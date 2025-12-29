@@ -5,8 +5,12 @@ import {
 	AutomationsTriggerTemplateSelect,
 	type TriggerTemplate,
 } from "@/components/automations/automations-wizard/automations-trigger-template-select";
+import { CustomTriggerFields } from "./custom-trigger-fields";
+import { DeploymentStatusTriggerFields } from "./deployment-status-trigger-fields";
 import { FlowRunStateTriggerFields } from "./flow-run-state-trigger-fields";
 import { getDefaultTriggerForTemplate } from "./trigger-step-utils";
+import { WorkPoolStatusTriggerFields } from "./work-pool-status-trigger-fields";
+import { WorkQueueStatusTriggerFields } from "./work-queue-status-trigger-fields";
 
 export const TriggerStep = () => {
 	const form = useFormContext<AutomationWizardSchema>();
@@ -37,29 +41,13 @@ const TriggerTemplateFields = ({ template }: TriggerTemplateFieldsProps) => {
 		case "flow-run-state":
 			return <FlowRunStateTriggerFields />;
 		case "deployment-status":
-			return (
-				<div className="text-muted-foreground">
-					Deployment status trigger fields coming soon
-				</div>
-			);
+			return <DeploymentStatusTriggerFields />;
 		case "work-pool-status":
-			return (
-				<div className="text-muted-foreground">
-					Work pool status trigger fields coming soon
-				</div>
-			);
+			return <WorkPoolStatusTriggerFields />;
 		case "work-queue-status":
-			return (
-				<div className="text-muted-foreground">
-					Work queue status trigger fields coming soon
-				</div>
-			);
+			return <WorkQueueStatusTriggerFields />;
 		case "custom":
-			return (
-				<div className="text-muted-foreground">
-					Custom trigger fields coming soon
-				</div>
-			);
+			return <CustomTriggerFields />;
 		default:
 			return null;
 	}
