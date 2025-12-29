@@ -17,7 +17,11 @@ from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
-from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
+from prefect.client.schemas.filters import (
+    ArtifactFilter,
+    ArtifactFilterId,
+    ArtifactFilterKey,
+)
 from prefect.client.schemas.objects import Artifact as ArtifactResponse
 from prefect.client.schemas.sorting import ArtifactSort
 from prefect.context import MissingContextError, get_run_context
@@ -176,6 +180,79 @@ class Artifact(ArtifactRequest):
             ),
         )
         return None if not artifacts else artifacts[0]
+
+    async def aupdate(
+        self,
+        artifact_id: UUID,
+        client: "PrefectClient | None" = None,
+    ) -> "ArtifactResponse":
+        """
+        An async method to update an existing artifact.
+
+        Arguments:
+            artifact_id: The ID of the artifact to update.
+            client: The PrefectClient
+
+        Returns:
+            The updated artifact.
+        """
+        local_client_context = asyncnullcontext(client) if client else get_client()
+        async with local_client_context as client:
+            update = ArtifactUpdate(
+                data=await self.aformat(),
+                description=self.description,
+            )
+
+            await client.update_artifact(
+                artifact_id=artifact_id,
+                artifact=update,
+            )
+
+            # Fetch and return the updated artifact
+            artifacts = await client.read_artifacts(
+                limit=1,
+                artifact_filter=ArtifactFilter(id=ArtifactFilterId(any_=[artifact_id])),
+            )
+            if not artifacts:
+                raise ValueError(f"Artifact with id {artifact_id} not found")
+            return artifacts[0]
+
+    @async_dispatch(aupdate)
+    def update(
+        self,
+        artifact_id: UUID,
+        client: "PrefectClient | None" = None,
+    ) -> "ArtifactResponse":
+        """
+        A method to update an existing artifact.
+
+        Arguments:
+            artifact_id: The ID of the artifact to update.
+            client: The PrefectClient
+
+        Returns:
+            The updated artifact.
+        """
+        sync_client = get_client(sync_client=True)
+
+        update = ArtifactUpdate(
+            data=cast(str, self.format(_sync=True)),  # pyright: ignore[reportCallIssue] _sync is valid because .format is wrapped in async_dispatch
+            description=self.description,
+        )
+
+        sync_client.update_artifact(
+            artifact_id=artifact_id,
+            artifact=update,
+        )
+
+        # Fetch and return the updated artifact
+        artifacts = sync_client.read_artifacts(
+            limit=1,
+            artifact_filter=ArtifactFilter(id=ArtifactFilterId(any_=[artifact_id])),
+        )
+        if not artifacts:
+            raise ValueError(f"Artifact with id {artifact_id} not found")
+        return artifacts[0]
 
     @classmethod
     async def aget_or_create(
@@ -793,3 +870,273 @@ def create_image_artifact(
     artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
     return artifact.id
+
+
+async def aupdate_markdown_artifact(
+    artifact_id: UUID,
+    markdown: str,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> UUID:
+    """
+    Update a markdown artifact asynchronously.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        markdown: The new markdown content.
+        description: A user-specified description of the artifact.
+        client: The PrefectClient
+
+    Returns:
+        The artifact ID.
+    """
+    artifact = MarkdownArtifact(
+        description=description,
+        markdown=markdown,
+    )
+    await artifact.aupdate(artifact_id=artifact_id, client=client)
+    return artifact_id
+
+
+@async_dispatch(aupdate_markdown_artifact)
+def update_markdown_artifact(
+    artifact_id: UUID,
+    markdown: str,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> UUID:
+    """
+    Update a markdown artifact.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        markdown: The new markdown content.
+        description: A user-specified description of the artifact.
+        client: The PrefectClient
+
+    Returns:
+        The artifact ID.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect.artifacts import create_markdown_artifact, update_markdown_artifact
+
+        @flow
+        def my_flow():
+            artifact_id = create_markdown_artifact(
+                markdown="## Initial content",
+                key="my-artifact",
+            )
+            # Later in the flow, update the artifact
+            update_markdown_artifact(
+                artifact_id=artifact_id,
+                markdown="## Updated content",
+            )
+
+        my_flow()
+        ```
+    """
+    artifact = MarkdownArtifact(
+        description=description,
+        markdown=markdown,
+    )
+    cast(
+        ArtifactResponse,
+        artifact.update(artifact_id=artifact_id, _sync=True),  # pyright: ignore[reportCallIssue] _sync is valid because .update is wrapped in async_dispatch
+    )
+    return artifact_id
+
+
+async def aupdate_table_artifact(
+    artifact_id: UUID,
+    table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]],
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> UUID:
+    """
+    Update a table artifact asynchronously.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        table: The new table data.
+        description: A user-specified description of the artifact.
+        client: The PrefectClient
+
+    Returns:
+        The artifact ID.
+    """
+    artifact = TableArtifact(
+        description=description,
+        table=table,
+    )
+    await artifact.aupdate(artifact_id=artifact_id, client=client)
+    return artifact_id
+
+
+@async_dispatch(aupdate_table_artifact)
+def update_table_artifact(
+    artifact_id: UUID,
+    table: dict[str, list[Any]] | list[dict[str, Any]] | list[list[Any]],
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> UUID:
+    """
+    Update a table artifact.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        table: The new table data.
+        description: A user-specified description of the artifact.
+        client: The PrefectClient
+
+    Returns:
+        The artifact ID.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect.artifacts import create_table_artifact, update_table_artifact
+
+        @flow
+        def my_flow():
+            artifact_id = create_table_artifact(
+                table=[{"name": "Alice", "age": 25}],
+                key="my-table",
+            )
+            # Later in the flow, update the artifact with new data
+            update_table_artifact(
+                artifact_id=artifact_id,
+                table=[{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}],
+            )
+
+        my_flow()
+        ```
+    """
+    artifact = TableArtifact(
+        description=description,
+        table=table,
+    )
+    cast(
+        ArtifactResponse,
+        artifact.update(artifact_id=artifact_id, _sync=True),  # pyright: ignore[reportCallIssue] _sync is valid because .update is wrapped in async_dispatch
+    )
+    return artifact_id
+
+
+async def aupdate_link_artifact(
+    artifact_id: UUID,
+    link: str,
+    link_text: str | None = None,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> UUID:
+    """
+    Update a link artifact asynchronously.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        link: The new link URL.
+        link_text: The new link text.
+        description: A user-specified description of the artifact.
+        client: The PrefectClient
+
+    Returns:
+        The artifact ID.
+    """
+    artifact = LinkArtifact(
+        description=description,
+        link=link,
+        link_text=link_text,
+    )
+    await artifact.aupdate(artifact_id=artifact_id, client=client)
+    return artifact_id
+
+
+@async_dispatch(aupdate_link_artifact)
+def update_link_artifact(
+    artifact_id: UUID,
+    link: str,
+    link_text: str | None = None,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> UUID:
+    """
+    Update a link artifact.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        link: The new link URL.
+        link_text: The new link text.
+        description: A user-specified description of the artifact.
+        client: The PrefectClient
+
+    Returns:
+        The artifact ID.
+    """
+    artifact = LinkArtifact(
+        description=description,
+        link=link,
+        link_text=link_text,
+    )
+    cast(
+        ArtifactResponse,
+        artifact.update(artifact_id=artifact_id, _sync=True),  # pyright: ignore[reportCallIssue] _sync is valid because .update is wrapped in async_dispatch
+    )
+    return artifact_id
+
+
+async def aupdate_image_artifact(
+    artifact_id: UUID,
+    image_url: str,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> UUID:
+    """
+    Update an image artifact asynchronously.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        image_url: The new image URL.
+        description: A user-specified description of the artifact.
+        client: The PrefectClient
+
+    Returns:
+        The artifact ID.
+    """
+    artifact = ImageArtifact(
+        description=description,
+        image_url=image_url,
+    )
+    await artifact.aupdate(artifact_id=artifact_id, client=client)
+    return artifact_id
+
+
+@async_dispatch(aupdate_image_artifact)
+def update_image_artifact(
+    artifact_id: UUID,
+    image_url: str,
+    description: str | None = None,
+    client: "PrefectClient | None" = None,
+) -> UUID:
+    """
+    Update an image artifact.
+
+    Arguments:
+        artifact_id: The ID of the artifact to update.
+        image_url: The new image URL.
+        description: A user-specified description of the artifact.
+        client: The PrefectClient
+
+    Returns:
+        The artifact ID.
+    """
+    artifact = ImageArtifact(
+        description=description,
+        image_url=image_url,
+    )
+    cast(
+        ArtifactResponse,
+        artifact.update(artifact_id=artifact_id, _sync=True),  # pyright: ignore[reportCallIssue] _sync is valid because .update is wrapped in async_dispatch
+    )
+    return artifact_id

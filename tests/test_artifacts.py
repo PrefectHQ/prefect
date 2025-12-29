@@ -946,6 +946,89 @@ class TestUpdateArtifacts:
         assert my_progress_artifact.type == "progress"
         assert my_progress_artifact.description == "my-artifact-description"
 
+    async def test_update_markdown_artifact_in_flow(self, client: httpx.AsyncClient):
+        """Test updating a markdown artifact mid-flow (issue #10955)."""
+        from prefect.artifacts import update_markdown_artifact
+
+        @flow
+        def my_flow():
+            run_context = get_run_context()
+            assert isinstance(run_context, FlowRunContext)
+            assert run_context.flow_run is not None
+            flow_run_id = run_context.flow_run.id
+
+            artifact_id = create_markdown_artifact(
+                key="updatable-markdown",
+                markdown="## Initial Content",
+                description="my-artifact-description",
+            )
+            assert isinstance(artifact_id, UUID)
+
+            # Update the artifact mid-flow
+            update_markdown_artifact(
+                artifact_id=artifact_id,
+                markdown="## Updated Content",
+            )
+
+            return artifact_id, flow_run_id
+
+        my_artifact_id, flow_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200
+        my_markdown_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_markdown_artifact.flow_run_id == flow_run_id
+        assert my_markdown_artifact.data == "## Updated Content"
+        assert my_markdown_artifact.type == "markdown"
+
+    async def test_update_table_artifact_in_flow(self, client: httpx.AsyncClient):
+        """Test updating a table artifact mid-flow (issue #10955)."""
+        from prefect.artifacts import update_table_artifact
+
+        @flow
+        def my_flow():
+            run_context = get_run_context()
+            assert isinstance(run_context, FlowRunContext)
+            assert run_context.flow_run is not None
+            flow_run_id = run_context.flow_run.id
+
+            initial_table = [{"name": "Alice", "status": "pending"}]
+            artifact_id = create_table_artifact(
+                key="updatable-table",
+                table=initial_table,
+                description="my-table-artifact",
+            )
+            assert isinstance(artifact_id, UUID)
+
+            # Update the artifact mid-flow with new data
+            updated_table = [
+                {"name": "Alice", "status": "complete"},
+                {"name": "Bob", "status": "pending"},
+            ]
+            update_table_artifact(
+                artifact_id=artifact_id,
+                table=updated_table,
+            )
+
+            return artifact_id, flow_run_id
+
+        my_artifact_id, flow_run_id = my_flow()
+
+        response = await client.get(f"/artifacts/{my_artifact_id}")
+        assert response.status_code == 200
+        my_table_artifact = schemas.core.Artifact.model_validate(response.json())
+
+        assert my_table_artifact.flow_run_id == flow_run_id
+        assert my_table_artifact.type == "table"
+        # Data is stored as JSON string
+        import json
+
+        data = json.loads(my_table_artifact.data)
+        assert len(data) == 2
+        assert data[0]["status"] == "complete"
+        assert data[1]["name"] == "Bob"
+
 
 class TestArtifact:
     async def test_artifact_format(self):
