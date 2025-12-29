@@ -9,6 +9,7 @@ import { SelectAutomationsFields } from "./select-automations-fields";
 import { SelectDeploymentsFields } from "./select-deployments-fields";
 import { SelectWorkPoolsFields } from "./select-work-pools-fields";
 import { SelectWorkQueuesFields } from "./select-work-queues-fields";
+import { SendNotificationFields } from "./send-notification-fields";
 
 type ActionStepProps = {
 	index: number;
@@ -70,7 +71,7 @@ const ActionTypeAdditionalFields = ({
 		case "resume-automation":
 			return <SelectAutomationsFields action="Resume" index={index} />;
 		case "send-notification":
-			return <div>TODO send notification</div>;
+			return <SendNotificationFields index={index} />;
 		case "cancel-flow-run":
 			return <div>TODO cancel flow run</div>;
 		case "suspend-flow-run":

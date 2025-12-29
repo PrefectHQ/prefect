@@ -212,3 +212,60 @@ export const useUpdateAutomation = () => {
 		...rest,
 	};
 };
+
+export type TemplateValidationError = {
+	error: {
+		line: number;
+		message: string;
+		source: string;
+	};
+};
+
+/**
+ * Hook for validating Jinja templates used in automation notifications
+ *
+ * @returns Mutation object for validating a template with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { validateTemplate, isPending } = useValidateTemplate();
+ *
+ * validateTemplate('Hello {{ flow.name }}', {
+ *   onSuccess: () => {
+ *     console.log('Template is valid');
+ *   },
+ *   onError: (error) => {
+ *     console.error('Template validation failed:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useValidateTemplate = () => {
+	const { mutateAsync: validateTemplate, ...rest } = useMutation({
+		mutationFn: async (
+			template: string,
+		): Promise<{ valid: true } | { valid: false; error: string }> => {
+			const res = await getQueryService().POST(
+				"/automations/templates/validate",
+				{
+					body: template,
+				},
+			);
+			if (res.response.ok) {
+				return { valid: true };
+			}
+			const errorData = res.error as TemplateValidationError | undefined;
+			if (errorData?.error) {
+				return {
+					valid: false,
+					error: `Error on line ${errorData.error.line}: ${errorData.error.message}`,
+				};
+			}
+			return { valid: false, error: "Template validation failed" };
+		},
+	});
+	return {
+		validateTemplate,
+		...rest,
+	};
+};
