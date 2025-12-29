@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
-import type { FlowRun } from "@/api/flow-runs";
+import { buildFilterFlowRunsQuery, type FlowRun } from "@/api/flow-runs";
 import { buildFLowDetailsQuery } from "@/api/flows";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,21 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 			},
 		}),
 	});
+
+	const { data: parentFlowRuns } = useQuery({
+		...buildFilterFlowRunsQuery(
+			{
+				task_runs: {
+					operator: "and_",
+					id: { any_: [flowRun.parent_task_run_id ?? ""] },
+				},
+				limit: 1,
+			},
+			0,
+		),
+		enabled: !!flowRun.parent_task_run_id,
+	});
+	const parentFlowRun = parentFlowRuns?.[0];
 
 	const formatTaskRunCount = (count: number | undefined) => {
 		if (count === undefined) return "...";
@@ -114,7 +129,7 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 				</div>
 
 				{/* Row 3 - Relationships */}
-				<div className="flex items-center gap-4 text-sm">
+				<div className="flex items-center gap-4 text-sm flex-wrap">
 					{flowRun.flow_id && (
 						<Link
 							to="/flows/flow/$id"
@@ -135,6 +150,40 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 							<Icon id="Rocket" className="size-4" />
 							<span className="text-muted-foreground">Deployment</span>
 							<span>{deployment?.name ?? "..."}</span>
+						</Link>
+					)}
+					{flowRun.work_pool_name && (
+						<Link
+							to="/work-pools/work-pool/$workPoolName"
+							params={{ workPoolName: flowRun.work_pool_name }}
+							className="flex items-center gap-1 hover:underline"
+						>
+							<Icon id="Server" className="size-4" />
+							<span className="text-muted-foreground">Work Pool</span>
+							<span>{flowRun.work_pool_name}</span>
+						</Link>
+					)}
+					{flowRun.work_pool_name && flowRun.work_queue_name && (
+						<Link
+							to="/work-pools/work-pool/$workPoolName"
+							params={{ workPoolName: flowRun.work_pool_name }}
+							search={{ tab: "Work Queues" }}
+							className="flex items-center gap-1 hover:underline"
+						>
+							<Icon id="ListOrdered" className="size-4" />
+							<span className="text-muted-foreground">Work Queue</span>
+							<span>{flowRun.work_queue_name}</span>
+						</Link>
+					)}
+					{parentFlowRun && (
+						<Link
+							to="/runs/flow-run/$id"
+							params={{ id: parentFlowRun.id }}
+							className="flex items-center gap-1 hover:underline"
+						>
+							<Icon id="Workflow" className="size-4" />
+							<span className="text-muted-foreground">Parent Run</span>
+							<span>{parentFlowRun.name ?? "..."}</span>
 						</Link>
 					)}
 				</div>
