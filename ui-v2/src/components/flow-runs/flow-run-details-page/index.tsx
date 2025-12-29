@@ -1,14 +1,18 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { queryKeyFactory as artifactsQueryKeyFactory } from "@/api/artifacts";
 import {
 	buildGetFlowRunDetailsQuery,
 	type FlowRun,
+	queryKeyFactory as flowRunsQueryKeyFactory,
 	useDeleteFlowRun,
 	useSetFlowRunState,
 } from "@/api/flow-runs";
+import { queryKeyFactory as logsQueryKeyFactory } from "@/api/logs";
+import { queryKeyFactory as taskRunsQueryKeyFactory } from "@/api/task-runs";
 import { FlowRunGraph } from "@/components/flow-runs/flow-run-graph";
 import {
 	Breadcrumb,
@@ -34,10 +38,12 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Icon } from "@/components/ui/icons";
 import { JsonInput } from "@/components/ui/json-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StateBadge } from "@/components/ui/state-badge";
+import { TabErrorState } from "@/components/ui/tab-error-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlowRunArtifacts } from "./flow-run-artifacts";
 import { FlowRunDetails } from "./flow-run-details";
@@ -67,6 +73,7 @@ export const FlowRunDetailsPage = ({
 }: FlowRunDetailsPageProps) => {
 	const [refetchInterval, setRefetchInterval] = useState<number | false>(false);
 	const [fullscreen, setFullscreen] = useState(false);
+	const queryClient = useQueryClient();
 	const { data: flowRun } = useSuspenseQuery({
 		...buildGetFlowRunDetailsQuery(id),
 		refetchInterval,
@@ -98,6 +105,30 @@ export const FlowRunDetailsPage = ({
 		});
 	};
 
+	const retryLogs = useCallback(() => {
+		void queryClient.invalidateQueries({
+			queryKey: logsQueryKeyFactory.all(),
+		});
+	}, [queryClient]);
+
+	const retryTaskRuns = useCallback(() => {
+		void queryClient.invalidateQueries({
+			queryKey: taskRunsQueryKeyFactory.all(),
+		});
+	}, [queryClient]);
+
+	const retrySubflows = useCallback(() => {
+		void queryClient.invalidateQueries({
+			queryKey: flowRunsQueryKeyFactory.lists(),
+		});
+	}, [queryClient]);
+
+	const retryArtifacts = useCallback(() => {
+		void queryClient.invalidateQueries({
+			queryKey: artifactsQueryKeyFactory.all(),
+		});
+	}, [queryClient]);
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-col gap-2">
@@ -120,26 +151,66 @@ export const FlowRunDetailsPage = ({
 					onTabChange={onTabChange}
 					flowRun={flowRun}
 					logsContent={
-						<Suspense fallback={<LogsSkeleton />}>
-							<FlowRunLogs flowRun={flowRun} />
-						</Suspense>
+						<ErrorBoundary
+							fallback={
+								<TabErrorState
+									message="Failed to load logs"
+									onRetry={retryLogs}
+								/>
+							}
+						>
+							<Suspense fallback={<LogsSkeleton />}>
+								<FlowRunLogs flowRun={flowRun} />
+							</Suspense>
+						</ErrorBoundary>
 					}
 					taskRunsContent={
-						<Suspense fallback={<TaskRunsSkeleton />}>
-							<FlowRunTaskRuns flowRunId={id} />
-						</Suspense>
+						<ErrorBoundary
+							fallback={
+								<TabErrorState
+									message="Failed to load task runs"
+									onRetry={retryTaskRuns}
+								/>
+							}
+						>
+							<Suspense fallback={<TaskRunsSkeleton />}>
+								<FlowRunTaskRuns flowRunId={id} />
+							</Suspense>
+						</ErrorBoundary>
 					}
 					subflowRunsContent={
-						<Suspense fallback={<SubflowsSkeleton />}>
-							<FlowRunSubflows parentFlowRunId={id} />
-						</Suspense>
+						<ErrorBoundary
+							fallback={
+								<TabErrorState
+									message="Failed to load subflow runs"
+									onRetry={retrySubflows}
+								/>
+							}
+						>
+							<Suspense fallback={<SubflowsSkeleton />}>
+								<FlowRunSubflows parentFlowRunId={id} />
+							</Suspense>
+						</ErrorBoundary>
 					}
 					artifactsContent={
-						<Suspense fallback={<ArtifactsSkeleton />}>
-							<FlowRunArtifacts flowRun={flowRun} />
+						<ErrorBoundary
+							fallback={
+								<TabErrorState
+									message="Failed to load artifacts"
+									onRetry={retryArtifacts}
+								/>
+							}
+						>
+							<Suspense fallback={<ArtifactsSkeleton />}>
+								<FlowRunArtifacts flowRun={flowRun} />
+							</Suspense>
+						</ErrorBoundary>
+					}
+					detailsContent={
+						<Suspense fallback={<DetailsSkeleton />}>
+							<FlowRunDetails flowRun={flowRun} />
 						</Suspense>
 					}
-					detailsContent={<FlowRunDetails flowRun={flowRun} />}
 					parametersContent={
 						<div className="space-y-4">
 							<div className="flex justify-end">
@@ -460,6 +531,29 @@ const SubflowsSkeleton = () => {
 				<Skeleton className="h-24" />
 				<Skeleton className="h-24" />
 				<Skeleton className="h-24" />
+			</div>
+		</div>
+	);
+};
+
+const DetailsSkeleton = () => {
+	return (
+		<div className="space-y-4">
+			<div className="flex flex-col gap-1">
+				<Skeleton className="h-4 w-20" />
+				<Skeleton className="h-5 w-12" />
+			</div>
+			<div className="flex flex-col gap-1">
+				<Skeleton className="h-4 w-16" />
+				<Skeleton className="h-5 w-32" />
+			</div>
+			<div className="flex flex-col gap-1">
+				<Skeleton className="h-4 w-24" />
+				<Skeleton className="h-5 w-32" />
+			</div>
+			<div className="flex flex-col gap-1">
+				<Skeleton className="h-4 w-24" />
+				<Skeleton className="h-5 w-64" />
 			</div>
 		</div>
 	);
