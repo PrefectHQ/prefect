@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -8,12 +9,34 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
+import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
 
 export const columns: ColumnDef<Deployment>[] = [
+	{
+		id: "select",
+		header: ({ table }) => (
+			<Checkbox
+				checked={table.getIsAllPageRowsSelected()}
+				onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+				aria-label="Select all"
+			/>
+		),
+		cell: ({ row }) => (
+			<Checkbox
+				checked={row.getIsSelected()}
+				onCheckedChange={(value) => row.toggleSelected(!!value)}
+				aria-label="Select row"
+			/>
+		),
+		enableSorting: false,
+		enableHiding: false,
+		maxSize: 20,
+		minSize: 20,
+	},
 	{
 		accessorKey: "name",
 		header: "Name",
@@ -48,51 +71,12 @@ export const columns: ColumnDef<Deployment>[] = [
 	{
 		accessorKey: "schedules",
 		header: "Schedules",
-		cell: ({ row }) => (
-			<div className="flex flex-col gap-1">
-				{row.original.schedules?.map((schedule) => {
-					if (
-						schedule.schedule &&
-						typeof schedule.schedule === "object" &&
-						"cron" in schedule.schedule
-					) {
-						const cronExpression = schedule.schedule.cron;
-						return (
-							<span key={schedule.id} className="text-xs">
-								Cron: {cronExpression}
-							</span>
-						);
-					}
-					if (
-						schedule.schedule &&
-						typeof schedule.schedule === "object" &&
-						"interval" in schedule.schedule
-					) {
-						return (
-							<span key={schedule.id} className="text-xs">
-								Interval: {schedule.schedule.interval} seconds
-							</span>
-						);
-					}
-					if (
-						schedule.schedule &&
-						typeof schedule.schedule === "object" &&
-						"rrule" in schedule.schedule
-					) {
-						return (
-							<span key={schedule.id} className="text-xs">
-								RRule: {schedule.schedule.rrule}
-							</span>
-						);
-					}
-					return (
-						<span key={schedule.id} className="text-xs">
-							{JSON.stringify(schedule.schedule)}
-						</span>
-					);
-				})}
-			</div>
-		),
+		cell: ({ row }) => {
+			const schedules = row.original.schedules;
+			if (!schedules || schedules.length === 0) return null;
+			return <ScheduleBadgeGroup schedules={schedules} />;
+		},
+		size: 150,
 	},
 	{
 		accessorKey: "activity",
@@ -127,5 +111,7 @@ export const columns: ColumnDef<Deployment>[] = [
 				</DropdownMenu>
 			);
 		},
+		minSize: 30,
+		maxSize: 30,
 	},
 ];
