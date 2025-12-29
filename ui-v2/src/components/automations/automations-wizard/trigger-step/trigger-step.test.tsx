@@ -42,7 +42,7 @@ describe("TriggerStep", () => {
 		expect(screen.getByLabelText("Trigger Template")).toBeVisible();
 	});
 
-	it("shows placeholder text when deployment-status template is selected", async () => {
+	it("can select deployment-status template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
 		render(<TriggerStepFormContainer />);
@@ -50,9 +50,9 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Deployment status" }));
 
-		expect(
-			screen.getByText("Deployment status trigger fields coming soon"),
-		).toBeVisible();
+		// Should show the DeploymentStatusTriggerFields component
+		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Threshold")).toBeVisible();
 	});
 
 	it("can select flow-run-state template and shows trigger fields", async () => {
@@ -68,7 +68,7 @@ describe("TriggerStep", () => {
 		expect(screen.getByLabelText("Threshold")).toBeVisible();
 	});
 
-	it("can select work-pool-status template", async () => {
+	it("can select work-pool-status template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
 		render(<TriggerStepFormContainer />);
@@ -76,12 +76,12 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Work pool status" }));
 
-		expect(
-			screen.getByText("Work pool status trigger fields coming soon"),
-		).toBeVisible();
+		// Should show the WorkPoolStatusTriggerFields component
+		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Threshold")).toBeVisible();
 	});
 
-	it("can select work-queue-status template", async () => {
+	it("can select work-queue-status template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
 		render(<TriggerStepFormContainer />);
@@ -89,12 +89,12 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Work queue status" }));
 
-		expect(
-			screen.getByText("Work queue status trigger fields coming soon"),
-		).toBeVisible();
+		// Should show the WorkQueueStatusTriggerFields component
+		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Threshold")).toBeVisible();
 	});
 
-	it("can select custom template", async () => {
+	it("can select custom template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
 		render(<TriggerStepFormContainer />);
@@ -102,6 +102,11 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Custom" }));
 
-		expect(screen.getByText("Custom trigger fields coming soon")).toBeVisible();
+		// Should show the CustomTriggerFields component
+		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Threshold")).toBeVisible();
+		expect(
+			screen.getByLabelText("Expected Events (one per line)"),
+		).toBeVisible();
 	});
 });
