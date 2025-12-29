@@ -623,4 +623,44 @@ describe("AutomationWizard", () => {
 			expect(screen.getByRole("button", { name: /save/i })).toBeVisible();
 		});
 	});
+
+	describe("form submission", () => {
+		it("renders Save button on final step that can be clicked", async () => {
+			const user = userEvent.setup();
+
+			await waitFor(() =>
+				render(<AutomationWizardWithRouter />, { wrapper: createWrapper() }),
+			);
+
+			// Navigate through wizard to Details step
+			await user.click(screen.getByLabelText("Trigger Template"));
+			await user.click(screen.getByRole("option", { name: "Flow run state" }));
+			await user.click(screen.getByRole("button", { name: /next/i }));
+
+			await waitFor(() => {
+				expect(screen.getByLabelText(/select action/i)).toBeVisible();
+			});
+
+			await user.click(screen.getByLabelText(/select action/i));
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+			await user.click(screen.getByRole("button", { name: /next/i }));
+
+			await waitFor(() => {
+				expect(screen.getByLabelText(/automation name/i)).toBeVisible();
+			});
+
+			// Fill in automation name
+			await user.type(
+				screen.getByLabelText(/automation name/i),
+				"Test Automation",
+			);
+
+			// Save button should be visible and clickable
+			const saveButton = screen.getByRole("button", { name: /save/i });
+			expect(saveButton).toBeVisible();
+			expect(saveButton).not.toBeDisabled();
+		});
+	});
 });
