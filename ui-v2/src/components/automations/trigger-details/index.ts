@@ -1,3 +1,4 @@
+export { TriggerDetailsCustom } from "./trigger-details-custom";
 export {
 	// Constants
 	AUTOMATION_TRIGGER_TEMPLATES,
