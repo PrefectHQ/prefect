@@ -55,6 +55,7 @@ async def agit_clone(
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
+    name: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Asynchronously clones a git repository into the current working directory.
@@ -68,6 +69,8 @@ async def agit_clone(
             the repository will be cloned using the default git credentials
         credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
             credentials to use for cloning the repository.
+        name: the name of the local directory to clone into; if not provided, the name will be
+            inferred from the repository URL
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -89,6 +92,7 @@ async def agit_clone(
         commit_sha=commit_sha,
         include_submodules=include_submodules,
         directories=directories,
+        name=name,
     )
 
     await _pull_git_repository_with_retries(storage)
@@ -105,6 +109,7 @@ def git_clone(
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
+    name: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
@@ -119,6 +124,8 @@ def git_clone(
         credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
             credentials to use for cloning the repository.
         directories: Specify directories you want to be included (uses git sparse-checkout)
+        name: the name of the local directory to clone into; if not provided, the name will be
+            inferred from the repository URL
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -184,6 +191,15 @@ def git_clone(
                 repository: https://github.com/org/repo.git
                 directories: ["dir_1", "dir_2", "prefect"]
         ```
+
+        Clone a repository with a custom directory name:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.git_clone:
+                repository: https://github.com/org/repo.git
+                branch: dev
+                name: my-custom-name
+        ```
     """
     if access_token and credentials:
         raise ValueError(
@@ -199,6 +215,7 @@ def git_clone(
         commit_sha=commit_sha,
         include_submodules=include_submodules,
         directories=directories,
+        name=name,
     )
 
     run_coro_as_sync(_pull_git_repository_with_retries(storage))
