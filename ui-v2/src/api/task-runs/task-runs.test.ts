@@ -184,7 +184,10 @@ describe("task runs api", () => {
 			// Setup mock server error response
 			server.use(
 				http.post(buildApiUrl(`/task_runs/${taskRunId}/set_state`), () => {
-					return new HttpResponse(null, { status: 500 });
+					return new HttpResponse(
+						JSON.stringify({ detail: "Internal server error" }),
+						{ status: 500 },
+					);
 				}),
 			);
 
