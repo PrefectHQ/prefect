@@ -1,0 +1,937 @@
+{
+    "$defs": {
+        "ConcurrencyLimitSpec": {
+            "properties": {
+                "limit": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Limit"
+                },
+                "collision_strategy": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Collision Strategy"
+                },
+                "grace_period_seconds": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Grace Period Seconds"
+                }
+            },
+            "title": "ConcurrencyLimitSpec",
+            "type": "object"
+        },
+        "CronSchedule": {
+            "additionalProperties": false,
+            "description": "Cron schedule\n\nNOTE: If the timezone is a DST-observing one, then the schedule will adjust\nitself appropriately. Cron's rules for DST are based on schedule times, not\nintervals. This means that an hourly cron schedule will fire on every new\nschedule hour, not every elapsed hour; for example, when clocks are set back\nthis will result in a two-hour pause as the schedule will fire *the first\ntime* 1am is reached and *the first time* 2am is reached, 120 minutes later.\nLonger schedules, such as one that fires at 9am every morning, will\nautomatically adjust for DST.\n\nArgs:\n    cron (str): a valid cron string\n    timezone (str): a valid timezone string in IANA tzdata format (for example,\n        America/New_York).\n    day_or (bool, optional): Control how croniter handles `day` and `day_of_week`\n        entries. Defaults to True, matching cron which connects those values using\n        OR. If the switch is set to False, the values are connected using AND. This\n        behaves like fcron and enables you to e.g. define a job that executes each\n        2nd friday of a month by setting the days of month and the weekday.",
+            "properties": {
+                "cron": {
+                    "examples": [
+                        "0 0 * * *"
+                    ],
+                    "title": "Cron",
+                    "type": "string"
+                },
+                "timezone": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "examples": [
+                        "America/New_York"
+                    ],
+                    "title": "Timezone"
+                },
+                "day_or": {
+                    "default": true,
+                    "description": "Control croniter behavior for handling day and day_of_week entries.",
+                    "title": "Day Or",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "cron"
+            ],
+            "title": "CronSchedule",
+            "type": "object"
+        },
+        "DeploymentConfig": {
+            "properties": {
+                "name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Name"
+                },
+                "version": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Version"
+                },
+                "version_type": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Version Type"
+                },
+                "tags": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "items": {},
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Tags"
+                },
+                "description": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Description"
+                },
+                "schedule": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/RawScheduleConfig"
+                        },
+                        {
+                            "$ref": "#/$defs/DeploymentScheduleCreate"
+                        },
+                        {
+                            "$ref": "#/$defs/IntervalSchedule"
+                        },
+                        {
+                            "$ref": "#/$defs/CronSchedule"
+                        },
+                        {
+                            "$ref": "#/$defs/RRuleSchedule"
+                        },
+                        {
+                            "$ref": "#/$defs/NoSchedule"
+                        },
+                        {
+                            "additionalProperties": {
+                                "type": "null"
+                            },
+                            "type": "object"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Schedule"
+                },
+                "schedules": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/$defs/RawScheduleConfig"
+                                    },
+                                    {
+                                        "$ref": "#/$defs/DeploymentScheduleCreate"
+                                    },
+                                    {
+                                        "$ref": "#/$defs/IntervalSchedule"
+                                    },
+                                    {
+                                        "$ref": "#/$defs/CronSchedule"
+                                    },
+                                    {
+                                        "$ref": "#/$defs/RRuleSchedule"
+                                    },
+                                    {
+                                        "$ref": "#/$defs/NoSchedule"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "type": "null"
+                                        },
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Schedules"
+                },
+                "paused": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Paused"
+                },
+                "concurrency_limit": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "$ref": "#/$defs/ConcurrencyLimitSpec"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Concurrency Limit"
+                },
+                "flow_name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Flow Name"
+                },
+                "entrypoint": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Entrypoint"
+                },
+                "parameters": {
+                    "additionalProperties": true,
+                    "title": "Parameters",
+                    "type": "object"
+                },
+                "enforce_parameter_schema": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Enforce Parameter Schema"
+                },
+                "build": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "additionalProperties": true,
+                            "type": "object"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Build"
+                },
+                "push": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "additionalProperties": true,
+                            "type": "object"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Push"
+                },
+                "pull": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "additionalProperties": true,
+                            "type": "object"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Pull"
+                },
+                "work_pool": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/WorkPoolConfig"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
+                "triggers": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Triggers"
+                },
+                "sla": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/$defs/TimeToCompletionSla"
+                                    },
+                                    {
+                                        "$ref": "#/$defs/LatenessSla"
+                                    },
+                                    {
+                                        "$ref": "#/$defs/FrequencySla"
+                                    }
+                                ]
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Sla"
+                }
+            },
+            "title": "DeploymentConfig",
+            "type": "object"
+        },
+        "DeploymentScheduleCreate": {
+            "additionalProperties": false,
+            "properties": {
+                "schedule": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/IntervalSchedule"
+                        },
+                        {
+                            "$ref": "#/$defs/CronSchedule"
+                        },
+                        {
+                            "$ref": "#/$defs/RRuleSchedule"
+                        },
+                        {
+                            "$ref": "#/$defs/NoSchedule"
+                        }
+                    ],
+                    "description": "The schedule for the deployment.",
+                    "title": "Schedule"
+                },
+                "active": {
+                    "default": true,
+                    "description": "Whether or not the schedule is active.",
+                    "title": "Active",
+                    "type": "boolean"
+                },
+                "max_scheduled_runs": {
+                    "anyOf": [
+                        {
+                            "exclusiveMinimum": 0,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The maximum number of scheduled runs for the schedule.",
+                    "title": "Max Scheduled Runs"
+                },
+                "parameters": {
+                    "additionalProperties": true,
+                    "description": "Parameter overrides for the schedule.",
+                    "title": "Parameters",
+                    "type": "object"
+                },
+                "slug": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "A unique identifier for the schedule.",
+                    "title": "Slug"
+                }
+            },
+            "required": [
+                "schedule"
+            ],
+            "title": "DeploymentScheduleCreate",
+            "type": "object"
+        },
+        "FrequencySla": {
+            "description": "An SLA that triggers when a completed flow run is not detected in the specified time.\n\nFor example, if stale_after is 1 hour, if a flow run does not complete\nwithin an hour of the previous flow run, the SLA will trigger.",
+            "properties": {
+                "name": {
+                    "description": "The name of the SLA. Names must be unique on a per-deployment basis.",
+                    "title": "Name",
+                    "type": "string"
+                },
+                "severity": {
+                    "default": "moderate",
+                    "description": "The severity of the SLA.",
+                    "enum": [
+                        "minor",
+                        "low",
+                        "moderate",
+                        "high",
+                        "critical"
+                    ],
+                    "title": "Severity",
+                    "type": "string"
+                },
+                "enabled": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": true,
+                    "description": "Whether the SLA is enabled.",
+                    "title": "Enabled"
+                },
+                "stale_after": {
+                    "description": "The amount of time after which a flow run is considered in violation.",
+                    "title": "Stale After",
+                    "type": "number"
+                }
+            },
+            "required": [
+                "name",
+                "stale_after"
+            ],
+            "title": "FrequencySla",
+            "type": "object"
+        },
+        "IntervalSchedule": {
+            "additionalProperties": false,
+            "description": "A schedule formed by adding `interval` increments to an `anchor_date`. If no\n`anchor_date` is supplied, the current UTC time is used.  If a\ntimezone-naive datetime is provided for `anchor_date`, it is assumed to be\nin the schedule's timezone (or UTC). Even if supplied with an IANA timezone,\nanchor dates are always stored as UTC offsets, so a `timezone` can be\nprovided to determine localization behaviors like DST boundary handling. If\nnone is provided it will be inferred from the anchor date.\n\nNOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a\nDST-observing timezone, then the schedule will adjust itself appropriately.\nIntervals greater than 24 hours will follow DST conventions, while intervals\nof less than 24 hours will follow UTC intervals. For example, an hourly\nschedule will fire every UTC hour, even across DST boundaries. When clocks\nare set back, this will result in two runs that *appear* to both be\nscheduled for 1am local time, even though they are an hour apart in UTC\ntime. For longer intervals, like a daily schedule, the interval schedule\nwill adjust for DST boundaries so that the clock-hour remains constant. This\nmeans that a daily schedule that always fires at 9am will observe DST and\ncontinue to fire at 9am in the local time zone.\n\nArgs:\n    interval (datetime.timedelta): an interval to schedule on\n    anchor_date (DateTime, optional): an anchor date to schedule increments against;\n        if not provided, the current timestamp will be used\n    timezone (str, optional): a valid timezone string",
+            "properties": {
+                "interval": {
+                    "title": "Interval",
+                    "type": "number"
+                },
+                "anchor_date": {
+                    "examples": [
+                        "2020-01-01T00:00:00Z"
+                    ],
+                    "format": "date-time",
+                    "title": "Anchor Date",
+                    "type": "string"
+                },
+                "timezone": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "examples": [
+                        "America/New_York"
+                    ],
+                    "title": "Timezone"
+                }
+            },
+            "required": [
+                "interval"
+            ],
+            "title": "IntervalSchedule",
+            "type": "object"
+        },
+        "LatenessSla": {
+            "description": "An SLA that triggers when a flow run does not start within the specified window.\n\nFor example, if you schedule the deployment to run every day at 2:00pm and you pass\nwithin=timedelta(minutes=10) to this SLA, if a run hasn't started by 2:10pm the SLA\nviolation will be recorded.",
+            "properties": {
+                "name": {
+                    "description": "The name of the SLA. Names must be unique on a per-deployment basis.",
+                    "title": "Name",
+                    "type": "string"
+                },
+                "severity": {
+                    "default": "moderate",
+                    "description": "The severity of the SLA.",
+                    "enum": [
+                        "minor",
+                        "low",
+                        "moderate",
+                        "high",
+                        "critical"
+                    ],
+                    "title": "Severity",
+                    "type": "string"
+                },
+                "enabled": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": true,
+                    "description": "Whether the SLA is enabled.",
+                    "title": "Enabled"
+                },
+                "within": {
+                    "description": "The amount of time before a flow run is considered in violation.",
+                    "title": "Within",
+                    "type": "number"
+                }
+            },
+            "required": [
+                "name",
+                "within"
+            ],
+            "title": "LatenessSla",
+            "type": "object"
+        },
+        "NoSchedule": {
+            "additionalProperties": false,
+            "properties": {},
+            "title": "NoSchedule",
+            "type": "object"
+        },
+        "RRuleSchedule": {
+            "additionalProperties": false,
+            "description": "RRule schedule, based on the iCalendar standard\n([RFC 5545](https://datatracker.ietf.org/doc/html/rfc5545)) as\nimplemented in `dateutils.rrule`.\n\nRRules are appropriate for any kind of calendar-date manipulation, including\nirregular intervals, repetition, exclusions, week day or day-of-month\nadjustments, and more.\n\nNote that as a calendar-oriented standard, `RRuleSchedules` are sensitive to\nto the initial timezone provided. A 9am daily schedule with a daylight saving\ntime-aware start date will maintain a local 9am time through DST boundaries;\na 9am daily schedule with a UTC start date will maintain a 9am UTC time.\n\nArgs:\n    rrule (str): a valid RRule string\n    timezone (str, optional): a valid timezone string",
+            "properties": {
+                "rrule": {
+                    "title": "Rrule",
+                    "type": "string"
+                },
+                "timezone": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": "UTC",
+                    "examples": [
+                        "America/New_York"
+                    ],
+                    "title": "Timezone"
+                }
+            },
+            "required": [
+                "rrule"
+            ],
+            "title": "RRuleSchedule",
+            "type": "object"
+        },
+        "RawScheduleConfig": {
+            "additionalProperties": false,
+            "description": "Strongly-typed schedule config that mirrors the CLI's accepted YAML shape.\nExactly one of cron, interval, or rrule must be provided.",
+            "properties": {
+                "cron": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Cron"
+                },
+                "interval": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Interval"
+                },
+                "rrule": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Rrule"
+                },
+                "timezone": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Timezone"
+                },
+                "anchor_date": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Anchor Date"
+                },
+                "active": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Active"
+                },
+                "parameters": {
+                    "additionalProperties": true,
+                    "title": "Parameters",
+                    "type": "object"
+                },
+                "slug": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Slug"
+                },
+                "day_or": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Day Or"
+                }
+            },
+            "title": "RawScheduleConfig",
+            "type": "object"
+        },
+        "TimeToCompletionSla": {
+            "description": "An SLA that triggers when a flow run takes longer than the specified duration.",
+            "properties": {
+                "name": {
+                    "description": "The name of the SLA. Names must be unique on a per-deployment basis.",
+                    "title": "Name",
+                    "type": "string"
+                },
+                "severity": {
+                    "default": "moderate",
+                    "description": "The severity of the SLA.",
+                    "enum": [
+                        "minor",
+                        "low",
+                        "moderate",
+                        "high",
+                        "critical"
+                    ],
+                    "title": "Severity",
+                    "type": "string"
+                },
+                "enabled": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": true,
+                    "description": "Whether the SLA is enabled.",
+                    "title": "Enabled"
+                },
+                "duration": {
+                    "description": "The maximum flow run duration allowed before the SLA is violated, expressed in seconds.",
+                    "title": "Duration",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "name",
+                "duration"
+            ],
+            "title": "TimeToCompletionSla",
+            "type": "object"
+        },
+        "WorkPoolConfig": {
+            "properties": {
+                "name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Name"
+                },
+                "work_queue_name": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Work Queue Name"
+                },
+                "job_variables": {
+                    "additionalProperties": true,
+                    "title": "Job Variables",
+                    "type": "object"
+                }
+            },
+            "title": "WorkPoolConfig",
+            "type": "object"
+        }
+    },
+    "properties": {
+        "prefect-version": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Prefect-Version"
+        },
+        "name": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Name"
+        },
+        "build": {
+            "anyOf": [
+                {
+                    "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                {
+                    "additionalProperties": true,
+                    "type": "object"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Build"
+        },
+        "push": {
+            "anyOf": [
+                {
+                    "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                {
+                    "additionalProperties": true,
+                    "type": "object"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Push"
+        },
+        "pull": {
+            "anyOf": [
+                {
+                    "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                {
+                    "additionalProperties": true,
+                    "type": "object"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Pull"
+        },
+        "deployments": {
+            "items": {
+                "$ref": "#/$defs/DeploymentConfig"
+            },
+            "title": "Deployments",
+            "type": "array"
+        }
+    },
+    "title": "Prefect YAML",
+    "type": "object",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/PrefectHQ/prefect/schemas/prefect.yaml.schema.json"
+}
