@@ -1,4 +1,5 @@
 export { TriggerDetailsCustom } from "./trigger-details-custom";
+export { TriggerDetailsFlowRunState } from "./trigger-details-flow-run-state";
 export {
 	// Constants
 	AUTOMATION_TRIGGER_TEMPLATES,
