@@ -58,16 +58,15 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 	});
 
 	const { data: parentFlowRuns } = useQuery({
-		...buildFilterFlowRunsQuery(
-			{
-				task_runs: {
-					operator: "and_",
-					id: { any_: [flowRun.parent_task_run_id ?? ""] },
-				},
-				limit: 1,
+		...buildFilterFlowRunsQuery({
+			sort: "START_TIME_DESC",
+			offset: 0,
+			limit: 1,
+			task_runs: {
+				operator: "and_",
+				id: { any_: [flowRun.parent_task_run_id ?? ""] },
 			},
-			0,
-		),
+		}),
 		enabled: !!flowRun.parent_task_run_id,
 	});
 	const parentFlowRun = parentFlowRuns?.[0];
