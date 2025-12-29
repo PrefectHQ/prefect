@@ -1,6 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { useCreateAutomation } from "@/api/automations";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Form, FormMessage } from "@/components/ui/form";
@@ -12,12 +14,15 @@ import {
 	type AutomationWizardSchema as TAutomationWizardSchema,
 } from "./automation-schema";
 import { DetailsStep } from "./details-step";
+import { transformWizardToApiPayload } from "./transform-wizard-to-api";
 import { TriggerStep } from "./trigger-step";
 
 const WIZARD_STEPS = ["Trigger", "Actions", "Details"] as const;
 type WizardStep = (typeof WIZARD_STEPS)[number];
 
 export const AutomationWizard = () => {
+	const { createAutomation, isPending } = useCreateAutomation();
+	const navigate = useNavigate();
 	const stepper = useStepper(WIZARD_STEPS.length);
 	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
@@ -56,7 +61,17 @@ export const AutomationWizard = () => {
 	};
 
 	const onSubmit = (values: TAutomationWizardSchema) => {
-		console.log(values);
+		const automationData = transformWizardToApiPayload(values);
+
+		createAutomation(automationData, {
+			onSuccess: () => {
+				toast.success("Automation created successfully");
+				void navigate({ to: "/automations" });
+			},
+			onError: (error) => {
+				toast.error(`Failed to create automation: ${error.message}`);
+			},
+		});
 	};
 
 	return (
@@ -86,7 +101,9 @@ export const AutomationWizard = () => {
 								Previous
 							</Button>
 							{stepper.isFinalStep ? (
-								<Button type="submit">Save</Button>
+								<Button type="submit" loading={isPending}>
+									Save
+								</Button>
 							) : (
 								<Button
 									type="button"
