@@ -78,6 +78,10 @@ generate-settings:
     uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
     uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
 
+# Generate prefect.yaml JSON schema for IDE support
+generate-prefect-yaml-schema:
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_prefect_yaml_schema.py
+
 generate-cli-docs:
     uv run --isolated ./scripts/generate_cli_docs.py
 
@@ -88,11 +92,13 @@ generate-docs:
     @just generate-openapi
     @echo "2. Generating settings schema and reference..."
     @just generate-settings
-    @echo "3. Generating API reference..."
+    @echo "3. Generating prefect.yaml schema..."
+    @just generate-prefect-yaml-schema
+    @echo "4. Generating API reference..."
     @just api-ref-all
-    @echo "4. Generating CLI docs..."
+    @echo "5. Generating CLI docs..."
     @just generate-cli-docs
-    @echo "5. Generating example pages..."
+    @echo "6. Generating example pages..."
     @just generate-examples
     @echo "Documentation generation complete!"
 
