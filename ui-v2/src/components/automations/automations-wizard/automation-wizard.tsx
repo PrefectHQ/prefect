@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useCreateAutomation } from "@/api/automations";
+import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Form, FormMessage } from "@/components/ui/form";
@@ -14,8 +15,9 @@ import {
 	type AutomationWizardSchema as TAutomationWizardSchema,
 } from "./automation-schema";
 import { DetailsStep } from "./details-step";
-import { transformWizardToApiPayload } from "./transform-wizard-to-api";
 import { TriggerStep } from "./trigger-step";
+
+type AutomationCreate = components["schemas"]["AutomationCreate"];
 
 const WIZARD_STEPS = ["Trigger", "Actions", "Details"] as const;
 type WizardStep = (typeof WIZARD_STEPS)[number];
@@ -61,7 +63,13 @@ export const AutomationWizard = () => {
 	};
 
 	const onSubmit = (values: TAutomationWizardSchema) => {
-		const automationData = transformWizardToApiPayload(values);
+		const automationData: AutomationCreate = {
+			name: values.name,
+			description: values.description ?? "",
+			enabled: true,
+			trigger: values.trigger,
+			actions: values.actions,
+		};
 
 		createAutomation(automationData, {
 			onSuccess: () => {
