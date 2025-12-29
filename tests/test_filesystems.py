@@ -266,6 +266,67 @@ class TestLocalFileSystem:
 
         assert (result_dir / "file.txt").read_text() == "test content"
 
+    async def test_get_directory_preserves_symlinks(self, tmp_path):
+        """Test that get_directory preserves symlinks instead of following them.
+
+        This verifies the fix for issue #7868 where symlinks were being resolved
+        and their target files copied, potentially exposing sensitive files.
+        """
+        # Create source directory structure
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+
+        # Create a real file
+        real_file = src_dir / "real_file.txt"
+        real_file.write_text("real content")
+
+        # Create a symlink within the source directory
+        symlink_file = src_dir / "link_file.txt"
+        symlink_file.symlink_to(real_file)
+
+        # Create a destination directory
+        dst_dir = tmp_path / "dst"
+        dst_dir.mkdir()
+
+        # Use LocalFileSystem to copy
+        fs = LocalFileSystem(basepath=str(src_dir))
+        await fs.get_directory(from_path=str(src_dir), local_path=str(dst_dir))
+
+        # Verify the symlink is preserved as a symlink
+        copied_symlink = dst_dir / "link_file.txt"
+        assert copied_symlink.is_symlink(), "Symlink should be preserved as a symlink"
+
+        # Verify the real file is copied
+        copied_real = dst_dir / "real_file.txt"
+        assert copied_real.exists()
+        assert copied_real.read_text() == "real content"
+
+    def test_get_directory_preserves_symlinks_sync(self, tmp_path):
+        """Test that sync get_directory also preserves symlinks."""
+        # Create source directory structure
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+
+        # Create a real file
+        real_file = src_dir / "real_file.txt"
+        real_file.write_text("real content")
+
+        # Create a symlink within the source directory
+        symlink_file = src_dir / "link_file.txt"
+        symlink_file.symlink_to(real_file)
+
+        # Create a destination directory
+        dst_dir = tmp_path / "dst"
+        dst_dir.mkdir()
+
+        # Use LocalFileSystem to copy
+        fs = LocalFileSystem(basepath=str(src_dir))
+        fs.get_directory(from_path=str(src_dir), local_path=str(dst_dir))
+
+        # Verify the symlink is preserved as a symlink
+        copied_symlink = dst_dir / "link_file.txt"
+        assert copied_symlink.is_symlink(), "Symlink should be preserved as a symlink"
+
 
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):

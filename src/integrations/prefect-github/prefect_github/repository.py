@@ -137,7 +137,10 @@ class GitHubRepository(ReadableDeploymentStorage):
             )
 
             shutil.copytree(
-                src=content_source, dst=content_destination, dirs_exist_ok=True
+                src=content_source,
+                dst=content_destination,
+                dirs_exist_ok=True,
+                symlinks=True,
             )
 
 
