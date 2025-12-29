@@ -23,7 +23,7 @@ export const ChangeFlowRunStateFields = ({
 	const stateField = form.watch(`actions.${index}.state`);
 
 	return (
-		<div>
+		<>
 			<FormField
 				control={form.control}
 				name={`actions.${index}.state`}
@@ -71,6 +71,6 @@ export const ChangeFlowRunStateFields = ({
 					</FormItem>
 				)}
 			/>
-		</div>
+		</>
 	);
 };
