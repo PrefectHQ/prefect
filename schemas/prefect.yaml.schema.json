@@ -11,8 +11,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Limit"
+                    "default": null
                 },
                 "collision_strategy": {
                     "anyOf": [
@@ -23,8 +22,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Collision Strategy"
+                    "default": null
                 },
                 "grace_period_seconds": {
                     "anyOf": [
@@ -35,11 +33,9 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Grace Period Seconds"
+                    "default": null
                 }
             },
-            "title": "ConcurrencyLimitSpec",
             "type": "object"
         },
         "CronSchedule": {
@@ -50,7 +46,6 @@
                     "examples": [
                         "0 0 * * *"
                     ],
-                    "title": "Cron",
                     "type": "string"
                 },
                 "timezone": {
@@ -65,20 +60,17 @@
                     "default": null,
                     "examples": [
                         "America/New_York"
-                    ],
-                    "title": "Timezone"
+                    ]
                 },
                 "day_or": {
                     "default": true,
                     "description": "Control croniter behavior for handling day and day_of_week entries.",
-                    "title": "Day Or",
                     "type": "boolean"
                 }
             },
             "required": [
                 "cron"
             ],
-            "title": "CronSchedule",
             "type": "object"
         },
         "DeploymentConfig": {
@@ -92,8 +84,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Name"
+                    "default": null
                 },
                 "version": {
                     "anyOf": [
@@ -104,8 +95,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Version"
+                    "default": null
                 },
                 "version_type": {
                     "anyOf": [
@@ -116,8 +106,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Version Type"
+                    "default": null
                 },
                 "tags": {
                     "anyOf": [
@@ -132,8 +121,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Tags"
+                    "default": null
                 },
                 "description": {
                     "anyOf": [
@@ -144,8 +132,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Description"
+                    "default": null
                 },
                 "schedule": {
                     "anyOf": [
@@ -177,8 +164,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Schedule"
+                    "default": null
                 },
                 "schedules": {
                     "anyOf": [
@@ -217,8 +203,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Schedules"
+                    "default": null
                 },
                 "paused": {
                     "anyOf": [
@@ -229,8 +214,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Paused"
+                    "default": null
                 },
                 "concurrency_limit": {
                     "anyOf": [
@@ -244,8 +228,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Concurrency Limit"
+                    "default": null
                 },
                 "flow_name": {
                     "anyOf": [
@@ -256,8 +239,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Flow Name"
+                    "default": null
                 },
                 "entrypoint": {
                     "anyOf": [
@@ -268,12 +250,10 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Entrypoint"
+                    "default": null
                 },
                 "parameters": {
                     "additionalProperties": true,
-                    "title": "Parameters",
                     "type": "object"
                 },
                 "enforce_parameter_schema": {
@@ -285,8 +265,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Enforce Parameter Schema"
+                    "default": null
                 },
                 "build": {
                     "anyOf": [
@@ -305,8 +284,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Build"
+                    "default": null
                 },
                 "push": {
                     "anyOf": [
@@ -325,8 +303,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Push"
+                    "default": null
                 },
                 "pull": {
                     "anyOf": [
@@ -345,8 +322,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Pull"
+                    "default": null
                 },
                 "work_pool": {
                     "anyOf": [
@@ -372,8 +348,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Triggers"
+                    "default": null
                 },
                 "sla": {
                     "anyOf": [
@@ -397,11 +372,9 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Sla"
+                    "default": null
                 }
             },
-            "title": "DeploymentConfig",
             "type": "object"
         },
         "DeploymentScheduleCreate": {
@@ -422,13 +395,11 @@
                             "$ref": "#/$defs/NoSchedule"
                         }
                     ],
-                    "description": "The schedule for the deployment.",
-                    "title": "Schedule"
+                    "description": "The schedule for the deployment."
                 },
                 "active": {
                     "default": true,
                     "description": "Whether or not the schedule is active.",
-                    "title": "Active",
                     "type": "boolean"
                 },
                 "max_scheduled_runs": {
@@ -442,13 +413,11 @@
                         }
                     ],
                     "default": null,
-                    "description": "The maximum number of scheduled runs for the schedule.",
-                    "title": "Max Scheduled Runs"
+                    "description": "The maximum number of scheduled runs for the schedule."
                 },
                 "parameters": {
                     "additionalProperties": true,
                     "description": "Parameter overrides for the schedule.",
-                    "title": "Parameters",
                     "type": "object"
                 },
                 "slug": {
@@ -461,14 +430,12 @@
                         }
                     ],
                     "default": null,
-                    "description": "A unique identifier for the schedule.",
-                    "title": "Slug"
+                    "description": "A unique identifier for the schedule."
                 }
             },
             "required": [
                 "schedule"
             ],
-            "title": "DeploymentScheduleCreate",
             "type": "object"
         },
         "FrequencySla": {
@@ -476,7 +443,6 @@
             "properties": {
                 "name": {
                     "description": "The name of the SLA. Names must be unique on a per-deployment basis.",
-                    "title": "Name",
                     "type": "string"
                 },
                 "severity": {
@@ -489,7 +455,6 @@
                         "high",
                         "critical"
                     ],
-                    "title": "Severity",
                     "type": "string"
                 },
                 "enabled": {
@@ -502,12 +467,10 @@
                         }
                     ],
                     "default": true,
-                    "description": "Whether the SLA is enabled.",
-                    "title": "Enabled"
+                    "description": "Whether the SLA is enabled."
                 },
                 "stale_after": {
                     "description": "The amount of time after which a flow run is considered in violation.",
-                    "title": "Stale After",
                     "type": "number"
                 }
             },
@@ -515,7 +478,6 @@
                 "name",
                 "stale_after"
             ],
-            "title": "FrequencySla",
             "type": "object"
         },
         "IntervalSchedule": {
@@ -523,7 +485,6 @@
             "description": "A schedule formed by adding `interval` increments to an `anchor_date`. If no\n`anchor_date` is supplied, the current UTC time is used.  If a\ntimezone-naive datetime is provided for `anchor_date`, it is assumed to be\nin the schedule's timezone (or UTC). Even if supplied with an IANA timezone,\nanchor dates are always stored as UTC offsets, so a `timezone` can be\nprovided to determine localization behaviors like DST boundary handling. If\nnone is provided it will be inferred from the anchor date.\n\nNOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a\nDST-observing timezone, then the schedule will adjust itself appropriately.\nIntervals greater than 24 hours will follow DST conventions, while intervals\nof less than 24 hours will follow UTC intervals. For example, an hourly\nschedule will fire every UTC hour, even across DST boundaries. When clocks\nare set back, this will result in two runs that *appear* to both be\nscheduled for 1am local time, even though they are an hour apart in UTC\ntime. For longer intervals, like a daily schedule, the interval schedule\nwill adjust for DST boundaries so that the clock-hour remains constant. This\nmeans that a daily schedule that always fires at 9am will observe DST and\ncontinue to fire at 9am in the local time zone.\n\nArgs:\n    interval (datetime.timedelta): an interval to schedule on\n    anchor_date (DateTime, optional): an anchor date to schedule increments against;\n        if not provided, the current timestamp will be used\n    timezone (str, optional): a valid timezone string",
             "properties": {
                 "interval": {
-                    "title": "Interval",
                     "type": "number"
                 },
                 "anchor_date": {
@@ -531,7 +492,6 @@
                         "2020-01-01T00:00:00Z"
                     ],
                     "format": "date-time",
-                    "title": "Anchor Date",
                     "type": "string"
                 },
                 "timezone": {
@@ -546,14 +506,12 @@
                     "default": null,
                     "examples": [
                         "America/New_York"
-                    ],
-                    "title": "Timezone"
+                    ]
                 }
             },
             "required": [
                 "interval"
             ],
-            "title": "IntervalSchedule",
             "type": "object"
         },
         "LatenessSla": {
@@ -561,7 +519,6 @@
             "properties": {
                 "name": {
                     "description": "The name of the SLA. Names must be unique on a per-deployment basis.",
-                    "title": "Name",
                     "type": "string"
                 },
                 "severity": {
@@ -574,7 +531,6 @@
                         "high",
                         "critical"
                     ],
-                    "title": "Severity",
                     "type": "string"
                 },
                 "enabled": {
@@ -587,12 +543,10 @@
                         }
                     ],
                     "default": true,
-                    "description": "Whether the SLA is enabled.",
-                    "title": "Enabled"
+                    "description": "Whether the SLA is enabled."
                 },
                 "within": {
                     "description": "The amount of time before a flow run is considered in violation.",
-                    "title": "Within",
                     "type": "number"
                 }
             },
@@ -600,13 +554,11 @@
                 "name",
                 "within"
             ],
-            "title": "LatenessSla",
             "type": "object"
         },
         "NoSchedule": {
             "additionalProperties": false,
             "properties": {},
-            "title": "NoSchedule",
             "type": "object"
         },
         "RRuleSchedule": {
@@ -614,7 +566,6 @@
             "description": "RRule schedule, based on the iCalendar standard\n([RFC 5545](https://datatracker.ietf.org/doc/html/rfc5545)) as\nimplemented in `dateutils.rrule`.\n\nRRules are appropriate for any kind of calendar-date manipulation, including\nirregular intervals, repetition, exclusions, week day or day-of-month\nadjustments, and more.\n\nNote that as a calendar-oriented standard, `RRuleSchedules` are sensitive to\nto the initial timezone provided. A 9am daily schedule with a daylight saving\ntime-aware start date will maintain a local 9am time through DST boundaries;\na 9am daily schedule with a UTC start date will maintain a 9am UTC time.\n\nArgs:\n    rrule (str): a valid RRule string\n    timezone (str, optional): a valid timezone string",
             "properties": {
                 "rrule": {
-                    "title": "Rrule",
                     "type": "string"
                 },
                 "timezone": {
@@ -629,14 +580,12 @@
                     "default": "UTC",
                     "examples": [
                         "America/New_York"
-                    ],
-                    "title": "Timezone"
+                    ]
                 }
             },
             "required": [
                 "rrule"
             ],
-            "title": "RRuleSchedule",
             "type": "object"
         },
         "RawScheduleConfig": {
@@ -652,8 +601,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Cron"
+                    "default": null
                 },
                 "interval": {
                     "anyOf": [
@@ -664,8 +612,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Interval"
+                    "default": null
                 },
                 "rrule": {
                     "anyOf": [
@@ -676,8 +623,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Rrule"
+                    "default": null
                 },
                 "timezone": {
                     "anyOf": [
@@ -688,8 +634,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Timezone"
+                    "default": null
                 },
                 "anchor_date": {
                     "anyOf": [
@@ -700,8 +645,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Anchor Date"
+                    "default": null
                 },
                 "active": {
                     "anyOf": [
@@ -715,12 +659,10 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Active"
+                    "default": null
                 },
                 "parameters": {
                     "additionalProperties": true,
-                    "title": "Parameters",
                     "type": "object"
                 },
                 "slug": {
@@ -732,8 +674,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Slug"
+                    "default": null
                 },
                 "day_or": {
                     "anyOf": [
@@ -747,11 +688,9 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Day Or"
+                    "default": null
                 }
             },
-            "title": "RawScheduleConfig",
             "type": "object"
         },
         "TimeToCompletionSla": {
@@ -759,7 +698,6 @@
             "properties": {
                 "name": {
                     "description": "The name of the SLA. Names must be unique on a per-deployment basis.",
-                    "title": "Name",
                     "type": "string"
                 },
                 "severity": {
@@ -772,7 +710,6 @@
                         "high",
                         "critical"
                     ],
-                    "title": "Severity",
                     "type": "string"
                 },
                 "enabled": {
@@ -785,12 +722,10 @@
                         }
                     ],
                     "default": true,
-                    "description": "Whether the SLA is enabled.",
-                    "title": "Enabled"
+                    "description": "Whether the SLA is enabled."
                 },
                 "duration": {
                     "description": "The maximum flow run duration allowed before the SLA is violated, expressed in seconds.",
-                    "title": "Duration",
                     "type": "integer"
                 }
             },
@@ -798,7 +733,6 @@
                 "name",
                 "duration"
             ],
-            "title": "TimeToCompletionSla",
             "type": "object"
         },
         "WorkPoolConfig": {
@@ -812,8 +746,7 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Name"
+                    "default": null
                 },
                 "work_queue_name": {
                     "anyOf": [
@@ -824,16 +757,13 @@
                             "type": "null"
                         }
                     ],
-                    "default": null,
-                    "title": "Work Queue Name"
+                    "default": null
                 },
                 "job_variables": {
                     "additionalProperties": true,
-                    "title": "Job Variables",
                     "type": "object"
                 }
             },
-            "title": "WorkPoolConfig",
             "type": "object"
         }
     },
@@ -847,8 +777,7 @@
                     "type": "null"
                 }
             ],
-            "default": null,
-            "title": "Prefect-Version"
+            "default": null
         },
         "name": {
             "anyOf": [
@@ -859,8 +788,7 @@
                     "type": "null"
                 }
             ],
-            "default": null,
-            "title": "Name"
+            "default": null
         },
         "build": {
             "anyOf": [
@@ -879,8 +807,7 @@
                     "type": "null"
                 }
             ],
-            "default": null,
-            "title": "Build"
+            "default": null
         },
         "push": {
             "anyOf": [
@@ -899,8 +826,7 @@
                     "type": "null"
                 }
             ],
-            "default": null,
-            "title": "Push"
+            "default": null
         },
         "pull": {
             "anyOf": [
@@ -919,19 +845,17 @@
                     "type": "null"
                 }
             ],
-            "default": null,
-            "title": "Pull"
+            "default": null
         },
         "deployments": {
             "items": {
                 "$ref": "#/$defs/DeploymentConfig"
             },
-            "title": "Deployments",
             "type": "array"
         }
     },
-    "title": "Prefect YAML",
     "type": "object",
+    "title": "Prefect YAML",
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://github.com/PrefectHQ/prefect/schemas/prefect.yaml.schema.json"
 }
