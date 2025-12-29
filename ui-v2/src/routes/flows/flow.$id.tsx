@@ -7,7 +7,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
-import { buildFilterDeploymentsQuery } from "@/api/deployments";
+import { buildPaginateDeploymentsQuery } from "@/api/deployments";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
@@ -18,6 +18,7 @@ import {
 	buildDeploymentsCountByFlowQuery,
 	buildFLowDetailsQuery,
 } from "@/api/flows";
+import type { components } from "@/api/prefect";
 import {
 	buildCountTaskRunsQuery,
 	buildGetFlowRunsTaskRunsCountQuery,
@@ -64,10 +65,14 @@ const searchParams = z
 		seconds: z.number().int().positive().optional(),
 		startDateTime: z.date().optional(),
 		endDateTime: z.date().optional(),
-		"deployments.page": z.number().int().nonnegative().optional().default(0),
+		"deployments.page": z.number().int().positive().optional().default(1),
 		"deployments.limit": z.number().int().positive().optional().default(10),
 		"deployments.nameLike": z.string().optional(),
 		"deployments.tags": z.array(z.string()).optional(),
+		"deployments.sort": z
+			.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
+			.optional()
+			.default("NAME_ASC"),
 	})
 	.optional()
 	.default({});
@@ -214,7 +219,7 @@ const useDeploymentSearch = () => {
 				search: (prev) => ({
 					...prev,
 					"deployments.nameLike": deploymentSearch || undefined,
-					"deployments.page": 0,
+					"deployments.page": 1,
 				}),
 				replace: true,
 			});
@@ -236,7 +241,7 @@ const useDeploymentTagsFilter = () => {
 				search: (prev) => ({
 					...prev,
 					"deployments.tags": tags.length > 0 ? tags : undefined,
-					"deployments.page": 0,
+					"deployments.page": 1,
 				}),
 				replace: true,
 			});
@@ -245,6 +250,58 @@ const useDeploymentTagsFilter = () => {
 	);
 
 	return [search["deployments.tags"] ?? [], onDeploymentTagsChange] as const;
+};
+
+const useDeploymentSort = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const onDeploymentSortChange = useCallback(
+		(sort: components["schemas"]["DeploymentSort"]) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"deployments.sort": sort,
+					"deployments.page": 1,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [search["deployments.sort"], onDeploymentSortChange] as const;
+};
+
+const useDeploymentPagination = () => {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	const deploymentPagination = useMemo(
+		() => ({
+			page: search["deployments.page"],
+			limit: search["deployments.limit"],
+		}),
+		[search["deployments.page"], search["deployments.limit"]],
+	);
+
+	const onDeploymentPaginationChange = useCallback(
+		(newPagination: { page: number; limit: number }) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					"deployments.page": newPagination.page,
+					"deployments.limit": newPagination.limit,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	return [deploymentPagination, onDeploymentPaginationChange] as const;
 };
 
 const FlowDetailRoute = () => {
@@ -261,6 +318,9 @@ const FlowDetailRoute = () => {
 	// Navigation hooks for deployments
 	const [deploymentSearch, onDeploymentSearchChange] = useDeploymentSearch();
 	const [deploymentTags, onDeploymentTagsChange] = useDeploymentTagsFilter();
+	const [deploymentSort, onDeploymentSortChange] = useDeploymentSort();
+	const [deploymentPagination, onDeploymentPaginationChange] =
+		useDeploymentPagination();
 
 	// Suspense queries for stable data (flow)
 	const [{ data: flow }] = useSuspenseQueries({
@@ -269,10 +329,10 @@ const FlowDetailRoute = () => {
 
 	// Use useQuery for deployments to leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
-	const { data: deployments } = useQuery(
-		buildFilterDeploymentsQuery({
-			sort: "CREATED_DESC",
-			offset: search["deployments.page"] * search["deployments.limit"],
+	const { data: deploymentsPage } = useQuery(
+		buildPaginateDeploymentsQuery({
+			sort: search["deployments.sort"],
+			page: search["deployments.page"],
 			limit: search["deployments.limit"],
 			flows: { operator: "and_", id: { any_: [id] } },
 			deployments: {
@@ -337,7 +397,9 @@ const FlowDetailRoute = () => {
 			flowRuns={flowRuns}
 			flowRunsCount={flowRunsPage?.count ?? 0}
 			flowRunsPages={flowRunsPage?.pages ?? 0}
-			deployments={deployments ?? []}
+			deployments={deploymentsPage?.results ?? []}
+			deploymentsCount={deploymentsPage?.count ?? 0}
+			deploymentsPages={deploymentsPage?.pages ?? 0}
 			tab={search.tab}
 			pagination={pagination}
 			onPaginationChange={onPaginationChange}
@@ -352,6 +414,10 @@ const FlowDetailRoute = () => {
 			onDeploymentSearchChange={onDeploymentSearchChange}
 			deploymentTags={deploymentTags}
 			onDeploymentTagsChange={onDeploymentTagsChange}
+			deploymentSort={deploymentSort}
+			onDeploymentSortChange={onDeploymentSortChange}
+			deploymentPagination={deploymentPagination}
+			onDeploymentPaginationChange={onDeploymentPaginationChange}
 		/>
 	);
 };
@@ -378,11 +444,9 @@ export const Route = createFileRoute("/flows/flow/$id")({
 
 		// Prefetch deployments with filter parameters
 		void context.queryClient.prefetchQuery(
-			buildFilterDeploymentsQuery({
-				sort: "CREATED_DESC",
-				offset:
-					deps.flowRunsDeps["deployments.page"] *
-					deps.flowRunsDeps["deployments.limit"],
+			buildPaginateDeploymentsQuery({
+				sort: deps.flowRunsDeps["deployments.sort"],
+				page: deps.flowRunsDeps["deployments.page"],
 				limit: deps.flowRunsDeps["deployments.limit"],
 				flows: { operator: "and_", id: { any_: [id] } },
 				deployments: {
