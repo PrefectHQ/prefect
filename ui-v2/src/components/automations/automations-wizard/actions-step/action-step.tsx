@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { ActionTypeSelect } from "./action-type-select";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
+import { FlowRunActionDescription } from "./flow-run-action-description";
 import { SelectAutomationsFields } from "./select-automations-fields";
 import { SelectDeploymentsFields } from "./select-deployments-fields";
 import { SelectWorkPoolsFields } from "./select-work-pools-fields";
@@ -72,11 +73,11 @@ const ActionTypeAdditionalFields = ({
 		case "send-notification":
 			return <div>TODO send notification</div>;
 		case "cancel-flow-run":
-			return <div>TODO cancel flow run</div>;
+			return <FlowRunActionDescription action="Cancel" />;
 		case "suspend-flow-run":
-			return <div>TODO suspend flow run</div>;
+			return <FlowRunActionDescription action="Suspend" />;
 		case "resume-flow-run":
-			return <div>TODO resume flow run</div>;
+			return <FlowRunActionDescription action="Resume" />;
 		default:
 			return null;
 	}
