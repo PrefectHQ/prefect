@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { routerDecorator } from "@/storybook/utils";
+import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { TriggerDetailsDeploymentStatus } from "./trigger-details-deployment-status";
 
 const meta = {
 	title: "Components/Automations/TriggerDetails/TriggerDetailsDeploymentStatus",
 	component: TriggerDetailsDeploymentStatus,
-	decorators: [routerDecorator],
+	decorators: [reactQueryDecorator, routerDecorator],
 } satisfies Meta<typeof TriggerDetailsDeploymentStatus>;
 
 export default meta;

@@ -1,5 +1,4 @@
-import { Typography } from "@/components/ui/typography";
-import { pluralize } from "@/utils";
+import { DeploymentLink } from "@/components/deployments/deployment-link";
 import { secondsToString } from "@/utils/seconds";
 import {
 	type AutomationTriggerEventPosture,
@@ -24,22 +23,6 @@ function getDeploymentStatusLabel(status: DeploymentStatus): string {
 	}
 }
 
-// TODO: Replace with actual DeploymentLink component from OSS-7455
-const DeploymentLinkPlaceholder = ({
-	deploymentId,
-}: {
-	deploymentId: string;
-}) => (
-	<Typography
-		variant="bodySmall"
-		className="font-medium"
-		data-testid="deployment-link-placeholder"
-	>
-		{/* TODO: This should be a clickable link to /deployments/deployment/{deploymentId} */}
-		Deployment-{deploymentId}
-	</Typography>
-);
-
 export const TriggerDetailsDeploymentStatus = ({
 	deploymentIds,
 	posture,
@@ -52,31 +35,24 @@ export const TriggerDetailsDeploymentStatus = ({
 
 	return (
 		<div className="flex flex-wrap gap-1 items-center">
-			<Typography variant="bodySmall">When</Typography>
+			<span>When</span>
 
 			{isAnyDeployment ? (
-				<Typography variant="bodySmall">any deployment</Typography>
+				<span>any deployment</span>
 			) : (
-				<>
-					<Typography variant="bodySmall">
-						{pluralize(deploymentIds.length, "deployment")}
-					</Typography>
-					{deploymentIds.map((deploymentId, index) => (
-						<span key={deploymentId} className="flex items-center gap-1">
-							<DeploymentLinkPlaceholder deploymentId={deploymentId} />
-							{index === deploymentIds.length - 2 && (
-								<Typography variant="bodySmall">or</Typography>
-							)}
-						</span>
-					))}
-				</>
+				deploymentIds.map((deploymentId, index) => (
+					<span key={deploymentId} className="flex items-center gap-1">
+						<DeploymentLink deploymentId={deploymentId} />
+						{index === deploymentIds.length - 2 && <span>or</span>}
+					</span>
+				))
 			)}
 
-			<Typography variant="bodySmall">{postureLabel}</Typography>
-			<Typography variant="bodySmall">{statusLabel}</Typography>
+			<span>{postureLabel}</span>
+			<span>{statusLabel}</span>
 
 			{posture === "Proactive" && time !== undefined && time > 0 && (
-				<Typography variant="bodySmall">for {secondsToString(time)}</Typography>
+				<span>for {secondsToString(time)}</span>
 			)}
 		</div>
 	);
