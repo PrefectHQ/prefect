@@ -134,6 +134,7 @@ export type EventTrigger = z.infer<typeof EventTriggerSchema>;
 export const AutomationWizardSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
+	triggerTemplate: TriggerTemplateSchema.optional(),
 	trigger: EventTriggerSchema,
 	actions: z.array(
 		z.union([
