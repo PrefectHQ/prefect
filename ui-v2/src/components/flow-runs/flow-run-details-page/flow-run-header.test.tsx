@@ -31,6 +31,11 @@ const MOCK_DEPLOYMENT = createFakeDeployment({
 	name: "Test Deployment Name",
 });
 
+const MOCK_PARENT_FLOW_RUN = createFakeFlowRun({
+	id: "parent-flow-run-id",
+	name: "parent-flow-run",
+});
+
 describe("FlowRunHeader", () => {
 	const mockFlowRun = createFakeFlowRun({
 		id: "test-flow-run-id",
@@ -89,10 +94,24 @@ describe("FlowRunHeader", () => {
 			component: () => <div>Deployment Page</div>,
 		});
 
+		const workPoolRoute = createRoute({
+			path: "/work-pools/work-pool/$workPoolName",
+			getParentRoute: () => rootRoute,
+			component: () => <div>Work Pool Page</div>,
+		});
+
+		const flowRunRoute = createRoute({
+			path: "/runs/flow-run/$id",
+			getParentRoute: () => rootRoute,
+			component: () => <div>Flow Run Page</div>,
+		});
+
 		const routeTree = rootRoute.addChildren([
 			runsRoute,
 			flowRoute,
 			deploymentRoute,
+			workPoolRoute,
+			flowRunRoute,
 		]);
 
 		const router = createRouter({
@@ -122,6 +141,9 @@ describe("FlowRunHeader", () => {
 			}),
 			http.post(buildApiUrl("/task_runs/count"), () => {
 				return HttpResponse.json(5);
+			}),
+			http.post(buildApiUrl("/flow_runs/filter"), () => {
+				return HttpResponse.json([MOCK_PARENT_FLOW_RUN]);
 			}),
 		);
 	});
@@ -256,7 +278,8 @@ describe("FlowRunHeader", () => {
 		renderFlowRunHeader();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-work-pool")).toBeInTheDocument();
+			const workPoolElements = screen.getAllByText("test-work-pool");
+			expect(workPoolElements.length).toBeGreaterThanOrEqual(1);
 		});
 	});
 
@@ -380,6 +403,131 @@ describe("FlowRunHeader", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Test Flow Name")).toBeInTheDocument();
+		});
+	});
+
+	it("displays work pool link when work_pool_name is present", async () => {
+		renderFlowRunHeader();
+
+		await waitFor(() => {
+			expect(screen.getByText("Work Pool")).toBeInTheDocument();
+		});
+
+		const workPoolLink = screen.getByRole("link", {
+			name: /Work Pooltest-work-pool/i,
+		});
+		expect(workPoolLink).toHaveAttribute(
+			"href",
+			"/work-pools/work-pool/test-work-pool",
+		);
+	});
+
+	it("does not display work pool link when work_pool_name is not present", async () => {
+		renderFlowRunHeader({ work_pool_name: null });
+
+		await waitFor(() => {
+			expect(screen.getByText("Test Flow Name")).toBeInTheDocument();
+		});
+
+		expect(
+			screen.queryByRole("link", { name: /Work Pool/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("displays work queue link when both work_pool_name and work_queue_name are present", async () => {
+		renderFlowRunHeader({
+			work_pool_name: "test-work-pool",
+			work_queue_name: "test-work-queue",
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("Work Queue")).toBeInTheDocument();
+		});
+
+		const workQueueLink = screen.getByRole("link", {
+			name: /Work Queuetest-work-queue/i,
+		});
+		expect(workQueueLink).toHaveAttribute(
+			"href",
+			"/work-pools/work-pool/test-work-pool?tab=Work+Queues",
+		);
+	});
+
+	it("does not display work queue link when work_queue_name is not present", async () => {
+		renderFlowRunHeader({ work_queue_name: null });
+
+		await waitFor(() => {
+			expect(screen.getByText("Test Flow Name")).toBeInTheDocument();
+		});
+
+		expect(
+			screen.queryByRole("link", { name: /Work Queue/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("does not display work queue link when work_pool_name is not present", async () => {
+		renderFlowRunHeader({
+			work_pool_name: null,
+			work_queue_name: "test-work-queue",
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("Test Flow Name")).toBeInTheDocument();
+		});
+
+		expect(
+			screen.queryByRole("link", { name: /Work Queue/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("displays parent flow run link when parent_task_run_id is present", async () => {
+		renderFlowRunHeader({ parent_task_run_id: "parent-task-run-id" });
+
+		await waitFor(() => {
+			expect(screen.getByText("Parent Run")).toBeInTheDocument();
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("parent-flow-run")).toBeInTheDocument();
+		});
+
+		const parentRunLink = screen.getByRole("link", {
+			name: /Parent Runparent-flow-run/i,
+		});
+		expect(parentRunLink).toHaveAttribute(
+			"href",
+			"/runs/flow-run/parent-flow-run-id",
+		);
+	});
+
+	it("does not display parent flow run link when parent_task_run_id is not present", async () => {
+		renderFlowRunHeader({ parent_task_run_id: null });
+
+		await waitFor(() => {
+			expect(screen.getByText("Test Flow Name")).toBeInTheDocument();
+		});
+
+		expect(
+			screen.queryByRole("link", { name: /Parent Run/i }),
+		).not.toBeInTheDocument();
+	});
+
+	it("displays loading placeholder while fetching parent flow run name", async () => {
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), async () => {
+				await new Promise((resolve) => setTimeout(resolve, 100));
+				return HttpResponse.json([MOCK_PARENT_FLOW_RUN]);
+			}),
+		);
+
+		renderFlowRunHeader({ parent_task_run_id: "parent-task-run-id" });
+
+		await waitFor(() => {
+			expect(screen.getByText("Parent Run")).toBeInTheDocument();
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("parent-flow-run")).toBeInTheDocument();
 		});
 	});
 });
