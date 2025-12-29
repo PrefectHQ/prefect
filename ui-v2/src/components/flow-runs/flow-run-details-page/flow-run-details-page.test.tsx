@@ -108,7 +108,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.getByText("Runs")).toBeInTheDocument();
@@ -128,7 +130,9 @@ describe("FlowRunDetailsPage", () => {
 		const [screen] = renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 		const user = userEvent.setup();
 
@@ -153,7 +157,9 @@ describe("FlowRunDetailsPage", () => {
 		const user = userEvent.setup();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		const moreButton = screen.getByRole("button", { expanded: false });
@@ -184,7 +190,9 @@ describe("FlowRunDetailsPage", () => {
 		const user = userEvent.setup();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		const moreButton = screen.getByRole("button", { expanded: false });
@@ -234,7 +242,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("running-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "running-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.getByText("Running")).toBeInTheDocument();
@@ -259,7 +269,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("pending-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "pending-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.getByText("Pending")).toBeInTheDocument();
@@ -269,7 +281,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.getByRole("tab", { name: "Logs" })).toBeInTheDocument();
@@ -304,7 +318,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		// FlowRunDetails should show run count and flow run ID in the sidebar
@@ -335,7 +351,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage({ tab: "Logs" });
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		// Click on Details tab (visible on mobile)
@@ -349,7 +367,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		const detailsTab = screen.getByRole("tab", { name: "Details" });
@@ -376,7 +396,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("completed-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "completed-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();
@@ -405,7 +427,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("pending-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "pending-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.queryByTestId("flow-run-graph")).not.toBeInTheDocument();
@@ -430,7 +454,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("failed-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "failed-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();
@@ -455,7 +481,12 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("running-flow-run-graph")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", {
+					level: 1,
+					name: "running-flow-run-graph",
+				}),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();
@@ -467,7 +498,9 @@ describe("FlowRunDetailsPage", () => {
 		renderFlowRunDetailsPage();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { level: 1, name: "test-flow-run" }),
+			).toBeInTheDocument();
 		});
 
 		expect(screen.getByTestId("flow-run-graph")).toBeInTheDocument();

@@ -259,13 +259,6 @@ const Header = ({
 						<BreadcrumbPage className="font-semibold">
 							{flowRun.name}
 						</BreadcrumbPage>
-						{flowRun.state && (
-							<StateBadge
-								type={flowRun.state.type}
-								name={flowRun.state.name}
-								className="ml-2"
-							/>
-						)}
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
