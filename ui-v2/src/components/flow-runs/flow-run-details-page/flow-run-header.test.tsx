@@ -241,11 +241,11 @@ describe("FlowRunHeader", () => {
 		);
 	});
 
-	it("does not render View Flow link when flow_id is null", async () => {
+	it("does not render View Flow link when flow_id is undefined", async () => {
 		const flowRunWithoutFlow = createFakeFlowRun({
 			id: "test-flow-run-id",
 			name: "test-flow-run",
-			flow_id: null,
+			flow_id: undefined,
 			deployment_id: "test-deployment-id",
 			state_type: "COMPLETED",
 			state_name: "Completed",
