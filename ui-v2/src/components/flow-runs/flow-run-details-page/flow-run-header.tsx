@@ -50,7 +50,10 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 
 	const { data: taskRunCount } = useQuery({
 		...buildCountTaskRunsQuery({
-			task_runs: { flow_run_id: { any_: [flowRun.id] } },
+			task_runs: {
+				operator: "and_",
+				flow_run_id: { operator: "and_", any_: [flowRun.id], is_null_: false },
+			},
 		}),
 	});
 
