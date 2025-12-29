@@ -208,6 +208,7 @@ export const SequenceTriggerSchema: z.ZodType<
 export const AutomationWizardSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
+	triggerTemplate: TriggerTemplateSchema.optional(),
 	trigger: TriggerSchema,
 	actions: z.array(
 		z.union([
