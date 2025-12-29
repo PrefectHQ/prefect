@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useCreateAutomation } from "@/api/automations";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Form, FormMessage } from "@/components/ui/form";
 import { Stepper } from "@/components/ui/stepper";
 import { useStepper } from "@/hooks/use-stepper";
@@ -94,9 +94,11 @@ export const AutomationWizard = () => {
 						visitedSteps={stepper.visitedStepsSet}
 					/>
 					<Card className="p-4 pt-8">
-						{WIZARD_STEPS_MAP[currentStep].render()}
-						<FormMessage>{form.formState.errors.root?.message}</FormMessage>
-						<div className="mt-6 flex gap-2 justify-end">
+						<CardContent>
+							{WIZARD_STEPS_MAP[currentStep].render()}
+							<FormMessage>{form.formState.errors.root?.message}</FormMessage>
+						</CardContent>
+						<CardFooter className="mt-6 flex gap-2 justify-end">
 							<Button type="button" variant="outline">
 								<Link to="/automations">Cancel</Link>
 							</Button>
@@ -120,7 +122,7 @@ export const AutomationWizard = () => {
 									Next
 								</Button>
 							)}
-						</div>
+						</CardFooter>
 					</Card>
 				</div>
 			</form>

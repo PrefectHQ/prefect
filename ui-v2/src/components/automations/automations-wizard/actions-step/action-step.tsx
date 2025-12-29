@@ -17,7 +17,7 @@ type ActionStepProps = {
 
 export const ActionStep = ({ index, onRemove }: ActionStepProps) => {
 	return (
-		<div key={index} className="flex flex-col gap-2">
+		<div key={index} className="space-y-2">
 			<div className="flex justify-between items-center">
 				<Typography variant="body" className="font-semibold">
 					Action {index + 1}
@@ -33,7 +33,7 @@ export const ActionStep = ({ index, onRemove }: ActionStepProps) => {
 			</div>
 			<ActionTypeSelect index={index} />
 			<ActionTypeAdditionalFields index={index} />
-			<hr className="my-10" />
+			<hr className="my-8" />
 		</div>
 	);
 };

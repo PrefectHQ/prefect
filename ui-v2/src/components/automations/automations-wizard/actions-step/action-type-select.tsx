@@ -61,7 +61,7 @@ export const ActionTypeSelect = ({ index }: { index: number }) => {
 								}
 							}}
 						>
-							<SelectTrigger aria-label="select action">
+							<SelectTrigger aria-label="select action" className="w-full">
 								<SelectValue placeholder="Select action" />
 							</SelectTrigger>
 							<SelectContent>

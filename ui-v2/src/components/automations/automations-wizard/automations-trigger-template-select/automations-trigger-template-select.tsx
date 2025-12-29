@@ -32,12 +32,15 @@ export const AutomationsTriggerTemplateSelect = ({
 	value,
 }: AutomationsTriggerTemplateSelectProps) => {
 	return (
-		<div>
+		<div className="space-y-2">
 			<Label htmlFor="automations-trigger-template-select">
 				Trigger Template
 			</Label>
 			<Select value={value} onValueChange={onValueChange}>
-				<SelectTrigger id="automations-trigger-template-select">
+				<SelectTrigger
+					id="automations-trigger-template-select"
+					className="w-full"
+				>
 					<SelectValue placeholder="Select template" />
 				</SelectTrigger>
 				<SelectContent>
