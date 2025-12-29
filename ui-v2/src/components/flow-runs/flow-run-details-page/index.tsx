@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -246,7 +246,7 @@ const Header = ({
 	};
 
 	return (
-		<div className="flex flex-row justify-between">
+		<div className="flex flex-col gap-2">
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
@@ -269,39 +269,67 @@ const Header = ({
 					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="outline" className="p-2">
-						<MoreVertical className="w-4 h-4" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent>
-					{canChangeState && (
-						<DropdownMenuItem onClick={openChangeState}>
-							Change state
-						</DropdownMenuItem>
+
+			<div className="flex items-center justify-between">
+				<div className="flex items-center gap-2">
+					<h1 className="text-2xl font-semibold">{flowRun.name}</h1>
+					{flowRun.state && (
+						<StateBadge type={flowRun.state.type} name={flowRun.state.name} />
 					)}
-					<DropdownMenuItem
-						onClick={() => {
-							toast.success("Copied flow run ID to clipboard");
-							void navigator.clipboard.writeText(flowRun.id);
-						}}
-					>
-						Copy ID
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						onClick={() =>
-							confirmDelete({
-								title: "Delete Flow Run",
-								description: `Are you sure you want to delete flow run ${flowRun.name}?`,
-								onConfirm: onDeleteRunClicked,
-							})
-						}
-					>
-						Delete
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+					{flowRun.flow_id && (
+						<Link
+							to="/flows/flow/$id"
+							params={{ id: flowRun.flow_id }}
+							className="text-sm text-muted-foreground hover:underline"
+						>
+							View Flow
+						</Link>
+					)}
+					{flowRun.deployment_id && (
+						<Link
+							to="/deployments/deployment/$id"
+							params={{ id: flowRun.deployment_id }}
+							className="text-sm text-muted-foreground hover:underline"
+						>
+							View Deployment
+						</Link>
+					)}
+				</div>
+
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant="outline" className="p-2">
+							<MoreVertical className="w-4 h-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<DropdownMenuItem
+							onClick={() => {
+								toast.success("Copied flow run ID to clipboard");
+								void navigator.clipboard.writeText(flowRun.id);
+							}}
+						>
+							Copy ID
+						</DropdownMenuItem>
+						{canChangeState && (
+							<DropdownMenuItem onClick={openChangeState}>
+								Change State
+							</DropdownMenuItem>
+						)}
+						<DropdownMenuItem
+							onClick={() =>
+								confirmDelete({
+									title: "Delete Flow Run",
+									description: `Are you sure you want to delete flow run ${flowRun.name}?`,
+									onConfirm: onDeleteRunClicked,
+								})
+							}
+						>
+							Delete
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
 			<DeleteConfirmationDialog {...dialogState} />
 			<ChangeStateDialog
 				open={isChangeStateOpen}
