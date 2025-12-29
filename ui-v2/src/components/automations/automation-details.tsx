@@ -1,6 +1,7 @@
 import type { Automation } from "@/api/automations";
 import { useGetAutomationActionResources } from "@/api/automations/use-get-automation-action-resources";
 import { ActionDetails } from "@/components/automations/action-details";
+import { TriggerDetails } from "@/components/automations/trigger-details";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Typography } from "@/components/ui/typography";
@@ -30,9 +31,7 @@ export const AutomationTrigger = ({ automation }: AutomationDetailsProps) => {
 	return (
 		<div className="flex flex-col gap-1">
 			<Typography>Trigger</Typography>
-			<Typography variant="bodySmall">
-				TODO: {JSON.stringify(trigger)}
-			</Typography>
+			<TriggerDetails trigger={trigger} />
 		</div>
 	);
 };
