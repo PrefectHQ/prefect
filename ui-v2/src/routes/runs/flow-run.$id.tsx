@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildListArtifactsQuery } from "@/api/artifacts";
@@ -6,6 +6,7 @@ import { buildGetFlowRunDetailsQuery } from "@/api/flow-runs";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildPaginateTaskRunsQuery } from "@/api/task-runs";
 import { FlowRunDetailsPage } from "@/components/flow-runs/flow-run-details-page";
+import { FlowRunNotFound } from "@/components/flow-runs/flow-run-not-found";
 
 const searchParams = z.object({
 	tab: z
@@ -75,9 +76,19 @@ export const Route = createFileRoute("/runs/flow-run/$id")({
 		);
 
 		// ----- Critical data
-		await queryClient.ensureQueryData(buildGetFlowRunDetailsQuery(params.id));
+		try {
+			await queryClient.ensureQueryData(buildGetFlowRunDetailsQuery(params.id));
+		} catch (error) {
+			// Only treat "not found" errors as 404, rethrow other errors
+			if (error instanceof Error && /not found/i.test(error.message)) {
+				// eslint-disable-next-line @typescript-eslint/only-throw-error
+				throw notFound();
+			}
+			throw error;
+		}
 	},
 	wrapInSuspense: true,
+	notFoundComponent: FlowRunNotFound,
 });
 
 function RouteComponent() {
