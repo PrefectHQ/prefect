@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildListArtifactsQuery } from "@/api/artifacts";
@@ -75,7 +75,11 @@ export const Route = createFileRoute("/runs/flow-run/$id")({
 		);
 
 		// ----- Critical data
-		await queryClient.ensureQueryData(buildGetFlowRunDetailsQuery(params.id));
+		try {
+			await queryClient.ensureQueryData(buildGetFlowRunDetailsQuery(params.id));
+		} catch {
+			redirect({ to: "/runs", throw: true });
+		}
 	},
 	wrapInSuspense: true,
 });
