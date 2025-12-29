@@ -1,6 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
 import { toast } from "sonner";
+import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import type { FlowRun } from "@/api/flow-runs";
+import { buildFLowDetailsQuery } from "@/api/flows";
+import { buildCountTaskRunsQuery } from "@/api/task-runs";
+import { Badge } from "@/components/ui/badge";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -20,7 +26,9 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
+import { formatDate, secondsToApproximateString } from "@/utils";
 
 type FlowRunHeaderProps = {
 	flowRun: FlowRun;
@@ -30,30 +38,108 @@ type FlowRunHeaderProps = {
 export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
 
+	const { data: flow } = useQuery({
+		...buildFLowDetailsQuery(flowRun.flow_id),
+		enabled: !!flowRun.flow_id,
+	});
+
+	const { data: deployment } = useQuery({
+		...buildDeploymentDetailsQuery(flowRun.deployment_id ?? ""),
+		enabled: !!flowRun.deployment_id,
+	});
+
+	const { data: taskRunCount } = useQuery({
+		...buildCountTaskRunsQuery({
+			task_runs: {
+				operator: "and_",
+				flow_run_id: { operator: "and_", any_: [flowRun.id], is_null_: false },
+			},
+		}),
+	});
+
+	const formatTaskRunCount = (count: number | undefined) => {
+		if (count === undefined) return "...";
+		if (count === 0) return "None";
+		return `${count} Task run${count === 1 ? "" : "s"}`;
+	};
+
 	return (
 		<div className="flex flex-row justify-between">
-			<Breadcrumb>
-				<BreadcrumbList>
-					<BreadcrumbItem>
-						<BreadcrumbLink to="/runs" className="text-xl font-semibold">
-							Runs
-						</BreadcrumbLink>
-					</BreadcrumbItem>
-					<BreadcrumbSeparator />
-					<BreadcrumbItem className="text-xl">
-						<BreadcrumbPage className="font-semibold">
-							{flowRun.name}
-						</BreadcrumbPage>
-						{flowRun.state_type && flowRun.state_name && (
-							<StateBadge
-								type={flowRun.state_type}
-								name={flowRun.state_name}
-								className="ml-2"
-							/>
-						)}
-					</BreadcrumbItem>
-				</BreadcrumbList>
-			</Breadcrumb>
+			<div className="flex flex-col gap-2">
+				{/* Row 1 - Breadcrumb */}
+				<Breadcrumb>
+					<BreadcrumbList>
+						<BreadcrumbItem>
+							<BreadcrumbLink to="/runs" className="text-xl font-semibold">
+								Runs
+							</BreadcrumbLink>
+						</BreadcrumbItem>
+						<BreadcrumbSeparator />
+						<BreadcrumbItem className="text-xl">
+							<BreadcrumbPage className="font-semibold">
+								{flowRun.name}
+							</BreadcrumbPage>
+							{flowRun.work_pool_name && (
+								<Badge variant="outline" className="ml-2">
+									{flowRun.work_pool_name}
+								</Badge>
+							)}
+						</BreadcrumbItem>
+					</BreadcrumbList>
+				</Breadcrumb>
+
+				{/* Row 2 - Meta */}
+				<div className="flex items-center gap-4 text-sm text-muted-foreground">
+					{flowRun.state_type && flowRun.state_name && (
+						<StateBadge type={flowRun.state_type} name={flowRun.state_name} />
+					)}
+					{flowRun.start_time && (
+						<div className="flex items-center gap-1">
+							<Icon id="Calendar" className="size-4" />
+							<span>{formatDate(flowRun.start_time, "dateTimeNumeric")}</span>
+						</div>
+					)}
+					<div className="flex items-center gap-1">
+						<Icon id="Clock" className="size-4" />
+						<span>
+							{secondsToApproximateString(flowRun.total_run_time ?? 0)}
+						</span>
+					</div>
+					<div
+						className={`flex items-center gap-1 ${taskRunCount === 0 ? "text-muted-foreground/60" : ""}`}
+					>
+						<Icon id="ListTodo" className="size-4" />
+						<span>{formatTaskRunCount(taskRunCount)}</span>
+					</div>
+				</div>
+
+				{/* Row 3 - Relationships */}
+				<div className="flex items-center gap-4 text-sm">
+					{flowRun.flow_id && (
+						<Link
+							to="/flows/flow/$id"
+							params={{ id: flowRun.flow_id }}
+							className="flex items-center gap-1 hover:underline"
+						>
+							<Icon id="Workflow" className="size-4" />
+							<span className="text-muted-foreground">Flow</span>
+							<span>{flow?.name ?? "..."}</span>
+						</Link>
+					)}
+					{flowRun.deployment_id && (
+						<Link
+							to="/deployments/deployment/$id"
+							params={{ id: flowRun.deployment_id }}
+							className="flex items-center gap-1 hover:underline"
+						>
+							<Icon id="Rocket" className="size-4" />
+							<span className="text-muted-foreground">Deployment</span>
+							<span>{deployment?.name ?? "..."}</span>
+						</Link>
+					)}
+				</div>
+			</div>
+
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="outline" className="p-2">
