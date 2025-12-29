@@ -80,7 +80,7 @@ export const SelectDeploymentsFields = ({
 	const deploymentsWithFlows = data?.results;
 
 	return (
-		<div>
+		<>
 			<FormField
 				control={form.control}
 				name={`actions.${index}.deployment_id`}
@@ -142,7 +142,7 @@ export const SelectDeploymentsFields = ({
 			/>
 			{deploymentId !== INFER_OPTION.value &&
 				actionType === "run-deployment" && <div>TODO: Additional fields</div>}
-		</div>
+		</>
 	);
 };
 
