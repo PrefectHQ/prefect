@@ -188,3 +188,50 @@ class TestGitHubRepository:
 
                 assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+
+    async def test_get_directory_preserves_symlinks(self, monkeypatch):
+        """Test that get_directory preserves symlinks instead of following them.
+
+        This verifies the fix for issue #7868 where symlinks were being resolved
+        and their target files copied, potentially exposing sensitive files.
+        """
+
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
+
+        with TemporaryDirectory() as tmp_src:
+            # Create a real file
+            real_file = Path(tmp_src) / "real_file.txt"
+            real_file.write_text("real content")
+
+            # Create a symlink
+            symlink_file = Path(tmp_src) / "link_file.txt"
+            symlink_file.symlink_to(real_file)
+
+            self.MockTmpDir.dir = tmp_src
+
+            with TemporaryDirectory() as tmp_dst:
+                monkeypatch.setattr(
+                    prefect_github.repository,
+                    "TemporaryDirectory",
+                    self.MockTmpDir,
+                )
+
+                g = GitHubRepository(
+                    repository_url="https://github.com/PrefectHQ/prefect.git",
+                )
+                await g.get_directory(local_path=tmp_dst)
+
+                # Verify the symlink is preserved as a symlink
+                copied_symlink = Path(tmp_dst) / "link_file.txt"
+                assert copied_symlink.is_symlink(), (
+                    "Symlink should be preserved as a symlink"
+                )
+
+                # Verify the real file is copied
+                copied_real = Path(tmp_dst) / "real_file.txt"
+                assert copied_real.exists()
+                assert copied_real.read_text() == "real content"
