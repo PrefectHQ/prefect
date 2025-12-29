@@ -38,6 +38,20 @@ export const ActionStep = ({ index, onRemove }: ActionStepProps) => {
 	);
 };
 
+type FlowRunActionDescriptionProps = {
+	action: "Cancel" | "Suspend" | "Resume";
+};
+
+const FlowRunActionDescription = ({
+	action,
+}: FlowRunActionDescriptionProps) => {
+	return (
+		<Typography variant="bodySmall" className="text-muted-foreground">
+			{action} flow run inferred from the triggering event
+		</Typography>
+	);
+};
+
 type ActionTypeAdditionalFieldsProps = {
 	index: number;
 };
@@ -72,11 +86,11 @@ const ActionTypeAdditionalFields = ({
 		case "send-notification":
 			return <div>TODO send notification</div>;
 		case "cancel-flow-run":
-			return <div>TODO cancel flow run</div>;
+			return <FlowRunActionDescription action="Cancel" />;
 		case "suspend-flow-run":
-			return <div>TODO suspend flow run</div>;
+			return <FlowRunActionDescription action="Suspend" />;
 		case "resume-flow-run":
-			return <div>TODO resume flow run</div>;
+			return <FlowRunActionDescription action="Resume" />;
 		default:
 			return null;
 	}

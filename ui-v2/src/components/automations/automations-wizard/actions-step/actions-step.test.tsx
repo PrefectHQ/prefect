@@ -143,6 +143,65 @@ describe("ActionsStep", () => {
 		});
 	});
 
+	describe("action type -- flow run actions", () => {
+		it("displays description for cancel flow run action", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
+
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Cancel a flow run" }),
+			);
+
+			// ------------ Assert
+			expect(
+				screen.getByText("Cancel flow run inferred from the triggering event"),
+			).toBeVisible();
+		});
+
+		it("displays description for suspend flow run action", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
+
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Suspend a flow run" }),
+			);
+
+			// ------------ Assert
+			expect(
+				screen.getByText("Suspend flow run inferred from the triggering event"),
+			).toBeVisible();
+		});
+
+		it("displays description for resume flow run action", async () => {
+			const user = userEvent.setup();
+			// ------------ Setup
+			render(<ActionStepFormContainer />);
+
+			// ------------ Act
+			await user.click(
+				screen.getByRole("combobox", { name: /select action/i }),
+			);
+			await user.click(
+				screen.getByRole("option", { name: "Resume a flow run" }),
+			);
+
+			// ------------ Assert
+			expect(
+				screen.getByText("Resume flow run inferred from the triggering event"),
+			).toBeVisible();
+		});
+	});
+
 	describe("action type -- change flow run state ", () => {
 		it("able to configure change flow run's state action", async () => {
 			const user = userEvent.setup();
