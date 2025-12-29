@@ -481,4 +481,110 @@ describe("FlowRunDetailsPage", () => {
 
 		expect(screen.getByTestId("fullscreen-state")).toHaveTextContent("false");
 	});
+
+	describe("URL state management", () => {
+		it("preserves tab state in URL search parameters", async () => {
+			const [, router] = renderFlowRunDetailsPage({ tab: "TaskRuns" });
+
+			await waitFor(() => {
+				expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			});
+
+			// Navigate to update URL with tab parameter
+			await router.navigate({
+				to: "/",
+				search: { tab: "TaskRuns" },
+			});
+
+			await waitFor(() => {
+				// TanStack Router stores parsed search params as an object
+				expect(router.state.location.search).toEqual({ tab: "TaskRuns" });
+			});
+		});
+
+		it("supports browser history navigation between tabs", async () => {
+			const [, router] = renderFlowRunDetailsPage({ tab: "Logs" });
+
+			await waitFor(() => {
+				expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			});
+
+			// Navigate to TaskRuns tab
+			await router.navigate({
+				to: "/",
+				search: { tab: "TaskRuns" },
+			});
+
+			await waitFor(() => {
+				expect(router.state.location.search).toEqual({ tab: "TaskRuns" });
+			});
+
+			// Navigate to Artifacts tab
+			await router.navigate({
+				to: "/",
+				search: { tab: "Artifacts" },
+			});
+
+			await waitFor(() => {
+				expect(router.state.location.search).toEqual({ tab: "Artifacts" });
+			});
+
+			// Go back in history
+			router.history.back();
+
+			await waitFor(() => {
+				expect(router.state.location.search).toEqual({ tab: "TaskRuns" });
+			});
+
+			// Go forward in history
+			router.history.forward();
+
+			await waitFor(() => {
+				expect(router.state.location.search).toEqual({ tab: "Artifacts" });
+			});
+		});
+
+		it("initializes with tab from URL search parameters", async () => {
+			// Create a router with initial search params
+			const rootRoute = createRootRoute({
+				component: () => (
+					<>
+						<Toaster />
+						<FlowRunDetailsPage
+							id="test-flow-run-id"
+							tab="SubflowRuns"
+							onTabChange={mockOnTabChange}
+						/>
+					</>
+				),
+			});
+
+			const routeTree = rootRoute;
+
+			const router = createRouter({
+				routeTree,
+				history: createMemoryHistory({
+					initialEntries: ["/?tab=SubflowRuns"],
+				}),
+				context: {
+					queryClient: new QueryClient(),
+				},
+			});
+
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			});
+
+			await waitFor(() => {
+				expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			});
+
+			// Verify the URL search string contains the tab parameter
+			expect(router.state.location.searchStr).toContain("tab=SubflowRuns");
+
+			// Verify the Subflow Runs tab is selected (aria-selected)
+			const subflowRunsTab = screen.getByRole("tab", { name: "Subflow Runs" });
+			expect(subflowRunsTab).toHaveAttribute("aria-selected", "true");
+		});
+	});
 });
