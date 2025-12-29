@@ -1,4 +1,5 @@
 export { TriggerDetailsCustom } from "./trigger-details-custom";
+export { TriggerDetailsDeploymentStatus } from "./trigger-details-deployment-status";
 export {
 	// Constants
 	AUTOMATION_TRIGGER_TEMPLATES,
