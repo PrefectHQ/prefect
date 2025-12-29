@@ -2,6 +2,7 @@ export { TriggerDetailsCustom } from "./trigger-details-custom";
 export { TriggerDetailsDeploymentStatus } from "./trigger-details-deployment-status";
 export { TriggerDetailsFlowRunState } from "./trigger-details-flow-run-state";
 export { TriggerDetailsWorkPoolStatus } from "./trigger-details-work-pool-status";
+export { TriggerDetailsWorkQueueStatus } from "./trigger-details-work-queue-status";
 export {
 	// Constants
 	AUTOMATION_TRIGGER_TEMPLATES,
@@ -17,6 +18,8 @@ export {
 	getAutomationTriggerTemplate,
 	// Label functions
 	getAutomationTriggerTemplateLabel,
+	// Work queue status utilities
+	getWorkQueueStatusLabel,
 	isAfterResource,
 	isAutomationTrigger,
 	isAutomationTriggerTemplate,
@@ -36,4 +39,5 @@ export {
 	type SequenceTrigger,
 	WORK_POOL_STATUS_EVENTS,
 	WORK_QUEUE_STATUS_EVENTS,
+	type WorkQueueStatusTriggerStatus,
 } from "./trigger-utils";
