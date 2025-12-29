@@ -28,7 +28,7 @@ export const FlowRunStateTriggerFields = () => {
 
 	return (
 		<div className="space-y-4">
-			<div className="flex items-end gap-4">
+			<div className="flex items-start gap-4">
 				<PostureSelect />
 				<FormField
 					control={form.control}
