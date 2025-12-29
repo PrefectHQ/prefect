@@ -432,3 +432,31 @@ export function isAutomationTriggerTemplate(
 ): value is AutomationTriggerTemplate {
 	return (AUTOMATION_TRIGGER_TEMPLATES as readonly string[]).includes(value);
 }
+
+// Work queue status types and labels
+export type WorkQueueStatusTriggerStatus = "READY" | "NOT_READY" | "PAUSED";
+
+/**
+ * Get human-readable label for work queue status
+ * "READY" -> "Ready"
+ * "NOT_READY" -> "Not Ready"
+ * "PAUSED" -> "Paused"
+ */
+export function getWorkQueueStatusLabel(
+	status: WorkQueueStatusTriggerStatus,
+): string {
+	switch (status) {
+		case "READY":
+			return "Ready";
+		case "NOT_READY":
+			return "Not Ready";
+		case "PAUSED":
+			return "Paused";
+		default: {
+			const exhaustive: never = status;
+			throw new Error(
+				`getWorkQueueStatusLabel missing case for ${exhaustive as string}`,
+			);
+		}
+	}
+}
