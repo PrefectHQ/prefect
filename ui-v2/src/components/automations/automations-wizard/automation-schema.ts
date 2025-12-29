@@ -115,26 +115,76 @@ const TriggerPostureSchema = z.enum(["Reactive", "Proactive"]);
 export type TriggerPosture = z.infer<typeof TriggerPostureSchema>;
 
 // Event trigger schema (the primary trigger type for form mode)
+// Resource specification schema (for match conditions)
+const ResourceSpecificationSchema = z.record(
+	z.union([z.string(), z.array(z.string())]),
+);
+
 export const EventTriggerSchema = z.object({
 	type: z.literal("event"),
 	posture: TriggerPostureSchema,
 	threshold: z.number().min(1).default(1),
 	within: z.number().min(0).default(0),
 	// Match conditions
-	match: z.record(z.union([z.string(), z.array(z.string())])).optional(),
-	match_related: z
-		.record(z.union([z.string(), z.array(z.string())]))
-		.optional(),
+	match: ResourceSpecificationSchema.optional(),
+	match_related: ResourceSpecificationSchema.optional(),
 	for_each: z.array(z.string()).optional(),
 	after: z.array(z.string()).optional(),
 	expect: z.array(z.string()).optional(),
 });
 export type EventTrigger = z.infer<typeof EventTriggerSchema>;
 
+// Forward declaration for recursive trigger types
+export type CompoundTrigger = {
+	type: "compound";
+	triggers: Trigger[];
+	require: number | "any" | "all";
+	within: number;
+};
+
+export type SequenceTrigger = {
+	type: "sequence";
+	triggers: Trigger[];
+	within: number;
+};
+
+export type Trigger = EventTrigger | CompoundTrigger | SequenceTrigger;
+
+// Internal schema for compound trigger (used in recursive definition)
+const compoundTriggerSchema = z.object({
+	type: z.literal("compound"),
+	triggers: z.lazy(() => z.array(triggerSchema)),
+	require: z
+		.union([z.number().min(1), z.literal("any"), z.literal("all")])
+		.default("all"),
+	within: z.number().min(0).default(0),
+});
+
+// Internal schema for sequence trigger (used in recursive definition)
+const sequenceTriggerSchema = z.object({
+	type: z.literal("sequence"),
+	triggers: z.lazy(() => z.array(triggerSchema)),
+	within: z.number().min(0).default(0),
+});
+
+// Internal union schema for all trigger types
+const triggerSchema = z.union([
+	EventTriggerSchema,
+	compoundTriggerSchema,
+	sequenceTriggerSchema,
+]);
+
+// Exported schemas with proper type annotations
+export const CompoundTriggerSchema =
+	compoundTriggerSchema as z.ZodType<CompoundTrigger>;
+export const SequenceTriggerSchema =
+	sequenceTriggerSchema as z.ZodType<SequenceTrigger>;
+export const TriggerSchema = triggerSchema as z.ZodType<Trigger>;
+
 export const AutomationWizardSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
-	trigger: EventTriggerSchema,
+	trigger: TriggerSchema,
 	actions: z.array(
 		z.union([
 			DoNothingSchema,
