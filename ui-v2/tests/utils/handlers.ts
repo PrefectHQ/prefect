@@ -88,6 +88,18 @@ const eventsHandlers = [
 ];
 
 const deploymentsHandlers = [
+	http.get(buildApiUrl("/deployments/:id"), ({ params }) => {
+		const id = params.id as string;
+		return HttpResponse.json({
+			id,
+			name: `Deployment ${id}`,
+			tags: [],
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			flow_id: "flow-1",
+		});
+	}),
+
 	http.post(buildApiUrl("/deployments/filter"), () => {
 		return HttpResponse.json([
 			{ id: "deployment-1", name: "Deployment 1", tags: [] },
