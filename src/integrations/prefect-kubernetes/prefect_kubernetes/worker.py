@@ -142,6 +142,8 @@ import prefect
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.exceptions import (
     InfrastructureError,
+    InfrastructureNotAvailable,
+    InfrastructureNotFound,
 )
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
@@ -787,6 +789,58 @@ class KubernetesWorker(
                     self._logger.warning(
                         "Failed to delete created secret with exception: %s", result
                     )
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: Optional[KubernetesWorkerJobConfiguration],
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Kubernetes job by deleting it.
+
+        Args:
+            infrastructure_pid: The infrastructure identifier in format "namespace:job_name".
+            configuration: The job configuration used to connect to the cluster.
+            grace_seconds: Time to allow for graceful shutdown before force killing.
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+            InfrastructureNotAvailable: If unable to connect to the cluster.
+        """
+        # Parse infrastructure_pid (format: "namespace:job_name")
+        parts = infrastructure_pid.split(":")
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid infrastructure_pid format: {infrastructure_pid!r}. "
+                "Expected format: 'namespace:job_name'"
+            )
+        job_namespace, job_name = parts
+
+        if configuration is None:
+            raise InfrastructureNotAvailable(
+                f"Cannot kill job {job_name!r}: no configuration available to connect to cluster"
+            )
+
+        async with self._get_configured_kubernetes_client(configuration) as client:
+            batch_client = BatchV1Api(api_client=client)
+
+            try:
+                await batch_client.delete_namespaced_job(
+                    name=job_name,
+                    namespace=job_namespace,
+                    grace_period_seconds=grace_seconds,
+                    propagation_policy="Foreground",
+                )
+                self._logger.info(
+                    f"Deleted Kubernetes job {job_name!r} in namespace {job_namespace!r}"
+                )
+            except ApiException as exc:
+                if exc.status == 404:
+                    raise InfrastructureNotFound(
+                        f"Kubernetes job {job_name!r} not found in namespace {job_namespace!r}"
+                    )
+                raise
 
     @asynccontextmanager
     async def _get_configured_kubernetes_client(
