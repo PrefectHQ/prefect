@@ -5,6 +5,7 @@ import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { ActionTypeSelect } from "./action-type-select";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
+import { InferredFlowRunActionDescription } from "./inferred-flow-run-action-description";
 import { SelectAutomationsFields } from "./select-automations-fields";
 import { SelectDeploymentsFields } from "./select-deployments-fields";
 import { SelectWorkPoolsFields } from "./select-work-pools-fields";
@@ -76,7 +77,7 @@ const ActionTypeAdditionalFields = ({
 		case "suspend-flow-run":
 			return <div>TODO suspend flow run</div>;
 		case "resume-flow-run":
-			return <div>TODO resume flow run</div>;
+			return <InferredFlowRunActionDescription action="resume" />;
 		default:
 			return null;
 	}
