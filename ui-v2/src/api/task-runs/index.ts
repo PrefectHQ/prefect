@@ -305,7 +305,7 @@ export const useSetTaskRunState = () => {
 
 			return { previousTaskRun };
 		},
-		onError: (err, { id }, context) => {
+		onError: (_err, { id }, context) => {
 			// Roll back optimistic update on error
 			if (context?.previousTaskRun) {
 				queryClient.setQueryData(
@@ -313,10 +313,6 @@ export const useSetTaskRunState = () => {
 					context.previousTaskRun,
 				);
 			}
-
-			throw err instanceof Error
-				? err
-				: new Error("Failed to update task run state");
 		},
 		onSettled: (_data, _error, { id }) => {
 			void Promise.all([

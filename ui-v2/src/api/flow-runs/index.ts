@@ -471,7 +471,7 @@ export const useSetFlowRunState = () => {
 
 			return { previousFlowRun };
 		},
-		onError: (err, { id }, context) => {
+		onError: (_err, { id }, context) => {
 			// Roll back optimistic update on error
 			if (context?.previousFlowRun) {
 				queryClient.setQueryData(
@@ -479,10 +479,6 @@ export const useSetFlowRunState = () => {
 					context.previousFlowRun,
 				);
 			}
-
-			throw err instanceof Error
-				? err
-				: new Error("Failed to update flow run state");
 		},
 		onSettled: (_data, _error, { id }) => {
 			void Promise.all([
