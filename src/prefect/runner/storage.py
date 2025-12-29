@@ -506,12 +506,14 @@ class GitRepository:
             }
         }
 
-        # Include name if it differs from auto-generated default
+        # Include clone_directory_name if it differs from auto-generated default
         repo_name = urlparse(self._url).path.split("/")[-1].replace(".git", "")
         safe_branch = self._branch.replace("/", "-") if self._branch else None
         default_name = f"{repo_name}-{safe_branch}" if safe_branch else repo_name
         if self._name != default_name:
-            pull_step["prefect.deployments.steps.git_clone"]["name"] = self._name
+            pull_step["prefect.deployments.steps.git_clone"]["clone_directory_name"] = (
+                self._name
+            )
 
         # Include directories if specified
         if self._directories:
