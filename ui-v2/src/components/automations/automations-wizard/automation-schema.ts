@@ -132,9 +132,10 @@ export const EventTriggerSchema = z.object({
 	after: z.array(z.string()).optional(),
 	expect: z.array(z.string()).optional(),
 });
-export type EventTrigger = z.infer<typeof EventTriggerSchema>;
+export type EventTrigger = z.output<typeof EventTriggerSchema>;
+export type EventTriggerInput = z.input<typeof EventTriggerSchema>;
 
-// Forward declaration for recursive trigger types
+// Output types (after parsing - all defaults are applied, fields are required)
 export type CompoundTrigger = {
 	type: "compound";
 	triggers: Trigger[];
@@ -150,36 +151,59 @@ export type SequenceTrigger = {
 
 export type Trigger = EventTrigger | CompoundTrigger | SequenceTrigger;
 
-// Internal schema for compound trigger (used in recursive definition)
-const compoundTriggerSchema = z.object({
-	type: z.literal("compound"),
-	triggers: z.lazy(() => z.array(triggerSchema)),
-	require: z
-		.union([z.number().min(1), z.literal("any"), z.literal("all")])
-		.default("all"),
-	within: z.number().min(0).default(0),
-});
+// Input types (before parsing - defaulted fields are optional)
+export type CompoundTriggerInput = {
+	type: "compound";
+	triggers: TriggerInput[];
+	require?: number | "any" | "all";
+	within?: number;
+};
 
-// Internal schema for sequence trigger (used in recursive definition)
-const sequenceTriggerSchema = z.object({
-	type: z.literal("sequence"),
-	triggers: z.lazy(() => z.array(triggerSchema)),
-	within: z.number().min(0).default(0),
-});
+export type SequenceTriggerInput = {
+	type: "sequence";
+	triggers: TriggerInput[];
+	within?: number;
+};
 
-// Internal union schema for all trigger types
-const triggerSchema = z.union([
-	EventTriggerSchema,
-	compoundTriggerSchema,
-	sequenceTriggerSchema,
-]);
+export type TriggerInput =
+	| EventTriggerInput
+	| CompoundTriggerInput
+	| SequenceTriggerInput;
 
-// Exported schemas with proper type annotations
-export const CompoundTriggerSchema =
-	compoundTriggerSchema as z.ZodType<CompoundTrigger>;
-export const SequenceTriggerSchema =
-	sequenceTriggerSchema as z.ZodType<SequenceTrigger>;
-export const TriggerSchema = triggerSchema as z.ZodType<Trigger>;
+// Recursive trigger schemas with explicit type annotations
+// Using z.ZodType<Output, z.ZodTypeDef, Input> to handle input/output type differences from defaults
+
+export const TriggerSchema: z.ZodType<Trigger, z.ZodTypeDef, TriggerInput> =
+	z.lazy(() =>
+		z.union([EventTriggerSchema, CompoundTriggerSchema, SequenceTriggerSchema]),
+	);
+
+export const CompoundTriggerSchema: z.ZodType<
+	CompoundTrigger,
+	z.ZodTypeDef,
+	CompoundTriggerInput
+> = z.lazy(() =>
+	z.object({
+		type: z.literal("compound"),
+		triggers: z.array(TriggerSchema),
+		require: z
+			.union([z.number().min(1), z.literal("any"), z.literal("all")])
+			.default("all"),
+		within: z.number().min(0).default(0),
+	}),
+);
+
+export const SequenceTriggerSchema: z.ZodType<
+	SequenceTrigger,
+	z.ZodTypeDef,
+	SequenceTriggerInput
+> = z.lazy(() =>
+	z.object({
+		type: z.literal("sequence"),
+		triggers: z.array(TriggerSchema),
+		within: z.number().min(0).default(0),
+	}),
+);
 
 export const AutomationWizardSchema = z.object({
 	name: z.string().min(1, "Name is required"),
