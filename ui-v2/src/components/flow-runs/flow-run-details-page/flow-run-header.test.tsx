@@ -18,6 +18,8 @@ describe("FlowRunHeader", () => {
 	const mockFlowRun = createFakeFlowRun({
 		id: "test-flow-run-id",
 		name: "test-flow-run",
+		flow_id: "test-flow-id",
+		deployment_id: "test-deployment-id",
 		state_type: "COMPLETED",
 		state_name: "Completed",
 		state: createFakeState({
@@ -28,16 +30,15 @@ describe("FlowRunHeader", () => {
 
 	const mockOnDeleteClick = vi.fn();
 
-	const renderFlowRunHeader = (props = {}) => {
+	const renderFlowRunHeader = (
+		flowRun = mockFlowRun,
+		onDeleteClick = mockOnDeleteClick,
+	) => {
 		const rootRoute = createRootRoute({
 			component: () => (
 				<>
 					<Toaster />
-					<FlowRunHeader
-						flowRun={mockFlowRun}
-						onDeleteClick={mockOnDeleteClick}
-						{...props}
-					/>
+					<FlowRunHeader flowRun={flowRun} onDeleteClick={onDeleteClick} />
 				</>
 			),
 		});
@@ -48,7 +49,23 @@ describe("FlowRunHeader", () => {
 			component: () => <div>Runs Page</div>,
 		});
 
-		const routeTree = rootRoute.addChildren([runsRoute]);
+		const flowRoute = createRoute({
+			path: "/flows/flow/$id",
+			getParentRoute: () => rootRoute,
+			component: () => <div>Flow Page</div>,
+		});
+
+		const deploymentRoute = createRoute({
+			path: "/deployments/deployment/$id",
+			getParentRoute: () => rootRoute,
+			component: () => <div>Deployment Page</div>,
+		});
+
+		const routeTree = rootRoute.addChildren([
+			runsRoute,
+			flowRoute,
+			deploymentRoute,
+		]);
 
 		const router = createRouter({
 			routeTree,
@@ -105,7 +122,7 @@ describe("FlowRunHeader", () => {
 		const user = userEvent.setup();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
 		});
 
 		const moreButton = screen.getByRole("button", { expanded: false });
@@ -130,7 +147,7 @@ describe("FlowRunHeader", () => {
 		const user = userEvent.setup();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
 		});
 
 		const moreButton = screen.getByRole("button", { expanded: false });
@@ -156,7 +173,7 @@ describe("FlowRunHeader", () => {
 		const user = userEvent.setup();
 
 		await waitFor(() => {
-			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+			expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
 		});
 
 		const moreButton = screen.getByRole("button", { expanded: false });
@@ -190,34 +207,130 @@ describe("FlowRunHeader", () => {
 			}),
 		});
 
-		const rootRoute = createRootRoute({
-			component: () => (
-				<>
-					<Toaster />
-					<FlowRunHeader
-						flowRun={failedFlowRun}
-						onDeleteClick={mockOnDeleteClick}
-					/>
-				</>
-			),
-		});
-
-		const router = createRouter({
-			routeTree: rootRoute,
-			history: createMemoryHistory({
-				initialEntries: ["/"],
-			}),
-			context: {
-				queryClient: new QueryClient(),
-			},
-		});
-
-		render(<RouterProvider router={router} />, {
-			wrapper: createWrapper(),
-		});
+		renderFlowRunHeader(failedFlowRun);
 
 		await waitFor(() => {
 			expect(screen.getByText("Failed")).toBeInTheDocument();
+		});
+	});
+
+	it("renders View Flow link when flow_id exists", async () => {
+		renderFlowRunHeader();
+
+		await waitFor(() => {
+			expect(screen.getByText("View Flow")).toBeInTheDocument();
+		});
+
+		const flowLink = screen.getByRole("link", { name: "View Flow" });
+		expect(flowLink).toHaveAttribute("href", "/flows/flow/test-flow-id");
+	});
+
+	it("renders View Deployment link when deployment_id exists", async () => {
+		renderFlowRunHeader();
+
+		await waitFor(() => {
+			expect(screen.getByText("View Deployment")).toBeInTheDocument();
+		});
+
+		const deploymentLink = screen.getByRole("link", {
+			name: "View Deployment",
+		});
+		expect(deploymentLink).toHaveAttribute(
+			"href",
+			"/deployments/deployment/test-deployment-id",
+		);
+	});
+
+	it("does not render View Flow link when flow_id is null", async () => {
+		const flowRunWithoutFlow = createFakeFlowRun({
+			id: "test-flow-run-id",
+			name: "test-flow-run",
+			flow_id: null,
+			deployment_id: "test-deployment-id",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		});
+
+		renderFlowRunHeader(flowRunWithoutFlow);
+
+		await waitFor(() => {
+			expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+		});
+
+		expect(screen.queryByText("View Flow")).not.toBeInTheDocument();
+	});
+
+	it("does not render View Deployment link when deployment_id is null", async () => {
+		const flowRunWithoutDeployment = createFakeFlowRun({
+			id: "test-flow-run-id",
+			name: "test-flow-run",
+			flow_id: "test-flow-id",
+			deployment_id: null,
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		});
+
+		renderFlowRunHeader(flowRunWithoutDeployment);
+
+		await waitFor(() => {
+			expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+		});
+
+		expect(screen.queryByText("View Deployment")).not.toBeInTheDocument();
+	});
+
+	it("shows Change State menu item in dropdown", async () => {
+		renderFlowRunHeader();
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Change State")).toBeInTheDocument();
+		});
+	});
+
+	it("opens state change dialog when Change State is clicked", async () => {
+		renderFlowRunHeader();
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Change State")).toBeInTheDocument();
+		});
+		await user.click(screen.getByText("Change State"));
+
+		await waitFor(() => {
+			expect(screen.getByText("Change Flow Run State")).toBeInTheDocument();
+		});
+	});
+
+	it("renders flow run name as h1 in header section", async () => {
+		renderFlowRunHeader();
+
+		await waitFor(() => {
+			expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+				"test-flow-run",
+			);
 		});
 	});
 });
