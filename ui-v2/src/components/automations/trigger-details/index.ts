@@ -1,6 +1,9 @@
+export { TriggerDetails } from "./trigger-details";
+export { TriggerDetailsCompound } from "./trigger-details-compound";
 export { TriggerDetailsCustom } from "./trigger-details-custom";
 export { TriggerDetailsDeploymentStatus } from "./trigger-details-deployment-status";
 export { TriggerDetailsFlowRunState } from "./trigger-details-flow-run-state";
+export { TriggerDetailsSequence } from "./trigger-details-sequence";
 export { TriggerDetailsWorkPoolStatus } from "./trigger-details-work-pool-status";
 export { TriggerDetailsWorkQueueStatus } from "./trigger-details-work-queue-status";
 export {
