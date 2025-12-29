@@ -1,4 +1,3 @@
-import type { components } from "@/api/prefect";
 import { TriggerDetailsCompound } from "./trigger-details-compound";
 import { TriggerDetailsCustom } from "./trigger-details-custom";
 import { TriggerDetailsDeploymentStatus } from "./trigger-details-deployment-status";
@@ -7,6 +6,7 @@ import { TriggerDetailsSequence } from "./trigger-details-sequence";
 import { TriggerDetailsWorkPoolStatus } from "./trigger-details-work-pool-status";
 import { TriggerDetailsWorkQueueStatus } from "./trigger-details-work-queue-status";
 import {
+	type AutomationTrigger,
 	type AutomationTriggerEventPosture,
 	type EventTrigger,
 	getAutomationTriggerTemplate,
@@ -17,7 +17,7 @@ import {
 } from "./trigger-utils";
 
 type TriggerDetailsProps = {
-	trigger: components["schemas"]["AutomationTrigger"];
+	trigger: AutomationTrigger;
 };
 
 type DeploymentStatus = "ready" | "not_ready";
