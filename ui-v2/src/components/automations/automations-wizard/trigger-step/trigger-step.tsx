@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
@@ -14,20 +13,20 @@ import { WorkQueueStatusTriggerFields } from "./work-queue-status-trigger-fields
 
 export const TriggerStep = () => {
 	const form = useFormContext<AutomationWizardSchema>();
-	const [template, setTemplate] = useState<TriggerTemplate>();
+	const triggerTemplate = form.watch("triggerTemplate");
 
 	const handleTemplateChange = (value: TriggerTemplate) => {
-		setTemplate(value);
+		form.setValue("triggerTemplate", value);
 		form.setValue("trigger", getDefaultTriggerForTemplate(value));
 	};
 
 	return (
 		<div className="space-y-6">
 			<AutomationsTriggerTemplateSelect
-				value={template}
+				value={triggerTemplate}
 				onValueChange={handleTemplateChange}
 			/>
-			{template && <TriggerTemplateFields template={template} />}
+			{triggerTemplate && <TriggerTemplateFields template={triggerTemplate} />}
 		</div>
 	);
 };
