@@ -4,16 +4,6 @@ import { Card } from "@/components/ui/card";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { TriggerJsonInput } from "./trigger-json-input";
 
-const meta = {
-	title: "Components/Automations/Wizard/TriggerJsonInput",
-	component: TriggerJsonInput,
-	decorators: [reactQueryDecorator, routerDecorator],
-} satisfies Meta<typeof TriggerJsonInput>;
-
-export default meta;
-
-type Story = StoryObj<typeof meta>;
-
 const validTriggerExample = {
 	type: "event",
 	posture: "Reactive",
@@ -40,6 +30,16 @@ function TriggerJsonInputStory({
 		</Card>
 	);
 }
+
+const meta = {
+	title: "Components/Automations/Wizard/TriggerJsonInput",
+	component: TriggerJsonInputStory,
+	decorators: [reactQueryDecorator, routerDecorator],
+} satisfies Meta<typeof TriggerJsonInputStory>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
 
 export const Empty: Story = {
 	render: () => <TriggerJsonInputStory />,
