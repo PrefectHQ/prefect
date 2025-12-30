@@ -10,6 +10,7 @@ export default defineConfig({
 		globals: true,
 		environment: "jsdom",
 		setupFiles: "./tests/setup.ts",
+		pool: "threads",
 		exclude: ["e2e/**", "node_modules/**"],
 		coverage: {
 			exclude: ["**/*.stories.tsx", "**/*.test.tsx"],
