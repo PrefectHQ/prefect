@@ -7,6 +7,8 @@ import { HttpResponse, http } from "msw";
 import { useForm } from "react-hook-form";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { Automation } from "@/api/automations";
+import type { BlockDocument } from "@/api/block-documents";
+import type { BlockType } from "@/api/block-types";
 import type { Deployment } from "@/api/deployments";
 import type { Flow } from "@/api/flows";
 import type { WorkPool } from "@/api/work-pools";
@@ -15,6 +17,8 @@ import { AutomationWizardSchema } from "@/components/automations/automations-wiz
 import { Form } from "@/components/ui/form";
 import {
 	createFakeAutomation,
+	createFakeBlockDocument,
+	createFakeBlockType,
 	createFakeDeployment,
 	createFakeFlow,
 	createFakeWorkPool,
@@ -469,6 +473,190 @@ describe("ActionsStep", () => {
 			// ------------ Assert
 			expect(screen.getAllByText("Pause a work queue")).toBeTruthy();
 			expect(screen.getAllByText("my work queue 1")).toBeTruthy();
+		});
+	});
+
+	describe("action type -- send notification", () => {
+		const SLACK_BLOCK_TYPE_ID = "slack-block-type-id";
+		const EMAIL_BLOCK_TYPE_ID = "email-block-type-id";
+
+		const mockBlockTypesAPI = (blockTypes: Array<BlockType>) => {
+			server.use(
+				http.post(buildApiUrl("/block_types/filter"), () => {
+					return HttpResponse.json(blockTypes);
+				}),
+			);
+		};
+
+		const mockBlockDocumentsAPI = (blockDocuments: Array<BlockDocument>) => {
+			server.use(
+				http.post(buildApiUrl("/block_documents/filter"), () => {
+					return HttpResponse.json(blockDocuments);
+				}),
+			);
+		};
+
+		const mockTemplateValidationAPI = (valid: boolean, error?: string) => {
+			server.use(
+				http.post(buildApiUrl("/automations/templates/validate"), () => {
+					if (valid) {
+						return HttpResponse.json(null, { status: 204 });
+					}
+					return HttpResponse.json(
+						{
+							error: {
+								line: 1,
+								message: error ?? "Invalid template",
+								source: "",
+							},
+						},
+						{ status: 422 },
+					);
+				}),
+			);
+		};
+
+		it("able to configure send notification action type", async () => {
+			const blockTypes = [
+				createFakeBlockType({
+					id: SLACK_BLOCK_TYPE_ID,
+					name: "Slack Webhook",
+					slug: "slack-webhook",
+				}),
+				createFakeBlockType({
+					id: EMAIL_BLOCK_TYPE_ID,
+					name: "Email Server Credentials",
+					slug: "email-server-credentials",
+				}),
+			];
+
+			const blockDocuments = [
+				createFakeBlockDocument({
+					name: "my-slack-block",
+					block_type_id: SLACK_BLOCK_TYPE_ID,
+				}),
+				createFakeBlockDocument({
+					name: "my-email-block",
+					block_type_id: EMAIL_BLOCK_TYPE_ID,
+				}),
+			];
+
+			mockBlockTypesAPI(blockTypes);
+			mockBlockDocumentsAPI(blockDocuments);
+			mockTemplateValidationAPI(true);
+
+			const user = userEvent.setup();
+
+			// ------------ Setup
+			render(<ActionStepFormContainer />, {
+				wrapper: createWrapper(),
+			});
+
+			// ------------ Act
+			await user.click(screen.getByLabelText(/select action/i));
+			await user.click(
+				screen.getByRole("option", { name: "Send a notification" }),
+			);
+
+			// ------------ Assert
+			expect(screen.getAllByText("Send a notification")).toBeTruthy();
+			expect(screen.getByLabelText(/select notification block/i)).toBeVisible();
+			expect(screen.getByLabelText("Subject")).toBeVisible();
+			expect(screen.getByLabelText("Body")).toBeVisible();
+			expect(
+				screen.getByText(
+					/the following objects can be used in notification templates/i,
+				),
+			).toBeVisible();
+		});
+
+		it.todo("able to select a notification block");
+
+		it("able to enter subject and body", async () => {
+			const blockTypes = [
+				createFakeBlockType({
+					id: SLACK_BLOCK_TYPE_ID,
+					name: "Slack Webhook",
+					slug: "slack-webhook",
+				}),
+			];
+
+			const blockDocuments = [
+				createFakeBlockDocument({
+					name: "my-slack-block",
+					block_type_id: SLACK_BLOCK_TYPE_ID,
+				}),
+			];
+
+			mockBlockTypesAPI(blockTypes);
+			mockBlockDocumentsAPI(blockDocuments);
+			mockTemplateValidationAPI(true);
+
+			const user = userEvent.setup();
+
+			// ------------ Setup
+			render(<ActionStepFormContainer />, {
+				wrapper: createWrapper(),
+			});
+
+			// ------------ Act
+			await user.click(screen.getByLabelText(/select action/i));
+			await user.click(
+				screen.getByRole("option", { name: "Send a notification" }),
+			);
+
+			await user.type(screen.getByLabelText("Subject"), "Test Subject");
+			await user.type(screen.getByLabelText("Body"), "Test Body");
+
+			// ------------ Assert
+			expect(screen.getByLabelText("Subject")).toHaveValue("Test Subject");
+			expect(screen.getByLabelText("Body")).toHaveValue("Test Body");
+		});
+
+		it("displays info message about template variables", async () => {
+			const blockTypes = [
+				createFakeBlockType({
+					id: SLACK_BLOCK_TYPE_ID,
+					name: "Slack Webhook",
+					slug: "slack-webhook",
+				}),
+			];
+
+			const blockDocuments = [
+				createFakeBlockDocument({
+					name: "my-slack-block",
+					block_type_id: SLACK_BLOCK_TYPE_ID,
+				}),
+			];
+
+			mockBlockTypesAPI(blockTypes);
+			mockBlockDocumentsAPI(blockDocuments);
+			mockTemplateValidationAPI(true);
+
+			// ------------ Setup
+			render(<ActionStepFormContainer />, {
+				wrapper: createWrapper(),
+			});
+
+			const user = userEvent.setup();
+
+			// ------------ Act
+			await user.click(screen.getByLabelText(/select action/i));
+			await user.click(
+				screen.getByRole("option", { name: "Send a notification" }),
+			);
+
+			// ------------ Assert
+			expect(screen.getByText("flow", { selector: "code" })).toBeVisible();
+			expect(
+				screen.getByText("deployment", { selector: "code" }),
+			).toBeVisible();
+			expect(screen.getByText("flow_run", { selector: "code" })).toBeVisible();
+			expect(screen.getByText("work_pool", { selector: "code" })).toBeVisible();
+			expect(
+				screen.getByText("work_queue", { selector: "code" }),
+			).toBeVisible();
+			expect(screen.getByText("metric", { selector: "code" })).toBeVisible();
 		});
 	});
 

@@ -15,6 +15,7 @@ import {
 	useCreateAutomation,
 	useDeleteAutomation,
 	useUpdateAutomation,
+	useValidateTemplate,
 } from "./automations";
 
 describe("automations queries and mutations", () => {
@@ -253,5 +254,102 @@ describe("automations queries and mutations", () => {
 			(automation) => automation.id === MOCK_EDIT_ID,
 		);
 		expect(editedAutomation).toMatchObject(EDITED_AUTOMATION);
+	});
+
+	describe("useValidateTemplate", () => {
+		const mockValidateTemplateAPI = (
+			isValid: boolean,
+			errorDetails?: { line: number; message: string; source: string },
+		) => {
+			server.use(
+				http.post(buildApiUrl("/automations/templates/validate"), () => {
+					if (isValid) {
+						return new HttpResponse(null, { status: 204 });
+					}
+					return HttpResponse.json(
+						{
+							error: errorDetails ?? {
+								line: 1,
+								message: "Invalid template",
+								source: "test",
+							},
+						},
+						{ status: 422 },
+					);
+				}),
+			);
+		};
+
+		it("returns valid: true when template is valid", async () => {
+			mockValidateTemplateAPI(true);
+
+			const { result } = renderHook(useValidateTemplate, {
+				wrapper: createWrapper(),
+			});
+
+			let validationResult:
+				| { valid: true }
+				| { valid: false; error: string }
+				| undefined;
+			await act(async () => {
+				validationResult = await result.current.validateTemplate(
+					"Hello {{ flow.name }}",
+				);
+			});
+
+			expect(validationResult).toEqual({ valid: true });
+		});
+
+		it("returns valid: false with error message when template is invalid", async () => {
+			mockValidateTemplateAPI(false, {
+				line: 1,
+				message: "unexpected '}'",
+				source: "{{ invalid }",
+			});
+
+			const { result } = renderHook(useValidateTemplate, {
+				wrapper: createWrapper(),
+			});
+
+			let validationResult:
+				| { valid: true }
+				| { valid: false; error: string }
+				| undefined;
+			await act(async () => {
+				validationResult =
+					await result.current.validateTemplate("{{ invalid }");
+			});
+
+			expect(validationResult).toEqual({
+				valid: false,
+				error: "Error on line 1: unexpected '}'",
+			});
+		});
+
+		it("returns generic error message when error details are missing", async () => {
+			server.use(
+				http.post(buildApiUrl("/automations/templates/validate"), () => {
+					return HttpResponse.json({}, { status: 422 });
+				}),
+			);
+
+			const { result } = renderHook(useValidateTemplate, {
+				wrapper: createWrapper(),
+			});
+
+			let validationResult:
+				| { valid: true }
+				| { valid: false; error: string }
+				| undefined;
+			await act(async () => {
+				validationResult =
+					await result.current.validateTemplate("{{ invalid }");
+			});
+
+			expect(validationResult).toEqual({
+				valid: false,
+				error: "Template validation failed",
+			});
+		});
 	});
 });
