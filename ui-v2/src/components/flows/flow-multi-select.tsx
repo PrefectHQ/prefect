@@ -14,8 +14,6 @@ import {
 } from "@/components/ui/combobox";
 import { Typography } from "@/components/ui/typography";
 
-const MAX_FLOWS_DISPLAYED = 2;
-
 type FlowMultiSelectProps = {
 	selectedFlowIds: string[];
 	onToggleFlow: (flowId: string) => void;
@@ -79,17 +77,19 @@ export function FlowMultiSelect({
 			.filter((flow) => selectedFlowIds.includes(flow.id))
 			.map((flow) => flow.name);
 
-		const visible = selectedFlowNames.slice(0, MAX_FLOWS_DISPLAYED);
-		const extraCount = selectedFlowNames.length - MAX_FLOWS_DISPLAYED;
+		const count = selectedFlowIds.length;
 
 		return (
 			<div className="flex flex-1 min-w-0 items-center gap-2">
-				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
-					<span className="truncate">{visible.join(", ")}</span>
-				</div>
-				{extraCount > 0 && (
-					<Typography variant="bodySmall" className="shrink-0">
-						+ {extraCount}
+				<span className="truncate flex-1 min-w-0">
+					{selectedFlowNames.join(", ")}
+				</span>
+				{count > 1 && (
+					<Typography
+						variant="bodySmall"
+						className="shrink-0 text-muted-foreground"
+					>
+						({count})
 					</Typography>
 				)}
 			</div>

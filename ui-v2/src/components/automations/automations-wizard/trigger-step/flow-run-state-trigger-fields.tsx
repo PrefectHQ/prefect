@@ -1,6 +1,7 @@
 import { useFormContext, useWatch } from "react-hook-form";
 import type { components } from "@/api/prefect";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import { FlowMultiSelect } from "@/components/flows/flow-multi-select";
 import {
 	FormControl,
 	FormField,
@@ -10,7 +11,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { TagsInput } from "@/components/ui/tags-input";
-import { FlowMultiSelect } from "./flow-multi-select";
 import { PostureSelect } from "./posture-select";
 import { StateMultiSelect } from "./state-multi-select";
 
