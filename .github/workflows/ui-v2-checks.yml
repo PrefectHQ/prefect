@@ -127,6 +127,10 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     steps:
       - uses: actions/checkout@v6
@@ -147,6 +151,6 @@ jobs:
         working-directory: ./ui-v2
         run: npm ci
 
-      - name: Run tests
-        working-directory: ./ui-v2
-        run: npm run test
+      - name: Run tests (shard ${{ matrix.shard }}/4)
+        working-directory: ui-v2
+        run: npm run test -- --shard=${{ matrix.shard }}/4

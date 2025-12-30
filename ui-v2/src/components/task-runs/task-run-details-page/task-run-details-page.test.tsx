@@ -75,6 +75,9 @@ describe("TaskRunDetailsPage", () => {
 			http.get(buildApiUrl("/ui/task_runs/:id"), () => {
 				return HttpResponse.json(mockTaskRun);
 			}),
+			http.post(buildApiUrl("/logs/filter"), () => {
+				return HttpResponse.json([]);
+			}),
 		);
 	});
 

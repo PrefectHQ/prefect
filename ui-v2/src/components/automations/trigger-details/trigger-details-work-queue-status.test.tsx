@@ -38,16 +38,23 @@ describe("TriggerDetailsWorkQueueStatus", () => {
 		workQueues: Array<{ id: string; name: string; work_pool_name: string }>,
 	) => {
 		for (const workQueue of workQueues) {
+			const fakeWorkQueue = createFakeWorkQueue({
+				id: workQueue.id,
+				name: workQueue.name,
+				work_pool_name: workQueue.work_pool_name,
+			});
 			server.use(
 				http.get(buildApiUrl(`/work_queues/${workQueue.id}`), () => {
-					return HttpResponse.json(
-						createFakeWorkQueue({
-							id: workQueue.id,
-							name: workQueue.name,
-							work_pool_name: workQueue.work_pool_name,
-						}),
-					);
+					return HttpResponse.json(fakeWorkQueue);
 				}),
+				http.get(
+					buildApiUrl(
+						`/work_pools/${workQueue.work_pool_name}/queues/${workQueue.name}`,
+					),
+					() => {
+						return HttpResponse.json(fakeWorkQueue);
+					},
+				),
 			);
 		}
 	};
