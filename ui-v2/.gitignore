@@ -34,3 +34,9 @@ oss_schema.json
 !src/api/logs/
 
 storybook-static
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
