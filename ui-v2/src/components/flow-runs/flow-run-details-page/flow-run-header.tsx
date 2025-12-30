@@ -4,8 +4,8 @@ import { MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { buildFilterFlowRunsQuery, type FlowRun } from "@/api/flow-runs";
-import { buildFLowDetailsQuery } from "@/api/flows";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
+import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Badge } from "@/components/ui/badge";
 import {
 	Breadcrumb,
@@ -37,11 +37,6 @@ type FlowRunHeaderProps = {
 
 export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
-
-	const { data: flow } = useQuery({
-		...buildFLowDetailsQuery(flowRun.flow_id),
-		enabled: !!flowRun.flow_id,
-	});
 
 	const { data: deployment } = useQuery({
 		...buildDeploymentDetailsQuery(flowRun.deployment_id ?? ""),
@@ -129,17 +124,7 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 
 				{/* Row 3 - Relationships */}
 				<div className="flex items-center gap-4 text-sm flex-wrap">
-					{flowRun.flow_id && (
-						<Link
-							to="/flows/flow/$id"
-							params={{ id: flowRun.flow_id }}
-							className="flex items-center gap-1 hover:underline"
-						>
-							<Icon id="Workflow" className="size-4" />
-							<span className="text-muted-foreground">Flow</span>
-							<span>{flow?.name ?? "..."}</span>
-						</Link>
-					)}
+					{flowRun.flow_id && <FlowIconText flowId={flowRun.flow_id} />}
 					{flowRun.deployment_id && (
 						<Link
 							to="/deployments/deployment/$id"

@@ -352,7 +352,7 @@ describe("FlowRunHeader", () => {
 			expect(screen.getByText("Test Flow Name")).toBeInTheDocument();
 		});
 
-		const flowLink = screen.getByRole("link", { name: /FlowTest Flow Name/i });
+		const flowLink = screen.getByRole("link", { name: /Test Flow Name/i });
 		expect(flowLink).toHaveAttribute("href", "/flows/flow/test-flow-id");
 	});
 
@@ -394,16 +394,14 @@ describe("FlowRunHeader", () => {
 
 		renderFlowRunHeader();
 
-		await waitFor(() => {
-			expect(screen.getByText("Flow")).toBeInTheDocument();
-		});
-
-		const flowLink = screen.getByRole("link", { name: /Flow/i });
-		expect(flowLink).toHaveTextContent("...");
-
+		// The FlowIconText component uses Suspense with a Skeleton fallback
+		// Wait for the flow name to appear after loading
 		await waitFor(() => {
 			expect(screen.getByText("Test Flow Name")).toBeInTheDocument();
 		});
+
+		const flowLink = screen.getByRole("link", { name: /Test Flow Name/i });
+		expect(flowLink).toHaveAttribute("href", "/flows/flow/test-flow-id");
 	});
 
 	it("displays work pool link when work_pool_name is present", async () => {
