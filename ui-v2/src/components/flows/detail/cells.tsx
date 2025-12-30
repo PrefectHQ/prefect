@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
+import { WorkPoolIconText } from "@/components/work-pools/work-pool-icon-text";
 
 type FlowRun = components["schemas"]["FlowRunResponse"];
 
@@ -28,5 +29,9 @@ export const WorkPoolCell = ({ row }: { row: { original: FlowRun } }) => {
 		enabled: !!deploymentId,
 	});
 
-	return deployment?.data?.work_pool_name;
+	const workPoolName = deployment?.data?.work_pool_name;
+	if (!workPoolName) {
+		return null;
+	}
+	return <WorkPoolIconText workPoolName={workPoolName} />;
 };
