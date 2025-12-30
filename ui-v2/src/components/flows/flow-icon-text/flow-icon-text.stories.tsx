@@ -1,5 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { Suspense } from "react";
 import { FlowIconText } from "./flow-icon-text";
 
 const queryClient = new QueryClient({
@@ -10,15 +17,34 @@ const queryClient = new QueryClient({
 	},
 });
 
+const createTestRouter = (flowId: string) => {
+	const rootRoute = createRootRoute({
+		component: () => (
+			<Suspense fallback={<div>Loading...</div>}>
+				<FlowIconText flowId={flowId} />
+			</Suspense>
+		),
+	});
+
+	return createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+		context: { queryClient },
+	});
+};
+
 const meta: Meta<typeof FlowIconText> = {
 	title: "Components/Flows/FlowIconText",
 	component: FlowIconText,
 	decorators: [
-		(Story) => (
-			<QueryClientProvider client={queryClient}>
-				<Story />
-			</QueryClientProvider>
-		),
+		(_Story, context) => {
+			const router = createTestRouter(context.args.flowId ?? "flow-123");
+			return (
+				<QueryClientProvider client={queryClient}>
+					<RouterProvider router={router} />
+				</QueryClientProvider>
+			);
+		},
 	],
 	parameters: {
 		docs: {
