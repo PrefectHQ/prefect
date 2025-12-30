@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { buildGetWorkQueueQuery } from "@/api/work-queues";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkPoolLink } from "@/components/work-pools/work-pool-link";
-import { WorkQueueLink } from "@/components/work-pools/work-queue-link";
+import { WorkQueueIconText } from "@/components/work-pools/work-queue-icon-text";
 import { pluralize } from "@/utils";
 import { secondsToString } from "@/utils/seconds";
 import {
@@ -58,9 +58,11 @@ const TriggerDetailsWorkQueueStatusImplementation = ({
 					<span>{pluralize(workQueues.length, "work queue")}</span>
 					{workQueues.map((workQueue, index) => (
 						<span key={workQueue.id} className="flex items-center gap-1">
-							<WorkQueueLink
+							<WorkQueueIconText
 								workPoolName={workQueue.work_pool_name ?? ""}
 								workQueueName={workQueue.name}
+								showLabel
+								showStatus
 							/>
 							{index === workQueues.length - 2 && <span>or</span>}
 						</span>
