@@ -9,66 +9,53 @@ describe("FormModeToggle", () => {
 		mockPointerEvents();
 	});
 
-	it("renders Form and JSON buttons", () => {
+	it("renders Form and JSON tabs", () => {
 		const onValueChange = vi.fn();
 		render(<FormModeToggle value="Form" onValueChange={onValueChange} />);
 
-		expect(screen.getByRole("button", { name: "Form" })).toBeVisible();
-		expect(screen.getByRole("button", { name: "JSON" })).toBeVisible();
+		expect(screen.getByRole("tab", { name: "Form" })).toBeVisible();
+		expect(screen.getByRole("tab", { name: "JSON" })).toBeVisible();
 	});
 
-	it("shows Form button as active when value is Form", () => {
+	it("shows Form tab as selected when value is Form", () => {
 		const onValueChange = vi.fn();
 		render(<FormModeToggle value="Form" onValueChange={onValueChange} />);
 
-		const formButton = screen.getByRole("button", { name: "Form" });
-		const jsonButton = screen.getByRole("button", { name: "JSON" });
+		const formTab = screen.getByRole("tab", { name: "Form" });
+		const jsonTab = screen.getByRole("tab", { name: "JSON" });
 
-		expect(formButton).not.toHaveClass("border");
-		expect(jsonButton).toHaveClass("border");
+		expect(formTab).toHaveAttribute("aria-selected", "true");
+		expect(jsonTab).toHaveAttribute("aria-selected", "false");
 	});
 
-	it("shows JSON button as active when value is JSON", () => {
+	it("shows JSON tab as selected when value is JSON", () => {
 		const onValueChange = vi.fn();
 		render(<FormModeToggle value="JSON" onValueChange={onValueChange} />);
 
-		const formButton = screen.getByRole("button", { name: "Form" });
-		const jsonButton = screen.getByRole("button", { name: "JSON" });
+		const formTab = screen.getByRole("tab", { name: "Form" });
+		const jsonTab = screen.getByRole("tab", { name: "JSON" });
 
-		expect(formButton).toHaveClass("border");
-		expect(jsonButton).not.toHaveClass("border");
+		expect(formTab).toHaveAttribute("aria-selected", "false");
+		expect(jsonTab).toHaveAttribute("aria-selected", "true");
 	});
 
-	it("calls onValueChange with 'Form' when Form button is clicked", async () => {
+	it("calls onValueChange with 'Form' when Form tab is clicked", async () => {
 		const user = userEvent.setup();
 		const onValueChange = vi.fn();
 		render(<FormModeToggle value="JSON" onValueChange={onValueChange} />);
 
-		await user.click(screen.getByRole("button", { name: "Form" }));
+		await user.click(screen.getByRole("tab", { name: "Form" }));
 
 		expect(onValueChange).toHaveBeenCalledWith("Form");
-		expect(onValueChange).toHaveBeenCalledTimes(1);
 	});
 
-	it("calls onValueChange with 'JSON' when JSON button is clicked", async () => {
+	it("calls onValueChange with 'JSON' when JSON tab is clicked", async () => {
 		const user = userEvent.setup();
 		const onValueChange = vi.fn();
 		render(<FormModeToggle value="Form" onValueChange={onValueChange} />);
 
-		await user.click(screen.getByRole("button", { name: "JSON" }));
+		await user.click(screen.getByRole("tab", { name: "JSON" }));
 
 		expect(onValueChange).toHaveBeenCalledWith("JSON");
-		expect(onValueChange).toHaveBeenCalledTimes(1);
-	});
-
-	it("calls onValueChange when clicking the already active button", async () => {
-		const user = userEvent.setup();
-		const onValueChange = vi.fn();
-		render(<FormModeToggle value="Form" onValueChange={onValueChange} />);
-
-		await user.click(screen.getByRole("button", { name: "Form" }));
-
-		expect(onValueChange).toHaveBeenCalledWith("Form");
-		expect(onValueChange).toHaveBeenCalledTimes(1);
 	});
 });

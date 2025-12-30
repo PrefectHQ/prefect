@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type FormMode = "Form" | "JSON";
 
@@ -11,22 +11,16 @@ export const FormModeToggle = ({
 	value,
 	onValueChange,
 }: FormModeToggleProps) => {
+	const handleValueChange = (newValue: string) => {
+		onValueChange(newValue as FormMode);
+	};
+
 	return (
-		<div className="flex gap-1">
-			<Button
-				variant={value === "Form" ? "default" : "outline"}
-				size="sm"
-				onClick={() => onValueChange("Form")}
-			>
-				Form
-			</Button>
-			<Button
-				variant={value === "JSON" ? "default" : "outline"}
-				size="sm"
-				onClick={() => onValueChange("JSON")}
-			>
-				JSON
-			</Button>
-		</div>
+		<Tabs value={value} onValueChange={handleValueChange}>
+			<TabsList>
+				<TabsTrigger value="Form">Form</TabsTrigger>
+				<TabsTrigger value="JSON">JSON</TabsTrigger>
+			</TabsList>
+		</Tabs>
 	);
 };
