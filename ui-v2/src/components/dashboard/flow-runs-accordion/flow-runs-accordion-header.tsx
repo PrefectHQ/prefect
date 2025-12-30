@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import {
 	buildCountFlowRunsQuery,
@@ -7,6 +6,7 @@ import {
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
+import { FlowIconTextFromFlow } from "@/components/flows/flow-icon-text";
 import { FormattedDate } from "@/components/ui/formatted-date";
 
 type FlowRunsAccordionHeaderProps = {
@@ -58,14 +58,11 @@ export function FlowRunsAccordionHeader({
 	return (
 		<div className="flex w-full items-center justify-between gap-4 pr-2">
 			<div className="flex flex-col items-start gap-1">
-				<Link
-					to="/flows/flow/$id"
-					params={{ id: flow.id }}
-					className="text-sm font-medium text-foreground hover:underline"
+				<FlowIconTextFromFlow
+					flow={flow}
+					className="text-sm font-medium text-foreground hover:underline flex items-center gap-1"
 					onClick={(e) => e.stopPropagation()}
-				>
-					{flow.name}
-				</Link>
+				/>
 				{lastFlowRun?.start_time && (
 					<FormattedDate
 						date={new Date(lastFlowRun.start_time)}

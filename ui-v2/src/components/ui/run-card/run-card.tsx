@@ -83,10 +83,11 @@ const ConcurrencyLimitTaskRunBreadcrumb = ({
 				{flow && (
 					<BreadcrumbItem>
 						<BreadcrumbLink
-							className="text-lg font-semibold"
+							className="text-lg font-semibold flex items-center gap-1"
 							to="/flows/flow/$id"
 							params={{ id: flow.id }}
 						>
+							<Icon id="Workflow" className="size-4" />
 							{flow.name}
 						</BreadcrumbLink>
 					</BreadcrumbItem>

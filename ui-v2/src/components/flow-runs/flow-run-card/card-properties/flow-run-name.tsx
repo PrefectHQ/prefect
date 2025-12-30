@@ -6,6 +6,7 @@ import {
 	BreadcrumbList,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Icon } from "@/components/ui/icons";
 
 type FlowRunNameProps = {
 	flowRun: FlowRunCardData;
@@ -23,7 +24,9 @@ export const FlowRunName = ({ flowRun }: FlowRunNameProps) => {
 							<BreadcrumbLink
 								to="/flows/flow/$id"
 								params={{ id: flowRun.flow_id }}
+								className="flex items-center gap-1"
 							>
+								<Icon id="Workflow" className="size-4" />
 								{flow.name}
 							</BreadcrumbLink>
 						</BreadcrumbItem>
