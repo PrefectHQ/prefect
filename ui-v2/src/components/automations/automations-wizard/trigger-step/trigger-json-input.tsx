@@ -2,7 +2,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { TriggerSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Button } from "@/components/ui/button";
-import { JsonInput } from "@/components/ui/json-input";
+import { JsonInput, type JsonInputOnChange } from "@/components/ui/json-input";
 import { Label } from "@/components/ui/label";
 
 type TriggerJsonInputProps = {
@@ -64,7 +64,7 @@ export const TriggerJsonInput = ({
 			</p>
 			<JsonInput
 				value={value}
-				onChange={onChange}
+				onChange={onChange as JsonInputOnChange}
 				onBlur={() => validate(value)}
 				className="min-h-[400px]"
 			/>
