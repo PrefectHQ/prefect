@@ -1,73 +1,32 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { render, screen, waitFor } from "@testing-library/react";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
+import { describe, expect, it } from "vitest";
+import { createFakeFlow } from "@/mocks";
 import { TriggerDetails } from "./trigger-details";
 import type { AutomationTrigger } from "./trigger-utils";
 
-vi.mock("@/components/flows/flow-link", () => ({
-	FlowLink: ({ flowId }: { flowId: string }) => (
-		<span data-testid="flow-link">{flowId}</span>
-	),
-}));
+const TriggerDetailsRouter = ({ trigger }: { trigger: AutomationTrigger }) => {
+	const rootRoute = createRootRoute({
+		component: () => <TriggerDetails trigger={trigger} />,
+	});
 
-vi.mock("@/components/deployments/deployment-link", () => ({
-	DeploymentLink: ({ deploymentId }: { deploymentId: string }) => (
-		<span data-testid="deployment-link">{deploymentId}</span>
-	),
-}));
-
-vi.mock("@/components/work-pools/work-pool-link", () => ({
-	WorkPoolLink: ({ workPoolName }: { workPoolName: string }) => (
-		<span data-testid="work-pool-link">{workPoolName}</span>
-	),
-}));
-
-vi.mock("@/components/work-pools/work-queue-icon-text", () => ({
-	WorkQueueIconText: ({
-		workPoolName,
-		workQueueName,
-	}: {
-		workPoolName: string;
-		workQueueName: string;
-	}) => (
-		<span data-testid="work-queue-link">
-			{workPoolName}/{workQueueName}
-		</span>
-	),
-}));
-
-vi.mock("@/api/work-pools", () => ({
-	buildFilterWorkPoolsQuery: () => ({
-		queryKey: ["work-pools"],
-		queryFn: () => Promise.resolve([]),
-	}),
-}));
-
-vi.mock("@/api/work-queues", () => ({
-	buildGetWorkQueueQuery: (id: string) => ({
-		queryKey: ["work-queue", id],
-		queryFn: () =>
-			Promise.resolve({
-				id,
-				name: `queue-${id}`,
-				work_pool_name: "test-pool",
-			}),
-	}),
-}));
-
-const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			retry: false,
-		},
-	},
-});
-
-function QueryWrapper({ children }: { children: React.ReactNode }) {
-	return (
-		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-	);
-}
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({
+			initialEntries: ["/"],
+		}),
+		context: { queryClient: new QueryClient() },
+	});
+	return <RouterProvider router={router} />;
+};
 
 const flowRunStateTriggerReactive: AutomationTrigger = {
 	type: "event",
@@ -248,7 +207,7 @@ describe("TriggerDetails", () => {
 	describe("Flow Run State Trigger", () => {
 		it("renders flow run state trigger with reactive posture", () => {
 			render(<TriggerDetails trigger={flowRunStateTriggerReactive} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(screen.getByText("When any flow run")).toBeInTheDocument();
@@ -257,28 +216,44 @@ describe("TriggerDetails", () => {
 
 		it("renders flow run state trigger with proactive posture", () => {
 			render(<TriggerDetails trigger={flowRunStateTriggerProactive} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(screen.getByText("When any flow run")).toBeInTheDocument();
 			expect(screen.getByText("stays in")).toBeInTheDocument();
 		});
 
-		it("renders flow run state trigger with specific flow", () => {
-			render(<TriggerDetails trigger={flowRunStateTriggerWithFlow} />, {
-				wrapper: QueryWrapper,
+		it("renders flow run state trigger with specific flow", async () => {
+			const mockFlow = createFakeFlow({
+				id: "my-flow-id",
+				name: "My Test Flow",
 			});
+
+			server.use(
+				http.get(buildApiUrl("/flows/:id"), () => {
+					return HttpResponse.json(mockFlow);
+				}),
+			);
+
+			await waitFor(() =>
+				render(<TriggerDetailsRouter trigger={flowRunStateTriggerWithFlow} />, {
+					wrapper: createWrapper(),
+				}),
+			);
 
 			expect(screen.getByText("When any flow run")).toBeInTheDocument();
 			expect(screen.getByText("of flow")).toBeInTheDocument();
-			expect(screen.getByTestId("flow-link")).toHaveTextContent("my-flow-id");
+
+			await waitFor(() => {
+				expect(screen.getByText("My Test Flow")).toBeInTheDocument();
+			});
 		});
 	});
 
 	describe("Deployment Status Trigger", () => {
 		it("renders deployment status trigger with reactive posture", () => {
 			render(<TriggerDetails trigger={deploymentStatusTriggerReactive} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(screen.getByText("When")).toBeInTheDocument();
@@ -289,7 +264,7 @@ describe("TriggerDetails", () => {
 
 		it("renders deployment status trigger with not-ready status", () => {
 			render(<TriggerDetails trigger={deploymentStatusTriggerNotReady} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(screen.getByText("not ready")).toBeInTheDocument();
@@ -299,7 +274,7 @@ describe("TriggerDetails", () => {
 	describe("Work Pool Status Trigger", () => {
 		it("renders work pool status trigger with reactive posture", () => {
 			render(<TriggerDetails trigger={workPoolStatusTriggerReactive} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(screen.getByText("When")).toBeInTheDocument();
@@ -310,7 +285,7 @@ describe("TriggerDetails", () => {
 
 		it("renders work pool status trigger with not-ready status", () => {
 			render(<TriggerDetails trigger={workPoolStatusTriggerNotReady} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(screen.getByText("not ready")).toBeInTheDocument();
@@ -320,7 +295,7 @@ describe("TriggerDetails", () => {
 	describe("Work Queue Status Trigger", () => {
 		it("renders work queue status trigger with reactive posture", () => {
 			render(<TriggerDetails trigger={workQueueStatusTriggerReactive} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(screen.getByText("When")).toBeInTheDocument();
@@ -331,7 +306,7 @@ describe("TriggerDetails", () => {
 	describe("Compound Trigger", () => {
 		it("renders compound trigger with require all", () => {
 			render(<TriggerDetails trigger={compoundTriggerAll} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(
@@ -343,7 +318,7 @@ describe("TriggerDetails", () => {
 
 		it("renders compound trigger with require any", () => {
 			render(<TriggerDetails trigger={compoundTriggerAny} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(
@@ -355,7 +330,7 @@ describe("TriggerDetails", () => {
 
 		it("renders compound trigger with require number", () => {
 			render(<TriggerDetails trigger={compoundTriggerNumber} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(
@@ -369,7 +344,7 @@ describe("TriggerDetails", () => {
 	describe("Sequence Trigger", () => {
 		it("renders sequence trigger", () => {
 			render(<TriggerDetails trigger={sequenceTrigger} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(
@@ -380,7 +355,7 @@ describe("TriggerDetails", () => {
 
 		it("renders sequence trigger with single trigger", () => {
 			render(<TriggerDetails trigger={sequenceTriggerSingle} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(
@@ -392,7 +367,7 @@ describe("TriggerDetails", () => {
 	describe("Custom Trigger", () => {
 		it("renders custom trigger", () => {
 			render(<TriggerDetails trigger={customTrigger} />, {
-				wrapper: QueryWrapper,
+				wrapper: createWrapper(),
 			});
 
 			expect(screen.getByText("A custom trigger")).toBeInTheDocument();
