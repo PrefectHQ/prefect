@@ -1,3 +1,6 @@
+import { useFormContext } from "react-hook-form";
+import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -55,5 +58,35 @@ export const AutomationsTriggerTemplateSelect = ({
 				</SelectContent>
 			</Select>
 		</div>
+	);
+};
+
+type TriggerTemplateSelectFieldProps = {
+	onTemplateChange?: (template: TriggerTemplate) => void;
+};
+
+export const TriggerTemplateSelectField = ({
+	onTemplateChange,
+}: TriggerTemplateSelectFieldProps) => {
+	const form = useFormContext<AutomationWizardSchema>();
+
+	return (
+		<FormField
+			control={form.control}
+			name="triggerTemplate"
+			render={({ field }) => (
+				<FormItem>
+					<FormControl>
+						<AutomationsTriggerTemplateSelect
+							value={field.value}
+							onValueChange={(value) => {
+								field.onChange(value);
+								onTemplateChange?.(value);
+							}}
+						/>
+					</FormControl>
+				</FormItem>
+			)}
+		/>
 	);
 };
