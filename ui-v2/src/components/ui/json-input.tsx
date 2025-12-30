@@ -64,6 +64,7 @@ export const JsonInput = React.forwardRef<HTMLDivElement, JsonInputProps>(
 			editable: !disabled,
 			basicSetup,
 			theme: resolvedTheme === "dark" ? "dark" : "light",
+			height: "100%",
 		});
 
 		useEffect(() => {
