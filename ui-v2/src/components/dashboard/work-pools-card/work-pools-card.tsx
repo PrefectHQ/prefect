@@ -24,6 +24,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { WorkPoolIconText } from "@/components/work-pools/work-pool-icon-text";
 import { WorkPoolQueueStatusIcon } from "@/components/work-pools/work-pool-queue-status-icon";
 import { WorkPoolStatusIcon } from "@/components/work-pools/work-pool-status-icon";
 import { useNow } from "@/hooks/use-now";
@@ -121,13 +122,7 @@ const DashboardWorkPoolCard = ({
 		<div className="rounded-xl border border-border">
 			<div className="flex flex-wrap items-center gap-4 border-b border-border p-3">
 				<div className="flex flex-grow items-center gap-2">
-					<Link
-						to="/work-pools/work-pool/$workPoolName"
-						params={{ workPoolName: workPool.name }}
-						className="text-primary underline-offset-4 hover:underline"
-					>
-						{workPool.name}
-					</Link>
+					<WorkPoolIconText workPoolName={workPool.name} />
 					<WorkPoolStatusIcon status={workPool.status ?? "READY"} />
 				</div>
 				<WorkPoolMiniBarChart workPool={workPool} filter={filter} />
