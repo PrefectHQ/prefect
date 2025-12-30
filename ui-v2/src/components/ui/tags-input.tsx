@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Input, type InputProps } from "@/components/ui/input";
 import { TagBadgeGroup } from "./tag-badge-group";
 
-export type TagsInputProps = InputProps & {
+export type TagsInputProps = Omit<InputProps, "onChange" | "value"> & {
 	value?: string[];
 	onChange?: (tags: string[]) => void;
 	placeholder?: string;
