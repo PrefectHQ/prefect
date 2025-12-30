@@ -1,15 +1,9 @@
-import { test as base } from "@playwright/test";
-import { ApiHelpers } from "./api-helpers";
+import createClient from "openapi-fetch";
+import type { paths } from "@/api/prefect";
 
-type Fixtures = {
-	api: ApiHelpers;
-};
+export type PrefectApiClient = ReturnType<typeof createClient<paths>>;
 
-export const test = base.extend<Fixtures>({
-	api: async ({ request }, use) => {
-		const api = new ApiHelpers(request);
-		await use(api);
-	},
-});
-
-export { expect } from "@playwright/test";
+export function createPrefectApiClient(): PrefectApiClient {
+	const baseUrl = process.env.PREFECT_API_URL ?? "http://localhost:4200/api";
+	return createClient<paths>({ baseUrl });
+}
