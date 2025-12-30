@@ -20,7 +20,7 @@ describe("FlowRunActionDescription", () => {
 	it("renders resume action description", () => {
 		render(<FlowRunActionDescription action="Resume" />);
 		expect(
-			screen.getByText("Resume flow run inferred from the triggering event"),
+			screen.getByText("Resume a flow run inferred from the triggering event"),
 		).toBeVisible();
 	});
 });

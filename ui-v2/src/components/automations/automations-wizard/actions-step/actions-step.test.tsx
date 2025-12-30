@@ -529,7 +529,9 @@ describe("ActionsStep", () => {
 			// ------------ Assert
 			expect(screen.getAllByText("Resume a flow run")).toBeTruthy();
 			expect(
-				screen.getByText("Resume flow run inferred from the triggering event"),
+				screen.getByText(
+					"Resume a flow run inferred from the triggering event",
+				),
 			).toBeVisible();
 		});
 	});
