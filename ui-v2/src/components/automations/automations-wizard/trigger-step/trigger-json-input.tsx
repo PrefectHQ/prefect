@@ -66,7 +66,6 @@ export const TriggerJsonInput = ({
 				value={value}
 				onChange={onChange as JsonInputOnChange}
 				onBlur={() => validate(value)}
-				className="min-h-[400px]"
 			/>
 			{(localError || error) && (
 				<p className="text-sm text-destructive">{localError || error}</p>
