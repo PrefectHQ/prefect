@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
 import { format, formatDistanceStrict } from "date-fns";
-import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
+import { Calendar, ChevronRight, Clock } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { Bar, BarChart, Cell, type TooltipContentProps } from "recharts";
 import type { components } from "@/api/prefect";
+import { DeploymentIconText } from "@/components/deployments/deployment-icon-text";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { cn } from "@/utils";
 import {
@@ -325,16 +326,10 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 			</CardHeader>
 			<CardContent className="flex flex-col gap-1">
 				{deployment?.id && (
-					<Link
-						to={"/deployments/deployment/$id"}
-						params={{ id: deployment.id }}
-						className="flex items-center gap-1"
-					>
-						<Rocket className="size-4" />
-						<p className="text-sm font-medium whitespace-nowrap">
-							{deployment.name}
-						</p>
-					</Link>
+					<DeploymentIconText
+						deployment={deployment}
+						className="flex items-center gap-1 text-sm font-medium whitespace-nowrap"
+					/>
 				)}
 				<span className="flex items-center gap-1">
 					<Clock className="size-4" />
