@@ -36,7 +36,7 @@ const WorkQueueIconTextImplementation = ({
 			params={{ workPoolName, workQueueName }}
 			className="flex items-center gap-1"
 		>
-			<Icon id="Cpu" className="size-4" />
+			<Icon id="ListOrdered" className="size-4" />
 			{workQueue.name}
 		</Link>
 	);
