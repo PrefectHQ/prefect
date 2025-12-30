@@ -56,7 +56,7 @@ const meta: Meta<typeof WorkQueueIconText> = {
 		docs: {
 			description: {
 				component:
-					"A link component that fetches and displays a work queue name with a Cpu icon, linking to the work queue detail page.",
+					"A link component that fetches and displays a work queue name with a ListOrdered icon, linking to the work queue detail page.",
 			},
 		},
 	},
