@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { FormModeToggle } from "./form-mode-toggle";
@@ -40,8 +39,6 @@ const SampleJsonContent = (
 
 export const FormSelected: Story = {
 	args: {
-		value: "Form",
-		onValueChange: () => {},
 		formContent: SampleFormContent,
 		jsonContent: SampleJsonContent,
 	},
@@ -49,8 +46,7 @@ export const FormSelected: Story = {
 
 export const JSONSelected: Story = {
 	args: {
-		value: "JSON",
-		onValueChange: () => {},
+		defaultValue: "JSON",
 		formContent: SampleFormContent,
 		jsonContent: SampleJsonContent,
 	},
@@ -58,23 +54,7 @@ export const JSONSelected: Story = {
 
 export const Interactive: Story = {
 	args: {
-		value: "Form",
-		onValueChange: () => {},
 		formContent: SampleFormContent,
 		jsonContent: SampleJsonContent,
 	},
-	render: () => <InteractiveFormModeToggle />,
 };
-
-function InteractiveFormModeToggle() {
-	const [mode, setMode] = useState<"Form" | "JSON">("Form");
-
-	return (
-		<FormModeToggle
-			value={mode}
-			onValueChange={setMode}
-			formContent={SampleFormContent}
-			jsonContent={SampleJsonContent}
-		/>
-	);
-}

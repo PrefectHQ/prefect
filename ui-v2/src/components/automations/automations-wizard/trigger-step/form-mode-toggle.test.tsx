@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { FormModeToggle } from "./form-mode-toggle";
 
 describe("FormModeToggle", () => {
@@ -13,29 +13,17 @@ describe("FormModeToggle", () => {
 	const jsonContent = <div data-testid="json-content">JSON Content</div>;
 
 	it("renders Form and JSON tabs", () => {
-		const onValueChange = vi.fn();
 		render(
-			<FormModeToggle
-				value="Form"
-				onValueChange={onValueChange}
-				formContent={formContent}
-				jsonContent={jsonContent}
-			/>,
+			<FormModeToggle formContent={formContent} jsonContent={jsonContent} />,
 		);
 
 		expect(screen.getByRole("tab", { name: "Form" })).toBeVisible();
 		expect(screen.getByRole("tab", { name: "JSON" })).toBeVisible();
 	});
 
-	it("shows Form tab as selected when value is Form", () => {
-		const onValueChange = vi.fn();
+	it("shows Form tab as selected by default", () => {
 		render(
-			<FormModeToggle
-				value="Form"
-				onValueChange={onValueChange}
-				formContent={formContent}
-				jsonContent={jsonContent}
-			/>,
+			<FormModeToggle formContent={formContent} jsonContent={jsonContent} />,
 		);
 
 		const formTab = screen.getByRole("tab", { name: "Form" });
@@ -45,12 +33,10 @@ describe("FormModeToggle", () => {
 		expect(jsonTab).toHaveAttribute("aria-selected", "false");
 	});
 
-	it("shows JSON tab as selected when value is JSON", () => {
-		const onValueChange = vi.fn();
+	it("shows JSON tab as selected when defaultValue is JSON", () => {
 		render(
 			<FormModeToggle
-				value="JSON"
-				onValueChange={onValueChange}
+				defaultValue="JSON"
 				formContent={formContent}
 				jsonContent={jsonContent}
 			/>,
@@ -63,26 +49,18 @@ describe("FormModeToggle", () => {
 		expect(jsonTab).toHaveAttribute("aria-selected", "true");
 	});
 
-	it("renders form content when Form is selected", () => {
-		const onValueChange = vi.fn();
+	it("renders form content by default", () => {
 		render(
-			<FormModeToggle
-				value="Form"
-				onValueChange={onValueChange}
-				formContent={formContent}
-				jsonContent={jsonContent}
-			/>,
+			<FormModeToggle formContent={formContent} jsonContent={jsonContent} />,
 		);
 
 		expect(screen.getByTestId("form-content")).toBeVisible();
 	});
 
-	it("renders json content when JSON is selected", () => {
-		const onValueChange = vi.fn();
+	it("renders json content when defaultValue is JSON", () => {
 		render(
 			<FormModeToggle
-				value="JSON"
-				onValueChange={onValueChange}
+				defaultValue="JSON"
 				formContent={formContent}
 				jsonContent={jsonContent}
 			/>,
@@ -91,13 +69,11 @@ describe("FormModeToggle", () => {
 		expect(screen.getByTestId("json-content")).toBeVisible();
 	});
 
-	it("calls onValueChange with 'Form' when Form tab is clicked", async () => {
+	it("switches to Form content when Form tab is clicked", async () => {
 		const user = userEvent.setup();
-		const onValueChange = vi.fn();
 		render(
 			<FormModeToggle
-				value="JSON"
-				onValueChange={onValueChange}
+				defaultValue="JSON"
 				formContent={formContent}
 				jsonContent={jsonContent}
 			/>,
@@ -105,23 +81,25 @@ describe("FormModeToggle", () => {
 
 		await user.click(screen.getByRole("tab", { name: "Form" }));
 
-		expect(onValueChange).toHaveBeenCalledWith("Form");
+		expect(screen.getByTestId("form-content")).toBeVisible();
+		expect(screen.getByRole("tab", { name: "Form" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
 	});
 
-	it("calls onValueChange with 'JSON' when JSON tab is clicked", async () => {
+	it("switches to JSON content when JSON tab is clicked", async () => {
 		const user = userEvent.setup();
-		const onValueChange = vi.fn();
 		render(
-			<FormModeToggle
-				value="Form"
-				onValueChange={onValueChange}
-				formContent={formContent}
-				jsonContent={jsonContent}
-			/>,
+			<FormModeToggle formContent={formContent} jsonContent={jsonContent} />,
 		);
 
 		await user.click(screen.getByRole("tab", { name: "JSON" }));
 
-		expect(onValueChange).toHaveBeenCalledWith("JSON");
+		expect(screen.getByTestId("json-content")).toBeVisible();
+		expect(screen.getByRole("tab", { name: "JSON" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
 	});
 });
