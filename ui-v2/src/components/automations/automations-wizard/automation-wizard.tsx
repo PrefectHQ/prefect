@@ -1,9 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { useCreateAutomation } from "@/api/automations";
-import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Form, FormMessage } from "@/components/ui/form";
@@ -17,25 +14,44 @@ import {
 import { DetailsStep } from "./details-step";
 import { TriggerStep } from "./trigger-step";
 
-type AutomationCreate = components["schemas"]["AutomationCreate"];
-
 const WIZARD_STEPS = ["Trigger", "Actions", "Details"] as const;
 type WizardStep = (typeof WIZARD_STEPS)[number];
 
-export const AutomationWizard = () => {
-	const { createAutomation, isPending } = useCreateAutomation();
-	const navigate = useNavigate();
-	const stepper = useStepper(WIZARD_STEPS.length);
+const DEFAULT_FORM_VALUES = {
+	actions: [{ type: undefined }],
+	trigger: {
+		type: "event" as const,
+		posture: "Reactive" as const,
+		threshold: 1,
+		within: 0,
+	},
+};
+
+type AutomationWizardProps = {
+	defaultValues?: Partial<TAutomationWizardSchema>;
+	onSubmit: (values: TAutomationWizardSchema) => void;
+	submitLabel?: string;
+	isSubmitting?: boolean;
+};
+
+export const AutomationWizard = ({
+	defaultValues = {},
+	onSubmit,
+	submitLabel = "Save",
+	isSubmitting = false,
+}: AutomationWizardProps) => {
+	const isEditMode = Boolean(
+		defaultValues && Object.keys(defaultValues).length > 0,
+	);
+	const initialVisitedSteps = isEditMode
+		? new Set([0, 1, 2])
+		: new Set<number>([0]);
+	const stepper = useStepper(WIZARD_STEPS.length, 0, initialVisitedSteps);
 	const form = useForm({
 		resolver: zodResolver(AutomationWizardSchema),
 		defaultValues: {
-			actions: [{ type: undefined }],
-			trigger: {
-				type: "event",
-				posture: "Reactive",
-				threshold: 1,
-				within: 0,
-			},
+			...DEFAULT_FORM_VALUES,
+			...defaultValues,
 		},
 	});
 
@@ -60,26 +76,6 @@ export const AutomationWizard = () => {
 		if (isValid) {
 			stepper.incrementStep();
 		}
-	};
-
-	const onSubmit = (values: TAutomationWizardSchema) => {
-		const automationData: AutomationCreate = {
-			name: values.name,
-			description: values.description ?? "",
-			enabled: true,
-			trigger: values.trigger,
-			actions: values.actions,
-		};
-
-		createAutomation(automationData, {
-			onSuccess: () => {
-				toast.success("Automation created successfully");
-				void navigate({ to: "/automations" });
-			},
-			onError: (error) => {
-				toast.error(`Failed to create automation: ${error.message}`);
-			},
-		});
 	};
 
 	return (
@@ -111,8 +107,8 @@ export const AutomationWizard = () => {
 								Previous
 							</Button>
 							{stepper.isFinalStep ? (
-								<Button type="submit" loading={isPending}>
-									Save
+								<Button type="submit" loading={isSubmitting}>
+									{submitLabel}
 								</Button>
 							) : (
 								<Button
