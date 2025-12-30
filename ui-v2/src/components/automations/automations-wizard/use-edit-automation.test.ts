@@ -920,10 +920,10 @@ describe("useEditAutomation", () => {
 			});
 			mockFetchGetAutomationAPI(mockAutomation);
 
-			let capturedBody: Record<string, unknown> | null = null;
+			let capturedBody: { enabled?: boolean } | null = null;
 			server.use(
 				http.patch(buildApiUrl("/automations/:id"), async ({ request }) => {
-					capturedBody = (await request.json()) as Record<string, unknown>;
+					capturedBody = (await request.json()) as { enabled?: boolean };
 					return new HttpResponse(null, { status: 204 });
 				}),
 			);
@@ -951,7 +951,9 @@ describe("useEditAutomation", () => {
 			});
 
 			await waitFor(() => expect(capturedBody).not.toBeNull());
-			expect(capturedBody?.enabled).toBe(false);
+			expect((capturedBody as unknown as { enabled: boolean }).enabled).toBe(
+				false,
+			);
 		});
 	});
 });

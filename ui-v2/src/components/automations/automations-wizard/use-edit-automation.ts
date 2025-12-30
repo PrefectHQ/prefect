@@ -204,14 +204,14 @@ function transformTriggerToFormValue(trigger: AutomationTrigger): TriggerInput {
 				type: "compound",
 				triggers: trigger.triggers.map(transformTriggerToFormValue),
 				require: trigger.require,
-				within: trigger.within,
+				within: trigger.within ?? undefined,
 			};
 		}
 		case "sequence": {
 			return {
 				type: "sequence",
 				triggers: trigger.triggers.map(transformTriggerToFormValue),
-				within: trigger.within,
+				within: trigger.within ?? undefined,
 			};
 		}
 		default: {
