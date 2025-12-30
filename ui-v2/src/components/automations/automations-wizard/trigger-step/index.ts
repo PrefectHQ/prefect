@@ -4,6 +4,7 @@ export { FlowRunStateTriggerFields } from "./flow-run-state-trigger-fields";
 export { FormModeToggle } from "./form-mode-toggle";
 export { PostureSelect } from "./posture-select";
 export { StateMultiSelect } from "./state-multi-select";
+export { TriggerJsonInput } from "./trigger-json-input";
 export { TriggerStep } from "./trigger-step";
 export { getDefaultTriggerForTemplate } from "./trigger-step-utils";
 export { WorkPoolStatusTriggerFields } from "./work-pool-status-trigger-fields";
