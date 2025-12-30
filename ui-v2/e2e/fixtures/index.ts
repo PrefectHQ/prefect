@@ -6,7 +6,8 @@ type Fixtures = {
 };
 
 export const test = base.extend<Fixtures>({
-	apiClient: async (_, use) => {
+	// biome-ignore lint/correctness/noEmptyPattern: Playwright fixtures require object destructuring syntax
+	apiClient: async ({}, use) => {
 		const client = createPrefectApiClient();
 		await use(client);
 	},
