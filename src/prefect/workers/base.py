@@ -37,13 +37,6 @@ from prefect._internal.schemas.validators import return_v_or_none
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
-from prefect.client.schemas.filters import (
-    FlowRunFilter,
-    FlowRunFilterState,
-    FlowRunFilterStateType,
-    WorkPoolFilter,
-    WorkPoolFilterName,
-)
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
     Integration,
@@ -54,8 +47,6 @@ from prefect.client.schemas.objects import (
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TagsContext
 from prefect.events import Event, RelatedResource, emit_event
-from prefect.events.clients import PrefectEventSubscriber, get_events_subscriber
-from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
     Abort,
@@ -71,6 +62,7 @@ from prefect.logging.loggers import (
     get_worker_logger,
 )
 from prefect.plugins import load_prefect_collections
+from prefect.runner._observers import FlowRunCancellingObserver
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
@@ -550,11 +542,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
         self._worker_metadata_sent = False
 
-        # Cancellation handling state
-        self._cancellation_events_subscriber: Optional[PrefectEventSubscriber] = None
-        self._cancellation_consumer_task: Optional[asyncio.Task[None]] = None
-        self._cancellation_polling_task: Optional[asyncio.Task[None]] = None
-        self._seen_cancelling_flow_run_ids: set[UUID] = set()
+        # Cancellation handling
+        self._cancelling_observer: Optional[FlowRunCancellingObserver] = None
 
     @property
     def client(self) -> PrefectClient:
@@ -998,9 +987,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         await self.sync_with_backend()
 
         # Initialize cancellation handling if enabled
-        if self._is_cancellation_enabled():
+        if get_current_settings().worker.enable_cancellation:
             try:
-                await self._setup_cancellation_handling()
+                self._cancelling_observer = await self._exit_stack.enter_async_context(
+                    FlowRunCancellingObserver(
+                        on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
+                            self._cancel_run, flow_run_id
+                        ),
+                        polling_interval=get_current_settings().worker.cancellation_poll_seconds,
+                    )
+                )
             except Exception as exc:
                 self._logger.warning(
                     "Failed to setup cancellation handling: %s", exc, exc_info=True
@@ -1014,9 +1010,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self.is_setup: bool = False
         for scope in self._scheduled_task_scopes:
             scope.cancel()
-
-        # Clean up cancellation handling
-        await self._teardown_cancellation_handling()
 
         # Emit stopped event before closing client
         if self._started_event:
@@ -1278,6 +1271,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         run_logger.warning(f"Failed to generate worker URL: {ve}")
 
                 self._submitting_flow_run_ids.add(flow_run.id)
+                if self._cancelling_observer is not None:
+                    self._cancelling_observer.add_in_flight_flow_run_id(flow_run.id)
                 if TYPE_CHECKING:
                     assert self._runs_task_group is not None
                 self._runs_task_group.start_soon(
@@ -1308,6 +1303,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     " execution"
                 )
                 self._submitting_flow_run_ids.remove(flow_run.id)
+                if self._cancelling_observer is not None:
+                    self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
                 await self._mark_flow_run_as_cancelled(
                     flow_run,
                     state_updates=dict(
@@ -1346,6 +1343,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         else:
             self._release_limit_slot(flow_run.id)
         self._submitting_flow_run_ids.remove(flow_run.id)
+        if self._cancelling_observer is not None:
+            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self,
@@ -1591,149 +1590,27 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 f"Flow run '{flow_run.id}' was deleted before it could be marked as cancelled"
             )
 
-    def _is_cancellation_enabled(self) -> bool:
-        """Check if worker-side cancellation handling is enabled."""
-        return get_current_settings().worker.enable_cancellation
-
-    async def _setup_cancellation_handling(self) -> None:
-        """Initialize cancellation detection via WebSocket subscription."""
-        try:
-            subscriber = get_events_subscriber(
-                filter=EventFilter(
-                    event=EventNameFilter(name=["prefect.flow-run.Cancelling"])
-                ),
-            )
-            self._cancellation_events_subscriber = (
-                await self._exit_stack.enter_async_context(subscriber)
-            )
-        except Exception as exc:
-            self._logger.warning(
-                "Failed to set up cancellation event subscriber. "
-                "Pending flow runs will not be cancelled automatically. Error: %s",
-                exc,
-            )
-            return
-
-        # Poll once on startup for any orphaned cancelling flow runs
-        try:
-            await self._poll_for_cancelling_flow_runs()
-        except Exception as exc:
-            self._logger.warning(
-                "Failed to poll for cancelling flow runs on startup: %s", exc
-            )
-
-        # Start the WebSocket consumer task
-        self._cancellation_consumer_task = asyncio.create_task(
-            self._consume_cancellation_events(),
-            name="cancellation-event-consumer",
-        )
-        self._cancellation_consumer_task.add_done_callback(
-            self._handle_cancellation_consumer_done
-        )
-
-    def _handle_cancellation_consumer_done(self, task: asyncio.Task[None]) -> None:
-        """Handle when the cancellation consumer task completes or fails.
-
-        If the WebSocket consumer fails, fall back to polling for cancelling flow runs.
+    async def _cancel_run(self, flow_run_id: UUID) -> None:
         """
-        if task.cancelled():
+        Cancel a flow run by killing its infrastructure and marking it cancelled.
+
+        Only cancels flow runs that were pending (not yet started).
+        """
+        try:
+            flow_run = await self.client.read_flow_run(flow_run_id)
+        except ObjectNotFound:
+            self._logger.debug(
+                f"Flow run {flow_run_id} not found, skipping cancellation"
+            )
             return
-        if exc := task.exception():
-            poll_seconds = get_current_settings().worker.cancellation_poll_seconds
-            self._logger.warning(
-                "Cancellation event consumer failed. Falling back to polling every %s seconds.",
-                poll_seconds,
-                exc_info=exc,
-            )
-            self._cancellation_polling_task = asyncio.create_task(
-                critical_service_loop(
-                    workload=self._poll_for_cancelling_flow_runs,
-                    interval=poll_seconds,
-                    jitter_range=0.3,
-                ),
-                name="cancellation-polling",
-            )
-            self._cancellation_polling_task.add_done_callback(
-                self._handle_cancellation_polling_done
-            )
 
-    def _handle_cancellation_polling_done(self, task: asyncio.Task[None]) -> None:
-        """Handle when the cancellation polling task completes or fails."""
-        if task.cancelled():
-            return
-        if exc := task.exception():
-            self._logger.error(
-                "Cancellation polling task failed. Pending flow runs will not be "
-                "cancelled automatically until the worker is restarted.",
-                exc_info=exc,
-            )
-
-    async def _poll_for_cancelling_flow_runs(self) -> None:
-        """Poll for cancelling flow runs in this work pool."""
-        cancelling_flow_runs = await self.client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(
-                state=FlowRunFilterState(
-                    type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
-                ),
-            ),
-            work_pool_filter=WorkPoolFilter(
-                name=WorkPoolFilterName(any_=[self._work_pool_name])
-            ),
-        )
-
-        for flow_run in cancelling_flow_runs:
-            # Skip if we've already processed this flow run
-            if flow_run.id in self._seen_cancelling_flow_run_ids:
-                continue
-            self._seen_cancelling_flow_run_ids.add(flow_run.id)
-            await self._handle_cancelling_flow_run(flow_run)
-
-    async def _consume_cancellation_events(self) -> None:
-        """Process WebSocket events for real-time cancellation detection."""
-        assert self._cancellation_events_subscriber is not None
-
-        async for event in self._cancellation_events_subscriber:
-            try:
-                flow_run_id = UUID(
-                    event.resource["prefect.resource.id"].replace(
-                        "prefect.flow-run.", ""
-                    )
-                )
-
-                # Skip if we've already seen this flow run
-                if flow_run_id in self._seen_cancelling_flow_run_ids:
-                    continue
-                self._seen_cancelling_flow_run_ids.add(flow_run_id)
-
-                # Fetch the flow run to check state and work pool
-                try:
-                    flow_run = await self.client.read_flow_run(flow_run_id)
-                except ObjectNotFound:
-                    continue
-
-                # Only handle flow runs for this work pool
-                if flow_run.work_pool_name != self._work_pool_name:
-                    continue
-
-                await self._handle_cancelling_flow_run(flow_run)
-
-            except ValueError:
-                self._logger.warning(
-                    "Received cancellation event with invalid flow run ID: %s",
-                    event.resource.get("prefect.resource.id"),
-                )
-            except Exception:
-                self._logger.exception("Error processing cancellation event")
-
-    async def _handle_cancelling_flow_run(self, flow_run: "FlowRun") -> None:
-        """Handle a flow run in cancelling state."""
         run_logger = self.get_flow_run_logger(flow_run)
 
-        # Only handle if flow run was pending (runner not started)
-        if not self._was_pending_when_cancelled(flow_run):
+        # Only cancel if the flow run was pending (never started)
+        if flow_run.start_time is not None:
             return
 
-        # No infrastructure to cancel if no pid
+        # No infrastructure to kill if no pid
         if not flow_run.infrastructure_pid:
             await self._mark_flow_run_as_cancelled(
                 flow_run,
@@ -1743,67 +1620,53 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
             return
 
-        await self._cancel_pending_flow_run(flow_run)
-        run_logger.info(f"Cancelled pending flow run '{flow_run.id}'")
-
-    def _was_pending_when_cancelled(self, flow_run: "FlowRun") -> bool:
-        """
-        Check if flow run was in pending state when cancelled.
-
-        A flow run is considered "pending" if it never started running,
-        which means the runner hasn't begun executing the flow code.
-        We detect this by checking if start_time is None.
-        """
-        return flow_run.start_time is None
-
-    async def _cancel_pending_flow_run(self, flow_run: "FlowRun") -> None:
-        """Terminate infrastructure for a pending flow run and mark as cancelled."""
-        run_logger = self.get_flow_run_logger(flow_run)
-
-        # Try to get configuration for kill_infrastructure
-        configuration: Optional[BaseJobConfiguration] = None
+        # Get configuration and kill infrastructure
         try:
             configuration = await self._get_configuration(flow_run)
         except ObjectNotFound:
-            pass
+            run_logger.warning(
+                "Cannot kill infrastructure: deployment not found. "
+                "Infrastructure may still be running."
+            )
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": "Flow run cancelled (deployment not found, infrastructure may still be running)."
+                },
+            )
+            return
 
-        if flow_run.infrastructure_pid:
-            try:
-                await self.kill_infrastructure(
-                    infrastructure_pid=flow_run.infrastructure_pid,
-                    configuration=configuration,
-                    grace_seconds=30,
-                )
-            except NotImplementedError:
-                self._logger.warning(
-                    "Worker type %r does not support killing infrastructure. "
-                    "Flow run %s infrastructure may still be running.",
-                    self.type,
-                    flow_run.id,
-                )
-            except InfrastructureNotFound:
-                # Infrastructure already gone - this is fine
-                pass
-            except InfrastructureNotAvailable as exc:
-                run_logger.warning(
-                    f"Cannot cancel infrastructure for flow run {flow_run.id}: {exc}"
-                )
-                return
-            except Exception:
-                run_logger.exception(
-                    f"Error killing infrastructure for flow run {flow_run.id}"
-                )
-                return
+        try:
+            await self.kill_infrastructure(
+                infrastructure_pid=flow_run.infrastructure_pid,
+                configuration=configuration,
+                grace_seconds=30,
+            )
+        except NotImplementedError:
+            run_logger.warning(
+                "Worker does not support killing infrastructure. "
+                "Infrastructure may still be running."
+            )
+        except InfrastructureNotFound:
+            run_logger.debug("Attempted to kill infrastructure that was not found")
+            pass
+        except InfrastructureNotAvailable as exc:
+            run_logger.warning(f"Cannot kill infrastructure: {exc}")
+            return
+        except Exception:
+            run_logger.exception("Error killing infrastructure")
+            return
 
         await self._mark_flow_run_as_cancelled(
             flow_run,
             state_updates={"message": "Flow run cancelled by worker while pending."},
         )
+        run_logger.info(f"Cancelled pending flow run '{flow_run.id}'")
 
     async def kill_infrastructure(
         self,
         infrastructure_pid: str,
-        configuration: Optional[C],
+        configuration: C,
         grace_seconds: int = 30,
     ) -> None:
         """
@@ -1814,7 +1677,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         Args:
             infrastructure_pid: The infrastructure identifier from the flow run.
-            configuration: The job configuration, if available.
+            configuration: The job configuration for connecting to infrastructure.
             grace_seconds: Time to allow for graceful shutdown before force killing.
 
         Raises:
@@ -1825,32 +1688,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         raise NotImplementedError(
             f"Worker type {self.type!r} does not support killing infrastructure"
         )
-
-    async def _teardown_cancellation_handling(self) -> None:
-        """Clean up cancellation handling resources."""
-        if self._cancellation_consumer_task is not None:
-            self._cancellation_consumer_task.cancel()
-            try:
-                await self._cancellation_consumer_task
-            except asyncio.CancelledError:
-                pass
-            except Exception:
-                self._logger.warning(
-                    "Cancellation consumer task exited with exception", exc_info=True
-                )
-            self._cancellation_consumer_task = None
-
-        if self._cancellation_polling_task is not None:
-            self._cancellation_polling_task.cancel()
-            try:
-                await self._cancellation_polling_task
-            except asyncio.CancelledError:
-                pass
-            except Exception:
-                self._logger.warning(
-                    "Cancellation polling task exited with exception", exc_info=True
-                )
-            self._cancellation_polling_task = None
 
     async def _set_work_pool_template(
         self, work_pool: "WorkPool", job_template: dict[str, Any]

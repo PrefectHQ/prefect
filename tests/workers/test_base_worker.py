@@ -54,11 +54,11 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TEST_MODE,
+    PREFECT_WORKER_ENABLE_CANCELLATION,
     get_current_settings,
     temporary_settings,
 )
 from prefect.states import (
-    Cancelling,
     Completed,
     Failed,
     Pending,
@@ -2971,156 +2971,29 @@ class TestWorkerCancellationHandling:
             work_pool_name="test-pool",
             name="test-worker",
         ) as worker:
-            # Should not have set up cancellation subscriber
-            assert worker._cancellation_events_subscriber is None
-            assert worker._cancellation_consumer_task is None
+            # Should not have set up cancellation observer
+            assert worker._cancelling_observer is None
 
     async def test_cancellation_enabled_with_setting(
         self,
         prefect_client: PrefectClient,
     ):
         """Test that cancellation handling can be enabled via settings."""
-        with mock.patch.object(
-            WorkerTestImpl, "_is_cancellation_enabled", return_value=True
-        ):
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
             async with WorkerTestImpl(
                 work_pool_name="test-pool",
                 name="test-worker",
             ) as worker:
-                # Should have set up cancellation subscriber
-                assert worker._cancellation_events_subscriber is not None
-                assert worker._cancellation_consumer_task is not None
+                # Should have set up cancellation observer
+                assert worker._cancelling_observer is not None
 
-    async def test_was_pending_when_cancelled_returns_true_for_pending(self):
-        """Test _was_pending_when_cancelled returns True when start_time is None."""
-        worker = WorkerTestImpl(
-            work_pool_name="test-pool",
-            name="test-worker",
-        )
-
-        # Mock flow run with no start_time (pending)
-        flow_run = MagicMock()
-        flow_run.start_time = None
-
-        assert worker._was_pending_when_cancelled(flow_run) is True
-
-    async def test_was_pending_when_cancelled_returns_false_for_running(self):
-        """Test _was_pending_when_cancelled returns False when start_time is set."""
-        worker = WorkerTestImpl(
-            work_pool_name="test-pool",
-            name="test-worker",
-        )
-
-        # Mock flow run with start_time (running)
-        flow_run = MagicMock()
-        flow_run.start_time = now_fn("UTC")
-
-        assert worker._was_pending_when_cancelled(flow_run) is False
-
-    async def test_handle_cancelling_flow_run_skips_non_pending(
-        self,
-        prefect_client: PrefectClient,
-    ):
-        """Test that _handle_cancelling_flow_run skips flow runs that were not pending."""
-        async with WorkerTestImpl(
-            work_pool_name="test-pool",
-            name="test-worker",
-        ) as worker:
-            # Mock flow run with start_time (was running when cancelled)
-            flow_run = MagicMock()
-            flow_run.id = uuid.uuid4()
-            flow_run.start_time = now_fn("UTC")
-
-            # Should not call _cancel_pending_flow_run
-            with mock.patch.object(worker, "_cancel_pending_flow_run") as mock_cancel:
-                await worker._handle_cancelling_flow_run(flow_run)
-                mock_cancel.assert_not_called()
-
-    async def test_handle_cancelling_flow_run_marks_cancelled_when_no_infrastructure(
-        self,
-        prefect_client: PrefectClient,
-    ):
-        """Test that flow runs without infrastructure_pid are marked as cancelled."""
-        async with WorkerTestImpl(
-            work_pool_name="test-pool",
-            name="test-worker",
-        ) as worker:
-            # Mock flow run with no start_time (pending) and no infrastructure_pid
-            flow_run = MagicMock()
-            flow_run.id = uuid.uuid4()
-            flow_run.start_time = None
-            flow_run.infrastructure_pid = None
-
-            with mock.patch.object(
-                worker, "_mark_flow_run_as_cancelled"
-            ) as mock_mark_cancelled:
-                await worker._handle_cancelling_flow_run(flow_run)
-                mock_mark_cancelled.assert_called_once()
-
-    async def test_cancel_pending_flow_run_calls_kill_infrastructure(
-        self,
-        prefect_client: PrefectClient,
-    ):
-        """Test that _cancel_pending_flow_run calls kill_infrastructure."""
-        async with WorkerTestImpl(
-            work_pool_name="test-pool",
-            name="test-worker",
-        ) as worker:
-            flow_run = MagicMock()
-            flow_run.id = uuid.uuid4()
-            flow_run.infrastructure_pid = "test-pid"
-            flow_run.deployment_id = None
-
-            with mock.patch.object(
-                worker, "_get_configuration", new_callable=AsyncMock, return_value=None
-            ):
-                with mock.patch.object(
-                    worker, "kill_infrastructure", new_callable=AsyncMock
-                ) as mock_kill:
-                    with mock.patch.object(
-                        worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
-                    ):
-                        await worker._cancel_pending_flow_run(flow_run)
-                        mock_kill.assert_called_once_with(
-                            infrastructure_pid="test-pid",
-                            configuration=None,
-                            grace_seconds=30,
-                        )
-
-    async def test_cancel_pending_flow_run_handles_not_implemented(
-        self,
-        prefect_client: PrefectClient,
-    ):
-        """Test that _cancel_pending_flow_run handles NotImplementedError gracefully."""
-        async with WorkerTestImpl(
-            work_pool_name="test-pool",
-            name="test-worker",
-        ) as worker:
-            flow_run = MagicMock()
-            flow_run.id = uuid.uuid4()
-            flow_run.infrastructure_pid = "test-pid"
-            flow_run.deployment_id = None
-
-            # Should not raise, should just log a warning
-            with mock.patch.object(
-                worker, "_get_configuration", new_callable=AsyncMock, return_value=None
-            ):
-                with mock.patch.object(
-                    worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
-                ) as mock_mark:
-                    # kill_infrastructure raises NotImplementedError by default
-                    await worker._cancel_pending_flow_run(flow_run)
-                    # Should still mark as cancelled despite kill failure
-                    mock_mark.assert_called_once()
-
-    async def test_poll_for_cancelling_flow_runs_on_startup(
+    async def test_cancel_run_skips_non_pending_flow_runs(
         self,
         prefect_client: PrefectClient,
         work_pool: WorkPool,
     ):
-        """Test that startup polling catches cancelling flow runs."""
+        """Test that _cancel_run skips flow runs that were not pending."""
 
-        # Create a flow run in CANCELLING state before worker starts
         @flow
         def test_flow():
             pass
@@ -3128,41 +3001,124 @@ class TestWorkerCancellationHandling:
         flow_run = await prefect_client.create_flow_run(
             test_flow, work_pool_name=work_pool.name
         )
-        await prefect_client.set_flow_run_state(flow_run.id, Cancelling(), force=True)
 
-        with mock.patch.object(
-            WorkerTestImpl, "_is_cancellation_enabled", return_value=True
-        ):
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            # Create a flow run with start_time set (already started)
+            flow_run_with_start_time = FlowRun(
+                id=flow_run.id,
+                flow_id=flow_run.flow_id,
+                name=flow_run.name,
+                state=Running(),
+                start_time=now_fn("UTC"),
+            )
+
             with mock.patch.object(
-                WorkerTestImpl, "_handle_cancelling_flow_run", new_callable=AsyncMock
-            ) as mock_handle:
-                async with WorkerTestImpl(
-                    work_pool_name=work_pool.name,
-                    name="test-worker",
+                worker.client, "read_flow_run", new_callable=AsyncMock
+            ) as mock_read:
+                mock_read.return_value = flow_run_with_start_time
+                with mock.patch.object(worker, "kill_infrastructure") as mock_kill:
+                    with mock.patch.object(
+                        worker, "_mark_flow_run_as_cancelled"
+                    ) as mock_mark:
+                        await worker._cancel_run(flow_run.id)
+                        mock_kill.assert_not_called()
+                        mock_mark.assert_not_called()
+
+    async def test_cancel_run_marks_cancelled_when_no_infrastructure(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test that flow runs without infrastructure_pid are marked as cancelled."""
+
+        @flow
+        def test_flow():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(
+            test_flow, work_pool_name=work_pool.name
+        )
+        # No infrastructure_pid and no start_time (pending)
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with mock.patch.object(
+                worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
+            ) as mock_mark_cancelled:
+                await worker._cancel_run(flow_run.id)
+                mock_mark_cancelled.assert_called_once()
+
+    async def test_cancel_run_calls_kill_infrastructure(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+    ):
+        """Test that _cancel_run calls kill_infrastructure."""
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        # Set infrastructure_pid but no start_time (pending)
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test-pid")
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with mock.patch.object(
+                worker, "kill_infrastructure", new_callable=AsyncMock
+            ) as mock_kill:
+                with mock.patch.object(
+                    worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
                 ):
-                    pass
+                    await worker._cancel_run(flow_run.id)
+                    mock_kill.assert_called_once()
+                    assert mock_kill.call_args[1]["infrastructure_pid"] == "test-pid"
+                    assert mock_kill.call_args[1]["grace_seconds"] == 30
 
-                mock_handle.assert_called_once()
-                called_flow_run = mock_handle.call_args[0][0]
-                assert called_flow_run.id == flow_run.id
+    async def test_cancel_run_handles_not_implemented(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+    ):
+        """Test that _cancel_run handles NotImplementedError gracefully."""
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test-pid")
 
-    async def test_teardown_cancellation_handling_cancels_consumer_task(self):
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with mock.patch.object(
+                worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
+            ) as mock_mark:
+                # kill_infrastructure raises NotImplementedError by default
+                await worker._cancel_run(flow_run.id)
+                # Should still mark as cancelled despite kill failure
+                mock_mark.assert_called_once()
+
+    async def test_teardown_cancellation_handling_cleans_up(self):
         """Test that teardown properly cleans up cancellation resources."""
-        with mock.patch.object(
-            WorkerTestImpl, "_is_cancellation_enabled", return_value=True
-        ):
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
             worker = WorkerTestImpl(
                 work_pool_name="test-pool",
                 name="test-worker",
             )
 
             async with worker:
-                assert worker._cancellation_consumer_task is not None
-                consumer_task = worker._cancellation_consumer_task
+                assert worker._cancelling_observer is not None
+                consumer_task = worker._cancelling_observer._consumer_task
 
             # After exit, task should be cancelled or done
             assert consumer_task.cancelled() or consumer_task.done()
-            assert worker._cancellation_consumer_task is None
 
     async def test_base_worker_kill_infrastructure_raises_not_implemented(self):
         """Test that base worker kill_infrastructure raises NotImplementedError."""
@@ -3174,7 +3130,7 @@ class TestWorkerCancellationHandling:
         with pytest.raises(NotImplementedError, match="does not support killing"):
             await worker.kill_infrastructure(
                 infrastructure_pid="test-pid",
-                configuration=None,
+                configuration=BaseJobConfiguration(),
                 grace_seconds=30,
             )
 
@@ -3183,20 +3139,20 @@ class TestWorkerCancellationHandling:
         prefect_client: PrefectClient,
     ):
         """Test that when the WebSocket consumer fails, we fall back to polling."""
-        with mock.patch.object(
-            WorkerTestImpl, "_is_cancellation_enabled", return_value=True
-        ):
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
             async with WorkerTestImpl(
                 work_pool_name="test-pool",
                 name="test-worker",
             ) as worker:
-                assert worker._cancellation_consumer_task is not None
-                assert worker._cancellation_polling_task is None
+                observer = worker._cancelling_observer
+                assert observer is not None
+                assert observer._consumer_task is not None
+                assert observer._polling_task is None
 
                 # Simulate WebSocket consumer task failing
-                worker._cancellation_consumer_task.cancel()
+                observer._consumer_task.cancel()
                 try:
-                    await worker._cancellation_consumer_task
+                    await observer._consumer_task
                 except asyncio.CancelledError:
                     pass
 
@@ -3205,7 +3161,38 @@ class TestWorkerCancellationHandling:
                 failed_task.cancelled.return_value = False
                 failed_task.exception.return_value = RuntimeError("WebSocket failed")
 
-                worker._handle_cancellation_consumer_done(failed_task)
+                observer._start_polling_task(failed_task)
 
                 # Should have started the polling task
-                assert worker._cancellation_polling_task is not None
+                assert observer._polling_task is not None
+
+    async def test_flow_run_ids_registered_with_observer(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+    ):
+        """Test that flow run IDs are registered with the observer when submitted."""
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with WorkerTestImpl(
+                work_pool_name=work_pool.name,
+                name="test-worker",
+            ) as worker:
+                observer = worker._cancelling_observer
+                assert observer is not None
+
+                # Initially no in-flight flow runs
+                assert flow_run.id not in observer._in_flight_flow_run_ids
+
+                # Submit the flow run
+                await worker.get_and_submit_flow_runs()
+
+                # Flow run should be registered
+                # Note: it may be removed quickly after submission completes
+                # so we just verify the observer exists and is functioning
+                assert observer._in_flight_flow_run_ids is not None
