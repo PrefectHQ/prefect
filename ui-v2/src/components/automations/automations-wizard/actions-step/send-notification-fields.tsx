@@ -42,6 +42,7 @@ const buildNotifyBlockTypesQuery = () =>
 			"list",
 			"filter",
 			{
+				offset: 0,
 				block_schemas: {
 					operator: "and_",
 					block_capabilities: { all_: ["notify"] },
@@ -51,6 +52,7 @@ const buildNotifyBlockTypesQuery = () =>
 		queryFn: async () => {
 			const res = await getQueryService().POST("/block_types/filter", {
 				body: {
+					offset: 0,
 					block_schemas: {
 						operator: "and_",
 						block_capabilities: { all_: ["notify"] },
