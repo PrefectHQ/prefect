@@ -1,8 +1,8 @@
 import { useFormContext } from "react-hook-form";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
-	AutomationsTriggerTemplateSelect,
 	type TriggerTemplate,
+	TriggerTemplateSelectField,
 } from "@/components/automations/automations-wizard/automations-trigger-template-select";
 import { CustomTriggerFields } from "./custom-trigger-fields";
 import { DeploymentStatusTriggerFields } from "./deployment-status-trigger-fields";
@@ -16,16 +16,12 @@ export const TriggerStep = () => {
 	const triggerTemplate = form.watch("triggerTemplate");
 
 	const handleTemplateChange = (value: TriggerTemplate) => {
-		form.setValue("triggerTemplate", value);
 		form.setValue("trigger", getDefaultTriggerForTemplate(value));
 	};
 
 	return (
 		<div className="space-y-6">
-			<AutomationsTriggerTemplateSelect
-				value={triggerTemplate}
-				onValueChange={handleTemplateChange}
-			/>
+			<TriggerTemplateSelectField onTemplateChange={handleTemplateChange} />
 			{triggerTemplate && <TriggerTemplateFields template={triggerTemplate} />}
 		</div>
 	);
