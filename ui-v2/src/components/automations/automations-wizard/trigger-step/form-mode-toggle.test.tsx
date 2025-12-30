@@ -9,9 +9,19 @@ describe("FormModeToggle", () => {
 		mockPointerEvents();
 	});
 
+	const formContent = <div data-testid="form-content">Form Content</div>;
+	const jsonContent = <div data-testid="json-content">JSON Content</div>;
+
 	it("renders Form and JSON tabs", () => {
 		const onValueChange = vi.fn();
-		render(<FormModeToggle value="Form" onValueChange={onValueChange} />);
+		render(
+			<FormModeToggle
+				value="Form"
+				onValueChange={onValueChange}
+				formContent={formContent}
+				jsonContent={jsonContent}
+			/>,
+		);
 
 		expect(screen.getByRole("tab", { name: "Form" })).toBeVisible();
 		expect(screen.getByRole("tab", { name: "JSON" })).toBeVisible();
@@ -19,7 +29,14 @@ describe("FormModeToggle", () => {
 
 	it("shows Form tab as selected when value is Form", () => {
 		const onValueChange = vi.fn();
-		render(<FormModeToggle value="Form" onValueChange={onValueChange} />);
+		render(
+			<FormModeToggle
+				value="Form"
+				onValueChange={onValueChange}
+				formContent={formContent}
+				jsonContent={jsonContent}
+			/>,
+		);
 
 		const formTab = screen.getByRole("tab", { name: "Form" });
 		const jsonTab = screen.getByRole("tab", { name: "JSON" });
@@ -30,7 +47,14 @@ describe("FormModeToggle", () => {
 
 	it("shows JSON tab as selected when value is JSON", () => {
 		const onValueChange = vi.fn();
-		render(<FormModeToggle value="JSON" onValueChange={onValueChange} />);
+		render(
+			<FormModeToggle
+				value="JSON"
+				onValueChange={onValueChange}
+				formContent={formContent}
+				jsonContent={jsonContent}
+			/>,
+		);
 
 		const formTab = screen.getByRole("tab", { name: "Form" });
 		const jsonTab = screen.getByRole("tab", { name: "JSON" });
@@ -39,10 +63,45 @@ describe("FormModeToggle", () => {
 		expect(jsonTab).toHaveAttribute("aria-selected", "true");
 	});
 
+	it("renders form content when Form is selected", () => {
+		const onValueChange = vi.fn();
+		render(
+			<FormModeToggle
+				value="Form"
+				onValueChange={onValueChange}
+				formContent={formContent}
+				jsonContent={jsonContent}
+			/>,
+		);
+
+		expect(screen.getByTestId("form-content")).toBeVisible();
+	});
+
+	it("renders json content when JSON is selected", () => {
+		const onValueChange = vi.fn();
+		render(
+			<FormModeToggle
+				value="JSON"
+				onValueChange={onValueChange}
+				formContent={formContent}
+				jsonContent={jsonContent}
+			/>,
+		);
+
+		expect(screen.getByTestId("json-content")).toBeVisible();
+	});
+
 	it("calls onValueChange with 'Form' when Form tab is clicked", async () => {
 		const user = userEvent.setup();
 		const onValueChange = vi.fn();
-		render(<FormModeToggle value="JSON" onValueChange={onValueChange} />);
+		render(
+			<FormModeToggle
+				value="JSON"
+				onValueChange={onValueChange}
+				formContent={formContent}
+				jsonContent={jsonContent}
+			/>,
+		);
 
 		await user.click(screen.getByRole("tab", { name: "Form" }));
 
@@ -52,7 +111,14 @@ describe("FormModeToggle", () => {
 	it("calls onValueChange with 'JSON' when JSON tab is clicked", async () => {
 		const user = userEvent.setup();
 		const onValueChange = vi.fn();
-		render(<FormModeToggle value="Form" onValueChange={onValueChange} />);
+		render(
+			<FormModeToggle
+				value="Form"
+				onValueChange={onValueChange}
+				formContent={formContent}
+				jsonContent={jsonContent}
+			/>,
+		);
 
 		await user.click(screen.getByRole("tab", { name: "JSON" }));
 
