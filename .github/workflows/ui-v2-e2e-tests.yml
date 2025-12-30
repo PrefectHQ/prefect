@@ -69,16 +69,11 @@ jobs:
         working-directory: ./ui-v2
         run: npx playwright install chromium
 
-      - name: Build UI
-        working-directory: ./ui-v2
-        run: npm run build
-
       - name: Run Playwright tests
         working-directory: ./ui-v2
         run: npx playwright test
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:4200
           CI: true
 
       - name: Upload Playwright report
