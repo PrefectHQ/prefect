@@ -23,7 +23,7 @@ type TriggerDetailsFlowRunStateProps = {
  * Handles various state name formats (e.g., "Completed", "COMPLETED", "completed")
  * and maps them to the uppercase StateType values expected by StateBadge.
  */
-function mapStateNameToStateType(stateName: string): StateType | null {
+export function mapStateNameToStateType(stateName: string): StateType | null {
 	const normalizedName = stateName.toUpperCase();
 
 	const validStateTypes: StateType[] = [

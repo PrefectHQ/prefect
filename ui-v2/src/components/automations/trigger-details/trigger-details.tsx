@@ -23,7 +23,7 @@ type TriggerDetailsProps = {
 type DeploymentStatus = "ready" | "not_ready";
 type WorkPoolStatusType = "READY" | "NOT_READY" | "PAUSED";
 
-function asArray<T>(value: T | T[] | undefined | null): T[] {
+export function asArray<T>(value: T | T[] | undefined | null): T[] {
 	if (value === undefined || value === null) {
 		return [];
 	}
@@ -41,7 +41,10 @@ function getMatchValue(
 	return undefined;
 }
 
-function getMatchRelatedValue(trigger: EventTrigger, key: string): string[] {
+export function getMatchRelatedValue(
+	trigger: EventTrigger,
+	key: string,
+): string[] {
 	const matchRelated = trigger.match_related;
 	if (!matchRelated) {
 		return [];
@@ -63,7 +66,7 @@ function getMatchRelatedValue(trigger: EventTrigger, key: string): string[] {
 	return values;
 }
 
-function fromResourceId(resource: string, value: unknown): string[] {
+export function fromResourceId(resource: string, value: unknown): string[] {
 	if (value === undefined || value === null) {
 		return [];
 	}
@@ -83,7 +86,7 @@ function fromResourceId(resource: string, value: unknown): string[] {
 		.filter((id) => id !== "" && id !== "*");
 }
 
-function fromStateNameEvents(events: string[]): string[] {
+export function fromStateNameEvents(events: string[]): string[] {
 	if (events.includes("prefect.flow-run.*")) {
 		return [];
 	}
@@ -97,7 +100,7 @@ function fromStateNameEvents(events: string[]): string[] {
 		.filter((name) => name !== "");
 }
 
-function extractFlowRunStateProps(trigger: EventTrigger): {
+export function extractFlowRunStateProps(trigger: EventTrigger): {
 	flowIds: string[];
 	tags: string[];
 	posture: AutomationTriggerEventPosture;
