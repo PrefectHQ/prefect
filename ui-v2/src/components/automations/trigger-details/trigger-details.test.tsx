@@ -22,8 +22,8 @@ vi.mock("@/components/work-pools/work-pool-link", () => ({
 	),
 }));
 
-vi.mock("@/components/work-pools/work-queue-link", () => ({
-	WorkQueueLink: ({
+vi.mock("@/components/work-pools/work-queue-icon-text", () => ({
+	WorkQueueIconText: ({
 		workPoolName,
 		workQueueName,
 	}: {
