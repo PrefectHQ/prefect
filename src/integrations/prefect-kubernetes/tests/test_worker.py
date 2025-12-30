@@ -2997,23 +2997,6 @@ class TestKubernetesWorkerKillInfrastructure:
                             grace_seconds=30,
                         )
 
-    async def test_kill_infrastructure_raises_not_available_without_config(
-        self,
-        mock_cluster_config: MagicMock,
-    ):
-        """Test that kill_infrastructure raises InfrastructureNotAvailable without config."""
-        from prefect.exceptions import InfrastructureNotAvailable
-
-        async with KubernetesWorker(work_pool_name="test") as worker:
-            with pytest.raises(
-                InfrastructureNotAvailable, match="no configuration available"
-            ):
-                await worker.kill_infrastructure(
-                    infrastructure_pid="test-namespace:test-job",
-                    configuration=None,
-                    grace_seconds=30,
-                )
-
     async def test_kill_infrastructure_invalid_pid_format(
         self,
         mock_cluster_config: MagicMock,

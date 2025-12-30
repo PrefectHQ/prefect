@@ -142,7 +142,6 @@ import prefect
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.exceptions import (
     InfrastructureError,
-    InfrastructureNotAvailable,
     InfrastructureNotFound,
 )
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -793,7 +792,7 @@ class KubernetesWorker(
     async def kill_infrastructure(
         self,
         infrastructure_pid: str,
-        configuration: Optional[KubernetesWorkerJobConfiguration],
+        configuration: KubernetesWorkerJobConfiguration,
         grace_seconds: int = 30,
     ) -> None:
         """
@@ -816,11 +815,6 @@ class KubernetesWorker(
                 "Expected format: 'namespace:job_name'"
             )
         job_namespace, job_name = parts
-
-        if configuration is None:
-            raise InfrastructureNotAvailable(
-                f"Cannot kill job {job_name!r}: no configuration available to connect to cluster"
-            )
 
         async with self._get_configured_kubernetes_client(configuration) as client:
             batch_client = BatchV1Api(api_client=client)
