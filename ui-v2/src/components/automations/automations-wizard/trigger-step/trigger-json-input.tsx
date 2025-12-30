@@ -2,8 +2,8 @@ import { useState } from "react";
 import { z } from "zod";
 import { TriggerSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Button } from "@/components/ui/button";
+import { JsonInput } from "@/components/ui/json-input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 type TriggerJsonInputProps = {
 	value: string;
@@ -62,12 +62,11 @@ export const TriggerJsonInput = ({
 					View documentation
 				</a>
 			</p>
-			<Textarea
+			<JsonInput
 				value={value}
-				onChange={(e) => onChange(e.target.value)}
+				onChange={onChange}
 				onBlur={() => validate(value)}
-				className="font-mono min-h-[400px]"
-				spellCheck={false}
+				className="min-h-[400px]"
 			/>
 			{(localError || error) && (
 				<p className="text-sm text-destructive">{localError || error}</p>

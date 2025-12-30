@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
+import "@/mocks/mock-json-input";
 import { TriggerJsonInput } from "./trigger-json-input";
 
 const TriggerJsonInputContainer = ({
@@ -24,14 +25,11 @@ const validEventTrigger = {
 };
 
 describe("TriggerJsonInput", () => {
-	it("renders textarea with correct attributes", () => {
+	it("renders json input", () => {
 		render(<TriggerJsonInputContainer />);
 
 		const textarea = screen.getByRole("textbox");
 		expect(textarea).toBeVisible();
-		expect(textarea).toHaveClass("font-mono");
-		expect(textarea).toHaveClass("min-h-[400px]");
-		expect(textarea).toHaveAttribute("spellcheck", "false");
 	});
 
 	it("shows format button", () => {
