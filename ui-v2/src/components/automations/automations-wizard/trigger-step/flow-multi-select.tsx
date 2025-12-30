@@ -1,0 +1,133 @@
+import { useQuery } from "@tanstack/react-query";
+import { useDeferredValue, useMemo, useState } from "react";
+import { buildListFlowsQuery, type Flow } from "@/api/flows";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Combobox,
+	ComboboxCommandEmtpy,
+	ComboboxCommandGroup,
+	ComboboxCommandInput,
+	ComboboxCommandItem,
+	ComboboxCommandList,
+	ComboboxContent,
+	ComboboxTrigger,
+} from "@/components/ui/combobox";
+import { Typography } from "@/components/ui/typography";
+
+const MAX_FLOWS_DISPLAYED = 2;
+
+type FlowMultiSelectProps = {
+	selectedFlowIds: string[];
+	onToggleFlow: (flowId: string) => void;
+	emptyMessage?: string;
+};
+
+export function FlowMultiSelect({
+	selectedFlowIds,
+	onToggleFlow,
+	emptyMessage = "Any flow",
+}: FlowMultiSelectProps) {
+	const [search, setSearch] = useState("");
+	const deferredSearch = useDeferredValue(search);
+
+	const { data: flows = [] } = useQuery(
+		buildListFlowsQuery({
+			flows: deferredSearch
+				? {
+						operator: "and_",
+						name: { like_: deferredSearch },
+					}
+				: undefined,
+			limit: 100,
+			offset: 0,
+			sort: "NAME_ASC",
+		}),
+	);
+
+	const { data: selectedFlowsData = [] } = useQuery(
+		buildListFlowsQuery(
+			{
+				flows:
+					selectedFlowIds.length > 0
+						? {
+								operator: "and_",
+								id: { any_: selectedFlowIds },
+							}
+						: undefined,
+				limit: selectedFlowIds.length || 1,
+				offset: 0,
+				sort: "NAME_ASC",
+			},
+			{ enabled: selectedFlowIds.length > 0 },
+		),
+	);
+
+	const filteredFlows = useMemo(() => {
+		return flows.filter(
+			(flow: Flow) =>
+				!deferredSearch ||
+				flow.name.toLowerCase().includes(deferredSearch.toLowerCase()),
+		);
+	}, [flows, deferredSearch]);
+
+	const renderSelectedFlows = () => {
+		if (selectedFlowIds.length === 0) {
+			return <span className="text-muted-foreground">{emptyMessage}</span>;
+		}
+
+		const selectedFlowNames = selectedFlowsData
+			.filter((flow) => selectedFlowIds.includes(flow.id))
+			.map((flow) => flow.name);
+
+		const visible = selectedFlowNames.slice(0, MAX_FLOWS_DISPLAYED);
+		const extraCount = selectedFlowNames.length - MAX_FLOWS_DISPLAYED;
+
+		return (
+			<div className="flex flex-1 min-w-0 items-center gap-2">
+				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
+					<span className="truncate">{visible.join(", ")}</span>
+				</div>
+				{extraCount > 0 && (
+					<Typography variant="bodySmall" className="shrink-0">
+						+ {extraCount}
+					</Typography>
+				)}
+			</div>
+		);
+	};
+
+	return (
+		<Combobox>
+			<ComboboxTrigger selected={selectedFlowIds.length > 0}>
+				{renderSelectedFlows()}
+			</ComboboxTrigger>
+			<ComboboxContent>
+				<ComboboxCommandInput
+					value={search}
+					onValueChange={setSearch}
+					placeholder="Search flows..."
+				/>
+				<ComboboxCommandList>
+					<ComboboxCommandEmtpy>No flows found</ComboboxCommandEmtpy>
+					<ComboboxCommandGroup>
+						{filteredFlows.map((flow: Flow) => (
+							<ComboboxCommandItem
+								key={flow.id}
+								selected={selectedFlowIds.includes(flow.id)}
+								onSelect={() => {
+									onToggleFlow(flow.id);
+									setSearch("");
+								}}
+								closeOnSelect={false}
+								value={flow.id}
+							>
+								<Checkbox checked={selectedFlowIds.includes(flow.id)} />
+								{flow.name}
+							</ComboboxCommandItem>
+						))}
+					</ComboboxCommandGroup>
+				</ComboboxCommandList>
+			</ComboboxContent>
+		</Combobox>
+	);
+}
