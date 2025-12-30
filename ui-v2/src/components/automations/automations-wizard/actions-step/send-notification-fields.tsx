@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useValidateTemplate } from "@/api/automations";
@@ -6,7 +6,7 @@ import {
 	type BlockDocument,
 	buildListFilterBlockDocumentsQuery,
 } from "@/api/block-documents";
-import { buildListBlockTypesWithCapabilityQuery } from "@/api/block-types/block-types";
+import { getQueryService } from "@/api/service";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import {
 	Combobox,
@@ -31,6 +31,39 @@ import { Textarea } from "@/components/ui/textarea";
 import useDebounce from "@/hooks/use-debounce";
 import { LoadingSelectState } from "./loading-select-state";
 
+/**
+ * Builds a query to fetch block types that have a specific capability.
+ * This is used to fetch notification block types (blocks with "notify" capability).
+ */
+const buildNotifyBlockTypesQuery = () =>
+	queryOptions({
+		queryKey: [
+			"block-types",
+			"list",
+			"filter",
+			{
+				block_schemas: {
+					operator: "and_",
+					block_capabilities: { all_: ["notify"] },
+				},
+			},
+		] as const,
+		queryFn: async () => {
+			const res = await getQueryService().POST("/block_types/filter", {
+				body: {
+					block_schemas: {
+						operator: "and_",
+						block_capabilities: { all_: ["notify"] },
+					},
+				},
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+	});
+
 type SendNotificationFieldsProps = {
 	index: number;
 };
@@ -42,7 +75,7 @@ export const SendNotificationFields = ({
 	const [search, setSearch] = useState("");
 
 	const { data: blockTypes, isLoading: isLoadingBlockTypes } = useQuery(
-		buildListBlockTypesWithCapabilityQuery("notify"),
+		buildNotifyBlockTypesQuery(),
 	);
 
 	const blockTypeSlugs = useMemo(

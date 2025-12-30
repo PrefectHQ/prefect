@@ -60,27 +60,3 @@ export const buildGetBlockTypeQuery = (slug: string) =>
 			return res.data;
 		},
 	});
-
-export const buildListBlockTypesWithCapabilityQuery = (capability: string) =>
-	queryOptions({
-		queryKey: queryKeyFactory.listFilter({
-			block_schemas: {
-				operator: "and_",
-				block_capabilities: { all_: [capability] },
-			},
-		}),
-		queryFn: async () => {
-			const res = await getQueryService().POST("/block_types/filter", {
-				body: {
-					block_schemas: {
-						operator: "and_",
-						block_capabilities: { all_: [capability] },
-					},
-				},
-			});
-			if (!res.data) {
-				throw new Error("'data' expected");
-			}
-			return res.data;
-		},
-	});
