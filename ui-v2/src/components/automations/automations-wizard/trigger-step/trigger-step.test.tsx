@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createWrapper } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { useForm } from "react-hook-form";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -37,7 +38,7 @@ describe("TriggerStep", () => {
 	});
 
 	it("renders trigger template select", () => {
-		render(<TriggerStepFormContainer />);
+		render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
 		expect(screen.getByLabelText("Trigger Template")).toBeVisible();
 	});
@@ -45,7 +46,7 @@ describe("TriggerStep", () => {
 	it("can select deployment-status template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
-		render(<TriggerStepFormContainer />);
+		render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Deployment status" }));
@@ -58,7 +59,7 @@ describe("TriggerStep", () => {
 	it("can select flow-run-state template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
-		render(<TriggerStepFormContainer />);
+		render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Flow run state" }));
@@ -71,7 +72,7 @@ describe("TriggerStep", () => {
 	it("can select work-pool-status template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
-		render(<TriggerStepFormContainer />);
+		render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Work pool status" }));
@@ -84,7 +85,7 @@ describe("TriggerStep", () => {
 	it("can select work-queue-status template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
-		render(<TriggerStepFormContainer />);
+		render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Work queue status" }));
@@ -97,7 +98,7 @@ describe("TriggerStep", () => {
 	it("can select custom template and shows trigger fields", async () => {
 		const user = userEvent.setup();
 
-		render(<TriggerStepFormContainer />);
+		render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Custom" }));
