@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useMemo, useState } from "react";
 import { buildListFlowsQuery, type Flow } from "@/api/flows";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -12,7 +11,8 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-import { Typography } from "@/components/ui/typography";
+
+const MAX_VISIBLE_FLOWS = 2;
 
 type FlowMultiSelectProps = {
 	selectedFlowIds: string[];
@@ -77,20 +77,16 @@ export function FlowMultiSelect({
 			.filter((flow) => selectedFlowIds.includes(flow.id))
 			.map((flow) => flow.name);
 
-		const count = selectedFlowIds.length;
+		const visibleNames = selectedFlowNames.slice(0, MAX_VISIBLE_FLOWS);
+		const overflow = selectedFlowIds.length - visibleNames.length;
 
 		return (
-			<div className="flex flex-1 min-w-0 items-center gap-2">
-				<span className="truncate flex-1 min-w-0">
-					{selectedFlowNames.join(", ")}
+			<div className="flex min-w-0 items-center justify-start gap-1">
+				<span className="truncate min-w-0 text-left">
+					{visibleNames.join(", ")}
 				</span>
-				{count > 1 && (
-					<Typography
-						variant="bodySmall"
-						className="shrink-0 text-muted-foreground"
-					>
-						({count})
-					</Typography>
+				{overflow > 0 && (
+					<span className="shrink-0 text-muted-foreground">+{overflow}</span>
 				)}
 			</div>
 		);
@@ -121,7 +117,6 @@ export function FlowMultiSelect({
 								closeOnSelect={false}
 								value={flow.id}
 							>
-								<Checkbox checked={selectedFlowIds.includes(flow.id)} />
 								{flow.name}
 							</ComboboxCommandItem>
 						))}
