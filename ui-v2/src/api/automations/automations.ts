@@ -212,3 +212,74 @@ export const useUpdateAutomation = () => {
 		...rest,
 	};
 };
+
+export type TemplateValidationError = {
+	error: {
+		line: number;
+		message: string;
+		source: string;
+	};
+};
+
+/**
+ * Hook for validating Jinja templates used in automation notifications
+ *
+ * @returns Mutation object for validating a template with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { validateTemplate, isPending } = useValidateTemplate();
+ *
+ * validateTemplate('Hello {{ flow.name }}', {
+ *   onSuccess: () => {
+ *     console.log('Template is valid');
+ *   },
+ *   onError: (error) => {
+ *     console.error('Template validation failed:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useValidateTemplate = () => {
+	const { mutateAsync: validateTemplate, ...rest } = useMutation({
+		mutationFn: async (
+			template: string,
+		): Promise<{ valid: true } | { valid: false; error: string }> => {
+			// Use raw fetch to avoid the error-throwing middleware in getQueryService()
+			// since we want to handle 422 responses gracefully as validation errors
+			const baseUrl = import.meta.env.VITE_API_URL;
+			const response = await fetch(
+				`${baseUrl}/automations/templates/validate`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(template),
+				},
+			);
+
+			if (response.ok) {
+				return { valid: true };
+			}
+
+			try {
+				const errorData =
+					(await response.json()) as TemplateValidationError | null;
+				if (errorData?.error) {
+					return {
+						valid: false,
+						error: `Error on line ${errorData.error.line}: ${errorData.error.message}`,
+					};
+				}
+			} catch {
+				// JSON parsing failed, return generic error
+			}
+			return { valid: false, error: "Template validation failed" };
+		},
+	});
+	return {
+		validateTemplate,
+		...rest,
+	};
+};
