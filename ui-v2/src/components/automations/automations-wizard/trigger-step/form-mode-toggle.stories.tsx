@@ -28,6 +28,10 @@ export const JSONSelected: Story = {
 };
 
 export const Interactive: Story = {
+	args: {
+		value: "Form",
+		onValueChange: () => {},
+	},
 	render: () => <InteractiveFormModeToggle />,
 };
 
