@@ -15,7 +15,17 @@ export { server } from "./node";
  *	});
  * ```
  */
-export const createWrapper = ({ queryClient = new QueryClient() } = {}) => {
+const createTestQueryClient = () =>
+	new QueryClient({
+		defaultOptions: {
+			queries: { retry: false },
+			mutations: { retry: false },
+		},
+	});
+
+export const createWrapper = ({
+	queryClient = createTestQueryClient(),
+} = {}) => {
 	// Written with createElement because our current vite config doesn't support jsx in tests/
 	const Wrapper = ({ children }: { children: React.ReactNode }) =>
 		createElement(QueryClientProvider, { client: queryClient }, children);
