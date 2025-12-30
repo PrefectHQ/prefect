@@ -107,9 +107,8 @@ const TaskRunBreadcrumbs = ({
 								<BreadcrumbLink
 									to="/flows/flow/$id"
 									params={{ id: flow.id }}
-									className="font-semibold text-foreground flex items-center gap-1"
+									className="font-semibold text-foreground"
 								>
-									<Icon id="Workflow" className="size-4" />
 									{flow.name}
 								</BreadcrumbLink>
 							</BreadcrumbItem>

@@ -11,7 +11,7 @@ import { HttpResponse, http } from "msw";
 import { Suspense } from "react";
 import { describe, expect, it } from "vitest";
 import { createFakeFlow } from "@/mocks";
-import { FlowIconText, FlowIconTextFromFlow } from "./flow-icon-text";
+import { FlowIconText } from "./flow-icon-text";
 
 const mockFlow = createFakeFlow({
 	id: "flow-123",
@@ -76,22 +76,22 @@ describe("FlowIconText", () => {
 	});
 });
 
-type FlowIconTextFromFlowRouterProps = {
+type FlowIconTextWithFlowRouterProps = {
 	flow: typeof mockFlow;
 	className?: string;
 	iconSize?: number;
 	onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 };
 
-const FlowIconTextFromFlowRouter = ({
+const FlowIconTextWithFlowRouter = ({
 	flow,
 	className,
 	iconSize,
 	onClick,
-}: FlowIconTextFromFlowRouterProps) => {
+}: FlowIconTextWithFlowRouterProps) => {
 	const rootRoute = createRootRoute({
 		component: () => (
-			<FlowIconTextFromFlow
+			<FlowIconText
 				flow={flow}
 				className={className}
 				iconSize={iconSize}
@@ -110,9 +110,9 @@ const FlowIconTextFromFlowRouter = ({
 	return <RouterProvider router={router} />;
 };
 
-describe("FlowIconTextFromFlow", () => {
+describe("FlowIconText with flow prop", () => {
 	it("displays flow name without fetching", async () => {
-		render(<FlowIconTextFromFlowRouter flow={mockFlow} />, {
+		render(<FlowIconTextWithFlowRouter flow={mockFlow} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -122,7 +122,7 @@ describe("FlowIconTextFromFlow", () => {
 	});
 
 	it("renders a link to the flow detail page", async () => {
-		render(<FlowIconTextFromFlowRouter flow={mockFlow} />, {
+		render(<FlowIconTextWithFlowRouter flow={mockFlow} />, {
 			wrapper: createWrapper(),
 		});
 
@@ -134,7 +134,7 @@ describe("FlowIconTextFromFlow", () => {
 
 	it("applies custom className", async () => {
 		render(
-			<FlowIconTextFromFlowRouter flow={mockFlow} className="custom-class" />,
+			<FlowIconTextWithFlowRouter flow={mockFlow} className="custom-class" />,
 			{
 				wrapper: createWrapper(),
 			},

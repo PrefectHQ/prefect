@@ -5,46 +5,68 @@ import { buildFLowDetailsQuery, type Flow } from "@/api/flows";
 import { Icon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type FlowIconTextProps = {
-	flowId: string;
-};
-
-export const FlowIconText = ({ flowId }: FlowIconTextProps) => {
-	return (
-		<Suspense fallback={<Skeleton className="h-4 w-full" />}>
-			<FlowIconTextImplementation flowId={flowId} />
-		</Suspense>
-	);
-};
-
-const FlowIconTextImplementation = ({ flowId }: FlowIconTextProps) => {
-	const { data: flow } = useSuspenseQuery(buildFLowDetailsQuery(flowId));
-
-	return (
-		<Link
-			to="/flows/flow/$id"
-			params={{ id: flow.id }}
-			className="flex items-center gap-1"
-		>
-			<Icon id="Workflow" className="size-4" />
-			{flow.name}
-		</Link>
-	);
-};
-
-type FlowIconTextFromFlowProps = {
-	flow: Flow;
+type FlowIconTextBaseProps = {
 	className?: string;
 	iconSize?: number;
 	onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 };
 
-export const FlowIconTextFromFlow = ({
+type FlowIconTextWithIdProps = FlowIconTextBaseProps & {
+	flowId: string;
+	flow?: never;
+};
+
+type FlowIconTextWithFlowProps = FlowIconTextBaseProps & {
+	flow: Flow;
+	flowId?: never;
+};
+
+type FlowIconTextProps = FlowIconTextWithIdProps | FlowIconTextWithFlowProps;
+
+export const FlowIconText = (props: FlowIconTextProps) => {
+	if ("flow" in props && props.flow) {
+		return <FlowIconTextPresentational {...props} flow={props.flow} />;
+	}
+
+	return (
+		<Suspense fallback={<Skeleton className="h-4 w-full" />}>
+			<FlowIconTextFetched {...props} flowId={props.flowId} />
+		</Suspense>
+	);
+};
+
+type FlowIconTextFetchedProps = FlowIconTextBaseProps & {
+	flowId: string;
+};
+
+const FlowIconTextFetched = ({
+	flowId,
+	className,
+	iconSize,
+	onClick,
+}: FlowIconTextFetchedProps) => {
+	const { data: flow } = useSuspenseQuery(buildFLowDetailsQuery(flowId));
+
+	return (
+		<FlowIconTextPresentational
+			flow={flow}
+			className={className}
+			iconSize={iconSize}
+			onClick={onClick}
+		/>
+	);
+};
+
+type FlowIconTextPresentationalProps = FlowIconTextBaseProps & {
+	flow: Flow;
+};
+
+const FlowIconTextPresentational = ({
 	flow,
 	className,
 	iconSize,
 	onClick,
-}: FlowIconTextFromFlowProps) => {
+}: FlowIconTextPresentationalProps) => {
 	return (
 		<Link
 			to="/flows/flow/$id"

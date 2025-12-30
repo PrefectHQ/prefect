@@ -6,7 +6,7 @@ import {
 	type FlowRunsFilter,
 } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
-import { FlowIconTextFromFlow } from "@/components/flows/flow-icon-text";
+import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { FormattedDate } from "@/components/ui/formatted-date";
 
 type FlowRunsAccordionHeaderProps = {
@@ -58,7 +58,7 @@ export function FlowRunsAccordionHeader({
 	return (
 		<div className="flex w-full items-center justify-between gap-4 pr-2">
 			<div className="flex flex-col items-start gap-1">
-				<FlowIconTextFromFlow
+				<FlowIconText
 					flow={flow}
 					className="text-sm font-medium text-foreground hover:underline flex items-center gap-1"
 					onClick={(e) => e.stopPropagation()}
