@@ -58,6 +58,8 @@ export const SendNotificationFields = ({
 						? { slug: { any_: blockTypeSlugs } }
 						: undefined,
 				include_secrets: false,
+				sort: "BLOCK_TYPE_AND_NAME_ASC",
+				offset: 0,
 			},
 			{ enabled: blockTypeSlugs.length > 0 },
 		),

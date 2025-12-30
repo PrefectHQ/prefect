@@ -64,12 +64,18 @@ export const buildGetBlockTypeQuery = (slug: string) =>
 export const buildListBlockTypesWithCapabilityQuery = (capability: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.listFilter({
-			block_schemas: { block_capabilities: { all_: [capability] } },
+			block_schemas: {
+				operator: "and_",
+				block_capabilities: { all_: [capability] },
+			},
 		}),
 		queryFn: async () => {
 			const res = await getQueryService().POST("/block_types/filter", {
 				body: {
-					block_schemas: { block_capabilities: { all_: [capability] } },
+					block_schemas: {
+						operator: "and_",
+						block_capabilities: { all_: [capability] },
+					},
 				},
 			});
 			if (!res.data) {
