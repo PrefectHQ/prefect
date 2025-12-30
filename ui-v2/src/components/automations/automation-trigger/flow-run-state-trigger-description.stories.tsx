@@ -14,13 +14,15 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
+type ResourceSpecification = { [key: string]: string | string[] };
+
 function createFlowRunStateTrigger(
 	overrides: Partial<{
 		posture: "Reactive" | "Proactive";
 		expect: string[];
 		after: string[];
 		within: number;
-		match_related: Record<string, unknown>[];
+		match_related: ResourceSpecification[];
 	}> = {},
 ): AutomationTrigger {
 	const posture = overrides.posture ?? "Reactive";
@@ -35,7 +37,7 @@ function createFlowRunStateTrigger(
 		expect: posture === "Reactive" ? (overrides.expect ?? []) : [],
 		after: posture === "Proactive" ? (overrides.after ?? []) : [],
 		threshold: 1,
-		within: overrides.within,
+		within: overrides.within ?? 0,
 	};
 }
 
