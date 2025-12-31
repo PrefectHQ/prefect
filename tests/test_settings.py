@@ -490,6 +490,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_UI_SERVE_BASE": {"test_value": "/base"},
     "PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT": {"test_value": False},
     "PREFECT_SERVER_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static"},
+    "PREFECT_SERVER_UI_V2_ENABLED": {"test_value": True},
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10, "legacy": True},

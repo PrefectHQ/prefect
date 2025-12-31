@@ -455,11 +455,22 @@ def create_api_app(
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
     base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
-    cache_key = f"{prefect.__version__}:{base_url}"
+
+    # Determine which UI to serve based on setting
+    v2_enabled = prefect.settings.get_current_settings().server.ui.v2_enabled
+
+    if v2_enabled:
+        source_static_path = prefect.__ui_v2_static_path__
+        static_subpath = prefect.__ui_v2_static_subpath__
+        cache_key = f"v2:{prefect.__version__}:{base_url}"
+    else:
+        source_static_path = prefect.__ui_static_path__
+        static_subpath = prefect.__ui_static_subpath__
+        cache_key = f"v1:{prefect.__version__}:{base_url}"
+
     stripped_base_url = base_url.rstrip("/")
-    static_dir = (
-        prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
-        or prefect.__ui_static_subpath__
+    static_dir = prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value() or str(
+        static_subpath
     )
     reference_file_name = "UI_SERVE_BASE"
 
@@ -495,7 +506,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         if not os.path.exists(static_dir):
             os.makedirs(static_dir)
 
-        copy_directory(str(prefect.__ui_static_path__), str(static_dir))
+        copy_directory(str(source_static_path), str(static_dir))
         replace_placeholder_string_in_files(
             str(static_dir),
             "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
@@ -511,10 +522,14 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app.add_middleware(GZipMiddleware)
 
     if (
-        os.path.exists(prefect.__ui_static_path__)
+        os.path.exists(source_static_path)
         and prefect.settings.PREFECT_UI_ENABLED.value()
         and not ephemeral
     ):
+        # Log which UI version is being served
+        if v2_enabled:
+            logger.info("Serving experimental V2 UI")
+
         # If the static files have already been copied, check if the base_url has changed
         # If it has, we delete the subpath directory and copy the files again
         if not reference_file_matches_base_url():
