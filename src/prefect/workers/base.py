@@ -34,6 +34,7 @@ import prefect
 import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.schemas.validators import return_v_or_none
+from prefect._observers import FlowRunCancellingObserver
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
@@ -47,9 +48,12 @@ from prefect.client.schemas.objects import (
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TagsContext
 from prefect.events import Event, RelatedResource, emit_event
+from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
     Abort,
+    InfrastructureNotAvailable,
+    InfrastructureNotFound,
     ObjectNotFound,
 )
 from prefect.filesystems import LocalFileSystem
@@ -539,6 +543,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
         self._worker_metadata_sent = False
 
+        # Cancellation handling
+        self._cancelling_observer: Optional[FlowRunCancellingObserver] = None
+
     @property
     def client(self) -> PrefectClient:
         if self._client is None:
@@ -980,6 +987,28 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         await self.sync_with_backend()
 
+        # Initialize cancellation handling if enabled
+        if get_current_settings().worker.enable_cancellation and self._work_pool:
+            try:
+                self._cancelling_observer = await self._exit_stack.enter_async_context(
+                    FlowRunCancellingObserver(
+                        on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
+                            self._cancel_run, flow_run_id
+                        ),
+                        polling_interval=get_current_settings().worker.cancellation_poll_seconds,
+                        event_filter=EventFilter(
+                            event=EventNameFilter(name=["prefect.flow-run.Cancelling"]),
+                            any_resource=EventAnyResourceFilter(
+                                id=[f"prefect.work-pool.{self._work_pool.id}"]
+                            ),
+                        ),
+                    )
+                )
+            except Exception as exc:
+                self._logger.warning(
+                    "Failed to setup cancellation handling: %s", exc, exc_info=True
+                )
+
         self.is_setup = True
 
     async def teardown(self, *exc_info: Any) -> None:
@@ -1249,6 +1278,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                         run_logger.warning(f"Failed to generate worker URL: {ve}")
 
                 self._submitting_flow_run_ids.add(flow_run.id)
+                if self._cancelling_observer is not None:
+                    self._cancelling_observer.add_in_flight_flow_run_id(flow_run.id)
                 if TYPE_CHECKING:
                     assert self._runs_task_group is not None
                 self._runs_task_group.start_soon(
@@ -1279,6 +1310,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     " execution"
                 )
                 self._submitting_flow_run_ids.remove(flow_run.id)
+                if self._cancelling_observer is not None:
+                    self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
                 await self._mark_flow_run_as_cancelled(
                     flow_run,
                     state_updates=dict(
@@ -1317,6 +1350,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         else:
             self._release_limit_slot(flow_run.id)
         self._submitting_flow_run_ids.remove(flow_run.id)
+        if self._cancelling_observer is not None:
+            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self,
@@ -1561,6 +1596,106 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             run_logger.debug(
                 f"Flow run '{flow_run.id}' was deleted before it could be marked as cancelled"
             )
+
+    async def _cancel_run(self, flow_run_id: UUID) -> None:
+        """
+        Cancel a flow run by killing its infrastructure and marking it cancelled.
+
+        Only cancels flow runs that were pending (not yet started).
+        """
+        try:
+            flow_run = await self.client.read_flow_run(flow_run_id)
+        except ObjectNotFound:
+            self._logger.debug(
+                f"Flow run {flow_run_id} not found, skipping cancellation"
+            )
+            return
+
+        run_logger = self.get_flow_run_logger(flow_run)
+
+        # Only cancel if the flow run was pending (never started)
+        if flow_run.start_time is not None:
+            return
+
+        # No infrastructure to kill if no pid
+        if not flow_run.infrastructure_pid:
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": "Flow run cancelled by worker (no infrastructure found)."
+                },
+            )
+            return
+
+        # Get configuration and kill infrastructure
+        try:
+            configuration = await self._get_configuration(flow_run)
+        except ObjectNotFound:
+            run_logger.warning(
+                "Cannot kill infrastructure: deployment not found. "
+                "Infrastructure may still be running."
+            )
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": "Flow run cancelled (deployment not found, infrastructure may still be running)."
+                },
+            )
+            return
+
+        try:
+            await self.kill_infrastructure(
+                infrastructure_pid=flow_run.infrastructure_pid,
+                configuration=configuration,
+                grace_seconds=30,
+            )
+        except NotImplementedError:
+            run_logger.warning(
+                "Worker does not support killing infrastructure. "
+                "Infrastructure may still be running."
+            )
+            return
+        except InfrastructureNotFound:
+            run_logger.debug("Attempted to kill infrastructure that was not found")
+            pass
+        except InfrastructureNotAvailable as exc:
+            run_logger.warning(f"Cannot kill infrastructure: {exc}")
+            return
+        except Exception:
+            run_logger.exception("Error killing infrastructure")
+            return
+
+        await self._mark_flow_run_as_cancelled(
+            flow_run,
+            state_updates={"message": "Flow run cancelled by worker while pending."},
+        )
+        run_logger.info(f"Cancelled pending flow run '{flow_run.id}'")
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: C,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill infrastructure for a flow run.
+
+        Override this method in subclasses to implement infrastructure-specific
+        termination logic.
+
+        Args:
+            infrastructure_pid: The infrastructure identifier from the flow run.
+            configuration: The job configuration for connecting to infrastructure.
+            grace_seconds: Time to allow for graceful shutdown before force killing.
+
+        Raises:
+            NotImplementedError: If the worker doesn't support killing infrastructure.
+            InfrastructureNotFound: If the infrastructure doesn't exist.
+            InfrastructureNotAvailable: If the infrastructure can't be killed by this worker.
+        """
+        raise NotImplementedError(
+            f"Worker type {self.type!r} does not support killing infrastructure"
+        )
 
     async def _set_work_pool_template(
         self, work_pool: "WorkPool", job_template: dict[str, Any]

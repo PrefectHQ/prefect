@@ -40,6 +40,24 @@ class WorkerSettings(PrefectBaseSettings):
         description="The number of seconds into the future a worker should query for scheduled work.",
     )
 
+    enable_cancellation: bool = Field(
+        default=False,
+        description=(
+            "Enable worker-side flow run cancellation for pending flow runs. "
+            "When enabled, the worker will terminate infrastructure for flow runs "
+            "that are cancelled while still in PENDING state (before the runner starts)."
+        ),
+    )
+
+    cancellation_poll_seconds: float = Field(
+        default=120,
+        description=(
+            "Number of seconds between polls for cancelling flow runs. "
+            "Used as a fallback when the WebSocket connection for real-time "
+            "cancellation events is unavailable."
+        ),
+    )
+
     webserver: WorkerWebserverSettings = Field(
         default_factory=WorkerWebserverSettings,
         description="Settings for a worker's webserver",

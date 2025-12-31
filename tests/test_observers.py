@@ -6,9 +6,10 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from prefect import flow
+from prefect._observers import FlowRunCancellingObserver
 from prefect.client.schemas.objects import StateType
+from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.utilities import emit_event
-from prefect.runner._observers import FlowRunCancellingObserver
 
 
 @flow
@@ -28,6 +29,49 @@ class TestFlowRunCancellingObserver:
         assert observer._in_flight_flow_run_ids == set()
         assert observer._cancelling_flow_run_ids == set()
         assert observer._is_shutting_down is False
+
+    async def test_observer_validates_event_filter_has_cancelling_event(self):
+        """Test observer validates that event_filter includes the Cancelling event."""
+        callback = AsyncMock()
+
+        # Valid filter with Cancelling event should work
+        valid_filter = EventFilter(
+            event=EventNameFilter(name=["prefect.flow-run.Cancelling"]),
+            any_resource=EventAnyResourceFilter(id=["prefect.work-pool.test-id"]),
+        )
+        observer = FlowRunCancellingObserver(
+            on_cancelling=callback, event_filter=valid_filter
+        )
+        assert observer._event_filter == valid_filter
+
+        # Filter without event should raise
+        with pytest.raises(
+            ValueError, match="must include 'prefect.flow-run.Cancelling'"
+        ):
+            FlowRunCancellingObserver(
+                on_cancelling=callback,
+                event_filter=EventFilter(),
+            )
+
+        # Filter with wrong event name should raise
+        with pytest.raises(
+            ValueError, match="must include 'prefect.flow-run.Cancelling'"
+        ):
+            FlowRunCancellingObserver(
+                on_cancelling=callback,
+                event_filter=EventFilter(
+                    event=EventNameFilter(name=["prefect.flow-run.Running"])
+                ),
+            )
+
+        # Filter with None event.name should raise
+        with pytest.raises(
+            ValueError, match="must include 'prefect.flow-run.Cancelling'"
+        ):
+            FlowRunCancellingObserver(
+                on_cancelling=callback,
+                event_filter=EventFilter(event=EventNameFilter()),
+            )
 
     async def test_add_remove_in_flight_flow_runs(self):
         """Test tracking of in-flight flow run IDs."""
