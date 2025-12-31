@@ -35,13 +35,13 @@ export const AutomationsActionsMenu = ({ id, onDelete }: Props) => {
 				<DropdownMenuItem onClick={() => handleCopyId(id)}>
 					Copy ID
 				</DropdownMenuItem>
-				<DropdownMenuItem>
+				<DropdownMenuItem asChild>
 					<Link to="/automations/automation/$id/edit" params={{ id }}>
 						Edit
 					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
-				<DropdownMenuItem>
+				<DropdownMenuItem asChild>
 					<a
 						href={DOCS_LINKS["automations-guide"]}
 						className="flex items-center"

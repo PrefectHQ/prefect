@@ -5,6 +5,7 @@ export {
 	type TemplateValidationError,
 	useCreateAutomation,
 	useDeleteAutomation,
+	useReplaceAutomation,
 	useUpdateAutomation,
 	useValidateTemplate,
 } from "./automations";
