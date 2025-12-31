@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
-import type { PrefectSchemaObject } from "@/components/schemas";
-import { SchemaForm } from "@/components/schemas";
+import { LazySchemaForm, type PrefectSchemaObject } from "@/components/schemas";
 import {
 	Accordion,
 	AccordionContent,
@@ -76,7 +75,7 @@ export const CreateFlowRunForm = ({
 							Parameters
 						</Typography>
 
-						<SchemaForm
+						<LazySchemaForm
 							schema={parametersOpenAPISchema as unknown as PrefectSchemaObject}
 							errors={parameterFormErrors}
 							values={parametersFormValues}
