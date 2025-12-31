@@ -61,7 +61,7 @@ function extractWorkQueueIdsFromMatch(match: Match): string[] {
 
 function buildMatchRelated(workPoolIds: string[]): MatchRelated {
 	if (workPoolIds.length === 0) {
-		return undefined;
+		return {};
 	}
 
 	const resourceIds = workPoolIds.map((id) => `prefect.work-pool.${id}`);
@@ -157,7 +157,7 @@ export const WorkQueueStatusTriggerFields = () => {
 										value={selectedStatus ?? ""}
 										onValueChange={(value) => field.onChange([value])}
 									>
-										<SelectTrigger>
+										<SelectTrigger className="w-full">
 											<SelectValue placeholder="Select status" />
 										</SelectTrigger>
 										<SelectContent>

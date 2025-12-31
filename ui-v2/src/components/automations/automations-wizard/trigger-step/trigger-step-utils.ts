@@ -38,10 +38,13 @@ export const getDefaultTriggerForTemplate = (
 				for_each: ["prefect.resource.id"],
 			};
 		case "work-queue-status":
+			// Return fields in same order as Vue for JSON tab visual parity
 			return {
 				type: "event",
 				match: { "prefect.resource.id": "prefect.work-queue.*" },
-				match_related: undefined,
+				match_related: {},
+				after: [],
+				expect: ["prefect.work-queue.not-ready"],
 				for_each: ["prefect.resource.id"],
 				posture: "Reactive",
 				threshold: 1,
