@@ -64,6 +64,13 @@ __ui_static_subpath__: pathlib.Path = __module_path__ / "server" / "ui_build"
 # The absolute path to the built UI within the Python module
 __ui_static_path__: pathlib.Path = __module_path__ / "server" / "ui"
 
+# The absolute path to the built V2 UI within the Python module, used by
+# `prefect server start` to serve a dynamic build of the V2 UI
+__ui_v2_static_subpath__: pathlib.Path = __module_path__ / "server" / "ui_v2_build"
+
+# The absolute path to the built V2 UI within the Python module
+__ui_v2_static_path__: pathlib.Path = __module_path__ / "server" / "ui-v2"
+
 del _build_info, pathlib
 
 
