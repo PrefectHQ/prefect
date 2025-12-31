@@ -69,6 +69,10 @@ function WorkPoolStatusTriggerFieldsStory({
 				threshold: 1,
 				within: posture === "Proactive" ? 30 : 0,
 				expect: selectedStatus ? [selectedStatus] : [],
+				match: {
+					"prefect.resource.id": "prefect.work-pool.*",
+				},
+				for_each: ["prefect.resource.id"],
 			},
 		},
 	});
