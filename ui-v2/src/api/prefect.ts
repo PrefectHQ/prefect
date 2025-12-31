@@ -10055,6 +10055,12 @@ export interface components {
              */
             enabled: boolean;
             /**
+             * V2 Enabled
+             * @description Whether to serve the experimental V2 UI instead of the default V1 UI.
+             * @default false
+             */
+            v2_enabled: boolean;
+            /**
              * Api Url
              * @description The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.
              */
@@ -12015,6 +12021,18 @@ export interface components {
              * @default 10
              */
             prefetch_seconds: number;
+            /**
+             * Enable Cancellation
+             * @description Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).
+             * @default false
+             */
+            enable_cancellation: boolean;
+            /**
+             * Cancellation Poll Seconds
+             * @description Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.
+             * @default 120
+             */
+            cancellation_poll_seconds: number;
             /** @description Settings for a worker's webserver */
             webserver?: components["schemas"]["WorkerWebserverSettings"];
         };

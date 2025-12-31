@@ -42,6 +42,7 @@ export type DurationInputProps = {
 	value: number;
 	onChange: (seconds: number) => void;
 	min?: number;
+	max?: number;
 	className?: string;
 	disabled?: boolean;
 };
@@ -50,6 +51,7 @@ export function DurationInput({
 	value,
 	onChange,
 	min = 0,
+	max,
 	className,
 	disabled = false,
 }: DurationInputProps) {
@@ -65,9 +67,13 @@ export function DurationInput({
 
 	const handleQuantityChange = useCallback(
 		(newQuantity: number) => {
-			onChange(newQuantity * unit);
+			let newValue = newQuantity * unit;
+			if (max !== undefined && newValue > max) {
+				newValue = max;
+			}
+			onChange(newValue);
 		},
-		[onChange, unit],
+		[onChange, unit, max],
 	);
 
 	const handleUnitChange = useCallback(
@@ -75,9 +81,13 @@ export function DurationInput({
 			const newUnit = Number(newUnitValue);
 			const oldUnit = unit;
 			setUnit(newUnit);
-			onChange((value / oldUnit) * newUnit);
+			let newValue = (value / oldUnit) * newUnit;
+			if (max !== undefined && newValue > max) {
+				newValue = max;
+			}
+			onChange(newValue);
 		},
-		[onChange, unit, value],
+		[onChange, unit, value, max],
 	);
 
 	useEffect(() => {
