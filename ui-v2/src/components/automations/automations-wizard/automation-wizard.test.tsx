@@ -23,7 +23,7 @@ import { AutomationWizard } from "./automation-wizard";
 // Wraps component in test with a TanStack router provider
 const AutomationWizardWithRouter = () => {
 	const rootRoute = createRootRoute({
-		component: () => <AutomationWizard />,
+		component: () => <AutomationWizard onSubmit={() => {}} />,
 	});
 
 	const router = createRouter({
