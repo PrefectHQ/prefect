@@ -93,7 +93,7 @@ function RunsTabSkeleton() {
 }
 
 export const Route = createFileRoute(
-	"/work-pools/work-pool/$workPoolName/queue/$workQueueName",
+	"/work-pools/work-pool_/$workPoolName/queue/$workQueueName",
 )({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
