@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
-import { beforeAll, describe, expect, it } from "vitest";
-import { FormModeToggle } from "./form-mode-toggle";
+import { useState } from "react";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { type FormMode, FormModeToggle } from "./form-mode-toggle";
 
 describe("FormModeToggle", () => {
 	beforeAll(() => {
@@ -101,5 +102,77 @@ describe("FormModeToggle", () => {
 			"aria-selected",
 			"true",
 		);
+	});
+
+	describe("controlled mode", () => {
+		it("uses controlled value when value prop is provided", () => {
+			render(
+				<FormModeToggle
+					value="JSON"
+					formContent={formContent}
+					jsonContent={jsonContent}
+				/>,
+			);
+
+			const formTab = screen.getByRole("tab", { name: "Form" });
+			const jsonTab = screen.getByRole("tab", { name: "JSON" });
+
+			expect(formTab).toHaveAttribute("aria-selected", "false");
+			expect(jsonTab).toHaveAttribute("aria-selected", "true");
+			expect(screen.getByTestId("json-content")).toBeVisible();
+		});
+
+		it("calls onValueChange when tab is clicked in controlled mode", async () => {
+			const user = userEvent.setup();
+			const onValueChange = vi.fn();
+
+			render(
+				<FormModeToggle
+					value="Form"
+					onValueChange={onValueChange}
+					formContent={formContent}
+					jsonContent={jsonContent}
+				/>,
+			);
+
+			await user.click(screen.getByRole("tab", { name: "JSON" }));
+
+			expect(onValueChange).toHaveBeenCalledWith("JSON");
+		});
+
+		it("allows parent to control mode switching", async () => {
+			const user = userEvent.setup();
+
+			const ControlledFormModeToggle = () => {
+				const [mode, setMode] = useState<FormMode>("Form");
+				return (
+					<FormModeToggle
+						value={mode}
+						onValueChange={setMode}
+						formContent={formContent}
+						jsonContent={jsonContent}
+					/>
+				);
+			};
+
+			render(<ControlledFormModeToggle />);
+
+			// Initially Form is selected
+			expect(screen.getByRole("tab", { name: "Form" })).toHaveAttribute(
+				"aria-selected",
+				"true",
+			);
+			expect(screen.getByTestId("form-content")).toBeVisible();
+
+			// Click JSON tab
+			await user.click(screen.getByRole("tab", { name: "JSON" }));
+
+			// Now JSON should be selected
+			expect(screen.getByRole("tab", { name: "JSON" })).toHaveAttribute(
+				"aria-selected",
+				"true",
+			);
+			expect(screen.getByTestId("json-content")).toBeVisible();
+		});
 	});
 });

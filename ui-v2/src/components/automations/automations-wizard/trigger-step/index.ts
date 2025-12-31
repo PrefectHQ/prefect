@@ -1,7 +1,7 @@
 export { CustomTriggerFields } from "./custom-trigger-fields";
 export { DeploymentStatusTriggerFields } from "./deployment-status-trigger-fields";
 export { FlowRunStateTriggerFields } from "./flow-run-state-trigger-fields";
-export { FormModeToggle } from "./form-mode-toggle";
+export { type FormMode, FormModeToggle } from "./form-mode-toggle";
 export { PostureSelect } from "./posture-select";
 export { StateMultiSelect } from "./state-multi-select";
 export { TriggerJsonInput } from "./trigger-json-input";
