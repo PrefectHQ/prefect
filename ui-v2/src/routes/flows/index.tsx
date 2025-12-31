@@ -74,13 +74,6 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 
 const NUMBER_OF_ACTIVITY_BARS = 16;
 
-// Query for total count of all flows (without filters) - used to determine if empty state should be shown
-const buildTotalFlowsCountQuery = () =>
-	buildCountFlowsFilteredQuery({
-		offset: 0,
-		sort: "NAME_ASC",
-	});
-
 export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
 	component: FlowsRoute,
@@ -98,7 +91,12 @@ export const Route = createFileRoute("/flows/")({
 			}),
 		);
 		// Prefetch total count for empty state check
-		void context.queryClient.prefetchQuery(buildTotalFlowsCountQuery());
+		void context.queryClient.prefetchQuery(
+			buildCountFlowsFilteredQuery({
+				offset: 0,
+				sort: "NAME_ASC",
+			}),
+		);
 	},
 	wrapInSuspense: true,
 });
@@ -210,7 +208,12 @@ function FlowsRoute() {
 	);
 
 	// Get total count of all flows (without filters) to determine if empty state should be shown
-	const { data: totalCount } = useSuspenseQuery(buildTotalFlowsCountQuery());
+	const { data: totalCount } = useSuspenseQuery(
+		buildCountFlowsFilteredQuery({
+			offset: 0,
+			sort: "NAME_ASC",
+		}),
+	);
 
 	// Use useQuery for paginated flows to leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
