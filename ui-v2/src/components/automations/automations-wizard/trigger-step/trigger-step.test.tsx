@@ -214,12 +214,10 @@ describe("TriggerStep", () => {
 
 			render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
-			// Use work-pool-status template which has a Threshold field
-			// (deployment-status template no longer has Threshold field to match Vue)
+			// Use Custom template which has a Threshold field
+			// (other templates no longer have Threshold field to match Vue)
 			await user.click(screen.getByLabelText("Trigger Template"));
-			await user.click(
-				screen.getByRole("option", { name: "Work pool status" }),
-			);
+			await user.click(screen.getByRole("option", { name: "Custom" }));
 
 			// Switch to JSON mode
 			await user.click(screen.getByRole("tab", { name: "JSON" }));
