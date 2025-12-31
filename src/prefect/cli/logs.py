@@ -154,3 +154,9 @@ async def send(
         if not silent:
             app.console.print(f"Could not send logs to Prefect: {e}", style="red")
             raise
+    else:
+        if not silent:
+            count = len(logs)
+            app.console.print(
+                f"Successfully sent {count} log{'s' if count != 1 else ''}"
+            )
