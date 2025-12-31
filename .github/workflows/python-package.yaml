@@ -43,6 +43,13 @@ jobs:
         run: |
           uv run prefect dev build-ui
 
+      - name: Build UI v2
+        working-directory: ui-v2
+        run: |
+          npm ci
+          npm run build
+          cp -r dist ../src/prefect/server/ui-v2
+
       - name: Check git diff
         run: |
           git diff --exit-code

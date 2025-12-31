@@ -8,8 +8,10 @@ ARG PYTHON_VERSION=3.10
 ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.10
-# THe version used to build the UI distributable.
+# The version used to build the V1 UI distributable.
 ARG NODE_VERSION=20.19.0
+# The version used to build the V2 UI distributable (requires Node 22+).
+ARG NODE_V2_VERSION=22.12.0
 # SQLite version to install (format: X.YY.Z becomes XYYZZOO in filename)
 ARG SQLITE_VERSION=3.50.4
 ARG SQLITE_YEAR=2025
@@ -40,7 +42,7 @@ RUN wget -q https://sqlite.org/${SQLITE_YEAR}/sqlite-autoconf-${SQLITE_FILE_VERS
     cd .. && \
     rm -rf sqlite-autoconf-${SQLITE_FILE_VERSION} sqlite-autoconf-${SQLITE_FILE_VERSION}.tar.gz
 
-# Build the UI distributable.
+# Build the V1 UI distributable.
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
 
 WORKDIR /opt/ui
@@ -57,6 +59,25 @@ RUN npm ci
 
 # Build static UI files
 COPY ./ui .
+RUN npm run build
+
+# Build the V2 UI distributable.
+FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bullseye-slim AS ui-v2-builder
+
+WORKDIR /opt/ui-v2
+
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+    # Required for arm64 builds
+    chromium \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install dependencies separately so they cache
+COPY ./ui-v2/package*.json ./
+RUN npm ci
+
+# Build static UI files
+COPY ./ui-v2 .
 RUN npm run build
 
 
@@ -78,8 +99,11 @@ COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /bin/uv
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
 
-# Package the UI into the distributable.
+# Package the V1 UI into the distributable.
 COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
+
+# Package the V2 UI into the distributable.
+COPY --from=ui-v2-builder /opt/ui-v2/dist ./src/prefect/server/ui-v2
 
 # Create a source distributable archive; ensuring existing dists are removed first
 RUN rm -rf dist && uv build --sdist --out-dir dist
