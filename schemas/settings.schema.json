@@ -2419,6 +2419,15 @@
                     "title": "Enabled",
                     "type": "boolean"
                 },
+                "v2_enabled": {
+                    "default": false,
+                    "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_UI_V2_ENABLED"
+                    ],
+                    "title": "V2 Enabled",
+                    "type": "boolean"
+                },
                 "api_url": {
                     "anyOf": [
                         {
@@ -2727,6 +2736,24 @@
                         "PREFECT_WORKER_PREFETCH_SECONDS"
                     ],
                     "title": "Prefetch Seconds",
+                    "type": "number"
+                },
+                "enable_cancellation": {
+                    "default": false,
+                    "description": "Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_ENABLE_CANCELLATION"
+                    ],
+                    "title": "Enable Cancellation",
+                    "type": "boolean"
+                },
+                "cancellation_poll_seconds": {
+                    "default": 120,
+                    "description": "Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_CANCELLATION_POLL_SECONDS"
+                    ],
+                    "title": "Cancellation Poll Seconds",
                     "type": "number"
                 },
                 "webserver": {
