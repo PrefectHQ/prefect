@@ -243,7 +243,8 @@ describe("TriggerStep", () => {
 			await user.click(screen.getByRole("tab", { name: "Form" }));
 
 			// The form should reflect the updated threshold
-			const thresholdInput = screen.getByLabelText("Threshold");
+			// Use findByLabelText to wait for the form content to render after tab switch
+			const thresholdInput = await screen.findByLabelText("Threshold");
 			expect(thresholdInput).toHaveValue(5);
 		});
 

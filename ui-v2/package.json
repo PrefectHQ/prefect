@@ -6,24 +6,24 @@
   "engines": {
     "node": ">=22.12.0 <23"
   },
-    "scripts": {
-      "dev": "vite",
-      "build": "tsc -b && vite build",
-      "test": "vitest",
-      "test:e2e": "playwright test",
-      "test:e2e:ui": "playwright test --ui",
-      "test:e2e:debug": "playwright test --debug",
-      "lint": "eslint .",
-      "lint:fix": "eslint . --fix",
-      "check": "biome check --write",
-      "check:staged": "biome check --write --staged --no-errors-on-unmatched",
-      "format": "biome format --write",
-      "preview": "vite preview",
-      "service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.ts && npx orval --config ./orval.config.cjs && rm oss_schema.json",
-      "storybook": "storybook dev -p 6006",
-      "build-storybook": "storybook build",
-      "validate:types": "tsc -b --noEmit"
-    },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "check": "biome check --write",
+    "check:staged": "biome check --write --staged --no-errors-on-unmatched",
+    "format": "biome format --write",
+    "preview": "vite preview",
+    "service-sync": "uv run ../scripts/generate_oss_openapi_schema.py && npx openapi-typescript oss_schema.json -o src/api/prefect.ts && npx orval --config ./orval.config.cjs && rm oss_schema.json",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "validate:types": "tsc -b --noEmit"
+  },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/lang-markdown": "^6.5.0",
@@ -87,10 +87,10 @@
     "uuid": "^13.0.0",
     "zod": "^3.25.76"
   },
-    "devDependencies": {
-      "@playwright/test": "^1.49.0",
-      "@biomejs/biome": "^2.3.10",
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
     "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.49.0",
     "@storybook/addon-docs": "^10.1.11",
     "@storybook/addon-themes": "^10.1.11",
     "@storybook/react": "^10.1.11",
