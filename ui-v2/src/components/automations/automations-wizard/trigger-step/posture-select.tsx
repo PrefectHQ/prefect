@@ -1,17 +1,17 @@
 import { useFormContext } from "react-hook-form";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
-import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+} from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const POSTURE_OPTIONS = [
-	{ value: "Reactive", label: "Enters" },
-	{ value: "Proactive", label: "Stays in" },
+	{ value: "Reactive", label: "Observe" },
+	{ value: "Proactive", label: "Don't observe" },
 ] as const;
 
 const DEFAULT_PROACTIVE_WITHIN = 30;
@@ -25,8 +25,9 @@ export const PostureSelect = () => {
 			name="trigger.posture"
 			render={({ field }) => (
 				<FormItem>
+					<FormLabel>When I</FormLabel>
 					<FormControl>
-						<Select
+						<RadioGroup
 							value={field.value}
 							onValueChange={(value: "Reactive" | "Proactive") => {
 								const previousPosture = field.value;
@@ -54,18 +55,20 @@ export const PostureSelect = () => {
 									form.setValue("trigger.after", []);
 								}
 							}}
+							className="flex flex-row gap-4"
 						>
-							<SelectTrigger aria-label="select posture" className="w-[160px]">
-								<SelectValue placeholder="Select posture" />
-							</SelectTrigger>
-							<SelectContent>
-								{POSTURE_OPTIONS.map((option) => (
-									<SelectItem key={option.value} value={option.value}>
+							{POSTURE_OPTIONS.map((option) => (
+								<div key={option.value} className="flex items-center space-x-2">
+									<RadioGroupItem
+										value={option.value}
+										id={`posture-${option.value}`}
+									/>
+									<Label htmlFor={`posture-${option.value}`}>
 										{option.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+									</Label>
+								</div>
+							))}
+						</RadioGroup>
 					</FormControl>
 				</FormItem>
 			)}

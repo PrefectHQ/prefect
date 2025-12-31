@@ -3,6 +3,10 @@ import type { TriggerTemplate } from "@/components/automations/automations-wizar
 
 const BASE_TRIGGER: EventTrigger = {
 	type: "event",
+	match: {},
+	match_related: {},
+	after: [],
+	expect: [],
 	posture: "Reactive",
 	threshold: 1,
 	within: 0,
