@@ -12,8 +12,6 @@ import {
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
 
-const MAX_VISIBLE_ITEMS = 2;
-
 type WorkQueuesComboboxProps = {
 	selectedWorkQueueIds: string[];
 	onToggleWorkQueue: (workQueueId: string) => void;
@@ -88,18 +86,10 @@ export function WorkQueuesCombobox({
 			.filter((workQueue) => selectedWorkQueueIds.includes(workQueue.id))
 			.map((workQueue) => workQueue.name);
 
-		const visibleNames = selectedWorkQueueNames.slice(0, MAX_VISIBLE_ITEMS);
-		const overflow = selectedWorkQueueIds.length - visibleNames.length;
-
 		return (
-			<div className="flex min-w-0 items-center justify-start gap-1">
-				<span className="truncate min-w-0 text-left">
-					{visibleNames.join(", ")}
-				</span>
-				{overflow > 0 && (
-					<span className="shrink-0 text-muted-foreground">+{overflow}</span>
-				)}
-			</div>
+			<span className="truncate min-w-0 text-left">
+				{selectedWorkQueueNames.join(", ")}
+			</span>
 		);
 	};
 
