@@ -28,10 +28,12 @@ export const FormModeToggle = ({
 
 	return (
 		<Tabs {...tabsProps}>
-			<TabsList>
-				<TabsTrigger value="Form">Form</TabsTrigger>
-				<TabsTrigger value="JSON">JSON</TabsTrigger>
-			</TabsList>
+			<div className="flex justify-center">
+				<TabsList>
+					<TabsTrigger value="Form">Form</TabsTrigger>
+					<TabsTrigger value="JSON">JSON</TabsTrigger>
+				</TabsList>
+			</div>
 			<TabsContent value="Form">{formContent}</TabsContent>
 			<TabsContent value="JSON">{jsonContent}</TabsContent>
 		</Tabs>
