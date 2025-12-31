@@ -86,7 +86,6 @@ describe("transformEventToTrigger", () => {
 			expect(result.triggerTemplate).toBe("custom");
 			expect(result.trigger).toEqual({
 				type: "event",
-				posture: "Reactive",
 				match: {
 					"prefect.resource.id": "prefect.flow-run.abc123",
 				},
@@ -94,8 +93,12 @@ describe("transformEventToTrigger", () => {
 					"prefect.resource.role": "flow",
 					"prefect.resource.id": "prefect.flow.xyz789",
 				},
-				for_each: ["prefect.resource.id"],
+				after: [],
 				expect: ["prefect.flow-run.Completed"],
+				for_each: ["prefect.resource.id"],
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
 			});
 		});
 
@@ -113,14 +116,17 @@ describe("transformEventToTrigger", () => {
 			expect(result.triggerTemplate).toBe("custom");
 			expect(result.trigger).toEqual({
 				type: "event",
-				posture: "Reactive",
 				match: {
 					"prefect.resource.id": "prefect.flow-run.abc123",
 				},
-				for_each: ["prefect.resource.id"],
+				match_related: {},
+				after: [],
 				expect: ["prefect.flow-run.Running"],
+				for_each: ["prefect.resource.id"],
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
 			});
-			expect(result.trigger.match_related).toBeUndefined();
 		});
 
 		it("handles flow-run event with multiple related resources", () => {
@@ -174,7 +180,6 @@ describe("transformEventToTrigger", () => {
 			expect(result.triggerTemplate).toBe("custom");
 			expect(result.trigger).toEqual({
 				type: "event",
-				posture: "Reactive",
 				match: {
 					"prefect.resource.id": "prefect.work-queue.queue123",
 				},
@@ -182,8 +187,12 @@ describe("transformEventToTrigger", () => {
 					"prefect.resource.role": "work-queue",
 					"prefect.resource.id": "prefect.work-queue.related456",
 				},
-				for_each: ["prefect.resource.id"],
+				after: [],
 				expect: ["prefect.work-queue.ready"],
+				for_each: ["prefect.resource.id"],
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
 			});
 		});
 
@@ -198,7 +207,7 @@ describe("transformEventToTrigger", () => {
 
 			const result = transformEventToTrigger(event);
 
-			expect(result.trigger.match_related).toBeUndefined();
+			expect(result.trigger.match_related).toEqual({});
 			expect(result.trigger.expect).toEqual(["prefect.work-queue.not-ready"]);
 		});
 	});
@@ -223,15 +232,17 @@ describe("transformEventToTrigger", () => {
 			expect(result.triggerTemplate).toBe("custom");
 			expect(result.trigger).toEqual({
 				type: "event",
-				posture: "Reactive",
 				match: {
 					"prefect.resource.id": "prefect.deployment.dep123",
 				},
+				match_related: {},
+				after: [],
 				expect: ["prefect.deployment.created"],
+				for_each: [],
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
 			});
-			// Deployment events don't get match_related
-			expect(result.trigger.match_related).toBeUndefined();
-			expect(result.trigger.for_each).toBeUndefined();
 		});
 	});
 
@@ -250,11 +261,16 @@ describe("transformEventToTrigger", () => {
 			expect(result.triggerTemplate).toBe("custom");
 			expect(result.trigger).toEqual({
 				type: "event",
-				posture: "Reactive",
 				match: {
 					"prefect.resource.id": "custom.resource.123",
 				},
+				match_related: {},
+				after: [],
 				expect: ["custom.my-app.user-action"],
+				for_each: [],
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
 			});
 		});
 
@@ -274,9 +290,9 @@ describe("transformEventToTrigger", () => {
 
 			const result = transformEventToTrigger(event);
 
-			// Custom events don't get match_related even if they have related resources
-			expect(result.trigger.match_related).toBeUndefined();
-			expect(result.trigger.for_each).toBeUndefined();
+			// Custom events get empty match_related and for_each
+			expect(result.trigger.match_related).toEqual({});
+			expect(result.trigger.for_each).toEqual([]);
 		});
 	});
 

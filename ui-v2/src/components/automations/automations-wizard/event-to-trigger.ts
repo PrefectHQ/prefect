@@ -161,20 +161,22 @@ function createFlowRunTrigger(event: Event): EventToTriggerResult {
 
 	const trigger: EventTriggerInput = {
 		type: "event",
-		posture: "Reactive",
 		match: {
 			"prefect.resource.id": event.resource["prefect.resource.id"],
 		},
-		for_each: ["prefect.resource.id"],
+		match_related: relatedFlow
+			? {
+					"prefect.resource.role": "flow",
+					"prefect.resource.id": relatedFlow["prefect.resource.id"],
+				}
+			: {},
+		after: [],
 		expect: [event.event],
+		for_each: ["prefect.resource.id"],
+		posture: "Reactive",
+		threshold: 1,
+		within: 0,
 	};
-
-	if (relatedFlow) {
-		trigger.match_related = {
-			"prefect.resource.role": "flow",
-			"prefect.resource.id": relatedFlow["prefect.resource.id"],
-		};
-	}
 
 	return {
 		trigger,
@@ -190,20 +192,22 @@ function createWorkQueueTrigger(event: Event): EventToTriggerResult {
 
 	const trigger: EventTriggerInput = {
 		type: "event",
-		posture: "Reactive",
 		match: {
 			"prefect.resource.id": event.resource["prefect.resource.id"],
 		},
-		for_each: ["prefect.resource.id"],
+		match_related: relatedWorkQueue
+			? {
+					"prefect.resource.role": "work-queue",
+					"prefect.resource.id": relatedWorkQueue["prefect.resource.id"],
+				}
+			: {},
+		after: [],
 		expect: [event.event],
+		for_each: ["prefect.resource.id"],
+		posture: "Reactive",
+		threshold: 1,
+		within: 0,
 	};
-
-	if (relatedWorkQueue) {
-		trigger.match_related = {
-			"prefect.resource.role": "work-queue",
-			"prefect.resource.id": relatedWorkQueue["prefect.resource.id"],
-		};
-	}
 
 	return {
 		trigger,
@@ -218,11 +222,16 @@ function createCustomTrigger(event: Event): EventToTriggerResult {
 	return {
 		trigger: {
 			type: "event",
-			posture: "Reactive",
 			match: {
 				"prefect.resource.id": event.resource["prefect.resource.id"],
 			},
+			match_related: {},
+			after: [],
 			expect: [event.event],
+			for_each: [],
+			posture: "Reactive",
+			threshold: 1,
+			within: 0,
 		},
 		triggerTemplate: "custom",
 	};
