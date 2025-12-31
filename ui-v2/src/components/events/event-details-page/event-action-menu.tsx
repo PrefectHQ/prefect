@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import type { Event } from "@/api/events";
+import { formatEventDate } from "@/components/automations/automations-wizard";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -33,7 +34,13 @@ export function EventActionMenu({ event }: EventActionMenuProps) {
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end">
-				<Link to="/automations/create">
+				<Link
+					to="/automations/create"
+					search={{
+						eventId: event.id,
+						eventDate: formatEventDate(event.occurred),
+					}}
+				>
 					<DropdownMenuItem>
 						<Icon id="Zap" className="mr-2 size-4" />
 						Automate

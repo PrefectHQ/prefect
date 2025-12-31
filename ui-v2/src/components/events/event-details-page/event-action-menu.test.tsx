@@ -94,4 +94,36 @@ describe("EventActionMenu", () => {
 			expect(screen.getByText("ID copied")).toBeVisible();
 		});
 	});
+
+	it("Automate link includes eventId and eventDate search parameters", async () => {
+		const user = userEvent.setup();
+		const event = createFakeEvent({
+			id: "test-event-id-456",
+			occurred: "2024-06-15T10:30:00Z",
+		});
+
+		await waitFor(() =>
+			render(
+				<>
+					<Toaster />
+					<EventActionMenuRouter event={event} />
+				</>,
+			),
+		);
+
+		await user.click(
+			screen.getByRole("button", { name: /event actions/i, hidden: true }),
+		);
+
+		const automateLink = screen.getByRole("link", { name: /automate/i });
+		expect(automateLink).toBeVisible();
+		expect(automateLink).toHaveAttribute(
+			"href",
+			expect.stringContaining("eventId=test-event-id-456"),
+		);
+		expect(automateLink).toHaveAttribute(
+			"href",
+			expect.stringContaining("eventDate=2024-06-15"),
+		);
+	});
 });
