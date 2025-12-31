@@ -1,7 +1,8 @@
 import { useFormContext, useWatch } from "react-hook-form";
-import type { components } from "@/api/prefect";
+import type { StateName } from "@/api/flow-runs/constants";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { FlowMultiSelect } from "@/components/flows/flow-multi-select";
+import { DurationInput } from "@/components/ui/duration-input";
 import {
 	FormControl,
 	FormField,
@@ -9,12 +10,9 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { TagsInput } from "@/components/ui/tags-input";
 import { PostureSelect } from "./posture-select";
 import { StateMultiSelect } from "./state-multi-select";
-
-type StateType = components["schemas"]["StateType"];
 
 type MatchRelated = Record<string, string | string[]> | undefined;
 
@@ -67,8 +65,6 @@ export const FlowRunStateTriggerFields = () => {
 	// Proactive: use "after" (states to stay in)
 	const stateFieldName =
 		posture === "Proactive" ? "trigger.after" : "trigger.expect";
-	const stateFieldLabel =
-		posture === "Proactive" ? "States to stay in" : "States to enter";
 
 	const matchRelated = useWatch<AutomationWizardSchema>({
 		name: "trigger.match_related",
@@ -82,9 +78,12 @@ export const FlowRunStateTriggerFields = () => {
 		const newFlowIds = currentFlowIds.includes(flowId)
 			? currentFlowIds.filter((id) => id !== flowId)
 			: [...currentFlowIds, flowId];
+
+		// Clear tags when flows are selected (Vue behavior)
+		const newTags = newFlowIds.length > 0 ? [] : selectedTags;
 		form.setValue(
 			"trigger.match_related",
-			buildMatchRelated(newFlowIds, selectedTags),
+			buildMatchRelated(newFlowIds, newTags),
 		);
 	};
 
@@ -95,105 +94,79 @@ export const FlowRunStateTriggerFields = () => {
 		);
 	};
 
+	// Hide tags input when flows are selected (Vue behavior)
+	const showTagsInput = selectedFlowIds.length === 0;
+
 	return (
 		<div className="space-y-4">
-			<div className="flex items-start gap-4">
-				<FormItem className="flex-1">
-					<FormLabel>Flows</FormLabel>
-					<FormControl>
-						<FlowMultiSelect
-							selectedFlowIds={selectedFlowIds}
-							onToggleFlow={handleFlowToggle}
-							emptyMessage="Any flow"
-						/>
-					</FormControl>
-				</FormItem>
-				<FormItem className="flex-1">
-					<FormLabel>Tags</FormLabel>
+			<FormItem>
+				<FormLabel>Flows</FormLabel>
+				<FormControl>
+					<FlowMultiSelect
+						selectedFlowIds={selectedFlowIds}
+						onToggleFlow={handleFlowToggle}
+						emptyMessage="All flows"
+					/>
+				</FormControl>
+			</FormItem>
+
+			{showTagsInput && (
+				<FormItem>
+					<FormLabel>Flow Run Tags</FormLabel>
 					<FormControl>
 						<TagsInput
 							value={selectedTags}
 							onChange={handleTagsChange}
-							placeholder="Enter tags"
+							placeholder="All tags"
 						/>
 					</FormControl>
 				</FormItem>
-			</div>
+			)}
 
-			<div className="flex items-start gap-4">
-				<PostureSelect />
-				<FormField
-					control={form.control}
-					name={stateFieldName}
-					render={({ field }) => {
-						const selectedStates = (field.value ?? []) as StateType[];
-						return (
-							<FormItem className="flex-1">
-								<FormLabel>{stateFieldLabel}</FormLabel>
+			<FormItem>
+				<FormLabel>Flow Run</FormLabel>
+				<div className="grid grid-cols-[10rem_1fr] gap-2">
+					<PostureSelect />
+					<FormField
+						control={form.control}
+						name={stateFieldName}
+						render={({ field }) => {
+							const selectedStates = (field.value ?? []) as StateName[];
+							return (
 								<FormControl>
 									<StateMultiSelect
 										selectedStates={selectedStates}
-										onToggleState={(state) => {
-											const currentStates = selectedStates;
-											if (currentStates.includes(state)) {
-												field.onChange(
-													currentStates.filter((s) => s !== state),
-												);
-											} else {
-												field.onChange([...currentStates, state]);
-											}
+										onStateChange={(states) => {
+											field.onChange(states);
 										}}
 										emptyMessage="Any state"
 									/>
 								</FormControl>
-								<FormMessage />
-							</FormItem>
-						);
-					}}
-				/>
-			</div>
+							);
+						}}
+					/>
+				</div>
+			</FormItem>
 
-			<div className="flex gap-4">
+			{posture === "Proactive" && (
 				<FormField
 					control={form.control}
-					name="trigger.threshold"
+					name="trigger.within"
 					render={({ field }) => (
-						<FormItem className="w-32">
-							<FormLabel>Threshold</FormLabel>
+						<FormItem>
+							<FormLabel>For</FormLabel>
 							<FormControl>
-								<Input
-									type="number"
-									min={1}
-									{...field}
-									onChange={(e) => field.onChange(Number(e.target.value))}
+								<DurationInput
+									value={field.value ?? 0}
+									onChange={field.onChange}
+									min={0}
 								/>
 							</FormControl>
 							<FormMessage />
 						</FormItem>
 					)}
 				/>
-
-				{posture === "Proactive" && (
-					<FormField
-						control={form.control}
-						name="trigger.within"
-						render={({ field }) => (
-							<FormItem className="w-32">
-								<FormLabel>Within (seconds)</FormLabel>
-								<FormControl>
-									<Input
-										type="number"
-										min={0}
-										{...field}
-										onChange={(e) => field.onChange(Number(e.target.value))}
-									/>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				)}
-			</div>
+			)}
 		</div>
 	);
 };
