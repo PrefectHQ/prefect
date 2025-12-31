@@ -39,9 +39,13 @@ export const getDefaultTriggerForTemplate = (
 			};
 		case "work-queue-status":
 			return {
-				...BASE_TRIGGER,
+				type: "event",
 				match: { "prefect.resource.id": "prefect.work-queue.*" },
+				match_related: undefined,
 				for_each: ["prefect.resource.id"],
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
 			};
 		case "custom":
 			return BASE_TRIGGER;
