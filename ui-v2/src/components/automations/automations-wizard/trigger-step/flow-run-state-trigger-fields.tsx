@@ -159,7 +159,7 @@ export const FlowRunStateTriggerFields = () => {
 						name={stateFieldName}
 						render={({ field }) => {
 							// Convert event strings to state names for UI display
-							const eventStrings = (field.value ?? []) as string[];
+							const eventStrings = field.value ?? [];
 							const selectedStates = fromStateNameEvents(eventStrings);
 							return (
 								<FormControl>
