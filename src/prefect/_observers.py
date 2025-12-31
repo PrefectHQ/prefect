@@ -26,7 +26,10 @@ class OnCancellingCallback(Protocol):
 
 class FlowRunCancellingObserver:
     def __init__(
-        self, on_cancelling: OnCancellingCallback, polling_interval: float = 10
+        self,
+        on_cancelling: OnCancellingCallback,
+        polling_interval: float = 10,
+        event_filter: EventFilter | None = None,
     ):
         """
         Observer that cancels flow runs when they are marked as cancelling.
@@ -36,12 +39,28 @@ class FlowRunCancellingObserver:
 
         Args:
             on_cancelling: Callback to call when a flow run is marked as cancelling.
-            flow_run_ids: List of flow run IDs to poll when websocket connection is lost.
             polling_interval: Interval in seconds to poll for cancelling flow runs when websocket connection is lost.
+            event_filter: Optional event filter to use for the websocket subscription.
+                If not provided, defaults to filtering for "prefect.flow-run.Cancelling" events.
         """
         self.logger = get_logger("FlowRunCancellingObserver")
         self.on_cancelling = on_cancelling
         self.polling_interval = polling_interval
+
+        if event_filter is not None:
+            if (
+                event_filter.event is None
+                or event_filter.event.name is None
+                or "prefect.flow-run.Cancelling" not in event_filter.event.name
+            ):
+                raise ValueError(
+                    "event_filter must include 'prefect.flow-run.Cancelling' in event.name"
+                )
+            self._event_filter = event_filter
+        else:
+            self._event_filter = EventFilter(
+                event=EventNameFilter(name=["prefect.flow-run.Cancelling"])
+            )
         self._in_flight_flow_run_ids: set[uuid.UUID] = set()
         self._events_subscriber: PrefectEventSubscriber | None
         self._exit_stack = AsyncExitStack()
@@ -58,6 +77,7 @@ class FlowRunCancellingObserver:
     def remove_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
         self.logger.debug("Removing in-flight flow run ID: %s", flow_run_id)
         self._in_flight_flow_run_ids.discard(flow_run_id)
+        self._cancelling_flow_run_ids.discard(flow_run_id)
 
     async def _consume_events(self):
         if self._events_subscriber is None:
@@ -73,7 +93,7 @@ class FlowRunCancellingObserver:
                 )
                 self.on_cancelling(flow_run_id)
             except ValueError:
-                self.logger.debug(
+                self.logger.warning(
                     "Received event with invalid flow run ID: %s",
                     event.resource["prefect.resource.id"],
                 )
@@ -155,11 +175,7 @@ class FlowRunCancellingObserver:
 
     async def __aenter__(self):
         self._events_subscriber = await self._exit_stack.enter_async_context(
-            get_events_subscriber(
-                filter=EventFilter(
-                    event=EventNameFilter(name=["prefect.flow-run.Cancelling"])
-                ),
-            )
+            get_events_subscriber(filter=self._event_filter)
         )
         self._client = await self._exit_stack.enter_async_context(get_client())
         self._consumer_task = asyncio.create_task(self._consume_events())

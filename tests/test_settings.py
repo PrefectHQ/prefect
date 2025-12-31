@@ -539,6 +539,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_UI_URL": {"test_value": "https://ui.prefect.io"},
     "PREFECT_UNIT_TEST_LOOP_DEBUG": {"test_value": True, "legacy": True},
     "PREFECT_UNIT_TEST_MODE": {"test_value": True, "legacy": True},
+    "PREFECT_WORKER_CANCELLATION_POLL_SECONDS": {"test_value": 60.0},
+    "PREFECT_WORKER_ENABLE_CANCELLATION": {"test_value": True},
     "PREFECT_WORKER_HEARTBEAT_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_PREFETCH_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_QUERY_SECONDS": {"test_value": 10.0},

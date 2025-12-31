@@ -2910,3 +2910,109 @@ class TestObserverSettings:
 
         # stop_observer should NOT have been called
         mock_stop.assert_not_called()
+
+
+class TestKubernetesWorkerKillInfrastructure:
+    """Tests for KubernetesWorker.kill_infrastructure method."""
+
+    @staticmethod
+    @asynccontextmanager
+    async def _mock_kubernetes_client():
+        """Helper to create a mock async context manager for kubernetes client."""
+        yield MagicMock(spec=ApiClient)
+
+    async def test_kill_infrastructure_deletes_job(
+        self,
+        mock_cluster_config: MagicMock,
+    ):
+        """Test that kill_infrastructure successfully deletes a Kubernetes job."""
+        async with KubernetesWorker(work_pool_name="test") as worker:
+            configuration = (
+                await KubernetesWorkerJobConfiguration.from_template_and_values(
+                    base_job_template=KubernetesWorker.get_default_base_job_template(),
+                    values={},
+                )
+            )
+
+            mock_batch_client = MagicMock(spec=BatchV1Api)
+            mock_batch_client.delete_namespaced_job = AsyncMock()
+
+            with mock.patch.object(
+                worker,
+                "_get_configured_kubernetes_client",
+                return_value=self._mock_kubernetes_client(),
+            ):
+                with mock.patch(
+                    "prefect_kubernetes.worker.BatchV1Api",
+                    return_value=mock_batch_client,
+                ):
+                    await worker.kill_infrastructure(
+                        infrastructure_pid="test-namespace:test-job",
+                        configuration=configuration,
+                        grace_seconds=30,
+                    )
+
+                    mock_batch_client.delete_namespaced_job.assert_called_once_with(
+                        name="test-job",
+                        namespace="test-namespace",
+                        grace_period_seconds=30,
+                        propagation_policy="Foreground",
+                    )
+
+    async def test_kill_infrastructure_raises_not_found(
+        self,
+        mock_cluster_config: MagicMock,
+    ):
+        """Test that kill_infrastructure raises InfrastructureNotFound for 404 errors."""
+        from prefect.exceptions import InfrastructureNotFound
+
+        async with KubernetesWorker(work_pool_name="test") as worker:
+            configuration = (
+                await KubernetesWorkerJobConfiguration.from_template_and_values(
+                    base_job_template=KubernetesWorker.get_default_base_job_template(),
+                    values={},
+                )
+            )
+
+            mock_batch_client = AsyncMock(spec=BatchV1Api)
+            mock_batch_client.delete_namespaced_job.side_effect = ApiException(
+                status=404
+            )
+
+            with mock.patch.object(
+                worker,
+                "_get_configured_kubernetes_client",
+                return_value=self._mock_kubernetes_client(),
+            ):
+                with mock.patch(
+                    "prefect_kubernetes.worker.BatchV1Api",
+                    return_value=mock_batch_client,
+                ):
+                    with pytest.raises(
+                        InfrastructureNotFound, match="not found in namespace"
+                    ):
+                        await worker.kill_infrastructure(
+                            infrastructure_pid="test-namespace:test-job",
+                            configuration=configuration,
+                            grace_seconds=30,
+                        )
+
+    async def test_kill_infrastructure_invalid_pid_format(
+        self,
+        mock_cluster_config: MagicMock,
+    ):
+        """Test that kill_infrastructure raises ValueError for invalid pid format."""
+        async with KubernetesWorker(work_pool_name="test") as worker:
+            configuration = (
+                await KubernetesWorkerJobConfiguration.from_template_and_values(
+                    base_job_template=KubernetesWorker.get_default_base_job_template(),
+                    values={},
+                )
+            )
+
+            with pytest.raises(ValueError, match="Invalid infrastructure_pid format"):
+                await worker.kill_infrastructure(
+                    infrastructure_pid="invalid-format-no-colon",
+                    configuration=configuration,
+                    grace_seconds=30,
+                )

@@ -82,6 +82,7 @@ from prefect._internal.concurrency.api import (
     from_async,
     from_sync,
 )
+from prefect._observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
@@ -97,7 +98,6 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.runner._observers import FlowRunCancellingObserver
 from prefect.runner.storage import RunnerStorage
 from prefect.schedules import Schedule
 from prefect.settings import (
