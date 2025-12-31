@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { DocsLink } from "@/components/ui/docs-link";
 
-export const AutomationsCreateHeader = () => (
+export const AutomationsEditHeader = () => (
 	<div className="flex items-center justify-between">
 		<NavHeader />
 		<DocsLink label="Documentation" id="automations-guide" />
@@ -26,7 +26,7 @@ const NavHeader = () => (
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
 				<BreadcrumbItem className="text-xl font-semibold">
-					<BreadcrumbPage>Create</BreadcrumbPage>
+					<BreadcrumbPage>Edit Automation</BreadcrumbPage>
 				</BreadcrumbItem>
 			</BreadcrumbList>
 		</Breadcrumb>

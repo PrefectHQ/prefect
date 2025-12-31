@@ -227,6 +227,38 @@ function transformTriggerToFormValue(trigger: AutomationTrigger): TriggerInput {
 }
 
 /**
+ * Infers the trigger template from an event trigger's match conditions.
+ * Returns "custom" if the template cannot be determined.
+ */
+function inferTriggerTemplate(trigger: AutomationTrigger): TriggerTemplate {
+	if (trigger.type !== "event") {
+		return "custom";
+	}
+
+	const resourceId = trigger.match?.["prefect.resource.id"];
+	if (!resourceId) {
+		return "custom";
+	}
+
+	const resourceIdStr = Array.isArray(resourceId) ? resourceId[0] : resourceId;
+
+	if (resourceIdStr?.startsWith("prefect.flow-run.")) {
+		return "flow-run-state";
+	}
+	if (resourceIdStr?.startsWith("prefect.deployment.")) {
+		return "deployment-status";
+	}
+	if (resourceIdStr?.startsWith("prefect.work-pool.")) {
+		return "work-pool-status";
+	}
+	if (resourceIdStr?.startsWith("prefect.work-queue.")) {
+		return "work-queue-status";
+	}
+
+	return "custom";
+}
+
+/**
  * Transforms API automation data to form-compatible values.
  * Converts null resource IDs to UNASSIGNED, removes source fields from actions,
  * and handles trigger transformations.
@@ -237,6 +269,7 @@ export function transformAutomationToFormValues(
 	return {
 		name: automation.name,
 		description: automation.description || undefined,
+		triggerTemplate: inferTriggerTemplate(automation.trigger),
 		trigger: transformTriggerToFormValue(automation.trigger),
 		actions: automation.actions.map(transformActionToFormValue),
 	};
