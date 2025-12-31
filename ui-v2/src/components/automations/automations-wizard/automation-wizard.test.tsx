@@ -406,7 +406,7 @@ describe("AutomationWizard", () => {
 			// Should show trigger fields
 			// Note: Flow run state trigger does not have a Threshold field (removed to match Vue)
 			await waitFor(() => {
-				expect(screen.getByLabelText("select posture")).toBeVisible();
+				expect(screen.getByLabelText("Observe")).toBeVisible();
 			});
 			expect(screen.getByText("Flows")).toBeVisible();
 		});
@@ -424,7 +424,7 @@ describe("AutomationWizard", () => {
 			);
 
 			await waitFor(() => {
-				expect(screen.getByLabelText("select posture")).toBeVisible();
+				expect(screen.getByLabelText("Observe")).toBeVisible();
 			});
 		});
 	});
