@@ -2,6 +2,7 @@
 Routes for interacting with flow run objects.
 """
 
+import asyncio
 import csv
 import datetime
 import io
@@ -782,50 +783,53 @@ async def paginate_flow_runs(
     """
     offset = (page - 1) * limit
 
-    async with db.session_context() as session:
-        runs = await models.flow_runs.read_flow_runs(
-            session=session,
-            flow_filter=flows,
-            flow_run_filter=flow_runs,
-            task_run_filter=task_runs,
-            deployment_filter=deployments,
-            work_pool_filter=work_pools,
-            work_queue_filter=work_pool_queues,
-            offset=offset,
-            limit=limit,
-            sort=sort,
-        )
+    async def get_runs():
+        async with db.session_context() as session:
+            return await models.flow_runs.read_flow_runs(
+                session=session,
+                flow_filter=flows,
+                flow_run_filter=flow_runs,
+                task_run_filter=task_runs,
+                deployment_filter=deployments,
+                work_pool_filter=work_pools,
+                work_queue_filter=work_pool_queues,
+                offset=offset,
+                limit=limit,
+                sort=sort,
+            )
 
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_filter=flows,
-            flow_run_filter=flow_runs,
-            task_run_filter=task_runs,
-            deployment_filter=deployments,
-            work_pool_filter=work_pools,
-            work_queue_filter=work_pool_queues,
-        )
+    async def get_count():
+        async with db.session_context() as session:
+            return await models.flow_runs.count_flow_runs(
+                session=session,
+                flow_filter=flows,
+                flow_run_filter=flow_runs,
+                task_run_filter=task_runs,
+                deployment_filter=deployments,
+                work_pool_filter=work_pools,
+                work_queue_filter=work_pool_queues,
+            )
 
-        # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
-        # response to JSON, we do so more efficiently ourselves.
-        # In particular, the FastAPI encoder is very slow for large, nested objects.
-        # See: https://github.com/tiangolo/fastapi/issues/1224
-        results = [
-            schemas.responses.FlowRunResponse.model_validate(
-                run, from_attributes=True
-            ).model_dump(mode="json")
-            for run in runs
-        ]
+    runs, count = await asyncio.gather(get_runs(), get_count())
 
-        response = FlowRunPaginationResponse(
-            results=results,
-            count=count,
-            limit=limit,
-            pages=(count + limit - 1) // limit,
-            page=page,
-        ).model_dump(mode="json")
+    # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
+    # response to JSON, we do so more efficiently ourselves.
+    # In particular, the FastAPI encoder is very slow for large, nested objects.
+    # See: https://github.com/tiangolo/fastapi/issues/1224
+    results = [
+        schemas.responses.FlowRunResponse.model_validate(run, from_attributes=True)
+        for run in runs
+    ]
 
-        return ORJSONResponse(content=response)
+    response = FlowRunPaginationResponse(
+        results=results,
+        count=count,
+        limit=limit,
+        pages=(count + limit - 1) // limit,
+        page=page,
+    ).model_dump(mode="json")
+
+    return ORJSONResponse(content=response)
 
 
 FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT = 1000
