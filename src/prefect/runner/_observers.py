@@ -26,7 +26,10 @@ class OnCancellingCallback(Protocol):
 
 class FlowRunCancellingObserver:
     def __init__(
-        self, on_cancelling: OnCancellingCallback, polling_interval: float = 10
+        self,
+        on_cancelling: OnCancellingCallback,
+        polling_interval: float = 10,
+        event_filter: EventFilter | None = None,
     ):
         """
         Observer that cancels flow runs when they are marked as cancelling.
@@ -36,12 +39,16 @@ class FlowRunCancellingObserver:
 
         Args:
             on_cancelling: Callback to call when a flow run is marked as cancelling.
-            flow_run_ids: List of flow run IDs to poll when websocket connection is lost.
             polling_interval: Interval in seconds to poll for cancelling flow runs when websocket connection is lost.
+            event_filter: Optional event filter to use for the websocket subscription.
+                If not provided, defaults to filtering for "prefect.flow-run.Cancelling" events.
         """
         self.logger = get_logger("FlowRunCancellingObserver")
         self.on_cancelling = on_cancelling
         self.polling_interval = polling_interval
+        self._event_filter = event_filter or EventFilter(
+            event=EventNameFilter(name=["prefect.flow-run.Cancelling"])
+        )
         self._in_flight_flow_run_ids: set[uuid.UUID] = set()
         self._events_subscriber: PrefectEventSubscriber | None
         self._exit_stack = AsyncExitStack()
@@ -155,11 +162,7 @@ class FlowRunCancellingObserver:
 
     async def __aenter__(self):
         self._events_subscriber = await self._exit_stack.enter_async_context(
-            get_events_subscriber(
-                filter=EventFilter(
-                    event=EventNameFilter(name=["prefect.flow-run.Cancelling"])
-                ),
-            )
+            get_events_subscriber(filter=self._event_filter)
         )
         self._client = await self._exit_stack.enter_async_context(get_client())
         self._consumer_task = asyncio.create_task(self._consume_events())

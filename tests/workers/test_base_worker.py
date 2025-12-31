@@ -3027,6 +3027,29 @@ class TestWorkerCancellationHandling:
                         mock_kill.assert_not_called()
                         mock_mark.assert_not_called()
 
+    async def test_cancellation_observer_filters_by_work_pool(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test that the cancellation observer is configured to filter by work pool ID."""
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with WorkerTestImpl(
+                work_pool_name=work_pool.name,
+                name="test-worker",
+            ) as worker:
+                observer = worker._cancelling_observer
+                assert observer is not None
+
+                # Verify the event filter includes the work pool ID (not name)
+                event_filter = observer._event_filter
+                assert event_filter.event is not None
+                assert event_filter.event.name == ["prefect.flow-run.Cancelling"]
+                assert event_filter.any_resource is not None
+                assert event_filter.any_resource.id == [
+                    f"prefect.work-pool.{work_pool.id}"
+                ]
+
     async def test_cancel_run_marks_cancelled_when_no_infrastructure(
         self,
         prefect_client: PrefectClient,

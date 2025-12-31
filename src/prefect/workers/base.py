@@ -47,6 +47,7 @@ from prefect.client.schemas.objects import (
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TagsContext
 from prefect.events import Event, RelatedResource, emit_event
+from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.related import object_as_related_resource, tags_as_related_resources
 from prefect.exceptions import (
     Abort,
@@ -987,7 +988,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         await self.sync_with_backend()
 
         # Initialize cancellation handling if enabled
-        if get_current_settings().worker.enable_cancellation:
+        if get_current_settings().worker.enable_cancellation and self._work_pool:
             try:
                 self._cancelling_observer = await self._exit_stack.enter_async_context(
                     FlowRunCancellingObserver(
@@ -995,6 +996,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                             self._cancel_run, flow_run_id
                         ),
                         polling_interval=get_current_settings().worker.cancellation_poll_seconds,
+                        event_filter=EventFilter(
+                            event=EventNameFilter(name=["prefect.flow-run.Cancelling"]),
+                            any_resource=EventAnyResourceFilter(
+                                id=[f"prefect.work-pool.{self._work_pool.id}"]
+                            ),
+                        ),
                     )
                 )
             except Exception as exc:
