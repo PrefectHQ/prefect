@@ -34,6 +34,7 @@ import prefect
 import prefect.types._datetime
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.schemas.validators import return_v_or_none
+from prefect._observers import FlowRunCancellingObserver
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
@@ -63,7 +64,6 @@ from prefect.logging.loggers import (
     get_worker_logger,
 )
 from prefect.plugins import load_prefect_collections
-from prefect.runner._observers import FlowRunCancellingObserver
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_TEST_MODE,
@@ -1654,6 +1654,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 "Worker does not support killing infrastructure. "
                 "Infrastructure may still be running."
             )
+            return
         except InfrastructureNotFound:
             run_logger.debug("Attempted to kill infrastructure that was not found")
             pass

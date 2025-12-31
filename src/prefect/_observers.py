@@ -46,9 +46,21 @@ class FlowRunCancellingObserver:
         self.logger = get_logger("FlowRunCancellingObserver")
         self.on_cancelling = on_cancelling
         self.polling_interval = polling_interval
-        self._event_filter = event_filter or EventFilter(
-            event=EventNameFilter(name=["prefect.flow-run.Cancelling"])
-        )
+
+        if event_filter is not None:
+            if (
+                event_filter.event is None
+                or event_filter.event.name is None
+                or "prefect.flow-run.Cancelling" not in event_filter.event.name
+            ):
+                raise ValueError(
+                    "event_filter must include 'prefect.flow-run.Cancelling' in event.name"
+                )
+            self._event_filter = event_filter
+        else:
+            self._event_filter = EventFilter(
+                event=EventNameFilter(name=["prefect.flow-run.Cancelling"])
+            )
         self._in_flight_flow_run_ids: set[uuid.UUID] = set()
         self._events_subscriber: PrefectEventSubscriber | None
         self._exit_stack = AsyncExitStack()
@@ -65,6 +77,7 @@ class FlowRunCancellingObserver:
     def remove_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
         self.logger.debug("Removing in-flight flow run ID: %s", flow_run_id)
         self._in_flight_flow_run_ids.discard(flow_run_id)
+        self._cancelling_flow_run_ids.discard(flow_run_id)
 
     async def _consume_events(self):
         if self._events_subscriber is None:
@@ -80,7 +93,7 @@ class FlowRunCancellingObserver:
                 )
                 self.on_cancelling(flow_run_id)
             except ValueError:
-                self.logger.debug(
+                self.logger.warning(
                     "Received event with invalid flow run ID: %s",
                     event.resource["prefect.resource.id"],
                 )

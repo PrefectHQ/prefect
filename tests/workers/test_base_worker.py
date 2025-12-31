@@ -3110,7 +3110,7 @@ class TestWorkerCancellationHandling:
         work_pool: WorkPool,
         deployment: DeploymentResponse,
     ):
-        """Test that _cancel_run handles NotImplementedError gracefully."""
+        """Test that _cancel_run handles NotImplementedError gracefully by returning early."""
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment.id,
         )
@@ -3125,8 +3125,9 @@ class TestWorkerCancellationHandling:
             ) as mock_mark:
                 # kill_infrastructure raises NotImplementedError by default
                 await worker._cancel_run(flow_run.id)
-                # Should still mark as cancelled despite kill failure
-                mock_mark.assert_called_once()
+                # Should return early without marking as cancelled since worker
+                # doesn't support killing infrastructure
+                mock_mark.assert_not_called()
 
     async def test_teardown_cancellation_handling_cleans_up(self):
         """Test that teardown properly cleans up cancellation resources."""
