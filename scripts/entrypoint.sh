@@ -9,11 +9,12 @@ fi
 
 if [ ! -z "$EXTRA_PIP_PACKAGES" ]; then
   echo "+uv pip install $EXTRA_PIP_PACKAGES"
-  if ! uv pip install --system $EXTRA_PIP_PACKAGES > /tmp/pip_install.log 2>&1; then
+  uv pip install --system $EXTRA_PIP_PACKAGES > /tmp/pip_install.log 2>&1 || {
+    uv_exit_code=$?
     cat /tmp/pip_install.log
     python -m prefect._internal.send_entrypoint_logs /tmp/pip_install.log
-    exit 1
-  fi
+    exit $uv_exit_code
+  }
 fi
 
 if [ -z "$*" ]; then
