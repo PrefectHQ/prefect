@@ -4,10 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { FormProvider, useForm } from "react-hook-form";
 import { beforeAll, describe, expect, it } from "vitest";
-import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import type {
+	AutomationWizardSchema,
+	EventTriggerInput,
+} from "@/components/automations/automations-wizard/automation-schema";
 import { CustomTriggerFields } from "./custom-trigger-fields";
 
-const createWrapper = (defaultValues?: Partial<AutomationWizardSchema>) => {
+const createWrapper = (triggerOverrides?: Partial<EventTriggerInput>) => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: {
@@ -17,20 +20,21 @@ const createWrapper = (defaultValues?: Partial<AutomationWizardSchema>) => {
 	});
 
 	const Wrapper = ({ children }: { children: React.ReactNode }) => {
+		const defaultTrigger: EventTriggerInput = {
+			type: "event",
+			posture: "Reactive",
+			threshold: 1,
+			within: 0,
+			expect: [],
+			after: [],
+			match: {},
+			match_related: {},
+			...triggerOverrides,
+		};
+
 		const form = useForm<AutomationWizardSchema>({
 			defaultValues: {
-				trigger: {
-					type: "event",
-					posture: "Reactive",
-					threshold: 1,
-					within: 0,
-					expect: [],
-					after: [],
-					match: {},
-					match_related: {},
-					...defaultValues?.trigger,
-				},
-				...defaultValues,
+				trigger: defaultTrigger,
 			},
 		});
 
@@ -108,18 +112,7 @@ describe("CustomTriggerFields", () => {
 
 	it("shows plural 'times' when threshold is greater than 1", () => {
 		render(<CustomTriggerFields />, {
-			wrapper: createWrapper({
-				trigger: {
-					type: "event",
-					posture: "Reactive",
-					threshold: 5,
-					within: 0,
-					expect: [],
-					after: [],
-					match: {},
-					match_related: {},
-				},
-			}),
+			wrapper: createWrapper({ threshold: 5 }),
 		});
 
 		expect(screen.getByText("times within")).toBeVisible();
@@ -127,18 +120,7 @@ describe("CustomTriggerFields", () => {
 
 	it("shows singular 'time' when threshold is 1", () => {
 		render(<CustomTriggerFields />, {
-			wrapper: createWrapper({
-				trigger: {
-					type: "event",
-					posture: "Reactive",
-					threshold: 1,
-					within: 0,
-					expect: [],
-					after: [],
-					match: {},
-					match_related: {},
-				},
-			}),
+			wrapper: createWrapper({ threshold: 1 }),
 		});
 
 		expect(screen.getByText("time within")).toBeVisible();

@@ -53,10 +53,8 @@ describe("FlowRunStateTriggerFields", () => {
 			wrapper: createWrapper(),
 		});
 
-		expect(screen.getByLabelText("select posture")).toBeVisible();
-		expect(
-			screen.getByRole("combobox", { name: "select posture" }),
-		).toHaveTextContent("Enters");
+		expect(screen.getByLabelText("Observe")).toBeVisible();
+		expect(screen.getByRole("radio", { name: "Observe" })).toBeChecked();
 	});
 
 	it("does not show For field when posture is Reactive", () => {
@@ -74,8 +72,7 @@ describe("FlowRunStateTriggerFields", () => {
 			wrapper: createWrapper(),
 		});
 
-		await user.click(screen.getByLabelText("select posture"));
-		await user.click(screen.getByRole("option", { name: "Stays in" }));
+		await user.click(screen.getByLabelText("Don't observe"));
 
 		expect(screen.getByText("For")).toBeVisible();
 		expect(screen.getByLabelText("Duration quantity")).toBeVisible();
@@ -89,8 +86,7 @@ describe("FlowRunStateTriggerFields", () => {
 			wrapper: createWrapper(),
 		});
 
-		await user.click(screen.getByLabelText("select posture"));
-		await user.click(screen.getByRole("option", { name: "Stays in" }));
+		await user.click(screen.getByLabelText("Don't observe"));
 
 		const quantityInput = screen.getByLabelText("Duration quantity");
 		expect(quantityInput).toHaveValue(30);

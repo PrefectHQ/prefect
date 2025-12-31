@@ -61,7 +61,10 @@ export function EventsCombobox({
 					since: defaultSince.toISOString(),
 					until: defaultUntil.toISOString(),
 				},
+				order: "DESC",
 			},
+			time_unit: "day",
+			time_interval: 1,
 		}),
 	);
 

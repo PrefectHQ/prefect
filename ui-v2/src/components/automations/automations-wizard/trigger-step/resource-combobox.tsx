@@ -64,7 +64,7 @@ export function ResourceCombobox({
 			{
 				label: "Blocks",
 				options: blocks.map((block) => ({
-					label: block.name,
+					label: block.name ?? block.id,
 					value: `prefect.block-document.${block.id}`,
 					type: "block-document",
 				})),

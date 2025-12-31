@@ -26,9 +26,10 @@ function toPluralString(word: string, count: number): string {
 export const CustomTriggerFields = () => {
 	const form = useFormContext<AutomationWizardSchema>();
 	const posture = useWatch<AutomationWizardSchema>({ name: "trigger.posture" });
-	const threshold = useWatch<AutomationWizardSchema>({
+	const thresholdValue = useWatch<AutomationWizardSchema>({
 		name: "trigger.threshold",
 	});
+	const threshold = typeof thresholdValue === "number" ? thresholdValue : 1;
 
 	return (
 		<div className="space-y-4">

@@ -53,7 +53,7 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Deployment status" }));
 
 		// Should show the DeploymentStatusTriggerFields component
-		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Observe")).toBeVisible();
 		expect(screen.getByLabelText("Threshold")).toBeVisible();
 	});
 
@@ -67,7 +67,7 @@ describe("TriggerStep", () => {
 
 		// Should show the FlowRunStateTriggerFields component
 		// Note: Flow run state trigger does not have a Threshold field (removed to match Vue)
-		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Observe")).toBeVisible();
 		expect(screen.getByText("Flows")).toBeVisible();
 	});
 
@@ -80,7 +80,7 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Work pool status" }));
 
 		// Should show the WorkPoolStatusTriggerFields component
-		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Observe")).toBeVisible();
 		expect(screen.getByLabelText("Threshold")).toBeVisible();
 	});
 
@@ -93,7 +93,7 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Work queue status" }));
 
 		// Should show the WorkQueueStatusTriggerFields component
-		expect(screen.getByLabelText("select posture")).toBeVisible();
+		expect(screen.getByLabelText("Observe")).toBeVisible();
 		expect(screen.getByLabelText("Threshold")).toBeVisible();
 	});
 
@@ -106,11 +106,9 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Custom" }));
 
 		// Should show the CustomTriggerFields component
-		expect(screen.getByLabelText("select posture")).toBeVisible();
-		expect(screen.getByLabelText("Threshold")).toBeVisible();
-		expect(
-			screen.getByLabelText("Expected Events (one per line)"),
-		).toBeVisible();
+		expect(screen.getByLabelText("Observe")).toBeVisible();
+		expect(screen.getByText("Any event matching")).toBeVisible();
+		expect(screen.getByText("From the following resources")).toBeVisible();
 	});
 
 	describe("Form/JSON toggle", () => {
@@ -175,7 +173,7 @@ describe("TriggerStep", () => {
 				"aria-selected",
 				"true",
 			);
-			expect(screen.getByLabelText("select posture")).toBeVisible();
+			expect(screen.getByLabelText("Observe")).toBeVisible();
 		});
 
 		it("blocks switch from JSON to Form with invalid JSON", async () => {
