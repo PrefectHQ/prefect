@@ -234,35 +234,40 @@ async def paginate_task_runs(
     """
     offset = (page - 1) * limit
 
-    async with db.session_context() as session:
-        runs = await models.task_runs.read_task_runs(
-            session=session,
-            flow_filter=flows,
-            flow_run_filter=flow_runs,
-            task_run_filter=task_runs,
-            deployment_filter=deployments,
-            offset=offset,
-            limit=limit,
-            sort=sort,
-        )
-
-        total_count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_filter=flows,
-            flow_run_filter=flow_runs,
-            task_run_filter=task_runs,
-            deployment_filter=deployments,
-        )
-
-        return TaskRunPaginationResponse.model_validate(
-            dict(
-                results=runs,
-                count=total_count,
+    async def get_runs():
+        async with db.session_context() as session:
+            return await models.task_runs.read_task_runs(
+                session=session,
+                flow_filter=flows,
+                flow_run_filter=flow_runs,
+                task_run_filter=task_runs,
+                deployment_filter=deployments,
+                offset=offset,
                 limit=limit,
-                pages=(total_count + limit - 1) // limit,
-                page=page,
+                sort=sort,
             )
+
+    async def get_count():
+        async with db.session_context() as session:
+            return await models.task_runs.count_task_runs(
+                session=session,
+                flow_filter=flows,
+                flow_run_filter=flow_runs,
+                task_run_filter=task_runs,
+                deployment_filter=deployments,
+            )
+
+    runs, total_count = await asyncio.gather(get_runs(), get_count())
+
+    return TaskRunPaginationResponse.model_validate(
+        dict(
+            results=runs,
+            count=total_count,
+            limit=limit,
+            pages=(total_count + limit - 1) // limit,
+            page=page,
         )
+    )
 
 
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
