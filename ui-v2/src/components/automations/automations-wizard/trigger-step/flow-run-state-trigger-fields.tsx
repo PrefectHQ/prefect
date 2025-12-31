@@ -16,6 +16,29 @@ import { StateMultiSelect } from "./state-multi-select";
 
 type MatchRelated = Record<string, string | string[]> | undefined;
 
+// Convert state names to event strings (e.g., "Completed" -> "prefect.flow-run.Completed")
+// When no states selected, returns wildcard ["prefect.flow-run.*"] (Vue behavior)
+function toStateNameEvents(stateNames: StateName[]): string[] {
+	if (stateNames.length === 0) {
+		return ["prefect.flow-run.*"];
+	}
+	return stateNames.map((name) => `prefect.flow-run.${name}`);
+}
+
+// Convert event strings back to state names (e.g., "prefect.flow-run.Completed" -> "Completed")
+// Wildcard "prefect.flow-run.*" returns empty array (means "any state")
+function fromStateNameEvents(events: string[] | undefined): StateName[] {
+	if (!events || events.length === 0) {
+		return [];
+	}
+	if (events.includes("prefect.flow-run.*")) {
+		return [];
+	}
+	return events
+		.filter((event) => event.startsWith("prefect.flow-run."))
+		.map((event) => event.replace("prefect.flow-run.", "") as StateName);
+}
+
 function extractFlowIdsFromMatchRelated(matchRelated: MatchRelated): string[] {
 	if (!matchRelated) return [];
 
@@ -41,17 +64,21 @@ function extractTagsFromMatchRelated(matchRelated: MatchRelated): string[] {
 }
 
 function buildMatchRelated(flowIds: string[], tags: string[]): MatchRelated {
-	const resourceIds: string[] = [
-		...flowIds.map((id) => `prefect.flow.${id}`),
-		...tags.map((tag) => `prefect.tag.${tag}`),
-	];
+	const flowResourceIds = flowIds.map((id) => `prefect.flow.${id}`);
+	const tagResourceIds = tags.map((tag) => `prefect.tag.${tag}`);
 
-	if (resourceIds.length === 0) {
-		return undefined;
+	// Return empty object when no flows/tags selected (matches Vue behavior)
+	if (flowResourceIds.length === 0 && tagResourceIds.length === 0) {
+		return {};
 	}
 
+	// Set role based on which type is selected (Vue behavior)
+	// Since tags are hidden when flows are selected, only one type will be present
+	const role = flowResourceIds.length > 0 ? "flow" : "tag";
+	const resourceIds = [...flowResourceIds, ...tagResourceIds];
+
 	return {
-		"prefect.resource.role": "flow",
+		"prefect.resource.role": role,
 		"prefect.resource.id": resourceIds,
 	};
 }
@@ -131,13 +158,16 @@ export const FlowRunStateTriggerFields = () => {
 						control={form.control}
 						name={stateFieldName}
 						render={({ field }) => {
-							const selectedStates = (field.value ?? []) as StateName[];
+							// Convert event strings to state names for UI display
+							const eventStrings = (field.value ?? []) as string[];
+							const selectedStates = fromStateNameEvents(eventStrings);
 							return (
 								<FormControl>
 									<StateMultiSelect
 										selectedStates={selectedStates}
 										onStateChange={(states) => {
-											field.onChange(states);
+											// Convert state names to event strings for storage
+											field.onChange(toStateNameEvents(states));
 										}}
 										emptyMessage="Any state"
 									/>

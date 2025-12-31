@@ -29,13 +29,29 @@ export const PostureSelect = () => {
 						<Select
 							value={field.value}
 							onValueChange={(value: "Reactive" | "Proactive") => {
+								const previousPosture = field.value;
 								field.onChange(value);
-								// When switching to Proactive, set a default within value if it's 0
-								if (value === "Proactive") {
+
+								// Move state values between expect and after when posture changes
+								// Reactive uses "expect", Proactive uses "after"
+								if (previousPosture === "Reactive" && value === "Proactive") {
+									// Moving from Reactive to Proactive: move expect to after
+									const expectValues = form.getValues("trigger.expect") ?? [];
+									form.setValue("trigger.after", expectValues);
+									form.setValue("trigger.expect", []);
+									// Set a default within value if it's 0
 									const currentWithin = form.getValues("trigger.within");
 									if (currentWithin === 0) {
 										form.setValue("trigger.within", DEFAULT_PROACTIVE_WITHIN);
 									}
+								} else if (
+									previousPosture === "Proactive" &&
+									value === "Reactive"
+								) {
+									// Moving from Proactive to Reactive: move after to expect
+									const afterValues = form.getValues("trigger.after") ?? [];
+									form.setValue("trigger.expect", afterValues);
+									form.setValue("trigger.after", []);
 								}
 							}}
 						>

@@ -13,10 +13,17 @@ export const getDefaultTriggerForTemplate = (
 ): EventTrigger => {
 	switch (template) {
 		case "flow-run-state":
+			// Return fields in same order as Vue for JSON tab visual parity
 			return {
-				...BASE_TRIGGER,
+				type: "event",
 				match: { "prefect.resource.id": "prefect.flow-run.*" },
+				match_related: {},
+				after: [],
+				expect: ["prefect.flow-run.*"],
 				for_each: ["prefect.resource.id"],
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
 			};
 		case "deployment-status":
 			return {
