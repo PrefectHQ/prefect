@@ -1,5 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { useDeferredValue, useMemo, useState } from "react";
+import {
+	useCallback,
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import {
 	buildFilterDeploymentsQuery,
 	type Deployment,
@@ -17,7 +24,8 @@ import {
 } from "@/components/ui/combobox";
 import { Typography } from "@/components/ui/typography";
 
-const MAX_DEPLOYMENTS_DISPLAYED = 2;
+const FALLBACK_MAX_DISPLAYED = 2;
+const PLUS_N_WIDTH = 40;
 
 type AutomationDeploymentComboboxProps = {
 	selectedDeploymentIds: string[];
@@ -30,11 +38,29 @@ export const AutomationDeploymentCombobox = ({
 }: AutomationDeploymentComboboxProps) => {
 	const [search, setSearch] = useState("");
 	const deferredSearch = useDeferredValue(search);
+	const [containerWidth, setContainerWidth] = useState(0);
+	const containerRef = useRef<HTMLDivElement>(null);
+	const measureRef = useRef<HTMLDivElement>(null);
 
 	const selectedDeploymentsSet = useMemo(
 		() => new Set(selectedDeploymentIds),
 		[selectedDeploymentIds],
 	);
+
+	// Measure container width using ResizeObserver
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const observer = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				setContainerWidth(entry.contentRect.width);
+			}
+		});
+
+		observer.observe(container);
+		return () => observer.disconnect();
+	}, []);
 
 	const { data: deployments = [] } = useQuery(
 		buildFilterDeploymentsQuery({
@@ -82,6 +108,43 @@ export const AutomationDeploymentCombobox = ({
 		onSelectDeploymentIds([]);
 	};
 
+	// Calculate how many names fit in the available width
+	const calculateVisibleCount = useCallback(
+		(names: string[]): number => {
+			const measureEl = measureRef.current;
+			if (!measureEl || containerWidth === 0 || names.length === 0) {
+				return Math.min(names.length, FALLBACK_MAX_DISPLAYED);
+			}
+
+			// Available width for names (reserve space for "+N" if needed)
+			const availableWidth =
+				names.length > 1 ? containerWidth - PLUS_N_WIDTH : containerWidth;
+
+			let visibleCount = 0;
+
+			for (let i = 0; i < names.length; i++) {
+				// Measure each name by temporarily setting content
+				measureEl.textContent = names.slice(0, i + 1).join(", ");
+				const nameWidth = measureEl.offsetWidth;
+
+				if (nameWidth <= availableWidth) {
+					visibleCount = i + 1;
+				} else {
+					break;
+				}
+			}
+
+			// If all names fit, return all
+			if (visibleCount === names.length) {
+				return names.length;
+			}
+
+			// Return at least 1 name
+			return Math.max(1, visibleCount);
+		},
+		[containerWidth],
+	);
+
 	const renderSelectedDeployments = () => {
 		if (selectedDeploymentsSet.size === 0) {
 			return "All deployments";
@@ -91,12 +154,15 @@ export const AutomationDeploymentCombobox = ({
 			.filter((deployment) => selectedDeploymentsSet.has(deployment.id))
 			.map((deployment) => deployment.name);
 
-		const visible = selectedDeploymentNames.slice(0, MAX_DEPLOYMENTS_DISPLAYED);
-		const extraCount =
-			selectedDeploymentNames.length - MAX_DEPLOYMENTS_DISPLAYED;
+		const visibleCount = calculateVisibleCount(selectedDeploymentNames);
+		const visible = selectedDeploymentNames.slice(0, visibleCount);
+		const extraCount = selectedDeploymentNames.length - visibleCount;
 
 		return (
-			<div className="flex flex-1 min-w-0 items-center gap-2">
+			<div
+				ref={containerRef}
+				className="flex flex-1 min-w-0 items-center gap-2"
+			>
 				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
 					<span className="truncate">{visible.join(", ")}</span>
 				</div>
@@ -105,6 +171,12 @@ export const AutomationDeploymentCombobox = ({
 						+ {extraCount}
 					</Typography>
 				)}
+				{/* Hidden element for measuring text width */}
+				<div
+					ref={measureRef}
+					className="absolute invisible whitespace-nowrap"
+					aria-hidden="true"
+				/>
 			</div>
 		);
 	};

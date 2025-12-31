@@ -84,39 +84,39 @@ export const DeploymentStatusTriggerFields = () => {
 				</FormControl>
 			</FormItem>
 
-			<div className="flex items-end gap-4">
-				<PostureSelect />
-				<FormField
-					control={form.control}
-					name="trigger.expect"
-					render={({ field }) => {
-						const selectedStatus = field.value?.[0];
-						return (
-							<FormItem className="flex-1">
-								<FormLabel>Status</FormLabel>
-								<FormControl>
-									<Select
-										value={selectedStatus ?? ""}
-										onValueChange={(value) => field.onChange([value])}
-									>
-										<SelectTrigger>
-											<SelectValue placeholder="Select status" />
-										</SelectTrigger>
-										<SelectContent>
-											{DEPLOYMENT_STATUSES.map((status) => (
-												<SelectItem key={status.value} value={status.value}>
-													{status.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						);
-					}}
-				/>
-			</div>
+			<FormItem>
+				<FormLabel>Deployment</FormLabel>
+				<div
+					className="grid gap-2"
+					style={{ gridTemplateColumns: "10rem 1fr" }}
+				>
+					<PostureSelect />
+					<FormField
+						control={form.control}
+						name="trigger.expect"
+						render={({ field }) => {
+							const selectedStatus = field.value?.[0];
+							return (
+								<Select
+									value={selectedStatus ?? ""}
+									onValueChange={(value) => field.onChange([value])}
+								>
+									<SelectTrigger className="w-full">
+										<SelectValue placeholder="Select status" />
+									</SelectTrigger>
+									<SelectContent>
+										{DEPLOYMENT_STATUSES.map((status) => (
+											<SelectItem key={status.value} value={status.value}>
+												{status.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							);
+						}}
+					/>
+				</div>
+			</FormItem>
 
 			{posture === "Proactive" && (
 				<FormField
