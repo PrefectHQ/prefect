@@ -53,8 +53,9 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Deployment status" }));
 
 		// Should show the DeploymentStatusTriggerFields component
+		// Note: Deployment status trigger does not have a Threshold field (removed to match Vue)
 		expect(screen.getByLabelText("select posture")).toBeVisible();
-		expect(screen.getByLabelText("Threshold")).toBeVisible();
+		expect(screen.queryByLabelText("Threshold")).not.toBeInTheDocument();
 	});
 
 	it("can select flow-run-state template and shows trigger fields", async () => {
@@ -213,11 +214,10 @@ describe("TriggerStep", () => {
 
 			render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
-			// Use deployment-status template which has a Threshold field
+			// Use Custom template which has a Threshold field
+			// (other templates no longer have Threshold field to match Vue)
 			await user.click(screen.getByLabelText("Trigger Template"));
-			await user.click(
-				screen.getByRole("option", { name: "Deployment status" }),
-			);
+			await user.click(screen.getByRole("option", { name: "Custom" }));
 
 			// Switch to JSON mode
 			await user.click(screen.getByRole("tab", { name: "JSON" }));
@@ -243,7 +243,8 @@ describe("TriggerStep", () => {
 			await user.click(screen.getByRole("tab", { name: "Form" }));
 
 			// The form should reflect the updated threshold
-			const thresholdInput = screen.getByLabelText("Threshold");
+			// Use findByLabelText to wait for the form content to render after tab switch
+			const thresholdInput = await screen.findByLabelText("Threshold");
 			expect(thresholdInput).toHaveValue(5);
 		});
 

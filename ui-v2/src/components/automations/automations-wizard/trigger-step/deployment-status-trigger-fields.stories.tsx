@@ -43,6 +43,15 @@ export const WithNotReadyStatus: Story = {
 	),
 };
 
+export const WithDisabledStatus: Story = {
+	render: () => (
+		<DeploymentStatusTriggerFieldsStory
+			posture="Reactive"
+			selectedStatus="prefect.deployment.disabled"
+		/>
+	),
+};
+
 function DeploymentStatusTriggerFieldsStory({
 	posture = "Reactive",
 	selectedStatus,
