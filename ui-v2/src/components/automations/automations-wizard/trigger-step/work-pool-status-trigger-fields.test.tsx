@@ -124,12 +124,16 @@ describe("WorkPoolStatusTriggerFields", () => {
 		expect(screen.queryByLabelText("Threshold")).not.toBeInTheDocument();
 	});
 
-	it("renders status select dropdown", () => {
+	it("renders status select dropdown with Not Ready as default", () => {
 		render(<WorkPoolStatusTriggerFieldsContainer />, {
 			wrapper: createWrapper(),
 		});
 
-		expect(screen.getByText("Select status")).toBeVisible();
+		// Status defaults to "Not Ready" to match Vue implementation
+		const statusTrigger = screen.getByRole("combobox", {
+			name: /select status/i,
+		});
+		expect(statusTrigger).toHaveTextContent("Not Ready");
 	});
 
 	it("can select a status from the dropdown", async () => {

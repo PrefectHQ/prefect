@@ -12,7 +12,7 @@ import {
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
 
-const MAX_VISIBLE_WORK_POOLS = 2;
+// Show all selected work pool names and let CSS truncation handle overflow
 
 type WorkPoolMultiSelectProps = {
 	selectedWorkPoolIds: string[];
@@ -58,18 +58,11 @@ export function WorkPoolMultiSelect({
 			(workPool) => workPool.name,
 		);
 
-		const visibleNames = selectedWorkPoolNames.slice(0, MAX_VISIBLE_WORK_POOLS);
-		const overflow = selectedWorkPoolIds.length - visibleNames.length;
-
+		// Show all names and let CSS truncation handle overflow
 		return (
-			<div className="flex min-w-0 items-center justify-start gap-1">
-				<span className="truncate min-w-0 text-left">
-					{visibleNames.join(", ")}
-				</span>
-				{overflow > 0 && (
-					<span className="shrink-0 text-muted-foreground">+{overflow}</span>
-				)}
-			</div>
+			<span className="truncate min-w-0 text-left">
+				{selectedWorkPoolNames.join(", ")}
+			</span>
 		);
 	};
 
