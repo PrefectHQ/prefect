@@ -175,7 +175,7 @@ class TestLogsSend:
             expected_code=1,
         )
 
-    def test_send_api_failure_with_ignore_errors(self, tmp_path: Path):
+    def test_send_api_failure_with_silent(self, tmp_path: Path):
         log_file = tmp_path / "test.log"
         log_file.write_text("Test message")
 
@@ -185,8 +185,8 @@ class TestLogsSend:
             side_effect=Exception("API error"),
         ):
             invoke_and_assert(
-                ["logs", "send", "--ignore-errors", str(log_file)],
-                expected_output_contains="Could not send logs",
+                ["logs", "send", "--silent", str(log_file)],
+                expected_output="",
                 expected_code=0,
             )
 
