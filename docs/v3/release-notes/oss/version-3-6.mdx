@@ -2,6 +2,40 @@
 title: 3.6
 ---
 
+## 3.6.9
+
+*Released on December 31, 2025*
+
+**New Features 🎉**
+
+* Add worker-side cancellation for pending flow runs by [@joshuastagner](https://github.com/joshuastagner) in [#20022](https://github.com/PrefectHQ/prefect/pull/20022)
+
+**Enhancements ➕➕**
+
+* Add JSON schema for `prefect.yaml` files by [@zzstoatzz](https://github.com/zzstoatzz) in [#19996](https://github.com/PrefectHQ/prefect/pull/19996)
+* Send entrypoint pip install errors to Prefect logs by [@jakekaplan](https://github.com/jakekaplan) in [#20058](https://github.com/PrefectHQ/prefect/pull/20058)
+* Run read and count queries concurrently in paginate endpoints by [@zzstoatzz](https://github.com/zzstoatzz) in [#20049](https://github.com/PrefectHQ/prefect/pull/20049)
+
+**Bug Fixes 🐞**
+
+* Preserve symlinks in `get_directory` instead of following them by [@majiayu000](https://github.com/majiayu000) in [#19993](https://github.com/PrefectHQ/prefect/pull/19993)
+* Fix `GitRepository` name parameter preservation in pull step conversion by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20004](https://github.com/PrefectHQ/prefect/pull/20004)
+* Add explicit `ruamel.yaml.clib` dependency to fix Docker builds by [@zzstoatzz](https://github.com/zzstoatzz) in [#20068](https://github.com/PrefectHQ/prefect/pull/20068)
+
+**Development & Tidiness 🧹**
+
+* Update `@prefecthq/prefect-ui-library` to version 3.14.5 by [@marvin-robot](https://github.com/marvin-robot) in [#20003](https://github.com/PrefectHQ/prefect/pull/20003)
+* Add GitHub Actions workflow for UI v2 E2E tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20042](https://github.com/PrefectHQ/prefect/pull/20042)
+
+**Documentation 📓**
+
+* Add link to Python AI Conference by [@aaazzam](https://github.com/aaazzam) in [#20054](https://github.com/PrefectHQ/prefect/pull/20054)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.8...3.6.9
+
+
+---
+
 ## 3.6.8 - On Exception! On Timeout! On Error and Failure! 🦌
 
 *Released on December 24, 2025*
