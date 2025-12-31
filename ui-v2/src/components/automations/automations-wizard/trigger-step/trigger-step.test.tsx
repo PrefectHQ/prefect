@@ -80,8 +80,9 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Work pool status" }));
 
 		// Should show the WorkPoolStatusTriggerFields component
+		// Note: Work pool status trigger does not have a Threshold field (removed to match Vue)
 		expect(screen.getByLabelText("select posture")).toBeVisible();
-		expect(screen.getByLabelText("Threshold")).toBeVisible();
+		expect(screen.getByText("Work Pools")).toBeVisible();
 	});
 
 	it("can select work-queue-status template and shows trigger fields", async () => {
