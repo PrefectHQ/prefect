@@ -112,11 +112,12 @@ export const AutomationWizard = ({
 								Previous
 							</Button>
 							{stepper.isFinalStep ? (
-								<Button type="submit" loading={isSubmitting}>
+								<Button key="save" type="submit" loading={isSubmitting}>
 									{submitLabel}
 								</Button>
 							) : (
 								<Button
+									key="next"
 									type="button"
 									onClick={() => void handleIncrementStep(currentStep)}
 								>
