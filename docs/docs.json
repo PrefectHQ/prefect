@@ -9,6 +9,9 @@
     "default": "light",
     "strict": false
   },
+  "banner": {
+    "content": "Join us at PyAI Conf in San Francisco on March 10th! [Learn more](https://pyaiconf.com?utm_source=docs.prefect.io)"
+  },
   "colors": {
     "dark": "#2D6DF6",
     "light": "#5F92FF",
