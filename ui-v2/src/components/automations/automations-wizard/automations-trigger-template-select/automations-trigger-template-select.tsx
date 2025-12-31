@@ -7,7 +7,6 @@ import {
 	SelectContent,
 	SelectGroup,
 	SelectItem,
-	SelectLabel,
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
@@ -48,7 +47,6 @@ export const AutomationsTriggerTemplateSelect = ({
 				</SelectTrigger>
 				<SelectContent>
 					<SelectGroup>
-						<SelectLabel>Trigger templates</SelectLabel>
 						{Object.keys(TEMPLATE_TRIGGERS).map((key) => (
 							<SelectItem key={key} value={key}>
 								{TEMPLATE_TRIGGERS[key as TemplateTriggers]}
