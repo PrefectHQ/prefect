@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import {
 	type Automation,
 	buildGetAutomationQuery,
-	useUpdateAutomation,
+	useReplaceAutomation,
 } from "@/api/automations";
 import type { components } from "@/api/prefect";
 import {
@@ -311,12 +311,12 @@ export const useEditAutomation = (
 		return transformAutomationToFormValues(automation);
 	}, [automation]);
 
-	const { updateAutomation: updateAutomationMutation, isPending } =
-		useUpdateAutomation();
+	const { replaceAutomation: replaceAutomationMutation, isPending } =
+		useReplaceAutomation();
 
 	const updateAutomation = (values: AutomationWizardSchemaType) => {
 		const apiValues = transformFormValuesToApi(values);
-		updateAutomationMutation(
+		replaceAutomationMutation(
 			{
 				id: automationId,
 				enabled: automation?.enabled ?? true,

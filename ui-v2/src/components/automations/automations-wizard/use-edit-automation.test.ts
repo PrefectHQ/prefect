@@ -21,9 +21,9 @@ describe("useEditAutomation", () => {
 		);
 	};
 
-	const mockUpdateAutomationAPI = () => {
+	const mockReplaceAutomationAPI = () => {
 		server.use(
-			http.patch(buildApiUrl("/automations/:id"), () => {
+			http.put(buildApiUrl("/automations/:id"), () => {
 				return new HttpResponse(null, { status: 204 });
 			}),
 		);
@@ -824,7 +824,7 @@ describe("useEditAutomation", () => {
 				enabled: true,
 			});
 			mockFetchGetAutomationAPI(mockAutomation);
-			mockUpdateAutomationAPI();
+			mockReplaceAutomationAPI();
 
 			const onSuccess = vi.fn();
 			const onError = vi.fn();
@@ -870,7 +870,7 @@ describe("useEditAutomation", () => {
 			mockFetchGetAutomationAPI(mockAutomation);
 
 			server.use(
-				http.patch(buildApiUrl("/automations/:id"), () => {
+				http.put(buildApiUrl("/automations/:id"), () => {
 					return HttpResponse.json(
 						{ detail: "Update failed" },
 						{ status: 500 },
@@ -922,7 +922,7 @@ describe("useEditAutomation", () => {
 
 			let capturedBody: { enabled?: boolean } | null = null;
 			server.use(
-				http.patch(buildApiUrl("/automations/:id"), async ({ request }) => {
+				http.put(buildApiUrl("/automations/:id"), async ({ request }) => {
 					capturedBody = (await request.json()) as { enabled?: boolean };
 					return new HttpResponse(null, { status: 204 });
 				}),
