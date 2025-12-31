@@ -8,7 +8,6 @@ Usage:
 Reads PREFECT__FLOW_RUN_ID from environment. Exits silently on failure.
 """
 
-import asyncio
 import logging
 import os
 import sys
@@ -19,7 +18,7 @@ from prefect.client.schemas.actions import LogCreate
 from prefect.types._datetime import now
 
 
-async def _send(content: str, flow_run_id: UUID | None) -> None:
+def _send(content: str, flow_run_id: UUID | None) -> None:
     logs = [
         LogCreate(
             name="prefect.entrypoint",
@@ -29,8 +28,8 @@ async def _send(content: str, flow_run_id: UUID | None) -> None:
             flow_run_id=flow_run_id,
         )
     ]
-    async with get_client() as client:
-        await client.create_logs(logs)
+    with get_client(sync_client=True) as client:
+        client.create_logs(logs)
 
 
 def main() -> None:
@@ -52,7 +51,7 @@ def main() -> None:
             pass
 
     try:
-        asyncio.run(_send(content, flow_run_id))
+        _send(content, flow_run_id)
     except Exception:
         pass
 
