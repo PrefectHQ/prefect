@@ -213,6 +213,59 @@ export const useUpdateAutomation = () => {
 	};
 };
 
+/**
+ * Hook for fully replacing an automation by ID (PUT request)
+ *
+ * Use this hook when you need to update all fields of an automation (name, description, trigger, actions, etc.)
+ * For partial updates (like toggling enabled), use useUpdateAutomation instead.
+ *
+ * @returns Mutation object for replacing an automation with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { replaceAutomation, isPending } = useReplaceAutomation();
+ *
+ * replaceAutomation({
+ *   id: 'automation-id',
+ *   name: 'Updated Name',
+ *   description: 'Updated description',
+ *   enabled: true,
+ *   trigger: { ... },
+ *   actions: [ ... ],
+ * }, {
+ *   onSuccess: () => {
+ *     console.log('Automation replaced successfully');
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to replace automation', error);
+ *   }
+ * });
+ * ```
+ */
+export const useReplaceAutomation = () => {
+	const queryClient = useQueryClient();
+	const { mutate: replaceAutomation, ...rest } = useMutation({
+		mutationFn: ({
+			id,
+			...body
+		}: components["schemas"]["AutomationUpdate"] & { id: string }) =>
+			getQueryService().PUT("/automations/{id}", {
+				body,
+				params: { path: { id } },
+			}),
+		onSuccess: () => {
+			// After a successful replacement, invalidate all to get an updated list and details
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			});
+		},
+	});
+	return {
+		replaceAutomation,
+		...rest,
+	};
+};
+
 export type TemplateValidationError = {
 	error: {
 		line: number;

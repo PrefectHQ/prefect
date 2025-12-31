@@ -29,7 +29,7 @@ const DEFAULT_FORM_VALUES = {
 };
 
 export type AutomationWizardProps = {
-	defaultValues?: Partial<AutomationWizardFormOutput>;
+	defaultValues?: Partial<AutomationWizardFormInput>;
 	onSubmit: (values: AutomationWizardFormOutput) => void;
 	submitLabel?: string;
 	isSubmitting?: boolean;
