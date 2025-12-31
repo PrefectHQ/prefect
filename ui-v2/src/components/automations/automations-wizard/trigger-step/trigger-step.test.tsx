@@ -66,8 +66,9 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByRole("option", { name: "Flow run state" }));
 
 		// Should show the FlowRunStateTriggerFields component
+		// Note: Flow run state trigger does not have a Threshold field (removed to match Vue)
 		expect(screen.getByLabelText("select posture")).toBeVisible();
-		expect(screen.getByLabelText("Threshold")).toBeVisible();
+		expect(screen.getByText("Flows")).toBeVisible();
 	});
 
 	it("can select work-pool-status template and shows trigger fields", async () => {
@@ -209,8 +210,11 @@ describe("TriggerStep", () => {
 
 			render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
+			// Use deployment-status template which has a Threshold field
 			await user.click(screen.getByLabelText("Trigger Template"));
-			await user.click(screen.getByRole("option", { name: "Flow run state" }));
+			await user.click(
+				screen.getByRole("option", { name: "Deployment status" }),
+			);
 
 			// Switch to JSON mode
 			await user.click(screen.getByRole("tab", { name: "JSON" }));

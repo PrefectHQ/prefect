@@ -404,10 +404,11 @@ describe("AutomationWizard", () => {
 			await user.click(screen.getByRole("option", { name: "Flow run state" }));
 
 			// Should show trigger fields
+			// Note: Flow run state trigger does not have a Threshold field (removed to match Vue)
 			await waitFor(() => {
 				expect(screen.getByLabelText("select posture")).toBeVisible();
 			});
-			expect(screen.getByLabelText("Threshold")).toBeVisible();
+			expect(screen.getByText("Flows")).toBeVisible();
 		});
 
 		it("can select different trigger templates", async () => {
