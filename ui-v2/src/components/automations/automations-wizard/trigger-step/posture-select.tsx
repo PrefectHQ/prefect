@@ -1,11 +1,6 @@
 import { useFormContext } from "react-hook-form";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
-import {
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-} from "@/components/ui/form";
+import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import {
 	Select,
 	SelectContent,
@@ -30,7 +25,6 @@ export const PostureSelect = () => {
 			name="trigger.posture"
 			render={({ field }) => (
 				<FormItem>
-					<FormLabel>Posture</FormLabel>
 					<FormControl>
 						<Select
 							value={field.value}
