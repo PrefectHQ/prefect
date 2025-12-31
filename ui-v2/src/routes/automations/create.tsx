@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { toast } from "sonner";
@@ -64,7 +64,8 @@ function useEventDefaultValues() {
 	// Only fetch if both params are provided
 	const shouldFetch = Boolean(eventId && eventDate);
 
-	const { data: event } = useSuspenseQuery({
+	// Use useQuery (not useSuspenseQuery) because useSuspenseQuery doesn't support enabled option
+	const { data: event } = useQuery({
 		...buildGetEventQuery(
 			eventId ?? "",
 			eventDate ? parseRouteDate(eventDate) : new Date(),
