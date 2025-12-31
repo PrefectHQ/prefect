@@ -7,8 +7,8 @@ import {
 } from "@/api/block-documents";
 import { BlockTypeDetails } from "@/components/blocks/block-type-details";
 import {
+	LazySchemaForm,
 	type PrefectSchemaObject,
-	SchemaForm,
 	useSchemaForm,
 } from "@/components/schemas";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ export const BlockDocumentEditPage = ({
 					className="flex flex-col gap-4"
 					onSubmit={(e) => void handleSubmit(e)}
 				>
-					<SchemaForm
+					<LazySchemaForm
 						values={values}
 						onValuesChange={setValues}
 						errors={errors}

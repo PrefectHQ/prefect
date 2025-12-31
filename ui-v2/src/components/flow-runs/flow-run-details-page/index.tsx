@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Icon } from "@/components/ui/icons";
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput } from "@/components/ui/json-input-lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TabErrorState } from "@/components/ui/tab-error-state";
@@ -228,7 +228,7 @@ export const FlowRunDetailsPage = ({
 									Copy parameters
 								</Button>
 							</div>
-							<JsonInput
+							<LazyJsonInput
 								value={JSON.stringify(flowRun.parameters ?? {}, null, 2)}
 								disabled
 								className="min-h-[200px]"
@@ -252,7 +252,7 @@ export const FlowRunDetailsPage = ({
 									Copy job variables
 								</Button>
 							</div>
-							<JsonInput
+							<LazyJsonInput
 								value={JSON.stringify(flowRun.job_variables ?? {}, null, 2)}
 								disabled
 								className="min-h-[200px]"

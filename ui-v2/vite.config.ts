@@ -92,6 +92,12 @@ export default defineConfig(({ mode }) => {
 							"cronstrue",
 							"rrule",
 						],
+						// Graph visualization - only needed on flow run detail pages
+						"vendor-graphs": ["@prefecthq/graphs"],
+						// Form handling - used in create/edit pages
+						"vendor-forms": ["react-hook-form", "@hookform/resolvers", "zod"],
+						// Markdown rendering - used in artifact display
+						"vendor-markdown": ["react-markdown", "remark-gfm"],
 					},
 				},
 			},

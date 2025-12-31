@@ -8,8 +8,8 @@ import type { BlockSchema } from "@/api/block-schemas";
 import type { BlockType } from "@/api/block-types";
 import { BlockTypeDetails } from "@/components/blocks/block-type-details";
 import {
+	LazySchemaForm,
 	type PrefectSchemaObject,
-	SchemaForm,
 	useSchemaForm,
 } from "@/components/schemas";
 import { Button } from "@/components/ui/button";
@@ -117,7 +117,7 @@ export const BlockDocumentCreatePage = ({
 							)}
 						/>
 
-						<SchemaForm
+						<LazySchemaForm
 							values={values}
 							onValuesChange={setValues}
 							errors={errors}
