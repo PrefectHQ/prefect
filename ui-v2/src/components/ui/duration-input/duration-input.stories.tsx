@@ -1,70 +1,64 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
+import { type ComponentProps, useState } from "react";
+import { fn } from "storybook/test";
 import { DurationInput } from "./index";
 
-const meta = {
+export default {
 	title: "Components/UI/DurationInput",
 	component: DurationInput,
+	args: {
+		value: 0,
+		onChange: fn(),
+	},
+	render: function Render(args: ComponentProps<typeof DurationInput>) {
+		const [value, setValue] = useState(args.value);
+
+		return (
+			<div className="w-80 space-y-4">
+				<DurationInput
+					{...args}
+					value={value}
+					onChange={(seconds) => {
+						setValue(seconds);
+						args.onChange(seconds);
+					}}
+				/>
+				<p className="text-sm text-muted-foreground">
+					Current value: {value} seconds
+				</p>
+			</div>
+		);
+	},
 } satisfies Meta<typeof DurationInput>;
 
-export default meta;
+type Story = StoryObj<typeof DurationInput>;
 
-type Story = StoryObj<typeof meta>;
-
-function DurationInputStory({
-	initialValue = 0,
-	min,
-	disabled,
-}: {
-	initialValue?: number;
-	min?: number;
-	disabled?: boolean;
-}) {
-	const [value, setValue] = useState(initialValue);
-
-	return (
-		<div className="w-80 space-y-4">
-			<DurationInput
-				value={value}
-				onChange={setValue}
-				min={min}
-				disabled={disabled}
-			/>
-			<p className="text-sm text-muted-foreground">
-				Current value: {value} seconds
-			</p>
-		</div>
-	);
-}
-
-export const Default: Story = {
-	render: () => <DurationInputStory />,
-};
+export const Default: Story = {};
 
 export const WithInitialSeconds: Story = {
-	render: () => <DurationInputStory initialValue={30} />,
+	args: { value: 30 },
 };
 
 export const WithInitialMinutes: Story = {
-	render: () => <DurationInputStory initialValue={120} />,
+	args: { value: 120 },
 };
 
 export const WithInitialHours: Story = {
-	render: () => <DurationInputStory initialValue={7200} />,
+	args: { value: 7200 },
 };
 
 export const WithInitialDays: Story = {
-	render: () => <DurationInputStory initialValue={172800} />,
+	args: { value: 172800 },
 };
 
 export const WithMinimumSeconds: Story = {
-	render: () => <DurationInputStory initialValue={60} min={1} />,
+	args: { value: 60, min: 1 },
 };
 
 export const WithMinimumMinutes: Story = {
-	render: () => <DurationInputStory initialValue={3600} min={60} />,
+	args: { value: 3600, min: 60 },
 };
 
 export const Disabled: Story = {
-	render: () => <DurationInputStory initialValue={300} disabled />,
+	args: { value: 300, disabled: true },
 };
