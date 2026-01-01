@@ -1,10 +1,12 @@
 import asyncio
+import random
 
 from prefect import flow, task
 
 
 @task
 async def dummy_task(j: int):
+    await asyncio.sleep(random.randint(0, 2))
     return j
 
 
@@ -29,10 +31,6 @@ async def parent_flow(n_subflows: int, n_tasks_per_subflow: int):
 
 
 def test_concurrent_subflows():
-    # Use smaller numbers to reduce database write contention while still testing
-    # concurrent subflow execution. The original 10x10 (100 tasks) caused timeouts
-    # in CI because each flow/task run creation and state transition requires
-    # database writes, and SQLite's write locking serializes these operations.
-    # Under pytest-xdist parallelization, this contention is amplified.
-    result = asyncio.run(parent_flow(3, 3))
-    assert result is None
+    result = asyncio.run(parent_flow(10, 10))
+    # Test passes if the flow completes without error
+    assert result is None  # Flow doesn't return anything, just completes
