@@ -69,7 +69,19 @@ export const getDefaultTriggerForTemplate = (
 				within: 0,
 			};
 		case "custom":
-			return BASE_TRIGGER;
+			// Return fields in same order as Vue for JSON tab visual parity
+			// Include sensible defaults so users see a working example
+			return {
+				type: "event",
+				match: { "prefect.resource.id": ["prefect.flow-run.*"] },
+				match_related: {},
+				after: [],
+				expect: ["prefect.flow-run.Failed"],
+				for_each: [],
+				posture: "Reactive",
+				threshold: 5,
+				within: 60,
+			};
 		default:
 			return BASE_TRIGGER;
 	}
