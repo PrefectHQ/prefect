@@ -1,3 +1,4 @@
+export { CustomPostureSelect } from "./custom-posture-select";
 export { CustomTriggerFields } from "./custom-trigger-fields";
 export { DeploymentStatusTriggerFields } from "./deployment-status-trigger-fields";
 export { FlowRunStateTriggerFields } from "./flow-run-state-trigger-fields";

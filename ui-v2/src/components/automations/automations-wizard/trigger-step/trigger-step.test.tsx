@@ -109,8 +109,10 @@ describe("TriggerStep", () => {
 		await user.click(screen.getByLabelText("Trigger Template"));
 		await user.click(screen.getByRole("option", { name: "Custom" }));
 
-		// Should show the CustomTriggerFields component
-		expect(screen.getByLabelText("select posture")).toBeVisible();
+		// Should show the CustomTriggerFields component with radio buttons for posture
+		expect(screen.getByText("When I")).toBeVisible();
+		expect(screen.getByLabelText("Observe")).toBeVisible();
+		expect(screen.getByLabelText("Don't observe")).toBeVisible();
 		expect(screen.getByLabelText("Threshold")).toBeVisible();
 		expect(
 			screen.getByLabelText("Expected Events (one per line)"),
