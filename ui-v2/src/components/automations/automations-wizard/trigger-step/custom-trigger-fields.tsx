@@ -6,6 +6,7 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { DurationInput } from "@/components/ui/duration-input";
 import {
 	FormControl,
 	FormField,
@@ -111,26 +112,23 @@ export const CustomTriggerFields = () => {
 					)}
 				/>
 
-				{posture === "Proactive" && (
-					<FormField
-						control={form.control}
-						name="trigger.within"
-						render={({ field }) => (
-							<FormItem className="w-32">
-								<FormLabel>Within (seconds)</FormLabel>
-								<FormControl>
-									<Input
-										type="number"
-										min={0}
-										{...field}
-										onChange={(e) => field.onChange(Number(e.target.value))}
-									/>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				)}
+				<FormField
+					control={form.control}
+					name="trigger.within"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Within</FormLabel>
+							<FormControl>
+								<DurationInput
+									value={field.value ?? 0}
+									onChange={field.onChange}
+									min={posture === "Proactive" ? 10 : 0}
+								/>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 			</div>
 
 			<Collapsible>
