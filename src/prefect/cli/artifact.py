@@ -36,20 +36,24 @@ async def list_artifacts(
         "-a",
         help="Whether or not to only return the latest version of each artifact.",
     ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     List artifacts.
-    """
-    table = Table(
-        title="Artifacts",
-        caption="List Artifacts using `prefect artifact ls`",
-        show_header=True,
-    )
 
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Key", style="blue", no_wrap=True)
-    table.add_column("Type", style="blue", no_wrap=True)
-    table.add_column("Updated", style="blue", no_wrap=True)
+    Arguments:
+    limit: Maximum number of flow runs to list. Defaults to 100.
+    all: Whether or not to only return the latest version of each artifact.
+    output: Return variables in specified format.
+    """
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     async with get_client() as client:
         if all:
@@ -57,34 +61,36 @@ async def list_artifacts(
                 sort=ArtifactSort.KEY_ASC,
                 limit=limit,
             )
-
-            for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
-                updated = (
-                    human_friendly_diff(artifact.updated) if artifact.updated else ""
-                )
-                table.add_row(
-                    str(artifact.id),
-                    artifact.key,
-                    artifact.type,
-                    updated,
-                )
-
         else:
             artifacts = await client.read_latest_artifacts(
                 sort=ArtifactCollectionSort.KEY_ASC,
                 limit=limit,
             )
 
-            for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
-                updated = (
-                    human_friendly_diff(artifact.updated) if artifact.updated else ""
-                )
-                table.add_row(
-                    str(artifact.latest_id),
-                    artifact.key,
-                    artifact.type,
-                    updated,
-                )
+    if output and output.lower() == "json":
+        artifacts_json = [artifact.model_dump(mode="json") for artifact in artifacts]
+        json_output = orjson.dumps(artifacts_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(
+            title="Artifacts",
+            caption="List Artifacts using `prefect artifact ls`",
+            show_header=True,
+        )
+
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Key", style="blue", no_wrap=True)
+        table.add_column("Type", style="blue", no_wrap=True)
+        table.add_column("Updated", style="blue", no_wrap=True)
+
+        for artifact in sorted(artifacts, key=lambda x: x.key):
+            updated = human_friendly_diff(artifact.updated) if artifact.updated else ""
+            table.add_row(
+                str(artifact.id if all else artifact.latest_id),
+                artifact.key,
+                artifact.type,
+                updated,
+            )
 
         app.console.print(table)
 

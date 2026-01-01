@@ -191,6 +191,115 @@ def test_listing_artifacts_with_all_set_to_false(
     )
 
 
+def test_listing_artifacts_when_none_exist_output_json():
+    invoke_and_assert(
+        ["artifact", "ls", "-o", "json"],
+        expected_output_contains=[],
+        expected_code=0,
+    )
+
+
+def test_listing_artifacts_when_none_exist_output_something_else():
+    invoke_and_assert(
+        ["artifact", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
+def test_listing_artifacts_after_creating_artifacts_output_json(
+    artifact: models.artifacts.Artifact,
+):
+    assert artifact.id is not None, "artifact id should not be None"
+    assert artifact.key is not None, "artifact key should not be None"
+    assert artifact.updated is not None, "artifact updated should not be None"
+
+    invoke_and_assert(
+        ["artifact", "ls", "-o", "json"],
+        expected_output_contains=[
+            str(artifact.id),
+            str(artifact.key),
+            str(artifact.type),
+        ],
+    )
+
+
+def test_listing_artifacts_after_creating_artifacts_with_null_fields_output_json(
+    artifact_null_field: models.artifacts.Artifact,
+):
+    artifact = artifact_null_field
+    assert artifact.id is not None, "artifact id should not be None"
+    assert artifact.key is not None, "artifact key should not be None"
+    assert artifact.updated is not None, "artifact updated should not be None"
+
+    invoke_and_assert(
+        ["artifact", "ls", "-o", "json"],
+        expected_output_contains=[
+            str(artifact.id),
+            str(artifact.key),
+        ],
+    )
+
+
+def test_listing_artifacts_with_limit_output_json(
+    artifacts: list[models.artifacts.Artifact],
+):
+    expected_output = artifacts[2].key
+    invoke_and_assert(
+        ["artifact", "ls", "--limit", "1", "-o", "json"],
+        expected_output_contains=expected_output,
+        expected_code=0,
+    )
+
+
+def test_listing_artifacts_lists_only_latest_versions_output_json(
+    artifacts: list[models.artifacts.Artifact],
+):
+    expected_output = (
+        f"{artifacts[2].id}",
+        f"{artifacts[1].id}",
+    )
+
+    invoke_and_assert(
+        ["artifact", "ls", "-o", "json"],
+        expected_output_contains=expected_output,
+        expected_output_does_not_contain=f"{artifacts[0].id}",
+        expected_code=0,
+    )
+
+
+def test_listing_artifacts_with_all_set_to_true_output_json(
+    artifacts: list[models.artifacts.Artifact],
+):
+    expected_output = (
+        f"{artifacts[0].id}",
+        f"{artifacts[1].id}",
+        f"{artifacts[2].id}",
+    )
+
+    invoke_and_assert(
+        ["artifact", "ls", "--all", "-o", "json"],
+        expected_output_contains=expected_output,
+        expected_code=0,
+    )
+
+
+def test_listing_artifacts_with_all_set_to_false_output_json(
+    artifacts: list[models.artifacts.Artifact],
+):
+    expected_output = (
+        f"{artifacts[2].id}",
+        f"{artifacts[1].id}",
+    )
+
+    invoke_and_assert(
+        ["artifact", "ls", "-o", "json"],
+        expected_output_contains=expected_output,
+        expected_output_does_not_contain=f"{artifacts[0].id}",
+        expected_code=0,
+    )
+
+
 def test_inspecting_artifact_succeeds(
     artifacts: list[models.artifacts.Artifact],
 ):
