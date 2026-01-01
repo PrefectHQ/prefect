@@ -125,12 +125,12 @@ export const EventTriggerSchema = z.object({
 	posture: TriggerPostureSchema,
 	threshold: z.number().min(1).default(1),
 	within: z.number().min(0).default(0),
-	// Match conditions - defaults ensure all fields are present in JSON output
-	match: ResourceSpecificationSchema.default({}),
-	match_related: ResourceSpecificationSchema.default({}),
-	for_each: z.array(z.string()).default([]),
-	after: z.array(z.string()).default([]),
-	expect: z.array(z.string()).default([]),
+	// Match conditions
+	match: ResourceSpecificationSchema.optional(),
+	match_related: ResourceSpecificationSchema.optional(),
+	for_each: z.array(z.string()).optional(),
+	after: z.array(z.string()).optional(),
+	expect: z.array(z.string()).optional(),
 });
 export type EventTrigger = z.output<typeof EventTriggerSchema>;
 export type EventTriggerInput = z.input<typeof EventTriggerSchema>;
