@@ -15,8 +15,9 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { CustomPostureSelect } from "./custom-posture-select";
+import { EventResourceCombobox } from "./event-resource-combobox";
+import { EventsCombobox } from "./events-combobox";
 
 export const CustomTriggerFields = () => {
 	const form = useFormContext<AutomationWizardSchema>();
@@ -33,21 +34,18 @@ export const CustomTriggerFields = () => {
 				name="trigger.expect"
 				render={({ field }) => {
 					const events = field.value ?? [];
-					const textValue = events.join("\n");
 					return (
 						<FormItem>
 							<FormLabel>Any event matching</FormLabel>
 							<FormControl>
-								<Textarea
-									placeholder="prefect.flow-run.Completed"
-									value={textValue}
-									onChange={(e) => {
-										const lines = e.target.value
-											.split("\n")
-											.filter((line) => line.trim() !== "");
-										field.onChange(lines.length > 0 ? lines : undefined);
+								<EventsCombobox
+									selectedEvents={events}
+									onToggleEvent={(event) => {
+										const newEvents = events.includes(event)
+											? events.filter((e) => e !== event)
+											: [...events, event];
+										field.onChange(newEvents);
 									}}
-									rows={3}
 								/>
 							</FormControl>
 							<FormMessage />
@@ -63,27 +61,25 @@ export const CustomTriggerFields = () => {
 					const resourceIds =
 						(field.value?.["prefect.resource.id"] as string[] | undefined) ??
 						[];
-					const textValue = Array.isArray(resourceIds)
-						? resourceIds.join("\n")
-						: resourceIds;
+					const resourceIdsArray = Array.isArray(resourceIds)
+						? resourceIds
+						: [resourceIds];
 					return (
 						<FormItem>
-							<FormLabel>From the following resources (one per line)</FormLabel>
+							<FormLabel>From the following resources</FormLabel>
 							<FormControl>
-								<Textarea
-									placeholder="prefect.flow-run.*"
-									value={textValue}
-									onChange={(e) => {
-										const lines = e.target.value
-											.split("\n")
-											.filter((line) => line.trim() !== "");
-										if (lines.length > 0) {
-											field.onChange({ "prefect.resource.id": lines });
+								<EventResourceCombobox
+									selectedResourceIds={resourceIdsArray}
+									onToggleResource={(resourceId) => {
+										const newIds = resourceIdsArray.includes(resourceId)
+											? resourceIdsArray.filter((id) => id !== resourceId)
+											: [...resourceIdsArray, resourceId];
+										if (newIds.length > 0) {
+											field.onChange({ "prefect.resource.id": newIds });
 										} else {
 											field.onChange({});
 										}
 									}}
-									rows={3}
 								/>
 							</FormControl>
 							<FormMessage />
@@ -140,23 +136,20 @@ export const CustomTriggerFields = () => {
 						name="trigger.after"
 						render={({ field }) => {
 							const events = field.value ?? [];
-							const textValue = events.join("\n");
 							return (
 								<FormItem>
 									<FormLabel>
 										Evaluate trigger only after observing an event matching
 									</FormLabel>
 									<FormControl>
-										<Textarea
-											placeholder="prefect.flow-run.Pending"
-											value={textValue}
-											onChange={(e) => {
-												const lines = e.target.value
-													.split("\n")
-													.filter((line) => line.trim() !== "");
-												field.onChange(lines.length > 0 ? lines : []);
+										<EventsCombobox
+											selectedEvents={events}
+											onToggleEvent={(event) => {
+												const newEvents = events.includes(event)
+													? events.filter((e) => e !== event)
+													: [...events, event];
+												field.onChange(newEvents);
 											}}
-											rows={3}
 										/>
 									</FormControl>
 									<FormMessage />
@@ -173,27 +166,25 @@ export const CustomTriggerFields = () => {
 								(field.value?.["prefect.resource.id"] as
 									| string[]
 									| undefined) ?? [];
-							const textValue = Array.isArray(resourceIds)
-								? resourceIds.join("\n")
-								: resourceIds;
+							const resourceIdsArray = Array.isArray(resourceIds)
+								? resourceIds
+								: [resourceIds];
 							return (
 								<FormItem>
 									<FormLabel>Filter for events related to</FormLabel>
 									<FormControl>
-										<Textarea
-											placeholder="prefect.flow.*"
-											value={textValue}
-											onChange={(e) => {
-												const lines = e.target.value
-													.split("\n")
-													.filter((line) => line.trim() !== "");
-												if (lines.length > 0) {
-													field.onChange({ "prefect.resource.id": lines });
+										<EventResourceCombobox
+											selectedResourceIds={resourceIdsArray}
+											onToggleResource={(resourceId) => {
+												const newIds = resourceIdsArray.includes(resourceId)
+													? resourceIdsArray.filter((id) => id !== resourceId)
+													: [...resourceIdsArray, resourceId];
+												if (newIds.length > 0) {
+													field.onChange({ "prefect.resource.id": newIds });
 												} else {
 													field.onChange({});
 												}
 											}}
-											rows={3}
 										/>
 									</FormControl>
 									<FormMessage />
