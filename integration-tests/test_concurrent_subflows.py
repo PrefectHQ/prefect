@@ -1,12 +1,13 @@
 import asyncio
-import random
 
 from prefect import flow, task
 
 
 @task
 async def dummy_task(j: int):
-    await asyncio.sleep(random.randint(0, 2))
+    # Use a small deterministic sleep to create overlap without random variance
+    # that could cause unpredictable test duration
+    await asyncio.sleep(0.01)
     return j
 
 
