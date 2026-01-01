@@ -115,7 +115,8 @@ describe("TriggerStep", () => {
 		expect(screen.getByLabelText("Don't observe")).toBeVisible();
 		// Threshold and Within are now inline with "times within" text between them (no labels)
 		expect(screen.getByText("times within")).toBeVisible();
-		expect(screen.getByLabelText("Any event matching")).toBeVisible();
+		// EventsCombobox uses a button trigger, so we check for the label text instead
+		expect(screen.getByText("Any event matching")).toBeVisible();
 	});
 
 	describe("Form/JSON toggle", () => {
