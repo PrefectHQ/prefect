@@ -36,7 +36,7 @@ export const CustomTriggerFields = () => {
 					const textValue = events.join("\n");
 					return (
 						<FormItem>
-							<FormLabel>Expected Events (one per line)</FormLabel>
+							<FormLabel>Any event matching</FormLabel>
 							<FormControl>
 								<Textarea
 									placeholder="prefect.flow-run.Completed"
@@ -47,7 +47,7 @@ export const CustomTriggerFields = () => {
 											.filter((line) => line.trim() !== "");
 										field.onChange(lines.length > 0 ? lines : undefined);
 									}}
-									rows={4}
+									rows={3}
 								/>
 							</FormControl>
 							<FormMessage />
@@ -92,13 +92,12 @@ export const CustomTriggerFields = () => {
 				}}
 			/>
 
-			<div className="flex gap-4">
+			<div className="flex items-end gap-2">
 				<FormField
 					control={form.control}
 					name="trigger.threshold"
 					render={({ field }) => (
-						<FormItem className="w-32">
-							<FormLabel>Threshold</FormLabel>
+						<FormItem className="w-20">
 							<FormControl>
 								<Input
 									type="number"
@@ -111,13 +110,12 @@ export const CustomTriggerFields = () => {
 						</FormItem>
 					)}
 				/>
-
+				<span className="pb-2 text-sm text-muted-foreground">times within</span>
 				<FormField
 					control={form.control}
 					name="trigger.within"
 					render={({ field }) => (
 						<FormItem>
-							<FormLabel>Within</FormLabel>
 							<FormControl>
 								<DurationInput
 									value={field.value ?? 0}
