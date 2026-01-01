@@ -1,6 +1,7 @@
 export { CustomPostureSelect } from "./custom-posture-select";
 export { CustomTriggerFields } from "./custom-trigger-fields";
 export { DeploymentStatusTriggerFields } from "./deployment-status-trigger-fields";
+export { EventsCombobox } from "./events-combobox";
 export { FlowRunStateTriggerFields } from "./flow-run-state-trigger-fields";
 export { type FormMode, FormModeToggle } from "./form-mode-toggle";
 export { PostureSelect } from "./posture-select";
