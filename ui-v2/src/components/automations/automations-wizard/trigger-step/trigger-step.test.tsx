@@ -113,10 +113,9 @@ describe("TriggerStep", () => {
 		expect(screen.getByText("When I")).toBeVisible();
 		expect(screen.getByLabelText("Observe")).toBeVisible();
 		expect(screen.getByLabelText("Don't observe")).toBeVisible();
-		expect(screen.getByLabelText("Threshold")).toBeVisible();
-		expect(
-			screen.getByLabelText("Expected Events (one per line)"),
-		).toBeVisible();
+		// Threshold and Within are now inline with "times within" text between them (no labels)
+		expect(screen.getByText("times within")).toBeVisible();
+		expect(screen.getByLabelText("Any event matching")).toBeVisible();
 	});
 
 	describe("Form/JSON toggle", () => {
@@ -216,7 +215,7 @@ describe("TriggerStep", () => {
 
 			render(<TriggerStepFormContainer />, { wrapper: createWrapper() });
 
-			// Use Custom template which has a Threshold field
+			// Use Custom template which has threshold/within fields
 			// (other templates no longer have Threshold field to match Vue)
 			await user.click(screen.getByLabelText("Trigger Template"));
 			await user.click(screen.getByRole("option", { name: "Custom" }));
@@ -245,8 +244,11 @@ describe("TriggerStep", () => {
 			await user.click(screen.getByRole("tab", { name: "Form" }));
 
 			// The form should reflect the updated threshold
-			// Use findByLabelText to wait for the form content to render after tab switch
-			const thresholdInput = await screen.findByLabelText("Threshold");
+			// Threshold input no longer has a label, so find by name attribute
+			const thresholdInputs = await screen.findAllByRole("spinbutton");
+			const thresholdInput = thresholdInputs.find(
+				(input) => input.getAttribute("name") === "trigger.threshold",
+			);
 			expect(thresholdInput).toHaveValue(5);
 		});
 
