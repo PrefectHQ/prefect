@@ -128,6 +128,53 @@ def test_list_schedules(flojo_deployment: DeploymentResponse):
     )
 
 
+def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
+    create_commands = [
+        "deployment",
+        "schedule",
+        "create",
+        "rence-griffith/test-deployment",
+    ]
+
+    invoke_and_assert(
+        [
+            *create_commands,
+            "--cron",
+            "5 4 * * *",
+        ],
+        expected_code=0,
+    )
+
+    invoke_and_assert(
+        [
+            *create_commands,
+            "--rrule",
+            '{"rrule": "RRULE:FREQ=HOURLY"}',
+        ],
+        expected_code=0,
+    )
+
+    invoke_and_assert(
+        [
+            "deployment",
+            "schedule",
+            "ls",
+            "-o",
+            "json",
+            "rence-griffith/test-deployment",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            str(flojo_deployment.schedules[0].id)[:8],
+            "interval: 0:00:10.760000s",
+            "cron: 5 4 * * *",
+            "rrule: RRULE:FREQ=HOURLY",
+            "true",
+        ],
+        expected_output_does_not_contain="False",
+    )
+
+
 class TestDeploymentSchedules:
     @pytest.fixture(autouse=True)
     def enable_triggers(self):
