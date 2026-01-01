@@ -49,6 +49,42 @@ export const CustomTriggerFields = () => {
 				}}
 			/>
 
+			<FormField
+				control={form.control}
+				name="trigger.match"
+				render={({ field }) => {
+					const resourceIds =
+						(field.value?.["prefect.resource.id"] as string[] | undefined) ??
+						[];
+					const textValue = Array.isArray(resourceIds)
+						? resourceIds.join("\n")
+						: resourceIds;
+					return (
+						<FormItem>
+							<FormLabel>From the following resources (one per line)</FormLabel>
+							<FormControl>
+								<Textarea
+									placeholder="prefect.flow-run.*"
+									value={textValue}
+									onChange={(e) => {
+										const lines = e.target.value
+											.split("\n")
+											.filter((line) => line.trim() !== "");
+										if (lines.length > 0) {
+											field.onChange({ "prefect.resource.id": lines });
+										} else {
+											field.onChange({});
+										}
+									}}
+									rows={3}
+								/>
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					);
+				}}
+			/>
+
 			<div className="flex gap-4">
 				<FormField
 					control={form.control}
