@@ -60,7 +60,10 @@ export function EventsCombobox({
 		buildEventsCountQuery("event", {
 			filter: {
 				occurred: occurredFilter,
+				order: "DESC",
 			},
+			time_unit: "day",
+			time_interval: 1,
 		}),
 	);
 
