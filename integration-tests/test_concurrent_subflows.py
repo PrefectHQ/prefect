@@ -29,8 +29,10 @@ async def parent_flow(n_subflows: int, n_tasks_per_subflow: int):
 
 
 def test_concurrent_subflows():
-    # Use smaller numbers to reduce API overhead while still testing concurrent
-    # subflow execution. The original 10x10 (100 tasks) caused timeouts in CI
-    # due to orchestration overhead when running with pytest-xdist.
+    # Use smaller numbers to reduce database write contention while still testing
+    # concurrent subflow execution. The original 10x10 (100 tasks) caused timeouts
+    # in CI because each flow/task run creation and state transition requires
+    # database writes, and SQLite's write locking serializes these operations.
+    # Under pytest-xdist parallelization, this contention is amplified.
     result = asyncio.run(parent_flow(3, 3))
     assert result is None
