@@ -12,7 +12,7 @@ import {
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
 
-type EventsComboboxProps = {
+export type EventsComboboxProps = {
 	selectedEvents: string[];
 	onToggleEvent: (event: string) => void;
 	emptyMessage?: string;
