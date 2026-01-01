@@ -1,5 +1,11 @@
+import { ChevronRight } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
 	FormControl,
 	FormField,
@@ -126,6 +132,81 @@ export const CustomTriggerFields = () => {
 					/>
 				)}
 			</div>
+
+			<Collapsible>
+				<CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium">
+					<ChevronRight className="h-4 w-4 transition-transform data-[state=open]:rotate-90" />
+					Evaluation Options
+				</CollapsibleTrigger>
+				<CollapsibleContent className="mt-4 space-y-4 pl-6">
+					<FormField
+						control={form.control}
+						name="trigger.after"
+						render={({ field }) => {
+							const events = field.value ?? [];
+							const textValue = events.join("\n");
+							return (
+								<FormItem>
+									<FormLabel>
+										Evaluate trigger only after observing an event matching
+									</FormLabel>
+									<FormControl>
+										<Textarea
+											placeholder="prefect.flow-run.Pending"
+											value={textValue}
+											onChange={(e) => {
+												const lines = e.target.value
+													.split("\n")
+													.filter((line) => line.trim() !== "");
+												field.onChange(lines.length > 0 ? lines : []);
+											}}
+											rows={3}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							);
+						}}
+					/>
+
+					<FormField
+						control={form.control}
+						name="trigger.match_related"
+						render={({ field }) => {
+							const resourceIds =
+								(field.value?.["prefect.resource.id"] as
+									| string[]
+									| undefined) ?? [];
+							const textValue = Array.isArray(resourceIds)
+								? resourceIds.join("\n")
+								: resourceIds;
+							return (
+								<FormItem>
+									<FormLabel>Filter for events related to</FormLabel>
+									<FormControl>
+										<Textarea
+											placeholder="prefect.flow.*"
+											value={textValue}
+											onChange={(e) => {
+												const lines = e.target.value
+													.split("\n")
+													.filter((line) => line.trim() !== "");
+												if (lines.length > 0) {
+													field.onChange({ "prefect.resource.id": lines });
+												} else {
+													field.onChange({});
+												}
+											}}
+											rows={3}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							);
+						}}
+					/>
+				</CollapsibleContent>
+			</Collapsible>
 		</div>
 	);
 };
