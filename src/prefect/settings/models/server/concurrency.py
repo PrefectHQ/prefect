@@ -12,7 +12,7 @@ class ServerConcurrencySettings(PrefectBaseSettings):
     )
 
     lease_storage: str = Field(
-        default="prefect.server.concurrency.lease_storage.memory",
+        default="prefect.server.concurrency.lease_storage.filesystem",
         description="The module to use for storing concurrency limit leases.",
     )
 
