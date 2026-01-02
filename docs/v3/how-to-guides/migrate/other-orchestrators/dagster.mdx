@@ -63,6 +63,7 @@ In Dagster, assets are the core abstraction representing data artifacts. In Pref
 Dagster assets represent data artifacts that can be materialized. In Prefect, tasks return data directly, and flows orchestrate the execution.
 
 **Dagster asset:**
+
 {/* pmd-metadata: notest */}
 ```python
 # Dagster
@@ -84,6 +85,7 @@ def weather_metrics(raw_weather_data: dict) -> dict:
 ```
 
 **Prefect equivalent:**
+
 {/* pmd-metadata: notest */}
 ```python
 # Prefect
@@ -125,6 +127,7 @@ if __name__ == "__main__":
 Dagster's ops (the older execution model) map directly to Prefect tasks.
 
 **Dagster ops and job:**
+
 {/* pmd-metadata: notest */}
 ```python
 # Dagster
@@ -152,6 +155,7 @@ def etl_job():
 ```
 
 **Prefect equivalent:**
+
 {/* pmd-metadata: notest */}
 ```python
 # Prefect
@@ -191,6 +195,7 @@ Notice how Prefect removes the need for:
 In Dagster, you explicitly define jobs that select which assets or ops to execute. In Prefect, flows are simply Python functions that call tasks.
 
 **Dagster job with asset selection:**
+
 {/* pmd-metadata: notest */}
 ```python
 # Dagster
@@ -204,6 +209,7 @@ daily_weather_job = define_asset_job(
 ```
 
 **Prefect equivalent:**
+
 {/* pmd-metadata: notest */}
 ```python
 # Prefect
@@ -866,6 +872,7 @@ prefect work-pool create my-pool --type process
 ```
 
 Deploy a flow to it:
+
 {/* pmd-metadata: notest */}
 ```python
 my_flow.deploy(
