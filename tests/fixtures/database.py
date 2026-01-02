@@ -37,11 +37,16 @@ AsyncSessionGetter = Callable[[], AsyncContextManager[AsyncSession]]
 @pytest.fixture(scope="session", autouse=True)
 def db(test_database_connection_url, safety_check_settings):
     # Use memory storage for tests to avoid persistence between test runs
-    from prefect.settings import temporary_settings, PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
-    
-    with temporary_settings({
-        PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.memory"
-    }):
+    from prefect.settings import (
+        PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
+        temporary_settings,
+    )
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.memory"
+        }
+    ):
         yield provide_database_interface()
 
 
