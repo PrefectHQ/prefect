@@ -230,13 +230,9 @@ See [creating custom blocks](/v3/advanced/custom-blocks) for more details. Prefe
 
 ## I/O managers and result persistence
 
-Data engineers want to separate **what** a pipeline computes from **where** it stores results. This separation enables:
+Data engineers want to separate **what** a pipeline computes from **where** it stores results. This lets you swap storage backends between environments without changing pipeline code.
 
-- Swapping storage backends between environments (local files in dev, S3 in prod)
-- Consistent serialization without boilerplate in every function
-- Easier testing by mocking storage
-
-Dagster solves this with I/O Managers that automatically handle reads and writes. Prefect solves it with **result persistence**—configuring where and how task/flow outputs are stored.
+Dagster solves this with I/O Managers. Prefect uses **result persistence** with storage blocks.
 
 <CodeGroup>
 
@@ -247,7 +243,6 @@ from dagster_aws.s3.io_manager import S3PickleIOManager
 
 @dg.asset
 def cleaned_orders(raw_orders):
-    # I/O manager handles reading raw_orders and writing output
     return [o for o in raw_orders if o["amount"] > 0]
 
 defs = dg.Definitions(
@@ -264,15 +259,11 @@ defs = dg.Definitions(
 ```python Prefect
 from prefect import task, flow
 
-@task(
-    persist_result=True,
-    result_storage="s3-bucket/prod-results",  # Block reference
-    result_serializer="json",
-)
+@task(result_storage="s3-bucket/my-results")
 def cleaned_orders(raw_orders: list[dict]) -> list[dict]:
     return [o for o in raw_orders if o["amount"] > 0]
 
-@flow(result_storage="s3-bucket/prod-results")
+@flow
 def pipeline():
     raw = [{"id": 1, "amount": 100}, {"id": 2, "amount": -50}]
     return cleaned_orders(raw)
@@ -282,19 +273,17 @@ if __name__ == "__main__":
 ```
 </CodeGroup>
 
-Set a default storage backend for all flows:
+Set a default storage backend globally:
 
 ```bash
-prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/prod-results'
+prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-results'
 ```
 
-The key difference: Dagster I/O managers handle both reads and writes automatically. Prefect result persistence handles output storage—you still read inputs explicitly.
-
-See [result persistence](/v3/advanced/results) for configuration options.
+See [result persistence](/v3/advanced/results) for more options.
 
 ## Partitions
 
-Data engineers partition data by time, region, or other dimensions to process incrementally and track what's been computed. Dagster has first-class partition support with state tracking. Prefect uses parameters and `.map()` for similar patterns.
+Data engineers partition data by time or other dimensions to process incrementally. Dagster has first-class partition definitions with state tracking. In Prefect, you pass partition values as parameters.
 
 <CodeGroup>
 
@@ -307,44 +296,35 @@ daily = dg.DailyPartitionsDefinition(start_date="2024-01-01")
 @dg.asset(partitions_def=daily)
 def daily_orders(context: dg.AssetExecutionContext):
     date = context.partition_key
-    # Dagster tracks which partitions are materialized
     return fetch_orders_for_date(date)
 ```
 
 ```python Prefect
 from prefect import task, flow
-from datetime import date, timedelta
 
 @task
-def process_orders_for_date(partition_date: str) -> dict:
-    return {"date": partition_date, "order_count": 42}
+def fetch_orders_for_date(date: str) -> dict:
+    return {"date": date, "order_count": 42}
 
 @flow
-def daily_orders(partition_date: str):
-    return process_orders_for_date(partition_date)
-
-@flow
-def backfill_orders(start: str, end: str):
-    """Process a range of dates in parallel."""
-    start_dt = date.fromisoformat(start)
-    end_dt = date.fromisoformat(end)
-
-    dates = []
-    current = start_dt
-    while current <= end_dt:
-        dates.append(current.isoformat())
-        current += timedelta(days=1)
-
-    return process_orders_for_date.map(dates)
+def daily_orders(date: str):
+    return fetch_orders_for_date(date)
 
 if __name__ == "__main__":
-    daily_orders("2024-06-15")
-    backfill_orders("2024-01-01", "2024-01-07")
+    daily_orders("2024-01-15")
 ```
 </CodeGroup>
 
+For backfills, use `.map()` to process multiple partitions in parallel:
+
+{/* pmd-metadata: notest */}
+```python
+dates = ["2024-01-01", "2024-01-02", "2024-01-03"]
+fetch_orders_for_date.map(dates)
+```
+
 <Note>
-Prefect doesn't track which partitions have been materialized. For idempotency, use [cache policies](/v3/concepts/caching) or check your data store before processing.
+Prefect doesn't track partition state. Use [cache policies](/v3/concepts/caching) for idempotency.
 </Note>
 
 ## Schedules
