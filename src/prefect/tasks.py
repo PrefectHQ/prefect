@@ -456,6 +456,14 @@ class Task(Generic[P, R]):
         update_wrapper(self, fn)
         self.fn = fn
 
+        # Capture source code for cache key computation
+        # This is stored on the task so it survives cloudpickle serialization
+        # to remote environments where the source file is not available
+        try:
+            self.source_code: str | None = inspect.getsource(fn)
+        except (TypeError, OSError):
+            self.source_code = None
+
         # the task is considered async if its function is async or an async
         # generator
         self.isasync: bool = inspect.iscoroutinefunction(

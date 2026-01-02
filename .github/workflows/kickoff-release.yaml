@@ -6,14 +6,14 @@
 #   3. Cleans up formatting and creates a PR for review
 #   4. After PR merge, creates a GitHub release for the new version
 #
-# Schedule: Every Monday at 1PM CST (7PM UTC)
+# Schedule: Every Thursday at 1PM CST (7PM UTC)
 # Manual trigger: Available via workflow_dispatch
 
 name: Kickoff Release
 
 on:
   schedule:
-    - cron: "0 19 * * 1"
+    - cron: "0 19 * * 4"
   workflow_dispatch:
 
 env:

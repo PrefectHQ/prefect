@@ -21,6 +21,7 @@ from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import (
     FlowRun,
     State,
+    StateType,
     WorkPool,
     WorkPoolStorageConfiguration,
 )
@@ -35,7 +36,7 @@ from prefect.flows import (
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import PREFECT_RESULTS_PERSIST_BY_DEFAULT
 from prefect.settings.context import temporary_settings
-from prefect.states import Completed
+from prefect.states import Completed, Failed
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect.workers.process import ProcessWorker
@@ -555,3 +556,116 @@ class TestInfrastructureBoundFlow:
 
         # Return value is hardcoded in the FakeResultStorage to ensure it is used as expected
         assert future.result() == "Here you go chief!"
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    async def test_retry_existing_flow_run(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """Test that retry() method reuses an existing flow run."""
+
+        @flow(result_storage=result_storage)
+        def my_flow(x: int = 1):
+            return x * 2
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        # First, run the flow to create an initial flow run
+        result = infrastructure_bound_flow(x=5)
+        assert result == 10
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    async def test_retry_reuses_flow_run_id(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that retry() method reuses the same flow run ID and sets state to Pending."""
+        from unittest.mock import AsyncMock
+
+        # Mock execute_bundle to avoid race conditions with aresult
+        mock_execute_bundle = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+        )
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "success"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        # Create an initial flow run using the client directly
+        initial_flow_run = await prefect_client.create_flow_run(
+            my_flow,
+            parameters={},
+            state=Completed(data="success"),
+        )
+
+        # Use the worker directly to test retry with existing flow_run
+        async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(
+                flow=infrastructure_bound_flow,
+                parameters={},
+                flow_run=initial_flow_run,
+            )
+
+        # Verify the flow run was reused and state was set to Pending
+        retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
+        assert retried_flow_run.id == initial_flow_run.id
+        # The state should be Pending (since we mocked execute_bundle)
+        assert retried_flow_run.state is not None
+        assert retried_flow_run.state.type == StateType.PENDING
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    async def test_retry_with_return_state(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that retry() properly sets state to Pending when retrying a flow run."""
+        from unittest.mock import AsyncMock
+
+        # Mock execute_bundle to avoid race conditions with aresult
+        mock_execute_bundle = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+        )
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "done"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        # Create an initial flow run using the client directly
+        initial_flow_run = await prefect_client.create_flow_run(
+            my_flow,
+            parameters={},
+            state=Failed(message="Failed initially"),
+        )
+        assert initial_flow_run.state.type == StateType.FAILED
+
+        # Use the worker directly to test retry with existing flow_run
+        async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(
+                flow=infrastructure_bound_flow,
+                parameters={},
+                flow_run=initial_flow_run,
+            )
+
+        # Verify the state was set to Pending for retry
+        retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
+        assert retried_flow_run.state is not None
+        assert retried_flow_run.state.type == StateType.PENDING

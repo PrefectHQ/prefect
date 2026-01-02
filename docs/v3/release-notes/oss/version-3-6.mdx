@@ -2,6 +2,76 @@
 title: 3.6
 ---
 
+## 3.6.9 - Auld Lang Sync
+
+*Released on December 31, 2025*
+
+**New Features 🎉**
+
+* Add worker-side cancellation for pending flow runs by [@joshuastagner](https://github.com/joshuastagner) in [#20022](https://github.com/PrefectHQ/prefect/pull/20022)
+
+**Enhancements ➕➕**
+
+* Add JSON schema for `prefect.yaml` files by [@zzstoatzz](https://github.com/zzstoatzz) in [#19996](https://github.com/PrefectHQ/prefect/pull/19996)
+* Send entrypoint pip install errors to Prefect logs by [@jakekaplan](https://github.com/jakekaplan) in [#20058](https://github.com/PrefectHQ/prefect/pull/20058)
+* Run read and count queries concurrently in paginate endpoints by [@zzstoatzz](https://github.com/zzstoatzz) in [#20049](https://github.com/PrefectHQ/prefect/pull/20049)
+
+**Bug Fixes 🐞**
+
+* Preserve symlinks in `get_directory` instead of following them by [@majiayu000](https://github.com/majiayu000) in [#19993](https://github.com/PrefectHQ/prefect/pull/19993)
+* Fix `GitRepository` name parameter preservation in pull step conversion by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20004](https://github.com/PrefectHQ/prefect/pull/20004)
+* Add explicit `ruamel.yaml.clib` dependency to fix Docker builds by [@zzstoatzz](https://github.com/zzstoatzz) in [#20068](https://github.com/PrefectHQ/prefect/pull/20068)
+
+**Development & Tidiness 🧹**
+
+* Update `@prefecthq/prefect-ui-library` to version 3.14.5 by [@marvin-robot](https://github.com/marvin-robot) in [#20003](https://github.com/PrefectHQ/prefect/pull/20003)
+* Add GitHub Actions workflow for UI v2 E2E tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20042](https://github.com/PrefectHQ/prefect/pull/20042)
+
+**Documentation 📓**
+
+* Add link to Python AI Conference by [@aaazzam](https://github.com/aaazzam) in [#20054](https://github.com/PrefectHQ/prefect/pull/20054)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.8...3.6.9
+
+
+---
+
+## 3.6.8 - On Exception! On Timeout! On Error and Failure! 🦌
+
+*Released on December 24, 2025*
+
+**New Features 🎉**
+
+* Add `prefect flow-run retry` command by [@desertaxle](https://github.com/desertaxle) in [#19858](https://github.com/PrefectHQ/prefect/pull/19858)
+
+**Enhancements ➕➕**
+
+* Add `url` property to server-side `ReceivedEvent` for automation templates by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19851](https://github.com/PrefectHQ/prefect/pull/19851)
+
+**Bug Fixes 🐞**
+
+* Add timeout to Docket worker shutdown by [@desertaxle](https://github.com/desertaxle) in [#19940](https://github.com/PrefectHQ/prefect/pull/19940)
+* Prevent dictionary mutation during iteration in `preprocess_schema` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19946](https://github.com/PrefectHQ/prefect/pull/19946)
+* Allow string `form_data` in `CustomWebhookNotificationBlock` by [@zzstoatzz](https://github.com/zzstoatzz) in [#19953](https://github.com/PrefectHQ/prefect/pull/19953)
+* Bump `pydocket` version and remove background worker shutdown timeout by [@desertaxle](https://github.com/desertaxle) in [#19969](https://github.com/PrefectHQ/prefect/pull/19969)
+* Fix `TASK_SOURCE` cache policy for remote execution with `cloudpickle` by [@desertaxle](https://github.com/desertaxle) in [#19926](https://github.com/PrefectHQ/prefect/pull/19926)
+
+**Development & Tidiness 🧹**
+
+* Run lint, build, and test in parallel for ui-v2 checks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19884](https://github.com/PrefectHQ/prefect/pull/19884)
+* Fix docker deploy integration test failing due to uv import by [@desertaxle](https://github.com/desertaxle) in [#19899](https://github.com/PrefectHQ/prefect/pull/19899)
+* Update kickoff-release schedule from Monday to Thursday by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#19930](https://github.com/PrefectHQ/prefect/pull/19930)
+
+**Documentation 📓**
+
+* Add security considerations to Prefect MCP server guide by [@zzstoatzz](https://github.com/zzstoatzz) in [#19875](https://github.com/PrefectHQ/prefect/pull/19875)
+* Document AWS IAM role assumption by [@seanpwlms](https://github.com/seanpwlms) in [#19963](https://github.com/PrefectHQ/prefect/pull/19963)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.7...3.6.8
+
+
+---
+
 ## 3.6.7 - LoopService #OpenToWork: 3+ Years Experience Looping
 
 *Released on December 18, 2025*

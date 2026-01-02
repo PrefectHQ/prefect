@@ -9,6 +9,9 @@
     "default": "light",
     "strict": false
   },
+  "banner": {
+    "content": "Join us at inaugural PyAI Conf in San Francisco on March 10th! [Learn more](https://pyai.events?utm_source=docs.prefect.io)"
+  },
   "colors": {
     "dark": "#2D6DF6",
     "light": "#5F92FF",
@@ -128,6 +131,7 @@
               "v3/how-to-guides/workflows/write-and-run",
               "v3/how-to-guides/workflows/assets",
               "v3/how-to-guides/workflows/retries",
+              "v3/how-to-guides/workflows/retry-flow-runs",
               "v3/how-to-guides/workflows/custom-metadata",
               "v3/how-to-guides/workflows/pass-inputs",
               "v3/how-to-guides/workflows/add-logging",

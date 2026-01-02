@@ -1,0 +1,93 @@
+name: UI v2 E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ui-v2-e2e-tests.yml
+      - ui-v2/**
+      - src/prefect/server/**
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# Limit concurrency by workflow/branch combination.
+#
+# For pull request builds, pushing additional changes to the
+# branch will cancel prior in-progress and pending builds.
+#
+# For builds triggered on a branch push, additional changes
+# will wait for prior builds to complete before starting.
+#
+# https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install Prefect
+        run: uv sync --locked
+
+      - name: Start Prefect server
+        run: |
+          uv run prefect server start --analytics-off --host 0.0.0.0 > server.log 2>&1 &
+          echo "Server PID: $!"
+
+      - name: Wait for server health
+        run: uv run python scripts/wait-for-server.py
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: "ui-v2/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install UI dependencies
+        working-directory: ./ui-v2
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ./ui-v2
+        run: npx playwright install chromium
+
+      - name: Run Playwright tests
+        working-directory: ./ui-v2
+        run: npx playwright test
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: playwright-report
+          path: ui-v2/playwright-report/
+          retention-days: 30
+
+      - name: Upload server logs
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: server-log
+          path: server.log
+          retention-days: 30
