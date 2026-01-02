@@ -87,6 +87,27 @@ enforce_minimum_version: EnforceMinimumAPIVersion = EnforceMinimumAPIVersion(
 )
 
 
+async def _warn_unsafe_concurrency_storage() -> None:
+    """Warn if using in-memory concurrency lease storage."""
+    from prefect.server.concurrency.lease_storage import (
+        get_concurrency_lease_storage,
+    )
+    from prefect.server.concurrency.lease_storage.memory import (
+        ConcurrencyLeaseStorage as MemoryStorage,
+    )
+
+    try:
+        storage = get_concurrency_lease_storage()
+        if isinstance(storage, MemoryStorage):
+            logger.warning(
+                "⚠️  Using in-memory concurrency lease storage. "
+                "This is unsafe for production and may cause concurrency limits to break after server restarts. "
+                "Set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE='prefect.server.concurrency.lease_storage.filesystem' for production."
+            )
+    except Exception as e:
+        logger.debug(f"Could not check concurrency lease storage: {e}")
+
+
 API_ROUTERS = (
     api.flows.router,
     api.flow_runs.router,
@@ -693,6 +714,7 @@ def create_app(
 
         await run_migrations()
         await add_block_types()
+        await _warn_unsafe_concurrency_storage()
 
         Services: type[Service] | None = (
             RunInWebservers
