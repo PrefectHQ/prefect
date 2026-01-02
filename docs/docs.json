@@ -234,7 +234,13 @@
           {
             "group": "Migrate",
             "pages": [
-              "v3/how-to-guides/migrate/airflow",
+              {
+                "group": "Migrate from other orchestrators",
+                "pages": [
+                  "v3/how-to-guides/migrate/other-orchestrators/airflow",
+                  "v3/how-to-guides/migrate/other-orchestrators/dagster"
+                ]
+              },
               "v3/how-to-guides/migrate/upgrade-to-prefect-3",
               "v3/how-to-guides/migrate/upgrade-agents-to-workers",
               "v3/how-to-guides/migrate/transfer-resources"
@@ -2410,8 +2416,12 @@
       "source": "v3/develop/task-run-limits"
     },
     {
-      "destination": "/v3/how-to-guides/migrate/airflow",
+      "destination": "/v3/how-to-guides/migrate/other-orchestrators/airflow",
       "source": "v3/tutorials/airflow"
+    },
+    {
+      "destination": "/v3/how-to-guides/migrate/other-orchestrators/airflow",
+      "source": "v3/how-to-guides/migrate/airflow"
     },
     {
       "destination": "/v3/how-to-guides/migrate/upgrade-to-prefect-3",
