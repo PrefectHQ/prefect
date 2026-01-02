@@ -4,7 +4,7 @@ sidebarTitle: Dagster
 description: A guide for migrating from Dagster to Prefect.
 ---
 
-This guide maps Dagster concepts to their Prefect equivalents.
+This guide helps Dagster users translate their mental model to Prefect. Each section explains what problem a concept solves, then shows how both frameworks approach it.
 
 ## Concept mapping
 
@@ -12,261 +12,320 @@ This guide maps Dagster concepts to their Prefect equivalents.
 |---------|---------|-------|
 | Software-Defined Assets | [Assets](/v3/concepts/assets) (Cloud) | Both track data lineage. Prefect uses `@materialize`; Dagster uses `@asset`. |
 | Ops | [Tasks](/v3/develop/write-tasks) | Decorated functions. Prefect doesn't require `In`/`Out` type specifications. |
-| Jobs | [Flows](/v3/develop/write-flows) | Units of execution. Prefect flows are regular Python functions. |
-| Resources | [Blocks](/v3/concepts/blocks) | Dependency injection for external systems. Both support environment-specific config. |
-| I/O Managers | None | Prefect tasks return data in-memory. Handle your own persistence. |
-| Partitions | Parameters + `.map()` | Prefect has no built-in partition state tracking. See [caching](/v3/concepts/caching) for idempotency. |
+| Jobs | [Flows](/v3/develop/write-flows) | Execution units. Prefect flows are Python functions—no explicit job definition. |
+| Resources | [Blocks](/v3/develop/blocks) | Dependency injection for external systems. Both support environment-specific config. |
+| I/O Managers | [Result persistence](/v3/advanced/results) | Both decouple storage from logic. Prefect uses blocks + result storage config. |
+| Partitions | Parameters + `.map()` | Prefect has no built-in partition state. See [caching](/v3/concepts/caching). |
 | Schedules | [Deployment schedules](/v3/deploy/serve-flows/deploy-a-flow) | Prefect decouples schedules from code—set at deployment time. |
 | Sensors | [Automations](/v3/automate/events/automations-triggers) | Event-driven triggers. Can also use polling flows. |
-| Definitions | Implicit | No explicit registration needed. |
+| Definitions | Implicit | No explicit registration needed—flows discovered at deployment. |
 
 ## Assets
 
-Dagster Software-Defined Assets track data lineage:
+Data engineers use assets to track **what data exists** and **how it was produced**. When pipelines grow complex, understanding data lineage becomes essential for debugging, auditing, and impact analysis.
+
+Both Dagster and Prefect (Cloud) provide asset tracking with automatic lineage visualization. The key difference: Dagster infers storage from I/O managers, while Prefect requires explicit URIs.
+
+<CodeGroup>
 
 {/* pmd-metadata: notest */}
-```python
+```python Dagster
 import dagster as dg
 
 @dg.asset
-def raw_data():
-    return {"value": 42}
+def raw_orders():
+    """Fetch raw order data."""
+    return [{"id": 1, "amount": 100}, {"id": 2, "amount": 200}]
 
 @dg.asset
-def processed_data(raw_data):
-    return {"processed": True, **raw_data}
+def order_metrics(raw_orders):
+    """Compute metrics from orders."""
+    total = sum(o["amount"] for o in raw_orders)
+    return {"total_revenue": total, "order_count": len(raw_orders)}
 ```
 
-Prefect Assets (Cloud) provide similar lineage tracking with `@materialize`:
-
 {/* pmd-metadata: notest */}
-```python
+```python Prefect
 from prefect import flow
 from prefect.assets import materialize
 
-@materialize("s3://bucket/raw-data.parquet")
-def extract_raw_data():
-    return {"value": 42}
+@materialize("s3://data/raw-orders.json")
+def raw_orders():
+    """Fetch raw order data."""
+    return [{"id": 1, "amount": 100}, {"id": 2, "amount": 200}]
 
-@materialize("s3://bucket/processed-data.parquet")
-def process_data(raw):
-    return {"processed": True, **raw}
+@materialize("s3://data/order-metrics.json")
+def order_metrics(raw_orders):
+    """Compute metrics from orders."""
+    total = sum(o["amount"] for o in raw_orders)
+    return {"total_revenue": total, "order_count": len(raw_orders)}
 
 @flow
 def pipeline():
-    raw = extract_raw_data()
-    process_data(raw)  # dependency inferred from task graph
+    orders = raw_orders()
+    order_metrics(orders)
 ```
+</CodeGroup>
 
-Both models track what data is produced and consumed. Prefect Assets require URIs identifying where data lives; dependencies are inferred from the task graph or declared with `asset_deps`.
-
-For cross-flow or external dependencies:
+Prefect infers dependencies from the task graph. For cross-flow or external dependencies, declare them explicitly:
 
 {/* pmd-metadata: notest */}
 ```python
 @materialize(
-    "s3://bucket/enriched.parquet",
-    asset_deps=["postgres://db/users", "s3://external/vendor-feed.csv"]
+    "s3://data/enriched-orders.json",
+    asset_deps=["postgres://db/customers", "s3://external/exchange-rates.csv"]
 )
-def enrich_data():
+def enriched_orders():
     pass
 ```
 
 <Note>
-Prefect Assets are Cloud-only. For open-source Prefect, use [cache policies](/v3/concepts/caching) for idempotent tasks, but you won't get UI lineage visualization.
+Prefect Assets require Prefect Cloud. For open-source Prefect, use [cache policies](/v3/concepts/caching) for idempotency, but you won't get UI lineage visualization.
 </Note>
 
-## Ops → Tasks
+## Ops and tasks
 
-Dagster ops are decorated functions with explicit typing:
+Both frameworks use decorated functions as the unit of work. Data engineers use these to encapsulate discrete operations—fetching data, transforming it, loading it elsewhere.
+
+The main difference: Dagster ops historically required explicit input/output type declarations (though this is now optional). Prefect tasks are plain Python functions.
+
+<CodeGroup>
 
 {/* pmd-metadata: notest */}
-```python
+```python Dagster
 import dagster as dg
 
 @dg.op
-def extract() -> dict:
-    return {"source": "api", "value": 42}
+def fetch_orders() -> list[dict]:
+    return [{"id": 1, "amount": 100}]
 
 @dg.op
-def transform(data: dict) -> dict:
-    return {"transformed": True, **data}
+def compute_total(orders: list[dict]) -> int:
+    return sum(o["amount"] for o in orders)
 ```
 
-Prefect tasks are simpler—just decorated Python functions:
-
-```python
+```python Prefect
 from prefect import task, flow
 
 @task
-def extract() -> dict:
-    return {"source": "api", "value": 42}
+def fetch_orders() -> list[dict]:
+    return [{"id": 1, "amount": 100}]
 
 @task
-def transform(data: dict) -> dict:
-    return {"transformed": True, **data}
+def compute_total(orders: list[dict]) -> int:
+    return sum(o["amount"] for o in orders)
 
 @flow
-def etl():
-    raw = extract()
-    return transform(raw)
+def pipeline():
+    orders = fetch_orders()
+    return compute_total(orders)
 
 if __name__ == "__main__":
-    etl()
+    pipeline()
 ```
+</CodeGroup>
 
-## Jobs → Flows
+## Jobs and flows
 
-Dagster jobs group assets or ops for execution:
+Data engineers group operations into executable units. In Dagster, you explicitly define jobs that select which assets or ops to run. In Prefect, the flow function *is* the job—no separate definition needed.
+
+<CodeGroup>
 
 {/* pmd-metadata: notest */}
-```python
+```python Dagster
 import dagster as dg
 
-my_job = dg.define_asset_job("my_job", selection=[raw_data, processed_data])
+# Assets defined elsewhere...
+
+# Explicit job definition selecting assets
+orders_job = dg.define_asset_job(
+    name="orders_job",
+    selection=[raw_orders, order_metrics],
+)
 ```
 
-Prefect flows are just Python functions:
-
-```python
+```python Prefect
 from prefect import task, flow
 
 @task
-def step_a():
-    return "a"
+def fetch_orders():
+    return [{"id": 1, "amount": 100}]
 
 @task
-def step_b(x):
-    return f"b({x})"
+def compute_metrics(orders):
+    return {"total": sum(o["amount"] for o in orders)}
 
+# The flow IS the job - no separate definition
 @flow
-def my_pipeline():
-    a = step_a()
-    return step_b(a)
+def orders_pipeline():
+    orders = fetch_orders()
+    return compute_metrics(orders)
 
 if __name__ == "__main__":
-    my_pipeline()
+    orders_pipeline()
 ```
+</CodeGroup>
 
-No explicit job definition needed—the flow function is the unit of execution.
+## Resources and blocks
 
-## Resources → Blocks
+Data engineers need a way to inject external dependencies—databases, APIs, cloud services—that can be swapped between environments (dev vs prod) without changing pipeline code.
 
-Dagster resources provide dependency injection:
+Both frameworks solve this with typed configuration classes. Dagster calls them Resources; Prefect calls them Blocks.
+
+<CodeGroup>
 
 {/* pmd-metadata: notest */}
-```python
+```python Dagster
 from dagster import ConfigurableResource, asset
 
 class DatabaseResource(ConfigurableResource):
     host: str
     port: int
 
-    def query(self, sql: str):
-        pass
+    def query(self, sql: str) -> list[dict]:
+        # Connect and query...
+        return []
 
 @asset
-def my_asset(database: DatabaseResource):
+def user_data(database: DatabaseResource):
     return database.query("SELECT * FROM users")
 ```
 
-Prefect blocks are similar—typed configuration with secret handling:
-
-```python
+```python Prefect
 from prefect import task, flow
-from prefect.blocks.system import Secret
+from prefect.blocks.core import Block
+
+class DatabaseBlock(Block):
+    host: str
+    port: int
+
+    def query(self, sql: str) -> list[dict]:
+        # Connect and query...
+        return []
 
 @task
-def fetch_data():
-    # Load block at runtime
-    # api_key = Secret.load("my-api-key")
-    return {"data": "fetched"}
+def fetch_user_data() -> list[dict]:
+    db = DatabaseBlock.load("prod-db")
+    return db.query("SELECT * FROM users")
 
 @flow
 def pipeline():
-    return fetch_data()
+    return fetch_user_data()
 
 if __name__ == "__main__":
     pipeline()
 ```
+</CodeGroup>
 
-Create blocks via UI, CLI (`prefect block create`), or Python. Use [integration packages](/integrations/integrations) for pre-built blocks (databases, cloud storage, etc.).
-
-## I/O Managers
-
-Dagster I/O Managers abstract data persistence:
+Create and save blocks via Python, CLI, or UI:
 
 {/* pmd-metadata: notest */}
 ```python
-# With I/O manager, Dagster handles read/write automatically
-@dg.asset
-def clean_data(raw_data: pd.DataFrame) -> pd.DataFrame:
-    return raw_data.fillna(0)
+# Save a block for later use
+db = DatabaseBlock(host="localhost", port=5432)
+db.save("dev-db", overwrite=True)
 ```
 
-Prefect has no equivalent. Tasks return data in-memory; you handle persistence explicitly:
+See [creating custom blocks](/v3/advanced/custom-blocks) for more details. Prefect also provides [pre-built blocks](/integrations/integrations) for common services (AWS, GCP, databases, etc.).
 
-```python
+## I/O managers and result persistence
+
+Data engineers want to separate **what** a pipeline computes from **where** it stores results. This separation enables:
+
+- Swapping storage backends between environments (local files in dev, S3 in prod)
+- Consistent serialization without boilerplate in every function
+- Easier testing by mocking storage
+
+Dagster solves this with I/O Managers that automatically handle reads and writes. Prefect solves it with **result persistence**—configuring where and how task/flow outputs are stored.
+
+<CodeGroup>
+
+{/* pmd-metadata: notest */}
+```python Dagster
+import dagster as dg
+from dagster_aws.s3.io_manager import S3PickleIOManager
+
+@dg.asset
+def cleaned_orders(raw_orders):
+    # I/O manager handles reading raw_orders and writing output
+    return [o for o in raw_orders if o["amount"] > 0]
+
+defs = dg.Definitions(
+    assets=[cleaned_orders],
+    resources={
+        "io_manager": S3PickleIOManager(
+            s3_bucket="my-bucket",
+            s3_prefix="data",
+        )
+    },
+)
+```
+
+```python Prefect
 from prefect import task, flow
 
-@task
-def extract() -> dict:
-    # You read data yourself
-    return {"data": "from_source"}
+@task(
+    persist_result=True,
+    result_storage="s3-bucket/prod-results",  # Block reference
+    result_serializer="json",
+)
+def cleaned_orders(raw_orders: list[dict]) -> list[dict]:
+    return [o for o in raw_orders if o["amount"] > 0]
 
-@task
-def transform(data: dict) -> dict:
-    return {"transformed": True, **data}
-
-@task
-def load(data: dict):
-    # You write data yourself
-    print(f"Saving: {data}")
-
-@flow
-def etl():
-    raw = extract()
-    clean = transform(raw)
-    load(clean)
+@flow(result_storage="s3-bucket/prod-results")
+def pipeline():
+    raw = [{"id": 1, "amount": 100}, {"id": 2, "amount": -50}]
+    return cleaned_orders(raw)
 
 if __name__ == "__main__":
-    etl()
+    pipeline()
+```
+</CodeGroup>
+
+Set a default storage backend for all flows:
+
+```bash
+prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/prod-results'
 ```
 
-This is more explicit but gives you full control over how data moves.
+The key difference: Dagster I/O managers handle both reads and writes automatically. Prefect result persistence handles output storage—you still read inputs explicitly.
+
+See [result persistence](/v3/advanced/results) for configuration options.
 
 ## Partitions
 
-Dagster partitions provide state tracking per partition:
+Data engineers partition data by time, region, or other dimensions to process incrementally and track what's been computed. Dagster has first-class partition support with state tracking. Prefect uses parameters and `.map()` for similar patterns.
+
+<CodeGroup>
 
 {/* pmd-metadata: notest */}
-```python
+```python Dagster
 import dagster as dg
 
 daily = dg.DailyPartitionsDefinition(start_date="2024-01-01")
 
 @dg.asset(partitions_def=daily)
-def daily_data(context):
+def daily_orders(context: dg.AssetExecutionContext):
     date = context.partition_key
-    return {"date": date}
+    # Dagster tracks which partitions are materialized
+    return fetch_orders_for_date(date)
 ```
 
-Prefect uses parameters and `.map()` for similar patterns, but without built-in partition state:
-
-```python
+```python Prefect
 from prefect import task, flow
 from datetime import date, timedelta
 
 @task
-def process_date(partition_date: str) -> dict:
-    return {"date": partition_date, "rows": 100}
+def process_orders_for_date(partition_date: str) -> dict:
+    return {"date": partition_date, "order_count": 42}
 
 @flow
-def daily_pipeline(partition_date: str):
-    return process_date(partition_date)
+def daily_orders(partition_date: str):
+    return process_orders_for_date(partition_date)
 
 @flow
-def backfill(start: str, end: str):
+def backfill_orders(start: str, end: str):
+    """Process a range of dates in parallel."""
     start_dt = date.fromisoformat(start)
     end_dt = date.fromisoformat(end)
 
@@ -276,12 +335,13 @@ def backfill(start: str, end: str):
         dates.append(current.isoformat())
         current += timedelta(days=1)
 
-    return process_date.map(dates)
+    return process_orders_for_date.map(dates)
 
 if __name__ == "__main__":
-    daily_pipeline("2024-06-15")
-    backfill("2024-01-01", "2024-01-07")
+    daily_orders("2024-06-15")
+    backfill_orders("2024-01-01", "2024-01-07")
 ```
+</CodeGroup>
 
 <Note>
 Prefect doesn't track which partitions have been materialized. For idempotency, use [cache policies](/v3/concepts/caching) or check your data store before processing.
@@ -289,41 +349,42 @@ Prefect doesn't track which partitions have been materialized. For idempotency, 
 
 ## Schedules
 
-Dagster defines schedules alongside jobs:
+Both frameworks support cron-based scheduling. The key difference: Dagster defines schedules alongside code, while Prefect decouples them—schedules are set at deployment time.
+
+<CodeGroup>
 
 {/* pmd-metadata: notest */}
-```python
+```python Dagster
 import dagster as dg
 
-@dg.schedule(job=my_job, cron_schedule="0 6 * * *")
-def daily_schedule():
+@dg.schedule(job=orders_job, cron_schedule="0 6 * * *")
+def daily_orders_schedule():
     return {}
 ```
 
-Prefect schedules are set at deployment time, separate from flow code:
-
-```python
+```python Prefect
 from prefect import flow
 
 @flow
-def my_pipeline():
+def orders_pipeline():
     return "done"
 
 if __name__ == "__main__":
-    my_pipeline.deploy(
-        name="daily-run",
+    orders_pipeline.deploy(
+        name="daily-orders",
         work_pool_name="my-pool",
         cron="0 6 * * *",
         timezone="America/Chicago",
     )
 ```
+</CodeGroup>
 
-Or via `prefect.yaml`:
+Or configure schedules in `prefect.yaml`:
 
 ```yaml
 deployments:
-  - name: daily-run
-    entrypoint: pipeline.py:my_pipeline
+  - name: daily-orders
+    entrypoint: pipeline.py:orders_pipeline
     work_pool:
       name: my-pool
     schedules:
@@ -333,37 +394,38 @@ deployments:
 
 ## Sensors
 
-Dagster sensors poll for events:
+Data engineers use sensors for event-driven pipelines—triggering runs when new files arrive, database rows change, or external events occur.
+
+Dagster sensors poll for events. Prefect offers [Automations](/v3/automate/events/automations-triggers) for event-driven triggers, or you can create a polling flow.
+
+<CodeGroup>
 
 {/* pmd-metadata: notest */}
-```python
+```python Dagster
 import dagster as dg
 
-@dg.sensor(job=my_job, minimum_interval_seconds=30)
-def file_sensor():
+@dg.sensor(job=process_file_job, minimum_interval_seconds=30)
+def new_file_sensor(context: dg.SensorEvaluationContext):
     new_files = check_for_new_files()
-    if new_files:
-        for f in new_files:
-            yield dg.RunRequest(run_key=f)
-    else:
+    for f in new_files:
+        yield dg.RunRequest(run_key=f, run_config={"file": f})
+    if not new_files:
         yield dg.SkipReason("No new files")
 ```
 
-Prefect offers [Automations](/v3/automate/events/automations-triggers) for event-driven triggers (configure in UI), or create a polling flow:
-
-```python
+```python Prefect
 from prefect import task, flow
 from prefect.deployments import run_deployment
 
 @task
-def check_for_files() -> list[str]:
-    # Your logic here
+def check_for_new_files() -> list[str]:
+    # Check S3, database, API, etc.
     return []
 
 @flow
 def file_sensor():
-    files = check_for_files()
-    for f in files:
+    new_files = check_for_new_files()
+    for f in new_files:
         run_deployment(
             name="process-file/prod",
             parameters={"file": f},
@@ -376,28 +438,35 @@ if __name__ == "__main__":
         cron="*/5 * * * *",
     )
 ```
+</CodeGroup>
+
+For push-based events, use [webhooks](/v3/concepts/webhooks) or [Automations](/v3/automate/events/automations-triggers) in the Prefect UI.
 
 ## Definitions
 
-Dagster requires explicit registration in a `Definitions` object:
+Dagster requires explicit registration of all assets, jobs, schedules, and resources in a `Definitions` object. Prefect discovers flows automatically when you deploy.
+
+<CodeGroup>
 
 {/* pmd-metadata: notest */}
-```python
+```python Dagster
 import dagster as dg
 
 defs = dg.Definitions(
-    assets=[asset_a, asset_b],
-    jobs=[my_job],
-    schedules=[daily_schedule],
-    resources={"db": DatabaseResource(host="localhost", port=5432)},
+    assets=[raw_orders, order_metrics],
+    jobs=[orders_job],
+    schedules=[daily_orders_schedule],
+    resources={
+        "database": DatabaseResource(host="localhost", port=5432),
+    },
 )
 ```
 
-Prefect doesn't require this—flows are discovered when deployed:
-
-```bash
-prefect deploy --all  # discovers flows from prefect.yaml
+```bash Prefect
+# Flows discovered from prefect.yaml
+prefect deploy --all
 ```
+</CodeGroup>
 
 ## Next steps
 
