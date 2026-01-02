@@ -582,3 +582,55 @@ class TestSubprocessASGIServer:
                 assert len(client.read_flow_runs()) == 1
 
             server.stop()
+
+
+class TestConcurrencyStorageWarning:
+    async def test_warns_for_memory_storage(self, caplog):
+        """Test that warning is logged when using in-memory storage."""
+        from prefect.server.api.server import _warn_unsafe_concurrency_storage
+
+        with caplog.at_level(logging.WARNING):
+            await _warn_unsafe_concurrency_storage()
+
+        assert any(
+            "Using in-memory concurrency lease storage" in record.message
+            for record in caplog.records
+        )
+        assert any(
+            "unsafe for production" in record.message for record in caplog.records
+        )
+
+    async def test_no_warning_for_filesystem_storage(self, caplog):
+        """Test that no warning is logged when using filesystem storage."""
+        from prefect.server.api.server import _warn_unsafe_concurrency_storage
+        from prefect.settings import PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+
+        with temporary_settings(
+            {
+                PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
+            }
+        ):
+            with caplog.at_level(logging.WARNING):
+                await _warn_unsafe_concurrency_storage()
+
+        assert not any(
+            "Using in-memory concurrency lease storage" in record.message
+            for record in caplog.records
+        )
+
+    async def test_handles_invalid_storage_gracefully(self, caplog):
+        """Test that invalid storage config doesn't crash, just logs debug."""
+        from prefect.server.api.server import _warn_unsafe_concurrency_storage
+        from prefect.settings import PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+
+        with temporary_settings(
+            {PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "invalid.module.path"}
+        ):
+            with caplog.at_level(logging.DEBUG):
+                await _warn_unsafe_concurrency_storage()
+
+        # Should log at debug level, not crash
+        assert any(
+            "Could not check concurrency lease storage" in record.message
+            for record in caplog.records
+        )
