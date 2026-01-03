@@ -91,7 +91,9 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     gpg \
     git=1:2.* \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' git)" ge '1:2.47.3' || \
+    (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)
 
 # Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /bin/uv
@@ -159,7 +161,9 @@ RUN apt-get update && \
     tini=0.19.* \
     build-essential \
     git=1:2.* \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' git)" ge '1:2.47.3' || \
+    (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)
 
 # Copy pre-compiled SQLite ${SQLITE_VERSION} from sqlite-builder stage
 COPY --from=sqlite-builder /usr/local/lib/libsqlite3* /usr/local/lib/
