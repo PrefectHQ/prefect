@@ -2,7 +2,8 @@ import { useState } from "react";
 import { z } from "zod";
 import { TriggerSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Button } from "@/components/ui/button";
-import { JsonInput, type JsonInputOnChange } from "@/components/ui/json-input";
+import type { JsonInputOnChange } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { Label } from "@/components/ui/label";
 
 type TriggerJsonInputProps = {

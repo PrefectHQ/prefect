@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { PythonInput } from "@/components/ui/python-input";
+import { LazyPythonInput as PythonInput } from "@/components/ui/python-input-lazy";
 
 type PythonBlockSnippetProps = {
 	codeExample: string;

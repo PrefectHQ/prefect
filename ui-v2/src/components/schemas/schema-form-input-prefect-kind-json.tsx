@@ -1,4 +1,5 @@
-import { JsonInput, type JsonInputOnChange } from "../ui/json-input";
+import type { JsonInputOnChange } from "../ui/json-input";
+import { LazyJsonInput as JsonInput } from "../ui/json-input-lazy";
 import type { PrefectKindValueJson } from "./types/prefect-kind-value";
 
 type SchemaFormInputPrefectKindJsonProps = {
