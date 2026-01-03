@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { Typography } from "@/components/ui/typography";
 import type { SchemaFormProps } from "../schema-form";
 import { SchemaForm } from "../schema-form";
