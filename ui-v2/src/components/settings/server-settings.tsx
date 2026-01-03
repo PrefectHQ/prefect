@@ -1,4 +1,4 @@
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 
 type ServerSettingsProps = {
 	settings: Record<string, unknown>;

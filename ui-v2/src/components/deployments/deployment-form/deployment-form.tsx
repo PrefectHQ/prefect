@@ -12,8 +12,8 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { JsonInput } from "@/components/ui/json-input";
-import { MarkdownInput } from "@/components/ui/markdown-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
+import { LazyMarkdownInput as MarkdownInput } from "@/components/ui/markdown-input-lazy";
 import { Switch } from "@/components/ui/switch";
 import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";

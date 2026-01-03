@@ -1,5 +1,5 @@
 import type { Deployment } from "@/api/deployments";
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { Typography } from "@/components/ui/typography";
 
 type DeploymentConfigurationProps = {

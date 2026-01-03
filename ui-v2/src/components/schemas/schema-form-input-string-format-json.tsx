@@ -1,4 +1,4 @@
-import { JsonInput } from "../ui/json-input";
+import { LazyJsonInput as JsonInput } from "../ui/json-input-lazy";
 
 export type SchemaFormInputStringFormatJsonProps = {
 	value: string | undefined;

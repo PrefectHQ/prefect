@@ -16,7 +16,7 @@ import {
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Icon } from "@/components/ui/icons";
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
 import { useDeleteVariable } from "@/hooks/variables";
 
