@@ -7,8 +7,9 @@
     "node": ">=22.12.0 <23"
   },
   "scripts": {
-    "dev": "vite",
+    "analyze": "vite build && npx vite-bundle-visualizer",
     "build": "tsc -b && vite build",
+    "dev": "vite",
     "test": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
