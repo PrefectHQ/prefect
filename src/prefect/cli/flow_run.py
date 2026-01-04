@@ -302,22 +302,37 @@ async def ls(
 
 
 @flow_run_app.command()
-async def delete(id: UUID):
+async def delete(ids: List[UUID] = typer.Argument(..., help="Flow run IDs to delete")):
     """
-    Delete a flow run by ID.
+    Delete one or more flow runs by ID.
     """
     async with get_client() as client:
-        try:
-            if is_interactive() and not typer.confirm(
-                (f"Are you sure you want to delete flow run with id {id!r}?"),
-                default=False,
-            ):
-                exit_with_error("Deletion aborted.")
-            await client.delete_flow_run(id)
-        except ObjectNotFound:
-            exit_with_error(f"Flow run '{id}' not found!")
+        if not ids:
+            exit_with_error("No flow run IDs provided.")
 
-    exit_with_success(f"Successfully deleted flow run '{id}'.")
+        if is_interactive() and not typer.confirm(
+            f"Are you sure you want to delete {len(ids)} flow run(s)?",
+            default=False,
+        ):
+            exit_with_error("Deletion aborted.")
+
+        deleted = []
+        failed = []
+        for flow_run_id in ids:
+            try:
+                await client.delete_flow_run(flow_run_id)
+                deleted.append(str(flow_run_id))
+            except ObjectNotFound:
+                failed.append((str(flow_run_id), "not found"))
+            except Exception as exc:
+                failed.append((str(flow_run_id), str(exc)))
+
+        if failed:
+            app.console.print(f"[yellow]Failed to delete {len(failed)} flow run(s):[/yellow]")
+            for flow_run_id, error in failed:
+                app.console.print(f"  - {flow_run_id}: {error}")
+
+        exit_with_success(f"Successfully deleted {len(deleted)} flow run(s).")
 
 
 @flow_run_app.command()
