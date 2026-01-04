@@ -39,7 +39,9 @@ describe("Artifacts Card", () => {
 			}),
 		);
 
-		expect(getByText("This is a description")).toBeTruthy();
+		await waitFor(() => {
+			expect(getByText("This is a description")).toBeTruthy();
+		});
 	});
 
 	it("renders artifact card with updated date", async () => {
