@@ -30,7 +30,7 @@ class UiSettingsService {
 	private getBaseUrl(): string {
 		if (import.meta.env.DEV) {
 			// Development mode: use env var or fallback
-			const envUrl = import.meta.env.VITE_API_URL;
+			const envUrl = import.meta.env.VITE_API_URL as string | undefined;
 			if (envUrl) {
 				// Strip /api suffix if present to get base URL
 				return envUrl.replace(/\/api\/?$/, "");

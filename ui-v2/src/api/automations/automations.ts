@@ -46,7 +46,7 @@ export const buildListAutomationsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.filter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/automations/filter", {
+			const res = await (await getQueryService()).POST("/automations/filter", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -60,7 +60,7 @@ export const buildGetAutomationQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/automations/{id}", {
+			const res = await (await getQueryService()).GET("/automations/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -78,7 +78,7 @@ export const buildListAutomationsRelatedQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.relate(resource_id),
 		queryFn: async () => {
-			const res = await getQueryService().GET(
+			const res = await (await getQueryService()).GET(
 				"/automations/related-to/{resource_id}",
 				{ params: { path: { resource_id } } },
 			);
@@ -112,8 +112,8 @@ export const buildListAutomationsRelatedQuery = (
 export const useDeleteAutomation = () => {
 	const queryClient = useQueryClient();
 	const { mutate: deleteAutomation, ...rest } = useMutation({
-		mutationFn: (id: string) =>
-			getQueryService().DELETE("/automations/{id}", {
+		mutationFn: async (id: string) =>
+			(await getQueryService()).DELETE("/automations/{id}", {
 				params: { path: { id } },
 			}),
 		onSuccess: () => {
@@ -153,8 +153,8 @@ export const useDeleteAutomation = () => {
 export const useCreateAutomation = () => {
 	const queryClient = useQueryClient();
 	const { mutate: createAutomation, ...rest } = useMutation({
-		mutationFn: (body: components["schemas"]["AutomationCreate"]) =>
-			getQueryService().POST("/automations/", { body }),
+		mutationFn: async (body: components["schemas"]["AutomationCreate"]) =>
+			(await getQueryService()).POST("/automations/", { body }),
 		onSuccess: () => {
 			// After a successful creation, invalidate the listing queries only to refetch
 			return queryClient.invalidateQueries({
@@ -192,11 +192,11 @@ export const useCreateAutomation = () => {
 export const useUpdateAutomation = () => {
 	const queryClient = useQueryClient();
 	const { mutate: updateAutomation, ...rest } = useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			id,
 			...body
 		}: components["schemas"]["AutomationPartialUpdate"] & { id: string }) =>
-			getQueryService().PATCH("/automations/{id}", {
+			(await getQueryService()).PATCH("/automations/{id}", {
 				body,
 				params: { path: { id } },
 			}),
@@ -245,11 +245,11 @@ export const useUpdateAutomation = () => {
 export const useReplaceAutomation = () => {
 	const queryClient = useQueryClient();
 	const { mutate: replaceAutomation, ...rest } = useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			id,
 			...body
 		}: components["schemas"]["AutomationUpdate"] & { id: string }) =>
-			getQueryService().PUT("/automations/{id}", {
+			(await getQueryService()).PUT("/automations/{id}", {
 				body,
 				params: { path: { id } },
 			}),
