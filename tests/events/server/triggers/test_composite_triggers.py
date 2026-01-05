@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from datetime import timedelta
 from typing import List
@@ -1624,3 +1625,123 @@ class TestSequenceTriggers:
         await triggers.reactive_evaluation(ingredients_buy)
 
         act.assert_not_called()
+
+
+class TestCompoundTriggerConcurrency:
+    """Tests for concurrent child trigger evaluation race condition fix."""
+
+    @pytest.fixture
+    async def compound_automation_concurrent(
+        self,
+        automations_session: AsyncSession,
+        cleared_buckets: None,
+        cleared_automations: None,
+    ) -> Automation:
+        """Compound trigger requiring all child triggers to fire."""
+        compound_automation = Automation(
+            name="Compound Automation Concurrency Test",
+            trigger=CompoundTrigger(
+                require="all",
+                within=timedelta(minutes=5),
+                triggers=[
+                    EventTrigger(
+                        expect={"event.A"},
+                        match={"prefect.resource.id": "*"},
+                        posture=Posture.Reactive,
+                        threshold=1,
+                    ),
+                    EventTrigger(
+                        expect={"event.B"},
+                        match={"prefect.resource.id": "*"},
+                        posture=Posture.Reactive,
+                        threshold=1,
+                    ),
+                ],
+            ),
+            actions=[actions.DoNothing()],
+        )
+
+        persisted = await automations.create_automation(
+            session=automations_session, automation=compound_automation
+        )
+        compound_automation.created = persisted.created
+        compound_automation.updated = persisted.updated
+        triggers.load_automation(persisted)
+        await automations_session.commit()
+
+        return compound_automation
+
+    async def test_compound_trigger_does_not_double_fire_when_children_race(
+        self,
+        act: mock.AsyncMock,
+        compound_automation_concurrent: Automation,
+        start_of_test: DateTime,
+    ):
+        """
+        Regression test for compound trigger double-firing when child firings race.
+
+        Verifies that when two child trigger events are processed concurrently,
+        the compound trigger fires exactly once. The DELETE ... RETURNING fix
+        ensures only one worker proceeds to fire the parent trigger.
+        """
+        event_a = ReceivedEvent(
+            occurred=start_of_test + timedelta(microseconds=1),
+            event="event.A",
+            resource={"prefect.resource.id": "test.resource"},
+            id=uuid4(),
+        )
+        event_b = ReceivedEvent(
+            occurred=start_of_test + timedelta(microseconds=2),
+            event="event.B",
+            resource={"prefect.resource.id": "test.resource"},
+            id=uuid4(),
+        )
+
+        # Process both events concurrently
+        await asyncio.gather(
+            triggers.reactive_evaluation(event_a),
+            triggers.reactive_evaluation(event_b),
+        )
+
+        # The compound trigger should fire exactly once
+        act.assert_called_once()
+
+        firing: Firing = act.call_args.args[0]
+        assert isinstance(firing.trigger, CompoundTrigger)
+        assert firing.trigger.id == compound_automation_concurrent.trigger.id
+
+    async def test_concurrent_child_firings_still_triggers_parent(
+        self,
+        act: mock.AsyncMock,
+        compound_automation_concurrent: Automation,
+        start_of_test: DateTime,
+    ):
+        """
+        Verify that when two child trigger events arrive nearly simultaneously,
+        the compound trigger still fires. This tests that the race condition fix
+        doesn't prevent legitimate firings.
+        """
+        event_a = ReceivedEvent(
+            occurred=start_of_test + timedelta(microseconds=1),
+            event="event.A",
+            resource={"prefect.resource.id": "test.resource"},
+            id=uuid4(),
+        )
+        event_b = ReceivedEvent(
+            occurred=start_of_test + timedelta(microseconds=2),
+            event="event.B",
+            resource={"prefect.resource.id": "test.resource"},
+            id=uuid4(),
+        )
+
+        # Process both events concurrently to simulate the race condition
+        await asyncio.gather(
+            triggers.reactive_evaluation(event_a),
+            triggers.reactive_evaluation(event_b),
+        )
+
+        # The compound trigger should fire exactly once
+        act.assert_called_once()
+
+        firing: Firing = act.call_args.args[0]
+        assert firing.trigger.id == compound_automation_concurrent.trigger.id

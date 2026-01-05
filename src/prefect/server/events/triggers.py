@@ -35,6 +35,7 @@ from prefect.server.events.models.automations import (
     read_automation,
 )
 from prefect.server.events.models.composite_trigger_child_firing import (
+    acquire_composite_trigger_lock,
     clear_child_firings,
     clear_old_child_firings,
     get_child_firings,
@@ -346,6 +347,11 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
         )
         return
 
+    # Acquire an advisory lock to serialize concurrent evaluations for this
+    # compound trigger. This prevents a race condition where multiple child
+    # triggers fire concurrently and neither transaction sees both firings.
+    await acquire_composite_trigger_lock(session, trigger)
+
     # If we're only looking within a certain time horizon, remove any older firings that
     # should no longer be considered as satisfying this trigger
     if trigger.within is not None:
@@ -382,8 +388,27 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
             },
         )
 
-        # clear by firing id
-        await clear_child_firings(session, trigger, firing_ids=list(firing_ids))
+        # Clear by firing id, and only proceed if we won the race to claim them.
+        # This prevents double-firing when multiple workers evaluate concurrently.
+        deleted_ids = await clear_child_firings(
+            session, trigger, firing_ids=list(firing_ids)
+        )
+
+        if deleted_ids != firing_ids:
+            logger.debug(
+                "Composite trigger %s skipped fire; expected to delete %s firings, "
+                "actually deleted %s (another worker likely claimed them)",
+                trigger.id,
+                len(firing_ids),
+                len(deleted_ids),
+                extra={
+                    "automation": automation.id,
+                    "trigger": trigger.id,
+                    "expected_firing_ids": sorted(str(f) for f in firing_ids),
+                    "deleted_firing_ids": sorted(str(f) for f in deleted_ids),
+                },
+            )
+            return
 
         await fire(
             session,
