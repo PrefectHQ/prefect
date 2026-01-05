@@ -4,7 +4,8 @@ import docker
 from pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
-from prefect.logging import get_run_logger
+from prefect.exceptions import MissingContextError
+from prefect.logging import get_logger, get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -18,11 +19,7 @@ class DockerRegistryCredentials(Block):
         from prefect_docker import DockerHost, DockerRegistryCredentials
 
         docker_host = DockerHost()
-        docker_registry_credentials = DockerRegistryCredentials(
-            username="my_username",
-            password="my_password",
-            registry_url="registry.hub.docker.com",
-        )
+        docker_registry_credentials = DockerRegistryCredentials.load("BLOCK_NAME")
         with docker_host.get_client() as client:
             docker_registry_credentials.login(client)
         ```
@@ -57,7 +54,10 @@ class DockerRegistryCredentials(Block):
         Args:
             client: A Docker Client.
         """
-        logger = get_run_logger()
+        try:
+            logger = get_run_logger()
+        except MissingContextError:
+            logger = get_logger("prefect.docker")
         logger.debug(f"Logging into {self.registry_url}.")
         await run_sync_in_worker_thread(
             client.login,

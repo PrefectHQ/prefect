@@ -6,6 +6,22 @@ from prefect_docker.host import DockerHost
 from prefect.logging import disable_run_logger
 
 
+class TestDockerHostLoggerFallback:
+    """Tests for DockerHost logger fallback when outside flow run context."""
+
+    def test_get_client_works_outside_flow_run_context(
+        self, mock_docker_client, monkeypatch
+    ):
+        """Test that get_client works without an active flow run context."""
+        monkeypatch.setattr(
+            "prefect_docker.host._ContextManageableDockerClient", mock_docker_client
+        )
+        docker_host = DockerHost()
+        # This should not raise MissingContextError
+        docker_host.get_client()
+        mock_docker_client.from_env.assert_called_once()
+
+
 @pytest.fixture
 def mock_ctx_docker_client(mock_docker_client, monkeypatch) -> MagicMock:
     monkeypatch.setattr(
