@@ -52,6 +52,7 @@ from prefect.logging import get_logger
 from prefect.server.api.background_workers import background_worker
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.schemas.ui import UISettings
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
@@ -480,15 +481,15 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         mimetypes.add_type("application/javascript", ".js")
 
     @ui_app.get(f"{stripped_base_url}/ui-settings")
-    def ui_settings() -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
-        return {
-            "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
-            "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
-            "auth": "BASIC"
+    def ui_settings() -> UISettings:  # type: ignore[reportUnusedFunction]
+        return UISettings(
+            api_url=prefect.settings.PREFECT_UI_API_URL.value(),
+            csrf_enabled=prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
+            auth="BASIC"
             if prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
             else None,
-            "flags": [],
-        }
+            flags=[],
+        )
 
     def reference_file_matches_base_url() -> bool:
         reference_file_path = os.path.join(static_dir, reference_file_name)

@@ -2982,6 +2982,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ui-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ui Settings */
+        get: operations["ui_settings_ui_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -12057,6 +12074,32 @@ export interface components {
              */
             port: number;
         };
+        /**
+         * UISettings
+         * @description Runtime UI configuration returned by /ui-settings endpoint.
+         */
+        UISettings: {
+            /**
+             * Api Url
+             * @description The base URL for API requests.
+             */
+            api_url: string;
+            /**
+             * Csrf Enabled
+             * @description Whether CSRF protection is enabled.
+             */
+            csrf_enabled: boolean;
+            /**
+             * Auth
+             * @description Authentication method (e.g., 'BASIC') or null if disabled.
+             */
+            auth: string | null;
+            /**
+             * Flags
+             * @description List of enabled feature flags.
+             */
+            flags?: string[];
+        };
     };
     responses: never;
     parameters: never;
@@ -18280,6 +18323,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ui_settings_ui_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UISettings"];
                 };
             };
         };
