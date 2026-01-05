@@ -4,7 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import type { components } from "@/api/prefect";
-import { getQueryService } from "@/api/service";
+import { getApiUrl, getQueryService } from "@/api/service";
 
 export type Automation = components["schemas"]["Automation"];
 export type AutomationsFilter =
@@ -300,7 +300,7 @@ export const useValidateTemplate = () => {
 		): Promise<{ valid: true } | { valid: false; error: string }> => {
 			// Use raw fetch to avoid the error-throwing middleware in getQueryService()
 			// since we want to handle 422 responses gracefully as validation errors
-			const baseUrl = import.meta.env.VITE_API_URL;
+			const baseUrl = await getApiUrl();
 			const response = await fetch(
 				`${baseUrl}/automations/templates/validate`,
 				{
