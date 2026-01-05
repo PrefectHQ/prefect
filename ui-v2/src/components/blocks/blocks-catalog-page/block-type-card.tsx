@@ -1,10 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { BlockType } from "@/api/block-types";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 import { Typography } from "@/components/ui/typography";
 
 type BlockTypeCardProps = {
@@ -21,9 +20,7 @@ export function BlockTypeCard({ blockType }: BlockTypeCardProps) {
 
 			{blockType.description && (
 				<div className="prose max-w-none h-32 overflow-y-scroll text-sm">
-					<Markdown remarkPlugins={[remarkGfm]}>
-						{blockType.description}
-					</Markdown>
+					<LazyMarkdown>{blockType.description}</LazyMarkdown>
 				</div>
 			)}
 

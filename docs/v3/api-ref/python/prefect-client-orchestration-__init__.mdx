@@ -109,7 +109,7 @@ Returns:
 client_version(self) -> str
 ```
 
-#### `count_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L818" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `count_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L819" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_flow_runs(self) -> int
@@ -198,7 +198,7 @@ running tasks.
 - the ID of the concurrency limit in the backend
 
 
-#### `create_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L715" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L721" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment(self, flow_id: UUID, name: str, version: str | None = None, version_info: 'VersionInfo | None' = None, schedules: list['DeploymentScheduleCreate'] | None = None, concurrency_limit: int | None = None, concurrency_options: 'ConcurrencyOptions | None' = None, parameters: dict[str, Any] | None = None, description: str | None = None, work_queue_name: str | None = None, work_pool_name: str | None = None, tags: list[str] | None = None, storage_document_id: UUID | None = None, path: str | None = None, entrypoint: str | None = None, infrastructure_document_id: UUID | None = None, parameter_openapi_schema: dict[str, Any] | None = None, paused: bool | None = None, pull_steps: list[dict[str, Any]] | None = None, enforce_parameter_schema: bool | None = None, job_variables: dict[str, Any] | None = None, branch: str | None = None, base: UUID | None = None, root: UUID | None = None) -> UUID
@@ -227,13 +227,13 @@ Both arguments are supported for backwards compatibility.
 - the ID of the deployment in the backend
 
 
-#### `create_deployment_branch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment_branch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_branch(self, deployment_id: UUID, branch: str, options: 'DeploymentBranchingOptions | None' = None, overrides: 'DeploymentUpdate | None' = None) -> UUID
 ```
 
-#### `create_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1141" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_schedules(self, deployment_id: UUID, schedules: list[tuple['SCHEDULE_TYPES', bool]]) -> list['DeploymentSchedule']
@@ -289,7 +289,7 @@ Create a flow in the Prefect API.
 - the ID of the flow in the backend
 
 
-#### `create_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L538" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run(self, flow: 'FlowObject[Any, R]', name: str | None = None, parameters: dict[str, Any] | None = None, context: dict[str, Any] | None = None, tags: 'Iterable[str] | None' = None, parent_task_run_id: 'UUID | None' = None, state: 'State[R] | None' = None, work_pool_name: str | None = None, work_queue_name: str | None = None, job_variables: dict[str, Any] | None = None) -> 'FlowRun'
@@ -318,7 +318,7 @@ run identifier in the parent flow
 - The flow run model
 
 
-#### `create_flow_run_from_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run_from_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_from_deployment(self, deployment_id: UUID) -> 'FlowRun'
@@ -354,7 +354,7 @@ exist, a new work queue will be created within the deployment's work pool.
 - The flow run model
 
 
-#### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L945" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L946" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_input(self, flow_run_id: 'UUID', key: str, value: str, sender: str | None = None) -> None
@@ -524,7 +524,7 @@ Delete the concurrency limit set on a specific tag.
 - `httpx.RequestError`: If request fails
 
 
-#### `delete_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment(self, deployment_id: UUID) -> None
@@ -540,7 +540,7 @@ Raises:
     RequestError: If requests fails
 
 
-#### `delete_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1248" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment_schedule(self, deployment_id: UUID, schedule_id: UUID) -> None
@@ -572,7 +572,7 @@ Raises:
     httpx.RequestError: If requests fail
 
 
-#### `delete_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L683" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run(self, flow_run_id: 'UUID') -> None
@@ -588,7 +588,7 @@ Raises:
     httpx.RequestError: If requests fails
 
 
-#### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1005" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1006" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run_input(self, flow_run_id: 'UUID', key: str) -> None
@@ -666,7 +666,7 @@ Delete a work queue by its ID.
 - `httpx.RequestError`: If requests fails
 
 
-#### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L971" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L972" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_flow_run_input(self, flow_run_id: 'UUID', key_prefix: str, limit: int, exclude_keys: 'set[str]') -> 'list[FlowRunInput]'
@@ -718,7 +718,7 @@ Defaults to now.
 - List[FlowRun]: a list of FlowRun objects read from the queue
 
 
-#### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_scheduled_flow_runs_for_deployments(self, deployment_ids: list[UUID], scheduled_before: 'datetime.datetime | None' = None, limit: int | None = None) -> list['FlowRun']
@@ -826,7 +826,7 @@ of the work queues
 pause_automation(self, automation_id: 'UUID') -> None
 ```
 
-#### `pause_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L873" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L885" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_deployment(self, deployment_id: Union[UUID, str]) -> None
@@ -1053,7 +1053,7 @@ Lists concurrency limits set on task run tags.
 - a list of concurrency limits
 
 
-#### `read_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L968" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L980" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment(self, deployment_id: Union[UUID, str]) -> 'DeploymentResponse'
@@ -1068,7 +1068,7 @@ Query the Prefect API for a deployment by id.
 - a Deployment model representation of the deployment
 
 
-#### `read_deployment_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1003" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1015" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_by_name(self, name: str) -> 'DeploymentResponse'
@@ -1087,7 +1087,7 @@ Query the Prefect API for a deployment by name.
 - a Deployment model representation of the deployment
 
 
-#### `read_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_schedules(self, deployment_id: UUID) -> list['DeploymentSchedule']
@@ -1102,7 +1102,7 @@ Query the Prefect API for a deployment's schedules.
 - a list of DeploymentSchedule model representations of the deployment schedules
 
 
-#### `read_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployments(self) -> list['DeploymentResponse']
@@ -1187,7 +1187,7 @@ Query the Prefect API for a flow by name.
 - a fully hydrated Flow model
 
 
-#### `read_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L705" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L706" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run(self, flow_run_id: 'UUID') -> 'FlowRun'
@@ -1202,7 +1202,7 @@ Query the Prefect API for a flow run by id.
 - a Flow Run model representation of the flow run
 
 
-#### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L989" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L990" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_input(self, flow_run_id: 'UUID', key: str) -> str
@@ -1215,7 +1215,7 @@ Reads a flow run input.
 - `key`: The input key.
 
 
-#### `read_flow_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L916" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L917" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_states(self, flow_run_id: 'UUID') -> 'list[State]'
@@ -1231,7 +1231,7 @@ Query for the states of a flow run
 of the flow run states
 
 
-#### `read_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L757" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_runs(self) -> 'list[FlowRun]'
@@ -1588,7 +1588,7 @@ slots will never be released.
 resume_automation(self, automation_id: 'UUID') -> None
 ```
 
-#### `resume_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L898" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L910" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_deployment(self, deployment_id: Union[UUID, str]) -> None
@@ -1604,7 +1604,7 @@ Resume (unpause) a deployment by ID.
 - `RequestError`: If request fails
 
 
-#### `resume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L728" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L729" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_flow_run(self, flow_run_id: 'UUID', run_input: dict[str, Any] | None = None) -> 'OrchestrationResult[Any]'
@@ -1635,7 +1635,7 @@ Sends a worker heartbeat for a given work pool.
 - `worker_metadata`: Metadata about the worker to send to the server.
 
 
-#### `set_deployment_paused_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_deployment_paused_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L871" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_deployment_paused_state(self, deployment_id: UUID, paused: bool) -> None
@@ -1650,13 +1650,13 @@ Set the paused state of a deployment.
 - `paused`: whether the deployment should be paused
 
 
-#### `set_flow_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L934" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_flow_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L935" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_flow_run_name(self, flow_run_id: 'UUID', name: str) -> httpx.Response
 ```
 
-#### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L866" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L867" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_flow_run_state(self, flow_run_id: 'UUID | str', state: 'State[T]', force: bool = False) -> 'OrchestrationResult[T]'
@@ -1731,13 +1731,13 @@ update_block_type(self, block_type_id: 'UUID', block_type: 'BlockTypeUpdate') ->
 Update a block document in the Prefect API.
 
 
-#### `update_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L923" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L935" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment(self, deployment_id: UUID, deployment: 'DeploymentUpdate') -> None
 ```
 
-#### `update_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L1208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment_schedule(self, deployment_id: UUID, schedule_id: UUID, active: bool | None = None, schedule: 'SCHEDULE_TYPES | None' = None) -> None
@@ -1752,7 +1752,7 @@ Update a deployment schedule by ID.
 - `schedule`: the cron, rrule, or interval schedule this deployment schedule should use
 
 
-#### `update_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L626" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L627" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow_run(self, flow_run_id: 'UUID', flow_version: str | None = None, parameters: dict[str, Any] | None = None, name: str | None = None, tags: 'Iterable[str] | None' = None, empirical_policy: 'FlowRunPolicy | None' = None, infrastructure_pid: str | None = None, job_variables: dict[str, Any] | None = None) -> httpx.Response
@@ -1777,7 +1777,7 @@ infrastructure block.
 - an `httpx.Response` object from the PATCH request
 
 
-#### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1020" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1021" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow_run_labels(self, flow_run_id: 'UUID', labels: 'KeyValueLabelsField') -> None
@@ -2045,13 +2045,13 @@ Both arguments are supported for backwards compatibility.
 - the ID of the deployment in the backend
 
 
-#### `create_deployment_branch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L691" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment_branch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L697" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_branch(self, deployment_id: UUID, branch: str, options: 'DeploymentBranchingOptions | None' = None, overrides: 'DeploymentUpdate | None' = None) -> UUID
 ```
 
-#### `create_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_schedules(self, deployment_id: UUID, schedules: list[tuple['SCHEDULE_TYPES', bool]]) -> list['DeploymentSchedule']
@@ -2136,7 +2136,7 @@ run identifier in the parent flow
 - The flow run model
 
 
-#### `create_flow_run_from_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L612" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run_from_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_from_deployment(self, deployment_id: UUID) -> 'FlowRun'
@@ -2345,7 +2345,7 @@ Delete the concurrency limit set on a specific tag.
 - `httpx.RequestError`: If request fails
 
 
-#### `delete_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment(self, deployment_id: UUID) -> None
@@ -2361,7 +2361,7 @@ Raises:
     RequestError: If requests fails
 
 
-#### `delete_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L563" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment_schedule(self, deployment_id: UUID, schedule_id: UUID) -> None
@@ -2409,7 +2409,7 @@ Raises:
     httpx.RequestError: If requests fails
 
 
-#### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L505" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L506" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run_input(self, flow_run_id: 'UUID', key: str) -> None
@@ -2487,7 +2487,7 @@ Delete a work queue by its ID.
 - `httpx.RequestError`: If requests fails
 
 
-#### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L471" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L472" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_flow_run_input(self, flow_run_id: 'UUID', key_prefix: str, limit: int, exclude_keys: 'set[str]') -> 'list[FlowRunInput]'
@@ -2539,7 +2539,7 @@ Defaults to now.
 - List[FlowRun]: a list of FlowRun objects read from the queue
 
 
-#### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L590" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L596" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_scheduled_flow_runs_for_deployments(self, deployment_ids: list[UUID], scheduled_before: 'datetime.datetime | None' = None, limit: int | None = None) -> list['FlowRunResponse']
@@ -2641,7 +2641,7 @@ of the work queues
 pause_automation(self, automation_id: 'UUID') -> None
 ```
 
-#### `pause_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_deployment(self, deployment_id: Union[UUID, str]) -> None
@@ -2868,7 +2868,7 @@ Lists concurrency limits set on task run tags.
 - a list of concurrency limits
 
 
-#### `read_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L301" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment(self, deployment_id: Union[UUID, str]) -> 'DeploymentResponse'
@@ -2883,7 +2883,7 @@ Query the Prefect API for a deployment by id.
 - a Deployment model representation of the deployment
 
 
-#### `read_deployment_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L330" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_by_name(self, name: str) -> 'DeploymentResponse'
@@ -2902,7 +2902,7 @@ Query the Prefect API for a deployment by name.
 - a Deployment model representation of the deployment
 
 
-#### `read_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L501" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_schedules(self, deployment_id: UUID) -> list['DeploymentSchedule']
@@ -2917,7 +2917,7 @@ Query the Prefect API for a deployment's schedules.
 - a list of DeploymentSchedule model representations of the deployment schedules
 
 
-#### `read_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployments(self) -> list['DeploymentResponse']
@@ -3017,7 +3017,7 @@ Query the Prefect API for a flow run by id.
 - a Flow Run model representation of the flow run
 
 
-#### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L490" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_input(self, flow_run_id: 'UUID', key: str) -> str
@@ -3403,7 +3403,7 @@ slots will never be released.
 resume_automation(self, automation_id: 'UUID') -> None
 ```
 
-#### `resume_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L226" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_deployment(self, deployment_id: Union[UUID, str]) -> None
@@ -3450,7 +3450,7 @@ Sends a worker heartbeat for a given work pool.
 - `worker_metadata`: Metadata about the worker to send to the server.
 
 
-#### `set_deployment_paused_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_deployment_paused_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_deployment_paused_state(self, deployment_id: UUID, paused: bool) -> None
@@ -3546,13 +3546,13 @@ update_block_type(self, block_type_id: 'UUID', block_type: 'BlockTypeUpdate') ->
 Update a block document in the Prefect API.
 
 
-#### `update_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment(self, deployment_id: UUID, deployment: 'DeploymentUpdate') -> None
 ```
 
-#### `update_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L523" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_deployments/client.py#L529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment_schedule(self, deployment_id: UUID, schedule_id: UUID, active: bool | None = None, schedule: 'SCHEDULE_TYPES | None' = None) -> None
@@ -3592,7 +3592,7 @@ infrastructure block.
 - an `httpx.Response` object from the PATCH request
 
 
-#### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L520" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow_run_labels(self, flow_run_id: 'UUID', labels: 'KeyValueLabelsField') -> None

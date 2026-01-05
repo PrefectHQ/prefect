@@ -90,7 +90,7 @@ class CoreFlowPolicy(FlowRunOrchestrationPolicy):
                 EnforceCancellingToCancelledTransition,
                 BypassCancellingFlowRunsWithNoInfra,
                 PreventPendingTransitions,
-                CopyDeploymentConcurrencyLeaseID,
+                ValidateDeploymentConcurrencyAtRunning,
                 SecureFlowConcurrencySlots,
                 RemoveDeploymentConcurrencyLeaseForOldClientVersions,
                 EnsureOnlyScheduledFlowsMarkedLate,
@@ -587,14 +587,27 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
         if acquired:
             lease_storage = get_concurrency_lease_storage()
             settings = get_current_settings()
+
+            concurrency_options = deployment.concurrency_options
+            grace_period = None
+            if concurrency_options is not None:
+                if isinstance(concurrency_options, dict):
+                    concurrency_options = core.ConcurrencyOptions.model_validate(
+                        concurrency_options
+                    )
+                grace_period = concurrency_options.grace_period_seconds
+            # Fall back to server setting if grace_period_seconds is not explicitly set
+            if grace_period is None:
+                grace_period = (
+                    settings.server.concurrency.initial_deployment_lease_duration
+                )
+
             lease = await lease_storage.create_lease(
                 resource_ids=[deployment.concurrency_limit_id],
                 metadata=ConcurrencyLimitLeaseMetadata(
                     slots=1,
                 ),
-                ttl=datetime.timedelta(
-                    seconds=settings.server.concurrency.initial_deployment_lease_duration
-                ),
+                ttl=datetime.timedelta(seconds=grace_period),
             )
             proposed_state.state_details.deployment_concurrency_lease_id = lease.id
 
@@ -670,9 +683,13 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
             logger.error(f"Error releasing concurrency slots on cleanup: {e}")
 
 
-class CopyDeploymentConcurrencyLeaseID(FlowRunOrchestrationRule):
+class ValidateDeploymentConcurrencyAtRunning(FlowRunOrchestrationRule):
     """
-    Copies the deployment concurrency lease ID to the proposed state.
+    Validates and renews deployment concurrency leases at the PENDING→RUNNING transition.
+
+    This prevents concurrency violations that occur when the lease reaper reclaims slots
+    from PENDING flows. Without this validation, a flow can lose its slot while provisioning
+    infrastructure and still transition to RUNNING, violating the concurrency limit.
     """
 
     FROM_STATES = {states.StateType.PENDING}
@@ -687,10 +704,110 @@ class CopyDeploymentConcurrencyLeaseID(FlowRunOrchestrationRule):
         if initial_state is None or proposed_state is None:
             return
 
-        if not proposed_state.state_details.deployment_concurrency_lease_id:
-            proposed_state.state_details.deployment_concurrency_lease_id = (
-                initial_state.state_details.deployment_concurrency_lease_id
-            )
+        # Copy lease ID to proposed state to maintain it through the transition
+        lease_id = initial_state.state_details.deployment_concurrency_lease_id
+        proposed_state.state_details.deployment_concurrency_lease_id = lease_id
+
+        if not lease_id:
+            return
+
+        # Only validate leases for clients that can maintain them (3.4.11+)
+        # Older clients don't renew leases, so validating would cause false failures
+        client_version = context.client_version or Version("2.0.0")
+        if isinstance(client_version, str):
+            client_version = Version(client_version)
+        if client_version < MIN_CLIENT_VERSION_FOR_CONCURRENCY_LIMIT_LEASING:
+            return
+
+        # Need deployment context to validate and potentially re-acquire slots
+        if (
+            not context.session
+            or not isinstance(context, FlowOrchestrationContext)
+            or not context.run.deployment_id
+        ):
+            return
+
+        deployment = await deployments.read_deployment(
+            session=context.session,
+            deployment_id=context.run.deployment_id,
+        )
+
+        if not deployment or not deployment.global_concurrency_limit:
+            return
+
+        concurrency_options = deployment.concurrency_options
+        if concurrency_options is not None:
+            if isinstance(concurrency_options, dict):
+                concurrency_options = core.ConcurrencyOptions.model_validate(
+                    concurrency_options
+                )
+            grace_period = concurrency_options.grace_period_seconds
+        else:
+            grace_period = None
+
+        # Fall back to server setting if grace_period_seconds is not explicitly set
+        if grace_period is None:
+            settings = get_current_settings()
+            grace_period = settings.server.concurrency.initial_deployment_lease_duration
+
+        # Attempt atomic renewal to prevent race conditions where the lease
+        # exists but hasn't expired yet
+        lease_storage = get_concurrency_lease_storage()
+        renewed = await lease_storage.renew_lease(
+            lease_id=lease_id,
+            ttl=datetime.timedelta(seconds=grace_period),
+        )
+
+        if renewed:
+            return
+
+        # Lease was reaped - attempt re-acquisition for resilience. If no other
+        # flows need the slot, allow this flow to continue rather than failing it
+        slots_acquired = await concurrency_limits_v2.bulk_increment_active_slots(
+            session=context.session,
+            concurrency_limit_ids=[deployment.concurrency_limit_id],
+            slots=1,
+        )
+
+        if slots_acquired:
+            # Slot available - create new lease and continue. This provides
+            # resilience when a flow's lease expires but no other flows are competing
+            await (
+                context.session.flush()
+            )  # Ensure DB update is visible before creating lease
+            try:
+                new_lease = await lease_storage.create_lease(
+                    resource_ids=[deployment.concurrency_limit_id],
+                    ttl=datetime.timedelta(seconds=grace_period),
+                    metadata=ConcurrencyLimitLeaseMetadata(
+                        slots=1,
+                        holder=ConcurrencyLeaseHolder(
+                            type="flow_run", id=str(context.run.id)
+                        ),
+                    ),
+                )
+                proposed_state.state_details.deployment_concurrency_lease_id = (
+                    new_lease.id
+                )
+                return
+            except Exception:
+                # Lease creation failed - release the slot we acquired
+                await concurrency_limits_v2.bulk_decrement_active_slots(
+                    session=context.session,
+                    concurrency_limit_ids=[deployment.concurrency_limit_id],
+                    slots=1,
+                )
+                raise
+
+        # No slots available. Must cancel because infrastructure is already
+        # provisioned and we cannot reschedule at this point
+        await self.reject_transition(
+            state=states.Cancelled(
+                message="Deployment concurrency slot lost during provisioning - "
+                "no slots available to continue execution"
+            ),
+            reason="Deployment concurrency limit reached after lease expiry.",
+        )
 
 
 class RemoveDeploymentConcurrencyLeaseForOldClientVersions(FlowRunOrchestrationRule):

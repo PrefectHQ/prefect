@@ -2982,6 +2982,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ui-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ui Settings */
+        get: operations["ui_settings_ui_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3183,6 +3200,7 @@ export interface components {
             /**
              * Like
              * @description A string to match artifact keys against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-artifact-%
              */
             like_?: string | null;
             /**
@@ -3336,6 +3354,7 @@ export interface components {
             /**
              * Like
              * @description A string to match artifact keys against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-artifact-%
              */
             like_?: string | null;
             /**
@@ -3546,11 +3565,19 @@ export interface components {
             /**
              * All
              * @description A list of tags. Automations will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
              * Any
              * @description A list of tags. Automations will be returned if their tags contain any of the tags in the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
@@ -3788,6 +3815,7 @@ export interface components {
             /**
              * Like
              * @description A string to match block names against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-block%
              */
             like_?: string | null;
         };
@@ -3933,6 +3961,10 @@ export interface components {
             /**
              * All
              * @description A list of block capabilities. Block entities will be returned only if an associated block schema has a superset of the defined capabilities.
+             * @example [
+             *       "write-storage",
+             *       "read-storage"
+             *     ]
              */
             all_?: string[] | null;
         };
@@ -3955,6 +3987,10 @@ export interface components {
             /**
              * Any
              * @description A list of block schema versions.
+             * @example [
+             *       "2.0.0",
+             *       "2.1.0"
+             *     ]
              */
             any_?: string[] | null;
         };
@@ -4063,6 +4099,7 @@ export interface components {
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -4341,11 +4378,11 @@ export interface components {
              */
             history_end: string;
             /**
-             * History Interval
+             * History Interval Seconds
              * Format: time-delta
              * @description The size of each history interval, in seconds. Must be at least 1 second.
              */
-            history_interval: number;
+            history_interval_seconds: number;
             flows?: components["schemas"]["FlowFilter"] | null;
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
@@ -4972,11 +5009,11 @@ export interface components {
              */
             history_end: string;
             /**
-             * History Interval
+             * History Interval Seconds
              * Format: time-delta
              * @description The size of each history interval, in seconds. Must be at least 1 second.
              */
-            history_interval: number;
+            history_interval_seconds: number;
             flows?: components["schemas"]["FlowFilter"];
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
@@ -5114,54 +5151,57 @@ export interface components {
         ClientSettings: {
             /**
              * Max Retries
-             * @description
-             *             The maximum number of retries to perform on failed HTTP requests.
+             * @description The maximum number of retries to perform on failed HTTP requests.
              *             Defaults to 5. Set to 0 to disable retries.
              *             See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
              *             retried.
-             *
              * @default 5
              */
             max_retries: number;
             /**
              * Retry Jitter Factor
-             * @description
-             *             A value greater than or equal to zero to control the amount of jitter added to retried
+             * @description A value greater than or equal to zero to control the amount of jitter added to retried
              *             client requests. Higher values introduce larger amounts of jitter.
              *             Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
              *             can affect retry lengths.
-             *
              * @default 0.2
              */
             retry_jitter_factor: number;
             /**
              * Retry Extra Codes
-             * @description
-             *             A list of extra HTTP status codes to retry on. Defaults to an empty list.
+             * @description A list of extra HTTP status codes to retry on. Defaults to an empty list.
              *             429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
              *             may result in unexpected behavior.
-             *
+             * @example 404,429,503
+             * @example 429
+             * @example [
+             *       404,
+             *       429,
+             *       503
+             *     ]
              */
             retry_extra_codes?: string | number | number[] | null;
             /**
              * Csrf Support Enabled
-             * @description
-             *             Determines if CSRF token handling is active in the Prefect client for API
+             * @description Determines if CSRF token handling is active in the Prefect client for API
              *             requests.
              *
              *             When enabled (`True`), the client automatically manages CSRF tokens by
              *             retrieving, storing, and including them in applicable state-changing requests
-             *
              * @default true
              */
             csrf_support_enabled: boolean;
             /**
              * Custom Headers
-             * @description
-             *             Custom HTTP headers to include with every API request to the Prefect server.
+             * @description Custom HTTP headers to include with every API request to the Prefect server.
              *             Headers are specified as key-value pairs. Note that headers like 'User-Agent'
              *             and CSRF-related headers are managed by Prefect and cannot be overridden.
-             *
+             * @example {
+             *       "X-Custom-Header": "value"
+             *     }
+             * @example {
+             *       "Authorization": "Bearer token"
+             *     }
              */
             custom_headers?: {
                 [key: string]: string;
@@ -5185,6 +5225,12 @@ export interface components {
              * @default true
              */
             enable_orchestration_telemetry: boolean;
+            /**
+             * Max Log Size
+             * @description Maximum size in characters for a single log when sending logs to Prefect Cloud.
+             * @default 25000
+             */
+            max_log_size: number;
             /**
              * Ui Url
              * @description The URL of the Prefect Cloud UI. If not set, the client will attempt to infer it.
@@ -5438,6 +5484,11 @@ export interface components {
          */
         ConcurrencyOptions: {
             collision_strategy: components["schemas"]["ConcurrencyLimitStrategy"];
+            /**
+             * Grace Period Seconds
+             * @description Grace period in seconds for infrastructure to start before concurrency slots are revoked. If not set, falls back to server setting.
+             */
+            grace_period_seconds?: number | null;
         };
         /**
          * Constant
@@ -5548,9 +5599,15 @@ export interface components {
          *             2nd friday of a month by setting the days of month and the weekday.
          */
         CronSchedule: {
-            /** Cron */
+            /**
+             * Cron
+             * @example 0 0 * * *
+             */
             cron: string;
-            /** Timezone */
+            /**
+             * Timezone
+             * @example America/New_York
+             */
             timezone?: string | null;
             /**
              * Day Or
@@ -5588,32 +5645,7 @@ export interface components {
             expiration: string;
         };
         /** DependencyResult */
-        "DependencyResult-Input": {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Name */
-            name: string;
-            /** Upstream Dependencies */
-            upstream_dependencies: components["schemas"]["TaskRunResult"][];
-            state: components["schemas"]["State"] | null;
-            /** Expected Start Time */
-            expected_start_time: string | null;
-            /** Start Time */
-            start_time: string | null;
-            /** End Time */
-            end_time: string | null;
-            /** Total Run Time */
-            total_run_time: number | null;
-            /** Estimated Run Time */
-            estimated_run_time: number | null;
-            /** Untrackable Result */
-            untrackable_result: boolean;
-        };
-        /** DependencyResult */
-        "DependencyResult-Output": {
+        DependencyResult: {
             /**
              * Id
              * Format: uuid
@@ -5645,6 +5677,7 @@ export interface components {
             /**
              * Name
              * @description The name of the deployment.
+             * @example my-deployment
              */
             name: string;
             /**
@@ -5701,11 +5734,19 @@ export interface components {
             /**
              * Tags
              * @description A list of deployment tags.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -5719,6 +5760,7 @@ export interface components {
             /**
              * Work Pool Name
              * @description The name of the deployment's work pool.
+             * @example my-work-pool
              */
             work_pool_name?: string | null;
             /** Storage Document Id */
@@ -5816,11 +5858,16 @@ export interface components {
             /**
              * Any
              * @description A list of deployment names to include
+             * @example [
+             *       "my-deployment-1",
+             *       "my-deployment-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -5848,11 +5895,19 @@ export interface components {
             /**
              * All
              * @description A list of tags. Deployments will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
              * Any
              * @description A list of tags to include
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
@@ -5869,6 +5924,10 @@ export interface components {
             /**
              * Any
              * @description A list of work queue names to include
+             * @example [
+             *       "work_queue_1",
+             *       "work_queue_2"
+             *     ]
              */
             any_?: string[] | null;
         };
@@ -5882,6 +5941,7 @@ export interface components {
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
+             * @example my-flow-run
              */
             name?: string;
             /** Parameters */
@@ -5904,6 +5964,10 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the flow run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
@@ -5914,6 +5978,10 @@ export interface components {
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6023,11 +6091,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the deployment
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6037,6 +6113,11 @@ export interface components {
              * @description The work queue for the deployment. If no work queue is set, work will not be scheduled.
              */
             work_queue_name?: string | null;
+            /**
+             * Work Queue Id
+             * @description The id of the work pool queue to which this deployment is assigned.
+             */
+            work_queue_id?: string | null;
             /**
              * Last Polled
              * @description The last time the deployment was polled for status updates.
@@ -6266,6 +6347,10 @@ export interface components {
             /**
              * Tags
              * @description A list of deployment tags.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /** Work Queue Name */
@@ -6273,6 +6358,7 @@ export interface components {
             /**
              * Work Pool Name
              * @description The name of the deployment's work pool.
+             * @example my-work-pool
              */
             work_pool_name?: string | null;
             /** Path */
@@ -6315,6 +6401,8 @@ export interface components {
             /**
              * Default Docker Build Namespace
              * @description The default Docker namespace to use when building images.
+             * @example my-dockerhub-registry
+             * @example 4999999999999.dkr.ecr.us-east-2.amazonaws.com/my-ecr-repo
              */
             default_docker_build_namespace?: string | null;
         };
@@ -6581,6 +6669,10 @@ export interface components {
             /**
              * Query
              * @description Text search query string
+             * @example error
+             * @example error -debug
+             * @example "connection timeout"
+             * @example +required -excluded
              */
             query: string;
         };
@@ -6674,16 +6766,25 @@ export interface components {
             /**
              * Name
              * @description The name of the flow
+             * @example my-flow
              */
             name: string;
             /**
              * Tags
              * @description A list of flow tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6697,16 +6798,25 @@ export interface components {
             /**
              * Name
              * @description The name of the flow
+             * @example my-flow
              */
             name: string;
             /**
              * Tags
              * @description A list of flow tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6766,11 +6876,16 @@ export interface components {
             /**
              * Any
              * @description A list of flow names to include
+             * @example [
+             *       "my-flow-1",
+             *       "my-flow-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -6787,6 +6902,10 @@ export interface components {
             /**
              * All
              * @description A list of tags. Flows will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
@@ -6812,7 +6931,7 @@ export interface components {
          * FlowRun
          * @description An ORM representation of flow run data.
          */
-        "FlowRun-Input": {
+        FlowRun: {
             /**
              * Id
              * Format: uuid
@@ -6825,6 +6944,7 @@ export interface components {
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
+             * @example my-flow-run
              */
             name?: string;
             /**
@@ -6846,6 +6966,7 @@ export interface components {
             /**
              * Deployment Version
              * @description The version of the deployment associated with this flow run.
+             * @example 1.0
              */
             deployment_version?: string | null;
             /**
@@ -6856,6 +6977,7 @@ export interface components {
             /**
              * Flow Version
              * @description The version of the flow executed in this flow run.
+             * @example 1.0
              */
             flow_version?: string | null;
             /**
@@ -6873,6 +6995,9 @@ export interface components {
             /**
              * Context
              * @description Additional context for the flow run.
+             * @example {
+             *       "my_var": "my_value"
+             *     }
              */
             context?: {
                 [key: string]: unknown;
@@ -6881,182 +7006,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags on the flow run
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
-             */
-            labels?: {
-                [key: string]: boolean | number | string;
-            } | null;
-            /**
-             * Parent Task Run Id
-             * @description If the flow run is a subflow, the id of the 'dummy' task in the parent flow used to track subflow state.
-             */
-            parent_task_run_id?: string | null;
-            /** @description The type of the current flow run state. */
-            state_type?: components["schemas"]["StateType"] | null;
-            /**
-             * State Name
-             * @description The name of the current flow run state.
-             */
-            state_name?: string | null;
-            /**
-             * Run Count
-             * @description The number of times the flow run was executed.
-             * @default 0
-             */
-            run_count: number;
-            /**
-             * Expected Start Time
-             * @description The flow run's expected start time.
-             */
-            expected_start_time?: string | null;
-            /**
-             * Next Scheduled Start Time
-             * @description The next time the flow run is scheduled to start.
-             */
-            next_scheduled_start_time?: string | null;
-            /**
-             * Start Time
-             * @description The actual start time.
-             */
-            start_time?: string | null;
-            /**
-             * End Time
-             * @description The actual end time.
-             */
-            end_time?: string | null;
-            /**
-             * Total Run Time
-             * @description Total run time. If the flow run was executed multiple times, the time of each run will be summed.
-             * @default 0
-             */
-            total_run_time: number;
-            /**
-             * Estimated Run Time
-             * @description A real-time estimate of the total run time.
-             * @default 0
-             */
-            estimated_run_time: number;
-            /**
-             * Estimated Start Time Delta
-             * @description The difference between actual and expected start time.
-             * @default 0
-             */
-            estimated_start_time_delta: number;
-            /**
-             * Auto Scheduled
-             * @description Whether or not the flow run was automatically scheduled.
-             * @default false
-             */
-            auto_scheduled: boolean;
-            /**
-             * Infrastructure Document Id
-             * @description The block document defining infrastructure to use this flow run.
-             */
-            infrastructure_document_id?: string | null;
-            /**
-             * Infrastructure Pid
-             * @description The id of the flow run as returned by an infrastructure block.
-             */
-            infrastructure_pid?: string | null;
-            /** @description Optional information about the creator of this flow run. */
-            created_by?: components["schemas"]["CreatedBy"] | null;
-            /**
-             * Work Queue Id
-             * @description The id of the run's work pool queue.
-             */
-            work_queue_id?: string | null;
-            /** @description The current state of the flow run. */
-            state?: components["schemas"]["State"] | null;
-            /**
-             * Job Variables
-             * @description Variables used as overrides in the base job template
-             */
-            job_variables?: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /**
-         * FlowRun
-         * @description An ORM representation of flow run data.
-         */
-        "FlowRun-Output": {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Created */
-            created: string | null;
-            /** Updated */
-            updated: string | null;
-            /**
-             * Name
-             * @description The name of the flow run. Defaults to a random slug if not specified.
-             */
-            name?: string;
-            /**
-             * Flow Id
-             * Format: uuid
-             * @description The id of the flow being run.
-             */
-            flow_id: string;
-            /**
-             * State Id
-             * @description The id of the flow run's current state.
-             */
-            state_id?: string | null;
-            /**
-             * Deployment Id
-             * @description The id of the deployment associated with this flow run, if available.
-             */
-            deployment_id?: string | null;
-            /**
-             * Deployment Version
-             * @description The version of the deployment associated with this flow run.
-             */
-            deployment_version?: string | null;
-            /**
-             * Work Queue Name
-             * @description The work queue that handled this flow run.
-             */
-            work_queue_name?: string | null;
-            /**
-             * Flow Version
-             * @description The version of the flow executed in this flow run.
-             */
-            flow_version?: string | null;
-            /**
-             * Parameters
-             * @description Parameters for the flow run.
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Idempotency Key
-             * @description An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times.
-             */
-            idempotency_key?: string | null;
-            /**
-             * Context
-             * @description Additional context for the flow run.
-             */
-            context?: {
-                [key: string]: unknown;
-            };
-            empirical_policy?: components["schemas"]["FlowRunPolicy"];
-            /**
-             * Tags
-             * @description A list of tags on the flow run
-             */
-            tags?: string[];
-            /**
-             * Labels
-             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -7160,6 +7122,7 @@ export interface components {
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
+             * @example my-flow-run
              */
             name?: string;
             /**
@@ -7193,11 +7156,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the flow run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -7379,11 +7350,16 @@ export interface components {
             /**
              * Any
              * @description A list of flow run names to include
+             * @example [
+             *       "my-flow-run-1",
+             *       "my-flow-run-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -7521,11 +7497,19 @@ export interface components {
             /**
              * All
              * @description A list of tags. Flow runs will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
              * Any
              * @description A list of tags to include
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
@@ -7547,6 +7531,10 @@ export interface components {
             /**
              * Any
              * @description A list of work queue names to include
+             * @example [
+             *       "work_queue_1",
+             *       "work_queue_2"
+             *     ]
              */
             any_?: string[] | null;
             /**
@@ -7661,6 +7649,7 @@ export interface components {
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
+             * @example my-flow-run
              */
             name?: string;
             /**
@@ -7682,6 +7671,7 @@ export interface components {
             /**
              * Deployment Version
              * @description The version of the deployment associated with this flow run.
+             * @example 1.0
              */
             deployment_version?: string | null;
             /**
@@ -7697,6 +7687,7 @@ export interface components {
             /**
              * Flow Version
              * @description The version of the flow executed in this flow run.
+             * @example 1.0
              */
             flow_version?: string | null;
             /**
@@ -7714,6 +7705,9 @@ export interface components {
             /**
              * Context
              * @description Additional context for the flow run.
+             * @example {
+             *       "my_var": "my_val"
+             *     }
              */
             context?: {
                 [key: string]: unknown;
@@ -7722,11 +7716,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags on the flow run
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -7813,6 +7815,7 @@ export interface components {
             /**
              * Work Pool Name
              * @description The name of the flow run's work pool.
+             * @example my-work-pool
              */
             work_pool_name?: string | null;
             /** @description The current state of the flow run. */
@@ -7882,6 +7885,10 @@ export interface components {
             /**
              * Tags
              * @description A list of flow tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
         };
@@ -8009,30 +8016,7 @@ export interface components {
          * HistoryResponse
          * @description Represents a history of aggregation states over an interval
          */
-        "HistoryResponse-Input": {
-            /**
-             * Interval Start
-             * Format: date-time
-             * @description The start date of the interval.
-             */
-            interval_start: string;
-            /**
-             * Interval End
-             * Format: date-time
-             * @description The end date of the interval.
-             */
-            interval_end: string;
-            /**
-             * States
-             * @description A list of state histories during the interval.
-             */
-            states: components["schemas"]["HistoryResponseState"][];
-        };
-        /**
-         * HistoryResponse
-         * @description Represents a history of aggregation states over an interval
-         */
-        "HistoryResponse-Output": {
+        HistoryResponse: {
             /**
              * Interval Start
              * Format: date-time
@@ -8123,9 +8107,13 @@ export interface components {
             /**
              * Anchor Date
              * Format: date-time
+             * @example 2020-01-01T00:00:00Z
              */
             anchor_date?: string;
-            /** Timezone */
+            /**
+             * Timezone
+             * @example America/New_York
+             */
             timezone?: string | null;
         };
         /**
@@ -8245,11 +8233,13 @@ export interface components {
             /**
              * Ge
              * @description Include logs with a level greater than or equal to this level
+             * @example 20
              */
             ge_?: number | null;
             /**
              * Le
              * @description Include logs with a level less than or equal to this level
+             * @example 50
              */
             le_?: number | null;
         };
@@ -8277,6 +8267,10 @@ export interface components {
             /**
              * Query
              * @description Text search query string
+             * @example error
+             * @example error -debug
+             * @example "connection timeout"
+             * @example +required -excluded
              */
             query: string;
         };
@@ -8339,15 +8333,13 @@ export interface components {
             colors: boolean;
             /**
              * Markup
-             * @description
-             *             Whether to interpret strings wrapped in square brackets as a style.
+             * @description Whether to interpret strings wrapped in square brackets as a style.
              *             This allows styles to be conveniently added to log messages, e.g.
              *             `[red]This is a red message.[/red]`. However, the downside is, if enabled,
              *             strings that contain square brackets may be inaccurately interpreted and
              *             lead to incomplete output, e.g.
              *             `[red]This is a red message.[/red]` may be interpreted as
              *             `[red]This is a red message.[/red]`.
-             *
              * @default false
              */
             markup: boolean;
@@ -8378,14 +8370,13 @@ export interface components {
             batch_size: number;
             /**
              * Max Log Size
-             * @description The maximum size in bytes for a single log.
+             * @description The maximum size in characters for a single log. When connected to Prefect Cloud, this value is capped at `PREFECT_CLOUD_MAX_LOG_SIZE` (default 25,000).
              * @default 1000000
              */
             max_log_size: number;
             /**
              * When Missing Flow
-             * @description
-             *             Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
+             * @description Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
              *
              *             All logs sent to the API must be associated with a flow run. The API log handler can
              *             only be used outside of a flow by manually providing a flow run identifier. Logs
@@ -8397,7 +8388,6 @@ export interface components {
              *             - "warn": Log a warning message.
              *             - "error": Raise an error.
              *             - "ignore": Do not log a warning message or raise an error.
-             *
              * @default warn
              * @enum {string}
              */
@@ -8976,6 +8966,11 @@ export interface components {
              */
             application_name?: string | null;
             /**
+             * Search Path
+             * @description PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend. Note: The public schema should be included in the search path (e.g. 'myschema, public') to ensure that pg_trgm and other extensions remain available.
+             */
+            search_path?: string | null;
+            /**
              * Statement Cache Size
              * @description Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
              */
@@ -9128,37 +9123,23 @@ export interface components {
             value: unknown;
         };
         /** SchemaValueIndexError */
-        "SchemaValueIndexError-Input": {
+        SchemaValueIndexError: {
             /** Index */
             index: number;
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Input"] | components["schemas"]["SchemaValueIndexError-Input"])[];
-        };
-        /** SchemaValueIndexError */
-        "SchemaValueIndexError-Output": {
-            /** Index */
-            index: number;
-            /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
         };
         /** SchemaValuePropertyError */
-        "SchemaValuePropertyError-Input": {
+        SchemaValuePropertyError: {
             /** Property */
             property: string;
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Input"] | components["schemas"]["SchemaValueIndexError-Input"])[];
-        };
-        /** SchemaValuePropertyError */
-        "SchemaValuePropertyError-Output": {
-            /** Property */
-            property: string;
-            /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
         };
         /** SchemaValuesValidationResponse */
         SchemaValuesValidationResponse: {
             /** Errors */
-            errors: (string | components["schemas"]["SchemaValuePropertyError-Output"] | components["schemas"]["SchemaValueIndexError-Output"])[];
+            errors: (string | components["schemas"]["SchemaValuePropertyError"] | components["schemas"]["SchemaValueIndexError"])[];
             /** Valid */
             valid: boolean;
         };
@@ -9261,6 +9242,7 @@ export interface components {
             /**
              * Base Path
              * @description The base URL path to serve the API under.
+             * @example /v2/api
              */
             base_path?: string | null;
             /**
@@ -9271,8 +9253,7 @@ export interface components {
             default_limit: number;
             /**
              * Keepalive Timeout
-             * @description
-             *             The API's keep alive timeout (defaults to `5`).
+             * @description The API's keep alive timeout (defaults to `5`).
              *             Refer to https://www.uvicorn.org/settings/#timeouts for details.
              *
              *             When the API is hosted behind a load balancer, you may want to set this to a value
@@ -9280,14 +9261,12 @@ export interface components {
              *
              *             Note this setting only applies when calling `prefect server start`; if hosting the
              *             API with another tool you will need to configure this there instead.
-             *
              * @default 5
              */
             keepalive_timeout: number;
             /**
              * Csrf Protection Enabled
-             * @description
-             *             Controls the activation of CSRF protection for the Prefect server API.
+             * @description Controls the activation of CSRF protection for the Prefect server API.
              *
              *             When enabled (`True`), the server enforces CSRF validation checks on incoming
              *             state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
@@ -9300,51 +9279,42 @@ export interface components {
              *
              *             Note: Enabling this setting requires corresponding support in the client for
              *             CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
-             *
              * @default false
              */
             csrf_protection_enabled: boolean;
             /**
              * Csrf Token Expiration
              * Format: duration
-             * @description
-             *             Specifies the duration for which a CSRF token remains valid after being issued
+             * @description Specifies the duration for which a CSRF token remains valid after being issued
              *             by the server.
              *
              *             The default expiration time is set to 1 hour, which offers a reasonable
              *             compromise. Adjust this setting based on your specific security requirements
              *             and usage patterns.
-             *
              * @default PT1H
              */
             csrf_token_expiration: string;
             /**
              * Cors Allowed Origins
-             * @description
-             *             A comma-separated list of origins that are authorized to make cross-origin requests to the API.
+             * @description A comma-separated list of origins that are authorized to make cross-origin requests to the API.
              *
              *             By default, this is set to `*`, which allows requests from all origins.
-             *
              * @default *
              */
             cors_allowed_origins: string;
             /**
              * Cors Allowed Methods
-             * @description
-             *             A comma-separated list of methods that are authorized to make cross-origin requests to the API.
+             * @description A comma-separated list of methods that are authorized to make cross-origin requests to the API.
              *
              *             By default, this is set to `*`, which allows requests from all methods.
-             *
              * @default *
              */
             cors_allowed_methods: string;
             /**
              * Cors Allowed Headers
-             * @description
-             *             A comma-separated list of headers that are authorized to make cross-origin requests to the API.
+             * @description A comma-separated list of headers that are authorized to make cross-origin requests to the API.
              *
              *             By default, this is set to `*`, which allows requests from all headers.
-             *
              * @default *
              */
             cors_allowed_headers: string;
@@ -9363,6 +9333,12 @@ export interface components {
              * @default 300
              */
             initial_deployment_lease_duration: number;
+            /**
+             * Maximum Concurrency Slot Wait Seconds
+             * @description The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.
+             * @default 30
+             */
+            maximum_concurrency_slot_wait_seconds: number;
         };
         /**
          * ServerDatabaseSettings
@@ -9373,8 +9349,7 @@ export interface components {
             sqlalchemy?: components["schemas"]["SQLAlchemySettings"];
             /**
              * Connection Url
-             * @description
-             *             A database connection URL in a SQLAlchemy-compatible
+             * @description A database connection URL in a SQLAlchemy-compatible
              *             format. Prefect currently supports SQLite and Postgres. Note that all
              *             Prefect database engines must use an async driver - for SQLite, use
              *             `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
@@ -9384,7 +9359,6 @@ export interface components {
              *             which will allow the database to be accessed by multiple threads. Note
              *             that in-memory databases can not be accessed from multiple processes and
              *             should only be used for simple tests.
-             *
              */
             connection_url?: string | null;
             /**
@@ -9476,18 +9450,14 @@ export interface components {
         ServerEphemeralSettings: {
             /**
              * Enabled
-             * @description
-             *             Controls whether or not a subprocess server can be started when no API URL is provided.
-             *
+             * @description Controls whether or not a subprocess server can be started when no API URL is provided.
              * @default false
              */
             enabled: boolean;
             /**
              * Startup Timeout Seconds
-             * @description
-             *             The number of seconds to wait for the server to start when ephemeral mode is enabled.
+             * @description The number of seconds to wait for the server to start when ephemeral mode is enabled.
              *             Defaults to `20`.
-             *
              * @default 20
              */
             startup_timeout_seconds: number;
@@ -9671,6 +9641,12 @@ export interface components {
              */
             batch_size: number;
             /**
+             * Read Batch Size
+             * @description The number of events the event persister will attempt to read from the message broker in one batch.
+             * @default 1
+             */
+            read_batch_size: number;
+            /**
              * Flush Interval
              * @description The maximum number of seconds between flushes of the event persister.
              * @default 5
@@ -9682,6 +9658,18 @@ export interface components {
              * @default 10000
              */
             batch_size_delete: number;
+            /**
+             * Queue Max Size
+             * @description The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.
+             * @default 50000
+             */
+            queue_max_size: number;
+            /**
+             * Max Flush Retries
+             * @description The maximum number of consecutive flush failures before events are dropped instead of being re-queued.
+             * @default 5
+             */
+            max_flush_retries: number;
         };
         /**
          * ServerServicesForemanSettings
@@ -9702,36 +9690,28 @@ export interface components {
             loop_seconds: number;
             /**
              * Inactivity Heartbeat Multiple
-             * @description
-             *             The number of heartbeats that must be missed before a worker is marked as offline. Defaults to `3`.
-             *
+             * @description The number of heartbeats that must be missed before a worker is marked as offline. Defaults to `3`.
              * @default 3
              */
             inactivity_heartbeat_multiple: number;
             /**
              * Fallback Heartbeat Interval Seconds
-             * @description
-             *             The number of seconds to use for online/offline evaluation if a worker's heartbeat
+             * @description The number of seconds to use for online/offline evaluation if a worker's heartbeat
              *             interval is not set. Defaults to `30`.
-             *
              * @default 30
              */
             fallback_heartbeat_interval_seconds: number;
             /**
              * Deployment Last Polled Timeout Seconds
-             * @description
-             *             The number of seconds before a deployment is marked as not ready if it has not been
+             * @description The number of seconds before a deployment is marked as not ready if it has not been
              *             polled. Defaults to `60`.
-             *
              * @default 60
              */
             deployment_last_polled_timeout_seconds: number;
             /**
              * Work Queue Last Polled Timeout Seconds
-             * @description
-             *             The number of seconds before a work queue is marked as not ready if it has not been
+             * @description The number of seconds before a work queue is marked as not ready if it has not been
              *             polled. Defaults to `60`.
-             *
              * @default 60
              */
             work_queue_last_polled_timeout_seconds: number;
@@ -9749,18 +9729,14 @@ export interface components {
             enabled: boolean;
             /**
              * Loop Seconds
-             * @description
-             *             The late runs service will look for runs to mark as late this often. Defaults to `5`.
-             *
+             * @description The late runs service will look for runs to mark as late this often. Defaults to `5`.
              * @default 5
              */
             loop_seconds: number;
             /**
              * After Seconds
              * Format: duration
-             * @description
-             *             The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
-             *
+             * @description The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
              * @default PT15S
              */
             after_seconds: string;
@@ -9772,19 +9748,15 @@ export interface components {
         ServerServicesPauseExpirationsSettings: {
             /**
              * Enabled
-             * @description
-             *             Whether or not to start the paused flow run expiration service in the server
+             * @description Whether or not to start the paused flow run expiration service in the server
              *             application. If disabled, paused flows that have timed out will remain in a Paused state
              *             until a resume attempt.
-             *
              * @default true
              */
             enabled: boolean;
             /**
              * Loop Seconds
-             * @description
-             *             The pause expiration service will look for runs to mark as failed this often. Defaults to `5`.
-             *
+             * @description The pause expiration service will look for runs to mark as failed this often. Defaults to `5`.
              * @default 5
              */
             loop_seconds: number;
@@ -9820,88 +9792,72 @@ export interface components {
             enabled: boolean;
             /**
              * Loop Seconds
-             * @description
-             *             The scheduler loop interval, in seconds. This determines
+             * @description The scheduler loop interval, in seconds. This determines
              *             how often the scheduler will attempt to schedule new flow runs, but has no
              *             impact on how quickly either flow runs or task runs are actually executed.
              *             Defaults to `60`.
-             *
              * @default 60
              */
             loop_seconds: number;
             /**
              * Deployment Batch Size
-             * @description
-             *             The number of deployments the scheduler will attempt to
+             * @description The number of deployments the scheduler will attempt to
              *             schedule in a single batch. If there are more deployments than the batch
              *             size, the scheduler immediately attempts to schedule the next batch; it
              *             does not sleep for `scheduler_loop_seconds` until it has visited every
              *             deployment once. Defaults to `100`.
-             *
              * @default 100
              */
             deployment_batch_size: number;
             /**
              * Max Runs
-             * @description
-             *             The scheduler will attempt to schedule up to this many
+             * @description The scheduler will attempt to schedule up to this many
              *             auto-scheduled runs in the future. Note that runs may have fewer than
              *             this many scheduled runs, depending on the value of
              *             `scheduler_max_scheduled_time`.  Defaults to `100`.
-             *
              * @default 100
              */
             max_runs: number;
             /**
              * Min Runs
-             * @description
-             *             The scheduler will attempt to schedule at least this many
+             * @description The scheduler will attempt to schedule at least this many
              *             auto-scheduled runs in the future. Note that runs may have more than
              *             this many scheduled runs, depending on the value of
              *             `scheduler_min_scheduled_time`.  Defaults to `3`.
-             *
              * @default 3
              */
             min_runs: number;
             /**
              * Max Scheduled Time
              * Format: duration
-             * @description
-             *             The scheduler will create new runs up to this far in the
+             * @description The scheduler will create new runs up to this far in the
              *             future. Note that this setting will take precedence over
              *             `scheduler_max_runs`: if a flow runs once a month and
              *             `scheduler_max_scheduled_time` is three months, then only three runs will be
              *             scheduled. Defaults to 100 days (`8640000` seconds).
-             *
              * @default P100D
              */
             max_scheduled_time: string;
             /**
              * Min Scheduled Time
              * Format: duration
-             * @description
-             *             The scheduler will create new runs at least this far in the
+             * @description The scheduler will create new runs at least this far in the
              *             future. Note that this setting will take precedence over `scheduler_min_runs`:
              *             if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
              *             then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
-             *
              * @default PT1H
              */
             min_scheduled_time: string;
             /**
              * Insert Batch Size
-             * @description
-             *             The number of runs the scheduler will attempt to insert in a single batch.
+             * @description The number of runs the scheduler will attempt to insert in a single batch.
              *             Defaults to `500`.
-             *
              * @default 500
              */
             insert_batch_size: number;
             /**
              * Recent Deployments Loop Seconds
-             * @description
-             *             The number of seconds the recent deployments scheduler will wait between checking for recently updated deployments. Defaults to `5`.
-             *
+             * @description The number of seconds the recent deployments scheduler will wait between checking for recently updated deployments. Defaults to `5`.
              * @default 5
              */
             recent_deployments_loop_seconds: number;
@@ -9933,6 +9889,24 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /**
+             * Read Batch Size
+             * @description The number of task runs the task run recorder will attempt to read from the message broker in one batch.
+             * @default 1
+             */
+            read_batch_size: number;
+            /**
+             * Batch Size
+             * @description The number of task runs the task run recorder will attempt to insert in one batch.
+             * @default 1
+             */
+            batch_size: number;
+            /**
+             * Flush Interval
+             * @description The maximum number of seconds between flushes of the task run recorder.
+             * @default 5
+             */
+            flush_interval: number;
         };
         /**
          * ServerServicesTriggersSettings
@@ -9946,22 +9920,24 @@ export interface components {
              */
             enabled: boolean;
             /**
+             * Read Batch Size
+             * @description The number of events the triggers service will attempt to read from the message broker in one batch.
+             * @default 1
+             */
+            read_batch_size: number;
+            /**
              * Pg Notify Reconnect Interval Seconds
-             * @description
-             *             The number of seconds to wait before reconnecting to the PostgreSQL NOTIFY/LISTEN
+             * @description The number of seconds to wait before reconnecting to the PostgreSQL NOTIFY/LISTEN
              *             connection after an error. Only used when using PostgreSQL as the database.
              *             Defaults to `10`.
-             *
              * @default 10
              */
             pg_notify_reconnect_interval_seconds: number;
             /**
              * Pg Notify Heartbeat Interval Seconds
-             * @description
-             *             The number of seconds between heartbeat checks for the PostgreSQL NOTIFY/LISTEN
+             * @description The number of seconds between heartbeat checks for the PostgreSQL NOTIFY/LISTEN
              *             connection to ensure it's still alive. Only used when using PostgreSQL as the database.
              *             Defaults to `5`.
-             *
              * @default 5
              */
             pg_notify_heartbeat_interval_seconds: number;
@@ -9980,10 +9956,8 @@ export interface components {
             logging_level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
             /**
              * Analytics Enabled
-             * @description
-             *             When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
+             * @description When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
              *             on server startup to help us improve our product.
-             *
              * @default true
              */
             analytics_enabled: boolean;
@@ -10098,6 +10072,12 @@ export interface components {
              */
             enabled: boolean;
             /**
+             * V2 Enabled
+             * @description Whether to serve the experimental V2 UI instead of the default V1 UI.
+             * @default false
+             */
+            v2_enabled: boolean;
+            /**
              * Api Url
              * @description The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.
              */
@@ -10126,7 +10106,66 @@ export interface components {
          * @enum {string}
          */
         SetStateStatus: "ACCEPT" | "REJECT" | "ABORT" | "WAIT";
-        Settings: unknown;
+        /**
+         * Settings
+         * @description Settings for Prefect using Pydantic settings.
+         *
+         *     See https://docs.pydantic.dev/latest/concepts/pydantic_settings
+         */
+        Settings: {
+            /**
+             * Home
+             * Format: path
+             * @description The path to the Prefect home directory. Defaults to ~/.prefect
+             * @default ~/.prefect
+             */
+            home: string;
+            /**
+             * Profiles Path
+             * Format: path
+             * @description The path to a profiles configuration file. Supports \$PREFECT_HOME templating. Defaults to \$PREFECT_HOME/profiles.toml.
+             */
+            profiles_path?: string;
+            /**
+             * Debug Mode
+             * @description If True, enables debug mode which may provide additional logging and debugging features.
+             * @default false
+             */
+            debug_mode: boolean;
+            api?: components["schemas"]["APISettings"];
+            cli?: components["schemas"]["CLISettings"];
+            client?: components["schemas"]["ClientSettings"];
+            cloud?: components["schemas"]["CloudSettings"];
+            deployments?: components["schemas"]["DeploymentsSettings"];
+            /** @description Settings for controlling experimental features */
+            experiments?: components["schemas"]["ExperimentsSettings"];
+            flows?: components["schemas"]["FlowsSettings"];
+            /** @description Settings for internal Prefect machinery */
+            internal?: components["schemas"]["InternalSettings"];
+            logging?: components["schemas"]["LoggingSettings"];
+            results?: components["schemas"]["ResultsSettings"];
+            runner?: components["schemas"]["RunnerSettings"];
+            server?: components["schemas"]["ServerSettings"];
+            /** @description Settings for controlling task behavior */
+            tasks?: components["schemas"]["TasksSettings"];
+            /** @description Settings used during testing */
+            testing?: components["schemas"]["TestingSettings"];
+            /** @description Settings for controlling worker behavior */
+            worker?: components["schemas"]["WorkerSettings"];
+            /**
+             * Ui Url
+             * @description The URL of the Prefect UI. If not set, the client will attempt to infer it.
+             */
+            ui_url?: string | null;
+            /**
+             * Silence Api Url Misconfiguration
+             * @description If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+             *             Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
+             *             we would like to silence this warning so we will set it to `FALSE`.
+             * @default false
+             */
+            silence_api_url_misconfiguration: boolean;
+        };
         /** SimpleFlowRun */
         SimpleFlowRun: {
             /**
@@ -10205,7 +10244,10 @@ export interface components {
              * Format: date-time
              */
             timestamp?: string;
-            /** Message */
+            /**
+             * Message
+             * @example Run started
+             */
             message?: string | null;
             /**
              * Data
@@ -10393,7 +10435,10 @@ export interface components {
             created: string | null;
             /** Updated */
             updated: string | null;
-            /** Name */
+            /**
+             * Name
+             * @example my-task-run
+             */
             name?: string;
             /**
              * Flow Run Id
@@ -10429,11 +10474,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the task run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -10510,20 +10563,7 @@ export interface components {
             /** @description The current task run state. */
             state?: components["schemas"]["State"] | null;
         };
-        /** TaskRunCount */
-        "TaskRunCount-Input": {
-            /**
-             * Completed
-             * @description The number of completed task runs.
-             */
-            completed: number;
-            /**
-             * Failed
-             * @description The number of failed task runs.
-             */
-            failed: number;
-        };
-        "TaskRunCount-Output": {
+        TaskRunCount: {
             [key: string]: number;
         };
         /**
@@ -10538,7 +10578,10 @@ export interface components {
             id?: string | null;
             /** @description The state of the task run to create */
             state?: components["schemas"]["StateCreate"] | null;
-            /** Name */
+            /**
+             * Name
+             * @example my-task-run
+             */
             name?: string;
             /**
              * Flow Run Id
@@ -10574,11 +10617,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the task run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -10675,11 +10726,16 @@ export interface components {
             /**
              * Any
              * @description A list of task run names to include
+             * @example [
+             *       "my-task-run-1",
+             *       "my-task-run-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -10765,6 +10821,10 @@ export interface components {
             /**
              * All
              * @description A list of tags. Task runs will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
@@ -10776,7 +10836,7 @@ export interface components {
         /** TaskRunPaginationResponse */
         TaskRunPaginationResponse: {
             /** Results */
-            results: components["schemas"]["TaskRunResponse-Output"][];
+            results: components["schemas"]["TaskRunResponse"][];
             /** Count */
             count: number;
             /** Limit */
@@ -10822,7 +10882,7 @@ export interface components {
             retry_jitter_factor?: number | null;
         };
         /** TaskRunResponse */
-        "TaskRunResponse-Input": {
+        TaskRunResponse: {
             /**
              * Id
              * Format: uuid
@@ -10835,6 +10895,7 @@ export interface components {
             /**
              * Name
              * @description The name of the task run. Defaults to a random slug if not specified.
+             * @example my-task-run
              */
             name?: string;
             /**
@@ -10857,15 +10918,9 @@ export interface components {
             /**
              * Task Version
              * @description The version of the task executed in this task run.
+             * @example 1.0
              */
             task_version?: string | null;
-            /**
-             * Parameters
-             * @description Parameters for the task run.
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
             /**
              * Task Inputs
              * @description Inputs provided to the task run.
@@ -10873,85 +10928,15 @@ export interface components {
             task_inputs?: {
                 [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
             };
-            /**
-             * Context
-             * @description Additional context for the task run.
-             */
-            context?: {
-                [key: string]: unknown;
-            };
             /** @description The task run's empirical retry policy. */
             empirical_policy?: components["schemas"]["TaskRunPolicy"];
             /**
              * Tags
              * @description A list of tags for the task run.
-             */
-            tags?: string[];
-        };
-        /** TaskRunResponse */
-        "TaskRunResponse-Output": {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Created */
-            created: string | null;
-            /** Updated */
-            updated: string | null;
-            /**
-             * Name
-             * @description The name of the task run. Defaults to a random slug if not specified.
-             */
-            name?: string;
-            /**
-             * Flow Run Id
-             * @description The id of the flow run this task run belongs to.
-             */
-            flow_run_id?: string | null;
-            /**
-             * Task Key
-             * @description The key of the task this run represents.
-             */
-            task_key: string;
-            /**
-             * State Id
-             * @description The id of the task run's current state.
-             */
-            state_id?: string | null;
-            /** @description The current state of the task run. */
-            state?: components["schemas"]["State"] | null;
-            /**
-             * Task Version
-             * @description The version of the task executed in this task run.
-             */
-            task_version?: string | null;
-            /**
-             * Parameters
-             * @description Parameters for the task run.
-             */
-            parameters?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Task Inputs
-             * @description Inputs provided to the task run.
-             */
-            task_inputs?: {
-                [key: string]: (components["schemas"]["TaskRunResult"] | components["schemas"]["FlowRunResult"] | components["schemas"]["Parameter"] | components["schemas"]["Constant"])[];
-            };
-            /**
-             * Context
-             * @description Additional context for the task run.
-             */
-            context?: {
-                [key: string]: unknown;
-            };
-            /** @description The task run's empirical retry policy. */
-            empirical_policy?: components["schemas"]["TaskRunPolicy"];
-            /**
-             * Tags
-             * @description A list of tags for the task run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
         };
@@ -10983,7 +10968,10 @@ export interface components {
          * @description Data used by the Prefect REST API to update a task run
          */
         TaskRunUpdate: {
-            /** Name */
+            /**
+             * Name
+             * @example my-task-run
+             */
             name?: string;
         };
         /** TaskWorkerFilter */
@@ -11118,7 +11106,10 @@ export interface components {
             created: string | null;
             /** Updated */
             updated: string | null;
-            /** Name */
+            /**
+             * Name
+             * @example my-task-run
+             */
             name?: string;
             /**
              * Flow Run Id
@@ -11154,11 +11145,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the task run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -11278,11 +11277,13 @@ export interface components {
             /**
              * Name
              * @description The name of the variable
+             * @example my-variable
              */
             name: string;
             /**
              * Value
              * @description The value of the variable
+             * @example my-value
              */
             value: string | number | boolean | {
                 [key: string]: unknown;
@@ -11290,6 +11291,10 @@ export interface components {
             /**
              * Tags
              * @description A list of variable tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
         };
@@ -11301,11 +11306,13 @@ export interface components {
             /**
              * Name
              * @description The name of the variable
+             * @example my_variable
              */
             name: string;
             /**
              * Value
              * @description The value of the variable
+             * @example my-value
              */
             value: string | number | boolean | {
                 [key: string]: unknown;
@@ -11313,6 +11320,10 @@ export interface components {
             /**
              * Tags
              * @description A list of variable tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
         };
@@ -11357,6 +11368,7 @@ export interface components {
             /**
              * Like
              * @description A string to match variable names against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my_variable_%
              */
             like_?: string | null;
         };
@@ -11373,6 +11385,10 @@ export interface components {
             /**
              * All
              * @description A list of tags. Variables will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
@@ -11397,6 +11413,7 @@ export interface components {
             /**
              * Value
              * @description The value of the variable
+             * @example my-value
              */
             value?: string | number | boolean | {
                 [key: string]: unknown;
@@ -11404,6 +11421,10 @@ export interface components {
             /**
              * Tags
              * @description A list of variable tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[] | null;
         };
@@ -11751,11 +11772,19 @@ export interface components {
             /**
              * Any
              * @description A list of work queue names to include
+             * @example [
+             *       "wq-1",
+             *       "wq-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Startswith
              * @description A list of case-insensitive starts-with matches. For example,  passing 'marvin' will match 'marvin', and 'Marvin-robot', but not 'sad-marvin'.
+             * @example [
+             *       "marvin",
+             *       "Marvin-robot"
+             *     ]
              */
             startswith_?: string[] | null;
         };
@@ -11938,7 +11967,7 @@ export interface components {
             not_any_?: components["schemas"]["WorkerStatus"][] | null;
         };
         /** WorkerFlowRunResponse */
-        "WorkerFlowRunResponse-Input": {
+        WorkerFlowRunResponse: {
             /**
              * Work Pool Id
              * Format: uuid
@@ -11949,21 +11978,7 @@ export interface components {
              * Format: uuid
              */
             work_queue_id: string;
-            flow_run: components["schemas"]["FlowRun-Input"];
-        };
-        /** WorkerFlowRunResponse */
-        "WorkerFlowRunResponse-Output": {
-            /**
-             * Work Pool Id
-             * Format: uuid
-             */
-            work_pool_id: string;
-            /**
-             * Work Queue Id
-             * Format: uuid
-             */
-            work_queue_id: string;
-            flow_run: components["schemas"]["FlowRun-Output"];
+            flow_run: components["schemas"]["FlowRun"];
         };
         /** WorkerResponse */
         WorkerResponse: {
@@ -12023,6 +12038,18 @@ export interface components {
              * @default 10
              */
             prefetch_seconds: number;
+            /**
+             * Enable Cancellation
+             * @description Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).
+             * @default false
+             */
+            enable_cancellation: boolean;
+            /**
+             * Cancellation Poll Seconds
+             * @description Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.
+             * @default 120
+             */
+            cancellation_poll_seconds: number;
             /** @description Settings for a worker's webserver */
             webserver?: components["schemas"]["WorkerWebserverSettings"];
         };
@@ -12046,6 +12073,32 @@ export interface components {
              * @default 8080
              */
             port: number;
+        };
+        /**
+         * UISettings
+         * @description Runtime UI configuration returned by /ui-settings endpoint.
+         */
+        UISettings: {
+            /**
+             * Api Url
+             * @description The base URL for API requests.
+             */
+            api_url: string;
+            /**
+             * Csrf Enabled
+             * @description Whether CSRF protection is enabled.
+             */
+            csrf_enabled: boolean;
+            /**
+             * Auth
+             * @description Authentication method (e.g., 'BASIC') or null if disabled.
+             */
+            auth: string | null;
+            /**
+             * Flags
+             * @description List of enabled feature flags.
+             */
+            flags?: string[];
         };
     };
     responses: never;
@@ -12600,7 +12653,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HistoryResponse-Output"][];
+                    "application/json": components["schemas"]["HistoryResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -12634,7 +12687,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DependencyResult-Output"][];
+                    "application/json": components["schemas"]["DependencyResult"][];
                 };
             };
             /** @description Validation Error */
@@ -13242,7 +13295,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HistoryResponse-Output"][];
+                    "application/json": components["schemas"]["HistoryResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -15753,7 +15806,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkerFlowRunResponse-Output"][];
+                    "application/json": components["schemas"]["WorkerFlowRunResponse"][];
                 };
             };
             /** @description Validation Error */
@@ -17968,7 +18021,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskRunCount-Output"][];
+                    "application/json": components["schemas"]["TaskRunCount"][];
                 };
             };
             /** @description Validation Error */
@@ -18270,6 +18323,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ui_settings_ui_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UISettings"];
                 };
             };
         };

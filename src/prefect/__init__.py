@@ -12,21 +12,22 @@ if TYPE_CHECKING:
     from importlib.machinery import ModuleSpec
     from .main import (
         allow_failure,
+        aresume_flow_run,
+        aserve,
         flow,
         Flow,
         get_client,
         get_run_logger,
+        pause_flow_run,
+        resume_flow_run,
+        serve,
         State,
+        suspend_flow_run,
         tags,
         task,
         Task,
         Transaction,
         unmapped,
-        serve,
-        aserve,
-        pause_flow_run,
-        resume_flow_run,
-        suspend_flow_run,
     )
     from prefect.deployments.runner import deploy
 
@@ -62,6 +63,13 @@ __ui_static_subpath__: pathlib.Path = __module_path__ / "server" / "ui_build"
 
 # The absolute path to the built UI within the Python module
 __ui_static_path__: pathlib.Path = __module_path__ / "server" / "ui"
+
+# The absolute path to the built V2 UI within the Python module, used by
+# `prefect server start` to serve a dynamic build of the V2 UI
+__ui_v2_static_subpath__: pathlib.Path = __module_path__ / "server" / "ui_v2_build"
+
+# The absolute path to the built V2 UI within the Python module
+__ui_v2_static_path__: pathlib.Path = __module_path__ / "server" / "ui-v2"
 
 del _build_info, pathlib
 
@@ -118,6 +126,7 @@ _initialize_plugins()
 
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
+    "aresume_flow_run": (__spec__.parent, ".main"),
     "aserve": (__spec__.parent, ".main"),
     "deploy": (__spec__.parent, ".deployments.runner"),
     "flow": (__spec__.parent, ".main"),
@@ -140,6 +149,7 @@ _public_api: dict[str, tuple[Optional[str], str]] = {
 __all__ = [
     "__version__",
     "allow_failure",
+    "aresume_flow_run",
     "aserve",
     "deploy",
     "flow",

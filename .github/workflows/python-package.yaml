@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
@@ -43,6 +43,13 @@ jobs:
         run: |
           uv run prefect dev build-ui
 
+      - name: Build UI v2
+        working-directory: ui-v2
+        run: |
+          npm ci
+          npm run build
+          cp -r dist ../src/prefect/server/ui-v2
+
       - name: Check git diff
         run: |
           git diff --exit-code
@@ -52,7 +59,7 @@ jobs:
           uv build --sdist --wheel --out-dir dist
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pypi-dists
           path: "./dist"
@@ -77,7 +84,7 @@ jobs:
           fi
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: pypi-dists
           path: "./dist"

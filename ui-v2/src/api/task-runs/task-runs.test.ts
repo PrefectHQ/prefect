@@ -1,13 +1,95 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { createFakeTaskRun } from "@/mocks";
 import type { TaskRun } from ".";
-import { queryKeyFactory, useDeleteTaskRun, useSetTaskRunState } from ".";
+import {
+	buildPaginateTaskRunsQuery,
+	queryKeyFactory,
+	useDeleteTaskRun,
+	useSetTaskRunState,
+} from ".";
 
 describe("task runs api", () => {
+	describe("buildPaginateTaskRunsQuery", () => {
+		const mockPaginateTaskRunsAPI = (taskRuns: Array<TaskRun>) => {
+			server.use(
+				http.post(buildApiUrl("/task_runs/paginate"), () => {
+					return HttpResponse.json({
+						limit: 10,
+						page: 1,
+						pages: 1,
+						results: taskRuns,
+						count: taskRuns.length,
+					});
+				}),
+			);
+		};
+
+		it("fetches paginated task runs with default parameters", async () => {
+			const mockTaskRuns = [
+				createFakeTaskRun(),
+				createFakeTaskRun(),
+				createFakeTaskRun(),
+			];
+			mockPaginateTaskRunsAPI(mockTaskRuns);
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildPaginateTaskRunsQuery()),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+			expect(result.current.data.count).toEqual(3);
+			expect(result.current.data.results).toEqual(mockTaskRuns);
+		});
+
+		it("fetches paginated task runs with custom filter", async () => {
+			const mockTaskRuns = [createFakeTaskRun()];
+			mockPaginateTaskRunsAPI(mockTaskRuns);
+
+			const filter = {
+				page: 2,
+				limit: 5,
+				sort: "EXPECTED_START_TIME_ASC" as const,
+				task_runs: {
+					operator: "and_" as const,
+					name: { like_: "test-task" },
+				},
+			};
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useSuspenseQuery(buildPaginateTaskRunsQuery(filter)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data.results).toEqual(mockTaskRuns);
+		});
+
+		it("uses the provided refetch interval", () => {
+			const customRefetchInterval = 60_000;
+
+			const { refetchInterval } = buildPaginateTaskRunsQuery(
+				{ page: 1, sort: "EXPECTED_START_TIME_DESC" },
+				customRefetchInterval,
+			);
+
+			expect(refetchInterval).toBe(customRefetchInterval);
+		});
+
+		it("uses default refetch interval when not specified", () => {
+			const { refetchInterval } = buildPaginateTaskRunsQuery();
+
+			expect(refetchInterval).toBe(30_000);
+		});
+	});
+
 	describe("useSetTaskRunState", () => {
 		const taskRunId = "test-task-run-id";
 		const mockApiResponse = { state: { type: "FAILED", name: "Failed" } };
@@ -102,7 +184,10 @@ describe("task runs api", () => {
 			// Setup mock server error response
 			server.use(
 				http.post(buildApiUrl(`/task_runs/${taskRunId}/set_state`), () => {
-					return new HttpResponse(null, { status: 500 });
+					return new HttpResponse(
+						JSON.stringify({ detail: "Internal server error" }),
+						{ status: 500 },
+					);
 				}),
 			);
 

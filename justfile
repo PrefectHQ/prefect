@@ -78,6 +78,10 @@ generate-settings:
     uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
     uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
 
+# Generate prefect.yaml JSON schema for IDE support
+generate-prefect-yaml-schema:
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_prefect_yaml_schema.py
+
 generate-cli-docs:
     uv run --isolated ./scripts/generate_cli_docs.py
 
@@ -88,11 +92,13 @@ generate-docs:
     @just generate-openapi
     @echo "2. Generating settings schema and reference..."
     @just generate-settings
-    @echo "3. Generating API reference..."
+    @echo "3. Generating prefect.yaml schema..."
+    @just generate-prefect-yaml-schema
+    @echo "4. Generating API reference..."
     @just api-ref-all
-    @echo "4. Generating CLI docs..."
+    @echo "5. Generating CLI docs..."
     @just generate-cli-docs
-    @echo "5. Generating example pages..."
+    @echo "6. Generating example pages..."
     @just generate-examples
     @echo "Documentation generation complete!"
 
@@ -154,6 +160,39 @@ prepare-integration-release PACKAGE:
     echo "Next steps:"
     echo "  1. Review the generated release notes"
     echo "  2. Open a PR to add the release notes to the docs"
+
+# Check for nvm installation
+check-nvm:
+    #!/usr/bin/env bash
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+
+    if ! command -v nvm >/dev/null 2>&1; then
+        echo "nvm is not installed."
+        echo "To install nvm, run:"
+        echo "  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
+        exit 1
+    fi
+
+# Install ui-v2 dependencies
+ui-v2-install: check-nvm
+    #!/usr/bin/env bash
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+
+    cd ui-v2
+    nvm install
+    npm install
+
+# Start the v2 React UI dev server
+ui-v2: ui-v2-install
+    #!/usr/bin/env bash
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+
+    cd ui-v2
+    nvm use
+    npm run dev
 
 # TODO: consider these for GHA (https://just.systems/man/en/github-actions.html)
 

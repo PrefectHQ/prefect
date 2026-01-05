@@ -2,7 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { cva } from "class-variance-authority";
 import { isSameDay } from "date-fns";
 import { format } from "date-fns-tz";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { components } from "@/api/prefect";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/utils";
@@ -31,12 +31,33 @@ export const RunLogs = ({
 	className,
 }: RunLogsProps) => {
 	const parentRef = useRef<HTMLDivElement>(null);
+
+	// Use a ref to store logs for stable getItemKey callback
+	const logsRef = useRef(logs);
+	logsRef.current = logs;
+
+	const getItemKey = useCallback(
+		(index: number) => logsRef.current[index]?.id ?? index,
+		[],
+	);
+
 	const virtualizer = useVirtualizer({
 		count: logs.length,
 		getScrollElement: () => parentRef.current,
 		estimateSize: () => 75,
 		overscan: 5,
+		getItemKey,
 	});
+
+	// Wrap measureElement in a stable callback to prevent infinite re-renders
+	const measureElement = useCallback(
+		(el: HTMLElement | null) => {
+			if (el) {
+				virtualizer.measureElement(el);
+			}
+		},
+		[virtualizer],
+	);
 
 	const virtualItems = virtualize
 		? virtualizer.getVirtualItems()
@@ -46,22 +67,23 @@ export const RunLogs = ({
 				start: i * 75,
 			}));
 
+	// Get the last visible item index for stable effect dependency
+	const lastVisibleIndex = virtualItems.at(-1)?.index;
+
 	/**
 	 * This effect detects when the user has scrolled to the bottom of the logs.
 	 * It works by checking if the last visible virtual item is also the last item in the logs array.
 	 * When this condition is met, it calls the bottomReached callback to potentially load more logs.
 	 */
 	useEffect(() => {
-		const [lastItem] = [...virtualItems].reverse();
-
-		if (!lastItem) {
+		if (lastVisibleIndex === undefined) {
 			return;
 		}
 
-		if (lastItem.index >= logs.length - 1) {
+		if (lastVisibleIndex >= logs.length - 1) {
 			onBottomReached();
 		}
-	}, [logs.length, virtualItems, onBottomReached]);
+	}, [logs.length, lastVisibleIndex, onBottomReached]);
 
 	const showDivider = (index: number): boolean => {
 		if (index === 0) {
@@ -76,8 +98,8 @@ export const RunLogs = ({
 
 	if (logs.length === 0) {
 		return (
-			<div className="flex flex-col gap-2 bg-gray-100 p-2 rounded-md font-mono">
-				<span className="text-gray-500">No logs found</span>
+			<div className="flex flex-col gap-2 bg-muted p-2 rounded-md font-mono">
+				<span className="text-muted-foreground">No logs found</span>
 			</div>
 		);
 	}
@@ -86,7 +108,7 @@ export const RunLogs = ({
 		<div
 			ref={parentRef}
 			className={cn(
-				"bg-gray-100 rounded-md font-mono p-4 overflow-y-auto",
+				"bg-muted rounded-md font-mono p-4 overflow-y-auto",
 				className,
 			)}
 			role="log"
@@ -104,12 +126,13 @@ export const RunLogs = ({
 					return (
 						<li
 							key={log.id}
+							data-index={virtualRow.index}
+							ref={measureElement}
 							style={{
 								position: "absolute",
 								top: 0,
 								left: 0,
 								width: "100%",
-								height: `${virtualRow.size}px`,
 								transform: `translateY(${virtualRow.start}px)`,
 							}}
 						>
@@ -139,7 +162,7 @@ const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 			<div className="select-auto whitespace-pre-wrap break-words">
 				{log.message}
 			</div>
-			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-gray-500 truncate">
+			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-muted-foreground truncate">
 				<span>{format(log.timestamp, "pp")}</span>
 				{taskRunName && <span>{taskRunName}</span>}
 				<span className="font-bold break-all whitespace-normal">
@@ -196,11 +219,11 @@ function logLevelLabel(level: number): LogLevel {
 const LogDivider = ({ date }: { date: Date }) => {
 	return (
 		<div className="flex flex-row justify-center items-center gap-2">
-			<div className="h-[1px] w-full bg-gray-300" />
-			<span className="text-xs text-gray-500 whitespace-nowrap">
+			<div className="h-[1px] w-full bg-muted-foreground/30" />
+			<span className="text-xs text-muted-foreground whitespace-nowrap">
 				{format(date, "MMM d, yyyy")}
 			</span>
-			<div className="h-[1px] w-full bg-gray-300" />
+			<div className="h-[1px] w-full bg-muted-foreground/30" />
 		</div>
 	);
 };

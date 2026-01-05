@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@prefecthq/prefect-design": "^2.16.2",
-    "@prefecthq/prefect-ui-library": "^3.14.4",
+    "@prefecthq/prefect-ui-library": "3.14.5",
     "@prefecthq/vue-charts": "^2.1.1",
     "@prefecthq/vue-compositions": "^1.12.2",
     "@types/lodash.debounce": "4.0.9",
@@ -30,7 +30,7 @@
     "eslint": "^8.57.1",
     "ts-node": "10.9.2",
     "typescript": "^5.9.2",
-    "vite": "^7.1.5",
+    "vite": "^7.2.7",
     "vue-tsc": "^3.1.2"
   }
 }

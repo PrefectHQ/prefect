@@ -10,6 +10,7 @@ export {
 	createFakeDeployment,
 	createFakeDeploymentWithFlow,
 } from "./create-fake-deployment";
+export { createFakeEvent } from "./create-fake-event";
 export { createFakeFlow } from "./create-fake-flow";
 export {
 	createFakeFlowRun,
@@ -20,9 +21,17 @@ export { createFakeGlobalConcurrencyLimit } from "./create-fake-global-concurren
 export { createFakeLog } from "./create-fake-log";
 export { createFakeSchedule } from "./create-fake-schedule";
 export { createFakeServerSettings } from "./create-fake-server-settings";
+export {
+	createFakeSimpleFlowRun,
+	createFakeSimpleFlowRuns,
+	createFakeSimpleFlowRunsMultiDay,
+} from "./create-fake-simple-flow-run";
 export { createFakeState } from "./create-fake-state";
 export { createFakeTaskRunConcurrencyLimit } from "./create-fake-take-run-concurrency-limit";
-export { createFakeTaskRun } from "./create-fake-task-run";
+export {
+	createFakeTaskRun,
+	createFakeTaskRunResponse,
+} from "./create-fake-task-run";
 export { createFakeVersion } from "./create-fake-version";
 export {
 	createFakeWorkPool,

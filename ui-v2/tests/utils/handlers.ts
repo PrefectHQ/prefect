@@ -4,6 +4,16 @@ export const buildApiUrl = (path: string) => {
 	return `${import.meta.env.VITE_API_URL}${path}`;
 };
 
+const artifactsHandlers = [
+	http.post(buildApiUrl("/artifacts/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/artifacts/count"), () => {
+		return HttpResponse.json(0);
+	}),
+];
+
 const automationsHandlers = [
 	http.get(buildApiUrl("/automations/related-to/:resource_id"), () => {
 		return HttpResponse.json([]);
@@ -55,9 +65,46 @@ const blockTypesHandlers = [
 	}),
 ];
 
-const deploymentsHandlers = [
-	http.post(buildApiUrl("/deployments/filter"), () => {
+const eventsHandlers = [
+	http.post(buildApiUrl("/events/filter"), () => {
+		return HttpResponse.json({
+			events: [],
+			total: 0,
+			next_page: null,
+		});
+	}),
+
+	http.get(buildApiUrl("/events/filter/next"), () => {
+		return HttpResponse.json({
+			events: [],
+			total: 0,
+			next_page: null,
+		});
+	}),
+
+	http.post(buildApiUrl("/events/count-by/:countable"), () => {
 		return HttpResponse.json([]);
+	}),
+];
+
+const deploymentsHandlers = [
+	http.get(buildApiUrl("/deployments/:id"), ({ params }) => {
+		const id = params.id as string;
+		return HttpResponse.json({
+			id,
+			name: `Deployment ${id}`,
+			tags: [],
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			flow_id: "flow-1",
+		});
+	}),
+
+	http.post(buildApiUrl("/deployments/filter"), () => {
+		return HttpResponse.json([
+			{ id: "deployment-1", name: "Deployment 1", tags: [] },
+			{ id: "deployment-2", name: "Deployment 2", tags: [] },
+		]);
 	}),
 
 	http.patch(buildApiUrl("/deployments/:id"), () => {
@@ -82,6 +129,17 @@ const deploymentsHandlers = [
 ];
 
 const flowHandlers = [
+	http.get(buildApiUrl("/flows/:id"), () => {
+		return HttpResponse.json({
+			id: "1",
+			name: "Flow 1",
+			tags: [],
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			labels: {},
+		});
+	}),
+
 	http.post(buildApiUrl("/flows/paginate"), () => {
 		return HttpResponse.json({
 			results: [
@@ -91,17 +149,69 @@ const flowHandlers = [
 		});
 	}),
 
+	http.post(buildApiUrl("/flows/filter"), () => {
+		return HttpResponse.json([
+			{ id: "1", name: "Flow 1", tags: [] },
+			{ id: "2", name: "Flow 2", tags: [] },
+		]);
+	}),
+
 	http.post(buildApiUrl("/deployments/count"), () => {
 		return HttpResponse.json(1);
+	}),
+
+	http.post(buildApiUrl("/ui/flows/count-deployments"), () => {
+		return HttpResponse.json({});
+	}),
+
+	http.post(buildApiUrl("/ui/flows/next-runs"), () => {
+		return HttpResponse.json({});
+	}),
+
+	http.delete(buildApiUrl("/flows/:id"), () => {
+		return HttpResponse.json({ status: 204 });
 	}),
 ];
 
 const flowRunHandlers = [
+	http.get(buildApiUrl("/flow_runs/:id"), () => {
+		return HttpResponse.json({
+			id: "1",
+			name: "test-flow-run",
+			flow_id: "flow-1",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			tags: [],
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			state: {
+				id: "state-1",
+				type: "COMPLETED",
+				name: "Completed",
+				timestamp: new Date().toISOString(),
+			},
+		});
+	}),
+
 	http.post(buildApiUrl("/flow_runs/filter"), () => {
 		return HttpResponse.json([
 			{ id: "1", name: "Flow 1", tags: [] },
 			{ id: "2", name: "Flow 2", tags: [] },
 		]);
+	}),
+
+	http.post(buildApiUrl("/flow_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			pages: 0,
+			page: 1,
+			limit: 10,
+		});
+	}),
+
+	http.post(buildApiUrl("/flow_runs/count"), () => {
+		return HttpResponse.json(0);
 	}),
 
 	http.delete(buildApiUrl("/flow_runs/:id"), () => {
@@ -132,6 +242,24 @@ const settingsHandlers = [
 
 const taskRunHandlers = [
 	http.post(buildApiUrl("/task_runs/filter"), () => {
+		return HttpResponse.json([]);
+	}),
+
+	http.post(buildApiUrl("/task_runs/paginate"), () => {
+		return HttpResponse.json({
+			results: [],
+			count: 0,
+			pages: 0,
+			page: 1,
+			limit: 10,
+		});
+	}),
+
+	http.post(buildApiUrl("/task_runs/count"), () => {
+		return HttpResponse.json(0);
+	}),
+
+	http.post(buildApiUrl("/task_runs/history"), () => {
 		return HttpResponse.json([]);
 	}),
 
@@ -213,11 +341,13 @@ const workPoolQueuesHandlers = [
 ];
 
 export const handlers = [
+	...artifactsHandlers,
 	...automationsHandlers,
 	...blockDocumentsHandlers,
 	...blockSchemasHandlers,
 	...blockTypesHandlers,
 	...deploymentsHandlers,
+	...eventsHandlers,
 	...flowHandlers,
 	...flowRunHandlers,
 	...globalConcurrencyLimitsHandlers,

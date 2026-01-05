@@ -7,8 +7,10 @@ import type { components } from "@/api/prefect";
 import { createFakeFlow } from "@/mocks";
 import {
 	buildCountFlowsFilteredQuery,
+	buildDeploymentsCountByFlowQuery,
 	buildFLowDetailsQuery,
 	buildListFlowsQuery,
+	buildNextRunsByFlowQuery,
 	queryKeyFactory,
 	useDeleteFlowById,
 } from ".";
@@ -120,6 +122,119 @@ describe("flows api", () => {
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
 			expect(result.current.data).toEqual(1);
+		});
+	});
+
+	describe("buildDeploymentsCountByFlowQuery", () => {
+		const mockDeploymentsCountByFlow = (counts: Record<string, number>) => {
+			server.use(
+				http.post(buildApiUrl("/ui/flows/count-deployments"), () => {
+					return HttpResponse.json(counts);
+				}),
+			);
+		};
+
+		it("fetches deployment counts by flow IDs", async () => {
+			const flow1 = createFakeFlow();
+			const flow2 = createFakeFlow();
+			const mockCounts = { [flow1.id]: 3, [flow2.id]: 5 };
+			mockDeploymentsCountByFlow(mockCounts);
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useQuery(buildDeploymentsCountByFlowQuery([flow1.id, flow2.id])),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual(mockCounts);
+		});
+
+		it("returns empty object when no flow IDs provided", async () => {
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useQuery(buildDeploymentsCountByFlowQuery([])),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+			expect(result.current.data).toBeUndefined();
+		});
+
+		it("is disabled when enabled option is false", async () => {
+			const flow = createFakeFlow();
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() =>
+					useQuery(
+						buildDeploymentsCountByFlowQuery([flow.id], { enabled: false }),
+					),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+			expect(result.current.data).toBeUndefined();
+		});
+	});
+
+	describe("buildNextRunsByFlowQuery", () => {
+		const mockNextRunsByFlow = (
+			runs: Record<string, components["schemas"]["SimpleNextFlowRun"] | null>,
+		) => {
+			server.use(
+				http.post(buildApiUrl("/ui/flows/next-runs"), () => {
+					return HttpResponse.json(runs);
+				}),
+			);
+		};
+
+		it("fetches next runs by flow IDs", async () => {
+			const flow1 = createFakeFlow();
+			const flow2 = createFakeFlow();
+			const mockRuns = {
+				[flow1.id]: {
+					id: "run-1",
+					flow_id: flow1.id,
+					name: "next-run-1",
+					state_name: "Scheduled",
+					state_type: "SCHEDULED" as const,
+					next_scheduled_start_time: new Date().toISOString(),
+				},
+				[flow2.id]: null,
+			};
+			mockNextRunsByFlow(mockRuns);
+
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useQuery(buildNextRunsByFlowQuery([flow1.id, flow2.id])),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.isSuccess).toBe(true));
+			expect(result.current.data).toEqual(mockRuns);
+		});
+
+		it("returns empty object when no flow IDs provided", async () => {
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useQuery(buildNextRunsByFlowQuery([])),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+			expect(result.current.data).toBeUndefined();
+		});
+
+		it("is disabled when enabled option is false", async () => {
+			const flow = createFakeFlow();
+			const queryClient = new QueryClient();
+			const { result } = renderHook(
+				() => useQuery(buildNextRunsByFlowQuery([flow.id], { enabled: false })),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+
+			await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+			expect(result.current.data).toBeUndefined();
 		});
 	});
 

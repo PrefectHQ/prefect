@@ -17,7 +17,7 @@ from dbt.artifacts.schemas.results import (
     TestStatus,
 )
 from dbt.artifacts.schemas.run import RunExecutionResult
-from dbt.cli.main import dbtRunner
+from dbt.cli.main import cli, dbtRunner
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
@@ -227,29 +227,53 @@ class PrefectDbtRunner:
         self,
         manifest_node: ManifestNode,
     ) -> list[tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]]:
-        """Get upstream nodes for a given node"""
+        """
+        Get upstream nodes for a given node.
+        Ephemeral nodes are traversed recursively to find non-ephemeral dependencies.
+        Sources without relation_name are ignored.
+        """
         upstream_manifest_nodes: list[
             tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]
         ] = []
+        visited: set[str] = set()
 
-        for depends_on_node in manifest_node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
-            depends_manifest_node = self.manifest.nodes.get(
-                depends_on_node  # type: ignore[reportUnknownMemberType]
-            ) or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+        def collect(node: ManifestNode | SourceDefinition):
+            for depends_on_node in node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
+                if depends_on_node in visited:
+                    continue
+                visited.add(depends_on_node)
 
-            if not depends_manifest_node:
-                continue
-
-            if not depends_manifest_node.relation_name:
-                raise ValueError("Relation name not found in manifest")
-
-            upstream_manifest_nodes.append(
-                (
-                    depends_manifest_node,
-                    self._get_node_prefect_config(depends_manifest_node),
+                depends_manifest_node = (
+                    self.manifest.nodes.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
+                    or self.manifest.sources.get(depends_on_node)  # type: ignore[reportUnknownMemberType]
                 )
-            )
 
+                if not depends_manifest_node:
+                    continue
+
+                # sources without relation_name
+                if (
+                    depends_on_node in self.manifest.sources
+                    and not depends_manifest_node.relation_name
+                ):
+                    continue
+
+                # recursive for ephemerals
+                if (
+                    depends_on_node in self.manifest.nodes
+                    and depends_manifest_node.config.materialized == "ephemeral"
+                ):
+                    collect(depends_manifest_node)
+                    continue
+
+                upstream_manifest_nodes.append(
+                    (
+                        depends_manifest_node,
+                        self._get_node_prefect_config(depends_manifest_node),
+                    )
+                )
+
+        collect(manifest_node)
         return upstream_manifest_nodes
 
     def _get_compiled_code_path(self, manifest_node: ManifestNode) -> Path:
@@ -360,7 +384,16 @@ class PrefectDbtRunner:
             manifest_node
         )
 
-        if manifest_node.resource_type in MATERIALIZATION_NODE_TYPES and enable_assets:
+        # Only create assets for materialization nodes that have a relation_name.
+        # Ephemeral models are NodeType.Model but have relation_name=None because
+        # they're CTEs that don't create database objects. We skip asset creation
+        # for these and fall through to create a regular Task instead.
+        # See: https://github.com/PrefectHQ/prefect/issues/19821
+        if (
+            manifest_node.resource_type in MATERIALIZATION_NODE_TYPES
+            and enable_assets
+            and manifest_node.relation_name
+        ):
             asset = self._create_asset_from_node(manifest_node, adapter_type)
 
             upstream_assets: list[Asset] = []
@@ -380,8 +413,6 @@ class PrefectDbtRunner:
                     upstream_assets.append(upstream_asset)
 
             task_options = self._create_task_options(manifest_node, upstream_assets)
-            if not manifest_node.relation_name:
-                raise ValueError("Relation name not found in manifest")
             asset_id = format_resource_id(adapter_type, manifest_node.relation_name)
 
             task = MaterializingTask(
@@ -459,6 +490,13 @@ class PrefectDbtRunner:
                 pass
         if self._callback_thread and self._callback_thread.is_alive():
             self._callback_thread.join(timeout=5.0)
+
+        # Reset state so next invoke() can create a fresh callback processor
+        self._event_queue = None
+        self._callback_thread = None
+        self._shutdown_event = None
+        self._queue_counter = 0
+        self._skipped_nodes = set()
 
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
@@ -608,19 +646,27 @@ class PrefectDbtRunner:
                     logger.error(self.get_dbt_event_msg(event))
 
         def _process_node_started_sync(event: EventMsg) -> None:
-            """Actual node started logic - runs in background thread."""
+            """
+            Actual node started logic - runs in background thread.
+            Skips nodes that are ephemeral.
+            """
             node_id = self._get_dbt_event_node_id(event)
             if node_id in self._skipped_nodes:
                 return
 
             manifest_node, prefect_config = self._get_manifest_node_and_config(node_id)
 
-            if manifest_node:
-                enable_assets = (
-                    prefect_config.get("enable_assets", True)
-                    and not self.disable_assets
-                )
-                self._call_task(task_state, manifest_node, context, enable_assets)
+            if not manifest_node:
+                return
+
+            if manifest_node.config.materialized == "ephemeral":
+                self._skipped_nodes.add(node_id)
+                return
+
+            enable_assets = (
+                prefect_config.get("enable_assets", True) and not self.disable_assets
+            )
+            self._call_task(task_state, manifest_node, context, enable_assets)
 
         def _process_node_finished_sync(event: EventMsg) -> None:
             """Actual node finished logic - runs in background thread."""
@@ -1020,9 +1066,13 @@ class PrefectDbtRunner:
             callbacks = []
 
         # Determine which command is being invoked
+        # We need to find a valid dbt command, skipping flag values like "json" in "--log-format json"
         command_name = None
         for arg in args_copy:
-            if not arg.startswith("-"):
+            if arg.startswith("-"):
+                continue
+            # Check if this is a valid dbt command
+            if arg in cli.commands:
                 command_name = arg
                 break
 
@@ -1032,8 +1082,6 @@ class PrefectDbtRunner:
         # Get valid parameters for the command if we can determine it
         valid_params = None
         if command_name:
-            from dbt.cli.main import cli
-
             command = cli.commands.get(command_name)
             if command:
                 valid_params = {p.name for p in command.params}

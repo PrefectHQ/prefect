@@ -7,25 +7,51 @@ sidebarTitle: task_run_recorder
 
 ## Functions
 
-### `task_run_from_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `task_run_from_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 task_run_from_event(event: ReceivedEvent) -> TaskRun
 ```
 
-### `record_task_run_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `db_recordable_task_run_from_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+db_recordable_task_run_from_event(event: ReceivedEvent) -> tuple[TaskRun, dict[str, Any]]
+```
+
+### `record_task_run_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None
 ```
 
-### `record_lost_follower_task_run_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+Record a single task run event in the database
+
+
+### `record_bulk_task_run_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+record_bulk_task_run_events(events: list[ReceivedEvent]) -> None
+```
+
+
+Record multiple task run events in the database, taking advantage of bulk inserts.
+
+
+### `handle_task_run_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+handle_task_run_events(events: list[ReceivedEvent], depth: int = 0) -> None
+```
+
+### `record_lost_follower_task_run_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_lost_follower_task_run_events() -> None
 ```
 
-### `periodically_process_followers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `periodically_process_followers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 periodically_process_followers(periodic_granularity: timedelta) -> NoReturn
@@ -35,15 +61,17 @@ periodically_process_followers(periodic_granularity: timedelta) -> NoReturn
 Periodically process followers that are waiting on a leader event that never arrived
 
 
-### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-consumer() -> AsyncGenerator[MessageHandler, None]
+consumer(write_batch_size: int, flush_every: int, max_persist_retries: int = DEFAULT_PERSIST_MAX_RETRIES) -> AsyncGenerator[MessageHandler, None]
 ```
 
 ## Classes
 
-### `TaskRunRecorder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RetryableEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `TaskRunRecorder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L396" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Constructs task runs and states from client-emitted events
@@ -51,7 +79,7 @@ Constructs task runs and states from client-emitted events
 
 **Methods:**
 
-#### `all_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `all_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 all_services(cls) -> Sequence[type[Self]]
@@ -60,7 +88,7 @@ all_services(cls) -> Sequence[type[Self]]
 Get list of all service classes
 
 
-#### `enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enabled(cls) -> bool
@@ -69,7 +97,7 @@ enabled(cls) -> bool
 Whether the service is enabled
 
 
-#### `enabled_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enabled_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enabled_services(cls) -> list[type[Self]]
@@ -78,13 +106,13 @@ enabled_services(cls) -> list[type[Self]]
 Get list of enabled service classes
 
 
-#### `environment_variable_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L83" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `environment_variable_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 environment_variable_name(cls) -> str
 ```
 
-#### `run_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_services(cls) -> NoReturn
@@ -93,7 +121,7 @@ run_services(cls) -> NoReturn
 Run enabled services until cancelled.
 
 
-#### `running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 running(cls) -> AsyncGenerator[None, None]
@@ -103,13 +131,13 @@ A context manager that runs enabled services on entry and stops them on
 exit.
 
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
 ```
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
@@ -118,13 +146,13 @@ service_settings(cls) -> ServicesBaseSetting
 The Prefect setting that controls whether the service is enabled
 
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L420" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-start(self) -> NoReturn
+start(self, max_persist_retries: int = DEFAULT_PERSIST_MAX_RETRIES) -> NoReturn
 ```
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self) -> NoReturn
@@ -133,25 +161,25 @@ start(self) -> NoReturn
 Start running the service, which may run indefinitely
 
 
-#### `started_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `started_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L411" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 started_event(self) -> asyncio.Event
 ```
 
-#### `started_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `started_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 started_event(self, value: asyncio.Event) -> None
 ```
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None
 ```
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L142" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L119" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None

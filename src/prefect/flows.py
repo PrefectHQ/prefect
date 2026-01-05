@@ -175,9 +175,13 @@ class Flow(Generic[P, R]):
             that Prefect should choose whether the result should be persisted depending on
             the features being used.
         result_storage: An optional block to use to persist the result of this flow.
-            This value will be used as the default for any tasks in this flow.
-            If not provided, the local file system will be used unless called as
-            a subflow, at which point the default will be loaded from the parent flow.
+            This can be either a saved block instance or a string reference (e.g.,
+            "local-file-system/my-storage"). Block instances must have `.save()` called
+            first since decorators execute at import time. String references are resolved
+            at runtime and recommended for testing scenarios. This value will be used as
+            the default for any tasks in this flow. If not provided, the local file system
+            will be used unless called as a subflow, at which point the default will be
+            loaded from the parent flow.
         result_serializer: An optional serializer to use to serialize the result of this
             flow for persistence. This value will be used as the default for any tasks
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
@@ -372,11 +376,12 @@ class Flow(Generic[P, R]):
                 persist_result = True
 
         self.persist_result = persist_result
-        if result_storage and not isinstance(result_storage, str):
+        if result_storage and not isinstance(result_storage, (str, Path)):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
                     "Result storage configuration must be persisted server-side."
-                    " Please call `.save()` on your block before passing it in."
+                    " Please call `.save()` on your block before passing it in,"
+                    " or use a string reference like 'local-file-system/my-storage' instead."
                 )
         self.result_storage = result_storage
         self.result_serializer = result_serializer
@@ -1889,9 +1894,13 @@ class FlowDecorator:
                 that Prefect should choose whether the result should be persisted depending on
                 the features being used.
             result_storage: An optional block to use to persist the result of this flow.
-                This value will be used as the default for any tasks in this flow.
-                If not provided, the local file system will be used unless called as
-                a subflow, at which point the default will be loaded from the parent flow.
+                This can be either a saved block instance or a string reference (e.g.,
+                "local-file-system/my-storage"). Block instances must have `.save()` called
+                first since decorators execute at import time. String references are resolved
+                at runtime and recommended for testing scenarios. This value will be used as
+                the default for any tasks in this flow. If not provided, the local file system
+                will be used unless called as a subflow, at which point the default will be
+                loaded from the parent flow.
             result_serializer: An optional serializer to use to serialize the result of this
                 flow for persistence. This value will be used as the default for any tasks
                 in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
@@ -2194,6 +2203,61 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 )
 
         return run_coro_as_sync(submit_func())
+
+    async def retry(
+        self,
+        flow_run: "FlowRun",
+    ) -> R | State[R]:
+        """
+        EXPERIMENTAL: This method is experimental and may be removed or changed in future
+            releases.
+
+        Retry an existing flow run on remote infrastructure.
+
+        This method allows retrying a flow run that was previously executed,
+        reusing the same flow run ID and incrementing the run_count.
+
+        Args:
+            flow_run: The existing flow run to retry
+            return_state: If True, return the final state instead of the result
+
+        Returns:
+            The flow result or final state
+
+        Example:
+            ```python
+            from prefect import flow
+            from prefect_aws.experimental import ecs
+
+            @ecs(work_pool="my-pool")
+            @flow
+            def my_flow():
+                ...
+
+            # Original run
+            my_flow()  # Creates flow run abc123
+
+            # Later, retry the same flow run
+            flow_run = client.read_flow_run("abc123")
+            await my_flow.retry(flow_run)
+            ```
+        """
+        try:
+            async with self.worker_cls(work_pool_name=self.work_pool) as worker:
+                future = await worker.submit(
+                    flow=self,
+                    parameters=flow_run.parameters,
+                    job_variables=self.job_variables,
+                    flow_run=flow_run,
+                )
+                return await future.aresult()
+        except (ExceptionGroup, BaseExceptionGroup) as exc:
+            # For less verbose tracebacks
+            exceptions = exc.exceptions
+            if len(exceptions) == 1:
+                raise exceptions[0] from None
+            else:
+                raise
 
     def submit_to_work_pool(
         self, *args: P.args, **kwargs: P.kwargs

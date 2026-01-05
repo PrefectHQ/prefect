@@ -963,15 +963,23 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         capacity_provider_strategy = configuration.task_run_request.get(
             "capacityProviderStrategy"
         )
+        requires_ec2 = "EC2" in task_definition.get("requiresCompatibilities", [])
 
         # Users may submit a job with a custom capacity provider strategy which requires
-        # launch type to be empty.
+        # launch type to be empty. EC2 task definitions may also omit launch type to use
+        # the cluster's default capacity provider.
         if not launch_type and not capacity_provider_strategy:
-            launch_type = ECS_DEFAULT_LAUNCH_TYPE
+            if not requires_ec2:
+                launch_type = ECS_DEFAULT_LAUNCH_TYPE
 
         # Fargate spot requires a launch type and a capacity provider strategy
         # otherwise we're valid with a capacity provider strategy alone
         if capacity_provider_strategy and launch_type != "FARGATE_SPOT":
+            return
+
+        # EC2 task definitions with null launch_type are valid - they use the cluster's
+        # default capacity provider. See https://github.com/PrefectHQ/prefect/issues/19627
+        if requires_ec2 and not launch_type:
             return
 
         # Default launch type in compatibilities to maintain functionality with
@@ -1323,10 +1331,16 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         # AWS expects camelCase "launchType" not snake_case "launch_type"
         # Default to FARGATE if not specified, which matches the default launch_type variable
         # Note: launchType may be removed later if capacityProviderStrategy is set
+        # Exception: EC2 task definitions may omit launchType to use cluster capacity providers
         existing_launch_type = task_run_request.get("launchType")
-        if not existing_launch_type:
+        requires_ec2 = "EC2" in task_definition.get("requiresCompatibilities", [])
+        if not existing_launch_type and not requires_ec2:
             # Default to FARGATE if launchType is missing, matching the default launch_type variable
             task_run_request["launchType"] = ECS_DEFAULT_LAUNCH_TYPE
+        elif not existing_launch_type and requires_ec2:
+            # EC2 task definitions may omit launchType to use cluster capacity providers
+            # Ensure the key is removed entirely, not just set to None
+            task_run_request.pop("launchType", None)
 
         capacityProviderStrategy = task_run_request.get("capacityProviderStrategy")
 

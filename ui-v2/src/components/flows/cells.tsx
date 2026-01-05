@@ -1,6 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useDeleteFlowById } from "@/api/flows";
+import { subWeeks } from "date-fns";
+import { useMemo } from "react";
+import { toast } from "sonner";
+import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import {
+	buildDeploymentsCountByFlowQuery,
+	buildNextRunsByFlowQuery,
+	useDeleteFlowById,
+} from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,105 +19,119 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
-import { cn } from "@/utils";
+import { StateIcon } from "@/components/ui/state-badge";
+import { pluralize } from "@/utils";
 import { formatDate } from "@/utils/date";
-import { Typography } from "../ui/typography";
-import {
-	deploymentsCountQueryParams,
-	getLatestFlowRunsQueryParams,
-	getNextFlowRunsQueryParams,
-} from "./queries";
 
 type Flow = components["schemas"]["Flow"];
 
-export const FlowsTableHeaderCell = ({ content }: { content: string }) => (
-	<Typography variant="bodySmall" className="font-bold text-black m-2">
-		{content}
-	</Typography>
-);
 export const FlowName = ({ row }: { row: { original: Flow } }) => {
 	if (!row.original.id) return null;
 
 	return (
-		<div className="m-2">
+		<div className="flex flex-col pl-4">
 			<Link
 				to="/flows/flow/$id"
 				params={{ id: row.original.id }}
-				className="text-blue-700 hover:underline cursor-pointer"
+				className="text-sm font-medium truncate"
+				title={row.original.name}
 			>
 				{row.original.name}
 			</Link>
-			<Typography
-				variant="bodySmall"
-				className="text-sm text-muted-foreground"
-				fontFamily="mono"
-			>
+			<span className="text-xs text-muted-foreground">
 				Created{" "}
 				{row.original?.created && formatDate(row.original.created, "dateTime")}
-			</Typography>
+			</span>
 		</div>
 	);
 };
 
 export const FlowLastRun = ({ row }: { row: { original: Flow } }) => {
-	const { data: flowRun } = useQuery(
-		getLatestFlowRunsQueryParams(row.original.id || "", 16, {
-			enabled: !!row.original.id,
+	const flowId = row.original.id;
+	const { data: flowRuns } = useQuery({
+		...buildFilterFlowRunsQuery({
+			flows: { operator: "and_", id: { any_: [flowId ?? ""] } },
+			flow_runs: {
+				operator: "and_",
+				start_time: { is_null_: false },
+			},
+			offset: 0,
+			limit: 1,
+			sort: "START_TIME_DESC",
 		}),
-	);
+		enabled: !!flowId,
+	});
 
-	if (!row.original.id || !flowRun?.[0]) return null;
+	const lastRun = flowRuns?.[0];
+	if (!flowId || !lastRun) return null;
+
 	return (
-		<Link to="/runs/flow-run/$id" params={{ id: flowRun[0].id ?? "" }}>
-			<Typography
-				variant="bodySmall"
-				className="text-blue-700 hover:underline p-2"
-				fontFamily="mono"
-			>
-				{flowRun?.[0]?.name}
-			</Typography>
-		</Link>
+		<div className="flex items-center gap-1">
+			{lastRun.state_type && (
+				<StateIcon
+					type={lastRun.state_type}
+					name={lastRun.state_name ?? undefined}
+				/>
+			)}
+			<Link to="/runs/flow-run/$id" params={{ id: lastRun.id ?? "" }}>
+				<span className="text-sm text-blue-700 hover:underline">
+					{lastRun.name}
+				</span>
+			</Link>
+		</div>
 	);
 };
 
 export const FlowNextRun = ({ row }: { row: { original: Flow } }) => {
-	const { data: flowRun } = useQuery(
-		getNextFlowRunsQueryParams(row.original.id || "", 16, {
-			enabled: !!row.original.id,
-		}),
+	const flowId = row.original.id;
+	const { data: nextRunsMap } = useQuery(
+		buildNextRunsByFlowQuery(flowId ? [flowId] : [], { enabled: !!flowId }),
 	);
 
-	if (!row.original.id || !flowRun?.[0]) return null;
+	const nextRun = flowId ? nextRunsMap?.[flowId] : null;
+	if (!flowId || !nextRun) return null;
+
 	return (
-		<Link to="/runs/flow-run/$id" params={{ id: flowRun[0].id ?? "" }}>
-			<Typography
-				variant="bodySmall"
-				className="text-blue-700 hover:underline p-2"
-				fontFamily="mono"
-			>
-				{flowRun?.[0]?.name}
-			</Typography>
-		</Link>
+		<div className="flex items-center gap-1">
+			{nextRun.state_type && (
+				<StateIcon type={nextRun.state_type} name={nextRun.state_name} />
+			)}
+			<Link to="/runs/flow-run/$id" params={{ id: nextRun.id ?? "" }}>
+				<span className="text-sm text-blue-700 hover:underline">
+					{nextRun.name}
+				</span>
+			</Link>
+		</div>
 	);
 };
 
 export const FlowDeploymentCount = ({ row }: { row: { original: Flow } }) => {
-	const { data } = useQuery(
-		deploymentsCountQueryParams(row.original.id || "", {
-			enabled: !!row.original.id,
+	const flowId = row.original.id;
+	const { data: countsMap } = useQuery(
+		buildDeploymentsCountByFlowQuery(flowId ? [flowId] : [], {
+			enabled: !!flowId,
 		}),
 	);
-	if (!row.original.id) return null;
+	if (!flowId) return null;
+
+	const count = countsMap?.[flowId] ?? 0;
+
+	if (count === 0) {
+		return <span className="text-sm text-muted-foreground">None</span>;
+	}
 
 	return (
-		<Typography
-			variant="bodySmall"
-			className="text-muted-foreground hover:underline p-2"
-			fontFamily="mono"
+		<Link
+			to="/flows/flow/$id"
+			params={{ id: flowId }}
+			search={{ tab: "deployments" }}
 		>
-			{data !== 0 ? data : "None"}
-		</Typography>
+			<span className="text-sm text-blue-700 hover:underline">
+				{count} {pluralize(count, "Deployment")}
+			</span>
+		</Link>
 	);
 };
 
@@ -122,7 +144,7 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 		return null;
 	}
 	return (
-		<div className="flex justify-end m-2">
+		<div className="flex justify-end">
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="ghost" className="h-8 w-8 p-0">
@@ -133,7 +155,10 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 				<DropdownMenuContent align="end">
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
 					<DropdownMenuItem
-						onClick={() => void navigator.clipboard.writeText(id)}
+						onClick={() => {
+							void navigator.clipboard.writeText(id);
+							toast.success("ID copied");
+						}}
 					>
 						Copy ID
 					</DropdownMenuItem>
@@ -148,34 +173,46 @@ export const FlowActionMenu = ({ row }: { row: { original: Flow } }) => {
 	);
 };
 
-// TODO: Update this to use the flow run graph from src/components/ui/flow-run-activity-bar-graph
+const NUMBER_OF_ACTIVITY_BARS = 16;
+
 export const FlowActivity = ({ row }: { row: { original: Flow } }) => {
-	const { data } = useQuery(
-		getLatestFlowRunsQueryParams(row.original.id || "", 16, {
-			enabled: !!row.original.id,
+	const flowId = row.original.id;
+
+	const { startDate, endDate } = useMemo((): {
+		startDate: Date;
+		endDate: Date;
+	} => {
+		const now = new Date();
+		return {
+			startDate: subWeeks(now, 1),
+			endDate: now,
+		};
+	}, []);
+
+	const { data: flowRuns } = useQuery({
+		...buildFilterFlowRunsQuery({
+			flows: { operator: "and_", id: { any_: [flowId ?? ""] } },
+			flow_runs: {
+				operator: "and_",
+				start_time: { is_null_: false },
+			},
+			offset: 0,
+			limit: NUMBER_OF_ACTIVITY_BARS,
+			sort: "START_TIME_DESC",
 		}),
-	);
-	if (!row.original.id) return null;
+		enabled: !!flowId,
+	});
+
+	if (!flowId) return null;
 
 	return (
-		<div className="flex h-[24px]">
-			{Array(16)
-				.fill(1)
-				?.map((_, index) => (
-					<div
-						// biome-ignore lint/suspicious/noArrayIndexKey: ok for temporary placeholder component
-						key={index}
-						className={cn(
-							"flex-1 mr-[1px] rounded-full bg-gray-400",
-							data?.[index]?.state_type &&
-								data?.[index]?.state_type === "COMPLETED" &&
-								"bg-green-500",
-							data?.[index]?.state_type &&
-								data?.[index]?.state_type !== "COMPLETED" &&
-								"bg-red-500",
-						)}
-					/>
-				))}
-		</div>
+		<FlowRunActivityBarChart
+			chartId={`flow-activity-${flowId}`}
+			enrichedFlowRuns={flowRuns ?? []}
+			startDate={startDate}
+			endDate={endDate}
+			numberOfBars={NUMBER_OF_ACTIVITY_BARS}
+			className="h-[24px] w-[140px]"
+		/>
 	);
 };

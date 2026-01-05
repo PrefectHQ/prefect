@@ -161,6 +161,62 @@ class TestTaskKey:
         assert tt.task_key.startswith("Funky-")
 
 
+class TestTaskSourceCode:
+    def test_source_code_captured_for_function(self):
+        @task
+        def my_task():
+            return 42
+
+        assert my_task.source_code is not None
+        assert "def my_task" in my_task.source_code
+        assert "return 42" in my_task.source_code
+
+    def test_source_code_is_none_for_callable_object(self):
+        class MyCallable:
+            def __call__(self):
+                return 42
+
+        callable_obj = MyCallable()
+        my_task = Task(fn=callable_obj)
+
+        # Callable objects don't have source code accessible via inspect.getsource
+        assert my_task.source_code is None
+
+    def test_source_code_survives_cloudpickle(self):
+        import cloudpickle
+
+        @task
+        def my_task():
+            return "hello"
+
+        # Verify source code is captured
+        original_source = my_task.source_code
+        assert original_source is not None
+        assert "def my_task" in original_source
+
+        # Serialize and deserialize the task
+        pickled = cloudpickle.dumps(my_task)
+        restored_task = cloudpickle.loads(pickled)
+
+        # Source code should survive serialization
+        assert restored_task.source_code == original_source
+
+    def test_source_code_different_for_different_tasks(self):
+        @task
+        def task_a():
+            return "a"
+
+        @task
+        def task_b():
+            return "b"
+
+        assert task_a.source_code is not None
+        assert task_b.source_code is not None
+        assert task_a.source_code != task_b.source_code
+        assert "task_a" in task_a.source_code
+        assert "task_b" in task_b.source_code
+
+
 class TestTaskRunName:
     def test_run_name_default(self):
         @task
@@ -1384,6 +1440,19 @@ class TestResultPersistence:
         assert my_task.persist_result is persist_result
         assert new_task.persist_result is persist_result
 
+    def test_default_cache_policy_does_not_set_persist_result_with_options(self):
+        @task
+        def base():
+            pass
+
+        assert base.cache_policy == DEFAULT
+        assert base.persist_result is None
+
+        new_task = base.with_options(name="something")
+
+        assert new_task.cache_policy == DEFAULT
+        assert new_task.persist_result is None
+
     @pytest.mark.parametrize(
         "cache_policy",
         [policy for policy in CachePolicy.__subclasses__() if policy != NO_CACHE],
@@ -1460,6 +1529,75 @@ class TestResultPersistence:
 
         assert my_task.persist_result is True
         assert new_task.persist_result is True
+
+    def test_result_storage_accepts_path_object(self, tmpdir):
+        from pathlib import Path
+
+        storage_path = Path(tmpdir) / "results"
+
+        @task(result_storage=storage_path)
+        def my_task():
+            return 42
+
+        assert my_task.result_storage == storage_path
+        assert my_task.persist_result is True
+
+    def test_result_storage_with_path_execution(self, tmpdir):
+        from pathlib import Path
+
+        storage_path = Path(tmpdir) / "results"
+
+        @task(result_storage=storage_path, persist_result=True)
+        def my_task(x: int):
+            return x * 2
+
+        @flow
+        def test_flow():
+            return my_task(5)
+
+        result = test_flow()
+        assert result == 10
+
+    def test_result_storage_path_with_with_options(self, tmpdir):
+        from pathlib import Path
+
+        path1 = Path(tmpdir) / "path1"
+        path2 = Path(tmpdir) / "path2"
+
+        @task(result_storage=path1)
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage=path2)
+
+        assert base.result_storage == path1
+        assert new_task.result_storage == path2
+        assert base.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_result_storage_path_relative(self):
+        from pathlib import Path
+
+        @task(result_storage=Path("./relative/path"))
+        def my_task():
+            return "test"
+
+        assert my_task.result_storage == Path("./relative/path")
+        assert my_task.persist_result is True
+
+    def test_result_storage_unsaved_block_still_rejected(self, tmpdir):
+        import pytest
+
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        with pytest.raises(
+            TypeError,
+            match="Result storage configuration must be persisted server-side",
+        ):
+
+            @task(result_storage=block)
+            def my_task():
+                pass
 
     def test_logs_warning_on_serialization_error(self, caplog):
         @task(result_serializer="json")

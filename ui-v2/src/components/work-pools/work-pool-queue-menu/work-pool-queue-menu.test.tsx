@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createFakeWorkPoolQueue } from "@/mocks";
 import { WorkPoolQueueMenu } from "./work-pool-queue-menu";
 
-// Mock the hook and dialog
+// Mock the hook and dialogs
 vi.mock("./hooks/use-work-pool-queue-menu", () => ({
 	useWorkPoolQueueMenu: vi.fn(() => ({
 		menuItems: [
@@ -29,12 +29,18 @@ vi.mock("./hooks/use-work-pool-queue-menu", () => ({
 		],
 		showDeleteDialog: false,
 		setShowDeleteDialog: vi.fn(),
+		showEditDialog: false,
+		setShowEditDialog: vi.fn(),
 		triggerIcon: vi.fn(),
 	})),
 }));
 
 vi.mock("./components/delete-work-pool-queue-dialog", () => ({
 	DeleteWorkPoolQueueDialog: vi.fn(() => <div>Delete Dialog</div>),
+}));
+
+vi.mock("@/components/work-pools/work-pool-queue-create-dialog", () => ({
+	WorkPoolQueueCreateOrEditDialog: vi.fn(() => <div>Edit Dialog</div>),
 }));
 
 describe("WorkPoolQueueMenu", () => {
@@ -64,6 +70,14 @@ describe("WorkPoolQueueMenu", () => {
 		render(<WorkPoolQueueMenu queue={queue} />);
 
 		expect(screen.getByText("Delete Dialog")).toBeInTheDocument();
+	});
+
+	it("renders edit dialog", () => {
+		const queue = createFakeWorkPoolQueue({ name: "test-queue" });
+
+		render(<WorkPoolQueueMenu queue={queue} />);
+
+		expect(screen.getByText("Edit Dialog")).toBeInTheDocument();
 	});
 
 	it("applies custom className", () => {

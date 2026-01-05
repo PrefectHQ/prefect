@@ -33,6 +33,10 @@ The `logs` endpoint:
 
 The Prefect SDK automatically retries rate-limited requests up to 5 times, using the delay specified in the `Retry-After` header. You can customize this behavior through [client settings](/v3/develop/settings-ref#clientsettings).
 
+## Query limits
+
+Event queries are limited to a 14-day window per request. You can query any 14-day period within your retention period, but each individual query cannot span more than 14 days. If your plan's retention period is shorter than 14 days, the query window is limited to your retention period.
+
 ## Metadata retention
 
 Prefect Cloud retains flow run, task run, and artifact metadata for a limited time based on your plan. This applies to all workspaces in your account.

@@ -1,6 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	Breadcrumb,
@@ -9,6 +7,7 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { DocsLink } from "@/components/ui/docs-link";
+import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 import { Typography } from "@/components/ui/typography";
 
 export type ArtifactDetailHeaderProps = {
@@ -30,7 +29,7 @@ export const ArtifactDetailHeader = ({
 							</Link>
 						</BreadcrumbItem>
 						<BreadcrumbSeparator>/</BreadcrumbSeparator>
-						<BreadcrumbItem className="text-xl font-bold text-black">
+						<BreadcrumbItem className="text-xl font-bold text-foreground">
 							{artifact.id}
 						</BreadcrumbItem>
 					</BreadcrumbList>
@@ -78,7 +77,7 @@ export const ArtifactDetailHeader = ({
 								<BreadcrumbSeparator>/</BreadcrumbSeparator>
 							</>
 						)}
-						<BreadcrumbItem className="text-xl font-bold text-black">
+						<BreadcrumbItem className="text-xl font-bold text-foreground">
 							{artifact.id}
 						</BreadcrumbItem>
 					</BreadcrumbList>
@@ -95,9 +94,7 @@ export const ArtifactDetailHeader = ({
 			{artifact.description && (
 				<div className="">
 					<Typography variant="h2" className="my-4 font-bold prose lg:prose-xl">
-						<Markdown remarkPlugins={[remarkGfm]}>
-							{artifact.description}
-						</Markdown>
+						<LazyMarkdown>{artifact.description}</LazyMarkdown>
 					</Typography>
 				</div>
 			)}

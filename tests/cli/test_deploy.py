@@ -655,6 +655,61 @@ class TestProjectDeploy:
         else:
             assert deployment.concurrency_options is None
 
+    @pytest.mark.usefixtures("interactive_console", "uninitialized_project_dir")
+    async def test_deploy_with_concurrency_limit_and_grace_period_from_yaml(
+        self,
+        project_dir: Path,
+        prefect_client: PrefectClient,
+    ):
+        """Test that grace_period_seconds is properly parsed from prefect.yaml."""
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+
+        # Create a prefect.yaml with grace_period_seconds
+        prefect_yaml_content = {
+            "deployments": [
+                {
+                    "name": "test-grace-period",
+                    "entrypoint": "flows/hello.py:my_flow",
+                    "work_pool": {"name": "test-pool"},
+                    "schedule": {"interval": 60},
+                    "concurrency_limit": {
+                        "limit": 5,
+                        "collision_strategy": "ENQUEUE",
+                        "grace_period_seconds": 120,
+                    },
+                }
+            ]
+        }
+
+        prefect_file = Path("prefect.yaml")
+        with open(prefect_file, "w") as f:
+            yaml.dump(prefect_yaml_content, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            user_input=(
+                # Decline pulling from remote storage
+                "n" + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "prefect deployment run 'An important name/test-grace-period'"
+            ],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-grace-period"
+        )
+        assert deployment.name == "test-grace-period"
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.global_concurrency_limit.limit == 5
+        assert deployment.concurrency_options is not None
+        assert deployment.concurrency_options.collision_strategy == "ENQUEUE"
+        assert deployment.concurrency_options.grace_period_seconds == 120
+
     class TestGeneratedPullAction:
         async def test_project_deploy_generates_pull_action(
             self,
@@ -4662,6 +4717,100 @@ class TestDeployPattern:
             deployment.concurrency_options.collision_strategy
             == concurrency_limit_config["collision_strategy"]
         )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_concurrency_limit_with_grace_period_deployment_yaml(
+        self, work_pool, prefect_client: PrefectClient
+    ):
+        """Test that grace_period_seconds flows through from YAML to deployment payload."""
+        concurrency_limit_config = {
+            "limit": 42,
+            "collision_strategy": "ENQUEUE",
+            "grace_period_seconds": 720,
+        }
+
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["concurrency_limit"] = concurrency_limit_config
+
+        with prefect_yaml.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(f"deploy ./flows/hello.py:my_flow --pool {work_pool.name}"),
+        )
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.global_concurrency_limit is not None
+        assert (
+            deployment.global_concurrency_limit.limit
+            == concurrency_limit_config["limit"]
+        )
+        assert deployment.concurrency_options is not None
+        assert (
+            deployment.concurrency_options.collision_strategy
+            == concurrency_limit_config["collision_strategy"]
+        )
+        assert (
+            deployment.concurrency_options.grace_period_seconds
+            == concurrency_limit_config["grace_period_seconds"]
+        )
+
+        # Verify that None is not serialized in YAML
+        with prefect_yaml.open(mode="r") as f:
+            saved_config = yaml.safe_load(f)
+        saved_limit = saved_config["deployments"][0]["concurrency_limit"]
+        assert "grace_period_seconds" in saved_limit
+        assert saved_limit["grace_period_seconds"] == 720
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_concurrency_limit_without_grace_period_not_serialized(
+        self, work_pool, prefect_client: PrefectClient
+    ):
+        """Test that grace_period_seconds=None is not serialized to YAML."""
+        concurrency_limit_config = {
+            "limit": 42,
+            "collision_strategy": "ENQUEUE",
+        }
+
+        prefect_yaml = Path("prefect.yaml")
+        with prefect_yaml.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["concurrency_limit"] = concurrency_limit_config
+
+        with prefect_yaml.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=(f"deploy ./flows/hello.py:my_flow --pool {work_pool.name}"),
+        )
+        assert result.exit_code == 0
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+
+        assert deployment.global_concurrency_limit is not None
+        assert deployment.concurrency_options is not None
+        # grace_period_seconds defaults to None (falls back to server setting at runtime)
+        assert deployment.concurrency_options.grace_period_seconds is None
+
+        # Verify that grace_period_seconds is not in the saved YAML
+        with prefect_yaml.open(mode="r") as f:
+            saved_config = yaml.safe_load(f)
+        saved_limit = saved_config["deployments"][0]["concurrency_limit"]
+        assert "grace_period_seconds" not in saved_limit
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_select_from_existing_deployments(

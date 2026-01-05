@@ -713,6 +713,118 @@ class TestGitRepository:
                 ],
             )
 
+        async def test_dict_credentials_gitlab_gets_oauth2_prefix(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials (from YAML block references) get oauth2: prefix
+            for GitLab URLs.
+
+            When using YAML like:
+                credentials: "{{ prefect.blocks.gitlab-credentials.my-block }}"
+            the credentials resolve to a dict, not a Block instance.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/19861
+            """
+            # Dict credentials simulate what resolve_block_document_references returns
+            repo = GitRepository(
+                url="https://gitlab.com/org/repo.git",
+                credentials={"token": "my-gitlab-token"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://oauth2:my-gitlab-token@gitlab.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_bitbucket_gets_x_token_auth_prefix(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials (from YAML block references) get x-token-auth:
+            prefix for BitBucket Cloud URLs.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/19861
+            """
+            repo = GitRepository(
+                url="https://bitbucket.org/org/repo.git",
+                credentials={"token": "my-bitbucket-token"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://x-token-auth:my-bitbucket-token@bitbucket.org/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_github_plain_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials for GitHub use plain token (no prefix).
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/19861
+            """
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"token": "my-github-token"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://my-github-token@github.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_gitlab_deploy_token_no_prefix(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials with deploy token format (username:token)
+            don't get oauth2: prefix for GitLab.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/19861
+            """
+            repo = GitRepository(
+                url="https://gitlab.com/org/repo.git",
+                credentials={"token": "deploy-user:deploy-token"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://deploy-user:deploy-token@gitlab.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
     class TestToPullStep:
         async def test_to_pull_step_with_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")
@@ -828,6 +940,101 @@ class TestGitRepository:
                 ),
             ):
                 repo.to_pull_step()
+
+        def test_to_pull_step_with_custom_name(self):
+            """Test that custom name is included in pull step when it differs from default."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="dev",
+                name="my-custom-name",
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "dev",
+                    "clone_directory_name": "my-custom-name",
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_omits_name_when_matches_default(self):
+            """Test that name is omitted from pull step when it matches the auto-generated default."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="dev",
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "dev",
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+            assert (
+                "clone_directory_name"
+                not in result["prefect.deployments.steps.git_clone"]
+            )
+
+        def test_to_pull_step_with_slashed_branch_name(self):
+            """Test that branch names with slashes are sanitized correctly in default name calculation."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="feature/my-feature",
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "feature/my-feature",
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+            assert (
+                "clone_directory_name"
+                not in result["prefect.deployments.steps.git_clone"]
+            )
+
+        def test_to_pull_step_with_directories(self):
+            """Test that directories parameter is included in pull step when specified."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                directories=["src", "tests"],
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": None,
+                    "directories": ["src", "tests"],
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_with_custom_name_and_directories(self):
+            """Test that both custom name and directories are preserved in pull step."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="dev",
+                name="my-custom-name",
+                directories=["src"],
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "dev",
+                    "clone_directory_name": "my-custom-name",
+                    "directories": ["src"],
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
 
     async def test_clone_repo_with_commit_sha(
         self, mock_run_process: AsyncMock, monkeypatch

@@ -26,7 +26,34 @@ export type FlowRunsPaginateFilter =
 export type FlowRunsCountFilter =
 	components["schemas"]["Body_count_flow_runs_flow_runs_count_post"];
 
+export type FlowRunHistoryFilter =
+	components["schemas"]["Body_read_flow_run_history_ui_flow_runs_history_post"];
+
+export type SimpleFlowRun = components["schemas"]["SimpleFlowRun"];
+
 export type CreateNewFlowRun = components["schemas"]["DeploymentFlowRunCreate"];
+
+/**
+ * Converts a FlowRunsFilter to a FlowRunsCountFilter by extracting only the
+ * filter properties that are valid for the count endpoint.
+ *
+ * The count endpoint does not accept sort, limit, or offset parameters.
+ *
+ * @param filter - The FlowRunsFilter to convert
+ * @returns A FlowRunsCountFilter with only the valid filter properties
+ */
+export function toFlowRunsCountFilter(
+	filter: FlowRunsFilter,
+): FlowRunsCountFilter {
+	return {
+		flows: filter.flows,
+		flow_runs: filter.flow_runs,
+		task_runs: filter.task_runs,
+		deployments: filter.deployments,
+		work_pools: filter.work_pools,
+		work_pool_queues: filter.work_pool_queues,
+	};
+}
 
 /**
  * The request body for setting a flow run state
@@ -81,6 +108,9 @@ export const queryKeyFactory = {
 	lateness: () => [...queryKeyFactory.all(), "lateness"] as const,
 	latenessWithFilter: (filter: FlowRunsFilter) =>
 		[...queryKeyFactory.lateness(), filter] as const,
+	history: () => [...queryKeyFactory.all(), "history"] as const,
+	historyWithFilter: (filter: FlowRunHistoryFilter) =>
+		[...queryKeyFactory.history(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
 };
@@ -253,6 +283,42 @@ export const buildAverageLatenessFlowRunsQuery = (
 		placeholderData: keepPreviousData,
 	});
 
+/**
+ * Builds a query configuration for fetching flow run history for scatter plot visualization
+ *
+ * @param filter - Filter parameters for the flow run history query.
+ * @param refetchInterval - Interval for refetching the history (default 30 seconds)
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: history } = useSuspenseQuery(buildFlowRunHistoryQuery({
+ *   sort: "EXPECTED_START_TIME_DESC",
+ *   limit: 1000
+ * }));
+ * ```
+ */
+export const buildFlowRunHistoryQuery = (
+	filter: FlowRunHistoryFilter = {
+		sort: "EXPECTED_START_TIME_DESC",
+		limit: 1000,
+		offset: 0,
+	},
+	refetchInterval = 30_000,
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.historyWithFilter(filter),
+		queryFn: async () => {
+			const res = await getQueryService().POST("/ui/flow_runs/history", {
+				body: filter,
+			});
+			return res.data ?? ([] satisfies SimpleFlowRun[]);
+		},
+		placeholderData: keepPreviousData,
+		staleTime: 1000,
+		refetchInterval,
+	});
+
 // ----- ✍🏼 Mutations 🗄️
 // ----------------------------
 
@@ -405,7 +471,7 @@ export const useSetFlowRunState = () => {
 
 			return { previousFlowRun };
 		},
-		onError: (err, { id }, context) => {
+		onError: (_err, { id }, context) => {
 			// Roll back optimistic update on error
 			if (context?.previousFlowRun) {
 				queryClient.setQueryData(
@@ -413,10 +479,6 @@ export const useSetFlowRunState = () => {
 					context.previousFlowRun,
 				);
 			}
-
-			throw err instanceof Error
-				? err
-				: new Error("Failed to update flow run state");
 		},
 		onSettled: (_data, _error, { id }) => {
 			void Promise.all([

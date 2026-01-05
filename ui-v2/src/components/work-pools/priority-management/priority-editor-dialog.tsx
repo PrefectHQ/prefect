@@ -103,7 +103,7 @@ export const PriorityEditorDialog = ({
 								onChange={(e) =>
 									setPriorities((prev) => ({
 										...prev,
-										[queue.id]: Number.parseInt(e.target.value) || 0,
+										[queue.id]: Number.parseInt(e.target.value, 10) || 0,
 									}))
 								}
 								className="w-20"

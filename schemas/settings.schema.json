@@ -849,6 +849,22 @@
                     ],
                     "title": "Application Name"
                 },
+                "search_path": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend. Note: The public schema should be included in the search path (e.g. 'myschema, public') to ensure that pg_trgm and other extensions remain available.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH"
+                    ],
+                    "title": "Search Path"
+                },
                 "statement_cache_size": {
                     "anyOf": [
                         {
@@ -1721,6 +1737,17 @@
                     "title": "Batch Size",
                     "type": "integer"
                 },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of events the event persister will attempt to read from the message broker in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE",
+                        "PREFECT_API_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
+                },
                 "flush_interval": {
                     "default": 5,
                     "description": "The maximum number of seconds between flushes of the event persister.",
@@ -1740,6 +1767,26 @@
                         "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE"
                     ],
                     "title": "Batch Size Delete",
+                    "type": "integer"
+                },
+                "queue_max_size": {
+                    "default": 50000,
+                    "description": "The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_QUEUE_MAX_SIZE"
+                    ],
+                    "title": "Queue Max Size",
+                    "type": "integer"
+                },
+                "max_flush_retries": {
+                    "default": 5,
+                    "description": "The maximum number of consecutive flush failures before events are dropped instead of being re-queued.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_MAX_FLUSH_RETRIES"
+                    ],
+                    "title": "Max Flush Retries",
                     "type": "integer"
                 }
             },
@@ -2060,6 +2107,36 @@
                     ],
                     "title": "Enabled",
                     "type": "boolean"
+                },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of task runs the task run recorder will attempt to read from the message broker in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
+                },
+                "batch_size": {
+                    "default": 1,
+                    "description": "The number of task runs the task run recorder will attempt to insert in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE"
+                    ],
+                    "title": "Batch Size",
+                    "type": "integer"
+                },
+                "flush_interval": {
+                    "default": 5,
+                    "description": "The maximum number of seconds between flushes of the task run recorder.",
+                    "exclusiveMinimum": 0.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_FLUSH_INTERVAL"
+                    ],
+                    "title": "Flush Interval",
+                    "type": "number"
                 }
             },
             "title": "ServerServicesTaskRunRecorderSettings",
@@ -2077,6 +2154,16 @@
                     ],
                     "title": "Enabled",
                     "type": "boolean"
+                },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of events the triggers service will attempt to read from the message broker in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
                 },
                 "pg_notify_reconnect_interval_seconds": {
                     "default": 10,
@@ -2330,6 +2417,15 @@
                         "PREFECT_UI_ENABLED"
                     ],
                     "title": "Enabled",
+                    "type": "boolean"
+                },
+                "v2_enabled": {
+                    "default": false,
+                    "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_UI_V2_ENABLED"
+                    ],
+                    "title": "V2 Enabled",
                     "type": "boolean"
                 },
                 "api_url": {
@@ -2640,6 +2736,24 @@
                         "PREFECT_WORKER_PREFETCH_SECONDS"
                     ],
                     "title": "Prefetch Seconds",
+                    "type": "number"
+                },
+                "enable_cancellation": {
+                    "default": false,
+                    "description": "Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_ENABLE_CANCELLATION"
+                    ],
+                    "title": "Enable Cancellation",
+                    "type": "boolean"
+                },
+                "cancellation_poll_seconds": {
+                    "default": 120,
+                    "description": "Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_CANCELLATION_POLL_SECONDS"
+                    ],
+                    "title": "Cancellation Poll Seconds",
                     "type": "number"
                 },
                 "webserver": {

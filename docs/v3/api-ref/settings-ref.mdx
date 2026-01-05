@@ -990,6 +990,18 @@ Controls the application_name field for connections opened from the connection p
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME`
 
+### `search_path`
+PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend. Note: The public schema should be included in the search path (e.g. 'myschema, public') to ensure that pg_trgm and other extensions remain available.
+
+**Type**: `string | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.sqlalchemy.connect_args.search_path`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH`
+
 ### `statement_cache_size`
 Controls statement cache size for PostgreSQL connections. Setting this to 0 is required when using PgBouncer in transaction mode. Defaults to None.
 
@@ -1892,6 +1904,18 @@ The number of events the event persister will attempt to insert in one batch.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE`, `PREFECT_API_SERVICES_EVENT_PERSISTER_BATCH_SIZE`
 
+### `read_batch_size`
+The number of events the event persister will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.event_persister.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE`, `PREFECT_API_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE`
+
 ### `flush_interval`
 The maximum number of seconds between flushes of the event persister.
 
@@ -1915,6 +1939,30 @@ The number of expired events and event resources the event persister will attemp
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE`
+
+### `queue_max_size`
+The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.
+
+**Type**: `integer`
+
+**Default**: `50000`
+
+**TOML dotted key path**: `server.services.event_persister.queue_max_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_QUEUE_MAX_SIZE`
+
+### `max_flush_retries`
+The maximum number of consecutive flush failures before events are dropped instead of being re-queued.
+
+**Type**: `integer`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.services.event_persister.max_flush_retries`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_MAX_FLUSH_RETRIES`
 
 ---
 ## ServerServicesForemanSettings
@@ -2331,6 +2379,42 @@ Whether or not to start the task run recorder service in the server application.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_ENABLED`, `PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED`
 
+### `read_batch_size`
+The number of task runs the task run recorder will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.task_run_recorder.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE`
+
+### `batch_size`
+The number of task runs the task run recorder will attempt to insert in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.task_run_recorder.batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE`
+
+### `flush_interval`
+The maximum number of seconds between flushes of the task run recorder.
+
+**Type**: `number`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.services.task_run_recorder.flush_interval`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_FLUSH_INTERVAL`
+
 ---
 ## ServerServicesTriggersSettings
 Settings for controlling the triggers service
@@ -2345,6 +2429,18 @@ Whether or not to start the triggers service in the server application.
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TRIGGERS_ENABLED`, `PREFECT_API_SERVICES_TRIGGERS_ENABLED`
+
+### `read_batch_size`
+The number of events the triggers service will attempt to read from the message broker in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.triggers.read_batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE`
 
 ### `pg_notify_reconnect_interval_seconds`
 
@@ -2651,6 +2747,18 @@ Whether or not to serve the Prefect UI.
 **Supported environment variables**:
 `PREFECT_SERVER_UI_ENABLED`, `PREFECT_UI_ENABLED`
 
+### `v2_enabled`
+Whether to serve the experimental V2 UI instead of the default V1 UI.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.ui.v2_enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_UI_V2_ENABLED`
+
 ### `api_url`
 The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.
 
@@ -2929,6 +3037,30 @@ The number of seconds into the future a worker should query for scheduled work.
 
 **Supported environment variables**:
 `PREFECT_WORKER_PREFETCH_SECONDS`
+
+### `enable_cancellation`
+Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `worker.enable_cancellation`
+
+**Supported environment variables**:
+`PREFECT_WORKER_ENABLE_CANCELLATION`
+
+### `cancellation_poll_seconds`
+Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.
+
+**Type**: `number`
+
+**Default**: `120`
+
+**TOML dotted key path**: `worker.cancellation_poll_seconds`
+
+**Supported environment variables**:
+`PREFECT_WORKER_CANCELLATION_POLL_SECONDS`
 
 ### `webserver`
 Settings for a worker's webserver

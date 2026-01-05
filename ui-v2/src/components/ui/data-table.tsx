@@ -25,7 +25,13 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/utils";
 
-export function DataTable<TData>({ table }: { table: TanstackTable<TData> }) {
+export function DataTable<TData>({
+	table,
+	onPrefetchPage,
+}: {
+	table: TanstackTable<TData>;
+	onPrefetchPage?: (page: number) => void;
+}) {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="rounded-md border">
@@ -98,7 +104,7 @@ export function DataTable<TData>({ table }: { table: TanstackTable<TData> }) {
 			</div>
 			<div className="flex flex-row justify-between items-center">
 				<DataTablePageSize table={table} />
-				<DataTablePagination table={table} />
+				<DataTablePagination table={table} onPrefetchPage={onPrefetchPage} />
 			</div>
 		</div>
 	);
@@ -135,27 +141,45 @@ function DataTablePageSize<TData>({ table }: DataTablePageSizeProps<TData>) {
 interface DataTablePaginationProps<TData> {
 	table: TanstackTable<TData>;
 	className?: string;
+	onPrefetchPage?: (page: number) => void;
 }
 
 export function DataTablePagination<TData>({
 	table,
 	className,
+	onPrefetchPage,
 }: DataTablePaginationProps<TData>) {
 	const totalPages = table.getPageCount();
 	const currentPage = Math.min(
 		Math.ceil(table.getState().pagination.pageIndex + 1),
 		totalPages,
 	);
+
+	const handlePrefetchFirstPage = () => {
+		if (currentPage > 1) onPrefetchPage?.(1);
+	};
+	const handlePrefetchPreviousPage = () => {
+		if (currentPage > 1) onPrefetchPage?.(currentPage - 1);
+	};
+	const handlePrefetchNextPage = () => {
+		if (currentPage < totalPages) onPrefetchPage?.(currentPage + 1);
+	};
+	const handlePrefetchLastPage = () => {
+		if (currentPage < totalPages) onPrefetchPage?.(totalPages);
+	};
+
 	return (
 		<Pagination className={cn("justify-end", className)}>
 			<PaginationContent>
 				<PaginationItem>
 					<PaginationFirstButton
 						onClick={() => table.firstPage()}
+						onMouseEnter={handlePrefetchFirstPage}
 						disabled={!table.getCanPreviousPage()}
 					/>
 					<PaginationPreviousButton
 						onClick={() => table.previousPage()}
+						onMouseEnter={handlePrefetchPreviousPage}
 						disabled={!table.getCanPreviousPage()}
 					/>
 				</PaginationItem>
@@ -165,12 +189,14 @@ export function DataTablePagination<TData>({
 				<PaginationItem>
 					<PaginationNextButton
 						onClick={() => table.nextPage()}
+						onMouseEnter={handlePrefetchNextPage}
 						disabled={!table.getCanNextPage()}
 					/>
 				</PaginationItem>
 				<PaginationItem>
 					<PaginationLastButton
 						onClick={() => table.lastPage()}
+						onMouseEnter={handlePrefetchLastPage}
 						disabled={!table.getCanNextPage()}
 					/>
 				</PaginationItem>

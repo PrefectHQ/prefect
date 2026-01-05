@@ -169,27 +169,31 @@ A lease is created for the concurrency limit. The client will be responsible for
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: FlowOrchestrationContext) -> None
 ```
 
-#### `cleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cleanup(self, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: FlowOrchestrationContext) -> None
 ```
 
-### `CopyDeploymentConcurrencyLeaseID` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L673" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ValidateDeploymentConcurrencyAtRunning` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L686" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
-Copies the deployment concurrency lease ID to the proposed state.
+Validates and renews deployment concurrency leases at the PENDING→RUNNING transition.
+
+This prevents concurrency violations that occur when the lease reaper reclaims slots
+from PENDING flows. Without this validation, a flow can lose its slot while provisioning
+infrastructure and still transition to RUNNING, violating the concurrency limit.
 
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L681" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L698" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `RemoveDeploymentConcurrencyLeaseForOldClientVersions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L696" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RemoveDeploymentConcurrencyLeaseForOldClientVersions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Removes a deployment concurrency lease if the client version is less than the minimum version for leasing.
@@ -197,13 +201,13 @@ Removes a deployment concurrency lease if the client version is less than the mi
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L704" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `ReleaseFlowConcurrencySlots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L724" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ReleaseFlowConcurrencySlots` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L841" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Releases deployment concurrency slots held by a flow run.
@@ -214,13 +218,13 @@ transitions out of the Running or Cancelling state.
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L732" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L849" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `CacheInsertion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L802" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CacheInsertion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L919" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Caches completed states with cache keys after they are validated.
@@ -228,19 +232,19 @@ Caches completed states with cache keys after they are validated.
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L829" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L946" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, db: PrefectDBInterface, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L810" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `CacheRetrieval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L849" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CacheRetrieval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L966" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Rejects running states if a completed state has been cached.
@@ -252,13 +256,13 @@ will be instructed to transition into the cached completed state instead.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L862" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L979" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, db: PrefectDBInterface, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `RetryFailedFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L899" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RetryFailedFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1016" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Rejects failed states and schedules a retry if the retry limit has not been reached.
@@ -270,13 +274,13 @@ instructed to transition into a scheduled state to retry flow execution.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L911" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1028" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `RetryFailedTasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L980" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RetryFailedTasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1097" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Rejects failed states and schedules a retry if the retry limit has not been reached.
@@ -289,13 +293,13 @@ transition into a scheduled state to retry task execution.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `EnqueueScheduledTasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1032" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EnqueueScheduledTasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enqueues background task runs when they are scheduled
@@ -303,13 +307,13 @@ Enqueues background task runs when they are scheduled
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1040" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `RenameReruns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1063" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RenameReruns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Name the states if they have run more than once.
@@ -320,13 +324,13 @@ the proposed state will be renamed to "Retrying" instead.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1074" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy]) -> None
 ```
 
-### `CopyScheduledTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1093" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CopyScheduledTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Ensures scheduled time is copied from scheduled states to pending states.
@@ -337,13 +341,13 @@ on the scheduled state will be ignored.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1223" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy]) -> None
 ```
 
-### `WaitForScheduledTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WaitForScheduledTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prevents transitions to running states from happening too early.
@@ -357,13 +361,13 @@ before attempting the transition again.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.Run, core.TaskRunPolicy | core.FlowRunPolicy]) -> None
 ```
 
-### `CopyTaskParametersID` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CopyTaskParametersID` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Ensures a task's parameters ID is copied from Scheduled to Pending and from
@@ -375,13 +379,13 @@ on the initial state will be ignored.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `HandlePausingFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `HandlePausingFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Governs runs attempting to enter a Paused/Suspended state
@@ -389,19 +393,19 @@ Governs runs attempting to enter a Paused/Suspended state
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `HandleResumingPausedFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `HandleResumingPausedFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Governs runs attempting to leave a Paused state
@@ -409,19 +413,19 @@ Governs runs attempting to leave a Paused state
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1266" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `UpdateFlowRunTrackerOnTasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UpdateFlowRunTrackerOnTasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Tracks the flow run attempt a task run state is associated with.
@@ -429,13 +433,13 @@ Tracks the flow run attempt a task run state is associated with.
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1340" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `HandleTaskTerminalStateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1359" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `HandleTaskTerminalStateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 We do not allow tasks to leave terminal states if:
@@ -448,19 +452,19 @@ which resets task run retries; this is particularly relevant for flow run retrie
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-#### `cleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1530" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cleanup(self, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `HandleFlowTerminalStateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `HandleFlowTerminalStateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1540" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 We do not allow flows to leave terminal states if:
@@ -474,19 +478,19 @@ state. This resets pause behavior during manual flow run retries.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-#### `cleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1492" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1609" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cleanup(self, initial_state: states.State[Any] | None, validated_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `PreventPendingTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1501" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PreventPendingTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prevents transitions to PENDING.
@@ -511,23 +515,23 @@ For re-runs of ad-hoc runs, they should transition directly to RUNNING.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1531" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]]) -> None
 ```
 
-### `EnsureOnlyScheduledFlowsMarkedLate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1550" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EnsureOnlyScheduledFlowsMarkedLate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1671" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `PreventRunningTasksFromStoppedFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PreventRunningTasksFromStoppedFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1689" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prevents running tasks from stopped flows.
@@ -538,13 +542,13 @@ flow's tasks cannot be run unless the flow is also running.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1583" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1700" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `EnforceCancellingToCancelledTransition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EnforceCancellingToCancelledTransition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1736" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Rejects transitions from Cancelling to any terminal state except for Cancelled.
@@ -552,13 +556,13 @@ Rejects transitions from Cancelling to any terminal state except for Cancelled.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1627" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1744" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `BypassCancellingFlowRunsWithNoInfra` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1643" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BypassCancellingFlowRunsWithNoInfra` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1760" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
@@ -575,13 +579,13 @@ Runs that are `AwaitingRetry` are a `Scheduled` state that may have associated i
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1776" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `PreventDuplicateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PreventDuplicateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1804" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prevent duplicate transitions from being made right after one another.
@@ -599,7 +603,7 @@ the following case:
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1705" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1822" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None

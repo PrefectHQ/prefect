@@ -10,6 +10,7 @@ import datetime
 import inspect
 from copy import copy
 from functools import partial, update_wrapper
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -342,7 +343,11 @@ class Task(Generic[P, R]):
             indicates that the global default should be used (which is `True` by
             default).
         result_storage: An optional block to use to persist the result of this task.
-            Defaults to the value set in the flow the task is called in.
+            This can be either a saved block instance or a string reference (e.g.,
+            "local-file-system/my-storage"). Block instances must have `.save()` called
+            first since decorators execute at import time. String references are resolved
+            at runtime and recommended for testing scenarios. Defaults to the value set
+            in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
             Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
@@ -451,6 +456,14 @@ class Task(Generic[P, R]):
         update_wrapper(self, fn)
         self.fn = fn
 
+        # Capture source code for cache key computation
+        # This is stored on the task so it survives cloudpickle serialization
+        # to remote environments where the source file is not available
+        try:
+            self.source_code: str | None = inspect.getsource(fn)
+        except (TypeError, OSError):
+            self.source_code = None
+
         # the task is considered async if its function is async or an async
         # generator
         self.isasync: bool = inspect.iscoroutinefunction(
@@ -489,6 +502,7 @@ class Task(Generic[P, R]):
         self.task_key: str = _generate_task_key(self.fn)
 
         # determine cache and result configuration
+        self._user_cache_policy = cache_policy
         settings = get_current_settings()
         if settings.tasks.default_no_cache and cache_policy is NotSet:
             cache_policy = NO_CACHE
@@ -507,6 +521,7 @@ class Task(Generic[P, R]):
         self.refresh_cache = refresh_cache
 
         # result persistence settings
+        self._user_persist_result = persist_result
         if persist_result is None:
             if any(
                 [
@@ -571,11 +586,12 @@ class Task(Generic[P, R]):
         self.retry_jitter_factor = retry_jitter_factor
         self.persist_result = persist_result
 
-        if result_storage and not isinstance(result_storage, str):
+        if result_storage and not isinstance(result_storage, (str, Path)):
             if getattr(result_storage, "_block_document_id", None) is None:
                 raise TypeError(
                     "Result storage configuration must be persisted server-side."
-                    " Please call `.save()` on your block before passing it in."
+                    " Please call `.save()` on your block before passing it in,"
+                    " or use a string reference like 'local-file-system/my-storage' instead."
                 )
 
         self.result_storage = result_storage
@@ -772,7 +788,7 @@ class Task(Generic[P, R]):
             tags=tags or copy(self.tags),
             cache_policy=cache_policy
             if cache_policy is not NotSet
-            else self.cache_policy,
+            else self._user_cache_policy,
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
             task_run_name=task_run_name
@@ -790,7 +806,9 @@ class Task(Generic[P, R]):
                 else self.retry_jitter_factor
             ),
             persist_result=(
-                persist_result if persist_result is not NotSet else self.persist_result
+                persist_result
+                if persist_result is not NotSet
+                else self._user_persist_result
             ),
             result_storage=(
                 result_storage if result_storage is not NotSet else self.result_storage
@@ -1078,17 +1096,17 @@ class Task(Generic[P, R]):
     # These preserve full parameter type checking when users call tasks normally
     @overload
     def __call__(
-        self: "Task[P, Coroutine[Any, Any, R]]",
+        self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Coroutine[Any, Any, R]: ...
+    ) -> Coroutine[Any, Any, T]: ...
 
     @overload
     def __call__(
-        self: "Task[P, R]",
+        self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> R: ...
+    ) -> T: ...
 
     @overload
     def __call__(
@@ -1106,65 +1124,65 @@ class Task(Generic[P, R]):
     # are advanced use cases.
     @overload
     def __call__(
-        self: "Task[..., Coroutine[Any, Any, R]]",
+        self: "Task[..., Coroutine[Any, Any, T]]",
         *args: Any,
         return_state: Literal[False],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, R]: ...
+    ) -> Coroutine[Any, Any, T]: ...
 
     @overload
     def __call__(
-        self: "Task[..., Coroutine[Any, Any, R]]",
+        self: "Task[..., Coroutine[Any, Any, T]]",
         *args: Any,
         return_state: Literal[True],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> State[R]: ...
+    ) -> State[T]: ...
 
     @overload
     def __call__(
-        self: "Task[..., R]",
+        self: "Task[..., T]",
         *args: Any,
         return_state: Literal[False],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> R: ...
+    ) -> T: ...
 
     @overload
     def __call__(
-        self: "Task[..., R]",
+        self: "Task[..., T]",
         *args: Any,
         return_state: Literal[True],
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> State[R]: ...
+    ) -> State[T]: ...
 
     @overload
     def __call__(
-        self: "Task[..., Coroutine[Any, Any, R]]",
+        self: "Task[..., Coroutine[Any, Any, T]]",
         *args: Any,
         wait_for: OneOrManyFutureOrResult[Any],
         return_state: Literal[False] = False,
         **kwargs: Any,
-    ) -> Coroutine[Any, Any, R]: ...
+    ) -> Coroutine[Any, Any, T]: ...
 
     @overload
     def __call__(
-        self: "Task[..., R]",
+        self: "Task[..., T]",
         *args: Any,
         wait_for: OneOrManyFutureOrResult[Any],
         return_state: Literal[False] = False,
         **kwargs: Any,
-    ) -> R: ...
+    ) -> T: ...
 
     def __call__(
-        self: "Union[Task[..., R], Task[..., NoReturn]]",
+        self: "Union[Task[..., T], Task[..., NoReturn]]",
         *args: Any,
         return_state: bool = False,
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         **kwargs: Any,
-    ) -> Union[R, State[R], None]:
+    ) -> Union[T, State[T], None]:
         """
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
@@ -1991,7 +2009,11 @@ def task(
             indicates that the global default should be used (which is `True` by
             default).
         result_storage: An optional block to use to persist the result of this task.
-            Defaults to the value set in the flow the task is called in.
+            This can be either a saved block instance or a string reference (e.g.,
+            "local-file-system/my-storage"). Block instances must have `.save()` called
+            first since decorators execute at import time. String references are resolved
+            at runtime and recommended for testing scenarios. Defaults to the value set
+            in the flow the task is called in.
         result_storage_key: An optional key to store the result in storage at when persisted.
             Defaults to a unique identifier.
         result_serializer: An optional serializer to use to serialize the result of this
@@ -2180,6 +2202,8 @@ class MaterializingTask(Task[P, R]):
             "on_running": "on_running_hooks",
             "on_rollback": "on_rollback_hooks",
             "on_commit": "on_commit_hooks",
+            "persist_result": "_user_persist_result",
+            "cache_policy": "_user_cache_policy",
         }
 
         # Build kwargs for Task constructor

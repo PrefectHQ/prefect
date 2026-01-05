@@ -19,7 +19,9 @@ from prefect_docker.worker import (
 from pydantic import TypeAdapter, ValidationError
 
 import prefect.main  # noqa
+from prefect import get_client
 from prefect.client.schemas import FlowRun
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.events import RelatedResource
 from prefect.settings import (
     PREFECT_API_URL,
@@ -242,13 +244,20 @@ async def test_uses_image_setting(
     assert call_image == "foo"
 
 
-async def test_uses_credentials(
+async def test_uses_credentials_when_pulling_image(
     mock_docker_client,
     flow_run,
     default_docker_worker_job_configuration,
-    registry_credentials,
 ):
-    default_docker_worker_job_configuration.registry_credentials = registry_credentials
+    """Test that credentials are used when an image pull is required."""
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+    # Use "latest" tag which triggers a pull by default
+    default_docker_worker_job_configuration.image = "prefect:latest"
+    default_docker_worker_job_configuration.registry_credentials = credentials
     async with DockerWorker(work_pool_name="test") as worker:
         await worker.run(
             flow_run=flow_run, configuration=default_docker_worker_job_configuration
@@ -259,6 +268,98 @@ async def test_uses_credentials(
         registry="registry.hub.docker.com",
         reauth=True,
     )
+    mock_docker_client.images.pull.assert_called_once()
+
+
+async def test_does_not_login_when_image_exists_locally(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+):
+    """Test that login is skipped when image already exists locally.
+
+    This improves resilience when registries are unavailable, as flows
+    can still run using cached images without requiring authentication.
+    See: https://github.com/PrefectHQ/prefect/issues/19865
+    """
+    from docker.models.images import Image
+
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+
+    # Image exists locally
+    mock_docker_client.images.get.return_value = Image()
+
+    # Use a non-latest tag with IF_NOT_PRESENT policy (the default for non-latest tags)
+    default_docker_worker_job_configuration.image = "prefect:omega"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    # Login should NOT be called since the image exists locally
+    mock_docker_client.login.assert_not_called()
+    # Image should NOT be pulled
+    mock_docker_client.images.pull.assert_not_called()
+
+
+async def test_does_not_login_when_pull_policy_is_never(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+):
+    """Test that login is skipped when pull policy is NEVER."""
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+    default_docker_worker_job_configuration.image_pull_policy = "Never"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    # Login should NOT be called since we never pull
+    mock_docker_client.login.assert_not_called()
+    mock_docker_client.images.pull.assert_not_called()
+
+
+async def test_uses_credentials_with_always_pull_policy(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+):
+    """Test that credentials are used when pull policy is ALWAYS."""
+    from docker.models.images import Image
+
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+
+    # Even if image exists locally
+    mock_docker_client.images.get.return_value = Image()
+
+    default_docker_worker_job_configuration.image = "prefect:omega"
+    default_docker_worker_job_configuration.image_pull_policy = "Always"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    # Login SHOULD be called because we always pull
+    mock_docker_client.login.assert_called_once_with(
+        username="my_username",
+        password="my_password",
+        registry="registry.hub.docker.com",
+        reauth=True,
+    )
+    mock_docker_client.images.pull.assert_called_once()
 
 
 async def test_uses_volumes_setting(
@@ -1271,3 +1372,124 @@ async def test_docker_client_overwrite_timeout_configuration(
         _ = worker._get_client()
 
         mocked_from_env.assert_called_once_with(timeout=30)
+
+
+class TestSubmitAdhocRunWithFlowRunParameter:
+    """Tests for _submit_adhoc_run with the flow_run parameter for retry functionality."""
+
+    @pytest.fixture
+    async def work_pool(self):
+        """Create a Docker work pool for testing."""
+        async with get_client() as client:
+            work_pool = await client.create_work_pool(
+                work_pool=WorkPoolCreate(
+                    name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
+                    type="docker",
+                ),
+            )
+            yield work_pool
+            try:
+                await client.delete_work_pool(work_pool.name)
+            except Exception:
+                pass
+
+    @pytest.fixture
+    def test_flow(self):
+        """Create a test flow for use in tests."""
+        from prefect import flow
+
+        @flow
+        def my_test_flow():
+            return "success"
+
+        return my_test_flow
+
+    async def test_submit_adhoc_run_with_existing_flow_run_reuses_id(
+        self, mock_docker_client, work_pool, test_flow
+    ):
+        """Test that _submit_adhoc_run with flow_run parameter reuses the flow run ID."""
+        from prefect.client.schemas.objects import StateType
+        from prefect.states import Failed
+
+        async with get_client() as client:
+            # Create an initial flow run in a failed state
+            initial_flow_run = await client.create_flow_run(
+                test_flow,
+                parameters={},
+                state=Failed(),
+            )
+
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                # Submit with the existing flow run (retry scenario)
+                await worker._submit_adhoc_run(
+                    flow=test_flow,
+                    parameters={},
+                    flow_run=initial_flow_run,
+                )
+
+            # The flow run should have been reused (same ID) and state set to Pending
+            retried_flow_run = await client.read_flow_run(initial_flow_run.id)
+            assert retried_flow_run.state is not None
+            assert retried_flow_run.state.type == StateType.PENDING
+
+    async def test_submit_adhoc_run_with_existing_flow_run_sets_pending_state(
+        self, mock_docker_client, work_pool, test_flow
+    ):
+        """Test that _submit_adhoc_run sets the state to Pending when retrying."""
+        from prefect.client.schemas.objects import StateType
+        from prefect.states import Failed
+
+        async with get_client() as client:
+            # Create an initial flow run in a failed state
+            initial_flow_run = await client.create_flow_run(
+                test_flow,
+                parameters={},
+                state=Failed(),
+            )
+            assert initial_flow_run.state.type == StateType.FAILED
+
+            # Track the state that was set
+            original_set_flow_run_state = client.set_flow_run_state
+            set_state_calls = []
+
+            async def tracking_set_flow_run_state(flow_run_id, state, **kwargs):
+                set_state_calls.append((flow_run_id, state))
+                return await original_set_flow_run_state(flow_run_id, state, **kwargs)
+
+            client.set_flow_run_state = tracking_set_flow_run_state
+
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                # Override the client in the worker
+                worker._client = client
+
+                await worker._submit_adhoc_run(
+                    flow=test_flow,
+                    parameters={},
+                    flow_run=initial_flow_run,
+                )
+
+            # Verify set_flow_run_state was called with a Pending state
+            assert len(set_state_calls) >= 1
+            flow_run_id, state = set_state_calls[0]
+            assert flow_run_id == initial_flow_run.id
+            assert state.type == StateType.PENDING
+
+    async def test_submit_adhoc_run_without_flow_run_creates_new_run(
+        self, mock_docker_client, work_pool, test_flow
+    ):
+        """Test that _submit_adhoc_run creates a new flow run when flow_run is None."""
+        async with get_client() as client:
+            # Count flow runs before
+            initial_flow_runs = await client.read_flow_runs()
+            initial_count = len(initial_flow_runs)
+
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                await worker._submit_adhoc_run(
+                    flow=test_flow,
+                    parameters={},
+                    # flow_run is None - should create a new one
+                )
+
+            # Verify a new flow run was created
+            final_flow_runs = await client.read_flow_runs()
+            assert len(final_flow_runs) > initial_count

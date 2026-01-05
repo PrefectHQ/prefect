@@ -164,9 +164,9 @@ class PrefectBaseSettings(BaseSettings):
     @model_serializer(
         mode="wrap", when_used="always"
     )  # TODO: reconsider `when_used` default for more control
-    def ser_model(
+    def _ser_model(
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
-    ) -> Any:
+    ):  # No return type to avoid breaking OpenAPI schema generation (pydantic#8791)
         jsonable_self: dict[str, Any] = handler(self)
         # iterate over fields to ensure child models that have been updated are also included
         for key in type(self).model_fields.keys():

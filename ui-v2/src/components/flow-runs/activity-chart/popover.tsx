@@ -14,9 +14,9 @@ export const Popover = ({ name, flowRun }: PopoverProps) => {
 	return (
 		<div
 			data-testid="popover"
-			className="bg-white border rounded-lg p-4 flex flex-col gap-2"
+			className="bg-background border rounded-lg p-4 flex flex-col gap-2"
 		>
-			<Typography variant="body" className="text-black">
+			<Typography variant="body" className="text-foreground">
 				{name} {">"}{" "}
 				<Link
 					to="/runs/flow-run/$id"
@@ -33,7 +33,7 @@ export const Popover = ({ name, flowRun }: PopoverProps) => {
 			<div className="flex flex-col justify-between">
 				<Typography
 					variant="bodySmall"
-					className="text-black flex items-center"
+					className="text-foreground flex items-center"
 				>
 					<Icon id="Clock" width="16" className="mr-2" />{" "}
 					{humanizeDuration(
@@ -42,7 +42,7 @@ export const Popover = ({ name, flowRun }: PopoverProps) => {
 				</Typography>
 				<Typography
 					variant="bodySmall"
-					className="text-black flex items-center"
+					className="text-foreground flex items-center"
 				>
 					<Icon id="Calendar" width="16" className="mr-2" />{" "}
 					{new Date(

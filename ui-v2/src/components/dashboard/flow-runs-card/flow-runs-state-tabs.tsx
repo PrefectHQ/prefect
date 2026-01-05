@@ -1,21 +1,17 @@
-import { useMemo } from "react";
-import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/utils";
 
 type StateType = components["schemas"]["StateType"];
-type TabState = StateType | "ALL";
 
-const STATE_TYPES: readonly StateType[] = [
-	"FAILED",
-	"RUNNING",
-	"COMPLETED",
-	"SCHEDULED",
-	"CANCELLED",
+export type StateTypeCounts = Record<StateType, number>;
+
+const STATE_TYPES: readonly StateType[][] = [
+	["FAILED", "CRASHED"],
+	["RUNNING", "PENDING", "CANCELLING"],
+	["COMPLETED"],
+	["SCHEDULED", "PAUSED"],
+	["CANCELLED"],
 ] as const;
-
-const TAB_STATES: readonly TabState[] = ["ALL", ...STATE_TYPES] as const;
 
 const STATE_PILL_COLORS: Record<StateType, string> = {
 	COMPLETED: "bg-green-600",
@@ -32,101 +28,60 @@ const STATE_PILL_COLORS: Record<StateType, string> = {
 type FlowRunStateCountPillProps = {
 	states: readonly StateType[];
 	count: number;
-	active: boolean;
 };
 
 const FlowRunStateCountPill = ({
 	states,
 	count,
-	active,
 }: FlowRunStateCountPillProps) => (
-	<div className="flex flex-col items-center gap-1">
+	<>
 		<span className="h-1 w-4 rounded-full grid auto-cols-fr grid-flow-col overflow-hidden">
 			{states.map((state) => (
 				<span key={state} className={STATE_PILL_COLORS[state]} />
 			))}
 		</span>
-		<span
-			className={cn(
-				"text-lg font-bold",
-				active ? "text-foreground" : "text-muted-foreground",
-			)}
-		>
-			{count}
-		</span>
-	</div>
+
+		{count}
+	</>
 );
 
 type FlowRunStateTabsProps = {
-	flowRuns: FlowRun[];
-	selectedState: TabState;
-	onStateChange: (state: TabState) => void;
+	stateCounts: StateTypeCounts;
+	selectedStates: StateType[];
+	onStateChange: (states: StateType[]) => void;
 };
 
 export const FlowRunStateTabs = ({
-	flowRuns,
-	selectedState,
+	stateCounts,
+	selectedStates,
 	onStateChange,
 }: FlowRunStateTabsProps) => {
-	const counts = useMemo(() => {
-		const stateCounts: Record<StateType | "ALL", number> = {
-			ALL: flowRuns.length,
-			FAILED: 0,
-			RUNNING: 0,
-			COMPLETED: 0,
-			SCHEDULED: 0,
-			CANCELLED: 0,
-			PENDING: 0,
-			CRASHED: 0,
-			PAUSED: 0,
-			CANCELLING: 0,
-		};
-
-		for (const flowRun of flowRuns) {
-			if (flowRun.state_type) {
-				stateCounts[flowRun.state_type] =
-					(stateCounts[flowRun.state_type] || 0) + 1;
-			}
-		}
-
-		return stateCounts;
-	}, [flowRuns]);
-
 	const handleValueChange = (value: string) => {
-		if (TAB_STATES.includes(value as TabState)) {
-			onStateChange(value as TabState);
-		}
+		onStateChange(value.split("-").map((state) => state as StateType));
 	};
 
 	return (
-		<Tabs value={selectedState} onValueChange={handleValueChange}>
-			<TabsList className="flex justify-between w-full">
-				<TabsTrigger
-					value="ALL"
-					aria-label="All runs"
-					className="bg-transparent shadow-none data-[state=active]:shadow-none border-none"
-				>
-					<FlowRunStateCountPill
-						states={STATE_TYPES}
-						count={counts.ALL}
-						active={selectedState === "ALL"}
-					/>
-				</TabsTrigger>
-				{STATE_TYPES.map((stateType) => (
-					<TabsTrigger
-						key={stateType}
-						value={stateType}
-						aria-label={`${stateType.toLowerCase()} runs`}
-						className="bg-transparent shadow-none data-[state=active]:shadow-none border-none"
-					>
-						<FlowRunStateCountPill
-							states={[stateType]}
-							count={counts[stateType]}
-							active={selectedState === stateType}
-						/>
-					</TabsTrigger>
-				))}
-			</TabsList>
-		</Tabs>
+		<div className="space-y-2">
+			<Tabs value={selectedStates.join("-")} onValueChange={handleValueChange}>
+				<TabsList className="flex justify-between w-full">
+					{STATE_TYPES.map((stateType) => (
+						<TabsTrigger
+							key={stateType.join("-")}
+							value={stateType.join("-")}
+							aria-label={`${stateType.join("-").toLowerCase()} runs`}
+							className="flex flex-col items-center gap-1"
+						>
+							<FlowRunStateCountPill
+								states={stateType}
+								count={stateType.reduce(
+									(acc, state) => acc + stateCounts[state],
+									0,
+								)}
+							/>
+						</TabsTrigger>
+					))}
+				</TabsList>
+			</Tabs>
+		</div>
 	);
 };
