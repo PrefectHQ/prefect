@@ -4,6 +4,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 from time import sleep
 from typing import Any, Awaitable, Callable
 from unittest.mock import MagicMock
@@ -11,6 +12,7 @@ from uuid import UUID, uuid4
 
 import anyio
 import pytest
+from typer import Exit
 
 import prefect.exceptions
 from prefect import __development_base_path__, flow
@@ -127,8 +129,12 @@ def test_delete_flow_run_fails_correctly():
     invoke_and_assert(
         command=["flow-run", "delete", missing_flow_run_id],
         user_input="y",
-        expected_output_contains=f"Flow run '{missing_flow_run_id}' not found!",
-        expected_code=1,
+        expected_output_contains=[
+            "Failed to delete 1 flow run(s):",
+            f"- {missing_flow_run_id}: not found",
+            "Successfully deleted 0 flow run(s).",
+        ],
+        expected_code=0,
     )
 
 
@@ -138,11 +144,146 @@ def test_delete_flow_run_succeeds(
     invoke_and_assert(
         command=["flow-run", "delete", str(flow_run.id)],
         user_input="y",
-        expected_output_contains=f"Successfully deleted flow run '{str(flow_run.id)}'.",
+        expected_output_contains="Successfully deleted 1 flow run(s).",
         expected_code=0,
     )
 
     assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run.id)
+
+
+@pytest.fixture(autouse=True)
+def interactive_console(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("prefect.cli.flow_run.is_interactive", lambda: True)
+
+    if sys.platform != "win32":
+
+        def readchar():
+            sys.stdin.flush()
+            position = sys.stdin.tell()
+            if not sys.stdin.read():
+                print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
+                raise Exit(-2)
+            else:
+                sys.stdin.seek(position)
+            return sys.stdin.read(1)
+
+        monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+
+
+@pytest.fixture()
+async def single_flow_run(prefect_client: PrefectClient):
+    flow_run = await prefect_client.create_flow_run(hello_flow, state=Completed())
+    return flow_run
+
+
+def test_delete_flow_runs_aborted_by_user(
+    sync_prefect_client: SyncPrefectClient, single_flow_run: FlowRun
+):
+    invoke_and_assert(
+        command=["flow-run", "delete", str(single_flow_run.id)],
+        user_input="n",
+        expected_output_contains="Deletion aborted.",
+        expected_code=1,
+    )
+
+    # Verify flow run still exists after aborting deletion
+    flow_run_still_exists = sync_prefect_client.read_flow_run(single_flow_run.id)
+    assert flow_run_still_exists.id == single_flow_run.id
+
+
+class TestBatchDeleteFlowRun:
+    async def test_delete_multiple_flow_runs_succeeds(
+        self, sync_prefect_client: SyncPrefectClient, prefect_client: PrefectClient
+    ):
+        flow_run1 = await prefect_client.create_flow_run(hello_flow, state=Completed())
+        flow_run2 = await prefect_client.create_flow_run(hello_flow, state=Completed())
+        flow_run3 = await prefect_client.create_flow_run(hello_flow, state=Completed())
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "delete",
+                str(flow_run1.id),
+                str(flow_run2.id),
+                str(flow_run3.id),
+            ],
+            user_input="y",
+            expected_output_contains="Successfully deleted 3 flow run(s).",
+            expected_code=0,
+        )
+
+        assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run1.id)
+        assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run2.id)
+        assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run3.id)
+
+    async def test_delete_multiple_flow_runs_partial_failure(
+        self, sync_prefect_client: SyncPrefectClient, prefect_client: PrefectClient
+    ):
+        flow_run1 = await prefect_client.create_flow_run(hello_flow, state=Completed())
+        flow_run2 = await prefect_client.create_flow_run(hello_flow, state=Completed())
+        nonexistent_id = uuid4()
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "delete",
+                str(flow_run1.id),
+                str(flow_run2.id),
+                str(nonexistent_id),
+            ],
+            user_input="y",
+            expected_output_contains=[
+                "Failed to delete 1 flow run(s):",
+                f"- {nonexistent_id}: not found",
+                "Successfully deleted 2 flow run(s).",
+            ],
+            expected_code=0,
+        )
+
+        assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run1.id)
+        assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run2.id)
+
+    def test_delete_multiple_flow_runs_all_fail(self):
+        id1 = uuid4()
+        id2 = uuid4()
+        id3 = uuid4()
+
+        invoke_and_assert(
+            command=["flow-run", "delete", str(id1), str(id2), str(id3)],
+            user_input="y",
+            expected_output_contains=[
+                "Failed to delete 3 flow run(s):",
+                f"- {id1}: not found",
+                f"- {id2}: not found",
+                f"- {id3}: not found",
+                "Successfully deleted 0 flow run(s).",
+            ],
+            expected_code=0,
+        )
+
+    async def test_delete_multiple_flow_runs_aborted_by_user(
+        self, sync_prefect_client: SyncPrefectClient, prefect_client: PrefectClient
+    ):
+        flow_run1 = await prefect_client.create_flow_run(hello_flow, state=Completed())
+        flow_run2 = await prefect_client.create_flow_run(hello_flow, state=Completed())
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "delete", str(flow_run1.id), str(flow_run2.id)],
+            user_input="n",
+            expected_output_contains=[
+                "Are you sure you want to delete 2 flow run(s)?",
+                "Deletion aborted.",
+            ],
+            expected_code=1,
+        )
+
+        flow_run1_still_exists = sync_prefect_client.read_flow_run(flow_run1.id)
+        flow_run2_still_exists = sync_prefect_client.read_flow_run(flow_run2.id)
+        assert flow_run1_still_exists.id == flow_run1.id
+        assert flow_run2_still_exists.id == flow_run2.id
 
 
 @pytest.fixture

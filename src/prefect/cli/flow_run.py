@@ -328,7 +328,9 @@ async def delete(ids: List[UUID] = typer.Argument(..., help="Flow run IDs to del
                 failed.append((str(flow_run_id), str(exc)))
 
         if failed:
-            app.console.print(f"[yellow]Failed to delete {len(failed)} flow run(s):[/yellow]")
+            app.console.print(
+                f"[yellow]Failed to delete {len(failed)} flow run(s):[/yellow]"
+            )
             for flow_run_id, error in failed:
                 app.console.print(f"  - {flow_run_id}: {error}")
 
