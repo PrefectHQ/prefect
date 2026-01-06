@@ -477,7 +477,7 @@ async def update(
         "--id",
         help="The ID of the automation to update",
     ),
-    from_file: Optional[str] = typer.Option(
+    from_file: Optional[Path] = typer.Option(
         None,
         "--from-file",
         "-f",
@@ -509,16 +509,15 @@ async def update(
         exit_with_error(f"Invalid automation ID: {id!r}")
 
     if from_file:
-        file_path = Path(from_file)
-        if not file_path.exists():
+        if not from_file.exists():
             exit_with_error(f"File not found: {from_file}")
 
-        with open(file_path, "r") as f:
+        with open(from_file, "r") as f:
             content = f.read()
 
-        if file_path.suffix.lower() in [".yaml", ".yml"]:
+        if from_file.suffix.lower() in [".yaml", ".yml"]:
             data = pyyaml.safe_load(content)
-        elif file_path.suffix.lower() == ".json":
+        elif from_file.suffix.lower() == ".json":
             data = orjson.loads(content)
         else:
             exit_with_error(
@@ -533,7 +532,7 @@ async def update(
     try:
         automation = AutomationCore.model_validate(data)
     except Exception as e:
-        exit_with_error(f"Failed to update automation: {e}")
+        exit_with_error(f"Automation config failed validation: {e}")
 
     async with get_client() as client:
         existing_automation = await client.read_automation(automation_id)
