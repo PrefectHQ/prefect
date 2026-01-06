@@ -16,13 +16,16 @@ export const useBulkUpdatePrioritiesMutation = () => {
 			const results = [];
 			for (const update of updates) {
 				try {
-					const response = await getQueryService().PATCH("/work_queues/{id}", {
-						params: { path: { id: update.id } },
-						body: {
-							priority: update.priority,
-							is_paused: false, // Required field - keep existing state
+					const response = await (await getQueryService()).PATCH(
+						"/work_queues/{id}",
+						{
+							params: { path: { id: update.id } },
+							body: {
+								priority: update.priority,
+								is_paused: false, // Required field - keep existing state
+							},
 						},
-					});
+					);
 					results.push({ id: update.id, success: true, data: response.data });
 				} catch (error) {
 					results.push({ id: update.id, success: false, error });

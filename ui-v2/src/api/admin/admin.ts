@@ -24,7 +24,7 @@ export const buildGetVersionQuery = () =>
 	queryOptions({
 		queryKey: queryKeyFactory.version(),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/admin/version");
+			const res = await (await getQueryService()).GET("/admin/version");
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}
@@ -40,7 +40,7 @@ export const buildGetSettingsQuery = () =>
 	queryOptions({
 		queryKey: queryKeyFactory.settings(),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/admin/settings");
+			const res = await (await getQueryService()).GET("/admin/settings");
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}

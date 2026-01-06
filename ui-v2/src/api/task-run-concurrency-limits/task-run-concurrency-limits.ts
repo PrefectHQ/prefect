@@ -47,9 +47,12 @@ export const buildListTaskRunConcurrencyLimitsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/concurrency_limits/filter", {
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/concurrency_limits/filter",
+				{
+					body: filter,
+				},
+			);
 			return res.data ?? [];
 		},
 		refetchInterval: 30_000,
@@ -57,7 +60,7 @@ export const buildListTaskRunConcurrencyLimitsQuery = (
 
 const fetchTaskRunConcurrencyLimit = async (id: string) => {
 	// GET task-run-concurrency-limit by id
-	const res = await getQueryService().GET("/concurrency_limits/{id}", {
+	const res = await (await getQueryService()).GET("/concurrency_limits/{id}", {
 		params: { path: { id } },
 	});
 	if (!res.data) {
@@ -114,8 +117,8 @@ export const useGetTaskRunConcurrencyLimit = (id: string) =>
 export const useDeleteTaskRunConcurrencyLimit = () => {
 	const queryClient = useQueryClient();
 	const { mutate: deleteTaskRunConcurrencyLimit, ...rest } = useMutation({
-		mutationFn: (id: string) =>
-			getQueryService().DELETE("/concurrency_limits/{id}", {
+		mutationFn: async (id: string) =>
+			(await getQueryService()).DELETE("/concurrency_limits/{id}", {
 				params: { path: { id } },
 			}),
 		onSuccess: () => {
@@ -159,8 +162,8 @@ export const useDeleteTaskRunConcurrencyLimit = () => {
 export const useCreateTaskRunConcurrencyLimit = () => {
 	const queryClient = useQueryClient();
 	const { mutate: createTaskRunConcurrencyLimit, ...rest } = useMutation({
-		mutationFn: (body: components["schemas"]["ConcurrencyLimitCreate"]) =>
-			getQueryService().POST("/concurrency_limits/", {
+		mutationFn: async (body: components["schemas"]["ConcurrencyLimitCreate"]) =>
+			(await getQueryService()).POST("/concurrency_limits/", {
 				body,
 			}),
 		onSuccess: () => {
@@ -201,8 +204,8 @@ export const useCreateTaskRunConcurrencyLimit = () => {
 export const useResetTaskRunConcurrencyLimitTag = () => {
 	const queryClient = useQueryClient();
 	const { mutate: resetTaskRunConcurrencyLimitTag, ...rest } = useMutation({
-		mutationFn: (tag: string) =>
-			getQueryService().POST("/concurrency_limits/tag/{tag}/reset", {
+		mutationFn: async (tag: string) =>
+			(await getQueryService()).POST("/concurrency_limits/tag/{tag}/reset", {
 				params: { path: { tag } },
 			}),
 		onSuccess: () => {
@@ -219,7 +222,7 @@ export const useResetTaskRunConcurrencyLimitTag = () => {
 };
 
 const fetchActiveTaskRunDetails = async (activeSlots: Array<string>) => {
-	const taskRuns = await getQueryService().POST("/task_runs/filter", {
+	const taskRuns = await (await getQueryService()).POST("/task_runs/filter", {
 		body: {
 			task_runs: {
 				id: { any_: activeSlots },
@@ -260,7 +263,7 @@ const fetchActiveTaskRunDetails = async (activeSlots: Array<string>) => {
 	);
 
 	// Get Flow Runs info
-	const flowRuns = await getQueryService().POST("/flow_runs/filter", {
+	const flowRuns = await (await getQueryService()).POST("/flow_runs/filter", {
 		body: {
 			flow_runs: {
 				id: { any_: flowRunsIds },
@@ -282,7 +285,7 @@ const fetchActiveTaskRunDetails = async (activeSlots: Array<string>) => {
 	const flowID = flowRuns.data[0].flow_id;
 
 	// Get Flow info
-	const flow = await getQueryService().GET("/flows/{id}", {
+	const flow = await (await getQueryService()).GET("/flows/{id}", {
 		params: { path: { id: flowID } },
 	});
 

@@ -57,7 +57,7 @@ export const buildFilterLogsQuery = (filter: LogsFilter) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/logs/filter", {
+			const res = await (await getQueryService()).POST("/logs/filter", {
 				body: filter,
 			});
 			return res.data ?? [];
@@ -70,7 +70,7 @@ export const buildInfiniteFilterLogsQuery = (
 	infiniteQueryOptions({
 		queryKey: queryKeyFactory.infiniteList(filter),
 		queryFn: async ({ pageParam = { offset: 0 } }) => {
-			const res = await getQueryService().POST("/logs/filter", {
+			const res = await (await getQueryService()).POST("/logs/filter", {
 				body: { ...filter, offset: pageParam.offset },
 			});
 			return res.data ?? [];

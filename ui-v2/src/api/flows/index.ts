@@ -76,7 +76,7 @@ export const buildListFlowsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const result = await getQueryService().POST("/flows/filter", {
+			const result = await (await getQueryService()).POST("/flows/filter", {
 				body: filter,
 			});
 			return result.data ?? [];
@@ -107,7 +107,7 @@ export const buildPaginateFlowsQuery = (
 	return queryOptions({
 		queryKey: queryKeyFactory.paginate(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/flows/paginate", {
+			const res = await (await getQueryService()).POST("/flows/paginate", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -137,7 +137,7 @@ export const buildFLowDetailsQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/flows/{id}", {
+			const res = await (await getQueryService()).GET("/flows/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -169,7 +169,7 @@ export const buildCountFlowsFilteredQuery = (filter: FlowsFilter) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const result = await getQueryService().POST("/flows/count", {
+			const result = await (await getQueryService()).POST("/flows/count", {
 				body: filter,
 			});
 			return result.data ?? 0;
@@ -200,7 +200,7 @@ export const buildDeploymentsCountByFlowQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.deploymentsCount(flowIds),
 		queryFn: async () => {
-			const result = await getQueryService().POST(
+			const result = await (await getQueryService()).POST(
 				"/ui/flows/count-deployments",
 				{
 					body: { flow_ids: flowIds },
@@ -237,9 +237,12 @@ export const buildNextRunsByFlowQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.nextRuns(flowIds),
 		queryFn: async () => {
-			const result = await getQueryService().POST("/ui/flows/next-runs", {
-				body: { flow_ids: flowIds },
-			});
+			const result = await (await getQueryService()).POST(
+				"/ui/flows/next-runs",
+				{
+					body: { flow_ids: flowIds },
+				},
+			);
 			return (result.data ?? {}) as Record<string, SimpleNextFlowRun | null>;
 		},
 		staleTime: 1000,
@@ -272,8 +275,8 @@ export const useDeleteFlowById = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: deleteFlow, ...rest } = useMutation({
-		mutationFn: (id: string) =>
-			getQueryService().DELETE("/flows/{id}", {
+		mutationFn: async (id: string) =>
+			(await getQueryService()).DELETE("/flows/{id}", {
 				params: { path: { id } },
 			}),
 		onSettled: () =>

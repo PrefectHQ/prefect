@@ -23,9 +23,12 @@ export const buildListWorkPoolTypesQuery = () =>
 	queryOptions({
 		queryKey: queryKeyFactory.workPoolTypes(),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/collections/views/{view}", {
-				params: { path: { view: "aggregate-worker-metadata" } },
-			});
+			const res = await (await getQueryService()).GET(
+				"/collections/views/{view}",
+				{
+					params: { path: { view: "aggregate-worker-metadata" } },
+				},
+			);
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}
