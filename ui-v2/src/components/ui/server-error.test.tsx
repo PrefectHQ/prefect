@@ -106,7 +106,7 @@ describe("ServerErrorDisplay", () => {
 		).toBeInTheDocument();
 	});
 
-	it("resets backoff on manual retry", async () => {
+	it("resets backoff on manual retry", () => {
 		const onRetry = vi.fn();
 		render(<ServerErrorDisplay error={networkError} onRetry={onRetry} />);
 
