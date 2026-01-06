@@ -535,7 +535,13 @@ async def update(
         exit_with_error(f"Automation config failed validation: {e}")
 
     async with get_client() as client:
-        existing_automation = await client.read_automation(automation_id)
+        try:
+            existing_automation = await client.read_automation(automation_id)
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                exit_with_error(f"Automation with id {id!r} not found.")
+            raise
+
         if not existing_automation:
             exit_with_error(f"Automation with id {id!r} not found.")
 
