@@ -468,3 +468,78 @@ async def create(
         raise typer.Exit(1)
     else:
         raise typer.Exit(0)
+
+
+@automations_app.command()
+@requires_automations
+async def update(
+    id: str = typer.Option(
+        ...,
+        "--id",
+        help="The ID of the automation to update",
+    ),
+    from_file: Optional[str] = typer.Option(
+        None,
+        "--from-file",
+        "-f",
+        help="Path to YAML or JSON file containing the updated automation",
+    ),
+    from_json: Optional[str] = typer.Option(
+        None,
+        "--from-json",
+        "-j",
+        help="JSON string containing the updated automation",
+    ),
+):
+    """Update an existing automation from a file or JSON string.
+
+    Examples:
+        `$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-file automation.yaml`
+        `$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -f automation.json`
+        `$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-json '{"name": "updated-automation", "trigger": {...}, "actions": [...]}'`
+    """
+    if from_file and from_json:
+        exit_with_error("Please provide either --from-file or --from-json, not both.")
+
+    if not from_file and not from_json:
+        exit_with_error("Please provide either --from-file or --from-json.")
+
+    try:
+        automation_id = UUID(id)
+    except ValueError:
+        exit_with_error(f"Invalid automation ID: {id!r}")
+
+    if from_file:
+        file_path = Path(from_file)
+        if not file_path.exists():
+            exit_with_error(f"File not found: {from_file}")
+
+        with open(file_path, "r") as f:
+            content = f.read()
+
+        if file_path.suffix.lower() in [".yaml", ".yml"]:
+            data = pyyaml.safe_load(content)
+        elif file_path.suffix.lower() == ".json":
+            data = orjson.loads(content)
+        else:
+            exit_with_error(
+                "File extension not recognized. Please use .yaml, .yml, or .json"
+            )
+    else:  # from_json
+        try:
+            data = orjson.loads(from_json)
+        except orjson.JSONDecodeError as e:
+            exit_with_error(f"Invalid JSON: {e}")
+
+    try:
+        automation = AutomationCore.model_validate(data)
+    except Exception as e:
+        exit_with_error(f"Failed to update automation: {e}")
+
+    async with get_client() as client:
+        existing_automation = await client.read_automation(automation_id)
+        if not existing_automation:
+            exit_with_error(f"Automation with id {id!r} not found.")
+
+        await client.update_automation(automation_id, automation)
+        exit_with_success(f"Updated automation '{automation.name}' ({id})")

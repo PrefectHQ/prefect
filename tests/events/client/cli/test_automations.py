@@ -1014,3 +1014,340 @@ def test_deleting_all_automations_with_id_errors(
     )
 
     delete_automation.assert_not_called()
+
+
+@pytest.fixture
+def update_automation() -> Generator[mock.AsyncMock, None, None]:
+    with mock.patch(
+        "prefect.client.orchestration.PrefectClient.update_automation", autospec=True
+    ) as m:
+        yield m
+
+
+def test_updating_automation_from_yaml_file(
+    update_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    tmp_path,
+):
+    read_automation.return_value = various_automations[0]
+
+    yaml_file = tmp_path / "automation.yaml"
+    automation_data = {
+        "name": "Updated Automation",
+        "description": "Updated automation from YAML",
+        "enabled": True,
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.updated"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    yaml_file.write_text(yaml.dump(automation_data))
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--from-file",
+            str(yaml_file),
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Updated automation 'Updated Automation' (aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa)"
+        ],
+    )
+
+    update_automation.assert_awaited_once()
+
+
+def test_updating_automation_from_json_file(
+    update_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    tmp_path,
+):
+    read_automation.return_value = various_automations[0]
+
+    json_file = tmp_path / "automation.json"
+    automation_data = {
+        "name": "Updated JSON Automation",
+        "description": "Updated automation from JSON",
+        "enabled": True,
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.updated"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    json_file.write_text(orjson.dumps(automation_data).decode())
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--from-file",
+            str(json_file),
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Updated automation 'Updated JSON Automation' (aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa)"
+        ],
+    )
+
+    update_automation.assert_awaited_once()
+
+
+def test_updating_automation_from_json_string(
+    update_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+):
+    read_automation.return_value = various_automations[0]
+
+    automation_data = {
+        "name": "Updated String Automation",
+        "description": "Updated automation from JSON string",
+        "enabled": True,
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.updated"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    json_string = orjson.dumps(automation_data).decode()
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--from-json",
+            json_string,
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            "Updated automation 'Updated String Automation' (aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa)"
+        ],
+    )
+
+    update_automation.assert_awaited_once()
+
+
+def test_updating_automation_not_found(
+    update_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+):
+    read_automation.return_value = None
+
+    automation_data = {
+        "name": "Updated Automation",
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.updated"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    json_string = orjson.dumps(automation_data).decode()
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            "--from-json",
+            json_string,
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' not found"
+        ],
+    )
+
+    update_automation.assert_not_awaited()
+
+
+def test_updating_automation_invalid_id(
+    update_automation: mock.AsyncMock,
+):
+    automation_data = {
+        "name": "Updated Automation",
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.updated"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    json_string = orjson.dumps(automation_data).decode()
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "not-a-valid-uuid",
+            "--from-json",
+            json_string,
+        ],
+        expected_code=1,
+        expected_output_contains=["Invalid automation ID: 'not-a-valid-uuid'"],
+    )
+
+    update_automation.assert_not_called()
+
+
+def test_updating_automation_invalid_file_extension(
+    update_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    tmp_path,
+):
+    read_automation.return_value = various_automations[0]
+
+    invalid_file = tmp_path / "automation.txt"
+    invalid_file.write_text("some content")
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--from-file",
+            str(invalid_file),
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "File extension not recognized. Please use .yaml, .yml, or .json"
+        ],
+    )
+
+    update_automation.assert_not_called()
+
+
+def test_updating_automation_file_not_found(
+    update_automation: mock.AsyncMock,
+):
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--from-file",
+            "nonexistent.yaml",
+        ],
+        expected_code=1,
+        expected_output_contains=["File not found: nonexistent.yaml"],
+    )
+
+    update_automation.assert_not_called()
+
+
+def test_updating_automation_invalid_json_string(
+    update_automation: mock.AsyncMock,
+):
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--from-json",
+            "not-a-valid-json",
+        ],
+        expected_code=1,
+        expected_output_contains=["Invalid JSON:"],
+    )
+
+    update_automation.assert_not_called()
+
+
+def test_updating_automation_no_input(
+    update_automation: mock.AsyncMock,
+):
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        ],
+        expected_code=1,
+        expected_output_contains=["Please provide either --from-file or --from-json"],
+    )
+
+    update_automation.assert_not_called()
+
+
+def test_updating_automation_both_inputs(
+    update_automation: mock.AsyncMock,
+    tmp_path,
+):
+    yaml_file = tmp_path / "automation.yaml"
+    yaml_file.write_text("name: test")
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--from-file",
+            str(yaml_file),
+            "--from-json",
+            '{"name": "test"}',
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Please provide either --from-file or --from-json, not both"
+        ],
+    )
+
+    update_automation.assert_not_called()
+
+
+def test_updating_automation_validation_error(
+    update_automation: mock.AsyncMock,
+    read_automation: mock.AsyncMock,
+    various_automations: List[Automation],
+    tmp_path,
+):
+    read_automation.return_value = various_automations[0]
+
+    yaml_file = tmp_path / "invalid_automation.yaml"
+    automation_data = {
+        "description": "Invalid automation - missing required fields",
+    }
+    yaml_file.write_text(yaml.dump(automation_data))
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "--from-file",
+            str(yaml_file),
+        ],
+        expected_code=1,
+        expected_output_contains=["Failed to update automation:"],
+    )
+
+    update_automation.assert_not_awaited()
