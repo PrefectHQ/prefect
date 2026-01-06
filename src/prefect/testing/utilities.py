@@ -111,7 +111,10 @@ def assert_does_not_warn(
 
 
 @contextmanager
-def prefect_test_harness(server_startup_timeout: int | None = 30):
+def prefect_test_harness(
+    server_startup_timeout: int | None = 30,
+    in_process: bool = False,
+):
     """
     Temporarily run flows against a local SQLite database for testing.
 
@@ -119,6 +122,12 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
         server_startup_timeout: The maximum time to wait for the server to start.
             Defaults to 30 seconds. If set to `None`, the value of
             `PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS` will be used.
+            Only used when `in_process=False`.
+        in_process: If `True`, run the server in-process using ASGI transport
+            instead of starting a subprocess HTTP server. This bypasses HTTP
+            connection pooling entirely, which can help avoid issues with
+            HTTP mocking libraries (like VCR/vcrpy) that interfere with
+            connection management. Defaults to `False` for backwards compatibility.
 
     Examples:
         ```python
@@ -132,6 +141,11 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
 
         with prefect_test_harness():
             assert my_flow() == 'Done!' # run against temporary db
+
+        # Use in_process=True to avoid HTTP connection pool issues
+        # (e.g., when using VCR/vcrpy for HTTP mocking)
+        with prefect_test_harness(in_process=True):
+            assert my_flow() == 'Done!'
         ```
     """
     from prefect.server.database.dependencies import temporary_database_interface
@@ -157,22 +171,46 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
                 },
             )
         )
-        # start a subprocess server to test against
-        test_server = SubprocessASGIServer()
-        test_server.start(
-            timeout=server_startup_timeout
-            if server_startup_timeout is not None
-            else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
-        )
-        stack.enter_context(
-            prefect.settings.temporary_settings(
-                # Use a temporary directory for the database
-                updates={
-                    prefect.settings.PREFECT_API_URL: test_server.api_url,
-                },
+
+        if in_process:
+            # Use in-process ASGI transport - no HTTP connections at all
+            # This avoids connection pool issues with HTTP mocking libraries
+            from prefect.server.api.server import create_app
+
+            app = create_app()
+            stack.enter_context(
+                prefect.settings.temporary_settings(
+                    updates={
+                        # Clear API URL to trigger ephemeral mode
+                        prefect.settings.PREFECT_API_URL: None,
+                        # Enable ephemeral mode so get_client() uses ASGI transport
+                        prefect.settings.PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
+                    },
+                )
             )
-        )
+            # Store the app in a module-level variable so get_client can access it
+            # when PREFECT_SERVER_ALLOW_EPHEMERAL_MODE is True
+            _set_in_process_app(app)
+            stack.callback(_clear_in_process_app)
+        else:
+            # start a subprocess server to test against
+            test_server = SubprocessASGIServer()
+            test_server.start(
+                timeout=server_startup_timeout
+                if server_startup_timeout is not None
+                else prefect.settings.PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS.value()
+            )
+            stack.enter_context(
+                prefect.settings.temporary_settings(
+                    # Use a temporary directory for the database
+                    updates={
+                        prefect.settings.PREFECT_API_URL: test_server.api_url,
+                    },
+                )
+            )
+
         yield
+
         # drain the logs before stopping the server to avoid connection errors on shutdown
         # When running in an async context, drain() and drain_all() return awaitables.
         # We use a wrapper coroutine passed to run_coro_as_sync to ensure the awaitable
@@ -194,7 +232,27 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
 
         run_coro_as_sync(drain_workers())
 
-        test_server.stop()
+        if not in_process:
+            test_server.stop()
+
+
+# Module-level storage for in-process ASGI app
+_IN_PROCESS_APP: Any = None
+
+
+def _set_in_process_app(app: Any) -> None:
+    global _IN_PROCESS_APP
+    _IN_PROCESS_APP = app
+
+
+def _clear_in_process_app() -> None:
+    global _IN_PROCESS_APP
+    _IN_PROCESS_APP = None
+
+
+def get_in_process_app() -> Any:
+    """Get the in-process ASGI app if one is configured."""
+    return _IN_PROCESS_APP
 
 
 async def get_most_recent_flow_run(

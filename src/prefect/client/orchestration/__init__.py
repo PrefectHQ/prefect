@@ -231,19 +231,29 @@ def get_client(
             ):
                 return client_ctx.client
 
-    api: str = PREFECT_API_URL.value()
+    api: str | ASGIApp = PREFECT_API_URL.value()
     server_type = None
 
     if not api and PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
-        # create an ephemeral API if none was provided
-        from prefect.server.api.server import SubprocessASGIServer
+        # Check if an in-process app is available (e.g., from prefect_test_harness)
+        from prefect.testing.utilities import get_in_process_app
 
-        server = SubprocessASGIServer()
-        server.start()
-        assert server.server_process is not None, "Server process did not start"
+        in_process_app = get_in_process_app()
+        if in_process_app is not None:
+            # Use the in-process app directly with ASGI transport
+            # This bypasses HTTP connection pooling entirely
+            api = in_process_app
+            server_type = ServerType.EPHEMERAL
+        else:
+            # create an ephemeral API if none was provided
+            from prefect.server.api.server import SubprocessASGIServer
 
-        api = server.api_url
-        server_type = ServerType.EPHEMERAL
+            server = SubprocessASGIServer()
+            server.start()
+            assert server.server_process is not None, "Server process did not start"
+
+            api = server.api_url
+            server_type = ServerType.EPHEMERAL
     elif not api and not PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         raise ValueError(
             "No Prefect API URL provided. Please set PREFECT_API_URL to the address of a running Prefect server."
