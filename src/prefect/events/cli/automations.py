@@ -471,7 +471,6 @@ async def create(
 
 
 @automations_app.command()
-@requires_automations
 async def update(
     id: str = typer.Option(
         ...,
