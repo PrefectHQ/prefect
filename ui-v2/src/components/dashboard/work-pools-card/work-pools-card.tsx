@@ -654,7 +654,7 @@ const WorkPoolMiniBarChart = ({
 				flowRun.flow_id,
 			],
 			queryFn: async () => {
-				const queryService = getQueryService();
+				const queryService = await getQueryService();
 
 				const [deploymentRes, flowRes] = await Promise.all([
 					flowRun.deployment_id

@@ -79,7 +79,7 @@ export const buildFilterEventsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory["list-filter"](filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/events/filter", {
+			const res = await (await getQueryService()).POST("/events/filter", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -122,10 +122,13 @@ export const buildEventsCountQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.count(countable, filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/events/count-by/{countable}", {
-				params: { path: { countable } },
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/events/count-by/{countable}",
+				{
+					params: { path: { countable } },
+					body: filter,
+				},
+			);
 			return res.data ?? [];
 		},
 		refetchInterval,
@@ -159,10 +162,13 @@ export const buildEventsHistoryQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.historyFilter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/events/count-by/{countable}", {
-				params: { path: { countable: "time" } },
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/events/count-by/{countable}",
+				{
+					params: { path: { countable: "time" } },
+					body: filter,
+				},
+			);
 			return res.data ?? [];
 		},
 		placeholderData: keepPreviousData,
@@ -196,7 +202,7 @@ export const buildEventsNextPageQuery = (nextPageUrl: string) =>
 					"'page-token' query parameter expected in next_page URL",
 				);
 			}
-			const res = await getQueryService().GET("/events/filter/next", {
+			const res = await (await getQueryService()).GET("/events/filter/next", {
 				params: { query: { "page-token": pageToken } },
 			});
 			if (!res.data) {
@@ -228,7 +234,7 @@ export const buildGetEventQuery = (eventId: string, eventDate: Date) => {
 				limit: 1,
 			};
 
-			const res = await getQueryService().POST("/events/filter", {
+			const res = await (await getQueryService()).POST("/events/filter", {
 				body: filter,
 			});
 			if (!res.data?.events?.[0]) {
