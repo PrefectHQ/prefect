@@ -1,8 +1,11 @@
 import sys
 from datetime import timedelta
-from typing import Generator, List
+from typing import TYPE_CHECKING, Generator, List
 from unittest import mock
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 import orjson
 import pytest
@@ -12,6 +15,7 @@ from typer import Exit
 from prefect.events.actions import CancelFlowRun, DoNothing, PauseAutomation
 from prefect.events.schemas.automations import (
     Automation,
+    AutomationCore,
     EventTrigger,
     MetricTrigger,
     MetricTriggerOperator,
@@ -20,6 +24,7 @@ from prefect.events.schemas.automations import (
     PrefectMetric,
 )
 from prefect.testing.cli import invoke_and_assert
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @pytest.fixture(autouse=True)
@@ -1014,3 +1019,168 @@ def test_deleting_all_automations_with_id_errors(
     )
 
     delete_automation.assert_not_called()
+
+
+@pytest.fixture
+async def existing_automation(prefect_client: "PrefectClient") -> Automation:
+    """Create a real automation in the test database for update tests."""
+    automation = AutomationCore(
+        name="Original Automation",
+        description="Original description",
+        enabled=True,
+        trigger=EventTrigger(
+            posture=Posture.Reactive,
+            expect={"event.original"},
+            threshold=1,
+        ),
+        actions=[DoNothing()],
+    )
+    automation_id = await prefect_client.create_automation(automation)
+    created = await prefect_client.read_automation(automation_id)
+    assert created is not None
+    return created
+
+
+@pytest.mark.parametrize("file_type", ["yaml", "json"])
+async def test_updating_automation_from_file(
+    existing_automation: Automation,
+    prefect_client: "PrefectClient",
+    tmp_path,
+    file_type: str,
+):
+    """Test updating an automation from both YAML and JSON files."""
+    automation_data = {
+        "name": "Updated Automation",
+        "description": "Updated automation from file",
+        "enabled": True,
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.updated"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+
+    if file_type == "yaml":
+        file_path = tmp_path / "automation.yaml"
+        file_path.write_text(yaml.dump(automation_data))
+    else:
+        file_path = tmp_path / "automation.json"
+        file_path.write_text(orjson.dumps(automation_data).decode())
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "automations",
+            "update",
+            "--id",
+            str(existing_automation.id),
+            "--from-file",
+            str(file_path),
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Updated automation 'Updated Automation' ({existing_automation.id})"
+        ],
+    )
+
+    updated = await prefect_client.read_automation(existing_automation.id)
+    assert updated is not None
+    assert updated.name == "Updated Automation"
+    assert updated.description == "Updated automation from file"
+
+
+async def test_updating_automation_from_json_string(
+    existing_automation: Automation,
+    prefect_client: "PrefectClient",
+):
+    """Test updating an automation from a JSON string."""
+    automation_data = {
+        "name": "Updated String Automation",
+        "description": "Updated automation from JSON string",
+        "enabled": True,
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.updated"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    json_string = orjson.dumps(automation_data).decode()
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        [
+            "automations",
+            "update",
+            "--id",
+            str(existing_automation.id),
+            "--from-json",
+            json_string,
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            f"Updated automation 'Updated String Automation' ({existing_automation.id})"
+        ],
+    )
+
+    updated = await prefect_client.read_automation(existing_automation.id)
+    assert updated is not None
+    assert updated.name == "Updated String Automation"
+
+
+def test_updating_automation_not_found():
+    """Test error when automation ID does not exist."""
+    automation_data = {
+        "name": "Updated Automation",
+        "trigger": {
+            "type": "event",
+            "posture": "Reactive",
+            "expect": ["event.updated"],
+            "threshold": 1,
+        },
+        "actions": [{"type": "do-nothing"}],
+    }
+    json_string = orjson.dumps(automation_data).decode()
+
+    invoke_and_assert(
+        [
+            "automations",
+            "update",
+            "--id",
+            "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+            "--from-json",
+            json_string,
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Automation with id 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' not found"
+        ],
+    )
+
+
+@pytest.mark.parametrize(
+    "args,expected_error",
+    [
+        (
+            ["--id", "not-a-valid-uuid", "--from-json", '{"name": "test"}'],
+            "Invalid automation ID",
+        ),
+        (
+            ["--id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"],
+            "Please provide either --from-file or --from-json",
+        ),
+    ],
+)
+def test_updating_automation_input_validation(
+    args: list,
+    expected_error: str,
+):
+    """Test input validation errors for the update command."""
+    invoke_and_assert(
+        ["automations", "update"] + args,
+        expected_code=1,
+        expected_output_contains=[expected_error],
+    )
