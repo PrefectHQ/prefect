@@ -15,14 +15,15 @@ import sys
 from uuid import uuid4
 
 import pytest
+from pydantic._internal._mock_val_ser import MockValSer
+
+from prefect.client.schemas.objects import FlowRun, StateDetails, StateType
+from prefect.states import to_state_create
 
 
 class TestStateSerializationWithDeferBuild:
     """
     Tests that verify state serialization works correctly despite defer_build=True.
-
-    These tests run in subprocesses to ensure fresh Python interpreter state,
-    which is necessary to reproduce the defer_build issue.
     """
 
     def test_state_create_serialization_in_fresh_process(self):
@@ -33,6 +34,9 @@ class TestStateSerializationWithDeferBuild:
         This test runs in a subprocess to ensure a fresh Python interpreter state,
         which is required to reproduce the defer_build issue.
         """
+        # NOTE: This test must use subprocess with inline code because the bug only
+        # manifests in a fresh Python process before any other imports trigger model
+        # rebuilding. Module-level imports in THIS file would mask the bug.
         code = """
 import sys
 from uuid import uuid4
@@ -98,8 +102,6 @@ except TypeError as e:
 
     def test_state_details_model_rebuild_works(self):
         """Verify that explicitly calling model_rebuild() on StateDetails works."""
-        from prefect.client.schemas.objects import StateDetails
-
         # Force rebuild
         StateDetails.model_rebuild(force=True)
 
@@ -119,10 +121,6 @@ except TypeError as e:
         After any model operation that should trigger building, the serializer
         should be a SchemaSerializer, not MockValSer.
         """
-        from pydantic._internal._mock_val_ser import MockValSer
-
-        from prefect.client.schemas.objects import StateDetails
-
         # Force rebuild to ensure it's built
         StateDetails.model_rebuild(force=True)
 
@@ -136,12 +134,6 @@ except TypeError as e:
 
         This is the exact code path used in worker cancellation.
         """
-        from prefect.client.schemas.objects import FlowRun, StateDetails, StateType
-        from prefect.states import to_state_create
-
-        # Ensure StateDetails is rebuilt (this is what the fix should do)
-        StateDetails.model_rebuild(force=True)
-
         flow_run_data = {
             "id": str(uuid4()),
             "name": "test-run",
