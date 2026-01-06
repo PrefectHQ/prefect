@@ -172,7 +172,7 @@ Deploy and scale your Prefect workflows on [AWS ECS](https://aws.amazon.com/ecs/
 - **Auto-scaling**: Dynamic resource allocation based on workflow demands
 - **Cost optimization**: Pay only for compute resources when workflows are running
 
-See the [ECS worker deployment guide](/integrations/prefect-aws/ecs-worker) for a step-by-step walkthrough of deploying production-ready workers to your ECS cluster.
+See the [ECS worker deployment guide](/integrations/prefect-aws/ecs_guide) for a step-by-step walkthrough of deploying production-ready workers to your ECS cluster.
 
 ### Docker Images
 
@@ -364,7 +364,7 @@ if __name__ == "__main__":
 
 ### Documentation
 - **[prefect-aws SDK Reference](https://reference.prefect.io/prefect_aws/)** - Complete API documentation for all blocks and tasks
-- **[ECS Deployment Guide](/integrations/prefect-aws/ecs-worker)** - Step-by-step guide for deploying workflows on ECS
+- **[ECS Deployment Guide](/integrations/prefect-aws/ecs_guide)** - Step-by-step guide for deploying workflows on ECS
 - **[Prefect Secrets Management](/v3/develop/secrets)** - Using AWS credentials with third-party services
 
 ### AWS Resources
