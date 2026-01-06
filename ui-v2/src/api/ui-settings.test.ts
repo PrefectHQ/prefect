@@ -79,7 +79,7 @@ describe("UiSettingsService", () => {
 		} as Response);
 
 		await expect(uiSettings.load()).rejects.toThrow(
-			"Failed to fetch UI settings: 500",
+			"Prefect server error: The server returned an error (500). This may be a temporary issue.",
 		);
 	});
 
