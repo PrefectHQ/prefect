@@ -24,6 +24,16 @@ import anyio._backends._asyncio
 from sniffio import AsyncLibraryNotFoundError
 from typing_extensions import ParamSpec
 
+# anyio 4.12.0+ dropped sniffio as a direct dependency and raises its own exception
+# when there's no async backend. We need to handle both the old sniffio exception
+# and the new anyio exception for compatibility across versions.
+try:
+    from anyio import NoEventLoopError
+
+    _NO_ASYNC_BACKEND_EXCEPTIONS = (AsyncLibraryNotFoundError, NoEventLoopError)
+except ImportError:
+    _NO_ASYNC_BACKEND_EXCEPTIONS = (AsyncLibraryNotFoundError,)
+
 from prefect import Task, get_client
 from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
@@ -270,7 +280,7 @@ class FlowRunEngine(Generic[P, R]):
         # backend to use for the task group
         try:
             task_group = anyio.create_task_group()
-        except AsyncLibraryNotFoundError:
+        except _NO_ASYNC_BACKEND_EXCEPTIONS:
             task_group = anyio._backends._asyncio.TaskGroup()
 
         with FlowRunContext(
