@@ -1,3 +1,4 @@
+import { categorizeError } from "./error-utils";
 import type { components } from "./prefect";
 
 /**
@@ -52,10 +53,35 @@ class UiSettingsService {
 
 		this.promise = (async () => {
 			const baseUrl = this.getBaseUrl();
-			const response = await fetch(`${baseUrl}/ui-settings`);
+
+			let response: Response;
+			try {
+				response = await fetch(`${baseUrl}/ui-settings`);
+			} catch (error) {
+				// Reset promise so next call can retry
+				this.promise = null;
+				// Re-throw with categorized error for better messaging
+				const categorized = categorizeError(
+					error,
+					"Failed to connect to Prefect server",
+				);
+				throw new Error(
+					categorized.message +
+						(categorized.details ? `: ${categorized.details}` : ""),
+				);
+			}
 
 			if (!response.ok) {
-				throw new Error(`Failed to fetch UI settings: ${response.status}`);
+				// Reset promise so next call can retry
+				this.promise = null;
+				const categorized = categorizeError(
+					new Error(`Failed to fetch UI settings: status ${response.status}`),
+					"Server returned an error",
+				);
+				throw new Error(
+					categorized.message +
+						(categorized.details ? `: ${categorized.details}` : ""),
+				);
 			}
 
 			const data = (await response.json()) as UiSettingsResponse;
@@ -68,8 +94,14 @@ class UiSettingsService {
 			};
 		})();
 
-		this.settings = await this.promise;
-		return this.settings;
+		try {
+			this.settings = await this.promise;
+			return this.settings;
+		} catch (error) {
+			// Ensure promise is reset on any error
+			this.promise = null;
+			throw error;
+		}
 	}
 
 	async getApiUrl(): Promise<string> {
