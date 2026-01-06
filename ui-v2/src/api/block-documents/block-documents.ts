@@ -52,9 +52,12 @@ export const buildListFilterBlockDocumentsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.listFilter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/block_documents/filter", {
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/block_documents/filter",
+				{
+					body: filter,
+				},
+			);
 			if (!res.data) {
 				throw new Error("'data' exoected");
 			}
@@ -74,9 +77,12 @@ export const buildCountFilterBlockDocumentsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.countFilter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/block_documents/count", {
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/block_documents/count",
+				{
+					body: filter,
+				},
+			);
 			return res.data ?? 0;
 		},
 	});
@@ -84,7 +90,9 @@ export const buildCountAllBlockDocumentsQuery = () =>
 	queryOptions({
 		queryKey: queryKeyFactory.countAll(),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/block_documents/count");
+			const res = await (await getQueryService()).POST(
+				"/block_documents/count",
+			);
 			return res.data ?? 0;
 		},
 	});
@@ -93,7 +101,7 @@ export const buildGetBlockDocumentQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/block_documents/{id}", {
+			const res = await (await getQueryService()).GET("/block_documents/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -133,8 +141,8 @@ export const useDeleteBlockDocument = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: deleteBlockDocument, ...rest } = useMutation({
-		mutationFn: (id: string) =>
-			getQueryService().DELETE("/block_documents/{id}", {
+		mutationFn: async (id: string) =>
+			(await getQueryService()).DELETE("/block_documents/{id}", {
 				params: { path: { id } },
 			}),
 		onSettled: () => {
@@ -179,7 +187,9 @@ export const useCreateBlockDocument = () => {
 
 	const { mutate: createBlockDocument, ...rest } = useMutation({
 		mutationFn: async (body: components["schemas"]["BlockDocumentCreate"]) => {
-			const res = await getQueryService().POST("/block_documents/", { body });
+			const res = await (await getQueryService()).POST("/block_documents/", {
+				body,
+			});
 
 			if (!res.data) {
 				throw new Error("'data' expected");
@@ -230,8 +240,8 @@ export const useUpdateBlockDocument = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: updateBlockDocument, ...rest } = useMutation({
-		mutationFn: ({ id, ...body }: UseUpdateBlockDocument) =>
-			getQueryService().PATCH("/block_documents/{id}", {
+		mutationFn: async ({ id, ...body }: UseUpdateBlockDocument) =>
+			(await getQueryService()).PATCH("/block_documents/{id}", {
 				body,
 				params: { path: { id } },
 			}),

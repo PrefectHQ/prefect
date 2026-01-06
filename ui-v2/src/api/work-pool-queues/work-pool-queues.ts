@@ -65,7 +65,7 @@ export const buildListWorkPoolQueuesQuery = (workPoolName: string) =>
 		queryKey: workPoolQueuesQueryKeyFactory.list(workPoolName),
 		queryFn: async (): Promise<WorkPoolQueue[]> => {
 			// Use the existing work queues API to filter by work pool
-			const res = await getQueryService().POST(
+			const res = await (await getQueryService()).POST(
 				"/work_pools/{work_pool_name}/queues/filter",
 				{
 					params: { path: { work_pool_name: workPoolName } },
@@ -102,7 +102,7 @@ export const buildWorkPoolQueueDetailsQuery = (
 	queryOptions({
 		queryKey: workPoolQueuesQueryKeyFactory.detail(workPoolName, queueName),
 		queryFn: async (): Promise<WorkPoolQueue> => {
-			const res = await getQueryService().GET(
+			const res = await (await getQueryService()).GET(
 				"/work_pools/{work_pool_name}/queues/{name}",
 				{
 					params: {
@@ -130,19 +130,22 @@ export const usePauseWorkPoolQueueMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			workPoolName,
 			queueName,
 		}: {
 			workPoolName: string;
 			queueName: string;
 		}) =>
-			getQueryService().PATCH("/work_pools/{work_pool_name}/queues/{name}", {
-				params: { path: { work_pool_name: workPoolName, name: queueName } },
-				body: {
-					is_paused: true,
+			(await getQueryService()).PATCH(
+				"/work_pools/{work_pool_name}/queues/{name}",
+				{
+					params: { path: { work_pool_name: workPoolName, name: queueName } },
+					body: {
+						is_paused: true,
+					},
 				},
-			}),
+			),
 
 		onSuccess: (_, { workPoolName, queueName }) => {
 			void queryClient.invalidateQueries({
@@ -163,19 +166,22 @@ export const useResumeWorkPoolQueueMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			workPoolName,
 			queueName,
 		}: {
 			workPoolName: string;
 			queueName: string;
 		}) =>
-			getQueryService().PATCH("/work_pools/{work_pool_name}/queues/{name}", {
-				params: { path: { work_pool_name: workPoolName, name: queueName } },
-				body: {
-					is_paused: false,
+			(await getQueryService()).PATCH(
+				"/work_pools/{work_pool_name}/queues/{name}",
+				{
+					params: { path: { work_pool_name: workPoolName, name: queueName } },
+					body: {
+						is_paused: false,
+					},
 				},
-			}),
+			),
 
 		onSuccess: (_, { workPoolName, queueName }) => {
 			void queryClient.invalidateQueries({
@@ -196,14 +202,14 @@ export const useCreateWorkPoolQueueMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			workPoolName,
 			workQueueData,
 		}: {
 			workPoolName: string;
 			workQueueData: WorkPoolQueueCreate;
 		}) =>
-			getQueryService().POST("/work_pools/{work_pool_name}/queues", {
+			(await getQueryService()).POST("/work_pools/{work_pool_name}/queues", {
 				params: { path: { work_pool_name: workPoolName } },
 				body: workQueueData,
 			}),
@@ -224,7 +230,7 @@ export const useUpdateWorkPoolQueueMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			workPoolName,
 			queueName,
 			workQueueData,
@@ -233,10 +239,13 @@ export const useUpdateWorkPoolQueueMutation = () => {
 			queueName: string;
 			workQueueData: WorkPoolQueueUpdate;
 		}) =>
-			getQueryService().PATCH("/work_pools/{work_pool_name}/queues/{name}", {
-				params: { path: { work_pool_name: workPoolName, name: queueName } },
-				body: workQueueData,
-			}),
+			(await getQueryService()).PATCH(
+				"/work_pools/{work_pool_name}/queues/{name}",
+				{
+					params: { path: { work_pool_name: workPoolName, name: queueName } },
+					body: workQueueData,
+				},
+			),
 
 		onSuccess: (_, { workPoolName, queueName, workQueueData }) => {
 			void queryClient.invalidateQueries({
@@ -266,16 +275,19 @@ export const useDeleteWorkPoolQueueMutation = () => {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			workPoolName,
 			queueName,
 		}: {
 			workPoolName: string;
 			queueName: string;
 		}) =>
-			getQueryService().DELETE("/work_pools/{work_pool_name}/queues/{name}", {
-				params: { path: { work_pool_name: workPoolName, name: queueName } },
-			}),
+			(await getQueryService()).DELETE(
+				"/work_pools/{work_pool_name}/queues/{name}",
+				{
+					params: { path: { work_pool_name: workPoolName, name: queueName } },
+				},
+			),
 
 		onSuccess: (_, { workPoolName }) => {
 			void queryClient.invalidateQueries({

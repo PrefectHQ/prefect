@@ -36,7 +36,7 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST(
+			const res = await (await getQueryService()).POST(
 				"/v2/concurrency_limits/filter",
 				{ body: filter },
 			);
@@ -80,8 +80,8 @@ export const useListGlobalConcurrencyLimits = (
 export const useDeleteGlobalConcurrencyLimit = () => {
 	const queryClient = useQueryClient();
 	const { mutate: deleteGlobalConcurrencyLimit, ...rest } = useMutation({
-		mutationFn: (id_or_name: string) =>
-			getQueryService().DELETE("/v2/concurrency_limits/{id_or_name}", {
+		mutationFn: async (id_or_name: string) =>
+			(await getQueryService()).DELETE("/v2/concurrency_limits/{id_or_name}", {
 				params: { path: { id_or_name } },
 			}),
 		onSuccess: () => {
@@ -127,8 +127,10 @@ export const useDeleteGlobalConcurrencyLimit = () => {
 export const useCreateGlobalConcurrencyLimit = () => {
 	const queryClient = useQueryClient();
 	const { mutate: createGlobalConcurrencyLimit, ...rest } = useMutation({
-		mutationFn: (body: components["schemas"]["ConcurrencyLimitV2Create"]) =>
-			getQueryService().POST("/v2/concurrency_limits/", {
+		mutationFn: async (
+			body: components["schemas"]["ConcurrencyLimitV2Create"],
+		) =>
+			(await getQueryService()).POST("/v2/concurrency_limits/", {
 				body,
 			}),
 		onSuccess: () => {
@@ -178,8 +180,11 @@ type GlobalConcurrencyLimitUpdateWithId =
 export const useUpdateGlobalConcurrencyLimit = () => {
 	const queryClient = useQueryClient();
 	const { mutate: updateGlobalConcurrencyLimit, ...rest } = useMutation({
-		mutationFn: ({ id_or_name, ...body }: GlobalConcurrencyLimitUpdateWithId) =>
-			getQueryService().PATCH("/v2/concurrency_limits/{id_or_name}", {
+		mutationFn: async ({
+			id_or_name,
+			...body
+		}: GlobalConcurrencyLimitUpdateWithId) =>
+			(await getQueryService()).PATCH("/v2/concurrency_limits/{id_or_name}", {
 				body,
 				params: { path: { id_or_name } },
 			}),
