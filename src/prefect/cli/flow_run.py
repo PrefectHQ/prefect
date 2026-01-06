@@ -311,7 +311,8 @@ async def delete(ids: List[UUID] = typer.Argument(..., help="Flow run IDs to del
             exit_with_error("No flow run IDs provided.")
 
         if is_interactive() and not typer.confirm(
-            f"Are you sure you want to delete {len(ids)} flow run(s)?",
+            f"Are you sure you want to delete {len(ids)} flow run(s)?"
+            + (f" ({ids[0]})" if len(ids) == 1 else ""),
             default=False,
         ):
             exit_with_error("Deletion aborted.")
@@ -333,8 +334,16 @@ async def delete(ids: List[UUID] = typer.Argument(..., help="Flow run IDs to del
             )
             for flow_run_id, error in failed:
                 app.console.print(f"  - {flow_run_id}: {error}")
-
-        exit_with_success(f"Successfully deleted {len(deleted)} flow run(s).")
+            if len(deleted) == 1:
+                app.console.print(f"Successfully deleted flow run '{deleted[0]}'.")
+            else:
+                app.console.print(f"Successfully deleted {len(deleted)} flow run(s).")
+            exit_with_error("Some deletions failed")
+        else:
+            if len(deleted) == 1:
+                exit_with_success(f"Successfully deleted flow run '{deleted[0]}'.")
+            else:
+                exit_with_success(f"Successfully deleted {len(deleted)} flow run(s).")
 
 
 @flow_run_app.command()

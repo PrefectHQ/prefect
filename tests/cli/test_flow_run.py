@@ -134,7 +134,7 @@ def test_delete_flow_run_fails_correctly():
             f"- {missing_flow_run_id}: not found",
             "Successfully deleted 0 flow run(s).",
         ],
-        expected_code=0,
+        expected_code=1,
     )
 
 
@@ -144,7 +144,7 @@ def test_delete_flow_run_succeeds(
     invoke_and_assert(
         command=["flow-run", "delete", str(flow_run.id)],
         user_input="y",
-        expected_output_contains="Successfully deleted 1 flow run(s).",
+        expected_output_contains=f"Successfully deleted flow run '{flow_run.id}'.",
         expected_code=0,
     )
 
@@ -239,7 +239,7 @@ class TestBatchDeleteFlowRun:
                 f"- {nonexistent_id}: not found",
                 "Successfully deleted 2 flow run(s).",
             ],
-            expected_code=0,
+            expected_code=1,
         )
 
         assert_flow_run_is_deleted_sync(sync_prefect_client, flow_run1.id)
@@ -260,7 +260,7 @@ class TestBatchDeleteFlowRun:
                 f"- {id3}: not found",
                 "Successfully deleted 0 flow run(s).",
             ],
-            expected_code=0,
+            expected_code=1,
         )
 
     async def test_delete_multiple_flow_runs_aborted_by_user(
