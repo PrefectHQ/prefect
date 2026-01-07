@@ -113,6 +113,7 @@ from prefect.states import (
 )
 from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
+from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
@@ -1637,9 +1638,10 @@ async def _run_hooks(
 ):
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:
+        hook_name = get_hook_name(hook)
         try:
             logger.info(
-                f"Running hook {hook.__name__!r} in response to entering state"
+                f"Running hook {hook_name!r} in response to entering state"
                 f" {state.name!r}"
             )
             if is_async_fn(hook):
@@ -1650,8 +1652,8 @@ async def _run_hooks(
                 )
         except Exception:
             logger.error(
-                f"An error was encountered while running hook {hook.__name__!r}",
+                f"An error was encountered while running hook {hook_name!r}",
                 exc_info=True,
             )
         else:
-            logger.info(f"Hook {hook.__name__!r} finished running successfully")
+            logger.info(f"Hook {hook_name!r} finished running successfully")
