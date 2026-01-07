@@ -26,8 +26,12 @@ from my_sdk import flows
 
 # IDE autocomplete, type checking, errors caught immediately
 flows.my_etl_flow.production.run(
-    parameters={"source": "s3://bucket"},  # Typo would be caught by type checker
-    job_variables={"memory": "8Gi"},  # Typed based on work pool schema
+    source="s3://bucket",  # Flow params are direct kwargs - typos caught by type checker
+    batch_size=100,
+    options={              # Infrastructure options in dedicated kwarg
+        "timeout": 60,
+        "job_variables": {"memory": "8Gi"},  # Typed based on work pool schema
+    },
 )
 ```
 
@@ -47,10 +51,10 @@ prefect sdk generate --output ./my_sdk.py [--flow NAME] [--deployment NAME]
 ## What Gets Generated
 
 The SDK file contains:
-1. **TypedDict for each work pool** - Typed job variables from `WorkPool.base_job_template["variables"]`
-2. **TypedDict for each flow** - Typed parameters from `Deployment.parameter_openapi_schema`
-3. **Class for each deployment** - With `run()` and `run_async()` methods
-4. **Namespace hierarchy** - `flows.<flow_name>.<deployment_name>.run()`
+1. **Base `RunOptions` TypedDict** - Infrastructure options (timeout, tags, etc.) without job_variables
+2. **Per-work-pool TypedDicts** - `{WorkPoolName}JobVariables` and `{WorkPoolName}RunOptions` with typed job_variables
+3. **Class for each deployment** - With `run()` and `run_async()` methods where flow parameters are direct kwargs
+4. **Namespace hierarchy** - `flows.<flow_name>.<deployment_name>.run(param1=..., options={...})`
 
 **Important**: All type information comes from **server-side metadata** (JSON Schema stored with deployments and work pools). The generator does not inspect flow source code—it works entirely from the Prefect API.
 
@@ -203,17 +207,19 @@ The output file has 6 distinct sections, generated in this order:
 │    - Imports (typing, TypedDict, NotRequired, etc.)         │
 │    - TYPE_CHECKING block for FlowRun import                 │
 ├─────────────────────────────────────────────────────────────┤
-│ 2. WORK POOL TYPEDDICTS                                     │
-│    - One TypedDict per work pool                            │
-│    - Fields from work pool's base_job_template.variables    │
+│ 2. BASE RUN OPTIONS                                         │
+│    - RunOptions TypedDict (infrastructure options)          │
+│    - No job_variables field (that's in work pool variants)  │
 ├─────────────────────────────────────────────────────────────┤
-│ 3. FLOW PARAMETER TYPEDDICTS                                │
-│    - One TypedDict per flow (not per deployment)            │
-│    - Fields from flow's parameter_openapi_schema            │
+│ 3. WORK POOL TYPEDDICTS                                     │
+│    - {WorkPoolName}JobVariables TypedDict                   │
+│    - {WorkPoolName}RunOptions TypedDict (extends RunOptions │
+│      with typed job_variables field)                        │
 ├─────────────────────────────────────────────────────────────┤
 │ 4. DEPLOYMENT CLASSES                                       │
 │    - One class per deployment                               │
-│    - Contains run() and run_async() static methods          │
+│    - Flow params as direct kwargs on run()/run_async()      │
+│    - options: {WorkPoolName}RunOptions | None (keyword-only)│
 ├─────────────────────────────────────────────────────────────┤
 │ 5. FLOW CLASSES                                             │
 │    - One class per flow                                     │
@@ -260,9 +266,31 @@ if TYPE_CHECKING:
 - `FlowRun` under `TYPE_CHECKING` avoids circular imports and heavy import chains
 - Generated SDK only depends on `typing_extensions` and `prefect` (already a dependency)
 
-#### Section 2: Work Pool TypedDicts
+#### Section 2: Base RunOptions TypedDict
 
-Each work pool gets a TypedDict representing its job variables schema:
+The base `RunOptions` contains infrastructure options without `job_variables`:
+
+```python
+class RunOptions(TypedDict, total=False):
+    """Options for running a deployment (for deployments without work pools)."""
+    timeout: NotRequired[float]
+    poll_interval: NotRequired[float]
+    tags: NotRequired[Iterable[str]]
+    idempotency_key: NotRequired[str]
+    work_queue_name: NotRequired[str]
+    as_subflow: NotRequired[bool]
+    scheduled_time: NotRequired[datetime]
+    flow_run_name: NotRequired[str]
+```
+
+**Design decisions**:
+- No `job_variables` field - that's in work-pool-specific variants
+- Used for deployments without a work pool
+- `total=False` means all fields are optional
+
+#### Section 3: Work Pool TypedDicts
+
+Each work pool gets two TypedDicts - one for job variables and one for run options:
 
 ```python
 class KubernetesPoolJobVariables(TypedDict, total=False):
@@ -271,42 +299,31 @@ class KubernetesPoolJobVariables(TypedDict, total=False):
     namespace: NotRequired[str]
     cpu_request: NotRequired[str]
     memory_request: NotRequired[str]
+
+
+class KubernetesPoolRunOptions(TypedDict, total=False):
+    """Options for deployments using work pool: kubernetes-pool"""
+    timeout: NotRequired[float]
+    poll_interval: NotRequired[float]
+    tags: NotRequired[Iterable[str]]
+    idempotency_key: NotRequired[str]
+    work_queue_name: NotRequired[str]
+    as_subflow: NotRequired[bool]
+    scheduled_time: NotRequired[datetime]
+    flow_run_name: NotRequired[str]
+    job_variables: NotRequired[KubernetesPoolJobVariables]  # Typed!
 ```
 
 **Design decisions**:
 - `total=False` with explicit `NotRequired` gives clearest IDE hints
-- Class name format: `{WorkPoolName}JobVariables` (PascalCase)
-- Empty work pools generate `pass` body
+- Class name formats: `{WorkPoolName}JobVariables` and `{WorkPoolName}RunOptions` (PascalCase)
+- Empty work pools: don't generate TypedDicts, deployments use base `RunOptions`
+- Work pool with empty job variables schema: generate `{WorkPoolName}RunOptions` but omit `job_variables` field
 - Docstring identifies the source work pool
-
-#### Section 3: Flow Parameter TypedDicts
-
-Each flow gets one TypedDict for its parameters, generated from the **server-side OpenAPI schema** (`deployment.parameter_openapi_schema`):
-
-```python
-class MyEtlFlowParams(TypedDict, total=False):
-    """Parameters for flow: my-etl-flow"""
-    source: str                      # Required fields have no NotRequired
-    batch_size: NotRequired[int]     # Optional fields use NotRequired
-    full_refresh: NotRequired[bool]
-```
-
-**Data source**: The parameter schema is fetched from the Prefect API via `DeploymentResponse.parameter_openapi_schema`. This is a JSON Schema that was captured when the deployment was created. **The generator has no access to flow source code**—it works entirely from server-side metadata.
-
-**Empty Schema Detection**: A schema is considered "empty" (no TypedDict generated) if any of:
-- `parameter_openapi_schema` is `None`
-- `parameter_openapi_schema` is `{}`
-- `parameter_openapi_schema.get("properties", {})` is empty
-
-**Design decisions**:
-- One TypedDict per flow, not per deployment (parameter schema is typically identical across a flow's deployments)
-- Required fields listed first, then optional (alphabetically within each group)
-- Class name format: `{FlowName}Params` (PascalCase)
-- If deployments of the same flow have different schemas (edge case), use the first deployment's schema and log a warning
 
 #### Section 4: Deployment Classes
 
-Each deployment gets a class with `run()` and `run_async()` methods:
+Each deployment gets a class with `run()` and `run_async()` methods. **Flow parameters are direct kwargs**, and **infrastructure options go in the `options` kwarg**:
 
 ```python
 class _MyEtlFlowProduction:
@@ -317,80 +334,75 @@ class _MyEtlFlowProduction:
 
     @staticmethod
     def run(
-        parameters: MyEtlFlowParams | None = None,
-        scheduled_time: datetime | None = None,
-        flow_run_name: str | None = None,
-        timeout: float | None = None,
-        poll_interval: float | None = 5,
-        tags: Iterable[str] | None = None,
-        idempotency_key: str | None = None,
-        work_queue_name: str | None = None,
-        as_subflow: bool | None = True,
-        job_variables: KubernetesPoolJobVariables | None = None,
+        source: str,                                          # Required flow param
+        batch_size: int = 100,                                # Optional flow param with default
+        full_refresh: bool = False,                           # Optional flow param
+        *,                                                    # Keyword-only separator
+        options: KubernetesPoolRunOptions | None = None,      # Infrastructure options
     ) -> "FlowRun":
         """Run the my-etl-flow/production deployment synchronously."""
         from prefect.deployments import run_deployment
+
+        # Collect flow parameters into dict
+        parameters: dict[str, Any] = {"source": source}
+        if batch_size != 100:  # Only include if not default
+            parameters["batch_size"] = batch_size
+        if full_refresh != False:
+            parameters["full_refresh"] = full_refresh
+
         return run_deployment(
             name="my-etl-flow/production",
             parameters=parameters,
-            scheduled_time=scheduled_time,
-            flow_run_name=flow_run_name,
-            timeout=timeout,
-            poll_interval=poll_interval,
-            tags=tags,
-            idempotency_key=idempotency_key,
-            work_queue_name=work_queue_name,
-            as_subflow=as_subflow,
-            job_variables=job_variables,
+            **(options or {}),
         )
 
     @staticmethod
     async def run_async(
-        parameters: MyEtlFlowParams | None = None,
-        scheduled_time: datetime | None = None,
-        flow_run_name: str | None = None,
-        timeout: float | None = None,
-        poll_interval: float | None = 5,
-        tags: Iterable[str] | None = None,
-        idempotency_key: str | None = None,
-        work_queue_name: str | None = None,
-        as_subflow: bool | None = True,
-        job_variables: KubernetesPoolJobVariables | None = None,
+        source: str,
+        batch_size: int = 100,
+        full_refresh: bool = False,
+        *,
+        options: KubernetesPoolRunOptions | None = None,
     ) -> "FlowRun":
         """Run the my-etl-flow/production deployment asynchronously."""
         from prefect.deployments import run_deployment
+
+        parameters: dict[str, Any] = {"source": source}
+        if batch_size != 100:
+            parameters["batch_size"] = batch_size
+        if full_refresh != False:
+            parameters["full_refresh"] = full_refresh
+
         return await run_deployment(
             name="my-etl-flow/production",
             parameters=parameters,
-            scheduled_time=scheduled_time,
-            flow_run_name=flow_run_name,
-            timeout=timeout,
-            poll_interval=poll_interval,
-            tags=tags,
-            idempotency_key=idempotency_key,
-            work_queue_name=work_queue_name,
-            as_subflow=as_subflow,
-            job_variables=job_variables,
+            **(options or {}),
         )
 ```
 
 **Design decisions**:
 - Class name format: `_{FlowName}{DeploymentName}` (underscore prefix = private)
 - `@staticmethod` allows calling without instantiation while keeping namespace
-- `parameters` typed to flow's TypedDict
-- `job_variables` typed to work pool's TypedDict
-- Parameter order matches `run_deployment()` (minus `client` which is auto-injected)
-- **`client` parameter is NOT exposed** - it's injected by `@inject_client` decorator at runtime
+- **Flow parameters are direct kwargs** - enables IDE autocomplete and type checking
+- **`options` is keyword-only** (after `*`) - clear separation from flow params
+- **`options` typed per work pool** - `{WorkPoolName}RunOptions` includes typed `job_variables`
+- Required flow params have no default; optional params have defaults from schema
 - Import uses public API path: `from prefect.deployments import run_deployment`
 - Import inside method body avoids import-time side effects
 - Docstring includes full deployment name and work pool for discoverability
 - `run()` calls `run_deployment()` synchronously (the decorator handles sync execution)
 - `run_async()` uses `await run_deployment()` for proper async execution
 
+**Flow parameter handling**:
+- Required params (in schema's `required` array, no default) → required kwargs
+- Optional params (not in `required` or has `default`) → kwargs with defaults
+- Default values come from schema's `default` field when present
+- Parameters collected into dict before passing to `run_deployment()`
+
 **Edge cases**:
-- If deployment has no work pool → omit `job_variables` parameter entirely
-- If work pool has empty variables schema → omit `job_variables` parameter entirely
-- If flow has no parameters schema → omit `parameters` parameter entirely
+- If deployment has no work pool → use base `RunOptions` type
+- If flow has no parameters → method only has `*, options: RunOptions | None = None`
+- If flow param name conflicts with `options` → append suffix (e.g., `options_` for flow param)
 
 #### Section 5: Flow Classes
 
@@ -427,7 +439,9 @@ class flows:
         from my_sdk import flows
 
         flow_run = flows.my_etl_flow.production.run(
-            parameters={"source": "s3://bucket"},
+            source="s3://bucket",
+            batch_size=100,
+            options={"timeout": 60},
         )
 
     Available flows:
@@ -443,7 +457,7 @@ __all__ = ["flows"]
 **Design decisions**:
 - Lowercase `flows` (not `Flows`) for natural usage: `flows.my_flow`
 - Only export `flows` in `__all__` - TypedDicts are available but not promoted
-- Docstring includes usage example and lists all flows
+- Docstring includes usage example (with new direct kwargs syntax) and lists all flows
 
 #### Renderer Module
 
@@ -473,11 +487,11 @@ render_sdk(data: SDKData, output_path: Path) -> None
 
 | Scenario | Behavior |
 |----------|----------|
-| `parameter_openapi_schema` is `None` | Omit `parameters` kwarg |
-| `parameter_openapi_schema` is `{}` | Omit `parameters` kwarg |
-| `parameter_openapi_schema` is `{"type": "object", "properties": {}}` | Omit `parameters` kwarg |
-| `base_job_template["variables"]` missing | Omit `job_variables` kwarg |
-| `base_job_template["variables"]["properties"]` is `{}` | Omit `job_variables` kwarg |
+| `parameter_openapi_schema` is `None` | No flow param kwargs, only `*, options` |
+| `parameter_openapi_schema` is `{}` | No flow param kwargs, only `*, options` |
+| `parameter_openapi_schema` is `{"type": "object", "properties": {}}` | No flow param kwargs, only `*, options` |
+| `base_job_template["variables"]` missing | Use base `RunOptions`, no `job_variables` field |
+| `base_job_template["variables"]["properties"]` is `{}` | Generate `{WorkPoolName}RunOptions` without `job_variables` |
 | Schema has circular `$ref` | Emit `Any` type with generation warning |
 | Schema uses `$defs` instead of `definitions` | Support both (Pydantic v2 compatibility) |
 | Property has no `type` key | Emit `Any` type |
@@ -490,6 +504,7 @@ render_sdk(data: SDKData, output_path: Path) -> None
 | Name conflicts after normalization | Append numeric suffix (`my_flow_2`) |
 | Flow name = `flows` | Append suffix → `flows_2` |
 | Deployment name = `run` or `run_async` | Append suffix → `run_2` |
+| Flow param name = `options` | Append suffix → `options_` |
 | Very long names (>64 chars after conversion) | Truncate and ensure uniqueness |
 | Name is entirely non-ASCII | Use `_unnamed` with suffix if needed |
 | Name is empty string | Use `_unnamed` with suffix if needed |
@@ -500,13 +515,16 @@ render_sdk(data: SDKData, output_path: Path) -> None
 | Scenario | Behavior |
 |----------|----------|
 | Flow with no deployments | Skip (don't generate empty flow class) |
-| Deployment with no work pool | Omit `job_variables` kwarg |
+| Deployment with no work pool | Use base `RunOptions` (no `job_variables`) |
 | No deployments match filter | Error with helpful message |
 | Zero deployments in workspace | Error with helpful message |
 | Same deployment name under different flows | OK - namespaced by flow class |
 | Deployments of same flow have different schemas | Use first deployment's schema, log warning |
 
-**General rule**: If a TypedDict would have zero fields, don't generate it and omit the corresponding kwarg from the method signature.
+**General rules**:
+- If a work pool has empty job variables schema → generate `{WorkPoolName}RunOptions` without `job_variables` field
+- If deployment has no work pool → use base `RunOptions` type
+- If flow has no parameters → method signature is just `*, options: ... | None = None`
 
 #### Status
 
