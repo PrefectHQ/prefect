@@ -47,6 +47,7 @@ prefect config view            # Inspect configuration
 - Private implementation details (`_private_method`)
 - No public API changes without approval
 - Use `uv` for dependency management, not `pip`
+- Do not use deferred imports (imports inside functions) unless absolutely necessary to avoid circular imports or for optional dependencies
 
 ### Testing
 

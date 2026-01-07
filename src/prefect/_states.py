@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import anyio
 import httpx
+import sniffio
 
 from prefect.client.schemas.objects import State, StateType
 from prefect.exceptions import MissingContextError, TerminationSignal
@@ -52,7 +53,18 @@ def exception_to_crashed_state_sync(
     """
     state_message = None
 
-    if isinstance(exc, anyio.get_cancelled_exc_class()):
+    # Check for anyio cancellation - but only if we're in an async context.
+    # anyio.get_cancelled_exc_class() requires an active async backend;
+    # calling it from sync-only code raises an error. Since anyio cancellation
+    # exceptions can only occur in async contexts anyway, we can safely skip
+    # this check when no async backend is running.
+    try:
+        cancelled_exc_class = anyio.get_cancelled_exc_class()
+        is_anyio_cancelled = isinstance(exc, cancelled_exc_class)
+    except sniffio.AsyncLibraryNotFoundError:
+        is_anyio_cancelled = False
+
+    if is_anyio_cancelled:
         state_message = "Execution was cancelled by the runtime environment."
 
     elif isinstance(exc, KeyboardInterrupt):
