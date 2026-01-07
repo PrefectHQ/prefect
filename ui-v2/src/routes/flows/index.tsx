@@ -3,6 +3,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
@@ -11,6 +12,7 @@ import type {
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
+import { categorizeError } from "@/api/error-utils";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import {
 	buildCountFlowsFilteredQuery,
@@ -20,6 +22,7 @@ import {
 	type FlowsPaginateFilter,
 } from "@/api/flows";
 import FlowsPage from "@/components/flows/flows-page";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 
 // Route for /flows/
 
@@ -74,9 +77,22 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 
 const NUMBER_OF_ACTIVITY_BARS = 16;
 
+function FlowsErrorComponent({ error, reset }: ErrorComponentProps) {
+	const serverError = categorizeError(error, "Failed to load flows");
+	return (
+		<div className="flex flex-col gap-4">
+			<div>
+				<h1 className="text-2xl font-semibold">Flows</h1>
+			</div>
+			<RouteErrorState error={serverError} onRetry={reset} />
+		</div>
+	);
+}
+
 export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
 	component: FlowsRoute,
+	errorComponent: FlowsErrorComponent,
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: ({ deps, context }) => {
 		// Prefetch current page queries without blocking the loader
