@@ -22,10 +22,10 @@ run_deployment(
 
 **After** (with generated SDK):
 ```python
-from my_sdk import deployment
+from my_sdk import deployments
 
 # IDE autocomplete, type checking, errors caught immediately
-deployment.by_name("my-etl-flow/production").run(
+deployments.from_name("my-etl-flow/production").run(
     source="s3://bucket",  # Flow params are direct kwargs - typos caught by type checker
     batch_size=100,
     options={              # Infrastructure options in dedicated kwarg
@@ -35,7 +35,7 @@ deployment.by_name("my-etl-flow/production").run(
 )
 ```
 
-**Type safety**: The `by_name()` method uses `@overload` decorators so each deployment name returns the correctly-typed class with its specific parameters.
+**Type safety**: The `from_name()` method uses `@overload` decorators so each deployment name returns the correctly-typed class with its specific parameters.
 
 ## CLI Interface
 
@@ -57,9 +57,9 @@ The SDK file contains:
 2. **Base `RunOptions` TypedDict** - Infrastructure options (timeout, tags, etc.) without job_variables
 3. **Per-work-pool TypedDicts** - `{WorkPoolName}JobVariables` and `{WorkPoolName}RunOptions` with typed job_variables
 4. **Class for each deployment** - With `run()` and `run_async()` methods where flow parameters are direct kwargs
-5. **`deployment` namespace** - With `by_name()` method using `@overload` for type-safe dispatch
+5. **`deployments` namespace** - With `from_name()` method using `@overload` for type-safe dispatch
 
-**Usage**: `deployment.by_name("my-etl-flow/production").run(source="s3://...", options={...})`
+**Usage**: `deployments.from_name("my-etl-flow/production").run(source="s3://...", options={...})`
 
 **Important**: All type information comes from **server-side metadata** (JSON Schema stored with deployments and work pools). The generator does not inspect flow source code—it works entirely from the Prefect API.
 
@@ -230,7 +230,7 @@ The output file has 6 distinct sections, generated in this order:
 │    - options: {WorkPoolName}RunOptions | None (keyword-only)│
 ├─────────────────────────────────────────────────────────────┤
 │ 6. DEPLOYMENT NAMESPACE                                     │
-│    - Single `deployment` class with by_name() method        │
+│    - Single `deployments` class with from_name() method        │
 │    - @overload per deployment for type-safe return types    │
 │    - This is the public entry point                         │
 └─────────────────────────────────────────────────────────────┘
@@ -264,7 +264,7 @@ if TYPE_CHECKING:
 - `NotRequired` is imported from `typing_extensions` (not `typing`) for Python 3.10 support
 - `TypedDict` from `typing_extensions` has better feature support than `typing.TypedDict`
 - `Literal` from `typing` (available since 3.8) for deployment name types
-- `overload` from `typing` for type-safe `by_name()` dispatch
+- `overload` from `typing` for type-safe `from_name()` dispatch
 
 **Import design**:
 - Minimal imports to reduce load time
@@ -428,17 +428,17 @@ class _MyEtlFlowProduction:
 
 #### Section 6: Deployment Namespace
 
-The single public entry point with type-safe `by_name()` method:
+The single public entry point with type-safe `from_name()` method:
 
 ```python
-class deployment:
+class deployments:
     """
     Access deployments by name.
 
     Usage:
-        from my_sdk import deployment
+        from my_sdk import deployments
 
-        flow_run = deployment.by_name("my-etl-flow/production").run(
+        flow_run = deployments.from_name("my-etl-flow/production").run(
             source="s3://bucket",
             batch_size=100,
             options={"timeout": 60},
@@ -452,18 +452,18 @@ class deployment:
 
     @overload
     @staticmethod
-    def by_name(name: Literal["my-etl-flow/production"]) -> _MyEtlFlowProduction: ...
+    def from_name(name: Literal["my-etl-flow/production"]) -> _MyEtlFlowProduction: ...
 
     @overload
     @staticmethod
-    def by_name(name: Literal["my-etl-flow/staging"]) -> _MyEtlFlowStaging: ...
+    def from_name(name: Literal["my-etl-flow/staging"]) -> _MyEtlFlowStaging: ...
 
     @overload
     @staticmethod
-    def by_name(name: Literal["data-sync/daily"]) -> _DataSyncDaily: ...
+    def from_name(name: Literal["data-sync/daily"]) -> _DataSyncDaily: ...
 
     @staticmethod
-    def by_name(name: DeploymentName) -> _MyEtlFlowProduction | _MyEtlFlowStaging | _DataSyncDaily:
+    def from_name(name: DeploymentName) -> _MyEtlFlowProduction | _MyEtlFlowStaging | _DataSyncDaily:
         """Get a deployment by name.
 
         Args:
@@ -483,16 +483,16 @@ class deployment:
         return _deployments[name]
 
 
-__all__ = ["deployment", "DeploymentName"]
+__all__ = ["deployments", "DeploymentName"]
 ```
 
 **Design decisions**:
-- Lowercase `deployment` (not `Deployment`) for natural usage
-- `by_name()` is a `@staticmethod` - no instance needed
+- Lowercase `deployments` (not `Deployments`) for natural usage
+- `from_name()` is a `@staticmethod` - no instance needed
 - `@overload` for each deployment enables type-safe return types
 - Each overload uses `Literal["exact-name"]` for precise typing
 - Implementation function has union return type for runtime
-- Export both `deployment` and `DeploymentName` for user convenience
+- Export both `deployments` and `DeploymentName` for user convenience
 - Docstring lists all available deployments for discoverability
 
 #### Renderer Module
@@ -558,7 +558,7 @@ render_sdk(data: SDKData, output_path: Path) -> None
 - If a work pool has empty job variables schema → generate `{WorkPoolName}RunOptions` without `job_variables` field
 - If deployment has no work pool → use base `RunOptions` type
 - If flow has no parameters → method signature is just `*, options: ... | None = None`
-- Each deployment gets one `@overload` in the `deployment` class
+- Each deployment gets one `@overload` in the `deployments` class
 
 #### Status
 
