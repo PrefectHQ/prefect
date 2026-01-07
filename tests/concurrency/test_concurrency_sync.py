@@ -225,7 +225,9 @@ def mock_increment_concurrency_slots(monkeypatch):
     async def mocked_increment_concurrency_slots(*args, **kwargs):
         response = Response(
             status_code=status.HTTP_423_LOCKED,
-            headers={"Retry-After": "0.01"},
+            # Use a large Retry-After value to ensure the timeout triggers
+            # during the sleep, avoiding race conditions with small timeouts
+            headers={"Retry-After": "30"},
         )
         raise HTTPStatusError(
             message="Locked",
