@@ -79,6 +79,16 @@ const NUMBER_OF_ACTIVITY_BARS = 16;
 
 function FlowsErrorComponent({ error, reset }: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load flows");
+
+	// Only handle API errors (server-error, client-error) at route level
+	// Let network errors and unknown errors bubble up to root error component
+	if (
+		serverError.type !== "server-error" &&
+		serverError.type !== "client-error"
+	) {
+		throw error;
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
 			<div>

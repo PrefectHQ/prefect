@@ -16,6 +16,16 @@ import { pluralize } from "@/utils";
 
 function WorkPoolsErrorComponent({ error, reset }: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load work pools");
+
+	// Only handle API errors (server-error, client-error) at route level
+	// Let network errors and unknown errors bubble up to root error component
+	if (
+		serverError.type !== "server-error" &&
+		serverError.type !== "client-error"
+	) {
+		throw error;
+	}
+
 	return (
 		<div className="flex flex-col gap-4">
 			<WorkPoolsPageHeader />
