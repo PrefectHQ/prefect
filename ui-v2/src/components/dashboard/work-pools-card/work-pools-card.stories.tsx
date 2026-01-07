@@ -1,7 +1,7 @@
 import { randNumber } from "@ngneat/falso";
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
-import { HttpResponse, http } from "msw";
+import { delay, HttpResponse, http } from "msw";
 import {
 	createFakeDeployment,
 	createFakeFlow,
@@ -222,6 +222,34 @@ export const NoFlowRuns: Story = {
 				],
 				{ flowRunCount: 0 },
 			),
+		},
+	},
+};
+
+export const Loading: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/work_pools/filter"), async () => {
+					await delay("infinite");
+					return HttpResponse.json([]);
+				}),
+			],
+		},
+	},
+};
+
+export const WithError: Story = {
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/work_pools/filter"), () => {
+					return HttpResponse.json(
+						{ detail: "Internal server error" },
+						{ status: 500 },
+					);
+				}),
+			],
 		},
 	},
 };
