@@ -1252,3 +1252,103 @@ async def with_system_labels_for_deployment_flow_run(
     user_labels = user_supplied_labels or {}
 
     return parent_labels | system_labels | user_labels
+
+
+async def acquire_slots_for_running_flows(
+    *,
+    deployment_id: UUID,
+    concurrency_limit_id: UUID,
+    new_limit: int,
+    grace_period_seconds: float,
+    limitation_decreased: bool,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
+) -> int:
+    """
+    Retroactively acquire concurrency slots for flows that are already RUNNING.
+
+    This is used when a concurrency limit is added or decreased on a deployment
+    while flows are already running. Without this, those flows would not count
+    toward the new limit.
+
+    Args:
+        deployment_id: The deployment to acquire slots for
+        concurrency_limit_id: The concurrency limit to acquire slots from
+        new_limit: The new concurrency limit value
+        grace_period_seconds: The lease TTL in seconds
+        limitation_decreased: True if limit was decreased (vs newly added)
+
+    Returns:
+        The number of slots successfully acquired
+    """
+    from prefect.server.concurrency.lease_storage import (
+        ConcurrencyLeaseHolder,
+        ConcurrencyLimitLeaseMetadata,
+        get_concurrency_lease_storage,
+    )
+    from prefect.server.models import concurrency_limits_v2
+
+    slots_acquired_count = 0
+
+    async with db.session_context(begin_transaction=True) as session:
+        # Query RUNNING flows for this deployment
+        running_flows = await models.flow_runs.read_flow_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ),
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                state=schemas.filters.FlowRunFilterState(
+                    type=schemas.filters.FlowRunFilterStateType(
+                        any_=[schemas.states.StateType.RUNNING]
+                    )
+                )
+            ),
+        )
+
+        if not running_flows:
+            return 0
+
+        # Determine how many flows to process
+        flows_to_process = running_flows
+        if limitation_decreased:
+            # Only process up to the new limit when limit is decreased
+            flows_to_process = running_flows[:new_limit]
+
+        lease_storage = get_concurrency_lease_storage()
+
+        for flow_run in flows_to_process:
+            # Stop once we've reached the new limit
+            if limitation_decreased and slots_acquired_count >= new_limit:
+                break
+
+            # Try to increment active slots
+            acquired = await concurrency_limits_v2.bulk_increment_active_slots(
+                session=session,
+                concurrency_limit_ids=[concurrency_limit_id],
+                slots=1,
+            )
+
+            if acquired:
+                slots_acquired_count += 1
+                # Create lease for this flow run
+                await lease_storage.create_lease(
+                    resource_ids=[concurrency_limit_id],
+                    metadata=ConcurrencyLimitLeaseMetadata(
+                        slots=1,
+                        holder=ConcurrencyLeaseHolder(
+                            type="flow_run",
+                            id=str(flow_run.id),
+                        ),
+                    ),
+                    ttl=datetime.timedelta(seconds=grace_period_seconds),
+                )
+                # Note: We can't store lease_id in flow_run.state since it's already RUNNING
+                # The lease will be cleaned up when the flow finishes via ReleaseFlowConcurrencySlots
+
+    logger.info(
+        f"Retroactively acquired {slots_acquired_count} concurrency slots "
+        f"for deployment {deployment_id}"
+    )
+
+    return slots_acquired_count
