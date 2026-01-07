@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path, PurePath, PurePosixPath
 from unittest.mock import patch
@@ -6,8 +7,8 @@ from unittest.mock import patch
 import boto3
 import pytest
 from moto import mock_aws
-from prefect_aws import AwsCredentials
-from prefect_aws.deployments.steps import get_s3_client, pull_from_s3, push_to_s3
+from prefect_aws.credentials import _get_client_cached
+from prefect_aws.deployments.steps import pull_from_s3, push_to_s3
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -186,118 +187,6 @@ def test_push_pull_empty_folders(s3_setup, tmp_path, mock_aws_credentials):
     assert not (tmp_path / "empty2_copy").exists()
 
 
-def test_s3_session_with_params():
-    with patch("boto3.Session") as mock_session:
-        get_s3_client(
-            credentials={
-                "aws_access_key_id": "THE_KEY",
-                "aws_secret_access_key": "SHHH!",
-                "profile_name": "foo",
-                "region_name": "us-weast-1",
-                "aws_client_parameters": {
-                    "api_version": "v1",
-                    "config": {"connect_timeout": 300},
-                },
-            }
-        )
-        get_s3_client(
-            credentials={
-                "aws_access_key_id": "THE_KEY",
-                "aws_secret_access_key": "SHHH!",
-            },
-            client_parameters={
-                "region_name": "us-west-1",
-                "config": {"signature_version": "s3v4"},
-            },
-        )
-        creds_block = AwsCredentials(
-            aws_access_key_id="BlockKey",
-            aws_secret_access_key="BlockSecret",
-            aws_session_token="BlockToken",
-            profile_name="BlockProfile",
-            region_name="BlockRegion",
-            aws_client_parameters={
-                "api_version": "v1",
-                "use_ssl": True,
-                "verify": True,
-                "endpoint_url": "BlockEndpoint",
-                "config": {"connect_timeout": 123},
-            },
-        )
-        get_s3_client(credentials=creds_block.model_dump())
-        get_s3_client(
-            credentials={
-                "minio_root_user": "MY_USER",
-                "minio_root_password": "MY_PASSWORD",
-            },
-            client_parameters={"endpoint_url": "http://custom.minio.endpoint:9000"},
-        )
-        all_calls = mock_session.mock_calls
-        assert len(all_calls) == 8
-        assert all_calls[0].kwargs == {
-            "aws_access_key_id": "THE_KEY",
-            "aws_secret_access_key": "SHHH!",
-            "aws_session_token": None,
-            "profile_name": "foo",
-            "region_name": "us-weast-1",
-        }
-        assert all_calls[1].args[0] == "s3"
-        assert {
-            "api_version": "v1",
-            "endpoint_url": None,
-            "use_ssl": True,
-            "verify": None,
-        }.items() <= all_calls[1].kwargs.items()
-        assert all_calls[1].kwargs.get("config").connect_timeout == 300
-        assert all_calls[1].kwargs.get("config").signature_version is None
-        assert all_calls[2].kwargs == {
-            "aws_access_key_id": "THE_KEY",
-            "aws_secret_access_key": "SHHH!",
-            "aws_session_token": None,
-            "profile_name": None,
-            "region_name": "us-west-1",
-        }
-        assert all_calls[3].args[0] == "s3"
-        assert {
-            "api_version": None,
-            "endpoint_url": None,
-            "use_ssl": True,
-            "verify": None,
-        }.items() <= all_calls[3].kwargs.items()
-        assert all_calls[3].kwargs.get("config").connect_timeout == 60
-        assert all_calls[3].kwargs.get("config").signature_version == "s3v4"
-        assert all_calls[4].kwargs == {
-            "aws_access_key_id": "BlockKey",
-            "aws_secret_access_key": creds_block.aws_secret_access_key,
-            "aws_session_token": "BlockToken",
-            "profile_name": "BlockProfile",
-            "region_name": "BlockRegion",
-        }
-        assert all_calls[5].args[0] == "s3"
-        assert {
-            "api_version": "v1",
-            "use_ssl": True,
-            "verify": True,
-            "endpoint_url": "BlockEndpoint",
-        }.items() <= all_calls[5].kwargs.items()
-        assert all_calls[5].kwargs.get("config").connect_timeout == 123
-        assert all_calls[5].kwargs.get("config").signature_version is None
-        assert all_calls[6].kwargs == {
-            "aws_access_key_id": "MY_USER",
-            "aws_secret_access_key": "MY_PASSWORD",
-            "aws_session_token": None,
-            "profile_name": None,
-            "region_name": None,
-        }
-        assert all_calls[7].args[0] == "s3"
-        assert {
-            "api_version": None,
-            "use_ssl": True,
-            "verify": None,
-            "endpoint_url": "http://custom.minio.endpoint:9000",
-        }.items() <= all_calls[7].kwargs.items()
-
-
 def test_custom_credentials_and_client_parameters(s3_setup, tmp_files):
     s3, bucket_name = s3_setup
     folder = "my-project"
@@ -338,6 +227,88 @@ def test_custom_credentials_and_client_parameters(s3_setup, tmp_files):
     for file in tmp_files.iterdir():
         if file.is_file() and file.name != ".prefectignore":
             assert (tmp_path / file.name).exists()
+
+
+def test_assume_role_authentication(s3_setup, tmp_files):
+    s3, bucket_name = s3_setup
+    folder = "my-project"
+
+    # Custom credentials and client parameters
+    custom_credentials = {
+        "assume_role_arn": "arn:aws:iam::123456789012:role/fake-role",
+    }
+
+    os.chdir(tmp_files)
+
+    with patch("boto3.Session") as mock_session:
+        # Test push_to_s3 with custom credentials and client parameters
+        push_to_s3(bucket_name, folder, credentials=custom_credentials)
+
+        # Assert that the first call uses the instance credentials
+        assert {
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+            "profile_name": None,
+            "region_name": None,
+        }.items() == mock_session.mock_calls[0].kwargs.items()
+
+        # Second call is to sts
+        assert mock_session.mock_calls[1].args[0] == "sts"
+
+        # Third call assumes the role
+        assert mock_session.mock_calls[2][0] == "().client().assume_role"
+        assert (
+            mock_session.mock_calls[2].kwargs["RoleArn"]
+            == "arn:aws:iam::123456789012:role/fake-role"
+        )
+        assert re.fullmatch(
+            r"prefect-session-[0-9a-fA-F]+",
+            mock_session.mock_calls[2].kwargs["RoleSessionName"],
+        )
+
+        # The 9th call gets the s3 client
+        assert {
+            "service_name": "s3",
+        }.items() <= mock_session.mock_calls[8].kwargs.items()
+
+    with patch("boto3.Session") as mock_session:
+        # Reset the client cache to ensure fresh session creation
+        _get_client_cached.cache_clear()
+
+        pull_from_s3(
+            bucket_name,
+            folder,
+            credentials=custom_credentials,
+        )
+
+        # Assert that the first call uses the instance credentials
+        assert {
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+            "profile_name": None,
+            "region_name": None,
+        }.items() == mock_session.mock_calls[0].kwargs.items()
+
+        # Second call is to sts
+        assert mock_session.mock_calls[1].args[0] == "sts"
+
+        # Third call assumes the role
+        assert mock_session.mock_calls[2][0] == "().client().assume_role"
+        assert (
+            mock_session.mock_calls[2].kwargs["RoleArn"]
+            == "arn:aws:iam::123456789012:role/fake-role"
+        )
+        assert re.fullmatch(
+            r"prefect-session-[0-9a-fA-F]+",
+            mock_session.mock_calls[2].kwargs["RoleSessionName"],
+        )
+
+        # The 9th call gets the s3 client
+        assert {
+            "service_name": "s3",
+        }.items() <= mock_session.mock_calls[8].kwargs.items()
 
 
 def test_custom_credentials_and_client_parameters_minio(s3_setup, tmp_files):
