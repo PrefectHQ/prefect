@@ -266,6 +266,17 @@ executing the flow runs.
 
     Select the **Advanced** tab and edit the JSON representation of the base job template.
 
+    <Warning>
+    **Important**: Variables defined in the `variables` section must be explicitly
+    referenced in `job_configuration` using `{{ variable_name }}` syntax to take effect.
+    If you customize the base job template and remove or omit a variable reference from
+    `job_configuration`, that variable's value (including its default) will not be passed
+    to the worker—even if it's defined in `variables`.
+
+    For example, if you set a default for `cluster_config` in `variables`, ensure your
+    `job_configuration` includes `"cluster_config": "{{ cluster_config }}"`.
+    </Warning>
+
     For example, to set a CPU request, add the following section under variables:
 
     ```json
