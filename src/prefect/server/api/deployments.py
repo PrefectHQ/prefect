@@ -428,9 +428,7 @@ async def update_deployment(
 
                     if grace_period is None:
                         settings = get_current_settings()
-                        grace_period = (
-                            settings.server.concurrency.initial_deployment_lease_duration
-                        )
+                        grace_period = settings.server.concurrency.initial_deployment_lease_duration
 
                     # Schedule background task to acquire slots for running flows
                     docket = getattr(request.app.state, "docket", None)

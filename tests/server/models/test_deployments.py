@@ -2053,14 +2053,12 @@ class TestAcquireSlotsForRunningFlows:
         await session.commit()
 
         # Create a concurrency limit
-        concurrency_limit = (
-            await models.concurrency_limits_v2.create_concurrency_limit(
-                session=session,
-                concurrency_limit=schemas.core.ConcurrencyLimitV2(
-                    name=f"deployment:{deployment.id}",
-                    limit=2,
-                ),
-            )
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name=f"deployment:{deployment.id}",
+                limit=2,
+            ),
         )
         await session.commit()
 
@@ -2098,14 +2096,12 @@ class TestAcquireSlotsForRunningFlows:
         await session.commit()
 
         # Create a concurrency limit
-        concurrency_limit = (
-            await models.concurrency_limits_v2.create_concurrency_limit(
-                session=session,
-                concurrency_limit=schemas.core.ConcurrencyLimitV2(
-                    name=f"deployment:{deployment.id}",
-                    limit=5,
-                ),
-            )
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name=f"deployment:{deployment.id}",
+                limit=5,
+            ),
         )
         await session.commit()
 
@@ -2155,14 +2151,12 @@ class TestAcquireSlotsForRunningFlows:
         await session.commit()
 
         # Create a concurrency limit with new (decreased) limit of 2
-        concurrency_limit = (
-            await models.concurrency_limits_v2.create_concurrency_limit(
-                session=session,
-                concurrency_limit=schemas.core.ConcurrencyLimitV2(
-                    name=f"deployment:{deployment.id}",
-                    limit=2,
-                ),
-            )
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name=f"deployment:{deployment.id}",
+                limit=2,
+            ),
         )
         await session.commit()
 
@@ -2221,14 +2215,12 @@ class TestAcquireSlotsForRunningFlows:
         await session.commit()
 
         # Create a concurrency limit
-        concurrency_limit = (
-            await models.concurrency_limits_v2.create_concurrency_limit(
-                session=session,
-                concurrency_limit=schemas.core.ConcurrencyLimitV2(
-                    name=f"deployment:{deployment.id}",
-                    limit=5,
-                ),
-            )
+        concurrency_limit = await models.concurrency_limits_v2.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                name=f"deployment:{deployment.id}",
+                limit=5,
+            ),
         )
         await session.commit()
 
