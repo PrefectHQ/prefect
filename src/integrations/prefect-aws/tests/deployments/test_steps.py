@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path, PurePath, PurePosixPath
 from unittest.mock import patch
@@ -291,6 +292,37 @@ def test_s3_session_with_params():
             "use_ssl": True,
             "service_name": "s3",
         }.items() <= all_calls[7].kwargs.items()
+
+
+def test_s3_session_assume_role():
+    with patch("boto3.Session") as mock_session:
+        get_s3_client(
+            credentials={
+                "assume_role_arn": "arn:aws:iam::123456789012:role/tests",
+                "assume_role_kwargs": {
+                    "ExternalId": "prefect-test",
+                },
+            }
+        )
+
+        all_calls = mock_session.mock_calls
+
+        assert len(all_calls) == 9
+        assert {
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+            "profile_name": None,
+            "region_name": None,
+        }.items() <= all_calls[0].kwargs.items()
+        assert all_calls[2][0] == "().client().assume_role"
+        assert {
+            "RoleArn": "arn:aws:iam::123456789012:role/tests",
+            "ExternalId": "prefect-test",
+        }.items() <= all_calls[2].kwargs.items()
+        assert re.fullmatch(
+            r"prefect-session-[a-f0-9]{8}", all_calls[2].kwargs["RoleSessionName"]
+        )
 
 
 def test_custom_credentials_and_client_parameters(s3_setup, tmp_files):
