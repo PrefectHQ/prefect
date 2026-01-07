@@ -88,9 +88,12 @@ export const buildPaginateDeploymentsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory["list-paginate"](filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/deployments/paginate", {
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/deployments/paginate",
+				{
+					body: filter,
+				},
+			);
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}
@@ -125,7 +128,7 @@ export const buildFilterDeploymentsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory["list-filter"](filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/deployments/filter", {
+			const res = await (await getQueryService()).POST("/deployments/filter", {
 				body: filter,
 			});
 			return res.data ?? [];
@@ -161,7 +164,7 @@ export const buildCountDeploymentsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.count(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/deployments/count", {
+			const res = await (await getQueryService()).POST("/deployments/count", {
 				body: filter,
 			});
 			return res.data ?? 0;
@@ -185,7 +188,7 @@ export const buildDeploymentDetailsQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/deployments/{id}", {
+			const res = await (await getQueryService()).GET("/deployments/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -225,7 +228,9 @@ export const useCreateDeployment = () => {
 	const queryClient = useQueryClient();
 	const { mutate: createDeployment, ...rest } = useMutation({
 		mutationFn: async (body: components["schemas"]["DeploymentCreate"]) => {
-			const res = await getQueryService().POST("/deployments/", { body });
+			const res = await (await getQueryService()).POST("/deployments/", {
+				body,
+			});
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}
@@ -268,8 +273,8 @@ type UseUpdateDeployment = {
 export const useUpdateDeployment = () => {
 	const queryClient = useQueryClient();
 	const { mutate: updateDeployment, ...rest } = useMutation({
-		mutationFn: ({ id, ...body }: UseUpdateDeployment) =>
-			getQueryService().PATCH("/deployments/{id}", {
+		mutationFn: async ({ id, ...body }: UseUpdateDeployment) =>
+			(await getQueryService()).PATCH("/deployments/{id}", {
 				body,
 				params: { path: { id } },
 			}),
@@ -308,8 +313,8 @@ export const useDeleteDeployment = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: deleteDeployment, ...rest } = useMutation({
-		mutationFn: (id: string) =>
-			getQueryService().DELETE("/deployments/{id}", {
+		mutationFn: async (id: string) =>
+			(await getQueryService()).DELETE("/deployments/{id}", {
 				params: { path: { id } },
 			}),
 		onSettled: async () => {
@@ -351,8 +356,11 @@ export const useCreateDeploymentSchedule = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: createDeploymentSchedule, ...rest } = useMutation({
-		mutationFn: ({ deployment_id, ...schedule }: UseCreateDeploymentSchedule) =>
-			getQueryService().POST("/deployments/{id}/schedules", {
+		mutationFn: async ({
+			deployment_id,
+			...schedule
+		}: UseCreateDeploymentSchedule) =>
+			(await getQueryService()).POST("/deployments/{id}/schedules", {
 				body: [schedule],
 				params: { path: { id: deployment_id } },
 			}),
@@ -395,15 +403,18 @@ export const useUpdateDeploymentSchedule = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: updateDeploymentSchedule, ...rest } = useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			deployment_id,
 			schedule_id,
 			...body
 		}: UpdateDeploymentSchedule) =>
-			getQueryService().PATCH("/deployments/{id}/schedules/{schedule_id}", {
-				body,
-				params: { path: { schedule_id, id: deployment_id } },
-			}),
+			(await getQueryService()).PATCH(
+				"/deployments/{id}/schedules/{schedule_id}",
+				{
+					body,
+					params: { path: { schedule_id, id: deployment_id } },
+				},
+			),
 		onSettled: () =>
 			queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
 	});
@@ -440,10 +451,16 @@ export const useDeleteDeploymentSchedule = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: deleteDeploymentSchedule, ...rest } = useMutation({
-		mutationFn: ({ deployment_id, schedule_id }: DeleteDeploymentSchedule) =>
-			getQueryService().DELETE("/deployments/{id}/schedules/{schedule_id}", {
-				params: { path: { schedule_id, id: deployment_id } },
-			}),
+		mutationFn: async ({
+			deployment_id,
+			schedule_id,
+		}: DeleteDeploymentSchedule) =>
+			(await getQueryService()).DELETE(
+				"/deployments/{id}/schedules/{schedule_id}",
+				{
+					params: { path: { schedule_id, id: deployment_id } },
+				},
+			),
 		onSettled: () =>
 			queryClient.invalidateQueries({ queryKey: queryKeyFactory.all() }),
 	});

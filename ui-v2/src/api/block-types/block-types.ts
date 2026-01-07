@@ -37,7 +37,7 @@ export const buildListFilterBlockTypesQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.listFilter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/block_types/filter", {
+			const res = await (await getQueryService()).POST("/block_types/filter", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -51,9 +51,12 @@ export const buildGetBlockTypeQuery = (slug: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detailSlug(slug),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/block_types/slug/{slug}", {
-				params: { path: { slug } },
-			});
+			const res = await (await getQueryService()).GET(
+				"/block_types/slug/{slug}",
+				{
+					params: { path: { slug } },
+				},
+			);
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}

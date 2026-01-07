@@ -6,7 +6,8 @@ import docker
 from pydantic import Field
 
 from prefect.blocks.core import Block
-from prefect.logging import get_run_logger
+from prefect.exceptions import MissingContextError
+from prefect.logging import get_logger, get_run_logger
 
 
 class _ContextManageableDockerClient(docker.DockerClient):
@@ -90,7 +91,10 @@ class DockerHost(Block):
         Returns:
             A Docker Client.
         """
-        logger = get_run_logger()
+        try:
+            logger = get_run_logger()
+        except MissingContextError:
+            logger = get_logger("prefect.docker")
         client_kwargs = {
             "version": self.version,
             "timeout": self.timeout,
