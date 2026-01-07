@@ -1,3 +1,4 @@
+import signal
 import uuid
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from prefect._states import (
     exception_to_failed_state_sync,
     return_value_to_state_sync,
 )
-from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
+from prefect.exceptions import CancelledRun, CrashedRun, FailedRun, TerminationSignal
 from prefect.results import (
     ResultRecord,
     ResultRecordMetadata,
@@ -472,10 +473,6 @@ class TestExceptionToCrashedStateSync:
         TerminationSignal is commonly raised during flow/task cancellation
         and must be handleable in sync contexts.
         """
-        import signal
-
-        from prefect.exceptions import TerminationSignal
-
         exc = TerminationSignal(signal=signal.SIGTERM)
         state = exception_to_crashed_state_sync(exc)
         assert state.is_crashed()
