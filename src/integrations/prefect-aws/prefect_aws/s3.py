@@ -7,8 +7,6 @@ import uuid
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple, Union, get_args
 
-import boto3
-from botocore.client import Config
 from botocore.paginate import PageIterator
 from botocore.response import StreamingBody
 from pydantic import Field, field_validator
@@ -29,52 +27,35 @@ def get_s3_client(
     credentials: Optional[dict[str, Any]] = None,
     client_parameters: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    if credentials is None:
-        credentials = {}
-    if client_parameters is None:
-        client_parameters = {}
+    """
+    Get a boto3 S3 client with the given credentials and client parameters.
 
-    # Get credentials from credentials (regardless if block or not)
-    aws_access_key_id = credentials.get(
-        "aws_access_key_id", credentials.get("minio_root_user", None)
-    )
-    aws_secret_access_key = credentials.get(
-        "aws_secret_access_key", credentials.get("minio_root_password", None)
-    )
-    aws_session_token = credentials.get("aws_session_token", None)
+    Args:
+        credentials: A dictionary of credentials to use for authentication with AWS.
+        client_parameters: A dictionary of parameters to use for the boto3 client
+            initialization.
 
-    # Get remaining session info from credentials, or client_parameters
-    profile_name = credentials.get(
-        "profile_name", client_parameters.get("profile_name", None)
+    Returns:
+        A boto3 S3 client.
+    """
+    credentials = credentials or {}
+    client_parameters = client_parameters or {}
+
+    # Handle aliasing MinIO settings to AWS credentials
+    credentials.setdefault(
+        "aws_access_key_id", credentials.pop("minio_root_user", None)
     )
-    region_name = credentials.get(
-        "region_name", client_parameters.get("region_name", None)
+    credentials.setdefault(
+        "aws_secret_access_key", credentials.pop("minio_root_password", None)
     )
 
-    # Get additional info from client_parameters, otherwise credentials input (if block)
-    aws_client_parameters = credentials.get("aws_client_parameters", client_parameters)
-    api_version = aws_client_parameters.get("api_version", None)
-    endpoint_url = aws_client_parameters.get("endpoint_url", None)
-    use_ssl = aws_client_parameters.get("use_ssl", True)
-    verify = aws_client_parameters.get("verify", None)
-    config_params = aws_client_parameters.get("config", {})
-    config = Config(**config_params)
+    # Use the explicitly provided client parameters if not already defined in the credentials block
+    credentials.setdefault(
+        "aws_client_parameters",
+        client_parameters and AwsClientParameters.model_validate(client_parameters),
+    )
 
-    session = boto3.Session(
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        aws_session_token=aws_session_token,
-        profile_name=profile_name,
-        region_name=region_name,
-    )
-    return session.client(
-        "s3",
-        api_version=api_version,
-        endpoint_url=endpoint_url,
-        use_ssl=use_ssl,
-        verify=verify,
-        config=config,
-    )
+    return AwsCredentials.model_validate(credentials).get_s3_client()
 
 
 @task
