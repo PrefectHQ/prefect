@@ -11,7 +11,8 @@ from typing import Any, Optional
 from typing_extensions import TypedDict
 
 from prefect.utilities.filesystem import filter_files, relative_path_to_current_platform
-from prefect_aws.s3 import get_s3_client
+from prefect_aws import AwsCredentials
+from prefect_aws.client_parameters import AwsClientParameters
 
 
 class PushToS3Output(TypedDict):
@@ -78,7 +79,11 @@ def push_to_s3(
         ```
 
     """
-    s3 = get_s3_client(credentials=credentials, client_parameters=client_parameters)
+    aws_credentials = AwsCredentials(
+        **credentials or {},
+        aws_client_parameters=AwsClientParameters(**client_parameters or {}),
+    )
+    s3 = aws_credentials.get_s3_client()
 
     local_path = Path.cwd()
 
@@ -149,7 +154,11 @@ def pull_from_s3(
                 credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}"
         ```
     """
-    s3 = get_s3_client(credentials=credentials, client_parameters=client_parameters)
+    aws_credentials = AwsCredentials(
+        **credentials or {},
+        aws_client_parameters=AwsClientParameters(**client_parameters or {}),
+    )
+    s3 = aws_credentials.get_s3_client()
 
     local_path = Path.cwd()
 
