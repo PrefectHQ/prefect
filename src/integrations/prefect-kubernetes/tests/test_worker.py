@@ -2964,7 +2964,7 @@ class TestKubernetesWorkerKillInfrastructure:
         mock_cluster_config: MagicMock,
     ):
         """Test that kill_infrastructure raises InfrastructureNotFound for 404 errors."""
-        from prefect.exceptions import InfrastructureNotFound
+        from prefect.exceptions import InfrastructureNotFound  # noqa: PLC0415
 
         async with KubernetesWorker(work_pool_name="test") as worker:
             configuration = (

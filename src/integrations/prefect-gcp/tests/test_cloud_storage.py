@@ -571,7 +571,7 @@ class TestGcsBucket:
         The bug was that cache files were being written to alpha/alpha/xxx instead of alpha/xxx
         due to bucket folder being applied twice in the path resolution chain.
         """
-        from io import BytesIO
+        from io import BytesIO  # noqa: PLC0415
 
         # Create a GCS bucket with bucket_folder set (like in the issue)
         gcs_bucket = GcsBucket(
@@ -604,7 +604,7 @@ class TestGcsBucket:
 
         This tests the specific condition that was causing the duplication bug.
         """
-        from io import BytesIO
+        from io import BytesIO  # noqa: PLC0415
 
         gcs_bucket = GcsBucket(
             bucket="test-bucket", gcp_credentials=gcp_credentials, bucket_folder="alpha"

@@ -555,12 +555,14 @@ def _memoize_block_auto_registration(
     Decorator to handle skipping the wrapped function if the block registry has
     not changed since the last invocation
     """
-    import toml
+    import toml  # noqa: PLC0415
 
-    import prefect.plugins
-    from prefect.blocks.core import Block
-    from prefect.server.models.block_registration import _load_collection_blocks_data
-    from prefect.utilities.dispatch import get_registry_for_type
+    import prefect.plugins  # noqa: PLC0415
+    from prefect.blocks.core import Block  # noqa: PLC0415
+    from prefect.server.models.block_registration import (  # noqa: PLC0415
+        _load_collection_blocks_data,  # noqa: PLC0415
+    )
+    from prefect.utilities.dispatch import get_registry_for_type  # noqa: PLC0415
 
     @wraps(fn)
     async def wrapper(*args: Any, **kwargs: Any) -> None:
@@ -654,7 +656,7 @@ def create_app(
     webserver_only = webserver_only or bool(os.getenv("PREFECT__SERVER_WEBSERVER_ONLY"))
     final = final or bool(os.getenv("PREFECT__SERVER_FINAL"))
 
-    from prefect.logging.configuration import setup_logging
+    from prefect.logging.configuration import setup_logging  # noqa: PLC0415
 
     setup_logging()
 
@@ -666,7 +668,9 @@ def create_app(
     async def run_migrations():
         """Ensure the database is created and up to date with the current migrations"""
         if prefect.settings.PREFECT_API_DATABASE_MIGRATE_ON_START:
-            from prefect.server.database import provide_database_interface
+            from prefect.server.database import (  # noqa: PLC0415
+                provide_database_interface,  # noqa: PLC0415
+            )
 
             db = provide_database_interface()
             await db.create_db()
@@ -677,8 +681,10 @@ def create_app(
         if not prefect.settings.PREFECT_API_BLOCKS_REGISTER_ON_START:
             return
 
-        from prefect.server.database import provide_database_interface
-        from prefect.server.models.block_registration import run_block_auto_registration
+        from prefect.server.database import provide_database_interface  # noqa: PLC0415
+        from prefect.server.models.block_registration import (  # noqa: PLC0415
+            run_block_auto_registration,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         session = await db.session()
@@ -779,7 +785,10 @@ def create_app(
         app.add_middleware(api.middleware.CsrfMiddleware)
 
     if prefect.settings.PREFECT_API_ENABLE_METRICS:
-        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+        from prometheus_client import (  # noqa: PLC0415
+            CONTENT_TYPE_LATEST,
+            generate_latest,
+        )
 
         @api_app.get("/metrics")
         async def metrics() -> Response:  # type: ignore[reportUnusedFunction]

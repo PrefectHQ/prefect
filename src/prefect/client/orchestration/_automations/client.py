@@ -21,7 +21,7 @@ class AutomationClient(BaseClient):
             "/automations/",
             json=automation.model_dump(mode="json"),
         )
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         return UUID(response.json()["id"])
 
@@ -40,12 +40,12 @@ class AutomationClient(BaseClient):
     def read_automations(self) -> list["Automation"]:
         response = self.request("POST", "/automations/filter")
         response.raise_for_status()
-        from prefect.events.schemas.automations import Automation
+        from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
         return Automation.model_validate_list(response.json())
 
     def find_automation(self, id_or_name: "str | UUID") -> "Automation | None":
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         if isinstance(id_or_name, str):
             name = id_or_name
@@ -86,7 +86,7 @@ class AutomationClient(BaseClient):
         if response.status_code == 404:
             return None
         response.raise_for_status()
-        from prefect.events.schemas.automations import Automation
+        from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
         return Automation.model_validate(response.json())
 
@@ -100,8 +100,8 @@ class AutomationClient(BaseClient):
         Returns:
             a list of Automation model representations of the automations
         """
-        from prefect.client.schemas.sorting import AutomationSort
-        from prefect.events.filters import (
+        from prefect.client.schemas.sorting import AutomationSort  # noqa: PLC0415
+        from prefect.events.filters import (  # noqa: PLC0415
             AutomationFilter,
             AutomationFilterName,
         )
@@ -120,7 +120,7 @@ class AutomationClient(BaseClient):
         )
 
         response.raise_for_status()
-        from prefect.events.schemas.automations import Automation
+        from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
         return Automation.model_validate_list(response.json())
 
@@ -160,7 +160,7 @@ class AutomationClient(BaseClient):
             path_params={"resource_id": resource_id},
         )
         response.raise_for_status()
-        from prefect.events.schemas.automations import Automation
+        from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
         return Automation.model_validate_list(response.json())
 
@@ -180,7 +180,7 @@ class AutomationAsyncClient(BaseAsyncClient):
             "/automations/",
             json=automation.model_dump(mode="json"),
         )
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         return UUID(response.json()["id"])
 
@@ -199,12 +199,12 @@ class AutomationAsyncClient(BaseAsyncClient):
     async def read_automations(self) -> list["Automation"]:
         response = await self.request("POST", "/automations/filter")
         response.raise_for_status()
-        from prefect.events.schemas.automations import Automation
+        from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
         return Automation.model_validate_list(response.json())
 
     async def find_automation(self, id_or_name: "str | UUID") -> "Automation | None":
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         if isinstance(id_or_name, str):
             name = id_or_name
@@ -245,7 +245,7 @@ class AutomationAsyncClient(BaseAsyncClient):
         if response.status_code == 404:
             return None
         response.raise_for_status()
-        from prefect.events.schemas.automations import Automation
+        from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
         return Automation.model_validate(response.json())
 
@@ -259,8 +259,8 @@ class AutomationAsyncClient(BaseAsyncClient):
         Returns:
             a list of Automation model representations of the automations
         """
-        from prefect.client.schemas.sorting import AutomationSort
-        from prefect.events.filters import (
+        from prefect.client.schemas.sorting import AutomationSort  # noqa: PLC0415
+        from prefect.events.filters import (  # noqa: PLC0415
             AutomationFilter,
             AutomationFilterName,
         )
@@ -279,7 +279,7 @@ class AutomationAsyncClient(BaseAsyncClient):
         )
 
         response.raise_for_status()
-        from prefect.events.schemas.automations import Automation
+        from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
         return Automation.model_validate_list(response.json())
 
@@ -321,7 +321,7 @@ class AutomationAsyncClient(BaseAsyncClient):
             path_params={"resource_id": resource_id},
         )
         response.raise_for_status()
-        from prefect.events.schemas.automations import Automation
+        from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
         return Automation.model_validate_list(response.json())
 

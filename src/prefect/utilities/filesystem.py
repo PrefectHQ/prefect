@@ -161,11 +161,11 @@ def get_open_file_limit() -> int:
 
     try:
         if os.name == "nt":
-            import ctypes
+            import ctypes  # noqa: PLC0415
 
             return ctypes.cdll.ucrtbase._getmaxstdio()
         else:
-            import resource
+            import resource  # noqa: PLC0415
 
             soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
             return soft_limit

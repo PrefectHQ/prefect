@@ -23,7 +23,7 @@ from prefect.workers.process import ProcessWorker
 @pytest.fixture
 async def transfer_flow(session: AsyncSession):
     """Create a flow for transfer testing."""
-    from prefect.client.schemas.objects import Flow
+    from prefect.client.schemas.objects import Flow  # noqa: PLC0415
 
     model = await models.flows.create_flow(
         session=session, flow=schemas.core.Flow(name=f"transfer-flow-{uuid.uuid4()}")
@@ -55,7 +55,9 @@ async def transfer_flow_2(session: AsyncSession):
 @pytest.fixture
 async def transfer_work_pool(session: AsyncSession):
     """Create a regular work pool for transfer testing."""
-    from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+    from prefect.client.schemas.objects import (  # noqa: PLC0415
+        WorkPoolStorageConfiguration,  # noqa: PLC0415
+    )
 
     orm_work_pool = await models.workers.create_work_pool(
         session=session,
@@ -100,7 +102,9 @@ async def transfer_work_pool(session: AsyncSession):
 @pytest.fixture
 async def transfer_push_work_pool(session: AsyncSession):
     """Create a push work pool for transfer testing."""
-    from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+    from prefect.client.schemas.objects import (  # noqa: PLC0415
+        WorkPoolStorageConfiguration,  # noqa: PLC0415
+    )
 
     orm_work_pool = await models.workers.create_work_pool(
         session=session,
@@ -145,7 +149,9 @@ async def transfer_push_work_pool(session: AsyncSession):
 @pytest.fixture
 async def transfer_managed_work_pool(session: AsyncSession):
     """Create a managed work pool for transfer testing."""
-    from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+    from prefect.client.schemas.objects import (  # noqa: PLC0415
+        WorkPoolStorageConfiguration,  # noqa: PLC0415
+    )
 
     orm_work_pool = await models.workers.create_work_pool(
         session=session,
@@ -190,7 +196,9 @@ async def transfer_managed_work_pool(session: AsyncSession):
 @pytest.fixture
 async def transfer_process_work_pool(session: AsyncSession):
     """Create a process work pool for transfer testing."""
-    from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+    from prefect.client.schemas.objects import (  # noqa: PLC0415
+        WorkPoolStorageConfiguration,  # noqa: PLC0415
+    )
 
     orm_work_pool = await models.workers.create_work_pool(
         session=session,
@@ -289,7 +297,7 @@ async def transfer_work_queue_with_pool(session: AsyncSession, transfer_work_poo
 @pytest.fixture
 async def transfer_block_type_x(session: AsyncSession):
     """Create a block type X for transfer testing."""
-    from prefect.client.schemas.objects import BlockType
+    from prefect.client.schemas.objects import BlockType  # noqa: PLC0415
 
     orm_block_type = await models.block_types.create_block_type(
         session=session,
@@ -317,7 +325,7 @@ async def transfer_block_type_x(session: AsyncSession):
 @pytest.fixture
 async def transfer_block_type_y(session: AsyncSession):
     """Create a block type Y for transfer testing."""
-    from prefect.client.schemas.objects import BlockType
+    from prefect.client.schemas.objects import BlockType  # noqa: PLC0415
 
     orm_block_type = await models.block_types.create_block_type(
         session=session,
@@ -345,7 +353,7 @@ async def transfer_block_type_y(session: AsyncSession):
 @pytest.fixture
 async def transfer_block_schema(session: AsyncSession, transfer_block_type_x):
     """Create a block schema for transfer testing."""
-    from prefect.client.schemas.objects import BlockSchema
+    from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
     fields = {
         "title": "transfer-x",
@@ -424,7 +432,7 @@ async def transfer_block_document(
     session: AsyncSession, transfer_block_schema, transfer_block_type_x
 ):
     """Create a block document for transfer testing."""
-    from prefect.client.schemas.objects import BlockDocument
+    from prefect.client.schemas.objects import BlockDocument  # noqa: PLC0415
 
     orm_block_document = await models.block_documents.create_block_document(
         session=session,
@@ -501,8 +509,8 @@ def transfer_parameter_schema():
 @pytest.fixture
 async def transfer_deployment(transfer_flow):
     """Create a deployment for transfer testing."""
-    from prefect.client.schemas.objects import DeploymentSchedule
-    from prefect.client.schemas.schedules import IntervalSchedule
+    from prefect.client.schemas.objects import DeploymentSchedule  # noqa: PLC0415
+    from prefect.client.schemas.schedules import IntervalSchedule  # noqa: PLC0415
 
     # Create a simple DeploymentResponse object directly
     return DeploymentResponse(
@@ -562,8 +570,8 @@ async def transfer_deployment(transfer_flow):
 @pytest.fixture
 async def transfer_deployment_with_infra(transfer_flow, transfer_block_document):
     """Create a deployment with infrastructure document for transfer testing."""
-    from prefect.client.schemas.objects import DeploymentSchedule
-    from prefect.client.schemas.schedules import IntervalSchedule
+    from prefect.client.schemas.objects import DeploymentSchedule  # noqa: PLC0415
+    from prefect.client.schemas.schedules import IntervalSchedule  # noqa: PLC0415
 
     # Create a simple DeploymentResponse object directly with infrastructure
     return DeploymentResponse(
@@ -661,8 +669,10 @@ async def transfer_destination_client(prefect_client):
 @pytest.fixture
 async def transfer_global_concurrency_limit(session: AsyncSession):
     """Create a global concurrency limit for transfer testing."""
-    from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
-    from prefect.server import models
+    from prefect.client.schemas.responses import (  # noqa: PLC0415
+        GlobalConcurrencyLimitResponse,  # noqa: PLC0415
+    )
+    from prefect.server import models  # noqa: PLC0415
 
     limit = await models.concurrency_limits_v2.create_concurrency_limit(
         session=session,
@@ -692,11 +702,15 @@ async def transfer_global_concurrency_limit(session: AsyncSession):
 @pytest.fixture
 async def transfer_automation():
     """Create an automation for transfer testing."""
-    from datetime import timedelta
+    from datetime import timedelta  # noqa: PLC0415
 
-    from prefect.events.actions import DoNothing
-    from prefect.events.schemas.automations import Automation, EventTrigger, Posture
-    from prefect.events.schemas.events import ResourceSpecification
+    from prefect.events.actions import DoNothing  # noqa: PLC0415
+    from prefect.events.schemas.automations import (  # noqa: PLC0415
+        Automation,
+        EventTrigger,
+        Posture,
+    )
+    from prefect.events.schemas.events import ResourceSpecification  # noqa: PLC0415
 
     automation = Automation(
         id=uuid.uuid4(),

@@ -14,7 +14,7 @@ def execute_bundle_from_file(key: str):
     with open(key, "r") as f:
         bundle = json.load(f)
 
-    from prefect.runner.runner import Runner
+    from prefect.runner.runner import Runner  # noqa: PLC0415
 
     run_coro_as_sync(Runner().execute_bundle(bundle))
 

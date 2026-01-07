@@ -169,7 +169,7 @@ def start_client_metrics_server() -> None:
     if _metrics_server:
         return
 
-    from prometheus_client import start_http_server
+    from prometheus_client import start_http_server  # noqa: PLC0415
 
     _metrics_server = start_http_server(port=PREFECT_CLIENT_METRICS_PORT.value())
 

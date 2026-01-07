@@ -345,7 +345,7 @@ def load_current_profile() -> Profile:
     This will _not_ include settings from the current settings context. Only settings
     that have been persisted to the profiles file will be saved.
     """
-    import prefect.context
+    import prefect.context  # noqa: PLC0415
 
     profiles = load_profiles()
     context = prefect.context.get_settings_context()
@@ -391,12 +391,12 @@ def update_current_profile(
     Returns:
         The new profile.
     """
-    import prefect.context
+    import prefect.context  # noqa: PLC0415
 
     current_profile = prefect.context.get_settings_context().profile
 
     if not current_profile:
-        from prefect.exceptions import MissingProfileError
+        from prefect.exceptions import MissingProfileError  # noqa: PLC0415
 
         raise MissingProfileError("No profile is currently in use.")
 

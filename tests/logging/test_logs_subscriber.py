@@ -179,8 +179,12 @@ def log_puppeteer() -> LogPuppeteer:
 async def logs_server(
     unused_tcp_port: int, log_recorder: LogRecorder, log_puppeteer: LogPuppeteer
 ):
-    from starlette.status import WS_1008_POLICY_VIOLATION
-    from websockets.asyncio.server import Server, ServerConnection, serve
+    from starlette.status import WS_1008_POLICY_VIOLATION  # noqa: PLC0415
+    from websockets.asyncio.server import (  # noqa: PLC0415
+        Server,
+        ServerConnection,
+        serve,
+    )
 
     server: Server
 
@@ -491,7 +495,7 @@ async def test_subscriber_skips_duplicate_logs(
 
 def test_http_to_ws_conversion():
     """Test HTTP to WebSocket URL conversion utility"""
-    from prefect.logging.clients import http_to_ws
+    from prefect.logging.clients import http_to_ws  # noqa: PLC0415
 
     assert http_to_ws("http://example.com/api") == "ws://example.com/api"
     assert http_to_ws("https://example.com/api/") == "wss://example.com/api"
@@ -500,7 +504,7 @@ def test_http_to_ws_conversion():
 
 def test_logs_out_socket_from_api_url():
     """Test log WebSocket URL construction"""
-    from prefect.logging.clients import logs_out_socket_from_api_url
+    from prefect.logging.clients import logs_out_socket_from_api_url  # noqa: PLC0415
 
     assert (
         logs_out_socket_from_api_url("http://example.com/api")
@@ -514,7 +518,7 @@ def test_logs_out_socket_from_api_url():
 
 def test_get_api_url_and_key_missing_values():
     """Test _get_api_url_and_key error handling"""
-    from prefect.logging.clients import _get_api_url_and_key
+    from prefect.logging.clients import _get_api_url_and_key  # noqa: PLC0415
 
     with temporary_settings({PREFECT_API_URL: None, PREFECT_API_KEY: None}):
         with pytest.raises(ValueError, match="must be provided or set"):
@@ -529,7 +533,7 @@ def test_get_api_url_and_key_missing_values():
 
 def test_get_api_url_and_key_success():
     """Test _get_api_url_and_key with valid values"""
-    from prefect.logging.clients import _get_api_url_and_key
+    from prefect.logging.clients import _get_api_url_and_key  # noqa: PLC0415
 
     url, key = _get_api_url_and_key("http://example.com", "my-key")
     assert url == "http://example.com"
@@ -538,7 +542,7 @@ def test_get_api_url_and_key_success():
 
 def test_subscriber_auth_token_missing_error():
     """Test authentication error when no token is available"""
-    from prefect.logging.clients import PrefectLogsSubscriber
+    from prefect.logging.clients import PrefectLogsSubscriber  # noqa: PLC0415
 
     with temporary_settings({PREFECT_API_AUTH_STRING: None}):
         subscriber = PrefectLogsSubscriber("http://example.com")
@@ -555,11 +559,11 @@ def test_subscriber_auth_token_missing_error():
 
 async def test_subscriber_connection_closed_gracefully_stops_iteration():
     """Test that ConnectionClosedOK gracefully stops iteration"""
-    from unittest.mock import AsyncMock
+    from unittest.mock import AsyncMock  # noqa: PLC0415
 
-    from websockets.exceptions import ConnectionClosedOK
+    from websockets.exceptions import ConnectionClosedOK  # noqa: PLC0415
 
-    from prefect.logging.clients import PrefectLogsSubscriber
+    from prefect.logging.clients import PrefectLogsSubscriber  # noqa: PLC0415
 
     subscriber = PrefectLogsSubscriber("http://example.com")
     subscriber._websocket = AsyncMock()
@@ -584,7 +588,7 @@ def test_subscriber_sleep_logic():
 
 async def test_subscriber_auth_with_none_token():
     """Test that authentication works when auth token is None (Prefect server)"""
-    from prefect.logging.clients import PrefectLogsSubscriber
+    from prefect.logging.clients import PrefectLogsSubscriber  # noqa: PLC0415
 
     with temporary_settings({PREFECT_API_AUTH_STRING: None}):
         subscriber = PrefectLogsSubscriber("http://example.com")
@@ -625,7 +629,7 @@ async def test_subscriber_auth_with_none_token():
 
 async def test_subscriber_auth_with_empty_token():
     """Test that authentication works when auth token is empty string"""
-    from prefect.logging.clients import PrefectLogsSubscriber
+    from prefect.logging.clients import PrefectLogsSubscriber  # noqa: PLC0415
 
     with temporary_settings({PREFECT_API_AUTH_STRING: ""}):
         subscriber = PrefectLogsSubscriber("http://example.com")
@@ -665,7 +669,7 @@ async def test_subscriber_auth_with_empty_token():
 
 async def test_subscriber_auth_with_falsy_tokens():
     """Test authentication with various falsy token values"""
-    from prefect.logging.clients import PrefectLogsSubscriber
+    from prefect.logging.clients import PrefectLogsSubscriber  # noqa: PLC0415
 
     falsy_values = [None, ""]  # Only test string-compatible falsy values
 

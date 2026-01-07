@@ -60,7 +60,7 @@ def build_docs(schema_path: Optional[str] = None):
     """
     exit_with_error_if_not_editable_install()
 
-    from prefect.server.api.server import create_app
+    from prefect.server.api.server import create_app  # noqa: PLC0415
 
     schema = create_app(ephemeral=True).openapi()
 
@@ -138,7 +138,7 @@ async def api(
     """
     Starts a hot-reloading development API.
     """
-    import watchfiles
+    import watchfiles  # noqa: PLC0415
 
     server_env = os.environ.copy()
     server_env["PREFECT_API_SERVICES_RUN_IN_APP"] = str(services)
@@ -160,7 +160,7 @@ async def api(
     ]
 
     app.console.print(f"Running: {' '.join(command)}")
-    import signal
+    import signal  # noqa: PLC0415
 
     stop_event = anyio.Event()
     start_command = partial(
@@ -310,8 +310,8 @@ def container(
     Run a docker container with local code mounted and installed.
     """
     exit_with_error_if_not_editable_install()
-    import docker
-    from docker.models.containers import Container
+    import docker  # noqa: PLC0415
+    from docker.models.containers import Container  # noqa: PLC0415
 
     client = docker.from_env()
 

@@ -63,7 +63,7 @@ def _coerce_datetime(
         return dt
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        import dateparser
+        import dateparser  # noqa: PLC0415
 
         return dateparser.parse(dt)
 
@@ -89,13 +89,13 @@ def generate_deprecation_message(
             assert start_date is not None
 
         if sys.version_info >= (3, 13):
-            from whenever import PlainDateTime
+            from whenever import PlainDateTime  # noqa: PLC0415
 
             end_date = (
                 PlainDateTime.from_py_datetime(start_date).add(months=6).py_datetime()
             )
         else:
-            import pendulum
+            import pendulum  # noqa: PLC0415
 
             end_date = pendulum.instance(start_date).add(months=6)
 

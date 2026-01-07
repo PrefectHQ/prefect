@@ -31,7 +31,7 @@ class BaseClient:
     _http_client: PrefectHttpxAsyncClient
 
     def __init__(self, additional_headers: dict[str, str] | None = None):
-        from prefect.server.api.server import create_app
+        from prefect.server.api.server import create_app  # noqa: PLC0415
 
         additional_headers = additional_headers or {}
 

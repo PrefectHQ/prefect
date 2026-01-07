@@ -19,7 +19,7 @@ def exit_with_error(message: str | Exception, code: int = 1, **kwargs: Any) -> N
     """
     Utility to print a stylized error message and exit with a non-zero code
     """
-    from prefect.cli.root import app
+    from prefect.cli.root import app  # noqa: PLC0415
 
     kwargs.setdefault("style", "red")
     app.console.print(message, **kwargs)
@@ -30,7 +30,7 @@ def exit_with_success(message: str, **kwargs: Any) -> NoReturn:
     """
     Utility to print a stylized success message and exit with a zero code
     """
-    from prefect.cli.root import app
+    from prefect.cli.root import app  # noqa: PLC0415
 
     kwargs.setdefault("style", "green")
     app.console.print(message, **kwargs)

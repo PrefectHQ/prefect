@@ -461,7 +461,7 @@ def start_observer():
     logging.getLogger("kopf._core.reactor.running").addFilter(ThreadWarningFilter())
 
     # Configure kopf logging to match Prefect's logging format
-    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG
+    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG  # noqa: PLC0415
 
     if PROCESS_LOGGING_CONFIG:
         console_formatter = (
@@ -472,7 +472,9 @@ def start_observer():
         if console_formatter == "json":
             # Configure kopf to use its own JSON formatter instead of Prefect's
             # which cannot serialize kopf internal objects
-            from prefect_kubernetes._logging import KopfObjectJsonFormatter
+            from prefect_kubernetes._logging import (  # noqa: PLC0415
+                KopfObjectJsonFormatter,  # noqa: PLC0415
+            )
 
             kopf_logger = logging.getLogger("kopf")
             kopf_handler = logging.StreamHandler(sys.stderr)

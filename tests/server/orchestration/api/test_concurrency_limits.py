@@ -420,7 +420,7 @@ class TestV1ToV2Adapter:
 
     async def test_filter_merges_v1_and_v2(self, session, client):
         """Test that filter endpoint merges V1 and V2 limits properly."""
-        from prefect.server import models, schemas
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         # Create a V2 limit via adapter
         v2_data = ConcurrencyLimitCreate(

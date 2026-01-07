@@ -1378,7 +1378,7 @@ class TestRunner:
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/10820
         """
-        import sys
+        import sys  # noqa: PLC0415
 
         mock_process = AsyncMock()
         mock_process.returncode = 0
@@ -1757,7 +1757,7 @@ class TestRunner:
         Ensures the runner doesn't crash when trying to propose a crashed state
         for a flow run that has been deleted.
         """
-        from prefect.exceptions import ObjectNotFound
+        from prefect.exceptions import ObjectNotFound  # noqa: PLC0415
 
         runner = Runner()
 
@@ -1794,7 +1794,7 @@ class TestRunner:
         Ensures the runner doesn't crash when trying to mark a deleted flow run
         as cancelled.
         """
-        from prefect.exceptions import ObjectNotFound
+        from prefect.exceptions import ObjectNotFound  # noqa: PLC0415
 
         runner = Runner()
 
@@ -1827,7 +1827,7 @@ class TestRunner:
         Ensures the runner doesn't crash when trying to read a flow run after
         completion if the flow run has been deleted.
         """
-        from prefect.exceptions import ObjectNotFound
+        from prefect.exceptions import ObjectNotFound  # noqa: PLC0415
 
         runner = Runner()
 
@@ -2241,10 +2241,10 @@ async def test_run_hooks_with_partial_hooks(
     accessing hook names, which was a bug where hook.__name__ was accessed
     directly instead of using get_hook_name().
     """
-    from functools import partial
+    from functools import partial  # noqa: PLC0415
 
-    from prefect.runner.runner import _run_hooks
-    from prefect.states import Cancelled
+    from prefect.runner.runner import _run_hooks  # noqa: PLC0415
+    from prefect.states import Cancelled  # noqa: PLC0415
 
     data = {}
 

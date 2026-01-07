@@ -522,7 +522,7 @@ async def test_watch_service_timeout_on_start(
     worker_flow_run,
     mock_snowflake_root,
 ):
-    from snowflake.core.exceptions import NotFoundError
+    from snowflake.core.exceptions import NotFoundError  # noqa: PLC0415
 
     service_name = "test_service"
     mock_schema = mock_snowflake_root.databases["common"].schemas["compute"]

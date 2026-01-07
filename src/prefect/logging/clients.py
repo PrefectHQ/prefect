@@ -109,7 +109,7 @@ def get_logs_subscriber(
             reconnection_attempts=reconnection_attempts,
         )
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
-        from prefect.server.api.server import SubprocessASGIServer
+        from prefect.server.api.server import SubprocessASGIServer  # noqa: PLC0415
 
         server = SubprocessASGIServer()
         server.start()
@@ -168,7 +168,7 @@ class PrefectLogsSubscriber:
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
 
-        from prefect.client.schemas.filters import LogFilter
+        from prefect.client.schemas.filters import LogFilter  # noqa: PLC0415
 
         self._filter = filter or LogFilter()  # type: ignore[call-arg]
         self._seen_logs = TTLCache(maxsize=SEEN_LOGS_SIZE, ttl=SEEN_LOGS_TTL)
@@ -239,7 +239,7 @@ class PrefectLogsSubscriber:
             msg += f"Reason: {reason}" if reason else ""
             raise Exception(msg) from e
 
-        from prefect.client.schemas.filters import LogFilterTimestamp
+        from prefect.client.schemas.filters import LogFilterTimestamp  # noqa: PLC0415
 
         current_time = now("UTC")
         self._filter.timestamp = LogFilterTimestamp(

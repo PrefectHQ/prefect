@@ -123,6 +123,6 @@ class TestDiscoverFlows:
         """
 
         def import_prefect():
-            import prefect  # noqa: F401
+            import prefect  # noqa: F401, PLC0415
 
         await run_sync_in_worker_thread(import_prefect)

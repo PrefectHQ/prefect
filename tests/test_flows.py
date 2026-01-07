@@ -335,7 +335,7 @@ class TestResultPersistence:
         assert new_flow.persist_result is True
 
     def test_result_storage_accepts_path_object(self, tmpdir):
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         storage_path = Path(tmpdir) / "results"
 
@@ -347,7 +347,7 @@ class TestResultPersistence:
         assert my_flow.persist_result is True
 
     def test_result_storage_with_path_string(self, tmpdir):
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         storage_path = Path(tmpdir) / "results"
 
@@ -359,7 +359,7 @@ class TestResultPersistence:
         assert result == {"data": "test"}
 
     def test_result_storage_path_with_with_options(self, tmpdir):
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         path1 = Path(tmpdir) / "path1"
         path2 = Path(tmpdir) / "path2"
@@ -376,7 +376,7 @@ class TestResultPersistence:
         assert new_flow.persist_result is True
 
     def test_result_storage_path_relative(self):
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         @flow(result_storage=Path("./relative/path"))
         def my_flow():
@@ -386,7 +386,7 @@ class TestResultPersistence:
         assert my_flow.persist_result is True
 
     def test_result_storage_unsaved_block_still_rejected(self, tmpdir):
-        import pytest
+        import pytest  # noqa: PLC0415
 
         block = LocalFileSystem(basepath=str(tmpdir))
 
@@ -681,7 +681,7 @@ class TestFlowCall:
         assert await state.result() == 6
 
     def test_call_coerces_parameter_types(self):
-        import pydantic  # force this test to use pydantic v2 as its BaseModel iff pydantic v2 is installed
+        import pydantic  # force this test to use pydantic v2 as its BaseModel iff pydantic v2 is installed  # noqa: PLC0415
 
         class CustomType(pydantic.BaseModel):
             z: int
@@ -4858,7 +4858,7 @@ class TestFlowFromSource:
                 )
 
         def test_no_pull_for_local_storage(self, monkeypatch: pytest.MonkeyPatch):
-            from prefect.runner.storage import LocalStorage
+            from prefect.runner.storage import LocalStorage  # noqa: PLC0415
 
             storage = LocalStorage(path="/tmp/test")
 
@@ -4959,7 +4959,7 @@ class TestFlowFromSource:
             assert loaded_flow() == 1
 
         async def test_no_pull_for_local_storage(self, monkeypatch: pytest.MonkeyPatch):
-            from prefect.runner.storage import LocalStorage
+            from prefect.runner.storage import LocalStorage  # noqa: PLC0415
 
             storage = LocalStorage(path="/tmp/test")
 

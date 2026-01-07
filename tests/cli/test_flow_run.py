@@ -941,9 +941,9 @@ def mismatch_flow(completely_different_param: str):
         self, prefect_client: PrefectClient, tmp_path, monkeypatch
     ):
         """Test retrying a flow run with InfrastructureBoundFlow - error path."""
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import AsyncMock, patch  # noqa: PLC0415
 
-        from prefect.flows import InfrastructureBoundFlow
+        from prefect.flows import InfrastructureBoundFlow  # noqa: PLC0415
 
         # Create a test flow file with infrastructure binding
         flow_file = tmp_path / "test_infra_flow.py"

@@ -127,7 +127,9 @@ class Action(PrefectBaseModel, abc.ABC):
         """Perform the requested Action"""
 
     async def fail(self, triggered_action: "TriggeredAction", reason: str) -> None:
-        from prefect.server.events.schemas.automations import EventTrigger
+        from prefect.server.events.schemas.automations import (  # noqa: PLC0415
+            EventTrigger,  # noqa: PLC0415
+        )
 
         automation = triggered_action.automation
         action = triggered_action.action
@@ -213,7 +215,9 @@ class Action(PrefectBaseModel, abc.ABC):
             )
 
     async def succeed(self, triggered_action: "TriggeredAction") -> None:
-        from prefect.server.events.schemas.automations import EventTrigger
+        from prefect.server.events.schemas.automations import (  # noqa: PLC0415
+            EventTrigger,  # noqa: PLC0415
+        )
 
         automation = triggered_action.automation
         action = triggered_action.action
@@ -353,7 +357,7 @@ class ExternalDataAction(Action):
     async def orchestration_client(
         self, triggered_action: "TriggeredAction"
     ) -> "OrchestrationClient":
-        from prefect.server.api.clients import OrchestrationClient
+        from prefect.server.api.clients import OrchestrationClient  # noqa: PLC0415
 
         return OrchestrationClient(
             additional_headers={
@@ -453,7 +457,7 @@ class JinjaTemplateAction(ExternalDataAction):
     def _register_filters_if_needed(cls) -> None:
         if not cls._registered_filters:
             # Register our event-related filters
-            from prefect.server.events.jinja_filters import all_filters
+            from prefect.server.events.jinja_filters import all_filters  # noqa: PLC0415
 
             register_user_template_filters(all_filters)
             cls._registered_filters = True
@@ -1778,7 +1782,9 @@ async def action_has_already_happened(id: UUID) -> bool:
 
 @asynccontextmanager
 async def consumer() -> AsyncGenerator[MessageHandler, None]:
-    from prefect.server.events.schemas.automations import TriggeredAction
+    from prefect.server.events.schemas.automations import (  # noqa: PLC0415
+        TriggeredAction,  # noqa: PLC0415
+    )
 
     async def message_handler(message: Message):
         if not message.data:

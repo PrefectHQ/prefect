@@ -145,7 +145,7 @@ def _create_task_run_locally(
     Note: This function does not support deferred tasks.
     """
     # Import here to avoid circular imports
-    from prefect.tasks import _infer_parent_task_runs
+    from prefect.tasks import _infer_parent_task_runs  # noqa: PLC0415
 
     if flow_run_context is None:
         flow_run_context = FlowRunContext.get()
@@ -320,7 +320,9 @@ class BaseTaskRunEngine(Generic[P, R]):
         self.parameters = resolved_parameters
 
     def _set_custom_task_run_name(self):
-        from prefect.utilities._engine import resolve_custom_task_run_name
+        from prefect.utilities._engine import (  # noqa: PLC0415
+            resolve_custom_task_run_name,  # noqa: PLC0415
+        )
 
         # update the task run name if necessary
         if not self._task_name_set and self.task.task_run_name:
@@ -746,7 +748,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
-        from prefect.utilities.engine import (
+        from prefect.utilities.engine import (  # noqa: PLC0415
             should_log_prints,
         )
 
@@ -1352,7 +1354,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
 
     @asynccontextmanager
     async def setup_run_context(self, client: Optional[PrefectClient] = None):
-        from prefect.utilities.engine import (
+        from prefect.utilities.engine import (  # noqa: PLC0415
             should_log_prints,
         )
 

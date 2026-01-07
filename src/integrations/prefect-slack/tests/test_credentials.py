@@ -57,7 +57,7 @@ async def test_slack_webhook_block_handles_raise_on_failure(
         ),
     )
 
-    from prefect.blocks.abstract import NotificationError
+    from prefect.blocks.abstract import NotificationError  # noqa: PLC0415
 
     block = SlackWebhook(url="http://wherever")
 

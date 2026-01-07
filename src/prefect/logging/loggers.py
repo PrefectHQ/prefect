@@ -109,7 +109,7 @@ def get_run_logger(
     Raises:
         MissingContextError: If no context can be found
     """
-    from prefect.context import FlowRunContext, TaskRunContext
+    from prefect.context import FlowRunContext, TaskRunContext  # noqa: PLC0415
 
     # Check for existing contexts
     task_run_context = TaskRunContext.get()
@@ -198,7 +198,7 @@ def task_run_logger(
     If only the flow run context is available, it will be used for default values
     of `flow_run` and `flow`.
     """
-    from prefect.context import FlowRunContext
+    from prefect.context import FlowRunContext  # noqa: PLC0415
 
     if not flow_run or not flow:
         flow_run_context = FlowRunContext.get()
@@ -287,7 +287,7 @@ def print_as_log(*args: Any, **kwargs: Any) -> None:
     If `print` sends data to a file other than `sys.stdout` or `sys.stderr`, it will
     not be forwarded to the Prefect logger either.
     """
-    from prefect.context import FlowRunContext, TaskRunContext
+    from prefect.context import FlowRunContext, TaskRunContext  # noqa: PLC0415
 
     # When both contexts exist, we need to determine which one represents the
     # currently executing code:
@@ -335,7 +335,7 @@ def patch_print():
     """
     Patches the Python builtin `print` method to use `print_as_log`
     """
-    import builtins
+    import builtins  # noqa: PLC0415
 
     original = builtins.print
 

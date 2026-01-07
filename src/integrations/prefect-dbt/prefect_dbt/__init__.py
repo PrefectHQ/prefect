@@ -29,7 +29,7 @@ def __getattr__(attr_name: str):
     if attr_name in _public_api:
         package, module = _public_api[attr_name]
         try:
-            import importlib
+            import importlib  # noqa: PLC0415
 
             mod = importlib.import_module(f".{module}", package=package)
             result = getattr(mod, attr_name)

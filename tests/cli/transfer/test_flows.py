@@ -42,8 +42,8 @@ class TestMigratableFlow:
         self, session: AsyncSession
     ):
         """Test that different flows create different instances."""
-        from prefect.client.schemas.objects import Flow
-        from prefect.server import models, schemas
+        from prefect.client.schemas.objects import Flow  # noqa: PLC0415
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         # Create two different flows
         orm_flow1 = await models.flows.create_flow(
@@ -173,9 +173,9 @@ class TestMigratableFlow:
         mock_client.request.side_effect = ObjectAlreadyExists(mock_http_exc)
 
         # Mock successful read of existing flow
-        from typing import cast
+        from typing import cast  # noqa: PLC0415
 
-        from prefect.types import KeyValueLabelsField
+        from prefect.types import KeyValueLabelsField  # noqa: PLC0415
 
         existing_flow = Flow(
             id=uuid.uuid4(),
@@ -217,15 +217,15 @@ class TestMigratableFlow:
         self, session: AsyncSession, tags: list[str], labels: dict[str, str]
     ):
         """Test flows with different combinations of tags and labels."""
-        from prefect.client.schemas.objects import Flow
-        from prefect.server import models, schemas
+        from prefect.client.schemas.objects import Flow  # noqa: PLC0415
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         # Clear instances before test
         MigratableFlow._instances.clear()
 
-        from typing import cast
+        from typing import cast  # noqa: PLC0415
 
-        from prefect.types import KeyValueLabelsField
+        from prefect.types import KeyValueLabelsField  # noqa: PLC0415
 
         # Create flow with specific tags and labels
         orm_flow = await models.flows.create_flow(

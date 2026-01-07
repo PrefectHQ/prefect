@@ -1131,7 +1131,7 @@ class TestSettingAccess:
         assert Settings().client.metrics.enabled
 
         # Check both can be imported
-        from prefect.settings import (
+        from prefect.settings import (  # noqa: PLC0415
             PREFECT_CLIENT_ENABLE_METRICS,
             PREFECT_CLIENT_METRICS_ENABLED,
         )
@@ -2162,7 +2162,7 @@ class TestProfile:
         Test that nested field constraints are properly validated.
         Regression test for issue #18258: PREFECT_RUNNER_HEARTBEAT_FREQUENCY validation.
         """
-        from prefect.settings import PREFECT_RUNNER_HEARTBEAT_FREQUENCY
+        from prefect.settings import PREFECT_RUNNER_HEARTBEAT_FREQUENCY  # noqa: PLC0415
 
         # Test invalid value (< 30)
         profile = Profile(
@@ -2625,7 +2625,7 @@ class TestClientCustomHeadersSetting:
 
     def test_default_empty_dict(self):
         """Test that custom headers default to empty dict."""
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         settings = get_current_settings()
         assert settings.client.custom_headers == {}
@@ -2633,7 +2633,7 @@ class TestClientCustomHeadersSetting:
 
     def test_set_via_temporary_settings(self):
         """Test setting custom headers via temporary_settings."""
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         custom_headers = {
             "X-Test-Header": "test-value",
@@ -2650,7 +2650,7 @@ class TestClientCustomHeadersSetting:
         monkeypatch.setenv("PREFECT_CLIENT_CUSTOM_HEADERS", json_value)
 
         # Create a new settings instance to pick up the env var
-        from prefect.settings.models.root import Settings
+        from prefect.settings.models.root import Settings  # noqa: PLC0415
 
         settings = Settings()
         expected = {"X-Json-Header": "json-value", "Api-Key": "secret123"}
@@ -2660,16 +2660,16 @@ class TestClientCustomHeadersSetting:
         """Test that invalid JSON raises appropriate error."""
         monkeypatch.setenv("PREFECT_CLIENT_CUSTOM_HEADERS", "not-valid-json")
 
-        from pydantic_settings.exceptions import SettingsError
+        from pydantic_settings.exceptions import SettingsError  # noqa: PLC0415
 
         with pytest.raises(SettingsError):
-            from prefect.settings.models.root import Settings
+            from prefect.settings.models.root import Settings  # noqa: PLC0415
 
             Settings()
 
     def test_non_string_values_raise_error(self):
         """Test that non-string header values raise validation error."""
-        import pydantic
+        import pydantic  # noqa: PLC0415
 
         invalid_headers = {
             "X-Test-Header": 123,  # Integer instead of string
@@ -2678,13 +2678,13 @@ class TestClientCustomHeadersSetting:
 
         with pytest.raises(pydantic.ValidationError):
             with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: invalid_headers}):
-                from prefect.settings import get_current_settings
+                from prefect.settings import get_current_settings  # noqa: PLC0415
 
                 get_current_settings()
 
     def test_non_string_keys_raise_error(self):
         """Test that non-string header keys raise validation error."""
-        import pydantic
+        import pydantic  # noqa: PLC0415
 
         invalid_headers = {
             123: "value",  # Integer key instead of string
@@ -2693,13 +2693,13 @@ class TestClientCustomHeadersSetting:
 
         with pytest.raises(pydantic.ValidationError):
             with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: invalid_headers}):
-                from prefect.settings import get_current_settings
+                from prefect.settings import get_current_settings  # noqa: PLC0415
 
                 get_current_settings()
 
     def test_empty_dict_valid(self):
         """Test that empty dict is valid."""
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: {}}):
             settings = get_current_settings()
@@ -2707,7 +2707,7 @@ class TestClientCustomHeadersSetting:
 
     def test_unicode_headers_supported(self):
         """Test that unicode values are supported."""
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         unicode_headers = {
             "X-Unicode-Test": "value with émojis 🚀",
@@ -2720,7 +2720,7 @@ class TestClientCustomHeadersSetting:
 
     def test_case_sensitivity_preserved(self):
         """Test that header name case is preserved."""
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         mixed_case_headers = {
             "X-CamelCase-Header": "value1",
@@ -2733,7 +2733,7 @@ class TestClientCustomHeadersSetting:
             assert settings.client.custom_headers == mixed_case_headers
 
     def test_value_as_environment_variable_json_serializable(self):
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         custom_headers = {"X-Test-Header": "test-value"}
 
@@ -2748,7 +2748,7 @@ class TestClientCustomHeadersSetting:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
         """Test setting custom headers via CLI/profile with a JSON string."""
-        from prefect.settings.models.root import Settings
+        from prefect.settings.models.root import Settings  # noqa: PLC0415
 
         # Clear test mode to ensure profile loading
         monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)

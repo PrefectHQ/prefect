@@ -604,7 +604,7 @@ async def test_concurrent_consumers_process_messages(
 
 async def test_subscription_queues_have_bounded_sizes(broker: str):
     """Test that subscription queues have maxsize set to prevent unbounded growth"""
-    from prefect.server.utilities.messaging.memory import Topic
+    from prefect.server.utilities.messaging.memory import Topic  # noqa: PLC0415
 
     topic = Topic.by_name("test-bounded-queues")
     subscription = topic.subscribe()
@@ -618,7 +618,7 @@ async def test_full_queue_drops_messages_with_warning(
     broker: str, publisher: Publisher, caplog: pytest.LogCaptureFixture
 ):
     """Test that messages are dropped when the queue is full and a warning is logged"""
-    from prefect.server.utilities.messaging.memory import Topic
+    from prefect.server.utilities.messaging.memory import Topic  # noqa: PLC0415
 
     topic = Topic.by_name("my-topic")
     # Create a subscription with a very small queue for testing
@@ -644,7 +644,7 @@ async def test_full_queue_drops_messages_with_warning(
 
 async def test_consumer_cleanup_unsubscribes_from_topic(broker: str):
     """Test that consumer.cleanup() properly unsubscribes from the topic"""
-    from prefect.server.utilities.messaging.memory import Topic
+    from prefect.server.utilities.messaging.memory import Topic  # noqa: PLC0415
 
     consumer = create_consumer("test-cleanup-topic", concurrency=1)
     topic = Topic.by_name("test-cleanup-topic")
@@ -662,7 +662,7 @@ async def test_consumer_cleanup_unsubscribes_from_topic(broker: str):
 
 async def test_consumer_cleanup_prevents_memory_leak(broker: str):
     """Test that cleanup prevents memory leaks from orphaned subscriptions"""
-    from prefect.server.utilities.messaging.memory import Topic
+    from prefect.server.utilities.messaging.memory import Topic  # noqa: PLC0415
 
     topic = Topic.by_name("test-memory-leak-prevention")
 
@@ -687,7 +687,7 @@ async def test_multiple_consumers_can_subscribe_and_cleanup(
     broker: str, publisher: Publisher
 ):
     """Test that multiple consumers can subscribe and cleanup independently"""
-    from prefect.server.utilities.messaging.memory import Topic
+    from prefect.server.utilities.messaging.memory import Topic  # noqa: PLC0415
 
     topic = Topic.by_name("my-topic")
 
@@ -717,7 +717,7 @@ async def test_cleanup_logs_debug_message(
     broker: str, caplog: pytest.LogCaptureFixture
 ):
     """Test that cleanup logs a debug message"""
-    import logging
+    import logging  # noqa: PLC0415
 
     caplog.set_level(logging.DEBUG)
 

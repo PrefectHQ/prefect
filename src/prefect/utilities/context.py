@@ -22,7 +22,7 @@ def temporary_context(context: Context) -> Generator[None, Any, None]:
 
 
 def get_task_run_id() -> Optional[UUID]:
-    from prefect.context import TaskRunContext
+    from prefect.context import TaskRunContext  # noqa: PLC0415
 
     context = TaskRunContext.get()
     if task_run := cast(Optional["TaskRun"], getattr(context, "task_run", None)):
@@ -31,7 +31,7 @@ def get_task_run_id() -> Optional[UUID]:
 
 
 def get_flow_run_id() -> Optional[UUID]:
-    from prefect.context import FlowRunContext
+    from prefect.context import FlowRunContext  # noqa: PLC0415
 
     context = FlowRunContext.get()
     if flow_run := cast(Optional["FlowRun"], getattr(context, "flow_run", None)):

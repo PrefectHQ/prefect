@@ -610,7 +610,7 @@ def test_inspect_profile_without_settings():
 
 def test_inspect_profile_with_json_output():
     """Test profile inspect command with JSON output flag."""
-    import json
+    import json  # noqa: PLC0415
 
     save_profiles(
         ProfilesCollection(

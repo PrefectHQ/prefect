@@ -47,8 +47,8 @@ class ArtifactClient(BaseClient):
             "/artifacts/",
             json=artifact.model_dump(mode="json", exclude_unset=True),
         )
-        from prefect.client.schemas.objects import Artifact
-        from prefect.events.utilities import emit_event
+        from prefect.client.schemas.objects import Artifact  # noqa: PLC0415
+        from prefect.events.utilities import emit_event  # noqa: PLC0415
 
         created = Artifact.model_validate(response.json())
 
@@ -77,7 +77,7 @@ class ArtifactClient(BaseClient):
         return created
 
     def update_artifact(self, artifact_id: "UUID", artifact: "ArtifactUpdate") -> None:
-        from prefect.events.utilities import emit_event
+        from prefect.events.utilities import emit_event  # noqa: PLC0415
 
         self.request(
             "PATCH",
@@ -138,7 +138,7 @@ class ArtifactClient(BaseClient):
                 "sort": kwargs.get("sort"),
             },
         )
-        from prefect.client.schemas.objects import Artifact
+        from prefect.client.schemas.objects import Artifact  # noqa: PLC0415
 
         return Artifact.model_validate_list(response.json())
 
@@ -150,8 +150,8 @@ class ArtifactAsyncClient(BaseAsyncClient):
             "/artifacts/",
             json=artifact.model_dump(mode="json", exclude_unset=True),
         )
-        from prefect.client.schemas.objects import Artifact
-        from prefect.events.utilities import emit_event
+        from prefect.client.schemas.objects import Artifact  # noqa: PLC0415
+        from prefect.events.utilities import emit_event  # noqa: PLC0415
 
         created = Artifact.model_validate(response.json())
 
@@ -183,7 +183,7 @@ class ArtifactAsyncClient(BaseAsyncClient):
     async def update_artifact(
         self, artifact_id: "UUID", artifact: "ArtifactUpdate"
     ) -> None:
-        from prefect.events.utilities import emit_event
+        from prefect.events.utilities import emit_event  # noqa: PLC0415
 
         await self.request(
             "PATCH",
@@ -230,7 +230,7 @@ class ArtifactAsyncClient(BaseAsyncClient):
                 "sort": kwargs.get("sort", None),
             },
         )
-        from prefect.client.schemas.objects import Artifact
+        from prefect.client.schemas.objects import Artifact  # noqa: PLC0415
 
         return Artifact.model_validate_list(response.json())
 
@@ -276,7 +276,7 @@ class ArtifactCollectionClient(BaseClient):
                 "sort": kwargs.get("sort", None),
             },
         )
-        from prefect.client.schemas.objects import ArtifactCollection
+        from prefect.client.schemas.objects import ArtifactCollection  # noqa: PLC0415
 
         return ArtifactCollection.model_validate_list(response.json())
 
@@ -309,6 +309,6 @@ class ArtifactCollectionAsyncClient(BaseAsyncClient):
                 "sort": kwargs.get("sort", None),
             },
         )
-        from prefect.client.schemas.objects import ArtifactCollection
+        from prefect.client.schemas.objects import ArtifactCollection  # noqa: PLC0415
 
         return ArtifactCollection.model_validate_list(response.json())

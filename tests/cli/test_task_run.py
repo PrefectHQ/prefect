@@ -161,7 +161,7 @@ def test_inspect_task_run_with_web_flag_no_ui_url(
 
 def test_inspect_task_run_with_json_output(completed_task_run: TaskRun):
     """Test task-run inspect command with JSON output flag."""
-    import json
+    import json  # noqa: PLC0415
 
     result = invoke_and_assert(
         command=["task-run", "inspect", str(completed_task_run.id), "--output", "json"],

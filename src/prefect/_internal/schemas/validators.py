@@ -57,7 +57,7 @@ def validate_values_conform_to_schema(
         ValueError: If the parameters do not conform to the schema.
 
     """
-    from prefect.utilities.collections import remove_nested_keys
+    from prefect.utilities.collections import remove_nested_keys  # noqa: PLC0415
 
     if ignore_required:
         schema = remove_nested_keys(["required"], schema)
@@ -133,7 +133,7 @@ def convert_to_strings(value: Union[Any, Iterable[Any]]) -> Union[str, list[str]
 
 
 def reconcile_schedules_runner(values: MM) -> MM:
-    from prefect.deployments.schedules import (
+    from prefect.deployments.schedules import (  # noqa: PLC0415
         normalize_to_deployment_schedule,
     )
 
@@ -247,7 +247,7 @@ def default_timezone(
 
 
 def validate_cron_string(v: str) -> str:
-    from prefect._vendor.croniter import croniter
+    from prefect._vendor.croniter import croniter  # noqa: PLC0415
 
     # croniter allows "random" and "hashed" expressions
     # which we do not support https://github.com/kiorky/croniter
@@ -265,7 +265,7 @@ MAX_RRULE_LENGTH = 6500
 
 
 def validate_rrule_string(v: str) -> str:
-    import dateutil.rrule
+    import dateutil.rrule  # noqa: PLC0415
 
     # attempt to parse the rrule string as an rrule object
     # this will error if the string is invalid
@@ -369,7 +369,7 @@ def cast_type_names_to_serializers(value: "Serializer[T]") -> "Serializer[T]": .
 def cast_type_names_to_serializers(
     value: Union[str, "Serializer[Any]"],
 ) -> "Serializer[Any]":
-    from prefect.serializers import Serializer
+    from prefect.serializers import Serializer  # noqa: PLC0415
 
     if isinstance(value, str):
         return Serializer(type=value)
@@ -485,7 +485,7 @@ def validate_cache_key_length(cache_key: None) -> None: ...
 
 
 def validate_cache_key_length(cache_key: Optional[str]) -> Optional[str]:
-    from prefect.settings import (
+    from prefect.settings import (  # noqa: PLC0415
         PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
     )
 

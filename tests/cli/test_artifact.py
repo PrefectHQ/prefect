@@ -259,7 +259,7 @@ def test_inspecting_artifact_with_json_output(
     artifacts: list[models.artifacts.Artifact],
 ):
     """Test artifact inspect command with JSON output flag."""
-    import json
+    import json  # noqa: PLC0415
 
     result = invoke_and_assert(
         ["artifact", "inspect", artifacts[0].key, "--output", "json"],

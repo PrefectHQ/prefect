@@ -29,7 +29,9 @@ class FlowRunSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort flow runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
@@ -69,7 +71,9 @@ class TaskRunSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
@@ -94,7 +98,9 @@ class LogSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
@@ -114,7 +120,9 @@ class FlowSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
@@ -136,7 +144,9 @@ class DeploymentSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
@@ -159,7 +169,9 @@ class ArtifactSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
@@ -183,7 +195,9 @@ class ArtifactCollectionSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
@@ -206,7 +220,9 @@ class VariableSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
@@ -227,7 +243,9 @@ class BlockDocumentSort(AutoEnum):
 
     def as_sql_sort(self) -> Iterable[sa.ColumnElement[Any]]:
         """Return an expression used to sort task runs"""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {

@@ -61,8 +61,8 @@ async def related_resources_from_run_context(
     client: "PrefectClient",
     exclude: Optional[Set[str]] = None,
 ) -> List[RelatedResource]:
-    from prefect.client.schemas.objects import FlowRun
-    from prefect.context import FlowRunContext, TaskRunContext
+    from prefect.client.schemas.objects import FlowRun  # noqa: PLC0415
+    from prefect.context import FlowRunContext, TaskRunContext  # noqa: PLC0415
 
     if exclude is None:
         exclude = set()

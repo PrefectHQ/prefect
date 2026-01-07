@@ -164,11 +164,11 @@ def url_for(
         url_for(obj=my_flow_run)
         url_for("flow-run", obj_id="123e4567-e89b-12d3-a456-426614174000")
     """
-    from prefect.blocks.core import Block
-    from prefect.client.schemas.objects import WorkPool
-    from prefect.events.schemas.automations import Automation
-    from prefect.events.schemas.events import ReceivedEvent, Resource
-    from prefect.futures import PrefectFuture
+    from prefect.blocks.core import Block  # noqa: PLC0415
+    from prefect.client.schemas.objects import WorkPool  # noqa: PLC0415
+    from prefect.events.schemas.automations import Automation  # noqa: PLC0415
+    from prefect.events.schemas.events import ReceivedEvent, Resource  # noqa: PLC0415
+    from prefect.futures import PrefectFuture  # noqa: PLC0415
 
     if isinstance(obj, PrefectFuture):
         name = "task-run"

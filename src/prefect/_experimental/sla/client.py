@@ -42,7 +42,7 @@ class SlaClient(BaseClient):
 
         response_json = response.json()
 
-        from prefect._experimental.sla.objects import SlaMergeResponse
+        from prefect._experimental.sla.objects import SlaMergeResponse  # noqa: PLC0415
 
         return SlaMergeResponse(
             created=[sla.get("name") for sla in response_json.get("created")],
@@ -83,7 +83,7 @@ class SlaAsyncClient(BaseAsyncClient):
 
         response_json = response.json()
 
-        from prefect._experimental.sla.objects import SlaMergeResponse
+        from prefect._experimental.sla.objects import SlaMergeResponse  # noqa: PLC0415
 
         return SlaMergeResponse(
             created=[sla.get("name") for sla in response_json.get("created")],

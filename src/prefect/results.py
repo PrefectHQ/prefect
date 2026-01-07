@@ -132,7 +132,7 @@ async def aresolve_result_storage(
     Resolve one of the valid `ResultStorage` input types into a saved block
     document id and an instance of the block.
     """
-    from prefect.client.orchestration import get_client
+    from prefect.client.orchestration import get_client  # noqa: PLC0415
 
     client = get_client()
     storage_block: WritableFileSystem
@@ -169,7 +169,7 @@ def resolve_result_storage(
     Resolve one of the valid `ResultStorage` input types into a saved block
     document id and an instance of the block.
     """
-    from prefect.client.orchestration import get_client
+    from prefect.client.orchestration import get_client  # noqa: PLC0415
 
     client = get_client(sync_client=True)
     storage_block: WritableFileSystem
@@ -266,7 +266,7 @@ def should_persist_result() -> bool:
     If there is no current run context, the value of `results.persist_by_default` on the
     current settings will be returned.
     """
-    from prefect.context import FlowRunContext, TaskRunContext
+    from prefect.context import FlowRunContext, TaskRunContext  # noqa: PLC0415
 
     task_run_context = TaskRunContext.get()
     if task_run_context is not None:
@@ -404,7 +404,7 @@ class ResultStore(BaseModel):
         Returns:
             An updated result store.
         """
-        from prefect.transactions import get_transaction
+        from prefect.transactions import get_transaction  # noqa: PLC0415
 
         update: dict[str, Any] = {}
         update["cache_result_in_memory"] = task.cache_result_in_memory
@@ -425,7 +425,7 @@ class ResultStore(BaseModel):
         ):
             update["lock_manager"] = current_txn.store.lock_manager
 
-        from prefect.cache_policies import CachePolicy
+        from prefect.cache_policies import CachePolicy  # noqa: PLC0415
 
         if isinstance(task.cache_policy, CachePolicy):
             if task.cache_policy.key_storage is not None:
@@ -836,7 +836,7 @@ class ResultStore(BaseModel):
         Returns:
             bool: True if the isolation level is supported, False otherwise.
         """
-        from prefect.transactions import IsolationLevel
+        from prefect.transactions import IsolationLevel  # noqa: PLC0415
 
         if level == IsolationLevel.READ_COMMITTED:
             return True
@@ -968,7 +968,7 @@ def get_result_store() -> ResultStore:
     """
     Get the current result store.
     """
-    from prefect.context import get_run_context
+    from prefect.context import get_run_context  # noqa: PLC0415
 
     try:
         run_context = get_run_context()

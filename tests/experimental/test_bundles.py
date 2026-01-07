@@ -581,7 +581,7 @@ def test_flow():
 
         try:
             # Import the flow module and get the flow
-            import flow_module.my_flow
+            import flow_module.my_flow  # noqa: PLC0415
 
             flow_obj = flow_module.my_flow.test_flow
 

@@ -239,7 +239,7 @@ def _validate_multi_worker(workers: int) -> None:
     Raises:
         exit_with_error: If the configuration is invalid.
     """
-    from prefect.server.utilities.database import get_dialect
+    from prefect.server.utilities.database import get_dialect  # noqa: PLC0415
 
     if workers == 1:
         return
@@ -466,7 +466,7 @@ def _run_in_foreground(
     no_services: bool,
     workers: int,
 ) -> None:
-    from prefect.server.api.server import create_app
+    from prefect.server.api.server import create_app  # noqa: PLC0415
 
     try:
         with temporary_settings(
@@ -527,7 +527,7 @@ async def stop():
 @database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Prefect database tables"""
-    from prefect.server.database import provide_database_interface
+    from prefect.server.database import provide_database_interface  # noqa: PLC0415
 
     db = provide_database_interface()
     engine = await db.engine()
@@ -565,8 +565,10 @@ async def upgrade(
     ),
 ):
     """Upgrade the Prefect database"""
-    from prefect.server.database import provide_database_interface
-    from prefect.server.database.alembic_commands import alembic_upgrade
+    from prefect.server.database import provide_database_interface  # noqa: PLC0415
+    from prefect.server.database.alembic_commands import (  # noqa: PLC0415
+        alembic_upgrade,  # noqa: PLC0415
+    )
 
     db = provide_database_interface()
     engine = await db.engine()
@@ -605,8 +607,10 @@ async def downgrade(
     ),
 ):
     """Downgrade the Prefect database"""
-    from prefect.server.database import provide_database_interface
-    from prefect.server.database.alembic_commands import alembic_downgrade
+    from prefect.server.database import provide_database_interface  # noqa: PLC0415
+    from prefect.server.database.alembic_commands import (  # noqa: PLC0415
+        alembic_downgrade,  # noqa: PLC0415
+    )
 
     db = provide_database_interface()
 
@@ -639,7 +643,9 @@ async def revision(
     autogenerate: bool = False,
 ):
     """Create a new migration for the Prefect database"""
-    from prefect.server.database.alembic_commands import alembic_revision
+    from prefect.server.database.alembic_commands import (  # noqa: PLC0415
+        alembic_revision,  # noqa: PLC0415
+    )
 
     app.console.print("Running migration file creation ...")
     await run_sync_in_worker_thread(
@@ -653,7 +659,7 @@ async def revision(
 @database_app.command()
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don't run any migrations"""
-    from prefect.server.database.alembic_commands import alembic_stamp
+    from prefect.server.database.alembic_commands import alembic_stamp  # noqa: PLC0415
 
     app.console.print("Stamping database with revision ...")
     await run_sync_in_worker_thread(alembic_stamp, revision=revision)
@@ -701,7 +707,7 @@ def run_manager_process():
 
     We do everything in sync so that the child won't exit until the user kills it.
     """
-    from prefect.server.services.base import Service
+    from prefect.server.services.base import Service  # noqa: PLC0415
 
     if not Service.enabled_services():
         logger.error("No services are enabled! Exiting manager.")
@@ -718,11 +724,11 @@ def run_manager_process():
 
 async def _run_all_services() -> None:
     """Run Service-based services and docket-based perpetual services."""
-    from docket import Docket
+    from docket import Docket  # noqa: PLC0415
 
-    from prefect.server.api.background_workers import background_worker
-    from prefect.server.services.base import Service
-    from prefect.settings.context import get_current_settings
+    from prefect.server.api.background_workers import background_worker  # noqa: PLC0415
+    from prefect.server.services.base import Service  # noqa: PLC0415
+    from prefect.settings.context import get_current_settings  # noqa: PLC0415
 
     docket_url = get_current_settings().server.docket.url
 
@@ -736,7 +742,7 @@ async def _run_all_services() -> None:
 @services_app.command(aliases=["ls"])
 def list_services():
     """List all available services and their status."""
-    from prefect.server.services.base import Service
+    from prefect.server.services.base import Service  # noqa: PLC0415
 
     table = Table(title="Available Services", expand=True)
     table.add_column("Name", no_wrap=True)
@@ -765,7 +771,7 @@ def start_services(
     ),
 ):
     """Start all enabled Prefect services in one process."""
-    from prefect.server.services.base import Service
+    from prefect.server.services.base import Service  # noqa: PLC0415
 
     SERVICES_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
 

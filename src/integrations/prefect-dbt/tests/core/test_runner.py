@@ -1400,8 +1400,8 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
 
     def test_stop_callback_processor_resets_state(self):
         """Test that _stop_callback_processor resets all instance variables."""
-        import queue
-        import threading
+        import queue  # noqa: PLC0415
+        import threading  # noqa: PLC0415
 
         runner = PrefectDbtRunner()
 

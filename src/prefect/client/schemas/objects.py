@@ -274,7 +274,7 @@ class State(TimeSeriesBaseModel, ObjectBaseModel, Generic[R]):
         """
         Retrieve the result attached to this state.
         """
-        from prefect.states import get_state_result
+        from prefect.states import get_state_result  # noqa: PLC0415
 
         return await get_state_result(
             self,
@@ -382,7 +382,7 @@ class State(TimeSeriesBaseModel, ObjectBaseModel, Generic[R]):
             await flow_run.state.result(raise_on_failure=True) # Raises `ValueError("oh no!")`
             ```
         """
-        from prefect.states import get_state_result
+        from prefect.states import get_state_result  # noqa: PLC0415
 
         return run_coro_as_sync(
             get_state_result(

@@ -48,7 +48,7 @@ class WorkPoolClient(BaseClient):
             return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
             worker_metadata: Metadata about the worker to send to the server.
         """
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         params: dict[str, Any] = {
             "name": worker_name,
@@ -65,7 +65,7 @@ class WorkPoolClient(BaseClient):
             path_params={"work_pool_name": work_pool_name},
             json=params,
         )
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         if (
             (
@@ -96,7 +96,7 @@ class WorkPoolClient(BaseClient):
             limit: Limit for the worker query.
             offset: Limit for the worker query.
         """
-        from prefect.client.schemas.objects import Worker
+        from prefect.client.schemas.objects import Worker  # noqa: PLC0415
 
         response = self.request(
             "POST",
@@ -126,7 +126,7 @@ class WorkPoolClient(BaseClient):
         Returns:
             Information about the requested work pool.
         """
-        from prefect.client.schemas.objects import WorkPool
+        from prefect.client.schemas.objects import WorkPool  # noqa: PLC0415
 
         try:
             response = self.request(
@@ -158,7 +158,7 @@ class WorkPoolClient(BaseClient):
         Returns:
             A list of work pools.
         """
-        from prefect.client.schemas.objects import WorkPool
+        from prefect.client.schemas.objects import WorkPool  # noqa: PLC0415
 
         body: dict[str, Any] = {
             "limit": limit,
@@ -184,8 +184,8 @@ class WorkPoolClient(BaseClient):
         Returns:
             Information about the newly created work pool.
         """
-        from prefect.client.schemas.actions import WorkPoolUpdate
-        from prefect.client.schemas.objects import WorkPool
+        from prefect.client.schemas.actions import WorkPoolUpdate  # noqa: PLC0415
+        from prefect.client.schemas.objects import WorkPool  # noqa: PLC0415
 
         try:
             response = self.request(
@@ -293,7 +293,9 @@ class WorkPoolClient(BaseClient):
             A list of worker flow run responses containing information about the
             retrieved flow runs.
         """
-        from prefect.client.schemas.responses import WorkerFlowRunResponse
+        from prefect.client.schemas.responses import (  # noqa: PLC0415
+            WorkerFlowRunResponse,  # noqa: PLC0415
+        )
 
         body: dict[str, Any] = {}
         if work_queue_names is not None:
@@ -335,7 +337,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
             return_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `return_id` is `True`.
             worker_metadata: Metadata about the worker to send to the server.
         """
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         params: dict[str, Any] = {
             "name": worker_name,
@@ -352,7 +354,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
             path_params={"work_pool_name": work_pool_name},
             json=params,
         )
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         if (
             (
@@ -383,7 +385,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
             limit: Limit for the worker query.
             offset: Limit for the worker query.
         """
-        from prefect.client.schemas.objects import Worker
+        from prefect.client.schemas.objects import Worker  # noqa: PLC0415
 
         response = await self.request(
             "POST",
@@ -413,7 +415,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
         Returns:
             Information about the requested work pool.
         """
-        from prefect.client.schemas.objects import WorkPool
+        from prefect.client.schemas.objects import WorkPool  # noqa: PLC0415
 
         try:
             response = await self.request(
@@ -445,7 +447,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
         Returns:
             A list of work pools.
         """
-        from prefect.client.schemas.objects import WorkPool
+        from prefect.client.schemas.objects import WorkPool  # noqa: PLC0415
 
         body: dict[str, Any] = {
             "limit": limit,
@@ -471,8 +473,8 @@ class WorkPoolAsyncClient(BaseAsyncClient):
         Returns:
             Information about the newly created work pool.
         """
-        from prefect.client.schemas.actions import WorkPoolUpdate
-        from prefect.client.schemas.objects import WorkPool
+        from prefect.client.schemas.actions import WorkPoolUpdate  # noqa: PLC0415
+        from prefect.client.schemas.objects import WorkPool  # noqa: PLC0415
 
         try:
             response = await self.request(
@@ -577,7 +579,9 @@ class WorkPoolAsyncClient(BaseAsyncClient):
             A list of worker flow run responses containing information about the
             retrieved flow runs.
         """
-        from prefect.client.schemas.responses import WorkerFlowRunResponse
+        from prefect.client.schemas.responses import (  # noqa: PLC0415
+            WorkerFlowRunResponse,  # noqa: PLC0415
+        )
 
         body: dict[str, Any] = {}
         if work_queue_names is not None:

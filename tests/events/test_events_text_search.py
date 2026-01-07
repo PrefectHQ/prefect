@@ -587,7 +587,7 @@ async def test_multilingual_character_search(
     # Note: This fails on SQLite database tests due to Unicode handling
     # issues with Chinese characters in case-insensitive LIKE queries
     if isinstance(events_query_session, AsyncSession):
-        from prefect.server.database import provide_database_interface
+        from prefect.server.database import provide_database_interface  # noqa: PLC0415
 
         db = provide_database_interface()
         if db.dialect.name == "sqlite":

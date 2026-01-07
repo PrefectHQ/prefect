@@ -21,7 +21,7 @@ from prefect.types._datetime import now
 def reload_prefect_base_model(
     test_mode_value: Optional[str],
 ) -> Generator[type[PrefectBaseModel], None, None]:
-    import prefect.server.utilities.schemas.bases
+    import prefect.server.utilities.schemas.bases  # noqa: PLC0415
 
     original_base_model = prefect.server.utilities.schemas.bases.PrefectBaseModel
     original_environment = os.environ.get("PREFECT_TESTING_TEST_MODE")
@@ -35,7 +35,9 @@ def reload_prefect_base_model(
         # definition time
         importlib.reload(prefect.server.utilities.schemas.bases)
 
-        from prefect.server.utilities.schemas.bases import PrefectBaseModel
+        from prefect.server.utilities.schemas.bases import (  # noqa: PLC0415
+            PrefectBaseModel,  # noqa: PLC0415
+        )
 
         yield PrefectBaseModel
     finally:

@@ -92,7 +92,7 @@ def setup_logging(incremental: bool | None = None) -> dict[str, Any]:
 
     root_logger = logging.getLogger()
     if root_logger.handlers and not incremental:
-        from prefect.logging.handlers import PrefectConsoleHandler
+        from prefect.logging.handlers import PrefectConsoleHandler  # noqa: PLC0415
 
         has_user_handlers = any(
             hasattr(handler, "formatter")

@@ -109,7 +109,7 @@ class MigratableWorkPool(MigratableResource[WorkPool]):
 
             # Allow push pools only if destination is Cloud
             if self.source_work_pool.is_push_pool:
-                from prefect.client.base import ServerType
+                from prefect.client.base import ServerType  # noqa: PLC0415
 
                 if client.server_type != ServerType.CLOUD:
                     raise TransferSkipped("Skipped push pool (requires Prefect Cloud)")

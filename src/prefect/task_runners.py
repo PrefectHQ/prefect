@@ -132,7 +132,7 @@ class TaskRunner(abc.ABC, Generic[F]):
                 "The task runner must be started before submitting work."
             )
 
-        from prefect.utilities.engine import (
+        from prefect.utilities.engine import (  # noqa: PLC0415
             collect_task_run_inputs_sync,
             resolve_inputs_sync,
         )
@@ -365,8 +365,8 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
                 "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS` or `max_workers`."
             )
 
-        from prefect.context import FlowRunContext
-        from prefect.task_engine import run_task_async, run_task_sync
+        from prefect.context import FlowRunContext  # noqa: PLC0415
+        from prefect.task_engine import run_task_async, run_task_sync  # noqa: PLC0415
 
         task_run_id = uuid7()
         cancel_event = threading.Event()
@@ -473,9 +473,9 @@ def _run_task_in_subprocess(
     """
     Wrapper function to update environment variables and settings before running a task in a subprocess.
     """
-    from prefect.context import hydrated_context
-    from prefect.engine import handle_engine_signals
-    from prefect.task_engine import run_task_async, run_task_sync
+    from prefect.context import hydrated_context  # noqa: PLC0415
+    from prefect.engine import handle_engine_signals  # noqa: PLC0415
+    from prefect.task_engine import run_task_async, run_task_sync  # noqa: PLC0415
 
     # Update environment variables
     os.environ.update(env or {})
@@ -489,7 +489,7 @@ def _run_task_in_subprocess(
             task = kwargs.get("task")
             if task and task.isasync:
                 # For async tasks, we need to create a new event loop
-                import asyncio
+                import asyncio  # noqa: PLC0415
 
                 maybe_coro = run_task_async(*args, **kwargs)
                 return asyncio.run(maybe_coro)
@@ -550,7 +550,7 @@ class _UnpicklingFuture(concurrent.futures.Future[R]):
 
     def result(self, timeout: float | None = None) -> R:
         pickled_result = self.wrapped_future.result(timeout)
-        import cloudpickle
+        import cloudpickle  # noqa: PLC0415
 
         return cloudpickle.loads(pickled_result)
 
@@ -570,7 +570,7 @@ class _UnpicklingFuture(concurrent.futures.Future[R]):
         self, fn: Callable[[concurrent.futures.Future[R]], object]
     ) -> None:
         def _fn(wrapped_future: concurrent.futures.Future[bytes]) -> None:
-            import cloudpickle
+            import cloudpickle  # noqa: PLC0415
 
             result = cloudpickle.loads(wrapped_future.result())
             fn(result)
@@ -691,7 +691,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
         This method runs in a background thread to keep submit() non-blocking.
         """
-        from prefect.utilities.engine import resolve_inputs_sync
+        from prefect.utilities.engine import resolve_inputs_sync  # noqa: PLC0415
 
         # Wait for all futures in wait_for to complete
         if wait_for:
@@ -774,7 +774,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS` or `max_workers`."
             )
 
-        from prefect.context import FlowRunContext
+        from prefect.context import FlowRunContext  # noqa: PLC0415
 
         task_run_id = uuid7()
 
@@ -789,7 +789,7 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             )
 
         # Serialize the current context for the subprocess
-        from prefect.context import serialize_context
+        from prefect.context import serialize_context  # noqa: PLC0415
 
         context = serialize_context()
         env = (
@@ -935,7 +935,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
         """
         if not self._started:
             raise RuntimeError("Task runner is not started")
-        from prefect.context import FlowRunContext
+        from prefect.context import FlowRunContext  # noqa: PLC0415
 
         flow_run_ctx = FlowRunContext.get()
         if flow_run_ctx:

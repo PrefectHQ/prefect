@@ -54,7 +54,7 @@ class FlowClient(BaseClient):
         Returns:
             the ID of the flow in the backend
         """
-        from prefect.client.schemas.actions import FlowCreate
+        from prefect.client.schemas.actions import FlowCreate  # noqa: PLC0415
 
         flow_data = FlowCreate(name=flow_name)
         response = self.request(
@@ -66,7 +66,7 @@ class FlowClient(BaseClient):
             raise RequestError(f"Malformed response: {response}")
 
         # Return the id of the created flow
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         return UUID(flow_id)
 
@@ -81,7 +81,7 @@ class FlowClient(BaseClient):
             a Flow model representation of the flow
         """
         response = self.request("GET", "/flows/{id}", path_params={"id": flow_id})
-        from prefect.client.schemas.objects import Flow
+        from prefect.client.schemas.objects import Flow  # noqa: PLC0415
 
         return Flow.model_validate(response.json())
 
@@ -159,7 +159,7 @@ class FlowClient(BaseClient):
         }
 
         response = self.request("POST", "/flows/filter", json=body)
-        from prefect.client.schemas.objects import Flow
+        from prefect.client.schemas.objects import Flow  # noqa: PLC0415
 
         return Flow.model_validate_list(response.json())
 
@@ -179,7 +179,7 @@ class FlowClient(BaseClient):
         response = self.request(
             "GET", "/flows/name/{name}", path_params={"name": flow_name}
         )
-        from prefect.client.schemas.objects import Flow
+        from prefect.client.schemas.objects import Flow  # noqa: PLC0415
 
         return Flow.model_validate(response.json())
 
@@ -213,7 +213,7 @@ class FlowAsyncClient(BaseAsyncClient):
         Returns:
             the ID of the flow in the backend
         """
-        from prefect.client.schemas.actions import FlowCreate
+        from prefect.client.schemas.actions import FlowCreate  # noqa: PLC0415
 
         flow_data = FlowCreate(name=flow_name)
         response = await self.request(
@@ -225,7 +225,7 @@ class FlowAsyncClient(BaseAsyncClient):
             raise RequestError(f"Malformed response: {response}")
 
         # Return the id of the created flow
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         return UUID(flow_id)
 
@@ -240,7 +240,7 @@ class FlowAsyncClient(BaseAsyncClient):
             a Flow model representation of the flow
         """
         response = await self.request("GET", "/flows/{id}", path_params={"id": flow_id})
-        from prefect.client.schemas.objects import Flow
+        from prefect.client.schemas.objects import Flow  # noqa: PLC0415
 
         return Flow.model_validate(response.json())
 
@@ -318,7 +318,7 @@ class FlowAsyncClient(BaseAsyncClient):
         }
 
         response = await self.request("POST", "/flows/filter", json=body)
-        from prefect.client.schemas.objects import Flow
+        from prefect.client.schemas.objects import Flow  # noqa: PLC0415
 
         return Flow.model_validate_list(response.json())
 
@@ -338,6 +338,6 @@ class FlowAsyncClient(BaseAsyncClient):
         response = await self.request(
             "GET", "/flows/name/{name}", path_params={"name": flow_name}
         )
-        from prefect.client.schemas.objects import Flow
+        from prefect.client.schemas.objects import Flow  # noqa: PLC0415
 
         return Flow.model_validate(response.json())

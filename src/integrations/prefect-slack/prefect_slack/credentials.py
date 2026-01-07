@@ -108,7 +108,7 @@ class SlackWebhook(NotificationBlock):
         # private base class attribute exists before using it.
         if getattr(self, "_raise_on_failure", False):  # pragma: no cover
             try:
-                from prefect.blocks.abstract import NotificationError
+                from prefect.blocks.abstract import NotificationError  # noqa: PLC0415
             except ImportError:
                 NotificationError = Exception
 

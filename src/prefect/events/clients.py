@@ -102,7 +102,7 @@ def get_events_client(
             checkpoint_every=checkpoint_every,
         )
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
-        from prefect.server.api.server import SubprocessASGIServer
+        from prefect.server.api.server import SubprocessASGIServer  # noqa: PLC0415
 
         server = SubprocessASGIServer()
         server.start()
@@ -132,7 +132,7 @@ def get_events_subscriber(
             filter=filter, reconnection_attempts=reconnection_attempts
         )
     elif PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
-        from prefect.server.api.server import SubprocessASGIServer
+        from prefect.server.api.server import SubprocessASGIServer  # noqa: PLC0415
 
         server = SubprocessASGIServer()
         server.start()
@@ -538,7 +538,7 @@ class PrefectEventSubscriber:
         if not api_url:
             api_url = cast(str, PREFECT_API_URL.value())
 
-        from prefect.events.filters import EventFilter
+        from prefect.events.filters import EventFilter  # noqa: PLC0415
 
         self._filter = filter or EventFilter()  # type: ignore[call-arg]
         self._seen_events = TTLCache(maxsize=SEEN_EVENTS_SIZE, ttl=SEEN_EVENTS_TTL)
@@ -606,7 +606,7 @@ class PrefectEventSubscriber:
             msg += f"Reason: {reason}" if reason else ""
             raise Exception(msg) from e
 
-        from prefect.events.filters import EventOccurredFilter
+        from prefect.events.filters import EventOccurredFilter  # noqa: PLC0415
 
         self._filter.occurred = EventOccurredFilter(
             since=prefect.types._datetime.now("UTC") - timedelta(minutes=1),

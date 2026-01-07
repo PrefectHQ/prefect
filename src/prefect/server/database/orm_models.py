@@ -1586,7 +1586,7 @@ class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     @property
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
-        import prefect.server.database
+        import prefect.server.database  # noqa: PLC0415
 
         return (
             Path(prefect.server.database.__file__).parent
@@ -1602,7 +1602,7 @@ class AioSqliteORMConfiguration(BaseORMConfiguration):
     @property
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
-        import prefect.server.database
+        import prefect.server.database  # noqa: PLC0415
 
         return (
             Path(prefect.server.database.__file__).parent

@@ -52,7 +52,7 @@ def _gather_deployment_trigger_definitions(
         for t in trigger_flags:
             try:
                 if t.endswith(".yaml"):
-                    import yaml
+                    import yaml  # noqa: PLC0415
 
                     with open(t, "r") as f:
                         trigger_specs.extend(yaml.safe_load(f).get("triggers", []))

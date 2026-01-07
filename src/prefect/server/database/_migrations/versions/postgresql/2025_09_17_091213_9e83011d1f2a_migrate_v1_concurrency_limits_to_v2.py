@@ -34,7 +34,7 @@ def upgrade():
     ).fetchall()
 
     # Get the configured lease storage to create actual leases
-    from prefect.server.concurrency.lease_storage import (
+    from prefect.server.concurrency.lease_storage import (  # noqa: PLC0415
         get_concurrency_lease_storage,
     )
 
@@ -85,15 +85,17 @@ def upgrade():
             # Create actual leases if we have active slots
             if active_slots:
                 try:
-                    from datetime import timedelta
-                    from uuid import UUID
+                    from datetime import timedelta  # noqa: PLC0415
+                    from uuid import UUID  # noqa: PLC0415
 
-                    from prefect.server.concurrency.lease_storage import (
+                    from prefect.server.concurrency.lease_storage import (  # noqa: PLC0415
                         ConcurrencyLimitLeaseMetadata,
                     )
 
                     # Import the ConcurrencyLeaseHolder for preserving holder info
-                    from prefect.types._concurrency import ConcurrencyLeaseHolder
+                    from prefect.types._concurrency import (  # noqa: PLC0415
+                        ConcurrencyLeaseHolder,  # noqa: PLC0415
+                    )
 
                     async def create_leases():
                         # Create one lease for each active slot, preserving the task_run holder
@@ -110,7 +112,9 @@ def upgrade():
                             )
 
                     # Use run_coro_as_sync to handle running async code from migration context
-                    from prefect.utilities.asyncutils import run_coro_as_sync
+                    from prefect.utilities.asyncutils import (  # noqa: PLC0415
+                        run_coro_as_sync,  # noqa: PLC0415
+                    )
 
                     run_coro_as_sync(create_leases())
                 except Exception as e:
@@ -132,7 +136,7 @@ def downgrade():
     ).fetchall()
 
     # Try to get lease storage for recovering active slots
-    from prefect.server.concurrency.lease_storage import (
+    from prefect.server.concurrency.lease_storage import (  # noqa: PLC0415
         get_concurrency_lease_storage,
     )
 
@@ -144,7 +148,7 @@ def downgrade():
         # Best effort: try to recover active slots from lease storage
         active_slots = []
         try:
-            from uuid import UUID
+            from uuid import UUID  # noqa: PLC0415
 
             async def get_holders():
                 holders = await lease_storage.list_holders_for_limit(
@@ -156,7 +160,7 @@ def downgrade():
                     if holder and holder.type == "task_run"
                 ]
 
-            from prefect.utilities.asyncutils import run_coro_as_sync
+            from prefect.utilities.asyncutils import run_coro_as_sync  # noqa: PLC0415
 
             active_slots = run_coro_as_sync(get_holders())
         except Exception as e:

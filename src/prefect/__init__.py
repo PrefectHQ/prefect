@@ -84,17 +84,17 @@ def _initialize_plugins() -> None:
     """
     try:
         # Import here to avoid circular imports and defer cost until needed
-        from prefect.settings import get_current_settings
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         if not get_current_settings().experiments.plugins.enabled:
             return
 
-        import anyio
+        import anyio  # noqa: PLC0415
 
-        from prefect._experimental.plugins import run_startup_hooks
-        from prefect._experimental.plugins.spec import HookContext
-        from prefect.logging import get_logger
-        from prefect.settings import get_current_settings
+        from prefect._experimental.plugins import run_startup_hooks  # noqa: PLC0415
+        from prefect._experimental.plugins.spec import HookContext  # noqa: PLC0415
+        from prefect.logging import get_logger  # noqa: PLC0415
+        from prefect.settings import get_current_settings  # noqa: PLC0415
 
         ctx = HookContext(
             prefect_version=__version__,
@@ -110,13 +110,13 @@ def _initialize_plugins() -> None:
     except Exception as e:
         # Log but don't crash on plugin errors
         try:
-            from prefect.logging import get_logger
+            from prefect.logging import get_logger  # noqa: PLC0415
 
             logger = get_logger("prefect.plugins")
             logger.exception("Failed to initialize plugins: %s", e)
         except Exception:
             # If even logging fails, print to stderr and continue
-            import sys
+            import sys  # noqa: PLC0415
 
             print(f"Failed to initialize plugins: {e}", file=sys.stderr)
 

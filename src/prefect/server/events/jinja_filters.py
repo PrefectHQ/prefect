@@ -44,8 +44,8 @@ def ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]:
     Currently supports Automation, Resource, Deployment, Flow, FlowRun, TaskRun, and
     WorkQueue objects. Within a Resource, deployment, flow, flow-run, task-run,
     and work-queue are supported."""
-    from prefect.server.events.schemas.automations import Automation
-    from prefect.server.events.schemas.events import Resource
+    from prefect.server.events.schemas.automations import Automation  # noqa: PLC0415
+    from prefect.server.events.schemas.events import Resource  # noqa: PLC0415
 
     url = None
     url_format = "events?resource={resource_id}"

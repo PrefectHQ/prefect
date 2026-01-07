@@ -444,7 +444,7 @@ class DeploymentResponse(ObjectBaseModel):
     )
 
     def as_related_resource(self, role: str = "deployment") -> "RelatedResource":
-        from prefect.events.schemas.events import RelatedResource
+        from prefect.events.schemas.events import RelatedResource  # noqa: PLC0415
 
         labels = {
             "prefect.resource.id": f"prefect.deployment.{self.id}",

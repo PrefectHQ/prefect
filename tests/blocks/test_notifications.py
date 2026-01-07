@@ -199,9 +199,9 @@ class TestSlackWebhook:
     async def test_notify_async_slack_gov_uses_correct_webhook_url(self):
         """Test that Slack GovCloud URLs use the correct webhook host."""
         try:
-            from apprise.plugins.slack import NotifySlack
+            from apprise.plugins.slack import NotifySlack  # noqa: PLC0415
         except ImportError:
-            from apprise.plugins.NotifySlack import NotifySlack
+            from apprise.plugins.NotifySlack import NotifySlack  # noqa: PLC0415
 
         block = SlackWebhook(
             url="https://hooks.slack-gov.com/services/T1234/B5678/abcdefghijk"
@@ -291,7 +291,7 @@ class TestSlackWebhook:
         would be used for the POST request, ensuring the webhook_url override
         is properly applied.
         """
-        import requests
+        import requests  # noqa: PLC0415
 
         block = SlackWebhook(
             url="https://hooks.slack-gov.com/services/TABC123/BDEF456/secrettoken"
@@ -326,7 +326,7 @@ class TestSlackWebhook:
 
     async def test_standard_slack_posts_to_correct_url(self):
         """Verify standard Slack webhooks still POST to hooks.slack.com."""
-        import requests
+        import requests  # noqa: PLC0415
 
         block = SlackWebhook(
             url="https://hooks.slack.com/services/TABC123/BDEF456/secrettoken"

@@ -621,7 +621,7 @@ async def update_work_queue(
         bool: whether or not the WorkQueue was updated
 
     """
-    from prefect.server.models.work_queues import is_last_polled_recent
+    from prefect.server.models.work_queues import is_last_polled_recent  # noqa: PLC0415
 
     update_values = work_queue.model_dump_for_orm(exclude_unset=True)
 
@@ -698,7 +698,9 @@ async def update_work_queue(
                 }
 
         if changed_fields:
-            from prefect.server.models.work_queues import emit_work_queue_updated_event
+            from prefect.server.models.work_queues import (  # noqa: PLC0415
+                emit_work_queue_updated_event,  # noqa: PLC0415
+            )
 
             await emit_work_queue_updated_event(
                 session=session,

@@ -29,8 +29,8 @@ class HydrationContext(BaseModel):
         render_jinja: bool = False,
         render_workspace_variables: bool = False,
     ) -> Self:
-        from prefect.server.database.orm_models import Variable
-        from prefect.server.models.variables import read_variables
+        from prefect.server.database.orm_models import Variable  # noqa: PLC0415
+        from prefect.server.models.variables import read_variables  # noqa: PLC0415
 
         variables: Sequence[Variable]
         if render_workspace_variables:
@@ -224,7 +224,7 @@ def json_handler(obj: dict[str, Any], ctx: HydrationContext):
 
 @handler("jinja")
 def jinja_handler(obj: dict[str, Any], ctx: HydrationContext) -> Any:
-    from prefect.server.utilities.user_templates import (
+    from prefect.server.utilities.user_templates import (  # noqa: PLC0415
         TemplateSecurityError,
         render_user_template_sync,
         validate_user_template,

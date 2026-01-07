@@ -40,7 +40,9 @@ class ConcurrencyLimitClient(BaseClient):
         Returns:
             the ID of the concurrency limit in the backend
         """
-        from prefect.client.schemas.actions import ConcurrencyLimitCreate
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
+            ConcurrencyLimitCreate,  # noqa: PLC0415
+        )
 
         concurrency_limit_create = ConcurrencyLimitCreate(
             tag=tag,
@@ -56,7 +58,7 @@ class ConcurrencyLimitClient(BaseClient):
 
         if not concurrency_limit_id:
             raise RequestError(f"Malformed response: {response}")
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         return UUID(concurrency_limit_id)
 
@@ -93,7 +95,7 @@ class ConcurrencyLimitClient(BaseClient):
 
         if not concurrency_limit_id:
             raise RequestError(f"Malformed response: {response}")
-        from prefect.client.schemas.objects import ConcurrencyLimit
+        from prefect.client.schemas.objects import ConcurrencyLimit  # noqa: PLC0415
 
         return ConcurrencyLimit.model_validate(response.json())
 
@@ -119,7 +121,7 @@ class ConcurrencyLimitClient(BaseClient):
         }
 
         response = self.request("POST", "/concurrency_limits/filter", json=body)
-        from prefect.client.schemas.objects import ConcurrencyLimit
+        from prefect.client.schemas.objects import ConcurrencyLimit  # noqa: PLC0415
 
         return ConcurrencyLimit.model_validate_list(response.json())
 
@@ -373,7 +375,7 @@ class ConcurrencyLimitClient(BaseClient):
                 raise ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         return UUID(response.json()["id"])
 
@@ -417,7 +419,9 @@ class ConcurrencyLimitClient(BaseClient):
                 "/v2/concurrency_limits/{id_or_name}",
                 path_params={"id_or_name": name},
             )
-            from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+            from prefect.client.schemas.responses import (  # noqa: PLC0415
+                GlobalConcurrencyLimitResponse,  # noqa: PLC0415
+            )
 
             return GlobalConcurrencyLimitResponse.model_validate(response.json())
         except HTTPStatusError as e:
@@ -433,7 +437,7 @@ class ConcurrencyLimitClient(BaseClient):
 
         Note: This is not done atomically.
         """
-        from prefect.client.schemas.actions import (
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
             GlobalConcurrencyLimitCreate,
             GlobalConcurrencyLimitUpdate,
         )
@@ -467,7 +471,9 @@ class ConcurrencyLimitClient(BaseClient):
             },
         )
 
-        from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+        from prefect.client.schemas.responses import (  # noqa: PLC0415
+            GlobalConcurrencyLimitResponse,  # noqa: PLC0415
+        )
 
         return GlobalConcurrencyLimitResponse.model_validate_list(response.json())
 
@@ -492,7 +498,9 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         Returns:
             the ID of the concurrency limit in the backend
         """
-        from prefect.client.schemas.actions import ConcurrencyLimitCreate
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
+            ConcurrencyLimitCreate,  # noqa: PLC0415
+        )
 
         concurrency_limit_create = ConcurrencyLimitCreate(
             tag=tag,
@@ -508,7 +516,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
 
         if not concurrency_limit_id:
             raise RequestError(f"Malformed response: {response}")
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         return UUID(concurrency_limit_id)
 
@@ -545,7 +553,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
 
         if not concurrency_limit_id:
             raise RequestError(f"Malformed response: {response}")
-        from prefect.client.schemas.objects import ConcurrencyLimit
+        from prefect.client.schemas.objects import ConcurrencyLimit  # noqa: PLC0415
 
         return ConcurrencyLimit.model_validate(response.json())
 
@@ -571,7 +579,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         }
 
         response = await self.request("POST", "/concurrency_limits/filter", json=body)
-        from prefect.client.schemas.objects import ConcurrencyLimit
+        from prefect.client.schemas.objects import ConcurrencyLimit  # noqa: PLC0415
 
         return ConcurrencyLimit.model_validate_list(response.json())
 
@@ -826,7 +834,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             else:
                 raise
 
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         return UUID(response.json()["id"])
 
@@ -870,7 +878,9 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 "/v2/concurrency_limits/{id_or_name}",
                 path_params={"id_or_name": name},
             )
-            from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+            from prefect.client.schemas.responses import (  # noqa: PLC0415
+                GlobalConcurrencyLimitResponse,  # noqa: PLC0415
+            )
 
             return GlobalConcurrencyLimitResponse.model_validate(response.json())
         except HTTPStatusError as e:
@@ -888,7 +898,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
 
         Note: This is not done atomically.
         """
-        from prefect.client.schemas.actions import (
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
             GlobalConcurrencyLimitCreate,
             GlobalConcurrencyLimitUpdate,
         )
@@ -922,6 +932,8 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             },
         )
 
-        from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
+        from prefect.client.schemas.responses import (  # noqa: PLC0415
+            GlobalConcurrencyLimitResponse,  # noqa: PLC0415
+        )
 
         return GlobalConcurrencyLimitResponse.model_validate_list(response.json())

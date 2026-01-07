@@ -200,7 +200,7 @@ class AzureDevopsRepository(ReadableDeploymentStorage):
                 repository that will be copied to the provided local path.
             local_path: A local path to clone to; defaults to present working directory.
         """
-        from prefect.utilities.asyncutils import run_coro_as_sync
+        from prefect.utilities.asyncutils import run_coro_as_sync  # noqa: PLC0415
 
         run_coro_as_sync(
             self.aget_directory(from_path=from_path, local_path=local_path)

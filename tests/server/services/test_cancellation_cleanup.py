@@ -300,7 +300,7 @@ async def test_cancel_child_task_runs_handles_deleted_flow_run(
     flow: Flow,
 ):
     """Test that cancel_child_task_runs handles the case where flow run was deleted."""
-    from uuid import uuid4
+    from uuid import uuid4  # noqa: PLC0415
 
     # Call with a non-existent flow run ID - should not raise
     db = provide_database_interface()
@@ -312,7 +312,7 @@ async def test_cancel_subflow_run_handles_deleted_flow_run(
     flow: Flow,
 ):
     """Test that cancel_subflow_run handles the case where flow run was deleted."""
-    from uuid import uuid4
+    from uuid import uuid4  # noqa: PLC0415
 
     # Call with a non-existent flow run ID - should not raise
     db = provide_database_interface()

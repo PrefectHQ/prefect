@@ -45,8 +45,8 @@ async def test_automation_crud_operations_complete_successfully(
     """Test that automation CRUD operations work with NOTIFY enabled
     and verify cache updates happen correctly.
     """
-    from prefect.server.events import triggers
-    from prefect.server.utilities.database import get_dialect
+    from prefect.server.events import triggers  # noqa: PLC0415
+    from prefect.server.utilities.database import get_dialect  # noqa: PLC0415
 
     with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: True}):
         # Clear any existing automations for a clean test
@@ -64,7 +64,9 @@ async def test_automation_crud_operations_complete_successfully(
 
         # For PostgreSQL, manually trigger cache update since listener isn't running in tests
         if is_postgres:
-            from prefect.server.events.triggers import automation_changed
+            from prefect.server.events.triggers import (  # noqa: PLC0415
+                automation_changed,  # noqa: PLC0415
+            )
 
             await automation_changed(created.id, "automation__created")
         else:

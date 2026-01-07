@@ -41,7 +41,7 @@ async def diagnose():
     Use safe mode (PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1) to test plugin loading
     without executing hooks.
     """
-    from prefect._experimental.plugins import run_startup_hooks
+    from prefect._experimental.plugins import run_startup_hooks  # noqa: PLC0415
 
     app.console.print("\n[bold]Prefect Experimental Plugin System Diagnostics[/bold]\n")
 
@@ -114,9 +114,9 @@ async def diagnose():
     if not safe:
         app.console.print("[bold]Running Startup Hooks[/bold]\n")
 
-        from prefect import __version__
-        from prefect._experimental.plugins.spec import HookContext
-        from prefect.logging import get_logger
+        from prefect import __version__  # noqa: PLC0415
+        from prefect._experimental.plugins.spec import HookContext  # noqa: PLC0415
+        from prefect.logging import get_logger  # noqa: PLC0415
 
         ctx = HookContext(
             prefect_version=__version__,

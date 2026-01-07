@@ -39,7 +39,7 @@ def with_alembic_lock(fn: Callable[P, R]) -> Callable[P, R]:
 
 
 def alembic_config() -> "Config":
-    from alembic.config import Config
+    from alembic.config import Config  # noqa: PLC0415
 
     alembic_dir = Path(prefect.server.database.__file__).parent
     if not alembic_dir.joinpath("alembic.ini").exists():
@@ -60,7 +60,7 @@ def alembic_upgrade(revision: str = "head", dry_run: bool = False) -> None:
         dry_run: Show what migrations would be made without applying them. Will emit sql statements to stdout.
     """
     # lazy import for performance
-    import alembic.command
+    import alembic.command  # noqa: PLC0415
 
     # don't display reflection warnings that pop up during schema migrations
     with warnings.catch_warnings():
@@ -82,7 +82,7 @@ def alembic_downgrade(revision: str = "-1", dry_run: bool = False) -> None:
         dry_run: Show what migrations would be made without applying them. Will emit sql statements to stdout.
     """
     # lazy import for performance
-    import alembic.command
+    import alembic.command  # noqa: PLC0415
 
     alembic.command.downgrade(alembic_config(), revision, sql=dry_run)
 
@@ -99,7 +99,7 @@ def alembic_revision(
         autogenerate: whether or not to autogenerate the script from the database.
     """
     # lazy import for performance
-    import alembic.command
+    import alembic.command  # noqa: PLC0415
 
     alembic.command.revision(
         alembic_config(), message=message, autogenerate=autogenerate, **kwargs
@@ -115,6 +115,6 @@ def alembic_stamp(revision: Union[str, list[str], tuple[str, ...]]) -> None:
         revision: The revision passed to `alembic stamp`.
     """
     # lazy import for performance
-    import alembic.command
+    import alembic.command  # noqa: PLC0415
 
     alembic.command.stamp(alembic_config(), revision=revision)

@@ -234,7 +234,7 @@ class DeploymentCreate(ActionBaseModel):
         function from `prefect_cloud.orion.api.validation`.
         """
         # This import is here to avoid a circular import
-        from prefect.utilities.schema_tools import validate
+        from prefect.utilities.schema_tools import validate  # noqa: PLC0415
 
         variables_schema = deepcopy(base_job_template.get("variables"))
 
@@ -356,7 +356,7 @@ class DeploymentUpdate(ActionBaseModel):
         function from `prefect_cloud.orion.api.validation`.
         """
         # This import is here to avoid a circular import
-        from prefect.utilities.schema_tools import validate
+        from prefect.utilities.schema_tools import validate  # noqa: PLC0415
 
         variables_schema = deepcopy(base_job_template.get("variables"))
 
@@ -435,7 +435,7 @@ class StateCreate(ActionBaseModel):
 
     @model_validator(mode="after")
     def default_scheduled_start_time(self):
-        from prefect.server.schemas.states import StateType
+        from prefect.server.schemas.states import StateType  # noqa: PLC0415
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:

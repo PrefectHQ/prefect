@@ -585,7 +585,7 @@ class TestInfrastructureBoundFlow:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that retry() method reuses the same flow run ID and sets state to Pending."""
-        from unittest.mock import AsyncMock
+        from unittest.mock import AsyncMock  # noqa: PLC0415
 
         # Mock execute_bundle to avoid race conditions with aresult
         mock_execute_bundle = AsyncMock()
@@ -633,7 +633,7 @@ class TestInfrastructureBoundFlow:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Test that retry() properly sets state to Pending when retrying a flow run."""
-        from unittest.mock import AsyncMock
+        from unittest.mock import AsyncMock  # noqa: PLC0415
 
         # Mock execute_bundle to avoid race conditions with aresult
         mock_execute_bundle = AsyncMock()

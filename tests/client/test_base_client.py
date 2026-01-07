@@ -815,7 +815,7 @@ class TestCustomHeaders:
         monkeypatch.setenv("PREFECT_CLIENT_CUSTOM_HEADERS", json_value)
 
         # Create a new settings instance to pick up the env var
-        from prefect.settings.models.root import Settings
+        from prefect.settings.models.root import Settings  # noqa: PLC0415
 
         settings = Settings()
 
@@ -860,7 +860,7 @@ class TestCustomHeaders:
 
     async def test_sync_client_custom_headers(self):
         """Test custom headers work with sync client."""
-        from prefect.client.base import PrefectHttpxSyncClient
+        from prefect.client.base import PrefectHttpxSyncClient  # noqa: PLC0415
 
         custom_headers = {"X-Sync-Test": "sync-value", "Custom-Header": "sync-custom"}
 
@@ -936,7 +936,7 @@ class TestCustomHeaders:
 
     async def test_protected_headers_warning_logged(self, caplog):
         """Test that warning is logged when protected headers are attempted."""
-        import logging
+        import logging  # noqa: PLC0415
 
         malicious_headers = {
             "User-Agent": "malicious-agent",

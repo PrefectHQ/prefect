@@ -110,7 +110,7 @@ def test_inspect_variable(variable):
 
 def test_inspect_variable_with_json_output(variable):
     """Test variable inspect command with JSON output flag."""
-    import json
+    import json  # noqa: PLC0415
 
     result = invoke_and_assert(
         ["variable", "inspect", variable.name, "--output", "json"],

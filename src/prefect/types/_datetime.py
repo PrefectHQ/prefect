@@ -114,7 +114,7 @@ def now(
     tz: str | Any = "UTC",
 ) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        from whenever import ZonedDateTime
+        from whenever import ZonedDateTime  # noqa: PLC0415
 
         if isinstance(getattr(tz, "name", None), str):
             tz = tz.name
@@ -141,7 +141,7 @@ def end_of_period(dt: datetime.datetime, period: str) -> datetime.datetime:
         ValueError: If an invalid unit is specified.
     """
     if sys.version_info >= (3, 13):
-        from whenever import Weekday, ZonedDateTime, days
+        from whenever import Weekday, ZonedDateTime, days  # noqa: PLC0415
 
         if not isinstance(dt.tzinfo, ZoneInfo):
             zdt = ZonedDateTime.from_py_datetime(
@@ -190,7 +190,7 @@ def start_of_day(dt: datetime.datetime | DateTime) -> datetime.datetime:
         ValueError: If an invalid unit is specified.
     """
     if sys.version_info >= (3, 13):
-        from whenever import ZonedDateTime
+        from whenever import ZonedDateTime  # noqa: PLC0415
 
         if hasattr(dt, "tz"):
             zdt = ZonedDateTime.from_timestamp(
@@ -215,7 +215,7 @@ def travel_to(dt: Any):
             yield
 
     else:
-        from pendulum import travel_to
+        from pendulum import travel_to  # noqa: PLC0415
 
         with travel_to(dt, freeze=True):
             yield
@@ -223,7 +223,7 @@ def travel_to(dt: Any):
 
 def in_local_tz(dt: datetime.datetime) -> datetime.datetime:
     if sys.version_info >= (3, 13):
-        from whenever import PlainDateTime, ZonedDateTime
+        from whenever import PlainDateTime, ZonedDateTime  # noqa: PLC0415
 
         if dt.tzinfo is None:
             wdt = PlainDateTime.from_py_datetime(dt)

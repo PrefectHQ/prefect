@@ -318,7 +318,7 @@ def test_drain_on_exit_async_from_same_loop():
 
 
 def test_drain_all_timeout_sync():
-    import os
+    import os  # noqa: PLC0415
 
     print(os.getpid())
     instance = MockService.instance()

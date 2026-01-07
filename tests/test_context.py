@@ -362,7 +362,7 @@ class TestSettingsContext:
 
     @pytest.mark.usefixtures("remove_existing_settings_context")
     def test_root_settings_context_accessible_in_new_thread(self):
-        from concurrent.futures.thread import ThreadPoolExecutor
+        from concurrent.futures.thread import ThreadPoolExecutor  # noqa: PLC0415
 
         with ThreadPoolExecutor() as executor:
             result = executor.submit(get_settings_context).result()
@@ -371,7 +371,7 @@ class TestSettingsContext:
 
     @pytest.mark.usefixtures("remove_existing_settings_context")
     def test_root_settings_context_accessible_in_new_loop(self):
-        from anyio.from_thread import start_blocking_portal
+        from anyio.from_thread import start_blocking_portal  # noqa: PLC0415
 
         with start_blocking_portal() as portal:
             result = portal.call(get_settings_context)
@@ -815,7 +815,7 @@ class TestHydratedContext:
 
     def test_with_asset_context(self):
         """Test that AssetContext can be serialized and rehydrated properly with all fields populated."""
-        from prefect.assets import AssetProperties
+        from prefect.assets import AssetProperties  # noqa: PLC0415
 
         # Create assets with properties
         upstream_asset = Asset(

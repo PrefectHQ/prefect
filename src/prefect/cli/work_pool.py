@@ -770,8 +770,8 @@ async def storage_inspect(
     async with get_client() as client:
         try:
             work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
-            from rich.panel import Panel
-            from rich.table import Table
+            from rich.panel import Panel  # noqa: PLC0415
+            from rich.table import Table  # noqa: PLC0415
 
             storage_table = Table(show_header=True, header_style="bold")
             storage_table.add_column("Setting", style="cyan")

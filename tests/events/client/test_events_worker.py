@@ -60,7 +60,7 @@ async def test_includes_related_resources_from_run_context(
 ):
     @flow
     def emitting_flow():
-        from prefect.events import emit_event
+        from prefect.events import emit_event  # noqa: PLC0415
 
         emit_event(
             event="vogon.poetry.read",

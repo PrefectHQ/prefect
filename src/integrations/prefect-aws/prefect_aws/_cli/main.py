@@ -18,7 +18,7 @@ app.add_typer(ecs_worker_app, name="ecs-worker")
 def version():
     """Show the version of prefect-aws."""
     try:
-        from prefect_aws._version import __version__
+        from prefect_aws._version import __version__  # noqa: PLC0415
 
         typer.echo(f"prefect-aws {__version__}")
     except ImportError:

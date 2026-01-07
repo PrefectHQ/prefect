@@ -116,7 +116,7 @@ class ResultRecord(BaseModel, Generic[R]):
                 and str(exc).startswith("cannot pickle")
             ):
                 try:
-                    from IPython.core.getipython import get_ipython
+                    from IPython.core.getipython import get_ipython  # noqa: PLC0415
 
                     if get_ipython() is not None:
                         extra_info = inspect.cleandoc(

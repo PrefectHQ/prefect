@@ -144,7 +144,7 @@ def test_get_azuredevops_auth_header_valid_token():
         creds = AzureDevopsCredentials(token=SecretStr("fake-pat"))
         auth_header = creds.get_auth_header()
 
-        import base64
+        import base64  # noqa: PLC0415
 
         expected_token = base64.b64encode(b":fake-pat").decode()
         assert auth_header == {"Authorization": f"Basic {expected_token}"}

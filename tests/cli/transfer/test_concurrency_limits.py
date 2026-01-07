@@ -56,8 +56,10 @@ class TestMigratableGlobalConcurrencyLimit:
         self, session: AsyncSession
     ):
         """Test that different concurrency limits create different instances."""
-        from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
-        from prefect.server import models, schemas
+        from prefect.client.schemas.responses import (  # noqa: PLC0415
+            GlobalConcurrencyLimitResponse,  # noqa: PLC0415
+        )
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         # Create two different concurrency limits
         orm_limit1 = await models.concurrency_limits_v2.create_concurrency_limit(
@@ -263,8 +265,10 @@ class TestMigratableGlobalConcurrencyLimit:
         self, session: AsyncSession, active: bool, active_slots: int, limit: int
     ):
         """Test concurrency limits with different active states."""
-        from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
-        from prefect.server import models, schemas
+        from prefect.client.schemas.responses import (  # noqa: PLC0415
+            GlobalConcurrencyLimitResponse,  # noqa: PLC0415
+        )
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         # Clear instances before test
         MigratableGlobalConcurrencyLimit._instances.clear()
@@ -310,8 +314,10 @@ class TestMigratableGlobalConcurrencyLimit:
         self, session: AsyncSession, name_prefix: str, limit: int, active_slots: int
     ):
         """Test concurrency limits with edge case values."""
-        from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
-        from prefect.server import models, schemas
+        from prefect.client.schemas.responses import (  # noqa: PLC0415
+            GlobalConcurrencyLimitResponse,  # noqa: PLC0415
+        )
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         # Clear instances before test
         MigratableGlobalConcurrencyLimit._instances.clear()

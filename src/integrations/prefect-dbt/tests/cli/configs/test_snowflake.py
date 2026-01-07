@@ -162,7 +162,7 @@ def test_snowflake_target_configs_schema_from_connector_in_profile():
     the schema from the connector should be included in the profile output,
     even when not explicitly passed to SnowflakeTargetConfigs.
     """
-    from prefect_dbt.cli import DbtCliProfile
+    from prefect_dbt.cli import DbtCliProfile  # noqa: PLC0415
 
     credentials = SnowflakeCredentials(
         account="account.region.aws",

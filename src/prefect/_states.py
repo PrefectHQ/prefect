@@ -190,7 +190,7 @@ def return_value_to_state_sync(
     Callers should resolve all futures into states before passing return values to this
     function.
     """
-    from prefect.results import (
+    from prefect.results import (  # noqa: PLC0415
         ResultRecord,
         ResultRecordMetadata,
     )

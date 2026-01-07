@@ -265,7 +265,7 @@ def test_sigterm_crashes_deployed_flow(
 ):
     # This is not a part of our public API and generally we should not write tests like
     # this here, but we do not have robust testing utilities for deployed runs yet.
-    from prefect.engine import enter_flow_run_engine_from_subprocess
+    from prefect.engine import enter_flow_run_engine_from_subprocess  # noqa: PLC0415
 
     @prefect.flow
     async def my_flow():

@@ -72,12 +72,12 @@ def provide_database_interface() -> PrefectDBInterface:
     If components of the interface are not set, defaults will be inferred
     based on the dialect of the connection URL.
     """
-    from prefect.server.database.interface import PrefectDBInterface
-    from prefect.server.database.orm_models import (
+    from prefect.server.database.interface import PrefectDBInterface  # noqa: PLC0415
+    from prefect.server.database.orm_models import (  # noqa: PLC0415
         AioSqliteORMConfiguration,
         AsyncPostgresORMConfiguration,
     )
-    from prefect.server.database.query_components import (
+    from prefect.server.database.query_components import (  # noqa: PLC0415
         AioSqliteQueryComponents,
         AsyncPostgresQueryComponents,
     )

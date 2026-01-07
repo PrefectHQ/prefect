@@ -225,7 +225,7 @@ class ContainerInstancePushProvisioner:
         Raises:
             RuntimeError: If no Azure subscriptions are found or the Azure CLI command execution fails.
         """
-        from prefect.cli._prompts import prompt_select_from_table
+        from prefect.cli._prompts import prompt_select_from_table  # noqa: PLC0415
 
         if self._console.is_interactive:
             with Progress(
@@ -819,7 +819,7 @@ class ContainerInstancePushProvisioner:
     async def _customize_resource_names(
         self, work_pool_name: str, client: "PrefectClient"
     ) -> bool:
-        from prefect.cli._prompts import prompt
+        from prefect.cli._prompts import prompt  # noqa: PLC0415
 
         self._resource_group_name = prompt(
             "Please enter a name for the resource group",
@@ -877,7 +877,7 @@ class ContainerInstancePushProvisioner:
         Raises:
             RuntimeError: If client injection fails or the Azure CLI command execution fails.
         """
-        from prefect.cli._prompts import prompt_select_from_table
+        from prefect.cli._prompts import prompt_select_from_table  # noqa: PLC0415
 
         if not client:
             self._console.print(

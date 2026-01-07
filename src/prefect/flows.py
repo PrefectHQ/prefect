@@ -588,7 +588,7 @@ class Flow(Generic[P, R]):
 
         def resolve_block_reference(data: Any | dict[str, Any]) -> Any:
             if isinstance(data, dict) and "$ref" in data:
-                from prefect.blocks.core import Block
+                from prefect.blocks.core import Block  # noqa: PLC0415
 
                 return Block.load_from_ref(data["$ref"], _sync=True)
             return data
@@ -607,7 +607,7 @@ class Flow(Generic[P, R]):
         if sys.version_info >= (3, 14):  # Pydantic v1 is not supported in Python 3.14+
             has_v1_models = False
         else:
-            from pydantic.v1 import BaseModel as V1BaseModel
+            from pydantic.v1 import BaseModel as V1BaseModel  # noqa: PLC0415
 
             with warnings.catch_warnings():
                 warnings.filterwarnings(
@@ -628,7 +628,7 @@ class Flow(Generic[P, R]):
 
         try:
             if has_v1_models:
-                from pydantic.v1.decorator import (
+                from pydantic.v1.decorator import (  # noqa: PLC0415
                     ValidatedFunction as V1ValidatedFunction,
                 )
 
@@ -689,7 +689,7 @@ class Flow(Generic[P, R]):
                 serialized_parameters[key] = f"<{type(value).__name__}>"
                 continue
             try:
-                from fastapi.encoders import jsonable_encoder
+                from fastapi.encoders import jsonable_encoder  # noqa: PLC0415
 
                 serialized_parameters[key] = jsonable_encoder(value)
             except (TypeError, ValueError):
@@ -786,7 +786,7 @@ class Flow(Generic[P, R]):
                 serve(hello_deploy, bye_deploy)
             ```
         """
-        from prefect.deployments.runner import RunnerDeployment
+        from prefect.deployments.runner import RunnerDeployment  # noqa: PLC0415
 
         if not name.endswith(".py"):
             _raise_on_name_with_banned_characters(name)
@@ -927,7 +927,7 @@ class Flow(Generic[P, R]):
                 serve(hello_deploy, bye_deploy)
             ```
         """
-        from prefect.deployments.runner import RunnerDeployment
+        from prefect.deployments.runner import RunnerDeployment  # noqa: PLC0415
 
         if not name.endswith(".py"):
             _raise_on_name_with_banned_characters(name)
@@ -1098,7 +1098,7 @@ class Flow(Generic[P, R]):
                 my_flow.serve("example-deployment", interval=3600)
             ```
         """
-        from prefect.runner import Runner
+        from prefect.runner import Runner  # noqa: PLC0415
 
         if not name:
             name = self.name
@@ -1236,7 +1236,7 @@ class Flow(Generic[P, R]):
             ```
         """
 
-        from prefect.runner.storage import (
+        from prefect.runner.storage import (  # noqa: PLC0415
             BlockStorageAdapter,
             LocalStorage,
             RunnerStorage,
@@ -1350,7 +1350,7 @@ class Flow(Generic[P, R]):
             ```
         """
 
-        from prefect.runner.storage import (
+        from prefect.runner.storage import (  # noqa: PLC0415
             BlockStorageAdapter,
             LocalStorage,
             RunnerStorage,
@@ -1511,7 +1511,7 @@ class Flow(Generic[P, R]):
                 " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
             )
 
-        from prefect.client.orchestration import get_client
+        from prefect.client.orchestration import get_client  # noqa: PLC0415
 
         try:
             async with get_client() as client:
@@ -1555,7 +1555,7 @@ class Flow(Generic[P, R]):
         else:
             deployment = to_deployment_coro
 
-        from prefect.deployments.runner import deploy
+        from prefect.deployments.runner import deploy  # noqa: PLC0415
 
         deploy_coro = deploy(
             deployment,
@@ -1692,7 +1692,7 @@ class Flow(Generic[P, R]):
                 my_flow("foo")
             ```
         """
-        from prefect.utilities.visualization import (
+        from prefect.utilities.visualization import (  # noqa: PLC0415
             get_task_viz_tracker,
             track_viz_task,
         )
@@ -1708,7 +1708,7 @@ class Flow(Generic[P, R]):
             # we can add support for exploring subflows for tasks in the future.
             return track_viz_task(self.isasync, self.name, parameters)
 
-        from prefect.flow_engine import run_flow
+        from prefect.flow_engine import run_flow  # noqa: PLC0415
 
         return run_flow(
             flow=self,
@@ -1728,7 +1728,7 @@ class Flow(Generic[P, R]):
             - GraphvizExecutableNotFoundError: If the `dot` executable isn't found.
             - FlowVisualizationError: If the flow can't be visualized for any other reason.
         """
-        from prefect.utilities.visualization import (
+        from prefect.utilities.visualization import (  # noqa: PLC0415
             FlowVisualizationError,
             GraphvizExecutableNotFoundError,
             GraphvizImportError,
@@ -2300,16 +2300,19 @@ class InfrastructureBoundFlow(Flow[P, R]):
             "and behavior of this method are subject to change.",
             category=FutureWarning,
         )
-        from prefect import get_client
-        from prefect._experimental.bundles import (
+        from prefect import get_client  # noqa: PLC0415
+        from prefect._experimental.bundles import (  # noqa: PLC0415
             convert_step_to_command,
             create_bundle_for_flow_run,
             upload_bundle_to_storage,
         )
-        from prefect.context import FlowRunContext, TagsContext
-        from prefect.results import get_result_store, resolve_result_storage
-        from prefect.states import Pending, Scheduled
-        from prefect.tasks import Task
+        from prefect.context import FlowRunContext, TagsContext  # noqa: PLC0415
+        from prefect.results import (  # noqa: PLC0415
+            get_result_store,
+            resolve_result_storage,
+        )
+        from prefect.states import Pending, Scheduled  # noqa: PLC0415
+        from prefect.tasks import Task  # noqa: PLC0415
 
         # Get parameters to error early if they are invalid
         parameters = get_call_parameters(self, args, kwargs)
@@ -2667,7 +2670,7 @@ def serve(
         ```
     """
 
-    from prefect.runner import Runner
+    from prefect.runner import Runner  # noqa: PLC0415
 
     if is_in_async_context():
         raise RuntimeError(
@@ -2756,7 +2759,7 @@ async def aserve(
             asyncio.run(main())
     """
 
-    from prefect.runner import Runner
+    from prefect.runner import Runner  # noqa: PLC0415
 
     runner = Runner(pause_on_shutdown=pause_on_shutdown, limit=limit, **kwargs)
     for deployment in args:
@@ -2773,8 +2776,8 @@ async def aserve(
 
 
 def _display_serve_start_message(*args: "RunnerDeployment"):
-    from rich.console import Console, Group
-    from rich.table import Table
+    from rich.console import Console, Group  # noqa: PLC0415
+    from rich.table import Table  # noqa: PLC0415
 
     help_message_top = (
         "[green]Your deployments are being served and polling for scheduled runs!\n[/]"
@@ -2850,7 +2853,7 @@ async def load_flow_from_flow_run(
             storage_document = await client.read_block_document(
                 deployment.storage_document_id
             )
-            from prefect.blocks.core import Block
+            from prefect.blocks.core import Block  # noqa: PLC0415
 
             storage_block = Block._from_block_document(storage_document)
         else:
@@ -2874,7 +2877,10 @@ async def load_flow_from_flow_run(
             f"Running {len(deployment.pull_steps)} deployment pull step(s)"
         )
 
-        from prefect.deployments.steps.core import StepExecutionError, run_steps
+        from prefect.deployments.steps.core import (  # noqa: PLC0415
+            StepExecutionError,
+            run_steps,
+        )
 
         try:
             output = await run_steps(

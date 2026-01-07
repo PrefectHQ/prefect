@@ -544,7 +544,7 @@ async def test_logs_warning_at_high_queue_capacity(
 
 async def test_event_persister_settings_have_correct_defaults():
     """Verify the new settings exist with correct default values."""
-    from prefect.settings.context import get_current_settings
+    from prefect.settings.context import get_current_settings  # noqa: PLC0415
 
     settings = get_current_settings().server.services.event_persister
     assert settings.queue_max_size == 50_000

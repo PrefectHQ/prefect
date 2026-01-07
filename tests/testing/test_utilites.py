@@ -21,7 +21,7 @@ def _multiprocessing_worker():
     """
     Worker function for multiprocessing test. Must be at module level for pickling.
     """
-    import os
+    import os  # noqa: PLC0415
 
     # os._exit() is required here despite the underscore prefix. On Linux with fork(),
     # the child process inherits Prefect's logging/event state. Normal exit (return or
@@ -128,7 +128,7 @@ def test_multiprocessing_after_test_harness():
     deadlock after using the test harness because fork() inherited locked thread
     state from background threads.
     """
-    import multiprocessing
+    import multiprocessing  # noqa: PLC0415
 
     @task
     def test_task():

@@ -45,7 +45,7 @@ async def cleared_buckets(db: PrefectDBInterface, automations_session: AsyncSess
 
 @pytest.fixture
 async def cleared_automations():
-    from prefect.server.events import triggers
+    from prefect.server.events import triggers  # noqa: PLC0415
 
     await triggers.reset()
     yield

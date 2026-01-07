@@ -183,7 +183,7 @@ class TestPickleSerializer:
         assert serializer.loads(serialized) == data
 
     def test_picklelib_must_be_string(self):
-        import pickle
+        import pickle  # noqa: PLC0415
 
         with pytest.raises(ValueError):
             PickleSerializer(picklelib=pickle)
@@ -200,7 +200,7 @@ class TestPickleSerializer:
         loads.assert_called_once_with(base64.decodebytes(b"test"))
 
     def test_picklelib_must_implement_dumps(self, monkeypatch: pytest.MonkeyPatch):
-        import pickle
+        import pickle  # noqa: PLC0415
 
         monkeypatch.delattr(pickle, "dumps")
         with pytest.raises(
@@ -210,7 +210,7 @@ class TestPickleSerializer:
             PickleSerializer(picklelib="pickle")
 
     def test_picklelib_must_implement_loads(self, monkeypatch: pytest.MonkeyPatch):
-        import pickle
+        import pickle  # noqa: PLC0415
 
         monkeypatch.delattr(pickle, "loads")
         with pytest.raises(

@@ -313,7 +313,7 @@ def format_release_notes(release_info: dict) -> str:
             patch_title = f"## {tag} - {name_parts}"
 
     # Format the date nicely on a separate line
-    from datetime import datetime
+    from datetime import datetime  # noqa: PLC0415
 
     try:
         date_obj = datetime.strptime(date, "%Y-%m-%d")

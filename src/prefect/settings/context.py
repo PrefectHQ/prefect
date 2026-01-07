@@ -12,7 +12,7 @@ def get_current_settings() -> Settings:
     Returns a settings object populated with values from the current settings context
     or, if no settings context is active, the environment.
     """
-    from prefect.context import SettingsContext
+    from prefect.context import SettingsContext  # noqa: PLC0415
 
     settings_context = SettingsContext.get()
     if settings_context is not None:
@@ -51,7 +51,7 @@ def temporary_settings(
         assert PREFECT_API_URL.value() is None
         ```
     """
-    import prefect.context
+    import prefect.context  # noqa: PLC0415
 
     context = prefect.context.get_settings_context()
 

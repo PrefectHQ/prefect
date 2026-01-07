@@ -13,7 +13,7 @@ async def test_version(client):
 
 class TestSettings:
     async def test_read_settings(self, client):
-        from prefect.settings import Settings, get_current_settings
+        from prefect.settings import Settings, get_current_settings  # noqa: PLC0415
 
         response = await client.get("/admin/settings")
         assert response.status_code == status.HTTP_200_OK

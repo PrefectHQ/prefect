@@ -98,7 +98,7 @@ def test_get_perpetual_services_filters_webserver_mode():
 
 def test_get_enabled_perpetual_services_respects_settings(monkeypatch):
     """Test that get_enabled_perpetual_services respects the enabled setting."""
-    from prefect.settings.context import get_current_settings
+    from prefect.settings.context import get_current_settings  # noqa: PLC0415
 
     settings = get_current_settings()
 

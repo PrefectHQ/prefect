@@ -574,7 +574,7 @@ async def _set_schedule_activation(
                             deployment_names.append(deployment.name)
 
             if update_tasks:
-                import asyncio
+                import asyncio  # noqa: PLC0415
 
                 semaphore = asyncio.Semaphore(10)
 
@@ -877,7 +877,7 @@ async def run(
     The flow run will not execute until a worker starts.
     To watch the flow run until it reaches a terminal state, use the `--watch` flag.
     """
-    import dateparser
+    import dateparser  # noqa: PLC0415
 
     now = prefect.types._datetime.now("UTC")
 

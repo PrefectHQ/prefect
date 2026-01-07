@@ -149,7 +149,7 @@ def test_inspecting_gcl_with_json_output(
     global_concurrency_limit: ConcurrencyLimitV2,
 ):
     """Test global-concurrency-limit inspect command with JSON output flag."""
-    import json
+    import json  # noqa: PLC0415
 
     result = invoke_and_assert(
         [

@@ -255,10 +255,12 @@ def test_url_for_received_event_ui(received_event):
 
 def test_url_for_server_side_received_event_ui():
     """Test that url_for works with server-side ReceivedEvent (different class from client-side)"""
-    from prefect.server.events.schemas.events import (
+    from prefect.server.events.schemas.events import (  # noqa: PLC0415
         ReceivedEvent as ServerReceivedEvent,
     )
-    from prefect.server.events.schemas.events import Resource as ServerResource
+    from prefect.server.events.schemas.events import (  # noqa: PLC0415
+        Resource as ServerResource,  # noqa: PLC0415
+    )
 
     server_event = ServerReceivedEvent(
         occurred=now("UTC"),
@@ -277,10 +279,12 @@ def test_url_for_server_side_received_event_ui():
 
 def test_server_side_received_event_url_property():
     """Test that the server-side ReceivedEvent.url property returns the correct URL"""
-    from prefect.server.events.schemas.events import (
+    from prefect.server.events.schemas.events import (  # noqa: PLC0415
         ReceivedEvent as ServerReceivedEvent,
     )
-    from prefect.server.events.schemas.events import Resource as ServerResource
+    from prefect.server.events.schemas.events import (  # noqa: PLC0415
+        Resource as ServerResource,  # noqa: PLC0415
+    )
 
     server_event = ServerReceivedEvent(
         occurred=now("UTC"),

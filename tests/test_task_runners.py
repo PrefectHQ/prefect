@@ -74,7 +74,7 @@ def task_with_unpicklable_param(func: Callable[[int], Any]) -> Any:
 
 @task
 def slow_task(duration: float = 0.1) -> str:
-    import time
+    import time  # noqa: PLC0415
 
     time.sleep(duration)
     return "completed"
@@ -303,7 +303,7 @@ class TestProcessPoolTaskRunner:
                 assert runner._executor._max_workers == 3
 
     def test_default_max_workers_uses_cpu_count(self):
-        import multiprocessing
+        import multiprocessing  # noqa: PLC0415
 
         with ProcessPoolTaskRunner() as runner:
             # Should default to cpu_count when setting is None
@@ -550,7 +550,7 @@ class TestProcessPoolTaskRunner:
 
         @flow(task_runner=ProcessPoolTaskRunner(max_workers=2))
         def test_flow():
-            import time
+            import time  # noqa: PLC0415
 
             start = time.time()
             future_a = slow_add.submit(1, 2)

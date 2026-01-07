@@ -2,7 +2,7 @@ from packaging.version import Version
 
 
 def test_version():
-    from prefect_gitlab import __version__
+    from prefect_gitlab import __version__  # noqa: PLC0415
 
     assert isinstance(__version__, str)
     assert Version(__version__)

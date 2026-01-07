@@ -22,7 +22,7 @@ def test_logs_settings_can_be_enabled():
 
 def test_logs_settings_environment_variable_names():
     """Test that environment variable aliases work"""
-    import os
+    import os  # noqa: PLC0415
 
     # Test stream_out_enabled aliases
     os.environ["PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED"] = "true"

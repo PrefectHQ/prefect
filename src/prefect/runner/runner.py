@@ -482,7 +482,7 @@ class Runner:
                 asyncio.run(runner.start())
             ```
         """
-        from prefect.runner.server import start_webserver
+        from prefect.runner.server import start_webserver  # noqa: PLC0415
 
         if threading.current_thread() is threading.main_thread():
             signal.signal(signal.SIGTERM, self.handle_sigterm)
@@ -658,7 +658,7 @@ class Runner:
         """
         Executes a bundle in a subprocess.
         """
-        from prefect.client.schemas.objects import FlowRun
+        from prefect.client.schemas.objects import FlowRun  # noqa: PLC0415
 
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
@@ -1039,7 +1039,7 @@ class Runner:
         await asyncio.gather(*coros)
 
     async def _emit_flow_run_heartbeat(self, flow_run: "FlowRun"):
-        from prefect import __version__
+        from prefect import __version__  # noqa: PLC0415
 
         related: list[RelatedResource] = []
         tags: list[str] = []
@@ -1078,7 +1078,7 @@ class Runner:
         )
 
     def _event_resource(self):
-        from prefect import __version__
+        from prefect import __version__  # noqa: PLC0415
 
         return {
             "prefect.resource.id": f"prefect.runner.{slugify(self.name)}",

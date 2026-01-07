@@ -79,7 +79,7 @@ def test_websocket_connect_kwargs_preservation():
 
 def test_create_ssl_context_with_custom_cert_file():
     """Test SSL context creation with custom certificate file"""
-    from prefect.settings import PREFECT_API_SSL_CERT_FILE
+    from prefect.settings import PREFECT_API_SSL_CERT_FILE  # noqa: PLC0415
 
     with temporary_settings(
         {

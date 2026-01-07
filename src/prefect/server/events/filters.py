@@ -81,7 +81,7 @@ class AutomationFilterTags(PrefectOperatorFilterBaseModel):
     def _get_filter_list(
         self, db: PrefectDBInterface
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
-        from prefect.server.schemas.filters import _as_array
+        from prefect.server.schemas.filters import _as_array  # noqa: PLC0415
 
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:

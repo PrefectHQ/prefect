@@ -64,8 +64,8 @@ class TestUtilityFunctions:
 
     def test_wait_monitors_all_futures_concurrently_with_timeout(self):
         """Test that wait() with timeout monitors all futures concurrently, not sequentially."""
-        import threading
-        import time
+        import threading  # noqa: PLC0415
+        import time  # noqa: PLC0415
 
         # Create a slow future first, then fast ones
         # If wait() is sequential, it will timeout on the slow one and miss the fast ones
@@ -124,7 +124,7 @@ class TestUtilityFunctions:
     def test_as_completed_yields_correct_order(self):
         @task
         def my_test_task(seconds):
-            import time
+            import time  # noqa: PLC0415
 
             time.sleep(seconds)
             return seconds
@@ -147,7 +147,7 @@ class TestUtilityFunctions:
     def test_as_completed_timeout(self):
         @task
         def my_test_task(seconds):
-            import time
+            import time  # noqa: PLC0415
 
             time.sleep(seconds)
             return seconds
@@ -170,7 +170,7 @@ class TestUtilityFunctions:
     async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task
         async def my_task(seconds):
-            import time
+            import time  # noqa: PLC0415
 
             time.sleep(seconds)
             return seconds

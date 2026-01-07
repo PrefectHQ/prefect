@@ -74,7 +74,7 @@ async def send_telemetry_heartbeat(
 
     It can be toggled off with the PREFECT_SERVER_ANALYTICS_ENABLED setting.
     """
-    from prefect.client.constants import SERVER_API_VERSION
+    from prefect.client.constants import SERVER_API_VERSION  # noqa: PLC0415
 
     db = provide_database_interface()
     session_start_timestamp, session_id = await _fetch_or_set_telemetry_session(db=db)

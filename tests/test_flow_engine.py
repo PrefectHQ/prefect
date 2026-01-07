@@ -1447,7 +1447,7 @@ class TestSuspendFlowRun:
             assert context.flow_run
             flow_run_id = context.flow_run.id
 
-            from prefect.server.models.flow_runs import update_flow_run
+            from prefect.server.models.flow_runs import update_flow_run  # noqa: PLC0415
 
             await update_flow_run(
                 session,
@@ -1477,7 +1477,7 @@ class TestSuspendFlowRun:
             assert context.flow_run
             flow_run_id = context.flow_run.id
 
-            from prefect.server.models.flow_runs import update_flow_run
+            from prefect.server.models.flow_runs import update_flow_run  # noqa: PLC0415
 
             await update_flow_run(
                 session,
@@ -1535,7 +1535,7 @@ class TestSuspendFlowRun:
             context = get_run_context()
             assert context.flow_run
 
-            from prefect.server.models.flow_runs import update_flow_run
+            from prefect.server.models.flow_runs import update_flow_run  # noqa: PLC0415
 
             await update_flow_run(
                 session,
@@ -1590,7 +1590,9 @@ class TestSuspendFlowRun:
             if not context.flow_run.deployment_id:
                 # Ensure that the flow run has a deployment id so it's
                 # suspendable.
-                from prefect.server.models.flow_runs import update_flow_run
+                from prefect.server.models.flow_runs import (  # noqa: PLC0415
+                    update_flow_run,  # noqa: PLC0415
+                )
 
                 await update_flow_run(
                     session,
@@ -1642,7 +1644,9 @@ class TestSuspendFlowRun:
             if not context.flow_run.deployment_id:
                 # Ensure that the flow run has a deployment id so it's
                 # suspendable.
-                from prefect.server.models.flow_runs import update_flow_run
+                from prefect.server.models.flow_runs import (  # noqa: PLC0415
+                    update_flow_run,  # noqa: PLC0415
+                )
 
                 assert await update_flow_run(
                     session,
@@ -2323,7 +2327,7 @@ class TestRunFlowInSubprocess:
 
             @flow(name=f"test_deployment_params_{uuid.uuid4()}", persist_result=True)
             def foo(source_name: str, database_export_date: str, bucket_name: str):
-                from prefect.runtime import deployment
+                from prefect.runtime import deployment  # noqa: PLC0415
 
                 return deployment.parameters
         else:
@@ -2332,7 +2336,7 @@ class TestRunFlowInSubprocess:
             async def foo(
                 source_name: str, database_export_date: str, bucket_name: str
             ):
-                from prefect.runtime import deployment
+                from prefect.runtime import deployment  # noqa: PLC0415
 
                 return deployment.parameters
 

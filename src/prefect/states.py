@@ -51,8 +51,8 @@ def to_state_create(state: State) -> "StateCreate":
     This method will drop this state's `data` if it is not a result type. Only
     results should be sent to the API. Other data is only available locally.
     """
-    from prefect.client.schemas.actions import StateCreate
-    from prefect.results import (
+    from prefect.client.schemas.actions import StateCreate  # noqa: PLC0415
+    from prefect.results import (  # noqa: PLC0415
         ResultRecord,
         should_persist_result,
     )
@@ -101,10 +101,10 @@ async def _get_state_result_data_with_retries(
     # grace here about missing results.  The exception below could come in the form
     # of a missing file, a short read, or other types of errors depending on the
     # result storage backend.
-    from prefect._result_records import (
+    from prefect._result_records import (  # noqa: PLC0415
         ResultRecordMetadata,
     )
-    from prefect.results import ResultStore
+    from prefect.results import ResultStore  # noqa: PLC0415
 
     if retry_result_failure is False:
         max_attempts = 1
@@ -137,7 +137,7 @@ async def _get_state_result(
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
-    from prefect.results import (
+    from prefect.results import (  # noqa: PLC0415
         ResultRecord,
         ResultRecordMetadata,
     )
@@ -328,7 +328,7 @@ async def return_value_to_state(
     Callers should resolve all futures into states before passing return values to this
     function.
     """
-    from prefect.results import (
+    from prefect.results import (  # noqa: PLC0415
         ResultRecord,
         ResultRecordMetadata,
     )
@@ -466,11 +466,11 @@ async def aget_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect._result_records import (
+    from prefect._result_records import (  # noqa: PLC0415
         ResultRecord,
         ResultRecordMetadata,
     )
-    from prefect.results import ResultStore
+    from prefect.results import ResultStore  # noqa: PLC0415
 
     if state.is_failed():
         wrapper = FailedRun
@@ -552,11 +552,11 @@ def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect._result_records import (
+    from prefect._result_records import (  # noqa: PLC0415
         ResultRecord,
         ResultRecordMetadata,
     )
-    from prefect.results import ResultStore, resolve_result_storage
+    from prefect.results import ResultStore, resolve_result_storage  # noqa: PLC0415
 
     if state.is_failed():
         wrapper = FailedRun
