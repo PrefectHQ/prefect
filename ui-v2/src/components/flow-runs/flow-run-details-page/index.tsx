@@ -154,7 +154,12 @@ export const FlowRunDetailsPage = ({
 						<ErrorBoundary
 							fallback={
 								<TabErrorState
-									message="Failed to load logs"
+									error={{
+										type: "unknown-error",
+										message: "Failed to load logs",
+										details:
+											"An error occurred while loading log data. Please try again.",
+									}}
 									onRetry={retryLogs}
 								/>
 							}
@@ -168,7 +173,12 @@ export const FlowRunDetailsPage = ({
 						<ErrorBoundary
 							fallback={
 								<TabErrorState
-									message="Failed to load task runs"
+									error={{
+										type: "unknown-error",
+										message: "Failed to load task runs",
+										details:
+											"An error occurred while loading task run data. Please try again.",
+									}}
 									onRetry={retryTaskRuns}
 								/>
 							}
@@ -182,7 +192,12 @@ export const FlowRunDetailsPage = ({
 						<ErrorBoundary
 							fallback={
 								<TabErrorState
-									message="Failed to load subflow runs"
+									error={{
+										type: "unknown-error",
+										message: "Failed to load subflow runs",
+										details:
+											"An error occurred while loading subflow run data. Please try again.",
+									}}
 									onRetry={retrySubflows}
 								/>
 							}
@@ -196,7 +211,12 @@ export const FlowRunDetailsPage = ({
 						<ErrorBoundary
 							fallback={
 								<TabErrorState
-									message="Failed to load artifacts"
+									error={{
+										type: "unknown-error",
+										message: "Failed to load artifacts",
+										details:
+											"An error occurred while loading artifact data. Please try again.",
+									}}
 									onRetry={retryArtifacts}
 								/>
 							}
