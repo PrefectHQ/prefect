@@ -2015,3 +2015,228 @@ class TestDeploymentLabels:
         )
 
         assert merged_labels == expected
+
+
+class TestAcquireSlotsForRunningFlows:
+    """Unit tests for acquire_slots_for_running_flows function (Issue #19404)."""
+
+    async def test_acquires_slots_for_running_flows_when_limit_added(
+        self, session, flow, db
+    ):
+        """Test that slots are acquired for RUNNING flows when a limit is first added."""
+        # Create deployment
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+            ),
+        )
+        await session.commit()
+
+        # Create and set 3 flow runs to RUNNING state
+        for _ in range(3):
+            flow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    deployment_id=deployment.id,
+                    state=states.Pending(),
+                ),
+            )
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=states.Running(),
+                force=True,
+            )
+        await session.commit()
+
+        # Create a concurrency limit
+        concurrency_limit = (
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=f"deployment:{deployment.id}",
+                    limit=2,
+                ),
+            )
+        )
+        await session.commit()
+
+        # Call the function
+        slots_acquired = await models.deployments.acquire_slots_for_running_flows(
+            deployment_id=deployment.id,
+            concurrency_limit_id=concurrency_limit.id,
+            new_limit=2,
+            grace_period_seconds=60.0,
+            limitation_decreased=False,
+        )
+
+        # Should acquire slots for first 2 running flows (up to limit)
+        assert slots_acquired == 2
+
+        # Verify active slots on the limit
+        async with db.session_context() as fresh_session:
+            updated_limit = await models.concurrency_limits_v2.read_concurrency_limit(
+                session=fresh_session,
+                concurrency_limit_id=concurrency_limit.id,
+            )
+            assert updated_limit.active_slots == 2
+
+    async def test_acquires_no_slots_when_no_running_flows(self, session, flow, db):
+        """Test that no slots are acquired when there are no RUNNING flows."""
+        # Create deployment
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+            ),
+        )
+        await session.commit()
+
+        # Create a concurrency limit
+        concurrency_limit = (
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=f"deployment:{deployment.id}",
+                    limit=5,
+                ),
+            )
+        )
+        await session.commit()
+
+        # Call the function with no running flows
+        slots_acquired = await models.deployments.acquire_slots_for_running_flows(
+            deployment_id=deployment.id,
+            concurrency_limit_id=concurrency_limit.id,
+            new_limit=5,
+            grace_period_seconds=60.0,
+            limitation_decreased=False,
+        )
+
+        # Should acquire 0 slots
+        assert slots_acquired == 0
+
+    async def test_acquires_slots_up_to_new_limit_when_decreased(
+        self, session, flow, db
+    ):
+        """Test that only slots up to new limit are acquired when limit decreased."""
+        # Create deployment
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+            ),
+        )
+        await session.commit()
+
+        # Create 5 flow runs in RUNNING state
+        for _ in range(5):
+            flow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    deployment_id=deployment.id,
+                    state=states.Pending(),
+                ),
+            )
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=states.Running(),
+                force=True,
+            )
+        await session.commit()
+
+        # Create a concurrency limit with new (decreased) limit of 2
+        concurrency_limit = (
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=f"deployment:{deployment.id}",
+                    limit=2,
+                ),
+            )
+        )
+        await session.commit()
+
+        # Call with limitation_decreased=True
+        slots_acquired = await models.deployments.acquire_slots_for_running_flows(
+            deployment_id=deployment.id,
+            concurrency_limit_id=concurrency_limit.id,
+            new_limit=2,
+            grace_period_seconds=60.0,
+            limitation_decreased=True,
+        )
+
+        # Should only acquire 2 slots (the new limit)
+        assert slots_acquired == 2
+
+    async def test_does_not_acquire_slots_for_non_running_flows(
+        self, session, flow, db
+    ):
+        """Test that slots are not acquired for flows in PENDING or COMPLETED states."""
+        # Create deployment
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test-deployment",
+                flow_id=flow.id,
+            ),
+        )
+        await session.commit()
+
+        # Create a PENDING flow run
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Pending(),
+            ),
+        )
+
+        # Create a COMPLETED flow run
+        completed_flow = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.Pending(),
+            ),
+        )
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=completed_flow.id,
+            state=states.Completed(),
+            force=True,
+        )
+        await session.commit()
+
+        # Create a concurrency limit
+        concurrency_limit = (
+            await models.concurrency_limits_v2.create_concurrency_limit(
+                session=session,
+                concurrency_limit=schemas.core.ConcurrencyLimitV2(
+                    name=f"deployment:{deployment.id}",
+                    limit=5,
+                ),
+            )
+        )
+        await session.commit()
+
+        # Call the function
+        slots_acquired = await models.deployments.acquire_slots_for_running_flows(
+            deployment_id=deployment.id,
+            concurrency_limit_id=concurrency_limit.id,
+            new_limit=5,
+            grace_period_seconds=60.0,
+            limitation_decreased=False,
+        )
+
+        # Should acquire 0 slots (no RUNNING flows)
+        assert slots_acquired == 0

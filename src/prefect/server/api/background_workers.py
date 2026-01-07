@@ -9,7 +9,10 @@ from prefect.logging import get_logger
 from prefect.server.api.flow_runs import delete_flow_run_logs
 from prefect.server.api.task_runs import delete_task_run_logs
 from prefect.server.events.services import triggers as _triggers_module  # noqa: F401
-from prefect.server.models.deployments import mark_deployments_ready
+from prefect.server.models.deployments import (
+    acquire_slots_for_running_flows,
+    mark_deployments_ready,
+)
 from prefect.server.models.work_queues import mark_work_queues_ready
 from prefect.server.services.cancellation_cleanup import (
     cancel_child_task_runs,
@@ -29,6 +32,7 @@ task_functions: list[Callable[..., Any]] = [
     # Simple background tasks (from Alex's PR #19377)
     mark_work_queues_ready,
     mark_deployments_ready,
+    acquire_slots_for_running_flows,
     delete_task_run_logs,
     delete_flow_run_logs,
     # Find-and-flood pattern tasks used by perpetual services
