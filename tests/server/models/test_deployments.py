@@ -2064,13 +2064,14 @@ class TestAcquireSlotsForRunningFlows:
         )
         await session.commit()
 
-        # Call the function
+        # Call the function (pass db explicitly for direct calls outside Docket)
         slots_acquired = await models.deployments.acquire_slots_for_running_flows(
             deployment_id=deployment.id,
             concurrency_limit_id=concurrency_limit.id,
             new_limit=2,
             grace_period_seconds=60.0,
             limitation_decreased=False,
+            db=db,
         )
 
         # Should acquire slots for first 2 running flows (up to limit)
@@ -2108,13 +2109,14 @@ class TestAcquireSlotsForRunningFlows:
         )
         await session.commit()
 
-        # Call the function with no running flows
+        # Call the function with no running flows (pass db explicitly for direct calls)
         slots_acquired = await models.deployments.acquire_slots_for_running_flows(
             deployment_id=deployment.id,
             concurrency_limit_id=concurrency_limit.id,
             new_limit=5,
             grace_period_seconds=60.0,
             limitation_decreased=False,
+            db=db,
         )
 
         # Should acquire 0 slots
@@ -2164,13 +2166,14 @@ class TestAcquireSlotsForRunningFlows:
         )
         await session.commit()
 
-        # Call with limitation_decreased=True
+        # Call with limitation_decreased=True (pass db explicitly for direct calls)
         slots_acquired = await models.deployments.acquire_slots_for_running_flows(
             deployment_id=deployment.id,
             concurrency_limit_id=concurrency_limit.id,
             new_limit=2,
             grace_period_seconds=60.0,
             limitation_decreased=True,
+            db=db,
         )
 
         # Should only acquire 2 slots (the new limit)
@@ -2229,13 +2232,14 @@ class TestAcquireSlotsForRunningFlows:
         )
         await session.commit()
 
-        # Call the function
+        # Call the function (pass db explicitly for direct calls)
         slots_acquired = await models.deployments.acquire_slots_for_running_flows(
             deployment_id=deployment.id,
             concurrency_limit_id=concurrency_limit.id,
             new_limit=5,
             grace_period_seconds=60.0,
             limitation_decreased=False,
+            db=db,
         )
 
         # Should acquire 0 slots (no RUNNING flows)
