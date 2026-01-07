@@ -38,7 +38,7 @@ def get_s3_client(
     Returns:
         A boto3 S3 client.
     """
-    credentials = credentials or {}
+    credentials = dict(credentials or {})
     client_parameters = client_parameters or {}
 
     # Handle aliasing MinIO settings to AWS credentials
