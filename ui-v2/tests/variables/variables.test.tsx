@@ -40,7 +40,9 @@ const renderVariablesPage = async () => {
 describe("Variables page", () => {
 	it("should render with empty state", async () => {
 		await renderVariablesPage();
-		expect(screen.getByText("Add a variable to get started")).toBeVisible();
+		await waitFor(() => {
+			expect(screen.getByText("Add a variable to get started")).toBeVisible();
+		});
 		expect(screen.getByRole("button", { name: "Add Variable" })).toBeVisible();
 	});
 
