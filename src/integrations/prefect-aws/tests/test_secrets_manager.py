@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, timezone
 
 import boto3
 import pytest
@@ -265,7 +265,7 @@ async def test_delete_secret_task(
             result.get()
     else:
         assert result.get("Name") == secret_under_test["secret_name"]
-        deletion_date = result.get("DeletionDate")
+        deletion_date = result.get("DeletionDate").astimezone(timezone.utc)
 
         if not force_delete_without_recovery:
             assert deletion_date.date() == (
