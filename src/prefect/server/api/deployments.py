@@ -8,7 +8,7 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response
+from fastapi import Body, Depends, HTTPException, Path, Request, Response
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -19,7 +19,6 @@ from prefect.server.api.validation import (
     validate_job_variables_for_deployment_flow_run,
 )
 from prefect.server.api.workers import WorkerLookups
-from prefect.server.api.dependencies import Docket
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import (
@@ -208,10 +207,10 @@ async def create_deployment(
 
 @router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_deployment(
+    request: Request,
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
-    docket: Docket = None,
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         existing_deployment = await models.deployments.read_deployment(
@@ -434,6 +433,7 @@ async def update_deployment(
                         )
 
                     # Schedule background task to acquire slots for running flows
+                    docket = getattr(request.app.state, "docket", None)
                     if docket:
                         await docket.add(acquire_slots_for_running_flows)(
                             deployment_id=deployment_id,

@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from typing import List
 from uuid import uuid4
@@ -2565,7 +2566,7 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_retroactively_applies_concurrency_limit_to_running_flows(
         self,
-        client,
+        ephemeral_client_with_lifespan,
         deployment,
         session,
         db,
@@ -2605,10 +2606,13 @@ class TestUpdateDeployment:
         assert deployment.global_concurrency_limit is None
 
         # Update deployment to add concurrency limit of 2
-        response = await client.patch(
+        response = await ephemeral_client_with_lifespan.patch(
             f"/deployments/{deployment.id}", json={"concurrency_limit": 2}
         )
         assert response.status_code == 204
+
+        # Wait for background task to complete (Docket runs async)
+        await asyncio.sleep(0.5)
 
         # Re-query deployment to get updated concurrency limit
         # Use a fresh session to avoid cached/stale data
@@ -2656,7 +2660,7 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_retroactively_applies_decreased_concurrency_limit(
         self,
-        client,
+        ephemeral_client_with_lifespan,
         deployment,
         session,
         db,
@@ -2666,7 +2670,7 @@ class TestUpdateDeployment:
         only flows up to the new limit acquire slots retroactively.
         """
         # Create deployment with concurrency limit of 5
-        response = await client.patch(
+        response = await ephemeral_client_with_lifespan.patch(
             f"/deployments/{deployment.id}", json={"concurrency_limit": 5}
         )
         assert response.status_code == 204
@@ -2703,10 +2707,13 @@ class TestUpdateDeployment:
         # that after decreasing the limit, only the first N flows have slots
 
         # Decrease concurrency limit to 2
-        response = await client.patch(
+        response = await ephemeral_client_with_lifespan.patch(
             f"/deployments/{deployment.id}", json={"concurrency_limit": 2}
         )
         assert response.status_code == 204
+
+        # Wait for background task to complete (Docket runs async)
+        await asyncio.sleep(0.5)
 
         # Re-query deployment to get updated concurrency limit
         # Use a fresh session to avoid cached/stale data
