@@ -241,12 +241,11 @@ def test_s3_session_with_params():
             "profile_name": "foo",
             "region_name": "us-weast-1",
         }
-        assert all_calls[1].args[0] == "s3"
         assert {
             "api_version": "v1",
-            "endpoint_url": None,
+            "service_name": "s3",
+            "region_name": "us-weast-1",
             "use_ssl": True,
-            "verify": None,
         }.items() <= all_calls[1].kwargs.items()
         assert all_calls[1].kwargs.get("config").connect_timeout == 300
         assert all_calls[1].kwargs.get("config").signature_version is None
@@ -255,28 +254,26 @@ def test_s3_session_with_params():
             "aws_secret_access_key": "SHHH!",
             "aws_session_token": None,
             "profile_name": None,
-            "region_name": "us-west-1",
+            "region_name": None,
         }
-        assert all_calls[3].args[0] == "s3"
         assert {
-            "api_version": None,
-            "endpoint_url": None,
+            "service_name": "s3",
             "use_ssl": True,
-            "verify": None,
         }.items() <= all_calls[3].kwargs.items()
         assert all_calls[3].kwargs.get("config").connect_timeout == 60
         assert all_calls[3].kwargs.get("config").signature_version == "s3v4"
         assert all_calls[4].kwargs == {
             "aws_access_key_id": "BlockKey",
-            "aws_secret_access_key": creds_block.aws_secret_access_key,
+            "aws_secret_access_key": creds_block.aws_secret_access_key.get_secret_value(),
             "aws_session_token": "BlockToken",
             "profile_name": "BlockProfile",
             "region_name": "BlockRegion",
         }
-        assert all_calls[5].args[0] == "s3"
         assert {
             "api_version": "v1",
             "use_ssl": True,
+            "region_name": "BlockRegion",
+            "service_name": "s3",
             "verify": True,
             "endpoint_url": "BlockEndpoint",
         }.items() <= all_calls[5].kwargs.items()
@@ -289,12 +286,10 @@ def test_s3_session_with_params():
             "profile_name": None,
             "region_name": None,
         }
-        assert all_calls[7].args[0] == "s3"
         assert {
-            "api_version": None,
-            "use_ssl": True,
-            "verify": None,
             "endpoint_url": "http://custom.minio.endpoint:9000",
+            "use_ssl": True,
+            "service_name": "s3",
         }.items() <= all_calls[7].kwargs.items()
 
 
