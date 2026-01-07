@@ -440,6 +440,64 @@ def test_state_returns_expected_result(ignore_prefect_deprecation_warnings):
 
 
 class TestExceptionToCrashedStateSync:
+    """Tests for exception_to_crashed_state_sync.
+
+    These tests verify that exception_to_crashed_state_sync works correctly
+    in both sync and async contexts. The function is designed for use in
+    sync code paths but previously required an async backend due to calling
+    anyio.get_cancelled_exc_class().
+
+    See: https://github.com/PrefectHQ/prefect/issues/20135
+    """
+
+    def test_works_without_async_backend(self):
+        """Test that the function works in a pure sync context without async backend.
+
+        This is a regression test for https://github.com/PrefectHQ/prefect/issues/20135
+
+        The bug was that exception_to_crashed_state_sync called
+        anyio.get_cancelled_exc_class() which requires an active async backend.
+        When called from sync-only code (like sync task crash handling), this
+        would raise NoEventLoopError/NoCurrentAsyncBackend.
+        """
+        exc = RuntimeError("test error")
+        # This should work without any async context
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert "RuntimeError: test error" in state.message
+
+    def test_handles_termination_signal_without_async_backend(self):
+        """Test TerminationSignal handling works without async backend.
+
+        TerminationSignal is commonly raised during flow/task cancellation
+        and must be handleable in sync contexts.
+        """
+        import signal
+
+        from prefect.exceptions import TerminationSignal
+
+        exc = TerminationSignal(signal=signal.SIGTERM)
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert (
+            "terminated" in state.message.lower()
+            or "termination" in state.message.lower()
+        )
+
+    def test_handles_keyboard_interrupt_without_async_backend(self):
+        """Test KeyboardInterrupt handling works without async backend."""
+        exc = KeyboardInterrupt()
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert "interrupt" in state.message.lower()
+
+    def test_handles_system_exit_without_async_backend(self):
+        """Test SystemExit handling works without async backend."""
+        exc = SystemExit(1)
+        state = exception_to_crashed_state_sync(exc)
+        assert state.is_crashed()
+        assert "system exit" in state.message.lower()
+
     async def test_returns_crashed_state_for_generic_exception(self):
         # Run in async context because anyio.get_cancelled_exc_class() requires it
         exc = RuntimeError("something went wrong")
