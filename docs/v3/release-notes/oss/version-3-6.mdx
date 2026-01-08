@@ -2,6 +2,44 @@
 title: 3.6
 ---
 
+## 3.6.10
+
+*Released on January 08, 2026*
+
+**Enhancements ➕➕**
+
+* Add `prefect automation update` CLI command by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20118](https://github.com/PrefectHQ/prefect/pull/20118)
+* Add `UISettings` model for `/ui-settings` endpoint by [@desertaxle](https://github.com/desertaxle) in [#20103](https://github.com/PrefectHQ/prefect/pull/20103)
+* Add upserting global concurrency limit decay by [@cbrown1234](https://github.com/cbrown1234) in [#20124](https://github.com/PrefectHQ/prefect/pull/20124)
+
+**Bug Fixes 🐞**
+
+* Fix `AttributeError` in `Consumer.cleanup()` for non-memory brokers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20089](https://github.com/PrefectHQ/prefect/pull/20089)
+* Fix `exception_to_crashed_state_sync` failing without async backend by [@zzstoatzz](https://github.com/zzstoatzz) in [#20139](https://github.com/PrefectHQ/prefect/pull/20139)
+* Refactor deployment steps to use `AwsCredentials.get_s3_client()` by [@bdalpe](https://github.com/bdalpe) in [#20140](https://github.com/PrefectHQ/prefect/pull/20140)
+* Fix `MockValSer` serialization error with `StateDetails` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20127](https://github.com/PrefectHQ/prefect/pull/20127)
+* Fix `DockerRegistryCredentials` and `DockerHost` to fallback to standard logger by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20105](https://github.com/PrefectHQ/prefect/pull/20105)
+* Resolve race condition in compound trigger evaluation by [@desertaxle](https://github.com/desertaxle) in [#20106](https://github.com/PrefectHQ/prefect/pull/20106)
+* Fix `AttributeError` for `functools.partial` hooks in `Runner` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20136](https://github.com/PrefectHQ/prefect/pull/20136)
+
+**Development & Tidiness 🧹**
+
+* Fix flaky `test_concurrency_respects_timeout` test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20138](https://github.com/PrefectHQ/prefect/pull/20138)
+* Update `@prefecthq/prefect-ui-library` to version 3.14.8 by [@marvin-robot](https://github.com/marvin-robot) in [#20147](https://github.com/PrefectHQ/prefect/pull/20147)
+* Run integration tests against PostgreSQL to prevent CI timeouts by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20080](https://github.com/PrefectHQ/prefect/pull/20080)
+* Use correct apt version syntax for git in Dockerfile by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20094](https://github.com/PrefectHQ/prefect/pull/20094)
+
+**Documentation 📓**
+
+* Link to MCP server security FAQ by [@zzstoatzz](https://github.com/zzstoatzz) in [#20120](https://github.com/PrefectHQ/prefect/pull/20120)
+* Fix broken ECS worker deployment guide links by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20119](https://github.com/PrefectHQ/prefect/pull/20119)
+* Clarify that base job template variables must be referenced in `job_configuration` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20133](https://github.com/PrefectHQ/prefect/pull/20133)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.9...3.6.10
+
+
+---
+
 ## 3.6.9 - Auld Lang Sync
 
 *Released on December 31, 2025*
