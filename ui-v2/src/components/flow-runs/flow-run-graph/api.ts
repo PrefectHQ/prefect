@@ -17,9 +17,12 @@ import { getQueryService } from "@/api/service";
  * @returns The graph data for the flow run.
  */
 export async function fetchFlowRunGraph(id: string): Promise<RunGraphData> {
-	const { data } = await getQueryService().GET("/flow_runs/{id}/graph-v2", {
-		params: { path: { id } },
-	});
+	const { data } = await (await getQueryService()).GET(
+		"/flow_runs/{id}/graph-v2",
+		{
+			params: { path: { id } },
+		},
+	);
 
 	if (!data) {
 		throw new Error("No data returned from API");
@@ -40,7 +43,7 @@ export async function fetchFlowRunEvents({
 	until,
 	nodeId,
 }: RunGraphFetchEventsContext): Promise<RunGraphEvent[]> {
-	const { data } = await getQueryService().POST("/events/filter", {
+	const { data } = await (await getQueryService()).POST("/events/filter", {
 		body: {
 			filter: {
 				any_resource: {

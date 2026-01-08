@@ -24128,6 +24128,26 @@
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE"
                         ]
+                    },
+                    "batch_size": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Batch Size",
+                        "description": "The number of task runs the task run recorder will attempt to insert in one batch.",
+                        "default": 1,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE"
+                        ]
+                    },
+                    "flush_interval": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Flush Interval",
+                        "description": "The maximum number of seconds between flushes of the task run recorder.",
+                        "default": 5,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_FLUSH_INTERVAL"
+                        ]
                     }
                 },
                 "type": "object",
@@ -24409,6 +24429,15 @@
                         "supported_environment_variables": [
                             "PREFECT_SERVER_UI_ENABLED",
                             "PREFECT_UI_ENABLED"
+                        ]
+                    },
+                    "v2_enabled": {
+                        "type": "boolean",
+                        "title": "V2 Enabled",
+                        "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_UI_V2_ENABLED"
                         ]
                     },
                     "api_url": {
@@ -26275,12 +26304,6 @@
                             "1.0"
                         ]
                     },
-                    "parameters": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Parameters",
-                        "description": "Parameters for the task run."
-                    },
                     "task_inputs": {
                         "additionalProperties": {
                             "items": {
@@ -26304,17 +26327,6 @@
                         "type": "object",
                         "title": "Task Inputs",
                         "description": "Inputs provided to the task run."
-                    },
-                    "context": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Context",
-                        "description": "Additional context for the task run.",
-                        "examples": [
-                            {
-                                "my_var": "my_val"
-                            }
-                        ]
                     },
                     "empirical_policy": {
                         "$ref": "#/components/schemas/TaskRunPolicy",
@@ -28777,6 +28789,24 @@
                         "default": 10,
                         "supported_environment_variables": [
                             "PREFECT_WORKER_PREFETCH_SECONDS"
+                        ]
+                    },
+                    "enable_cancellation": {
+                        "type": "boolean",
+                        "title": "Enable Cancellation",
+                        "description": "Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_WORKER_ENABLE_CANCELLATION"
+                        ]
+                    },
+                    "cancellation_poll_seconds": {
+                        "type": "number",
+                        "title": "Cancellation Poll Seconds",
+                        "description": "Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.",
+                        "default": 120,
+                        "supported_environment_variables": [
+                            "PREFECT_WORKER_CANCELLATION_POLL_SECONDS"
                         ]
                     },
                     "webserver": {

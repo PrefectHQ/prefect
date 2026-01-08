@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ChangeEvent } from "react";
-import type { FlowRun } from "@/api/flow-runs";
+import type { FlowRun, SimpleFlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { TaskRunResponse } from "@/api/task-runs";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
@@ -17,9 +17,14 @@ import {
 	type SortFilters,
 	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
+import {
+	type SavedFilter,
+	SavedFiltersMenu,
+} from "@/components/flow-runs/flow-runs-list/flow-runs-filters/saved-filters-menu";
 import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
 import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
 import { WorkPoolFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/work-pool-filter";
+import { FlowRunsScatterPlot } from "@/components/flow-runs/flow-runs-scatter-plot";
 import {
 	type TaskRunSortFilters,
 	TaskRunsList,
@@ -28,6 +33,7 @@ import {
 	TaskRunsSortFilter,
 	useTaskRunsSelectedRows,
 } from "@/components/task-runs/task-runs-list";
+import { Card, CardContent } from "@/components/ui/card";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
 	EmptyState,
@@ -42,6 +48,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagsInput } from "@/components/ui/tags-input";
 import { Typography } from "@/components/ui/typography";
+import { SaveFilterDialog } from "./save-filter-dialog";
+import { isSystemFilter } from "./use-saved-filters";
 
 type RunsPageProps = {
 	tab: "flow-runs" | "task-runs";
@@ -76,6 +84,9 @@ type RunsPageProps = {
 	onWorkPoolFilterChange: (workPools: Set<string>) => void;
 	dateRange: DateRangeUrlState;
 	onDateRangeChange: (dateRange: DateRangeUrlState) => void;
+	// Scatter plot props
+	flowRunHistory: SimpleFlowRun[];
+	scatterPlotDateRange: { startDate?: Date; endDate?: Date };
 	// Task runs props
 	taskRuns: TaskRunResponse[];
 	taskRunsPages: number;
@@ -87,6 +98,17 @@ type RunsPageProps = {
 	taskRunSearch: string;
 	onTaskRunSearchChange: (search: string) => void;
 	onClearTaskRunFilters: () => void;
+	// Saved filters props
+	currentFilter: SavedFilter | null;
+	savedFilters: SavedFilter[];
+	onSelectFilter: (filter: SavedFilter) => void;
+	onSaveFilter: () => void;
+	onDeleteFilter: (id: string) => void;
+	onSetDefault: (id: string) => void;
+	onRemoveDefault: (id: string) => void;
+	isSaveDialogOpen: boolean;
+	onCloseSaveDialog: () => void;
+	onConfirmSave: (name: string) => void;
 };
 
 export const RunsPage = ({
@@ -120,6 +142,9 @@ export const RunsPage = ({
 	onWorkPoolFilterChange,
 	dateRange,
 	onDateRangeChange,
+	// Scatter plot props
+	flowRunHistory,
+	scatterPlotDateRange,
 	// Task runs props
 	taskRuns,
 	taskRunsPages,
@@ -131,6 +156,17 @@ export const RunsPage = ({
 	taskRunSearch,
 	onTaskRunSearchChange,
 	onClearTaskRunFilters,
+	// Saved filters props
+	currentFilter,
+	savedFilters,
+	onSelectFilter,
+	onSaveFilter,
+	onDeleteFilter,
+	onSetDefault,
+	onRemoveDefault,
+	isSaveDialogOpen,
+	onCloseSaveDialog,
+	onConfirmSave,
 }: RunsPageProps) => {
 	// Use unfiltered counts for empty state check (no runs exist at all)
 	const isEmpty = !hasAnyFlowRuns && !hasAnyTaskRuns;
@@ -178,44 +214,79 @@ export const RunsPage = ({
 
 	return (
 		<div className="flex flex-col gap-4">
-			<RunsHeader />
-			<div className="flex items-center gap-4">
-				<div className="w-64">
-					<StateFilter
-						selectedFilters={selectedStates}
-						onSelectFilter={onStateFilterChange}
-					/>
-				</div>
-				<div className="w-64">
-					<FlowFilter
-						selectedFlows={selectedFlows}
-						onSelectFlows={onFlowFilterChange}
-					/>
-				</div>
-				<div className="w-64">
-					<DeploymentFilter
-						selectedDeployments={selectedDeployments}
-						onSelectDeployments={onDeploymentFilterChange}
-					/>
-				</div>
-				<div className="w-64">
-					<TagsInput
-						value={Array.from(selectedTags)}
-						onChange={(e: string[] | ChangeEvent<HTMLInputElement>) => {
-							const tags = Array.isArray(e) ? e : [];
-							onTagsFilterChange(new Set(tags));
-						}}
-						placeholder="Filter by tags"
-					/>
-				</div>
-				<div className="w-64">
-					<WorkPoolFilter
-						selectedWorkPools={selectedWorkPools}
-						onSelectWorkPools={onWorkPoolFilterChange}
-					/>
-				</div>
-				<DateRangeFilter value={dateRange} onValueChange={onDateRangeChange} />
+			<div className="flex items-center justify-between">
+				<RunsHeader />
+				<SavedFiltersMenu
+					currentFilter={currentFilter}
+					savedFilters={savedFilters}
+					onSelect={onSelectFilter}
+					onSave={onSaveFilter}
+					onDelete={onDeleteFilter}
+					onSetDefault={onSetDefault}
+					onRemoveDefault={onRemoveDefault}
+					permissions={{
+						canSave: true,
+						canDelete: !isSystemFilter(currentFilter?.id ?? null),
+					}}
+				/>
 			</div>
+			<div className="flex flex-col gap-2">
+				<div className="flex flex-wrap gap-2 lg:grid lg:grid-flow-col lg:auto-cols-fr">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Date Range</Label>
+						<DateRangeFilter
+							value={dateRange}
+							onValueChange={onDateRangeChange}
+						/>
+					</div>
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">States</Label>
+						<StateFilter
+							selectedFilters={selectedStates}
+							onSelectFilter={onStateFilterChange}
+						/>
+					</div>
+				</div>
+				<div className="flex flex-wrap gap-2 lg:grid lg:grid-flow-col lg:auto-cols-fr">
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Flows</Label>
+						<FlowFilter
+							selectedFlows={selectedFlows}
+							onSelectFlows={onFlowFilterChange}
+						/>
+					</div>
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Deployments</Label>
+						<DeploymentFilter
+							selectedDeployments={selectedDeployments}
+							onSelectDeployments={onDeploymentFilterChange}
+						/>
+					</div>
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Work Pools</Label>
+						<WorkPoolFilter
+							selectedWorkPools={selectedWorkPools}
+							onSelectWorkPools={onWorkPoolFilterChange}
+						/>
+					</div>
+					<div className="flex flex-col gap-1 w-full lg:w-auto">
+						<Label className="text-xs text-muted-foreground">Tags</Label>
+						<TagsInput
+							value={Array.from(selectedTags)}
+							onChange={(e: string[] | ChangeEvent<HTMLInputElement>) => {
+								const tags = Array.isArray(e) ? e : [];
+								onTagsFilterChange(new Set(tags));
+							}}
+							placeholder="All tags"
+						/>
+					</div>
+				</div>
+			</div>
+			<SaveFilterDialog
+				open={isSaveDialogOpen}
+				onOpenChange={onCloseSaveDialog}
+				onSave={onConfirmSave}
+			/>
 			<Tabs value={tab} onValueChange={onTabChange}>
 				<TabsList>
 					<TabsTrigger value="flow-runs">Flow Runs</TabsTrigger>
@@ -223,6 +294,15 @@ export const RunsPage = ({
 				</TabsList>
 				<TabsContent value="flow-runs">
 					<div className="flex flex-col gap-4">
+						<Card>
+							<CardContent>
+								<FlowRunsScatterPlot
+									history={flowRunHistory}
+									startDate={scatterPlotDateRange.startDate}
+									endDate={scatterPlotDateRange.endDate}
+								/>
+							</CardContent>
+						</Card>
 						<div className="flex items-center justify-between">
 							<FlowRunsRowCount
 								count={flowRunsCount}

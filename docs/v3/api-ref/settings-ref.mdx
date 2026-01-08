@@ -2391,6 +2391,30 @@ The number of task runs the task run recorder will attempt to read from the mess
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE`
 
+### `batch_size`
+The number of task runs the task run recorder will attempt to insert in one batch.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.task_run_recorder.batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE`
+
+### `flush_interval`
+The maximum number of seconds between flushes of the task run recorder.
+
+**Type**: `number`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.services.task_run_recorder.flush_interval`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_FLUSH_INTERVAL`
+
 ---
 ## ServerServicesTriggersSettings
 Settings for controlling the triggers service
@@ -2723,6 +2747,18 @@ Whether or not to serve the Prefect UI.
 **Supported environment variables**:
 `PREFECT_SERVER_UI_ENABLED`, `PREFECT_UI_ENABLED`
 
+### `v2_enabled`
+Whether to serve the experimental V2 UI instead of the default V1 UI.
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `server.ui.v2_enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_UI_V2_ENABLED`
+
 ### `api_url`
 The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.
 
@@ -3001,6 +3037,30 @@ The number of seconds into the future a worker should query for scheduled work.
 
 **Supported environment variables**:
 `PREFECT_WORKER_PREFETCH_SECONDS`
+
+### `enable_cancellation`
+Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).
+
+**Type**: `boolean`
+
+**Default**: `False`
+
+**TOML dotted key path**: `worker.enable_cancellation`
+
+**Supported environment variables**:
+`PREFECT_WORKER_ENABLE_CANCELLATION`
+
+### `cancellation_poll_seconds`
+Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.
+
+**Type**: `number`
+
+**Default**: `120`
+
+**TOML dotted key path**: `worker.cancellation_poll_seconds`
+
+**Supported environment variables**:
+`PREFECT_WORKER_CANCELLATION_POLL_SECONDS`
 
 ### `webserver`
 Settings for a worker's webserver

@@ -3,6 +3,7 @@ import type { Event } from "@/api/events";
 import { Icon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/utils";
+import { EventResourceLink } from "./event-resource-link";
 import { ResolvedResourceDisplay } from "./resolved-resource-display";
 import {
 	extractResourceId,
@@ -77,11 +78,17 @@ export function EventResourceDisplay({
 			<div className={cn("flex flex-col gap-0.5", className)}>
 				<span className="text-sm font-medium">Resource</span>
 				<Suspense fallback={<ResourceDisplaySkeleton />}>
-					<ResourceDisplayWithIcon
-						resourceType={resourceType}
-						displayText={resourceName}
-						className="text-sm"
-					/>
+					<EventResourceLink
+						resource={event.resource}
+						relatedResources={event.related ?? []}
+						className="hover:underline"
+					>
+						<ResourceDisplayWithIcon
+							resourceType={resourceType}
+							displayText={resourceName}
+							className="text-sm"
+						/>
+					</EventResourceLink>
 				</Suspense>
 			</div>
 		);
@@ -93,11 +100,17 @@ export function EventResourceDisplay({
 			<div className={cn("flex flex-col gap-0.5", className)}>
 				<span className="text-sm font-medium">Resource</span>
 				<Suspense fallback={<ResourceDisplaySkeleton />}>
-					<ResolvedResourceDisplay
-						resourceType={resourceType}
-						resourceId={extractedId}
-						className="text-sm"
-					/>
+					<EventResourceLink
+						resource={event.resource}
+						relatedResources={event.related ?? []}
+						className="hover:underline"
+					>
+						<ResolvedResourceDisplay
+							resourceType={resourceType}
+							resourceId={extractedId}
+							className="text-sm"
+						/>
+					</EventResourceLink>
 				</Suspense>
 			</div>
 		);
@@ -109,11 +122,17 @@ export function EventResourceDisplay({
 			<div className={cn("flex flex-col gap-0.5", className)}>
 				<span className="text-sm font-medium">Resource</span>
 				<Suspense fallback={<ResourceDisplaySkeleton />}>
-					<ResourceDisplayWithIcon
-						resourceType={resourceType}
-						displayText={extractedId}
-						className="text-sm text-muted-foreground font-mono"
-					/>
+					<EventResourceLink
+						resource={event.resource}
+						relatedResources={event.related ?? []}
+						className="hover:underline"
+					>
+						<ResourceDisplayWithIcon
+							resourceType={resourceType}
+							displayText={extractedId}
+							className="text-sm text-muted-foreground font-mono"
+						/>
+					</EventResourceLink>
 				</Suspense>
 			</div>
 		);
@@ -124,9 +143,15 @@ export function EventResourceDisplay({
 		return (
 			<div className={cn("flex flex-col gap-0.5", className)}>
 				<span className="text-sm font-medium">Resource</span>
-				<div className="text-sm text-muted-foreground">
-					<span className="font-mono text-xs">{prefectResourceId}</span>
-				</div>
+				<EventResourceLink
+					resource={event.resource}
+					relatedResources={event.related ?? []}
+					className="hover:underline"
+				>
+					<div className="text-sm text-muted-foreground">
+						<span className="font-mono text-xs">{prefectResourceId}</span>
+					</div>
+				</EventResourceLink>
 			</div>
 		);
 	}

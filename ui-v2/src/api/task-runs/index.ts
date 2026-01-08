@@ -95,7 +95,7 @@ export const buildListTaskRunsQuery = (
 	return queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/task_runs/filter", {
+			const res = await (await getQueryService()).POST("/task_runs/filter", {
 				body: filter,
 			});
 			return res.data ?? [];
@@ -127,7 +127,7 @@ export const buildPaginateTaskRunsQuery = (
 	return queryOptions({
 		queryKey: queryKeyFactory.paginate(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/task_runs/paginate", {
+			const res = await (await getQueryService()).POST("/task_runs/paginate", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -160,7 +160,7 @@ export const buildCountTaskRunsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.count(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/task_runs/count", {
+			const res = await (await getQueryService()).POST("/task_runs/count", {
 				body: filter,
 			});
 			return res.data ?? 0;
@@ -186,7 +186,7 @@ export const buildGetFlowRunsTaskRunsCountQuery = (
 	return queryOptions({
 		queryKey: queryKeyFactory.flowRunsCount(flow_run_ids),
 		queryFn: async () => {
-			const res = await getQueryService().POST(
+			const res = await (await getQueryService()).POST(
 				"/ui/flow_runs/count-task-runs",
 				{ body: { flow_run_ids } },
 			);
@@ -210,7 +210,7 @@ export const buildGetTaskRunQuery = (id: string) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/ui/task_runs/{id}", {
+			const res = await (await getQueryService()).GET("/ui/task_runs/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -238,7 +238,7 @@ export const buildGetTaskRunDetailsQuery = (id: string) => {
 	return queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/ui/task_runs/{id}", {
+			const res = await (await getQueryService()).GET("/ui/task_runs/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -271,10 +271,13 @@ export const useSetTaskRunState = () => {
 	const queryClient = useQueryClient();
 	const { mutate: setTaskRunState, ...rest } = useMutation({
 		mutationFn: async ({ id, ...params }: SetTaskRunStateParams) => {
-			const res = await getQueryService().POST("/task_runs/{id}/set_state", {
-				params: { path: { id } },
-				body: params,
-			});
+			const res = await (await getQueryService()).POST(
+				"/task_runs/{id}/set_state",
+				{
+					params: { path: { id } },
+					body: params,
+				},
+			);
 
 			if (!res.data) {
 				throw new Error("'data' expected");
@@ -305,7 +308,7 @@ export const useSetTaskRunState = () => {
 
 			return { previousTaskRun };
 		},
-		onError: (err, { id }, context) => {
+		onError: (_err, { id }, context) => {
 			// Roll back optimistic update on error
 			if (context?.previousTaskRun) {
 				queryClient.setQueryData(
@@ -313,10 +316,6 @@ export const useSetTaskRunState = () => {
 					context.previousTaskRun,
 				);
 			}
-
-			throw err instanceof Error
-				? err
-				: new Error("Failed to update task run state");
 		},
 		onSettled: (_data, _error, { id }) => {
 			void Promise.all([
@@ -345,7 +344,7 @@ export const useDeleteTaskRun = () => {
 	const queryClient = useQueryClient();
 	const { mutate: deleteTaskRun, ...rest } = useMutation({
 		mutationFn: async ({ id }: { id: string }) => {
-			const res = await getQueryService().DELETE("/task_runs/{id}", {
+			const res = await (await getQueryService()).DELETE("/task_runs/{id}", {
 				params: { path: { id } },
 			});
 			return res.data;
@@ -389,7 +388,7 @@ export const buildTaskRunsHistoryQuery = (
 	return queryOptions({
 		queryKey: [...queryKeyFactory.lists(), "history", filter],
 		queryFn: async () => {
-			const res = await getQueryService().POST("/task_runs/history", {
+			const res = await (await getQueryService()).POST("/task_runs/history", {
 				body: filter,
 			});
 			return res.data ?? [];

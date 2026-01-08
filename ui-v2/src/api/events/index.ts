@@ -45,6 +45,13 @@ export const queryKeyFactory = {
 	history: () => [...queryKeyFactory.all(), "history"] as const,
 	historyFilter: (filter: EventsCountFilter) =>
 		[...queryKeyFactory.history(), filter] as const,
+	detail: (eventId: string, eventDate?: Date) =>
+		[
+			...queryKeyFactory.all(),
+			"detail",
+			eventId,
+			eventDate?.toISOString(),
+		] as const,
 };
 
 /**
@@ -72,7 +79,7 @@ export const buildFilterEventsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory["list-filter"](filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/events/filter", {
+			const res = await (await getQueryService()).POST("/events/filter", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -115,10 +122,13 @@ export const buildEventsCountQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.count(countable, filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/events/count-by/{countable}", {
-				params: { path: { countable } },
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/events/count-by/{countable}",
+				{
+					params: { path: { countable } },
+					body: filter,
+				},
+			);
 			return res.data ?? [];
 		},
 		refetchInterval,
@@ -152,10 +162,13 @@ export const buildEventsHistoryQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.historyFilter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/events/count-by/{countable}", {
-				params: { path: { countable: "time" } },
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/events/count-by/{countable}",
+				{
+					params: { path: { countable: "time" } },
+					body: filter,
+				},
+			);
 			return res.data ?? [];
 		},
 		placeholderData: keepPreviousData,
@@ -189,7 +202,7 @@ export const buildEventsNextPageQuery = (nextPageUrl: string) =>
 					"'page-token' query parameter expected in next_page URL",
 				);
 			}
-			const res = await getQueryService().GET("/events/filter/next", {
+			const res = await (await getQueryService()).GET("/events/filter/next", {
 				params: { query: { "page-token": pageToken } },
 			});
 			if (!res.data) {
@@ -199,5 +212,38 @@ export const buildEventsNextPageQuery = (nextPageUrl: string) =>
 		},
 		staleTime: Number.POSITIVE_INFINITY,
 	});
+
+export const buildGetEventQuery = (eventId: string, eventDate: Date) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.detail(eventId, eventDate),
+		queryFn: async () => {
+			const startDate = new Date(eventDate);
+			startDate.setHours(0, 0, 0, 0);
+			const endDate = new Date(startDate);
+			endDate.setDate(endDate.getDate() + 1);
+
+			const filter: EventsFilter = {
+				filter: {
+					id: { id: [eventId] },
+					occurred: {
+						since: startDate.toISOString(),
+						until: endDate.toISOString(),
+					},
+					order: "DESC",
+				},
+				limit: 1,
+			};
+
+			const res = await (await getQueryService()).POST("/events/filter", {
+				body: filter,
+			});
+			if (!res.data?.events?.[0]) {
+				throw new Error("Event not found");
+			}
+			return res.data.events[0];
+		},
+		staleTime: 60_000,
+	});
+};
 
 export * from "./filters";

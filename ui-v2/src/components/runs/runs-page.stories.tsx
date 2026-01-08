@@ -168,6 +168,11 @@ const RunsPageWithState = ({
 	);
 	const [taskRunSearch, setTaskRunSearch] = useState(initialTaskRunSearch);
 
+	// Mock saved filters state
+	const mockCurrentFilter = null;
+	const mockSavedFilters: { id: string; name: string; isDefault: boolean }[] =
+		[];
+
 	return (
 		<RunsPage
 			tab={tab}
@@ -198,6 +203,9 @@ const RunsPageWithState = ({
 			onTagsFilterChange={setSelectedTags}
 			dateRange={dateRange}
 			onDateRangeChange={setDateRange}
+			// Scatter plot props
+			flowRunHistory={[]}
+			scatterPlotDateRange={{}}
 			// Task runs props
 			taskRuns={initialTaskRuns}
 			taskRunsPages={initialTaskRunsPages}
@@ -209,6 +217,17 @@ const RunsPageWithState = ({
 			taskRunSearch={taskRunSearch}
 			onTaskRunSearchChange={setTaskRunSearch}
 			onClearTaskRunFilters={() => setTaskRunSearch("")}
+			// Saved filters props
+			currentFilter={mockCurrentFilter}
+			savedFilters={mockSavedFilters}
+			onSelectFilter={() => {}}
+			onSaveFilter={() => {}}
+			onDeleteFilter={() => {}}
+			onSetDefault={() => {}}
+			onRemoveDefault={() => {}}
+			isSaveDialogOpen={false}
+			onCloseSaveDialog={() => {}}
+			onConfirmSave={() => {}}
 		/>
 	);
 };

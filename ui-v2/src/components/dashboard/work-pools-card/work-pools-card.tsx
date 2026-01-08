@@ -1,7 +1,8 @@
-import { useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { differenceInSeconds, max, subSeconds } from "date-fns";
 import { useMemo } from "react";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildAverageLatenessFlowRunsQuery,
 	buildCountFlowRunsQuery,
@@ -17,6 +18,7 @@ import {
 	type WorkPool,
 } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardErrorState } from "@/components/ui/card-error-state";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import {
 	Tooltip,
@@ -24,6 +26,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { WorkPoolIconText } from "@/components/work-pools/work-pool-icon-text";
 import { WorkPoolQueueStatusIcon } from "@/components/work-pools/work-pool-queue-status-icon";
 import { WorkPoolStatusIcon } from "@/components/work-pools/work-pool-status-icon";
 import { useNow } from "@/hooks/use-now";
@@ -32,6 +35,7 @@ import {
 	formatDateTimeRelative,
 	secondsToApproximateString,
 } from "@/utils";
+import { WorkPoolsCardSkeleton } from "./work-pools-card-skeleton";
 
 type DashboardWorkPoolsCardProps = {
 	filter?: {
@@ -43,10 +47,28 @@ type DashboardWorkPoolsCardProps = {
 export const DashboardWorkPoolsCard = ({
 	filter,
 }: DashboardWorkPoolsCardProps) => {
-	const { data: workPools } = useSuspenseQuery(
-		buildFilterWorkPoolsQuery({ offset: 0 }),
-	);
+	const workPoolsQuery = useQuery(buildFilterWorkPoolsQuery({ offset: 0 }));
 
+	// Handle error state
+	if (workPoolsQuery.isError) {
+		return (
+			<CardErrorState
+				error={categorizeError(
+					workPoolsQuery.error,
+					"Failed to load work pools",
+				)}
+				onRetry={() => void workPoolsQuery.refetch()}
+				isRetrying={workPoolsQuery.isRefetching}
+			/>
+		);
+	}
+
+	// Handle loading state
+	if (workPoolsQuery.isLoading) {
+		return <WorkPoolsCardSkeleton />;
+	}
+
+	const workPools = workPoolsQuery.data ?? [];
 	const activeWorkPools = workPools.filter((workPool) => !workPool.is_paused);
 
 	const showEmptyMsg = workPools && activeWorkPools.length === 0;
@@ -121,13 +143,7 @@ const DashboardWorkPoolCard = ({
 		<div className="rounded-xl border border-border">
 			<div className="flex flex-wrap items-center gap-4 border-b border-border p-3">
 				<div className="flex flex-grow items-center gap-2">
-					<Link
-						to="/work-pools/work-pool/$workPoolName"
-						params={{ workPoolName: workPool.name }}
-						className="text-primary underline-offset-4 hover:underline"
-					>
-						{workPool.name}
-					</Link>
+					<WorkPoolIconText workPoolName={workPool.name} />
 					<WorkPoolStatusIcon status={workPool.status ?? "READY"} />
 				</div>
 				<WorkPoolMiniBarChart workPool={workPool} filter={filter} />
@@ -659,7 +675,7 @@ const WorkPoolMiniBarChart = ({
 				flowRun.flow_id,
 			],
 			queryFn: async () => {
-				const queryService = getQueryService();
+				const queryService = await getQueryService();
 
 				const [deploymentRes, flowRes] = await Promise.all([
 					flowRun.deployment_id

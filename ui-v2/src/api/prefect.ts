@@ -2982,6 +2982,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ui-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ui Settings */
+        get: operations["ui_settings_ui_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3183,6 +3200,7 @@ export interface components {
             /**
              * Like
              * @description A string to match artifact keys against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-artifact-%
              */
             like_?: string | null;
             /**
@@ -3336,6 +3354,7 @@ export interface components {
             /**
              * Like
              * @description A string to match artifact keys against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-artifact-%
              */
             like_?: string | null;
             /**
@@ -3546,11 +3565,19 @@ export interface components {
             /**
              * All
              * @description A list of tags. Automations will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
              * Any
              * @description A list of tags. Automations will be returned if their tags contain any of the tags in the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
@@ -3788,6 +3815,7 @@ export interface components {
             /**
              * Like
              * @description A string to match block names against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-block%
              */
             like_?: string | null;
         };
@@ -3933,6 +3961,10 @@ export interface components {
             /**
              * All
              * @description A list of block capabilities. Block entities will be returned only if an associated block schema has a superset of the defined capabilities.
+             * @example [
+             *       "write-storage",
+             *       "read-storage"
+             *     ]
              */
             all_?: string[] | null;
         };
@@ -3955,6 +3987,10 @@ export interface components {
             /**
              * Any
              * @description A list of block schema versions.
+             * @example [
+             *       "2.0.0",
+             *       "2.1.0"
+             *     ]
              */
             any_?: string[] | null;
         };
@@ -4063,6 +4099,7 @@ export interface components {
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -5114,54 +5151,57 @@ export interface components {
         ClientSettings: {
             /**
              * Max Retries
-             * @description
-             *             The maximum number of retries to perform on failed HTTP requests.
+             * @description The maximum number of retries to perform on failed HTTP requests.
              *             Defaults to 5. Set to 0 to disable retries.
              *             See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are
              *             retried.
-             *
              * @default 5
              */
             max_retries: number;
             /**
              * Retry Jitter Factor
-             * @description
-             *             A value greater than or equal to zero to control the amount of jitter added to retried
+             * @description A value greater than or equal to zero to control the amount of jitter added to retried
              *             client requests. Higher values introduce larger amounts of jitter.
              *             Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
              *             can affect retry lengths.
-             *
              * @default 0.2
              */
             retry_jitter_factor: number;
             /**
              * Retry Extra Codes
-             * @description
-             *             A list of extra HTTP status codes to retry on. Defaults to an empty list.
+             * @description A list of extra HTTP status codes to retry on. Defaults to an empty list.
              *             429, 502 and 503 are always retried. Please note that not all routes are idempotent and retrying
              *             may result in unexpected behavior.
-             *
+             * @example 404,429,503
+             * @example 429
+             * @example [
+             *       404,
+             *       429,
+             *       503
+             *     ]
              */
             retry_extra_codes?: string | number | number[] | null;
             /**
              * Csrf Support Enabled
-             * @description
-             *             Determines if CSRF token handling is active in the Prefect client for API
+             * @description Determines if CSRF token handling is active in the Prefect client for API
              *             requests.
              *
              *             When enabled (`True`), the client automatically manages CSRF tokens by
              *             retrieving, storing, and including them in applicable state-changing requests
-             *
              * @default true
              */
             csrf_support_enabled: boolean;
             /**
              * Custom Headers
-             * @description
-             *             Custom HTTP headers to include with every API request to the Prefect server.
+             * @description Custom HTTP headers to include with every API request to the Prefect server.
              *             Headers are specified as key-value pairs. Note that headers like 'User-Agent'
              *             and CSRF-related headers are managed by Prefect and cannot be overridden.
-             *
+             * @example {
+             *       "X-Custom-Header": "value"
+             *     }
+             * @example {
+             *       "Authorization": "Bearer token"
+             *     }
              */
             custom_headers?: {
                 [key: string]: string;
@@ -5559,9 +5599,15 @@ export interface components {
          *             2nd friday of a month by setting the days of month and the weekday.
          */
         CronSchedule: {
-            /** Cron */
+            /**
+             * Cron
+             * @example 0 0 * * *
+             */
             cron: string;
-            /** Timezone */
+            /**
+             * Timezone
+             * @example America/New_York
+             */
             timezone?: string | null;
             /**
              * Day Or
@@ -5631,6 +5677,7 @@ export interface components {
             /**
              * Name
              * @description The name of the deployment.
+             * @example my-deployment
              */
             name: string;
             /**
@@ -5687,11 +5734,19 @@ export interface components {
             /**
              * Tags
              * @description A list of deployment tags.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -5705,6 +5760,7 @@ export interface components {
             /**
              * Work Pool Name
              * @description The name of the deployment's work pool.
+             * @example my-work-pool
              */
             work_pool_name?: string | null;
             /** Storage Document Id */
@@ -5802,11 +5858,16 @@ export interface components {
             /**
              * Any
              * @description A list of deployment names to include
+             * @example [
+             *       "my-deployment-1",
+             *       "my-deployment-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -5834,11 +5895,19 @@ export interface components {
             /**
              * All
              * @description A list of tags. Deployments will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
              * Any
              * @description A list of tags to include
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
@@ -5855,6 +5924,10 @@ export interface components {
             /**
              * Any
              * @description A list of work queue names to include
+             * @example [
+             *       "work_queue_1",
+             *       "work_queue_2"
+             *     ]
              */
             any_?: string[] | null;
         };
@@ -5868,6 +5941,7 @@ export interface components {
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
+             * @example my-flow-run
              */
             name?: string;
             /** Parameters */
@@ -5890,6 +5964,10 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the flow run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
@@ -5900,6 +5978,10 @@ export interface components {
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6009,11 +6091,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the deployment
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6257,6 +6347,10 @@ export interface components {
             /**
              * Tags
              * @description A list of deployment tags.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /** Work Queue Name */
@@ -6264,6 +6358,7 @@ export interface components {
             /**
              * Work Pool Name
              * @description The name of the deployment's work pool.
+             * @example my-work-pool
              */
             work_pool_name?: string | null;
             /** Path */
@@ -6306,6 +6401,8 @@ export interface components {
             /**
              * Default Docker Build Namespace
              * @description The default Docker namespace to use when building images.
+             * @example my-dockerhub-registry
+             * @example 4999999999999.dkr.ecr.us-east-2.amazonaws.com/my-ecr-repo
              */
             default_docker_build_namespace?: string | null;
         };
@@ -6572,6 +6669,10 @@ export interface components {
             /**
              * Query
              * @description Text search query string
+             * @example error
+             * @example error -debug
+             * @example "connection timeout"
+             * @example +required -excluded
              */
             query: string;
         };
@@ -6665,16 +6766,25 @@ export interface components {
             /**
              * Name
              * @description The name of the flow
+             * @example my-flow
              */
             name: string;
             /**
              * Tags
              * @description A list of flow tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6688,16 +6798,25 @@ export interface components {
             /**
              * Name
              * @description The name of the flow
+             * @example my-flow
              */
             name: string;
             /**
              * Tags
              * @description A list of flow tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6757,11 +6876,16 @@ export interface components {
             /**
              * Any
              * @description A list of flow names to include
+             * @example [
+             *       "my-flow-1",
+             *       "my-flow-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -6778,6 +6902,10 @@ export interface components {
             /**
              * All
              * @description A list of tags. Flows will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
@@ -6816,6 +6944,7 @@ export interface components {
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
+             * @example my-flow-run
              */
             name?: string;
             /**
@@ -6837,6 +6966,7 @@ export interface components {
             /**
              * Deployment Version
              * @description The version of the deployment associated with this flow run.
+             * @example 1.0
              */
             deployment_version?: string | null;
             /**
@@ -6847,6 +6977,7 @@ export interface components {
             /**
              * Flow Version
              * @description The version of the flow executed in this flow run.
+             * @example 1.0
              */
             flow_version?: string | null;
             /**
@@ -6864,6 +6995,9 @@ export interface components {
             /**
              * Context
              * @description Additional context for the flow run.
+             * @example {
+             *       "my_var": "my_value"
+             *     }
              */
             context?: {
                 [key: string]: unknown;
@@ -6872,11 +7006,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags on the flow run
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -6980,6 +7122,7 @@ export interface components {
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
+             * @example my-flow-run
              */
             name?: string;
             /**
@@ -7013,11 +7156,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the flow run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -7199,11 +7350,16 @@ export interface components {
             /**
              * Any
              * @description A list of flow run names to include
+             * @example [
+             *       "my-flow-run-1",
+             *       "my-flow-run-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -7341,11 +7497,19 @@ export interface components {
             /**
              * All
              * @description A list of tags. Flow runs will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
              * Any
              * @description A list of tags to include
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
@@ -7367,6 +7531,10 @@ export interface components {
             /**
              * Any
              * @description A list of work queue names to include
+             * @example [
+             *       "work_queue_1",
+             *       "work_queue_2"
+             *     ]
              */
             any_?: string[] | null;
             /**
@@ -7481,6 +7649,7 @@ export interface components {
             /**
              * Name
              * @description The name of the flow run. Defaults to a random slug if not specified.
+             * @example my-flow-run
              */
             name?: string;
             /**
@@ -7502,6 +7671,7 @@ export interface components {
             /**
              * Deployment Version
              * @description The version of the deployment associated with this flow run.
+             * @example 1.0
              */
             deployment_version?: string | null;
             /**
@@ -7517,6 +7687,7 @@ export interface components {
             /**
              * Flow Version
              * @description The version of the flow executed in this flow run.
+             * @example 1.0
              */
             flow_version?: string | null;
             /**
@@ -7534,6 +7705,9 @@ export interface components {
             /**
              * Context
              * @description Additional context for the flow run.
+             * @example {
+             *       "my_var": "my_val"
+             *     }
              */
             context?: {
                 [key: string]: unknown;
@@ -7542,11 +7716,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags on the flow run
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -7633,6 +7815,7 @@ export interface components {
             /**
              * Work Pool Name
              * @description The name of the flow run's work pool.
+             * @example my-work-pool
              */
             work_pool_name?: string | null;
             /** @description The current state of the flow run. */
@@ -7702,6 +7885,10 @@ export interface components {
             /**
              * Tags
              * @description A list of flow tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
         };
@@ -7920,9 +8107,13 @@ export interface components {
             /**
              * Anchor Date
              * Format: date-time
+             * @example 2020-01-01T00:00:00Z
              */
             anchor_date?: string;
-            /** Timezone */
+            /**
+             * Timezone
+             * @example America/New_York
+             */
             timezone?: string | null;
         };
         /**
@@ -8042,11 +8233,13 @@ export interface components {
             /**
              * Ge
              * @description Include logs with a level greater than or equal to this level
+             * @example 20
              */
             ge_?: number | null;
             /**
              * Le
              * @description Include logs with a level less than or equal to this level
+             * @example 50
              */
             le_?: number | null;
         };
@@ -8074,6 +8267,10 @@ export interface components {
             /**
              * Query
              * @description Text search query string
+             * @example error
+             * @example error -debug
+             * @example "connection timeout"
+             * @example +required -excluded
              */
             query: string;
         };
@@ -8136,15 +8333,13 @@ export interface components {
             colors: boolean;
             /**
              * Markup
-             * @description
-             *             Whether to interpret strings wrapped in square brackets as a style.
+             * @description Whether to interpret strings wrapped in square brackets as a style.
              *             This allows styles to be conveniently added to log messages, e.g.
              *             `[red]This is a red message.[/red]`. However, the downside is, if enabled,
              *             strings that contain square brackets may be inaccurately interpreted and
              *             lead to incomplete output, e.g.
              *             `[red]This is a red message.[/red]` may be interpreted as
              *             `[red]This is a red message.[/red]`.
-             *
              * @default false
              */
             markup: boolean;
@@ -8181,8 +8376,7 @@ export interface components {
             max_log_size: number;
             /**
              * When Missing Flow
-             * @description
-             *             Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
+             * @description Controls the behavior when loggers attempt to send logs to the API handler from outside of a flow.
              *
              *             All logs sent to the API must be associated with a flow run. The API log handler can
              *             only be used outside of a flow by manually providing a flow run identifier. Logs
@@ -8194,7 +8388,6 @@ export interface components {
              *             - "warn": Log a warning message.
              *             - "error": Raise an error.
              *             - "ignore": Do not log a warning message or raise an error.
-             *
              * @default warn
              * @enum {string}
              */
@@ -9049,6 +9242,7 @@ export interface components {
             /**
              * Base Path
              * @description The base URL path to serve the API under.
+             * @example /v2/api
              */
             base_path?: string | null;
             /**
@@ -9059,8 +9253,7 @@ export interface components {
             default_limit: number;
             /**
              * Keepalive Timeout
-             * @description
-             *             The API's keep alive timeout (defaults to `5`).
+             * @description The API's keep alive timeout (defaults to `5`).
              *             Refer to https://www.uvicorn.org/settings/#timeouts for details.
              *
              *             When the API is hosted behind a load balancer, you may want to set this to a value
@@ -9068,14 +9261,12 @@ export interface components {
              *
              *             Note this setting only applies when calling `prefect server start`; if hosting the
              *             API with another tool you will need to configure this there instead.
-             *
              * @default 5
              */
             keepalive_timeout: number;
             /**
              * Csrf Protection Enabled
-             * @description
-             *             Controls the activation of CSRF protection for the Prefect server API.
+             * @description Controls the activation of CSRF protection for the Prefect server API.
              *
              *             When enabled (`True`), the server enforces CSRF validation checks on incoming
              *             state-changing requests (POST, PUT, PATCH, DELETE), requiring a valid CSRF
@@ -9088,51 +9279,42 @@ export interface components {
              *
              *             Note: Enabling this setting requires corresponding support in the client for
              *             CSRF token management. See PREFECT_CLIENT_CSRF_SUPPORT_ENABLED for more.
-             *
              * @default false
              */
             csrf_protection_enabled: boolean;
             /**
              * Csrf Token Expiration
              * Format: duration
-             * @description
-             *             Specifies the duration for which a CSRF token remains valid after being issued
+             * @description Specifies the duration for which a CSRF token remains valid after being issued
              *             by the server.
              *
              *             The default expiration time is set to 1 hour, which offers a reasonable
              *             compromise. Adjust this setting based on your specific security requirements
              *             and usage patterns.
-             *
              * @default PT1H
              */
             csrf_token_expiration: string;
             /**
              * Cors Allowed Origins
-             * @description
-             *             A comma-separated list of origins that are authorized to make cross-origin requests to the API.
+             * @description A comma-separated list of origins that are authorized to make cross-origin requests to the API.
              *
              *             By default, this is set to `*`, which allows requests from all origins.
-             *
              * @default *
              */
             cors_allowed_origins: string;
             /**
              * Cors Allowed Methods
-             * @description
-             *             A comma-separated list of methods that are authorized to make cross-origin requests to the API.
+             * @description A comma-separated list of methods that are authorized to make cross-origin requests to the API.
              *
              *             By default, this is set to `*`, which allows requests from all methods.
-             *
              * @default *
              */
             cors_allowed_methods: string;
             /**
              * Cors Allowed Headers
-             * @description
-             *             A comma-separated list of headers that are authorized to make cross-origin requests to the API.
+             * @description A comma-separated list of headers that are authorized to make cross-origin requests to the API.
              *
              *             By default, this is set to `*`, which allows requests from all headers.
-             *
              * @default *
              */
             cors_allowed_headers: string;
@@ -9167,8 +9349,7 @@ export interface components {
             sqlalchemy?: components["schemas"]["SQLAlchemySettings"];
             /**
              * Connection Url
-             * @description
-             *             A database connection URL in a SQLAlchemy-compatible
+             * @description A database connection URL in a SQLAlchemy-compatible
              *             format. Prefect currently supports SQLite and Postgres. Note that all
              *             Prefect database engines must use an async driver - for SQLite, use
              *             `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
@@ -9178,7 +9359,6 @@ export interface components {
              *             which will allow the database to be accessed by multiple threads. Note
              *             that in-memory databases can not be accessed from multiple processes and
              *             should only be used for simple tests.
-             *
              */
             connection_url?: string | null;
             /**
@@ -9270,18 +9450,14 @@ export interface components {
         ServerEphemeralSettings: {
             /**
              * Enabled
-             * @description
-             *             Controls whether or not a subprocess server can be started when no API URL is provided.
-             *
+             * @description Controls whether or not a subprocess server can be started when no API URL is provided.
              * @default false
              */
             enabled: boolean;
             /**
              * Startup Timeout Seconds
-             * @description
-             *             The number of seconds to wait for the server to start when ephemeral mode is enabled.
+             * @description The number of seconds to wait for the server to start when ephemeral mode is enabled.
              *             Defaults to `20`.
-             *
              * @default 20
              */
             startup_timeout_seconds: number;
@@ -9514,36 +9690,28 @@ export interface components {
             loop_seconds: number;
             /**
              * Inactivity Heartbeat Multiple
-             * @description
-             *             The number of heartbeats that must be missed before a worker is marked as offline. Defaults to `3`.
-             *
+             * @description The number of heartbeats that must be missed before a worker is marked as offline. Defaults to `3`.
              * @default 3
              */
             inactivity_heartbeat_multiple: number;
             /**
              * Fallback Heartbeat Interval Seconds
-             * @description
-             *             The number of seconds to use for online/offline evaluation if a worker's heartbeat
+             * @description The number of seconds to use for online/offline evaluation if a worker's heartbeat
              *             interval is not set. Defaults to `30`.
-             *
              * @default 30
              */
             fallback_heartbeat_interval_seconds: number;
             /**
              * Deployment Last Polled Timeout Seconds
-             * @description
-             *             The number of seconds before a deployment is marked as not ready if it has not been
+             * @description The number of seconds before a deployment is marked as not ready if it has not been
              *             polled. Defaults to `60`.
-             *
              * @default 60
              */
             deployment_last_polled_timeout_seconds: number;
             /**
              * Work Queue Last Polled Timeout Seconds
-             * @description
-             *             The number of seconds before a work queue is marked as not ready if it has not been
+             * @description The number of seconds before a work queue is marked as not ready if it has not been
              *             polled. Defaults to `60`.
-             *
              * @default 60
              */
             work_queue_last_polled_timeout_seconds: number;
@@ -9561,18 +9729,14 @@ export interface components {
             enabled: boolean;
             /**
              * Loop Seconds
-             * @description
-             *             The late runs service will look for runs to mark as late this often. Defaults to `5`.
-             *
+             * @description The late runs service will look for runs to mark as late this often. Defaults to `5`.
              * @default 5
              */
             loop_seconds: number;
             /**
              * After Seconds
              * Format: duration
-             * @description
-             *             The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
-             *
+             * @description The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
              * @default PT15S
              */
             after_seconds: string;
@@ -9584,19 +9748,15 @@ export interface components {
         ServerServicesPauseExpirationsSettings: {
             /**
              * Enabled
-             * @description
-             *             Whether or not to start the paused flow run expiration service in the server
+             * @description Whether or not to start the paused flow run expiration service in the server
              *             application. If disabled, paused flows that have timed out will remain in a Paused state
              *             until a resume attempt.
-             *
              * @default true
              */
             enabled: boolean;
             /**
              * Loop Seconds
-             * @description
-             *             The pause expiration service will look for runs to mark as failed this often. Defaults to `5`.
-             *
+             * @description The pause expiration service will look for runs to mark as failed this often. Defaults to `5`.
              * @default 5
              */
             loop_seconds: number;
@@ -9632,88 +9792,72 @@ export interface components {
             enabled: boolean;
             /**
              * Loop Seconds
-             * @description
-             *             The scheduler loop interval, in seconds. This determines
+             * @description The scheduler loop interval, in seconds. This determines
              *             how often the scheduler will attempt to schedule new flow runs, but has no
              *             impact on how quickly either flow runs or task runs are actually executed.
              *             Defaults to `60`.
-             *
              * @default 60
              */
             loop_seconds: number;
             /**
              * Deployment Batch Size
-             * @description
-             *             The number of deployments the scheduler will attempt to
+             * @description The number of deployments the scheduler will attempt to
              *             schedule in a single batch. If there are more deployments than the batch
              *             size, the scheduler immediately attempts to schedule the next batch; it
              *             does not sleep for `scheduler_loop_seconds` until it has visited every
              *             deployment once. Defaults to `100`.
-             *
              * @default 100
              */
             deployment_batch_size: number;
             /**
              * Max Runs
-             * @description
-             *             The scheduler will attempt to schedule up to this many
+             * @description The scheduler will attempt to schedule up to this many
              *             auto-scheduled runs in the future. Note that runs may have fewer than
              *             this many scheduled runs, depending on the value of
              *             `scheduler_max_scheduled_time`.  Defaults to `100`.
-             *
              * @default 100
              */
             max_runs: number;
             /**
              * Min Runs
-             * @description
-             *             The scheduler will attempt to schedule at least this many
+             * @description The scheduler will attempt to schedule at least this many
              *             auto-scheduled runs in the future. Note that runs may have more than
              *             this many scheduled runs, depending on the value of
              *             `scheduler_min_scheduled_time`.  Defaults to `3`.
-             *
              * @default 3
              */
             min_runs: number;
             /**
              * Max Scheduled Time
              * Format: duration
-             * @description
-             *             The scheduler will create new runs up to this far in the
+             * @description The scheduler will create new runs up to this far in the
              *             future. Note that this setting will take precedence over
              *             `scheduler_max_runs`: if a flow runs once a month and
              *             `scheduler_max_scheduled_time` is three months, then only three runs will be
              *             scheduled. Defaults to 100 days (`8640000` seconds).
-             *
              * @default P100D
              */
             max_scheduled_time: string;
             /**
              * Min Scheduled Time
              * Format: duration
-             * @description
-             *             The scheduler will create new runs at least this far in the
+             * @description The scheduler will create new runs at least this far in the
              *             future. Note that this setting will take precedence over `scheduler_min_runs`:
              *             if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
              *             then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
-             *
              * @default PT1H
              */
             min_scheduled_time: string;
             /**
              * Insert Batch Size
-             * @description
-             *             The number of runs the scheduler will attempt to insert in a single batch.
+             * @description The number of runs the scheduler will attempt to insert in a single batch.
              *             Defaults to `500`.
-             *
              * @default 500
              */
             insert_batch_size: number;
             /**
              * Recent Deployments Loop Seconds
-             * @description
-             *             The number of seconds the recent deployments scheduler will wait between checking for recently updated deployments. Defaults to `5`.
-             *
+             * @description The number of seconds the recent deployments scheduler will wait between checking for recently updated deployments. Defaults to `5`.
              * @default 5
              */
             recent_deployments_loop_seconds: number;
@@ -9783,21 +9927,17 @@ export interface components {
             read_batch_size: number;
             /**
              * Pg Notify Reconnect Interval Seconds
-             * @description
-             *             The number of seconds to wait before reconnecting to the PostgreSQL NOTIFY/LISTEN
+             * @description The number of seconds to wait before reconnecting to the PostgreSQL NOTIFY/LISTEN
              *             connection after an error. Only used when using PostgreSQL as the database.
              *             Defaults to `10`.
-             *
              * @default 10
              */
             pg_notify_reconnect_interval_seconds: number;
             /**
              * Pg Notify Heartbeat Interval Seconds
-             * @description
-             *             The number of seconds between heartbeat checks for the PostgreSQL NOTIFY/LISTEN
+             * @description The number of seconds between heartbeat checks for the PostgreSQL NOTIFY/LISTEN
              *             connection to ensure it's still alive. Only used when using PostgreSQL as the database.
              *             Defaults to `5`.
-             *
              * @default 5
              */
             pg_notify_heartbeat_interval_seconds: number;
@@ -9816,10 +9956,8 @@ export interface components {
             logging_level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
             /**
              * Analytics Enabled
-             * @description
-             *             When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
+             * @description When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
              *             on server startup to help us improve our product.
-             *
              * @default true
              */
             analytics_enabled: boolean;
@@ -9934,6 +10072,12 @@ export interface components {
              */
             enabled: boolean;
             /**
+             * V2 Enabled
+             * @description Whether to serve the experimental V2 UI instead of the default V1 UI.
+             * @default false
+             */
+            v2_enabled: boolean;
+            /**
              * Api Url
              * @description The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.
              */
@@ -10015,11 +10159,9 @@ export interface components {
             ui_url?: string | null;
             /**
              * Silence Api Url Misconfiguration
-             * @description
-             *             If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
+             * @description If `True`, disable the warning when a user accidentally misconfigure its `PREFECT_API_URL`
              *             Sometimes when a user manually set `PREFECT_API_URL` to a custom url,reverse-proxy for example,
              *             we would like to silence this warning so we will set it to `FALSE`.
-             *
              * @default false
              */
             silence_api_url_misconfiguration: boolean;
@@ -10102,7 +10244,10 @@ export interface components {
              * Format: date-time
              */
             timestamp?: string;
-            /** Message */
+            /**
+             * Message
+             * @example Run started
+             */
             message?: string | null;
             /**
              * Data
@@ -10290,7 +10435,10 @@ export interface components {
             created: string | null;
             /** Updated */
             updated: string | null;
-            /** Name */
+            /**
+             * Name
+             * @example my-task-run
+             */
             name?: string;
             /**
              * Flow Run Id
@@ -10326,11 +10474,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the task run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -10422,7 +10578,10 @@ export interface components {
             id?: string | null;
             /** @description The state of the task run to create */
             state?: components["schemas"]["StateCreate"] | null;
-            /** Name */
+            /**
+             * Name
+             * @example my-task-run
+             */
             name?: string;
             /**
              * Flow Run Id
@@ -10458,11 +10617,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the task run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -10559,11 +10726,16 @@ export interface components {
             /**
              * Any
              * @description A list of task run names to include
+             * @example [
+             *       "my-task-run-1",
+             *       "my-task-run-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Like
              * @description A case-insensitive partial match. For example,  passing 'marvin' will match 'marvin', 'sad-Marvin', and 'marvin-robot'.
+             * @example marvin
              */
             like_?: string | null;
         };
@@ -10649,6 +10821,10 @@ export interface components {
             /**
              * All
              * @description A list of tags. Task runs will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
@@ -10719,6 +10895,7 @@ export interface components {
             /**
              * Name
              * @description The name of the task run. Defaults to a random slug if not specified.
+             * @example my-task-run
              */
             name?: string;
             /**
@@ -10741,6 +10918,7 @@ export interface components {
             /**
              * Task Version
              * @description The version of the task executed in this task run.
+             * @example 1.0
              */
             task_version?: string | null;
             /**
@@ -10755,6 +10933,10 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the task run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
         };
@@ -10786,7 +10968,10 @@ export interface components {
          * @description Data used by the Prefect REST API to update a task run
          */
         TaskRunUpdate: {
-            /** Name */
+            /**
+             * Name
+             * @example my-task-run
+             */
             name?: string;
         };
         /** TaskWorkerFilter */
@@ -10921,7 +11106,10 @@ export interface components {
             created: string | null;
             /** Updated */
             updated: string | null;
-            /** Name */
+            /**
+             * Name
+             * @example my-task-run
+             */
             name?: string;
             /**
              * Flow Run Id
@@ -10957,11 +11145,19 @@ export interface components {
             /**
              * Tags
              * @description A list of tags for the task run.
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
             /**
              * Labels
              * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
              */
             labels?: {
                 [key: string]: boolean | number | string;
@@ -11081,11 +11277,13 @@ export interface components {
             /**
              * Name
              * @description The name of the variable
+             * @example my-variable
              */
             name: string;
             /**
              * Value
              * @description The value of the variable
+             * @example my-value
              */
             value: string | number | boolean | {
                 [key: string]: unknown;
@@ -11093,6 +11291,10 @@ export interface components {
             /**
              * Tags
              * @description A list of variable tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
         };
@@ -11104,11 +11306,13 @@ export interface components {
             /**
              * Name
              * @description The name of the variable
+             * @example my_variable
              */
             name: string;
             /**
              * Value
              * @description The value of the variable
+             * @example my-value
              */
             value: string | number | boolean | {
                 [key: string]: unknown;
@@ -11116,6 +11320,10 @@ export interface components {
             /**
              * Tags
              * @description A list of variable tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[];
         };
@@ -11160,6 +11368,7 @@ export interface components {
             /**
              * Like
              * @description A string to match variable names against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my_variable_%
              */
             like_?: string | null;
         };
@@ -11176,6 +11385,10 @@ export interface components {
             /**
              * All
              * @description A list of tags. Variables will be returned only if their tags are a superset of the list
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             all_?: string[] | null;
             /**
@@ -11200,6 +11413,7 @@ export interface components {
             /**
              * Value
              * @description The value of the variable
+             * @example my-value
              */
             value?: string | number | boolean | {
                 [key: string]: unknown;
@@ -11207,6 +11421,10 @@ export interface components {
             /**
              * Tags
              * @description A list of variable tags
+             * @example [
+             *       "tag-1",
+             *       "tag-2"
+             *     ]
              */
             tags?: string[] | null;
         };
@@ -11554,11 +11772,19 @@ export interface components {
             /**
              * Any
              * @description A list of work queue names to include
+             * @example [
+             *       "wq-1",
+             *       "wq-2"
+             *     ]
              */
             any_?: string[] | null;
             /**
              * Startswith
              * @description A list of case-insensitive starts-with matches. For example,  passing 'marvin' will match 'marvin', and 'Marvin-robot', but not 'sad-marvin'.
+             * @example [
+             *       "marvin",
+             *       "Marvin-robot"
+             *     ]
              */
             startswith_?: string[] | null;
         };
@@ -11812,6 +12038,18 @@ export interface components {
              * @default 10
              */
             prefetch_seconds: number;
+            /**
+             * Enable Cancellation
+             * @description Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).
+             * @default false
+             */
+            enable_cancellation: boolean;
+            /**
+             * Cancellation Poll Seconds
+             * @description Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.
+             * @default 120
+             */
+            cancellation_poll_seconds: number;
             /** @description Settings for a worker's webserver */
             webserver?: components["schemas"]["WorkerWebserverSettings"];
         };
@@ -11835,6 +12073,32 @@ export interface components {
              * @default 8080
              */
             port: number;
+        };
+        /**
+         * UISettings
+         * @description Runtime UI configuration returned by /ui-settings endpoint.
+         */
+        UISettings: {
+            /**
+             * Api Url
+             * @description The base URL for API requests.
+             */
+            api_url: string;
+            /**
+             * Csrf Enabled
+             * @description Whether CSRF protection is enabled.
+             */
+            csrf_enabled: boolean;
+            /**
+             * Auth
+             * @description Authentication method (e.g., 'BASIC') or null if disabled.
+             */
+            auth: string | null;
+            /**
+             * Flags
+             * @description List of enabled feature flags.
+             */
+            flags?: string[];
         };
     };
     responses: never;
@@ -18059,6 +18323,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ui_settings_ui_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UISettings"];
                 };
             };
         };

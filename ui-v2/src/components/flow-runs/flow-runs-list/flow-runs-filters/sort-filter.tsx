@@ -20,7 +20,7 @@ export const SortFilter = ({
 }: SortFilterProps) => {
 	return (
 		<Select defaultValue={defaultValue} value={value} onValueChange={onSelect}>
-			<SelectTrigger aria-label="Flow run sort order">
+			<SelectTrigger aria-label="Flow run sort order" className="w-full">
 				<SelectValue placeholder="Sort by" />
 			</SelectTrigger>
 			<SelectContent>

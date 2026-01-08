@@ -1,9 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager
+from logging import Logger
 from typing import Any, AsyncGenerator, Callable
 
 from docket import Docket, Worker
 
+from prefect.logging import get_logger
 from prefect.server.api.flow_runs import delete_flow_run_logs
 from prefect.server.api.task_runs import delete_task_run_logs
 from prefect.server.events.services import triggers as _triggers_module  # noqa: F401
@@ -19,6 +21,8 @@ from prefect.server.services.perpetual_services import (
     register_and_schedule_perpetual_services,
 )
 from prefect.server.services.repossessor import revoke_expired_lease
+
+logger: Logger = get_logger(__name__)
 
 # Task functions to register with docket for background processing
 task_functions: list[Callable[..., Any]] = [
@@ -43,7 +47,7 @@ async def background_worker(
     webserver_only: bool = False,
 ) -> AsyncGenerator[None, None]:
     worker_task: asyncio.Task[None] | None = None
-    try:
+    async with Worker(docket) as worker:
         # Register background task functions
         docket.register_collection(
             "prefect.server.api.background_workers:task_functions"
@@ -54,14 +58,14 @@ async def background_worker(
             docket, ephemeral=ephemeral, webserver_only=webserver_only
         )
 
-        async with Worker(docket) as worker:
+        try:
             worker_task = asyncio.create_task(worker.run_forever())
             yield
 
-    finally:
-        if worker_task:
-            worker_task.cancel()
-            try:
-                await worker_task
-            except asyncio.CancelledError:
-                pass
+        finally:
+            if worker_task:
+                worker_task.cancel()
+                try:
+                    await worker_task
+                except asyncio.CancelledError:
+                    pass

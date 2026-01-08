@@ -20,6 +20,18 @@ The Prefect MCP server is an [MCP](https://modelcontextprotocol.io/) server that
 
 The MCP tools are primarily designed for reading data and monitoring your Prefect instance. For creating or updating resources, the integrated docs proxy provides AI assistants with current information on how to use the `prefect` CLI.
 
+## Security considerations
+
+The Prefect MCP server provides **read-only access** to your Prefect instance. It can only access information available to the account you authenticate with—it cannot access data outside those bounds.
+
+<Warning>
+**Important:** The MCP server does not operate in isolation. MCP clients (such as Claude Code, Cursor, or Codex CLI) may have additional capabilities beyond the MCP server's read-only tools. For example, an AI assistant with terminal access could execute destructive CLI commands like `prefect deployment delete` independently of the MCP server.
+
+When using AI agents autonomously, consider the Prefect Role associated with your API key and what actions the agent could take through other means (CLI, SDK, etc.).
+</Warning>
+
+For detailed answers to common security questions—including authentication patterns, RBAC, file access requirements, and recommendations for internal pilots—see the [Security FAQ](https://github.com/PrefectHQ/prefect-mcp-server/blob/main/SECURITY.md).
+
 ## Installation
 
 ### Local installation
@@ -333,5 +345,6 @@ The MCP server excels at helping diagnose issues:
 ## Learn more
 
 - [Prefect MCP Server on GitHub](https://github.com/PrefectHQ/prefect-mcp-server)
+- [Security FAQ](https://github.com/PrefectHQ/prefect-mcp-server/blob/main/SECURITY.md)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [FastMCP Cloud](https://fastmcp.cloud)

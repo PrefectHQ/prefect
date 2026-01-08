@@ -49,6 +49,12 @@ message.
 
 Messages remain in the dead letter queue until they are removed manually.
 
+**Attributes:**
+- `topic`: The topic that the subscription receives messages from.
+- `max_retries`: The maximum number of times a message will be retried for
+this subscription.
+- `dead_letter_queue_path`: The path to the dead letter queue folder.
+
 
 **Methods:**
 

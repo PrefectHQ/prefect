@@ -2232,6 +2232,45 @@ async def test_runner_runs_on_crashed_hooks_for_instance_method_flows(
     assert "Instance method flow crashed!" in caplog.text
 
 
+async def test_run_hooks_with_partial_hooks(
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that _run_hooks correctly handles functools.partial hooks.
+
+    This test verifies that partial hooks don't cause AttributeError when
+    accessing hook names, which was a bug where hook.__name__ was accessed
+    directly instead of using get_hook_name().
+    """
+    from functools import partial
+
+    from prefect.runner.runner import _run_hooks
+    from prefect.states import Cancelled
+
+    data = {}
+
+    def my_hook(flow, flow_run, state, **kwargs):
+        data.update(name=my_hook.__name__, state=state, kwargs=kwargs)
+
+    partial_hook = partial(my_hook, extra_arg="test_value")
+
+    mock_flow = MagicMock()
+    mock_flow.name = "test-flow"
+
+    mock_flow_run = MagicMock()
+    mock_flow_run.id = uuid.uuid4()
+    mock_flow_run.name = "test-flow-run"
+
+    state = Cancelled(message="Test cancellation")
+
+    await _run_hooks([partial_hook], mock_flow_run, mock_flow, state)
+
+    assert data["name"] == "my_hook"
+    assert data["state"] == state
+    assert data["kwargs"] == {"extra_arg": "test_value"}
+    assert "Running hook 'my_hook'" in caplog.text
+    assert "Hook 'my_hook' finished running successfully" in caplog.text
+
+
 class TestRunnerDeployment:
     @pytest.fixture
     def relative_file_path(self):

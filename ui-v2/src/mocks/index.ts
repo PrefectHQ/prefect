@@ -10,6 +10,7 @@ export {
 	createFakeDeployment,
 	createFakeDeploymentWithFlow,
 } from "./create-fake-deployment";
+export { createFakeEvent } from "./create-fake-event";
 export { createFakeFlow } from "./create-fake-flow";
 export {
 	createFakeFlowRun,
@@ -23,6 +24,7 @@ export { createFakeServerSettings } from "./create-fake-server-settings";
 export {
 	createFakeSimpleFlowRun,
 	createFakeSimpleFlowRuns,
+	createFakeSimpleFlowRunsMultiDay,
 } from "./create-fake-simple-flow-run";
 export { createFakeState } from "./create-fake-state";
 export { createFakeTaskRunConcurrencyLimit } from "./create-fake-take-run-concurrency-limit";

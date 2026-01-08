@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { formatDistanceStrict } from "date-fns";
 import humanizeDuration from "humanize-duration";
 import { Calendar, ChevronRight, Clock } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	ResponsiveContainer,
 	Scatter,
@@ -154,17 +154,86 @@ const FlowRunTooltip = ({ active, payload }: FlowRunTooltipProps) => {
 	);
 };
 
-const formatYAxisTick = (value: number): string => {
-	if (value === 0) return "0s";
-	return formatDistanceStrict(0, value * 1000, { addSuffix: false });
+const createYAxisTickFormatter = (maxDuration: number) => {
+	return (value: number): string => {
+		if (value === 0) return "0s";
+		// For very small durations (< 1 second), show milliseconds
+		if (maxDuration < 1) {
+			return `${Math.round(value * 1000)}ms`;
+		}
+		// For small durations (< 10 seconds), show one decimal
+		if (maxDuration < 10) {
+			return `${value.toFixed(1)}s`;
+		}
+		// For durations < 60 seconds, show integer seconds
+		if (maxDuration < 60) {
+			return `${Math.round(value)}s`;
+		}
+		// For larger durations, use the humanized format
+		return formatDistanceStrict(0, value * 1000, { addSuffix: false });
+	};
 };
 
-const formatXAxisTick = (value: number): string => {
-	const date = new Date(value);
-	return date.toLocaleDateString(undefined, {
-		month: "short",
-		day: "numeric",
-	});
+const createXAxisTickFormatter = (rangeMs: number, minDeltaMs: number) => {
+	const oneMinute = 60 * 1000;
+	const oneHour = 60 * oneMinute;
+	const oneDay = 24 * oneHour;
+
+	return (value: number): string => {
+		const date = new Date(value);
+
+		// If data points are very close (< 1 second apart) or range is very small, show with fractional seconds
+		if (minDeltaMs < 1000 || rangeMs < 10_000) {
+			const seconds = date.getSeconds();
+			const ms = date.getMilliseconds();
+			const timeStr = date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+			// Append seconds and tenths of a second
+			return `${timeStr}:${seconds.toString().padStart(2, "0")}.${Math.floor(ms / 100)}`;
+		}
+
+		// If data points are within a minute apart or range is small, show with seconds
+		if (minDeltaMs < oneMinute || rangeMs < 10 * oneMinute) {
+			return date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+				second: "2-digit",
+			});
+		}
+
+		// For multi-day ranges, show date on day boundaries (midnight) and time otherwise
+		// This follows the Vue implementation pattern from formatLabel
+		if (rangeMs >= oneDay) {
+			// Check if this tick falls on a day boundary (midnight)
+			const isStartOfDay =
+				date.getHours() === 0 &&
+				date.getMinutes() === 0 &&
+				date.getSeconds() === 0 &&
+				date.getMilliseconds() === 0;
+
+			if (isStartOfDay) {
+				// Show date for day boundaries (e.g., "Mon 15" or "Dec 15")
+				return date.toLocaleDateString(undefined, {
+					weekday: "short",
+					day: "numeric",
+				});
+			}
+
+			// Show time for non-boundary ticks
+			return date.toLocaleTimeString(undefined, {
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+		}
+
+		// If range is less than a day, show time (hours and minutes)
+		return date.toLocaleTimeString(undefined, {
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+	};
 };
 
 export const FlowRunsScatterPlot = ({
@@ -172,6 +241,27 @@ export const FlowRunsScatterPlot = ({
 	startDate,
 	endDate,
 }: FlowRunsScatterPlotProps) => {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [containerWidth, setContainerWidth] = useState(0);
+
+	// Track container width for dynamic tick count calculation
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const resizeObserver = new ResizeObserver((entries) => {
+			for (const entry of entries) {
+				setContainerWidth(entry.contentRect.width);
+			}
+		});
+
+		resizeObserver.observe(container);
+		// Set initial width
+		setContainerWidth(container.getBoundingClientRect().width);
+
+		return () => resizeObserver.disconnect();
+	}, []);
+
 	const chartData = useMemo<ChartDataPoint[]>(() => {
 		return history.map((item) => ({
 			x: new Date(item.timestamp).getTime(),
@@ -184,31 +274,155 @@ export const FlowRunsScatterPlot = ({
 		}));
 	}, [history]);
 
-	const xDomain = useMemo(() => {
+	// Compute actual numeric domain for x-axis (needed for adaptive formatting)
+	const { xDomain, xDomainMin, xDomainMax } = useMemo(() => {
 		if (startDate && endDate) {
-			return [startDate.getTime(), endDate.getTime()];
+			return {
+				xDomain: [startDate.getTime(), endDate.getTime()] as [number, number],
+				xDomainMin: startDate.getTime(),
+				xDomainMax: endDate.getTime(),
+			};
 		}
 		if (chartData.length === 0) {
 			const now = Date.now();
 			const dayAgo = now - 24 * 60 * 60 * 1000;
-			return [dayAgo, now];
+			return {
+				xDomain: [dayAgo, now] as [number, number],
+				xDomainMin: dayAgo,
+				xDomainMax: now,
+			};
 		}
-		return ["dataMin", "dataMax"] as const;
-	}, [startDate, endDate, chartData.length]);
+		// Compute from data
+		const timestamps = chartData.map((d) => d.x);
+		const min = Math.min(...timestamps);
+		const max = Math.max(...timestamps);
+		return {
+			xDomain: [min, max] as [number, number],
+			xDomainMin: min,
+			xDomainMax: max,
+		};
+	}, [startDate, endDate, chartData]);
+
+	// Compute max duration for adaptive y-axis formatting
+	const maxDuration = useMemo(() => {
+		if (chartData.length === 0) return 60;
+		return Math.max(...chartData.map((d) => d.y));
+	}, [chartData]);
+
+	// Compute minimum delta between data points for adaptive x-axis formatting
+	const minDeltaMs = useMemo(() => {
+		if (chartData.length < 2) return Number.POSITIVE_INFINITY;
+		const sortedTimestamps = chartData.map((d) => d.x).sort((a, b) => a - b);
+		let minDelta = Number.POSITIVE_INFINITY;
+		for (let i = 1; i < sortedTimestamps.length; i++) {
+			const delta = sortedTimestamps[i] - sortedTimestamps[i - 1];
+			if (delta > 0 && delta < minDelta) {
+				minDelta = delta;
+			}
+		}
+		return minDelta;
+	}, [chartData]);
+
+	// Create memoized formatters based on domain
+	const rangeMs = xDomainMax - xDomainMin;
+	const formatXAxisTick = useMemo(
+		() => createXAxisTickFormatter(rangeMs, minDeltaMs),
+		[rangeMs, minDeltaMs],
+	);
+
+	const formatYAxisTick = useMemo(
+		() => createYAxisTickFormatter(maxDuration),
+		[maxDuration],
+	);
+
+	// Calculate explicit tick values for evenly spaced x-axis ticks
+	// Target ~100px spacing between ticks for visually even distribution
+	// For multi-day ranges, include midnight boundaries to show day changes
+	const xAxisTicks = useMemo(() => {
+		const tickSpacing = 100; // pixels between ticks
+		const chartMargin = 60; // left (40) + right (20) margins from ScatterChart
+		const availableWidth = containerWidth - chartMargin;
+		const tickCount = Math.max(2, Math.ceil(availableWidth / tickSpacing));
+
+		const oneDay = 24 * 60 * 60 * 1000;
+		const rangeMs = xDomainMax - xDomainMin;
+
+		// For multi-day ranges, generate ticks that include midnight boundaries
+		if (rangeMs >= oneDay) {
+			const ticks: number[] = [];
+
+			// Find the first midnight after xDomainMin
+			const startDate = new Date(xDomainMin);
+			const firstMidnight = new Date(startDate);
+			firstMidnight.setHours(24, 0, 0, 0); // Next midnight
+
+			// Add start tick
+			ticks.push(xDomainMin);
+
+			// Add midnight boundaries
+			let currentMidnight = firstMidnight.getTime();
+			while (currentMidnight < xDomainMax) {
+				ticks.push(currentMidnight);
+				currentMidnight += oneDay;
+			}
+
+			// Add end tick if not too close to last tick
+			const lastTick = ticks[ticks.length - 1];
+			if (xDomainMax - lastTick > rangeMs / tickCount / 2) {
+				ticks.push(xDomainMax);
+			}
+
+			// If we have too few ticks, add intermediate ticks between midnights
+			if (ticks.length < tickCount) {
+				const newTicks: number[] = [];
+				for (let i = 0; i < ticks.length - 1; i++) {
+					newTicks.push(ticks[i]);
+					const gap = ticks[i + 1] - ticks[i];
+					const intermediateCount = Math.max(
+						1,
+						Math.floor(gap / (rangeMs / tickCount)),
+					);
+					if (intermediateCount > 1) {
+						const intermediateStep = gap / intermediateCount;
+						for (let j = 1; j < intermediateCount; j++) {
+							newTicks.push(ticks[i] + intermediateStep * j);
+						}
+					}
+				}
+				newTicks.push(ticks[ticks.length - 1]);
+				return newTicks;
+			}
+
+			return ticks;
+		}
+
+		// For single-day ranges, generate evenly spaced ticks
+		const ticks: number[] = [];
+		const step = (xDomainMax - xDomainMin) / (tickCount - 1);
+		for (let i = 0; i < tickCount; i++) {
+			ticks.push(xDomainMin + step * i);
+		}
+		return ticks;
+	}, [containerWidth, xDomainMin, xDomainMax]);
 
 	if (history.length === 0) {
 		return null;
 	}
 
 	return (
-		<div className="hidden md:block w-full h-64" data-testid="scatter-plot">
+		<div
+			ref={containerRef}
+			className="hidden md:block w-full h-64"
+			data-testid="scatter-plot"
+		>
 			<ResponsiveContainer width="100%" height="100%">
-				<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+				<ScatterChart>
 					<XAxis
 						type="number"
 						dataKey="x"
 						scale="time"
 						domain={xDomain}
+						ticks={xAxisTicks}
 						tickFormatter={formatXAxisTick}
 						tick={{ fontSize: 12 }}
 						tickLine={false}

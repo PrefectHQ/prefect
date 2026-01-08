@@ -37,9 +37,12 @@ export const buildFilterVariablesQuery = (options: VariablesFilter) =>
 	queryOptions({
 		queryKey: queryKeyFactory.listFilter(options),
 		queryFn: async () => {
-			const response = await getQueryService().POST("/variables/filter", {
-				body: options,
-			});
+			const response = await (await getQueryService()).POST(
+				"/variables/filter",
+				{
+					body: options,
+				},
+			);
 			return response.data ?? [];
 		},
 		staleTime: 1000,
@@ -59,9 +62,12 @@ export const buildFilterCountQuery = (options: VariablesFilter) =>
 	queryOptions({
 		queryKey: queryKeyFactory.count(options),
 		queryFn: async () => {
-			const response = await getQueryService().POST("/variables/count", {
-				body: options,
-			});
+			const response = await (await getQueryService()).POST(
+				"/variables/count",
+				{
+					body: options,
+				},
+			);
 			return response.data ?? 0;
 		},
 		staleTime: 1000,
@@ -80,7 +86,7 @@ export const buillAllCountQuery = () =>
 	queryOptions({
 		queryKey: queryKeyFactory.countsAll(),
 		queryFn: async () => {
-			const response = await getQueryService().POST("/variables/count");
+			const response = await (await getQueryService()).POST("/variables/count");
 			return response.data ?? 0;
 		},
 		staleTime: 1000,
@@ -215,8 +221,8 @@ export const useCreateVariable = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: createVariable, ...rest } = useMutation({
-		mutationFn: (variable: components["schemas"]["VariableCreate"]) => {
-			return getQueryService().POST("/variables/", {
+		mutationFn: async (variable: components["schemas"]["VariableCreate"]) => {
+			return (await getQueryService()).POST("/variables/", {
 				body: variable,
 			});
 		},
@@ -266,9 +272,9 @@ export const useUpdateVariable = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: updateVariable, ...rest } = useMutation({
-		mutationFn: (variable: VariableUpdateWithId) => {
+		mutationFn: async (variable: VariableUpdateWithId) => {
 			const { id, ...body } = variable;
-			return getQueryService().PATCH("/variables/{id}", {
+			return (await getQueryService()).PATCH("/variables/{id}", {
 				params: { path: { id } },
 				body,
 			});
@@ -308,7 +314,7 @@ export const useDeleteVariable = () => {
 
 	const { mutate: deleteVariable, ...rest } = useMutation({
 		mutationFn: async (id: string) =>
-			await getQueryService().DELETE("/variables/{id}", {
+			await (await getQueryService()).DELETE("/variables/{id}", {
 				params: { path: { id } },
 			}),
 		onSettled: async () => {

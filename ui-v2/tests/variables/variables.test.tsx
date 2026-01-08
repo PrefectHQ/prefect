@@ -40,7 +40,9 @@ const renderVariablesPage = async () => {
 describe("Variables page", () => {
 	it("should render with empty state", async () => {
 		await renderVariablesPage();
-		expect(screen.getByText("Add a variable to get started")).toBeVisible();
+		await waitFor(() => {
+			expect(screen.getByText("Add a variable to get started")).toBeVisible();
+		});
 		expect(screen.getByRole("button", { name: "Add Variable" })).toBeVisible();
 	});
 
@@ -591,9 +593,12 @@ describe("Variables page", () => {
 			await user.clear(nameSearchInput);
 			await user.type(nameSearchInput, "my-variable");
 
-			expect(onColumnFiltersChange).toHaveBeenCalledWith([
-				{ id: "name", value: "my-variable" },
-			]);
+			// Wait for the debounced callback to be called (SearchInput has 200ms debounce)
+			await waitFor(() => {
+				expect(onColumnFiltersChange).toHaveBeenCalledWith([
+					{ id: "name", value: "my-variable" },
+				]);
+			});
 		});
 
 		it("should handle filtering by tags", async () => {
