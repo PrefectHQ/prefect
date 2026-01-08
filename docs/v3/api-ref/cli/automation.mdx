@@ -440,3 +440,57 @@ Create one or more automations from a file or JSON string.
 `$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'`
 </Note>
 
+
+
+
+## `prefect automation update`
+
+
+
+```command
+prefect automation update [OPTIONS]
+```
+
+
+
+<Info>
+Update an existing automation from a file or JSON string.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    The ID of the automation to update
+</ResponseField>
+
+<ResponseField name="--from-file">
+    Path to YAML or JSON file containing the updated automation
+</ResponseField>
+
+<ResponseField name="--from-json">
+    JSON string containing the updated automation
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-file automation.yaml`
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -f automation.json`
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-json '{"name": "updated-automation", "trigger": {...}, "actions": [...]}'`
+</Note>
+
