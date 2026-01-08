@@ -1586,7 +1586,6 @@ class Runner:
         if not hasattr(self, "_loop") or not self._loop:
             self._loop = asyncio.get_event_loop()
 
-        # Enter client first so it exits last (after task group finishes)
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._events_client)
 
