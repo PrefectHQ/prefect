@@ -111,7 +111,7 @@ describe("LoginPage", () => {
 
 	it("disables form while submitting", async () => {
 		const user = userEvent.setup();
-		let resolveLogin: (value: { success: boolean }) => void;
+		let resolveLogin: (value: { success: boolean }) => void = () => {};
 		mockLogin.mockReturnValueOnce(
 			new Promise((resolve) => {
 				resolveLogin = resolve;
@@ -130,7 +130,7 @@ describe("LoginPage", () => {
 			).toBeDisabled();
 		});
 
-		resolveLogin?.({ success: true });
+		resolveLogin({ success: true });
 	});
 
 	it("does not submit with empty password", async () => {
