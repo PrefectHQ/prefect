@@ -17,3 +17,11 @@ export function useAuth(): AuthState {
 	}
 	return context;
 }
+
+/**
+ * Safe version of useAuth that returns null when not in an AuthProvider.
+ * Use this in components that may be rendered outside of the auth context (e.g., in tests).
+ */
+export function useAuthSafe(): AuthState | null {
+	return useContext(AuthContext);
+}
