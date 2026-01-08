@@ -2,12 +2,24 @@ import createClient, { type Middleware } from "openapi-fetch";
 import type { paths } from "./prefect.ts";
 import { uiSettings } from "./ui-settings";
 
+const AUTH_STORAGE_KEY = "prefect-password";
+
 const throwOnError: Middleware = {
 	async onResponse({ response }) {
 		if (!response.ok) {
 			const body = (await response.clone().json()) as Record<string, unknown>;
 			throw new Error(body.detail as string | undefined);
 		}
+	},
+};
+
+const authMiddleware: Middleware = {
+	onRequest({ request }) {
+		const password = localStorage.getItem(AUTH_STORAGE_KEY);
+		if (password) {
+			request.headers.set("Authorization", `Basic ${password}`);
+		}
+		return request;
 	},
 };
 
@@ -27,6 +39,7 @@ export const getQueryService = async () => {
 		client = createClient<paths>({
 			baseUrl: apiUrl,
 		});
+		client.use(authMiddleware);
 		client.use(throwOnError);
 		clientBaseUrl = apiUrl;
 	}
