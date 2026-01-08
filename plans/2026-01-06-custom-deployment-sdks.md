@@ -25,13 +25,12 @@ run_deployment(
 from my_sdk import deployments
 
 # IDE autocomplete, type checking, errors caught immediately
-deployments.from_name("my-etl-flow/production").run(
-    source="s3://bucket",  # Flow params are direct kwargs - typos caught by type checker
-    batch_size=100,
-    run_options={              # Infrastructure options in dedicated kwarg
-        "timeout": 60,
-        "job_variables": {"memory": "8Gi"},  # Typed based on work pool schema
-    },
+deployments.from_name("my-etl-flow/production").with_options(
+    timeout=60,                              # Infrastructure options via method
+    job_variables={"memory": "8Gi"},         # Typed based on work pool schema
+).run(
+    source="s3://bucket",                    # Flow params are direct kwargs
+    batch_size=100,                          # Typos caught by type checker
 )
 ```
 
@@ -54,12 +53,11 @@ prefect sdk generate --output ./my_sdk.py [--flow NAME] [--deployment NAME]
 
 The SDK file contains:
 1. **`DeploymentName` Literal type** - All deployment names for autocomplete: `Literal["flow/deploy", ...]`
-2. **Base `RunOptions` TypedDict** - Infrastructure options (timeout, tags, etc.) without job_variables
-3. **Per-work-pool TypedDicts** - `{WorkPoolName}JobVariables` and `{WorkPoolName}RunOptions` with typed job_variables
-4. **Class for each deployment** - With `run()` and `run_async()` methods where flow parameters are direct kwargs
-5. **`deployments` namespace** - With `from_name()` method using `@overload` for type-safe dispatch
+2. **Per-work-pool TypedDicts** - `{WorkPoolName}JobVariables` for typed job_variables
+3. **Class for each deployment** - With `with_options()`, `run()`, and `run_async()` methods
+4. **`deployments` namespace** - With `from_name()` method using `@overload` for type-safe dispatch
 
-**Usage**: `deployments.from_name("my-etl-flow/production").run(source="s3://...", run_options={...})`
+**Usage**: `deployments.from_name("my-etl-flow/production").with_options(timeout=60).run(source="s3://...")`
 
 **Important**: All type information comes from **server-side metadata** (JSON Schema stored with deployments and work pools). The generator does not inspect flow source code—it works entirely from the Prefect API.
 
@@ -203,7 +201,7 @@ This is the core of the feature—it defines exactly what users receive when the
 
 #### Generated File Structure
 
-The output file has 6 distinct sections, generated in this order:
+The output file has 5 distinct sections, generated in this order:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -216,21 +214,16 @@ The output file has 6 distinct sections, generated in this order:
 │    - DeploymentName = Literal["flow/deploy", ...]           │
 │    - Enables autocomplete for all deployment names          │
 ├─────────────────────────────────────────────────────────────┤
-│ 3. BASE RUN OPTIONS                                         │
-│    - RunOptions TypedDict (infrastructure options)          │
-│    - No job_variables field (that's in work pool variants)  │
-├─────────────────────────────────────────────────────────────┤
-│ 4. WORK POOL TYPEDDICTS                                     │
+│ 3. WORK POOL TYPEDDICTS                                     │
 │    - {WorkPoolName}JobVariables TypedDict                   │
-│    - {WorkPoolName}RunOptions TypedDict (with job_variables)│
 ├─────────────────────────────────────────────────────────────┤
-│ 5. DEPLOYMENT CLASSES                                       │
+│ 4. DEPLOYMENT CLASSES                                       │
 │    - One class per deployment                               │
-│    - Flow params as direct kwargs on run()/run_async()      │
-│    - run_options: {WorkPoolName}RunOptions | None (kwonly)  │
+│    - with_options() for infrastructure config (returns self)│
+│    - run()/run_async() with flow params as direct kwargs    │
 ├─────────────────────────────────────────────────────────────┤
-│ 6. DEPLOYMENT NAMESPACE                                     │
-│    - Single `deployments` class with from_name() method        │
+│ 5. DEPLOYMENT NAMESPACE                                     │
+│    - Single `deployments` class with from_name() method     │
 │    - @overload per deployment for type-safe return types    │
 │    - This is the public entry point                         │
 └─────────────────────────────────────────────────────────────┘
@@ -288,31 +281,9 @@ DeploymentName = Literal[
 - Deployment names with special characters are escaped appropriately
 - Empty workspaces: `DeploymentName = Literal[""]` (placeholder, will fail at runtime)
 
-#### Section 3: Base RunOptions TypedDict
+#### Section 3: Work Pool TypedDicts
 
-The base `RunOptions` contains infrastructure options without `job_variables`:
-
-```python
-class RunOptions(TypedDict, total=False):
-    """Options for running a deployment (for deployments without work pools)."""
-    timeout: NotRequired[float]
-    poll_interval: NotRequired[float]
-    tags: NotRequired[Iterable[str]]
-    idempotency_key: NotRequired[str]
-    work_queue_name: NotRequired[str]
-    as_subflow: NotRequired[bool]
-    scheduled_time: NotRequired[datetime]
-    flow_run_name: NotRequired[str]
-```
-
-**Design decisions**:
-- No `job_variables` field - that's in work-pool-specific variants
-- Used for deployments without a work pool
-- `total=False` means all fields are optional
-
-#### Section 4: Work Pool TypedDicts
-
-Each work pool gets two TypedDicts - one for job variables and one for run options:
+Each work pool gets a TypedDict for its job variables:
 
 ```python
 class KubernetesPoolJobVariables(TypedDict, total=False):
@@ -321,31 +292,17 @@ class KubernetesPoolJobVariables(TypedDict, total=False):
     namespace: NotRequired[str]
     cpu_request: NotRequired[str]
     memory_request: NotRequired[str]
-
-
-class KubernetesPoolRunOptions(TypedDict, total=False):
-    """Options for deployments using work pool: kubernetes-pool"""
-    timeout: NotRequired[float]
-    poll_interval: NotRequired[float]
-    tags: NotRequired[Iterable[str]]
-    idempotency_key: NotRequired[str]
-    work_queue_name: NotRequired[str]
-    as_subflow: NotRequired[bool]
-    scheduled_time: NotRequired[datetime]
-    flow_run_name: NotRequired[str]
-    job_variables: NotRequired[KubernetesPoolJobVariables]  # Typed!
 ```
 
 **Design decisions**:
 - `total=False` with explicit `NotRequired` gives clearest IDE hints
-- Class name formats: `{WorkPoolName}JobVariables` and `{WorkPoolName}RunOptions` (PascalCase)
-- Empty work pools: don't generate TypedDicts, deployments use base `RunOptions`
-- Work pool with empty job variables schema: generate `{WorkPoolName}RunOptions` but omit `job_variables` field
+- Class name format: `{WorkPoolName}JobVariables` (PascalCase)
+- Empty work pools or empty job variables schema: no TypedDict generated
 - Docstring identifies the source work pool
 
-#### Section 5: Deployment Classes
+#### Section 4: Deployment Classes
 
-Each deployment gets a class with `run()` and `run_async()` methods. **Flow parameters are direct kwargs**, and **infrastructure options go in the `run_options` kwarg**:
+Each deployment gets a class with `with_options()`, `run()`, and `run_async()` methods:
 
 ```python
 class _MyEtlFlowProduction:
@@ -354,20 +311,57 @@ class _MyEtlFlowProduction:
     Work Pool: kubernetes-pool
     """
 
-    @staticmethod
+    def __init__(self) -> None:
+        self._options: dict[str, Any] = {}
+
+    def with_options(
+        self,
+        *,
+        timeout: float | None = None,
+        poll_interval: float | None = None,
+        tags: Iterable[str] | None = None,
+        idempotency_key: str | None = None,
+        work_queue_name: str | None = None,
+        as_subflow: bool | None = None,
+        scheduled_time: datetime | None = None,
+        flow_run_name: str | None = None,
+        job_variables: KubernetesPoolJobVariables | None = None,  # Typed per work pool
+    ) -> "_MyEtlFlowProduction":
+        """Configure run options for this deployment.
+
+        Returns self for method chaining.
+        """
+        if timeout is not None:
+            self._options["timeout"] = timeout
+        if poll_interval is not None:
+            self._options["poll_interval"] = poll_interval
+        if tags is not None:
+            self._options["tags"] = tags
+        if idempotency_key is not None:
+            self._options["idempotency_key"] = idempotency_key
+        if work_queue_name is not None:
+            self._options["work_queue_name"] = work_queue_name
+        if as_subflow is not None:
+            self._options["as_subflow"] = as_subflow
+        if scheduled_time is not None:
+            self._options["scheduled_time"] = scheduled_time
+        if flow_run_name is not None:
+            self._options["flow_run_name"] = flow_run_name
+        if job_variables is not None:
+            self._options["job_variables"] = job_variables
+        return self
+
     def run(
-        source: str,                                          # Required flow param
-        batch_size: int = 100,                                # Optional flow param with default
-        full_refresh: bool = False,                           # Optional flow param
-        *,                                                    # Keyword-only separator
-        run_options: KubernetesPoolRunOptions | None = None,  # Infrastructure options
+        self,
+        source: str,               # Required flow param
+        batch_size: int = 100,     # Optional flow param with default
+        full_refresh: bool = False,
     ) -> "FlowRun":
         """Run the my-etl-flow/production deployment synchronously."""
         from prefect.deployments import run_deployment
 
-        # Collect flow parameters into dict
         parameters: dict[str, Any] = {"source": source}
-        if batch_size != 100:  # Only include if not default
+        if batch_size != 100:
             parameters["batch_size"] = batch_size
         if full_refresh != False:
             parameters["full_refresh"] = full_refresh
@@ -375,16 +369,14 @@ class _MyEtlFlowProduction:
         return run_deployment(
             name="my-etl-flow/production",
             parameters=parameters,
-            **(run_options or {}),
+            **self._options,
         )
 
-    @staticmethod
     async def run_async(
+        self,
         source: str,
         batch_size: int = 100,
         full_refresh: bool = False,
-        *,
-        run_options: KubernetesPoolRunOptions | None = None,
     ) -> "FlowRun":
         """Run the my-etl-flow/production deployment asynchronously."""
         from prefect.deployments import run_deployment
@@ -398,22 +390,23 @@ class _MyEtlFlowProduction:
         return await run_deployment(
             name="my-etl-flow/production",
             parameters=parameters,
-            **(run_options or {}),
+            **self._options,
         )
 ```
 
 **Design decisions**:
 - Class name format: `_{FlowName}{DeploymentName}` (underscore prefix = private)
-- `@staticmethod` allows calling without instantiation while keeping namespace
-- **Flow parameters are direct kwargs** - enables IDE autocomplete and type checking
-- **`run_options` is keyword-only** (after `*`) - clear separation from flow params
-- **`run_options` typed per work pool** - `{WorkPoolName}RunOptions` includes typed `job_variables`
+- **`with_options()` for infrastructure config** - returns `self` for method chaining
+- **Flow parameters are direct kwargs on `run()`/`run_async()`** - enables IDE autocomplete and type checking
+- **`job_variables` typed per work pool** - uses `{WorkPoolName}JobVariables` TypedDict
+- All `with_options()` params are keyword-only (after `*`) and optional
 - Required flow params have no default; optional params have defaults from schema
 - Import uses public API path: `from prefect.deployments import run_deployment`
 - Import inside method body avoids import-time side effects
 - Docstring includes full deployment name and work pool for discoverability
 - `run()` calls `run_deployment()` synchronously (the decorator handles sync execution)
 - `run_async()` uses `await run_deployment()` for proper async execution
+- Options accumulate if `with_options()` is called multiple times
 
 **Flow parameter handling**:
 - Required params (in schema's `required` array, no default) → required kwargs
@@ -422,11 +415,10 @@ class _MyEtlFlowProduction:
 - Parameters collected into dict before passing to `run_deployment()`
 
 **Edge cases**:
-- If deployment has no work pool → use base `RunOptions` type
-- If flow has no parameters → method only has `*, run_options: RunOptions | None = None`
-- If flow param name = `run_options` → use `run_options_` for Prefect's kwarg (user's param keeps original name)
+- If deployment has no work pool → `with_options()` has no `job_variables` param
+- If flow has no parameters → `run()`/`run_async()` have no params
 
-#### Section 6: Deployment Namespace
+#### Section 5: Deployment Namespace
 
 The single public entry point with type-safe `from_name()` method:
 
@@ -438,10 +430,12 @@ class deployments:
     Usage:
         from my_sdk import deployments
 
-        flow_run = deployments.from_name("my-etl-flow/production").run(
+        flow_run = deployments.from_name("my-etl-flow/production").with_options(
+            timeout=60,
+            job_variables={"memory": "8Gi"},
+        ).run(
             source="s3://bucket",
             batch_size=100,
-            run_options={"timeout": 60},
         )
 
     Available deployments:
@@ -538,7 +532,6 @@ render_sdk(data: SDKData, output_path: Path) -> None
 | Scenario | Behavior |
 |----------|----------|
 | Deployment class name conflicts | Append numeric suffix (`_MyEtlFlowProduction2`) |
-| Flow param name = `run_options` | Use `run_options_` for Prefect's kwarg (user's param unchanged) |
 | Deployment name contains quotes | Escape in Literal type string |
 | Very long deployment names | Class name truncated, full name in Literal |
 | Name is entirely non-ASCII | Use `_unnamed` with suffix if needed |
@@ -549,26 +542,25 @@ render_sdk(data: SDKData, output_path: Path) -> None
 
 | Scenario | Behavior |
 |----------|----------|
-| Deployment with no work pool | Use base `RunOptions` (no `job_variables`) |
+| Deployment with no work pool | `with_options()` has no `job_variables` param |
 | No deployments match filter | Error with helpful message |
 | Zero deployments in workspace | Error with helpful message |
 | Deployments of same flow have different schemas | Use first deployment's schema, log warning |
 
 **General rules**:
-- If a work pool has empty job variables schema → generate `{WorkPoolName}RunOptions` without `job_variables` field
-- If deployment has no work pool → use base `RunOptions` type
-- If flow has no parameters → method signature is just `*, run_options: ... | None = None`
+- If a work pool has empty job variables schema → `with_options()` has no `job_variables` param
+- If deployment has no work pool → `with_options()` has no `job_variables` param
+- If flow has no parameters → `run()`/`run_async()` have no params
 - Each deployment gets one `@overload` in the `deployments` class
 
 #### Status
 
 **Template**:
 - [ ] Module header section
+- [ ] DeploymentName Literal section
 - [ ] Work pool TypedDict section
-- [ ] Flow parameter TypedDict section
-- [ ] Deployment class section (with run/run_async)
-- [ ] Flow class section
-- [ ] Root namespace section
+- [ ] Deployment class section (with with_options/run/run_async)
+- [ ] Deployments namespace section
 - [ ] Edge case handling (empty schemas, missing work pools, name conflicts)
 
 **Renderer**:
@@ -580,7 +572,7 @@ render_sdk(data: SDKData, output_path: Path) -> None
 **Verification**:
 - [ ] Generated code is valid Python (parseable by `ast.parse`)
 - [ ] Generated code passes `pyright --strict`
-- [ ] IDE autocomplete works for `flows.X.Y.run()`
+- [ ] IDE autocomplete works for `deployments.from_name().with_options().run()`
 - [ ] IDE shows parameter hints with correct types
 - [ ] Generated docstrings render correctly in IDE
 
@@ -666,7 +658,7 @@ SDK generated successfully!
   Output:      /path/to/my_sdk.py
 
 Usage:
-  from my_sdk import flows
+  from my_sdk import deployments
 ```
 
 **Example Output (No Deployments)**:
