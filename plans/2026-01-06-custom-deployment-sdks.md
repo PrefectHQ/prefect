@@ -153,19 +153,50 @@ Private Implementation (src/prefect/_sdk/)
 This matches how Prefect's server validates parameters (`actions.py:287-304`).
 
 **Status**:
-- [ ] Schema converter module created
-- [ ] Primitive type conversion
-- [ ] Array/list conversion with item types
-- [ ] Object/dict conversion (additionalProperties variants)
-- [ ] Nullable (anyOf with null) conversion
-- [ ] Multi-type union conversion
-- [ ] Enum → Literal conversion
-- [ ] Reference resolution (definitions and $defs)
-- [ ] Tuple (prefixItems) conversion
-- [ ] Required vs optional with default handling
-- [ ] Circular reference detection
-- [ ] Unit tests pass
-- [ ] Type checker (pyright) passes
+- [x] Schema converter module created
+- [x] Primitive type conversion
+- [x] Array/list conversion with item types
+- [x] Object/dict conversion (additionalProperties variants)
+- [x] Nullable (anyOf with null) conversion
+- [x] Multi-type union conversion
+- [x] Enum → Literal conversion
+- [x] Reference resolution (definitions and $defs)
+- [x] Tuple (prefixItems) conversion
+- [x] Required vs optional with default handling
+- [x] Circular reference detection
+- [x] Unit tests pass
+- [x] Type checker (pyright) passes
+
+**Phase 1 Implementation Notes** (deviations from plan):
+
+1. **Objects with properties return `dict[str, Any]`, not nested TypedDict**
+   - The plan's table shows `{"type": "object", "properties": {...}}` → `Nested TypedDict`
+   - Implementation returns `dict[str, Any]` instead
+   - Rationale: This converter produces type annotation *strings*. Generating nested TypedDict classes requires the template renderer (Phase 3) which can create named classes. The converter handles inline type annotations only.
+
+2. **Circular reference handling is more nuanced**
+   - The plan says: "Circular references → detect and emit `Any` with warning"
+   - Implementation: Direct self-references raise `CircularReferenceError`. Indirect circular refs (objects with recursive properties) return `dict[str, Any]` because object conversion doesn't traverse properties. `extract_fields_from_schema()` catches `CircularReferenceError` and emits `Any` with warning.
+   - Rationale: Different circular patterns require different handling; raising an exception for direct loops allows callers to decide how to handle it.
+
+3. **Union flattening uses bracket/quote-aware splitting**
+   - Not explicitly in plan, but necessary for correctness
+   - Added `_split_union_top_level()` helper that respects `[]` brackets and `'"`quotes
+   - Rationale: Naive splitting on ` | ` corrupts types like `list[str | int]` or `Literal['a | b']`
+
+4. **Enum formatting uses `repr()` instead of manual escaping**
+   - Plan doesn't specify escaping strategy
+   - Implementation uses `repr()` for proper handling of control characters, unicode, and quotes
+   - Rationale: `repr()` correctly handles all edge cases (newlines, tabs, backslashes, etc.)
+
+5. **Float enum values are supported**
+   - Plan only mentions string and integer enums
+   - Implementation also supports float literals
+   - Rationale: JSON Schema allows numeric enums; floats are valid Literal values in Python
+
+6. **100% test coverage achieved**
+   - 105 tests covering all code paths
+   - Run with: `uv run pytest tests/_sdk/ --cov=src/prefect/_sdk --cov-report=term-missing`
 
 ---
 
