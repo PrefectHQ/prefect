@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import re
 import urllib.parse
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, Mapping
 
 from jinja2 import pass_context
 
@@ -30,13 +31,13 @@ model_to_kind: dict[type[ORMBaseModel], str] = {
 
 
 @pass_context
-def ui_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]:
+def ui_url(ctx: Mapping[str, Any], obj: Any) -> str | None:
     """Return the UI URL for the given object."""
     return url_for(obj, url_type="ui")
 
 
 @pass_context
-def ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]:
+def ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> str | None:
     """Given a Resource or Model, return a UI link to the events page
     filtered for that resource. If an unsupported object is provided,
     return `None`.
@@ -66,7 +67,21 @@ def ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]:
         return None
 
 
+def flow_run_id(text: str | None) -> str | None:
+    """Extract a flow run ID from a string, such as a PR body."""
+    if not text:
+        return None
+    match = re.search(
+        r"flow-run/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})",
+        text,
+    )
+    if match:
+        return match.group(1)
+    return None
+
+
 all_filters: dict[str, Callable[[Mapping[str, Any], Any], str | None]] = {
     "ui_url": ui_url,
     "ui_resource_events_url": ui_resource_events_url,
+    "flow_run_id": flow_run_id,  # type: ignore
 }

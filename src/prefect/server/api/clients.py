@@ -114,13 +114,13 @@ class OrchestrationClient(BaseClient):
         )
 
     async def set_flow_run_state(
-        self, flow_run_id: UUID, state: StateCreate
+        self, flow_run_id: UUID, state: StateCreate, force: bool = False
     ) -> Response:
         return await self._http_client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json={
                 "state": state.model_dump(mode="json"),
-                "force": False,
+                "force": force,
             },
         )
 

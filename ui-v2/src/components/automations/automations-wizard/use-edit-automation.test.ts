@@ -347,6 +347,7 @@ describe("useEditAutomation", () => {
 							state: "COMPLETED",
 							name: "Custom State",
 							message: "State changed by automation",
+							force: false,
 						},
 					],
 				});
@@ -369,6 +370,7 @@ describe("useEditAutomation", () => {
 							state: "FAILED",
 							name: null,
 							message: null,
+							force: false,
 						},
 					],
 				});

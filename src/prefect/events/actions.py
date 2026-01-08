@@ -102,7 +102,7 @@ class ChangeFlowRunState(Action):
 
     type: Literal["change-flow-run-state"] = "change-flow-run-state"
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         None,
         description="The name of the state to change the flow run to",
     )
@@ -110,9 +110,13 @@ class ChangeFlowRunState(Action):
         ...,
         description="The type of the state to change the flow run to",
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None,
         description="An optional message to associate with the state change",
+    )
+    force: bool = Field(
+        False,
+        description="Force the state change even if the transition is not allowed",
     )
 
 

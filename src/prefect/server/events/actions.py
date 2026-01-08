@@ -1095,7 +1095,9 @@ class FlowRunStateChangeAction(FlowRunAction):
 
         async with await self.orchestration_client(triggered_action) as orchestration:
             response = await orchestration.set_flow_run_state(
-                flow_run_id, await self.new_state(triggered_action=triggered_action)
+                flow_run_id,
+                await self.new_state(triggered_action=triggered_action),
+                force=getattr(self, "force", False),
             )
 
             self._result_details["status_code"] = response.status_code
@@ -1112,7 +1114,7 @@ class ChangeFlowRunState(FlowRunStateChangeAction):
 
     type: Literal["change-flow-run-state"] = "change-flow-run-state"
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         None,
         description="The name of the state to change the flow run to",
     )
@@ -1120,9 +1122,13 @@ class ChangeFlowRunState(FlowRunStateChangeAction):
         ...,
         description="The type of the state to change the flow run to",
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None,
         description="An optional message to associate with the state change",
+    )
+    force: bool = Field(
+        False,
+        description="Force the state change even if the transition is not allowed",
     )
 
     async def new_state(self, triggered_action: "TriggeredAction") -> StateCreate:

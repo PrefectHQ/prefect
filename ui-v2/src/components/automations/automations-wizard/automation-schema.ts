@@ -8,22 +8,28 @@ const FlowRunSchema = z.object({
 	type: z.enum(["cancel-flow-run", "suspend-flow-run", "resume-flow-run"]),
 });
 
-const ChangeFlowRunStateSchema = z.object({
-	type: z.literal("change-flow-run-state"),
-	state: z.enum([
-		"COMPLETED",
-		"RUNNING",
-		"SCHEDULED",
-		"PENDING",
-		"FAILED",
-		"CANCELLED",
-		"CANCELLING",
-		"CRASHED",
-		"PAUSED",
-	]),
-	name: z.string().optional(),
-	message: z.string().optional(),
-});
+const ChangeFlowRunStateSchema = z
+	.object({
+		type: z.literal("change-flow-run-state"),
+		state: z.enum([
+			"COMPLETED",
+			"RUNNING",
+			"SCHEDULED",
+			"PENDING",
+			"FAILED",
+			"CANCELLED",
+			"CANCELLING",
+			"CRASHED",
+			"PAUSED",
+		]),
+		name: z.string().optional(),
+		message: z.string().optional(),
+		force: z.boolean().optional(),
+	})
+	.transform((schema) => ({
+		...schema,
+		force: schema.force ?? false,
+	}));
 
 const RunDeploymentsSchema = z
 	.object({
