@@ -4,6 +4,7 @@ import { useAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PrefectLogo } from "@/components/ui/prefect-logo";
 
 interface LoginPageProps {
 	redirectTo?: string;
@@ -36,8 +37,9 @@ export function LoginPage({ redirectTo = "/dashboard" }: LoginPageProps) {
 	return (
 		<div className="flex items-center justify-center min-h-screen">
 			<Card className="w-full max-w-[400px]">
-				<CardHeader>
-					<CardTitle className="text-center">Login</CardTitle>
+				<CardHeader className="flex flex-col items-center gap-4">
+					<PrefectLogo className="size-16" />
+					<CardTitle>Login</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit} className="flex flex-col gap-4">
