@@ -1,7 +1,8 @@
-import { useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { differenceInSeconds, max, subSeconds } from "date-fns";
 import { useMemo } from "react";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildAverageLatenessFlowRunsQuery,
 	buildCountFlowRunsQuery,
@@ -17,6 +18,7 @@ import {
 	type WorkPool,
 } from "@/api/work-pools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardErrorState } from "@/components/ui/card-error-state";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import {
 	Tooltip,
@@ -33,6 +35,7 @@ import {
 	formatDateTimeRelative,
 	secondsToApproximateString,
 } from "@/utils";
+import { WorkPoolsCardSkeleton } from "./work-pools-card-skeleton";
 
 type DashboardWorkPoolsCardProps = {
 	filter?: {
@@ -44,10 +47,28 @@ type DashboardWorkPoolsCardProps = {
 export const DashboardWorkPoolsCard = ({
 	filter,
 }: DashboardWorkPoolsCardProps) => {
-	const { data: workPools } = useSuspenseQuery(
-		buildFilterWorkPoolsQuery({ offset: 0 }),
-	);
+	const workPoolsQuery = useQuery(buildFilterWorkPoolsQuery({ offset: 0 }));
 
+	// Handle error state
+	if (workPoolsQuery.isError) {
+		return (
+			<CardErrorState
+				error={categorizeError(
+					workPoolsQuery.error,
+					"Failed to load work pools",
+				)}
+				onRetry={() => void workPoolsQuery.refetch()}
+				isRetrying={workPoolsQuery.isRefetching}
+			/>
+		);
+	}
+
+	// Handle loading state
+	if (workPoolsQuery.isLoading) {
+		return <WorkPoolsCardSkeleton />;
+	}
+
+	const workPools = workPoolsQuery.data ?? [];
 	const activeWorkPools = workPools.filter((workPool) => !workPool.is_paused);
 
 	const showEmptyMsg = workPools && activeWorkPools.length === 0;
@@ -654,7 +675,7 @@ const WorkPoolMiniBarChart = ({
 				flowRun.flow_id,
 			],
 			queryFn: async () => {
-				const queryService = getQueryService();
+				const queryService = await getQueryService();
 
 				const [deploymentRes, flowRes] = await Promise.all([
 					flowRun.deployment_id

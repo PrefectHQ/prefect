@@ -1,5 +1,4 @@
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 
 export type DetailMarkdownProps = {
 	markdown: string;
@@ -8,7 +7,7 @@ export type DetailMarkdownProps = {
 export const DetailMarkdown = ({ markdown }: DetailMarkdownProps) => {
 	return (
 		<div data-testid="markdown-display" className="mt-4 prose">
-			<Markdown remarkPlugins={[remarkGfm]}>{markdown}</Markdown>
+			<LazyMarkdown>{markdown}</LazyMarkdown>
 		</div>
 	);
 };

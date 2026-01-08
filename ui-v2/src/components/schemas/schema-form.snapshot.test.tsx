@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import type { SchemaObject } from "openapi-typescript";
 import { describe, expect, test } from "vitest";
+import "@/mocks/mock-json-input";
 import { SchemaForm, type SchemaFormProps } from "./schema-form";
 
 /**
