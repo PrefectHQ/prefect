@@ -22,28 +22,23 @@ Note:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Any
 
+from prefect._sdk._union import flatten_union
+from prefect._sdk.types import (
+    CircularReferenceError,
+    ConversionContext,
+    FieldInfo,
+)
 
-@dataclass
-class ConversionContext:
-    """Context for schema conversion, tracking definitions and visited refs."""
-
-    definitions: dict[str, Any] = field(default_factory=dict)
-    """Schema definitions (from 'definitions' or '$defs' key)."""
-
-    visited_refs: set[str] = field(default_factory=set)
-    """Set of $ref paths currently being resolved (for circular detection)."""
-
-    conversion_warnings: list[str] = field(default_factory=list)
-    """Warnings accumulated during conversion."""
-
-
-class CircularReferenceError(Exception):
-    """Raised when a circular $ref is detected in the schema."""
-
-    pass
+# Re-export public types
+__all__ = [
+    "CircularReferenceError",
+    "ConversionContext",
+    "FieldInfo",
+    "json_schema_to_python_type",
+    "extract_fields_from_schema",
+]
 
 
 def json_schema_to_python_type(
@@ -166,135 +161,15 @@ def _resolve_ref(ref: str, context: ConversionContext) -> str:
         context.visited_refs.discard(ref)
 
 
-def _split_union_top_level(type_str: str) -> list[str]:
-    """
-    Split a union type string on " | " only at the top level.
-
-    This is bracket- and quote-aware, so it won't split inside:
-    - Brackets: list[str | int] stays intact
-    - Quotes: Literal['a | b'] stays intact
-
-    Args:
-        type_str: A type annotation string, possibly containing unions.
-
-    Returns:
-        List of individual type parts.
-    """
-    parts: list[str] = []
-    current: list[str] = []
-    bracket_depth = 0
-    in_single_quote = False
-    in_double_quote = False
-    i = 0
-
-    while i < len(type_str):
-        char = type_str[i]
-
-        # Handle escape sequences inside quotes
-        if (in_single_quote or in_double_quote) and char == "\\":
-            current.append(char)
-            if i + 1 < len(type_str):
-                current.append(type_str[i + 1])
-                i += 2
-                continue
-            i += 1
-            continue
-
-        # Track quote state
-        if char == "'" and not in_double_quote:
-            in_single_quote = not in_single_quote
-            current.append(char)
-        elif char == '"' and not in_single_quote:
-            in_double_quote = not in_double_quote
-            current.append(char)
-        # Track bracket depth (only when not in quotes)
-        elif char == "[" and not in_single_quote and not in_double_quote:
-            bracket_depth += 1
-            current.append(char)
-        elif char == "]" and not in_single_quote and not in_double_quote:
-            bracket_depth -= 1
-            current.append(char)
-        # Check for " | " at top level
-        elif (
-            char == " "
-            and bracket_depth == 0
-            and not in_single_quote
-            and not in_double_quote
-            and type_str[i : i + 3] == " | "
-        ):
-            # Found a top-level union separator
-            part = "".join(current).strip()
-            if part:
-                parts.append(part)
-            current = []
-            i += 3  # Skip " | "
-            continue
-        else:
-            current.append(char)
-
-        i += 1
-
-    # Add the last part
-    part = "".join(current).strip()
-    if part:
-        parts.append(part)
-
-    return parts
-
-
-def _flatten_union(types: list[str]) -> str:
-    """
-    Flatten and deduplicate union type parts.
-
-    Handles nested unions (e.g., "str | int" combined with "str | None")
-    by splitting on " | " at the top level only (bracket- and quote-aware),
-    deduplicating, and placing None at the end.
-
-    Args:
-        types: List of type strings, possibly containing unions.
-
-    Returns:
-        A single union type string with duplicates removed and None at end.
-    """
-    # Split any nested unions and collect all parts
-    all_parts: list[str] = []
-    has_none = False
-
-    for t in types:
-        # Split on " | " only at top level (respecting brackets and quotes)
-        parts = _split_union_top_level(t)
-        for part in parts:
-            if part == "None":
-                has_none = True
-            elif part and part not in all_parts:
-                all_parts.append(part)
-
-    # Handle edge case: only None
-    if not all_parts:
-        return "None"
-
-    # Build result with None at the end if present
-    if len(all_parts) == 1:
-        result = all_parts[0]
-    else:
-        result = " | ".join(all_parts)
-
-    if has_none:
-        result = f"{result} | None"
-
-    return result
-
-
 def _convert_any_of(variants: list[dict[str, Any]], context: ConversionContext) -> str:
     """Convert anyOf/oneOf to a union type with proper flattening."""
-    # Convert each variant
     types: list[str] = []
 
     for variant in variants:
         variant_type = json_schema_to_python_type(variant, context)
         types.append(variant_type)
 
-    return _flatten_union(types)
+    return flatten_union(types)
 
 
 def _convert_all_of(variants: list[dict[str, Any]], context: ConversionContext) -> str:
@@ -415,7 +290,7 @@ def _convert_type_array(
     if has_null:
         converted.append("None")
 
-    return _flatten_union(converted)
+    return flatten_union(converted)
 
 
 def _convert_single_type(
@@ -492,29 +367,6 @@ def _convert_object(schema: dict[str, Any], context: ConversionContext) -> str:
         return f"dict[str, {value_type}]"
 
     return "dict[str, Any]"
-
-
-@dataclass
-class FieldInfo:
-    """Information about a TypedDict field."""
-
-    name: str
-    """The field name."""
-
-    python_type: str
-    """The Python type annotation string."""
-
-    required: bool
-    """Whether the field is required."""
-
-    default: Any | None = None
-    """The default value, if any."""
-
-    has_default: bool = False
-    """Whether a default value is present."""
-
-    description: str | None = None
-    """Field description from schema."""
 
 
 def extract_fields_from_schema(
