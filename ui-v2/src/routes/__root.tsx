@@ -4,6 +4,7 @@ import {
 	createRootRouteWithContext,
 	Outlet,
 	redirect,
+	useRouterState,
 } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback } from "react";
 import { categorizeError } from "@/api/error-utils";
@@ -41,6 +42,29 @@ function RootErrorComponent({ error, reset }: ErrorComponentProps) {
 	return <ServerErrorDisplay error={serverError} onRetry={handleRetry} />;
 }
 
+function RootComponent() {
+	const location = useRouterState({ select: (s) => s.location });
+	const isLoginPage = location.pathname === "/login";
+
+	const content = (
+		<>
+			<Outlet />
+			{import.meta.env.DEV && (
+				<Suspense fallback={null}>
+					<TanStackRouterDevtools />
+				</Suspense>
+			)}
+		</>
+	);
+
+	// Don't show sidebar/layout on login page
+	if (isLoginPage) {
+		return content;
+	}
+
+	return <MainLayout>{content}</MainLayout>;
+}
+
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	beforeLoad: ({ context, location }) => {
 		// Skip auth check for login route or if auth context is not available (e.g., in tests)
@@ -64,15 +88,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 			});
 		}
 	},
-	component: () => (
-		<MainLayout>
-			<Outlet />
-			{import.meta.env.DEV && (
-				<Suspense fallback={null}>
-					<TanStackRouterDevtools />
-				</Suspense>
-			)}
-		</MainLayout>
-	),
+	component: RootComponent,
 	errorComponent: RootErrorComponent,
 });
