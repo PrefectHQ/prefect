@@ -279,7 +279,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Literal, overload
 from typing_extensions import NotRequired, TypedDict
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import FlowRun
+    from prefect.futures import PrefectFlowRunFuture
 ```
 
 **Python 3.10+ Compatibility**:
@@ -290,7 +290,7 @@ if TYPE_CHECKING:
 
 **Import design**:
 - Minimal imports to reduce load time
-- `FlowRun` under `TYPE_CHECKING` avoids circular imports and heavy import chains
+- `PrefectFlowRunFuture` under `TYPE_CHECKING` avoids circular imports and heavy import chains
 - Generated SDK only depends on `typing_extensions` and `prefect` (already a dependency)
 
 #### Section 2: DeploymentName Literal
@@ -418,9 +418,16 @@ class _MyEtlFlowProduction:
         source: str,               # Required flow param
         batch_size: int = 100,     # Optional flow param with default
         full_refresh: bool = False,
-    ) -> "FlowRun":
-        """Run the my-etl-flow/production deployment synchronously."""
+    ) -> "PrefectFlowRunFuture":
+        """Run the my-etl-flow/production deployment synchronously.
+
+        Returns a PrefectFlowRunFuture that can be used to:
+        - Get the flow_run_id immediately
+        - Call .result() to wait for completion and get the result
+        - Call .state to check current state
+        """
         from prefect.deployments import run_deployment
+        from prefect.futures import PrefectFlowRunFuture
 
         parameters: dict[str, Any] = {"source": source}
         if batch_size != 100:
@@ -428,20 +435,28 @@ class _MyEtlFlowProduction:
         if full_refresh != False:
             parameters["full_refresh"] = full_refresh
 
-        return run_deployment(
+        flow_run = run_deployment(
             name="my-etl-flow/production",
             parameters=parameters,
             **self._options,
         )
+        return PrefectFlowRunFuture(flow_run_id=flow_run.id)
 
     async def run_async(
         self,
         source: str,
         batch_size: int = 100,
         full_refresh: bool = False,
-    ) -> "FlowRun":
-        """Run the my-etl-flow/production deployment asynchronously."""
+    ) -> "PrefectFlowRunFuture":
+        """Run the my-etl-flow/production deployment asynchronously.
+
+        Returns a PrefectFlowRunFuture that can be used to:
+        - Get the flow_run_id immediately
+        - Call .result() to wait for completion and get the result
+        - Call .state to check current state
+        """
         from prefect.deployments import run_deployment
+        from prefect.futures import PrefectFlowRunFuture
 
         parameters: dict[str, Any] = {"source": source}
         if batch_size != 100:
@@ -449,11 +464,12 @@ class _MyEtlFlowProduction:
         if full_refresh != False:
             parameters["full_refresh"] = full_refresh
 
-        return await run_deployment(
+        flow_run = await run_deployment(
             name="my-etl-flow/production",
             parameters=parameters,
             **self._options,
         )
+        return PrefectFlowRunFuture(flow_run_id=flow_run.id)
 ```
 
 **Design decisions**:
@@ -467,8 +483,7 @@ class _MyEtlFlowProduction:
 - Import uses public API path: `from prefect.deployments import run_deployment`
 - Import inside method body avoids import-time side effects
 - Docstring includes full deployment name and work pool for discoverability
-- `run()` calls `run_deployment()` synchronously (the decorator handles sync execution)
-- `run_async()` uses `await run_deployment()` for proper async execution
+- `run()` and `run_async()` return `PrefectFlowRunFuture` for non-blocking access to flow run ID and eventual result
 
 **Flow parameter handling**:
 - Required params (in schema's `required` array, no default) → required kwargs
