@@ -26,8 +26,9 @@ from my_sdk import deployments
 
 # IDE autocomplete, type checking, errors caught immediately
 deployments.from_name("my-etl-flow/production").with_options(
-    timeout=60,                              # Infrastructure options via method
-    job_variables={"memory": "8Gi"},         # Typed based on work pool schema
+    timeout=60,                              # Run options via method
+).with_infra(
+    memory="8Gi",                            # Job variables typed per work pool
 ).run(
     source="s3://bucket",                    # Flow params are direct kwargs
     batch_size=100,                          # Typos caught by type checker
@@ -53,11 +54,11 @@ prefect sdk generate --output ./my_sdk.py [--flow NAME] [--deployment NAME]
 
 The SDK file contains:
 1. **`DeploymentName` Literal type** - All deployment names for autocomplete: `Literal["flow/deploy", ...]`
-2. **Per-work-pool TypedDicts** - `{WorkPoolName}JobVariables` for typed job_variables
-3. **Class for each deployment** - With `with_options()`, `run()`, and `run_async()` methods
+2. **Per-work-pool TypedDicts** - `{WorkPoolName}JobVariables` for typed `with_infra()` kwargs
+3. **Class for each deployment** - With `with_options()`, `with_infra()`, `run()`, and `run_async()` methods
 4. **`deployments` namespace** - With `from_name()` method using `@overload` for type-safe dispatch
 
-**Usage**: `deployments.from_name("my-etl-flow/production").with_options(timeout=60).run(source="s3://...")`
+**Usage**: `deployments.from_name("flow/deploy").with_options(timeout=60).with_infra(memory="8Gi").run(param=val)`
 
 **Important**: All type information comes from **server-side metadata** (JSON Schema stored with deployments and work pools). The generator does not inspect flow source code—it works entirely from the Prefect API.
 
@@ -219,7 +220,8 @@ The output file has 5 distinct sections, generated in this order:
 ├─────────────────────────────────────────────────────────────┤
 │ 4. DEPLOYMENT CLASSES                                       │
 │    - One class per deployment                               │
-│    - with_options() for infrastructure config (returns self)│
+│    - with_options() for run config (timeout, tags, etc.)    │
+│    - with_infra() for job variables (typed per work pool)   │
 │    - run()/run_async() with flow params as direct kwargs    │
 ├─────────────────────────────────────────────────────────────┤
 │ 5. DEPLOYMENT NAMESPACE                                     │
@@ -302,7 +304,7 @@ class KubernetesPoolJobVariables(TypedDict, total=False):
 
 #### Section 4: Deployment Classes
 
-Each deployment gets a class with `with_options()`, `run()`, and `run_async()` methods:
+Each deployment gets a class with `with_options()`, `with_infra()`, `run()`, and `run_async()` methods:
 
 ```python
 class _MyEtlFlowProduction:
@@ -331,9 +333,8 @@ class _MyEtlFlowProduction:
         as_subflow: bool | None = None,
         scheduled_time: datetime | None = None,
         flow_run_name: str | None = None,
-        job_variables: KubernetesPoolJobVariables | None = None,  # Typed per work pool
     ) -> "_MyEtlFlowProduction":
-        """Create a new deployment handle with updated options.
+        """Create a new deployment handle with updated run options.
 
         Returns a new instance with merged options (does not mutate self).
         This matches the behavior of Flow.with_options() and Task.with_options().
@@ -355,7 +356,33 @@ class _MyEtlFlowProduction:
             new_options["scheduled_time"] = scheduled_time
         if flow_run_name is not None:
             new_options["flow_run_name"] = flow_run_name
-        if job_variables is not None:
+        return self._copy_with_options(new_options)
+
+    def with_infra(
+        self,
+        *,
+        # Typed kwargs from work pool's job variables schema
+        image: str | None = None,
+        namespace: str | None = None,
+        cpu_request: str | None = None,
+        memory: str | None = None,
+    ) -> "_MyEtlFlowProduction":
+        """Create a new deployment handle with updated job variables.
+
+        Returns a new instance with merged options (does not mutate self).
+        Job variable types are derived from the work pool schema.
+        """
+        new_options = self._options.copy()
+        job_variables = new_options.get("job_variables", {}).copy()
+        if image is not None:
+            job_variables["image"] = image
+        if namespace is not None:
+            job_variables["namespace"] = namespace
+        if cpu_request is not None:
+            job_variables["cpu_request"] = cpu_request
+        if memory is not None:
+            job_variables["memory"] = memory
+        if job_variables:
             new_options["job_variables"] = job_variables
         return self._copy_with_options(new_options)
 
@@ -404,10 +431,11 @@ class _MyEtlFlowProduction:
 
 **Design decisions**:
 - Class name format: `_{FlowName}{DeploymentName}` (underscore prefix = private)
-- **`with_options()` returns a new instance** - matches `Flow.with_options()` / `Task.with_options()` behavior
+- **`with_options()` for run config** - timeout, tags, polling, scheduling options
+- **`with_infra()` for job variables** - typed kwargs derived from work pool schema
+- **Both methods return new instances** - matches `Flow.with_options()` / `Task.with_options()` behavior
 - **Flow parameters are direct kwargs on `run()`/`run_async()`** - enables IDE autocomplete and type checking
-- **`job_variables` typed per work pool** - uses `{WorkPoolName}JobVariables` TypedDict
-- All `with_options()` params are keyword-only (after `*`) and optional
+- All `with_options()` and `with_infra()` params are keyword-only (after `*`) and optional
 - Required flow params have no default; optional params have defaults from schema
 - Import uses public API path: `from prefect.deployments import run_deployment`
 - Import inside method body avoids import-time side effects
@@ -422,7 +450,8 @@ class _MyEtlFlowProduction:
 - Parameters collected into dict before passing to `run_deployment()`
 
 **Edge cases**:
-- If deployment has no work pool → `with_options()` has no `job_variables` param
+- If deployment has no work pool → no `with_infra()` method generated
+- If work pool has empty job variables schema → no `with_infra()` method generated
 - If flow has no parameters → `run()`/`run_async()` have no params
 
 #### Section 5: Deployment Namespace
@@ -439,7 +468,8 @@ class deployments:
 
         flow_run = deployments.from_name("my-etl-flow/production").with_options(
             timeout=60,
-            job_variables={"memory": "8Gi"},
+        ).with_infra(
+            memory="8Gi",
         ).run(
             source="s3://bucket",
             batch_size=100,
@@ -549,14 +579,14 @@ render_sdk(data: SDKData, output_path: Path) -> None
 
 | Scenario | Behavior |
 |----------|----------|
-| Deployment with no work pool | `with_options()` has no `job_variables` param |
+| Deployment with no work pool | No `with_infra()` method generated |
 | No deployments match filter | Error with helpful message |
 | Zero deployments in workspace | Error with helpful message |
 | Deployments of same flow have different schemas | Use first deployment's schema, log warning |
 
 **General rules**:
-- If a work pool has empty job variables schema → `with_options()` has no `job_variables` param
-- If deployment has no work pool → `with_options()` has no `job_variables` param
+- If a work pool has empty job variables schema → no `with_infra()` method generated
+- If deployment has no work pool → no `with_infra()` method generated
 - If flow has no parameters → `run()`/`run_async()` have no params
 - Each deployment gets one `@overload` in the `deployments` class
 
@@ -579,7 +609,7 @@ render_sdk(data: SDKData, output_path: Path) -> None
 **Verification**:
 - [ ] Generated code is valid Python (parseable by `ast.parse`)
 - [ ] Generated code passes `pyright --strict`
-- [ ] IDE autocomplete works for `deployments.from_name().with_options().run()`
+- [ ] IDE autocomplete works for `deployments.from_name().with_options().with_infra().run()`
 - [ ] IDE shows parameter hints with correct types
 - [ ] Generated docstrings render correctly in IDE
 
