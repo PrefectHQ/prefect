@@ -314,6 +314,12 @@ class _MyEtlFlowProduction:
     def __init__(self) -> None:
         self._options: dict[str, Any] = {}
 
+    def _copy_with_options(self, options: dict[str, Any]) -> "_MyEtlFlowProduction":
+        """Create a new instance with the given options dict."""
+        new = _MyEtlFlowProduction()
+        new._options = options
+        return new
+
     def with_options(
         self,
         *,
@@ -327,29 +333,31 @@ class _MyEtlFlowProduction:
         flow_run_name: str | None = None,
         job_variables: KubernetesPoolJobVariables | None = None,  # Typed per work pool
     ) -> "_MyEtlFlowProduction":
-        """Configure run options for this deployment.
+        """Create a new deployment handle with updated options.
 
-        Returns self for method chaining.
+        Returns a new instance with merged options (does not mutate self).
+        This matches the behavior of Flow.with_options() and Task.with_options().
         """
+        new_options = self._options.copy()
         if timeout is not None:
-            self._options["timeout"] = timeout
+            new_options["timeout"] = timeout
         if poll_interval is not None:
-            self._options["poll_interval"] = poll_interval
+            new_options["poll_interval"] = poll_interval
         if tags is not None:
-            self._options["tags"] = tags
+            new_options["tags"] = tags
         if idempotency_key is not None:
-            self._options["idempotency_key"] = idempotency_key
+            new_options["idempotency_key"] = idempotency_key
         if work_queue_name is not None:
-            self._options["work_queue_name"] = work_queue_name
+            new_options["work_queue_name"] = work_queue_name
         if as_subflow is not None:
-            self._options["as_subflow"] = as_subflow
+            new_options["as_subflow"] = as_subflow
         if scheduled_time is not None:
-            self._options["scheduled_time"] = scheduled_time
+            new_options["scheduled_time"] = scheduled_time
         if flow_run_name is not None:
-            self._options["flow_run_name"] = flow_run_name
+            new_options["flow_run_name"] = flow_run_name
         if job_variables is not None:
-            self._options["job_variables"] = job_variables
-        return self
+            new_options["job_variables"] = job_variables
+        return self._copy_with_options(new_options)
 
     def run(
         self,
@@ -396,7 +404,7 @@ class _MyEtlFlowProduction:
 
 **Design decisions**:
 - Class name format: `_{FlowName}{DeploymentName}` (underscore prefix = private)
-- **`with_options()` for infrastructure config** - returns `self` for method chaining
+- **`with_options()` returns a new instance** - matches `Flow.with_options()` / `Task.with_options()` behavior
 - **Flow parameters are direct kwargs on `run()`/`run_async()`** - enables IDE autocomplete and type checking
 - **`job_variables` typed per work pool** - uses `{WorkPoolName}JobVariables` TypedDict
 - All `with_options()` params are keyword-only (after `*`) and optional
@@ -406,7 +414,6 @@ class _MyEtlFlowProduction:
 - Docstring includes full deployment name and work pool for discoverability
 - `run()` calls `run_deployment()` synchronously (the decorator handles sync execution)
 - `run_async()` uses `await run_deployment()` for proper async execution
-- Options accumulate if `with_options()` is called multiple times
 
 **Flow parameter handling**:
 - Required params (in schema's `required` array, no default) → required kwargs
