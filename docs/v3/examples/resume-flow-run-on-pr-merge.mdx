@@ -1,21 +1,28 @@
 ---
-title: Resume failed flow runs when a PR is merged
-sidebarTitle: Resume Flow on PR Merge
+title: Resume Flow Run on PR Merge
 description: Automatically resume failed flow runs when a hotfix PR is merged in GitHub.
+icon: github
+keywords: ["github", "webhooks", "automations", "ci-cd", "retry", "resume"]
 ---
 
-<Note>
-This guide uses [webhooks](/v3/automate/events/webhooks), which are only available in Prefect Cloud.
-</Note>
 
-## Overview
+{/*
+This page is automatically generated via the `generate_example_pages.py` script. Any changes to this page will be overwritten.
+*/}
+<a href="https://github.com/PrefectHQ/prefect/blob/main/examples/resume_flow_run_on_pr_merge.py" target="_blank">View on GitHub</a>
+
+
+<Note>
+This example uses [webhooks](/v3/automate/events/webhooks), which are only available in Prefect Cloud.
+</Note>
 
 When a flow run fails due to a bug in your code, you typically need to:
 1. Fix the bug in a pull request
 2. Merge the PR
 3. Manually retry the failed flow run
 
-This guide shows how to automate step 3 by creating a webhook and automation that automatically resumes a failed flow run when a PR containing the flow run URL is merged.
+This example shows how to automate step 3 by creating a webhook and automation that
+automatically resumes a failed flow run when a PR containing the flow run URL is merged.
 
 ## Prerequisites
 
@@ -23,9 +30,10 @@ This guide shows how to automate step 3 by creating a webhook and automation tha
 - A GitHub repository with webhook access
 - A failed flow run you want to resume
 
-## Step 1: Create a webhook
+## Step 1: Create a Prefect webhook
 
-Create a webhook in Prefect Cloud that transforms GitHub PR events into Prefect events. The webhook template extracts the flow run ID from the PR body when present.
+Create a webhook in Prefect Cloud that transforms GitHub PR events into Prefect events.
+The webhook template extracts the flow run ID from the PR body when present.
 
 Navigate to your workspace's **Webhooks** page and create a new webhook with this template:
 
@@ -41,7 +49,9 @@ Navigate to your workspace's **Webhooks** page and create a new webhook with thi
 }
 ```
 
-This template uses the `flow_run_id` filter to extract a flow run UUID from any Prefect Cloud URL in the PR body. If no flow run URL is found, it falls back to `github.pr.<number>`. The `pr.merged` label enables filtering for merged PRs only.
+This template uses the `flow_run_id` filter to extract a flow run UUID from any Prefect Cloud URL
+in the PR body. If no flow run URL is found, it falls back to `github.pr.<number>`.
+The `pr.merged` label enables filtering for merged PRs only.
 
 Copy the webhook URL for the next step.
 
@@ -72,29 +82,17 @@ Navigate to your workspace's **Automations** page and create a new automation:
 - **New state**: Scheduled
 - **Force**: Yes (required to transition from Failed state)
 
-The automation extracts the flow run ID from the event's `prefect.resource.id` and changes its state to resume execution.
-
-## Step 4: Use the workflow
-
-When a flow run fails:
-
-1. Create a PR to fix the issue
-2. Include the flow run URL in the PR body:
-   ```
-   This PR fixes the data validation issue.
-
-   Fixes: https://app.prefect.cloud/account/.../workspace/.../runs/flow-run/abc123-...
-   ```
-3. Merge the PR
-4. The automation triggers and resumes the flow run
+The automation extracts the flow run ID from the event's `prefect.resource.id` and changes
+its state to resume execution.
 
 ## Example flow
 
 Here's a simple flow that reads configuration and can fail based on its contents:
 
-```python example_flow.py
+```python
 import json
 from pathlib import Path
+
 from prefect import flow
 
 
@@ -110,12 +108,22 @@ def my_flow():
 
 if __name__ == "__main__":
     my_flow()
+
 ```
 
-If this flow fails due to a bad config, you can:
-1. Fix `config.json` in a PR
-2. Include the failed flow run URL in the PR body
-3. Merge to automatically resume the flow run
+## Using the workflow
+
+When this flow fails:
+
+1. Create a PR to fix the issue (e.g., fix `config.json`)
+2. Include the flow run URL in the PR body:
+   ```
+   This PR fixes the data validation issue.
+
+   Fixes: https://app.prefect.cloud/account/.../workspace/.../runs/flow-run/abc123-...
+   ```
+3. Merge the PR
+4. The automation triggers and resumes the flow run
 
 ## How it works
 

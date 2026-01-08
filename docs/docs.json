@@ -264,8 +264,7 @@
             "group": "Automations",
             "pages": [
               "v3/advanced/detect-zombie-flows",
-              "v3/advanced/use-custom-event-grammar",
-              "v3/advanced/resume-flow-run-on-pr-merge"
+              "v3/advanced/use-custom-event-grammar"
             ]
           },
           {
@@ -312,7 +311,8 @@
               "v3/examples/simple-web-scraper",
               "v3/examples/ai-data-analyst-with-pydantic-ai",
               "v3/examples/ai-database-cleanup-with-approval",
-              "v3/examples/per-worker-task-concurrency"
+              "v3/examples/per-worker-task-concurrency",
+              "v3/examples/resume-flow-run-on-pr-merge"
             ]
           }
         ],
