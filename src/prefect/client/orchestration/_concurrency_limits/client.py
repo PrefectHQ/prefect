@@ -426,10 +426,12 @@ class ConcurrencyLimitClient(BaseClient):
             else:
                 raise
 
-    def upsert_global_concurrency_limit_by_name(self, name: str, limit: int) -> None:
+    def upsert_global_concurrency_limit_by_name(
+        self, name: str, limit: int, slot_decay_per_second: float | None = None
+    ) -> None:
         """Creates a global concurrency limit with the given name and limit if one does not already exist.
 
-        If one does already exist matching the name then update it's limit if it is different.
+        If one does already exist matching the name then update it's limit and/or slot_decay_per_second if they are different.
 
         Note: This is not done atomically.
         """
@@ -448,11 +450,18 @@ class ConcurrencyLimitClient(BaseClient):
                 GlobalConcurrencyLimitCreate(
                     name=name,
                     limit=limit,
+                    slot_decay_per_second=slot_decay_per_second,
                 )
             )
-        elif existing_limit.limit != limit:
+        elif existing_limit.limit != limit or (
+            slot_decay_per_second is not None
+            and existing_limit.slot_decay_per_second != slot_decay_per_second
+        ):
             self.update_global_concurrency_limit(
-                name, GlobalConcurrencyLimitUpdate(limit=limit)
+                name,
+                GlobalConcurrencyLimitUpdate(
+                    limit=limit, slot_decay_per_second=slot_decay_per_second
+                ),
             )
 
     def read_global_concurrency_limits(
@@ -880,11 +889,11 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 raise
 
     async def upsert_global_concurrency_limit_by_name(
-        self, name: str, limit: int
+        self, name: str, limit: int, slot_decay_per_second: float | None = None
     ) -> None:
         """Creates a global concurrency limit with the given name and limit if one does not already exist.
 
-        If one does already exist matching the name then update it's limit if it is different.
+        If one does already exist matching the name then update it's limit and/or slot_decay_per_second if they are different.
 
         Note: This is not done atomically.
         """
@@ -903,11 +912,18 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 GlobalConcurrencyLimitCreate(
                     name=name,
                     limit=limit,
+                    slot_decay_per_second=slot_decay_per_second,
                 )
             )
-        elif existing_limit.limit != limit:
+        elif existing_limit.limit != limit or (
+            slot_decay_per_second is not None
+            and existing_limit.slot_decay_per_second != slot_decay_per_second
+        ):
             await self.update_global_concurrency_limit(
-                name, GlobalConcurrencyLimitUpdate(limit=limit)
+                name,
+                GlobalConcurrencyLimitUpdate(
+                    limit=limit, slot_decay_per_second=slot_decay_per_second
+                ),
             )
 
     async def read_global_concurrency_limits(
