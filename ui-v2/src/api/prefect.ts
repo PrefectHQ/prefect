@@ -5125,6 +5125,12 @@ export interface components {
              * @description An optional message to associate with the state change
              */
             message?: string | null;
+            /**
+             * Force
+             * @description Force the state change even if the transition is not allowed
+             * @default false
+             */
+            force: boolean;
         };
         /**
          * ClientMetricsSettings
