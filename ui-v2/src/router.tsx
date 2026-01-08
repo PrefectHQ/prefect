@@ -1,14 +1,21 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import type { AuthState } from "@/auth";
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
 export const queryClient = new QueryClient();
 
+export interface RouterContext {
+	queryClient: QueryClient;
+	auth: AuthState;
+}
+
 export const router = createRouter({
 	routeTree,
 	context: {
 		queryClient: queryClient,
+		auth: undefined!, // Will be provided by App
 	},
 	defaultPreload: "intent",
 	// Since we're using React Query, we don't want loader calls to ever be stale
