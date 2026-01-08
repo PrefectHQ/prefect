@@ -5,8 +5,6 @@ This module contains the data classes and exceptions used across the SDK
 generation modules.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from typing import Any
 

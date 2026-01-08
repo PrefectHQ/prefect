@@ -1,6 +1,6 @@
 """Tests for union utility functions."""
 
-from prefect._sdk._union import split_union_top_level
+from prefect._sdk.unions import split_union_top_level
 
 
 class TestSplitUnionTopLevel:

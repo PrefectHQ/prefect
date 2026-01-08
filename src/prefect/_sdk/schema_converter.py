@@ -20,16 +20,14 @@ Note:
     its `conversion_warnings` list after calling json_schema_to_python_type().
 """
 
-from __future__ import annotations
-
 from typing import Any
 
-from prefect._sdk._union import flatten_union
 from prefect._sdk.types import (
     CircularReferenceError,
     ConversionContext,
     FieldInfo,
 )
+from prefect._sdk.unions import flatten_union
 
 # Re-export public types
 __all__ = [

@@ -1,17 +1,15 @@
 """
 Union type utilities for SDK generation.
 
-This module provides bracket- and quote-aware union type handling.
+This module provides bracket and quote-aware union type handling.
 """
-
-from __future__ import annotations
 
 
 def split_union_top_level(type_str: str) -> list[str]:
     """
     Split a union type string on " | " only at the top level.
 
-    This is bracket- and quote-aware, so it won't split inside:
+    This is bracket and quote-aware, so it won't split inside:
     - Brackets: list[str | int] stays intact
     - Quotes: Literal['a | b'] stays intact
 
