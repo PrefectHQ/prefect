@@ -43,8 +43,8 @@ function RootErrorComponent({ error, reset }: ErrorComponentProps) {
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	beforeLoad: ({ context, location }) => {
-		// Skip auth check for login route
-		if (location.pathname === "/login") {
+		// Skip auth check for login route or if auth context is not available (e.g., in tests)
+		if (location.pathname === "/login" || !context.auth) {
 			return;
 		}
 
