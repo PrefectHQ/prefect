@@ -247,9 +247,9 @@ The output file has 5 distinct sections, generated in this order:
 ├─────────────────────────────────────────────────────────────┤
 │ 4. DEPLOYMENT CLASSES                                       │
 │    - One class per deployment                               │
-│    - with_options() for run config (timeout, tags, etc.)    │
+│    - with_options() for run config (tags, scheduling, etc.) │
 │    - with_infra() for job variables (typed per work pool)   │
-│    - run()/run_async() with flow params as direct kwargs    │
+│    - run()/run_async() returns PrefectFlowRunFuture         │
 ├─────────────────────────────────────────────────────────────┤
 │ 5. DEPLOYMENT NAMESPACE                                     │
 │    - Single `deployments` class with from_name() method     │
@@ -352,8 +352,6 @@ class _MyEtlFlowProduction:
     def with_options(
         self,
         *,
-        timeout: float | None = None,
-        poll_interval: float | None = None,
         tags: Iterable[str] | None = None,
         idempotency_key: str | None = None,
         work_queue_name: str | None = None,
@@ -365,12 +363,11 @@ class _MyEtlFlowProduction:
 
         Returns a new instance with merged options (does not mutate self).
         This matches the behavior of Flow.with_options() and Task.with_options().
+
+        Note: timeout and poll_interval are not included here - use the
+        PrefectFlowRunFuture.result(timeout=...) method for waiting.
         """
         new_options = self._options.copy()
-        if timeout is not None:
-            new_options["timeout"] = timeout
-        if poll_interval is not None:
-            new_options["poll_interval"] = poll_interval
         if tags is not None:
             new_options["tags"] = tags
         if idempotency_key is not None:
@@ -474,7 +471,7 @@ class _MyEtlFlowProduction:
 
 **Design decisions**:
 - Class name format: `_{FlowName}{DeploymentName}` (underscore prefix = private)
-- **`with_options()` for run config** - timeout, tags, polling, scheduling options
+- **`with_options()` for run config** - tags, scheduling, idempotency (timeout/polling handled by future)
 - **`with_infra()` for job variables** - typed kwargs derived from work pool schema
 - **Both methods return new instances** - matches `Flow.with_options()` / `Task.with_options()` behavior
 - **Flow parameters are direct kwargs on `run()`/`run_async()`** - enables IDE autocomplete and type checking
