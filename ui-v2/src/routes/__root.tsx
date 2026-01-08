@@ -1,9 +1,14 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import {
+	createRootRouteWithContext,
+	Outlet,
+	redirect,
+} from "@tanstack/react-router";
 import { lazy, Suspense, useCallback } from "react";
 import { categorizeError } from "@/api/error-utils";
 import { uiSettings } from "@/api/ui-settings";
+import type { AuthState } from "@/auth";
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { ServerErrorDisplay } from "@/components/ui/server-error";
 
@@ -17,6 +22,7 @@ const TanStackRouterDevtools = import.meta.env.DEV
 
 interface MyRouterContext {
 	queryClient: QueryClient;
+	auth: AuthState;
 }
 
 function RootErrorComponent({ error, reset }: ErrorComponentProps) {
@@ -36,6 +42,28 @@ function RootErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+	beforeLoad: ({ context, location }) => {
+		// Skip auth check for login route
+		if (location.pathname === "/login") {
+			return;
+		}
+
+		// Wait for auth to finish loading
+		if (context.auth.isLoading) {
+			return;
+		}
+
+		// If auth is required and user is not authenticated, redirect to login
+		if (context.auth.authRequired && !context.auth.isAuthenticated) {
+			redirect({
+				to: "/login",
+				search: {
+					redirectTo: location.href,
+				},
+				throw: true,
+			});
+		}
+	},
 	component: () => (
 		<MainLayout>
 			<Outlet />
