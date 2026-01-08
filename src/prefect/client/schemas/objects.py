@@ -221,6 +221,12 @@ class StateDetails(PrefectBaseModel):
             return None
 
 
+# Force model rebuild to prevent MockValSer errors when serializing with
+# serialize_as_any=True. PrefectBaseModel has defer_build=True, which can leave
+# nested models incomplete. See: https://github.com/PrefectHQ/prefect/issues/18053
+StateDetails.model_rebuild()
+
+
 def data_discriminator(x: Any) -> str:
     if isinstance(x, dict) and "storage_key" in x:
         return "ResultRecordMetadata"

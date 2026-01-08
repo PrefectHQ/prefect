@@ -72,6 +72,7 @@ dependencies = [
     "rfc3339-validator>=0.1.4,<0.2.0",
     "rich>=11.0,<15.0",
     "ruamel.yaml>=0.17.0",
+    "ruamel.yaml.clib>=0.2.8; platform_python_implementation == 'CPython'",
     "sniffio>=1.3.0,<2.0.0",
     "toml>=0.10.0",
     "typing_extensions>=4.10.0,<5.0.0",
@@ -229,7 +230,7 @@ dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 
 [tool.hatch.build]
-artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui"]
+artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]

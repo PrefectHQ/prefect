@@ -7,4 +7,6 @@ export {
 	TaskRunsTrends,
 	type TaskRunsTrendsFilter,
 } from "./task-runs-card/exports";
+export { TaskRunsCardSkeleton } from "./task-runs-card/task-runs-card-skeleton";
 export { DashboardWorkPoolsCard } from "./work-pools-card";
+export { WorkPoolsCardSkeleton } from "./work-pools-card/work-pools-card-skeleton";

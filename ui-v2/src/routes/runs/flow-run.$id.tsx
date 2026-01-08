@@ -1,11 +1,15 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { ErrorComponentProps } from "@tanstack/react-router";
+import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildListArtifactsQuery } from "@/api/artifacts";
+import { categorizeError } from "@/api/error-utils";
 import { buildGetFlowRunDetailsQuery } from "@/api/flow-runs";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildPaginateTaskRunsQuery } from "@/api/task-runs";
 import { FlowRunDetailsPage } from "@/components/flow-runs/flow-run-details-page";
+import { FlowRunNotFound } from "@/components/flow-runs/flow-run-not-found";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 
 const searchParams = z.object({
 	tab: z
@@ -23,6 +27,18 @@ const searchParams = z.object({
 });
 
 export type FlowRunDetailsTabOptions = z.infer<typeof searchParams>["tab"];
+
+function FlowRunErrorComponent({ error, reset }: ErrorComponentProps) {
+	const serverError = categorizeError(error, "Failed to load flow run");
+	return (
+		<div className="flex flex-col gap-4">
+			<div>
+				<h1 className="text-2xl font-semibold">Flow Run</h1>
+			</div>
+			<RouteErrorState error={serverError} onRetry={reset} />
+		</div>
+	);
+}
 
 export const Route = createFileRoute("/runs/flow-run/$id")({
 	validateSearch: zodValidator(searchParams),
@@ -75,9 +91,20 @@ export const Route = createFileRoute("/runs/flow-run/$id")({
 		);
 
 		// ----- Critical data
-		await queryClient.ensureQueryData(buildGetFlowRunDetailsQuery(params.id));
+		try {
+			await queryClient.ensureQueryData(buildGetFlowRunDetailsQuery(params.id));
+		} catch (error) {
+			// Only treat "not found" errors as 404, rethrow other errors
+			if (error instanceof Error && /not found/i.test(error.message)) {
+				// eslint-disable-next-line @typescript-eslint/only-throw-error
+				throw notFound();
+			}
+			throw error;
+		}
 	},
 	wrapInSuspense: true,
+	errorComponent: FlowRunErrorComponent,
+	notFoundComponent: FlowRunNotFound,
 });
 
 function RouteComponent() {

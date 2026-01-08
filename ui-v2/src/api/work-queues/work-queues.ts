@@ -69,7 +69,7 @@ export const buildFilterWorkQueuesQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.filter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/work_queues/filter", {
+			const res = await (await getQueryService()).POST("/work_queues/filter", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -110,7 +110,7 @@ export const buildFilterWorkPoolWorkQueuesQuery = ({
 	queryOptions({
 		queryKey: queryKeyFactory.workPoolFilters(work_pool_name ?? "", filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST(
+			const res = await (await getQueryService()).POST(
 				"/work_pools/{work_pool_name}/queues/filter",
 				{
 					params: { path: { work_pool_name: work_pool_name ?? "" } },
@@ -142,7 +142,7 @@ export const buildWorkQueueDetailsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.detail(work_pool_name, name),
 		queryFn: async () => {
-			const res = await getQueryService().GET(
+			const res = await (await getQueryService()).GET(
 				"/work_pools/{work_pool_name}/queues/{name}",
 				{ params: { path: { work_pool_name, name } } },
 			);
@@ -168,7 +168,7 @@ export const buildGetWorkQueueQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detailById(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/work_queues/{id}", {
+			const res = await (await getQueryService()).GET("/work_queues/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {

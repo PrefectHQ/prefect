@@ -3,6 +3,7 @@ import * as matchers from "@testing-library/jest-dom/matchers";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, expect, vi } from "vitest";
 import "@testing-library/jest-dom";
+import { uiSettings } from "../src/api/ui-settings";
 import { server } from "./utils";
 
 beforeAll(() => {
@@ -16,6 +17,8 @@ beforeAll(() => {
 });
 afterEach(() => {
 	server.resetHandlers();
+	// Reset the UI settings singleton to ensure tests don't share cached state
+	uiSettings.reset();
 });
 afterAll(() => server.close());
 

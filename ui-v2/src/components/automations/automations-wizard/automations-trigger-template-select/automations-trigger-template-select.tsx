@@ -1,10 +1,12 @@
+import { useFormContext } from "react-hook-form";
+import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
+import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
 	SelectGroup,
 	SelectItem,
-	SelectLabel,
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
@@ -32,17 +34,19 @@ export const AutomationsTriggerTemplateSelect = ({
 	value,
 }: AutomationsTriggerTemplateSelectProps) => {
 	return (
-		<div>
+		<div className="space-y-2">
 			<Label htmlFor="automations-trigger-template-select">
 				Trigger Template
 			</Label>
 			<Select value={value} onValueChange={onValueChange}>
-				<SelectTrigger id="automations-trigger-template-select">
+				<SelectTrigger
+					id="automations-trigger-template-select"
+					className="w-full"
+				>
 					<SelectValue placeholder="Select template" />
 				</SelectTrigger>
 				<SelectContent>
 					<SelectGroup>
-						<SelectLabel>Trigger templates</SelectLabel>
 						{Object.keys(TEMPLATE_TRIGGERS).map((key) => (
 							<SelectItem key={key} value={key}>
 								{TEMPLATE_TRIGGERS[key as TemplateTriggers]}
@@ -52,5 +56,35 @@ export const AutomationsTriggerTemplateSelect = ({
 				</SelectContent>
 			</Select>
 		</div>
+	);
+};
+
+type TriggerTemplateSelectFieldProps = {
+	onTemplateChange?: (template: TriggerTemplate) => void;
+};
+
+export const TriggerTemplateSelectField = ({
+	onTemplateChange,
+}: TriggerTemplateSelectFieldProps) => {
+	const form = useFormContext<AutomationWizardSchema>();
+
+	return (
+		<FormField
+			control={form.control}
+			name="triggerTemplate"
+			render={({ field }) => (
+				<FormItem>
+					<FormControl>
+						<AutomationsTriggerTemplateSelect
+							value={field.value}
+							onValueChange={(value) => {
+								field.onChange(value);
+								onTemplateChange?.(value);
+							}}
+						/>
+					</FormControl>
+				</FormItem>
+			)}
+		/>
 	);
 };

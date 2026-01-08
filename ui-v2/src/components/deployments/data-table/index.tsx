@@ -13,10 +13,10 @@ import { useCallback } from "react";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
 import { useDeleteDeploymentConfirmationDialog } from "@/components/deployments/use-delete-deployment-confirmation-dialog";
+import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { DataTable } from "@/components/ui/data-table";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
-import { Icon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/input";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import {
@@ -66,14 +66,11 @@ const createColumns = ({
 				</Link>
 
 				{row.original.flow && (
-					<Link to="/flows/flow/$id" params={{ id: row.original.flow_id }}>
-						<span className="text-xs text-muted-foreground flex items-center gap-1">
-							<Icon id="Workflow" size={12} />
-							<span className="truncate" title={row.original.flow.name}>
-								{row.original.flow.name}
-							</span>
-						</span>
-					</Link>
+					<FlowIconText
+						flow={row.original.flow}
+						className="text-xs text-muted-foreground flex items-center gap-1"
+						iconSize={12}
+					/>
 				)}
 			</div>
 		),
