@@ -1,0 +1,123 @@
+# ---
+# title: Resume Flow Run on PR Merge
+# description: Automatically resume failed flow runs when a hotfix PR is merged in GitHub.
+# icon: github
+# keywords: ["github", "webhooks", "automations", "ci-cd", "retry", "resume"]
+# ---
+#
+# <Note>
+# This example uses [webhooks](/v3/automate/events/webhooks), which are only available in Prefect Cloud.
+# </Note>
+#
+# When a flow run fails due to a bug in your code, you typically need to:
+# 1. Fix the bug in a pull request
+# 2. Merge the PR
+# 3. Manually retry the failed flow run
+#
+# This example shows how to automate step 3 by creating a webhook and automation that
+# automatically resumes a failed flow run when a PR containing the flow run URL is merged.
+#
+# ## Prerequisites
+#
+# - A Prefect Cloud workspace
+# - A GitHub repository with webhook access
+# - A failed flow run you want to resume
+#
+# ## Step 1: Create a Prefect webhook
+#
+# Create a webhook in Prefect Cloud that transforms GitHub PR events into Prefect events.
+# The webhook template extracts the flow run ID from the PR body when present.
+#
+# Navigate to your workspace's **Webhooks** page and create a new webhook with this template:
+#
+# ```jinja
+# {
+#   "event": "github.{{ headers.get('x-github-event', 'unknown') }}.{{ body.action|default('no-action') }}",
+#   "resource": {
+#     "prefect.resource.id": "{% set frid = body.pull_request.body|flow_run_id %}{% if frid %}prefect.flow-run.{{ frid }}{% else %}github.pr.{{ body.pull_request.number|default(0) }}{% endif %}",
+#     "pr.number": "{{ body.pull_request.number|default(0) }}",
+#     "pr.merged": "{{ body.pull_request.merged|default(false) }}",
+#     "pr.title": "{{ body.pull_request.title|default('')|truncate(100) }}"
+#   }
+# }
+# ```
+#
+# This template uses the `flow_run_id` filter to extract a flow run UUID from any Prefect Cloud URL
+# in the PR body. If no flow run URL is found, it falls back to `github.pr.<number>`.
+# The `pr.merged` label enables filtering for merged PRs only.
+#
+# Copy the webhook URL for the next step.
+#
+# ## Step 2: Configure GitHub webhook
+#
+# In your GitHub repository:
+#
+# 1. Go to **Settings** → **Webhooks** → **Add webhook**
+# 2. Set the **Payload URL** to your Prefect webhook URL
+# 3. Set **Content type** to `application/json`
+# 4. Under **Which events would you like to trigger this webhook?**, select **Let me select individual events** and check **Pull requests**
+# 5. Click **Add webhook**
+#
+# ## Step 3: Create an automation
+#
+# Create an automation that triggers when a PR is merged and the event contains a flow run ID.
+#
+# Navigate to your workspace's **Automations** page and create a new automation:
+#
+# **Trigger configuration:**
+# - **Trigger type**: Event
+# - **Event name**: `github.pull_request.closed`
+# - **Resource**: Match `prefect.resource.id` starting with `prefect.flow-run.`
+# - **Resource labels**: Match `pr.merged` equals `True`
+#
+# **Action configuration:**
+# - **Action type**: Change flow run state
+# - **New state**: Scheduled
+# - **Force**: Yes (required to transition from Failed state)
+#
+# The automation extracts the flow run ID from the event's `prefect.resource.id` and changes
+# its state to resume execution.
+#
+# ## Example flow
+#
+# Here's a simple flow that reads configuration and can fail based on its contents:
+
+import json
+from pathlib import Path
+
+from prefect import flow
+
+
+@flow(log_prints=True)
+def my_flow():
+    config = json.loads(Path("config.json").read_text())
+
+    if error := config.get("error"):
+        raise ValueError(f"Flow failed: {error}")
+
+    print("Flow completed successfully!")
+
+
+if __name__ == "__main__":
+    my_flow()
+
+# ## Using the workflow
+#
+# When this flow fails:
+#
+# 1. Create a PR to fix the issue (e.g., fix `config.json`)
+# 2. Include the flow run URL in the PR body:
+#    ```
+#    This PR fixes the data validation issue.
+#
+#    Fixes: https://app.prefect.cloud/account/.../workspace/.../runs/flow-run/abc123-...
+#    ```
+# 3. Merge the PR
+# 4. The automation triggers and resumes the flow run
+#
+# ## How it works
+#
+# 1. **GitHub sends webhook**: When a PR is closed, GitHub sends a POST request to your Prefect webhook
+# 2. **Webhook transforms event**: The Jinja template extracts the flow run ID from the PR body and creates a Prefect event with `prefect.resource.id` set to `prefect.flow-run.<uuid>`
+# 3. **Automation matches**: The automation triggers on `github.pull_request.closed` events where `pr.merged` is `True` and the resource ID matches a flow run
+# 4. **State change**: The automation changes the flow run state to `Scheduled`, which resumes execution
