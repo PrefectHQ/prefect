@@ -62,6 +62,33 @@ The SDK file contains:
 
 **Important**: All type information comes from **server-side metadata** (JSON Schema stored with deployments and work pools). The generator does not inspect flow source code—it works entirely from the Prefect API.
 
+## Key Design Decision: kwargs over TypedDict
+
+We chose to use **direct kwargs** for flow parameters, run options, and job variables rather than TypedDict parameters:
+
+```python
+# ✅ Chosen approach: direct kwargs
+deployments.from_name("my-flow/prod").with_options(
+    timeout=60,
+    tags=["production"],
+).run(
+    source="s3://bucket",
+    batch_size=100,
+)
+
+# ❌ Rejected: TypedDict parameters
+deployments.from_name("my-flow/prod").run(
+    parameters={"source": "s3://bucket", "batch_size": 100},
+    options={"timeout": 60, "tags": ["production"]},
+)
+```
+
+**Rationale**:
+- **More Pythonic** - Keyword arguments are the idiomatic Python way to pass named parameters
+- **Better IDE experience** - Direct kwargs show parameter names and types in autocomplete; TypedDict requires remembering dict key names
+- **Cleaner call sites** - No nested dict syntax, just natural function calls
+- **Consistent with Prefect APIs** - Matches patterns like `@flow(retries=3)` and `task.with_options(timeout=60)`
+
 ## Architecture
 
 ```
