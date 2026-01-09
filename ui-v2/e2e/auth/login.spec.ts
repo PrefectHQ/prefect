@@ -25,8 +25,9 @@ test.describe("Login Flow", () => {
 	});
 
 	test.beforeEach(async ({ page }) => {
-		// Clear any existing credentials before each test
-		await page.goto("/");
+		// Navigate to login page first (always accessible) to establish page context
+		await page.goto("/login");
+		// Clear any existing credentials
 		await clearAuthCredentials(page);
 	});
 

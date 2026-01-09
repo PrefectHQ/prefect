@@ -36,7 +36,8 @@ test.describe("Protected Routes", () => {
 
 	test.describe("Unauthenticated Access", () => {
 		test.beforeEach(async ({ page }) => {
-			await page.goto("/");
+			// Navigate to login page first (always accessible) to establish page context
+			await page.goto("/login");
 			await clearAuthCredentials(page);
 		});
 
@@ -79,8 +80,8 @@ test.describe("Protected Routes", () => {
 	test("should preserve redirect parameter through auth flow", async ({
 		page,
 	}) => {
-		// Clear credentials
-		await page.goto("/");
+		// Clear credentials - navigate to login first to establish page context
+		await page.goto("/login");
 		await clearAuthCredentials(page);
 
 		// Try to access a protected route
