@@ -44,7 +44,7 @@ const searchParams = z.object({
 	tags: z.array(z.string()).optional().catch(undefined),
 });
 
-export function VariablesPage() {
+function VariablesPage() {
 	const search = Route.useSearch();
 
 	const { variables, filteredCount, totalCount } = useVariables(
