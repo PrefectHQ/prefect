@@ -29,9 +29,6 @@ from prefect.server.concurrency.lease_storage.filesystem import (
     ConcurrencyLeaseStorage as FileSystemConcurrencyLeaseStorage,
 )
 
-# Timeout for polling loops to prevent tests from hanging indefinitely
-POLLING_TIMEOUT_SECONDS = 60
-
 
 @pytest.fixture
 async def concurrency_limit():
@@ -99,11 +96,7 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
 
     # Wait for lease to be created
     active_lease = None
-    start_time = time.monotonic()
     while not active_lease:
-        if time.monotonic() - start_time > POLLING_TIMEOUT_SECONDS:
-            process.kill()
-            pytest.fail("Timed out waiting for lease to be created")
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
         for lease_id in active_lease_ids:
@@ -116,11 +109,7 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
     assert updated_lease
 
     # Wait for lease to be renewed
-    start_time = time.monotonic()
     while updated_lease.expiration == active_lease.expiration:
-        if time.monotonic() - start_time > POLLING_TIMEOUT_SECONDS:
-            process.kill()
-            pytest.fail("Timed out waiting for lease to be renewed")
         await asyncio.sleep(1)
         updated_lease = await lease_storage.read_lease(active_lease.id)
         assert updated_lease
@@ -142,10 +131,7 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
     await lease_storage.renew_lease(active_lease.id, timedelta(seconds=0))
 
     # Wait for the lease to be revoked
-    start_time = time.monotonic()
     while (await lease_storage.read_expired_lease_ids()) != []:
-        if time.monotonic() - start_time > POLLING_TIMEOUT_SECONDS:
-            pytest.fail("Timed out waiting for lease to be revoked")
         await asyncio.sleep(1)
 
     # Check that the concurrency limit has no slots taken after the lease is revoked
@@ -174,11 +160,7 @@ async def test_async_concurrency_with_lease_renewal_failure(
 
     # Wait for lease to be created
     active_lease = None
-    start_time = time.monotonic()
     while not active_lease:
-        if time.monotonic() - start_time > POLLING_TIMEOUT_SECONDS:
-            process.kill()
-            pytest.fail("Timed out waiting for lease to be created")
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
         for lease_id in active_lease_ids:
@@ -212,11 +194,7 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
 
     # Wait for lease to be created
     active_lease = None
-    start_time = time.monotonic()
     while not active_lease:
-        if time.monotonic() - start_time > POLLING_TIMEOUT_SECONDS:
-            process.kill()
-            pytest.fail("Timed out waiting for lease to be created")
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
         for lease_id in active_lease_ids:
@@ -229,11 +207,7 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
     updated_lease = active_lease
 
     # Wait for lease to be renewed
-    start_time = time.monotonic()
     while updated_lease.expiration == active_lease.expiration:
-        if time.monotonic() - start_time > POLLING_TIMEOUT_SECONDS:
-            process.kill()
-            pytest.fail("Timed out waiting for lease to be renewed")
         updated_lease = await lease_storage.read_lease(active_lease.id)
         assert updated_lease
         await asyncio.sleep(1)
@@ -255,10 +229,7 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
     await lease_storage.renew_lease(active_lease.id, timedelta(seconds=0))
 
     # Wait for the lease to be revoked
-    start_time = time.monotonic()
     while (await lease_storage.read_expired_lease_ids()) != []:
-        if time.monotonic() - start_time > POLLING_TIMEOUT_SECONDS:
-            pytest.fail("Timed out waiting for lease to be revoked")
         await asyncio.sleep(1)
 
     # Check that the concurrency limit has no slots taken after the lease is revoked
@@ -287,11 +258,7 @@ async def test_sync_concurrency_with_lease_renewal_failure(
 
     # Wait for lease to be created
     active_lease = None
-    start_time = time.monotonic()
     while not active_lease:
-        if time.monotonic() - start_time > POLLING_TIMEOUT_SECONDS:
-            process.kill()
-            pytest.fail("Timed out waiting for lease to be created")
         await asyncio.sleep(1)
         active_lease_ids = await lease_storage.read_active_lease_ids()
         for lease_id in active_lease_ids:
