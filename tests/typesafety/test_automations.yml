@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/typeddjango/pytest-mypy-plugins/master/pytest_mypy_plugins/schema.json
+# typsht type safety tests - runs against mypy, pyright, and ty
 - case: automations_aread_by_id
   checkers: [mypy, pyright, ty]
   main: |

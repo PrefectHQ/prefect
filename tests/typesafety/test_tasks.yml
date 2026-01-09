@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/typeddjango/pytest-mypy-plugins/master/pytest_mypy_plugins/schema.json
+# typsht type safety tests - runs against mypy, pyright, and ty
 - case: prefect_task_decorator_no_args
   checkers: [mypy, pyright, ty]
   main: |
