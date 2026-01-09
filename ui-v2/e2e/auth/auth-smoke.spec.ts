@@ -16,8 +16,8 @@ test.describe("Auth Smoke Test", () => {
 		// Navigate directly to login page with redirect parameter
 		await page.goto("/login?redirectTo=/dashboard");
 
-		// Verify login form is visible (CardTitle renders as div, not heading)
-		await expect(page.getByText("Login", { exact: true })).toBeVisible();
+		// Verify login form is visible by checking for the password input
+		await expect(page.getByPlaceholder("admin:pass")).toBeVisible();
 
 		// Enter credentials
 		await page.getByPlaceholder("admin:pass").fill(TEST_CREDENTIALS);
