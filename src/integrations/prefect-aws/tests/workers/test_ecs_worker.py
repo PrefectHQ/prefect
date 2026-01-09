@@ -1651,6 +1651,134 @@ async def test_worker_caches_registered_task_definitions_no_deployment(
 
 
 @pytest.mark.usefixtures("ecs_mocks")
+async def test_task_definition_container_definition_essential(
+    aws_credentials: AwsCredentials, flow_run: FlowRun
+):
+    """
+    Test to ensure that handling of `essential` setting in container definitions
+    is handled correctly.
+
+    `essential` is an optional field. Without an explicit `False` setting,
+    AWS will default to setting this to `True`. This creates false negatives
+    when comparing task definitions even though they are functionally identical.
+    """
+    session = aws_credentials.get_boto3_session()
+    ecs_client = session.client("ecs")
+
+    # Ensure expected default behavior when `essential` is not set
+    configuration = await construct_configuration_with_job_template(
+        template_overrides=dict(
+            task_definition={
+                "containerDefinitions": [
+                    {
+                        "name": ECS_DEFAULT_CONTAINER_NAME,
+                        "image": "{{ image }}",
+                        "essential": True,
+                    },
+                    {"name": "datadog-agent", "image": "datadog/agent"},
+                    {
+                        "name": "log-router",
+                        "image": "public.ecr.aws/aws-observability/fluent-bit:latest",
+                    },
+                ]
+            }
+        )
+    )
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        result = await worker.run(flow_run, configuration)
+
+    _, task_arn = parse_identifier(result.identifier)
+    task = describe_task(ecs_client, task_arn)
+
+    task_definition = describe_task_definition(ecs_client, task)
+
+    # Assert that all containers are marked as essential by default
+    for container in task_definition["containerDefinitions"]:
+        assert container["essential"] is True, (
+            "Containers should be marked as essential by default when not explicitly set."
+        )
+
+    configuration = await construct_configuration_with_job_template(
+        template_overrides=dict(
+            task_definition={
+                "containerDefinitions": [
+                    {"name": ECS_DEFAULT_CONTAINER_NAME, "image": "{{ image }}"},
+                    {
+                        "name": "datadog-agent",
+                        "essential": True,
+                        "image": "datadog/agent",
+                    },
+                    {
+                        "name": "log-router",
+                        "essential": False,
+                        "image": "public.ecr.aws/aws-observability/fluent-bit:latest",
+                    },
+                ]
+            }
+        )
+    )
+
+    async with ECSWorker(work_pool_name="test") as worker:
+        result_1 = await worker.run(flow_run, configuration)
+        result_2 = await worker.run(flow_run, configuration)
+
+    _, task_arn_1 = parse_identifier(result_1.identifier)
+    task_1 = describe_task(ecs_client, task_arn_1)
+    _, task_arn_2 = parse_identifier(result_2.identifier)
+    task_2 = describe_task(ecs_client, task_arn_2)
+
+    # Verify both runs use the same task definition ARN (caching works)
+    assert task_1["taskDefinitionArn"] == task_2["taskDefinitionArn"], (
+        "Task definitions should be cached and reused when configuration is identical"
+    )
+    assert flow_run.deployment_id in _TASK_DEFINITION_CACHE
+
+    # Verify the task definition contains expected values
+    task_definition = describe_task_definition(ecs_client, task_1)
+
+    # Verify essential settings
+    assert task_definition["containerDefinitions"][0]["essential"] is True
+    assert task_definition["containerDefinitions"][1]["essential"] is True
+    assert task_definition["containerDefinitions"][2]["essential"] is False
+
+    # Test that a ValueError is thrown when all containers are non-essential
+    try:
+        await construct_configuration_with_job_template(
+            template_overrides=dict(
+                task_definition={
+                    "containerDefinitions": [
+                        {
+                            "name": ECS_DEFAULT_CONTAINER_NAME,
+                            "image": "{{ image }}",
+                            "essential": False,
+                        },
+                        {
+                            "name": "datadog-agent",
+                            "essential": False,
+                            "image": "datadog/agent",
+                        },
+                        {
+                            "name": "log-router",
+                            "essential": False,
+                            "image": "public.ecr.aws/aws-observability/fluent-bit:latest",
+                        },
+                    ]
+                }
+            )
+        )
+    except ValueError as e:
+        assert (
+            "At least one container in the task definition must be marked as essential."
+            in str(e)
+        ), "Unexpected error message."
+    else:
+        assert False, (
+            "ValueError was not raised when all containers were non-essential."
+        )
+
+
+@pytest.mark.usefixtures("ecs_mocks")
 async def test_worker_cache_miss_for_registered_task_definitions_clears_from_cache(
     aws_credentials: AwsCredentials, flow_run: FlowRun
 ):
