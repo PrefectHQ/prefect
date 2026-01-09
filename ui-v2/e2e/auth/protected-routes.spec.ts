@@ -35,12 +35,15 @@ test.describe("Protected Routes", () => {
 	});
 
 	test.describe("Unauthenticated Access", () => {
-		test.beforeEach(async ({ page }) => {
+		test.beforeEach(async ({ page, context }) => {
+			// Clear all storage state to ensure clean auth state
+			await context.clearCookies();
 			// Navigate to login page first (always accessible) to establish page context
 			await page.goto("/login");
-			// Clear credentials and reload to reset app auth state
+			// Clear any existing credentials
 			await clearAuthCredentials(page);
-			await page.reload();
+			// Also clear all localStorage to be thorough
+			await page.evaluate(() => localStorage.clear());
 		});
 
 		for (const route of PROTECTED_ROUTES) {
@@ -81,11 +84,13 @@ test.describe("Protected Routes", () => {
 
 	test("should preserve redirect parameter through auth flow", async ({
 		page,
+		context,
 	}) => {
-		// Clear credentials - navigate to login first to establish page context
+		// Clear all storage state to ensure clean auth state
+		await context.clearCookies();
 		await page.goto("/login");
 		await clearAuthCredentials(page);
-		await page.reload();
+		await page.evaluate(() => localStorage.clear());
 
 		// Try to access a protected route
 		await page.goto("/automations");

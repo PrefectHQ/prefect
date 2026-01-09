@@ -24,22 +24,26 @@ test.describe("Login Flow", () => {
 		test.skip(!authRequired, "Auth is not enabled on the server");
 	});
 
-	test.beforeEach(async ({ page }) => {
+	test.beforeEach(async ({ page, context }) => {
+		// Clear all storage state to ensure clean auth state
+		await context.clearCookies();
 		// Navigate to login page first (always accessible) to establish page context
 		await page.goto("/login");
-		// Clear any existing credentials and reload to reset app auth state
+		// Clear any existing credentials
 		await clearAuthCredentials(page);
-		await page.reload();
+		// Also clear all localStorage to be thorough
+		await page.evaluate(() => localStorage.clear());
 	});
 
 	test("should redirect unauthenticated user to login page", async ({
 		page,
 	}) => {
+		// Navigate to dashboard - should redirect to login since we're unauthenticated
 		await page.goto("/dashboard");
 
 		// Should be redirected to login with redirect parameter
 		await expect(page).toHaveURL(/\/login/);
-		await expect(page.getByRole("heading", { name: "Login" })).toBeVisible();
+		await expect(page.getByPlaceholder("admin:pass")).toBeVisible();
 	});
 
 	test("should display login form elements", async ({ page }) => {
