@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import {
 	createRootRouteWithContext,
+	Navigate,
 	Outlet,
 	redirect,
 	useRouterState,
@@ -9,8 +10,9 @@ import {
 import { lazy, Suspense, useCallback } from "react";
 import { categorizeError } from "@/api/error-utils";
 import { uiSettings } from "@/api/ui-settings";
-import type { AuthState } from "@/auth";
+import { type AuthState, useAuthSafe } from "@/auth";
 import { MainLayout } from "@/components/layouts/MainLayout";
+import { PrefectLoading } from "@/components/ui/loading";
 import { ServerErrorDisplay } from "@/components/ui/server-error";
 
 const TanStackRouterDevtools = import.meta.env.DEV
@@ -44,7 +46,28 @@ function RootErrorComponent({ error, reset }: ErrorComponentProps) {
 
 function RootComponent() {
 	const location = useRouterState({ select: (s) => s.location });
+	const auth = useAuthSafe();
 	const isLoginPage = location.pathname === "/login";
+
+	// If auth context is not available (e.g., in tests), skip auth checks
+	if (auth) {
+		// Show loading state while auth is initializing
+		if (auth.isLoading) {
+			return <PrefectLoading />;
+		}
+
+		// Redirect to login if auth is required and user is not authenticated
+		// (This handles the case where beforeLoad didn't catch it due to loading state)
+		if (auth.authRequired && !auth.isAuthenticated && !isLoginPage) {
+			return (
+				<Navigate
+					to="/login"
+					search={{ redirectTo: location.href }}
+					replace={true}
+				/>
+			);
+		}
+	}
 
 	const content = (
 		<>
