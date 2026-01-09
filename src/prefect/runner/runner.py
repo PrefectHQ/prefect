@@ -606,6 +606,23 @@ class Runner:
             self._submitting_flow_run_ids.add(flow_run_id)
             flow_run = await self._client.read_flow_run(flow_run_id)
 
+            # If the flow run is already cancelling or cancelled, exit early
+            if flow_run.state and flow_run.state.is_cancelling():
+                await self._mark_flow_run_as_cancelled(
+                    flow_run,
+                    state_updates={
+                        "message": "Flow run was cancelled before execution started."
+                    },
+                )
+                self._release_limit_slot(flow_run_id)
+                self._submitting_flow_run_ids.discard(flow_run_id)
+                return
+
+            if flow_run.state and flow_run.state.is_cancelled():
+                self._release_limit_slot(flow_run_id)
+                self._submitting_flow_run_ids.discard(flow_run_id)
+                return
+
             process: (
                 anyio.abc.Process | multiprocessing.context.SpawnProcess | Exception
             ) = await self._runs_task_group.start(
@@ -1569,6 +1586,13 @@ class Runner:
         if not hasattr(self, "_loop") or not self._loop:
             self._loop = asyncio.get_event_loop()
 
+        await self._exit_stack.enter_async_context(self._client)
+        await self._exit_stack.enter_async_context(self._events_client)
+
+        if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
+            self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        await self._exit_stack.enter_async_context(self._runs_task_group)
+
         self._cancelling_observer = await self._exit_stack.enter_async_context(
             FlowRunCancellingObserver(
                 on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
@@ -1577,12 +1601,6 @@ class Runner:
                 polling_interval=self.query_seconds,
             )
         )
-        await self._exit_stack.enter_async_context(self._client)
-        await self._exit_stack.enter_async_context(self._events_client)
-
-        if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
-            self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        await self._exit_stack.enter_async_context(self._runs_task_group)
 
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
