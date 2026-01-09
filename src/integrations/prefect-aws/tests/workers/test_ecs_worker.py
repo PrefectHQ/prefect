@@ -1682,7 +1682,8 @@ async def test_task_definition_container_definition_essential(
                     },
                 ]
             }
-        )
+        ),
+        aws_credentials=aws_credentials,
     )
 
     async with ECSWorker(work_pool_name="test") as worker:
@@ -1716,7 +1717,8 @@ async def test_task_definition_container_definition_essential(
                     },
                 ]
             }
-        )
+        ),
+        aws_credentials=aws_credentials,
     )
 
     async with ECSWorker(work_pool_name="test") as worker:
