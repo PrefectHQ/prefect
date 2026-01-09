@@ -4278,7 +4278,7 @@ dev = [
     { name = "types-cachetools", specifier = ">=5.3.1" },
     { name = "types-dateparser", specifier = ">=1.2.0" },
     { name = "types-pyyaml", specifier = ">=6.0.12" },
-    { name = "typsht", specifier = ">=0.0.1a3" },
+    { name = "typsht", specifier = ">=0.0.1a4" },
     { name = "uv", specifier = ">=0.5.30" },
     { name = "vale", specifier = ">=3.9.5" },
     { name = "virtualenv", specifier = ">=20.29.2" },
@@ -6743,7 +6743,7 @@ wheels = [
 
 [[package]]
 name = "typsht"
-version = "0.0.1a3"
+version = "0.0.1a4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cyclopts" },
@@ -6754,9 +6754,9 @@ dependencies = [
     { name = "rich" },
     { name = "ty" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/02/02/8c7b3e8c4880cb1d83f91faaad7d81c1698ace12fc571f3a9d0da5049e0c/typsht-0.0.1a3.tar.gz", hash = "sha256:3448b3a9bfec9cc5392caa5accf88b916eca2e71dee9bd9819058236ee49b345", size = 52536, upload-time = "2026-01-09T21:30:28.437Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/25/3883c96cc15f23bf37e0a8e0070ef2b5165c5228a3311be281ee6e729b12/typsht-0.0.1a4.tar.gz", hash = "sha256:d0db0805a0a9baea0399f3b184e5ac06f04eeb6d494c5371f6a6274eb729bac4", size = 52613, upload-time = "2026-01-09T21:43:19.272Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/64/ec3e842127c296acc086ba7009462b3cd8a7b75b927aad20de3468f01759/typsht-0.0.1a3-py3-none-any.whl", hash = "sha256:195ec1a4d1aa3a2b1b0689b8d329297fa3ea9fc6bf9f07a9facb9f47ff83d557", size = 13563, upload-time = "2026-01-09T21:30:27.283Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/ba/297238aa84e4b94b97016fcb14d729514f07b90ab5a83d0618c68cad5f57/typsht-0.0.1a4-py3-none-any.whl", hash = "sha256:9dc4eb19a00db04b06fa033b70c629de58e0f6a8222d532100688734fc1cc6b8", size = 13635, upload-time = "2026-01-09T21:43:20.503Z" },
 ]
 
 [[package]]
