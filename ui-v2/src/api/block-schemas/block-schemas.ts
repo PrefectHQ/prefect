@@ -38,9 +38,12 @@ export const buildListFilterBlockSchemasQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.listFilter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/block_schemas/filter", {
-				body: filter,
-			});
+			const res = await (await getQueryService()).POST(
+				"/block_schemas/filter",
+				{
+					body: filter,
+				},
+			);
 			return res.data ?? [];
 		},
 	});
@@ -49,7 +52,7 @@ export const buildGetBlockSchemaQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/block_schemas/{id}", {
+			const res = await (await getQueryService()).GET("/block_schemas/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {

@@ -9,8 +9,8 @@ export const DeploymentCell = ({ row }: { row: { original: FlowRun } }) => {
 	const deploymentId = row.original.deployment_id;
 	const { data: deployment } = useQuery({
 		queryKey: ["deployment", deploymentId],
-		queryFn: () =>
-			getQueryService().GET("/deployments/{id}", {
+		queryFn: async () =>
+			(await getQueryService()).GET("/deployments/{id}", {
 				params: { path: { id: deploymentId as string } },
 			}),
 		enabled: !!deploymentId,
@@ -22,8 +22,8 @@ export const WorkPoolCell = ({ row }: { row: { original: FlowRun } }) => {
 	const deploymentId = row.original.deployment_id;
 	const { data: deployment } = useQuery({
 		queryKey: ["deployment", deploymentId],
-		queryFn: () =>
-			getQueryService().GET("/deployments/{id}", {
+		queryFn: async () =>
+			(await getQueryService()).GET("/deployments/{id}", {
 				params: { path: { id: deploymentId as string } },
 			}),
 		enabled: !!deploymentId,

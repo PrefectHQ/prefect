@@ -1,21 +1,64 @@
-name: "Close stale PRs"
+name: "Stale Workflow"
 on:
+  issues:
+    types:
+      - "labeled"
   schedule:
     - cron: "0 * * * *"
 
 jobs:
-  stale:
+  # Add a comment to stale issues when they are manually labeled as stale
+  add-issue-stale-comment:
+    name: Add Comment to Issue Labeled as Stale
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    if: github.event_name == 'issues' && github.event.action == 'labeled' && github.event.label.name == 'status:stale'
+    steps:
+      - name: Add Comment
+        run: gh issue --repo ${{ github.repository }} comment $ISSUE --body "$STALE_MESSAGE"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE: ${{ github.event.issue.number }}
+          STALE_MESSAGE: |
+            This issue has been marked as inactive. Without further activity, this issue will be automatically closed in 7 days.
+
+            To keep this issue open, reply with a comment.
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/stale@v10
         with:
-          days-before-stale: -1
-          days-before-close: -1
-          stale-pr-message: "This pull request is stale because it has been open 14 days with no activity. To keep this pull request open remove stale label or comment."
+          # Pull requests
           stale-pr-label: "status:stale"
-          close-pr-message: "This pull request was closed because it has been stale for 14 days with no activity. If this pull request is important or you have more to add feel free to re-open it."
+          exempt-pr-labels: "status:exempt"
           days-before-pr-stale: 14
+          stale-pr-message: "This pull request is stale because it has been open 14 days with no activity. To keep this pull request open remove stale label or comment."
           days-before-pr-close: 14
-          exempt-issue-labels: "needs:attention,needs:triage,blocked"
+          close-pr-message: "This pull request was closed because it has been stale for 14 days with no activity. If this pull request is important or you have more to add feel free to re-open it."
+
+          # Issues
+          stale-issue-label: "status:stale"
+          exempt-issue-labels: "status:exempt,needs:attention,needs:triage,blocked"
+          # The current workflow requires issues to be manually marked as stale.
+          # days-before-issue-stale: 30
+          # stale-issue-message: |
+          #  This issue has been inactive for 30 days. In 7 days, this issue will be automatically closed without further activity.
+          #
+          #  To keep this issue open, reply with a comment.
+          days-before-issue-close: 7
+          close-issue-message: |
+            This issue was automatically closed after 7 days of inactivity.
+
+            If this issue is still relevant, please reopen it.
+
+          # General
           ascending: true # https://github.com/actions/stale#ascending
           operations-per-run: 500
+          days-before-stale: -1  # require override to automatically apply stale label
+          days-before-close: -1  # require override to automatically close

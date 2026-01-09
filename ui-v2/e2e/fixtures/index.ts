@@ -26,3 +26,9 @@ export {
 	listAutomations,
 	waitForServerHealth,
 } from "./api-helpers";
+export {
+	clearAuthCredentials,
+	getAuthCredentials,
+	isAuthRequired,
+	setAuthCredentials,
+} from "./auth-helpers";

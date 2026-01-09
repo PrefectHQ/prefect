@@ -77,7 +77,7 @@ export const buildListArtifactsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory["list-filter"](filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/artifacts/filter", {
+			const res = await (await getQueryService()).POST("/artifacts/filter", {
 				body: filter,
 			});
 			return res.data ?? [];
@@ -108,7 +108,7 @@ export const buildCountArtifactsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.count(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/artifacts/count", {
+			const res = await (await getQueryService()).POST("/artifacts/count", {
 				body: filter,
 			});
 			return res.data ?? 0;
@@ -131,7 +131,7 @@ export const buildGetArtifactQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/artifacts/{id}", {
+			const res = await (await getQueryService()).GET("/artifacts/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -158,7 +158,7 @@ export const buildGetTaskRunResultQuery = (taskRunId: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory["task-run-result"](taskRunId),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/artifacts/filter", {
+			const res = await (await getQueryService()).POST("/artifacts/filter", {
 				body: {
 					artifacts: {
 						operator: "and_",
