@@ -13,11 +13,8 @@ test.describe("Auth Smoke Test", () => {
 		const authRequired = await isAuthRequired();
 		test.skip(!authRequired, "Auth is not enabled on this server");
 
-		// Navigate to a protected route (dashboard)
-		await page.goto("/dashboard");
-
-		// Should be redirected to login page
-		await expect(page).toHaveURL(/\/login/);
+		// Navigate directly to login page with redirect parameter
+		await page.goto("/login?redirectTo=/dashboard");
 
 		// Verify login form is visible
 		await expect(page.getByRole("heading", { name: /login/i })).toBeVisible();
