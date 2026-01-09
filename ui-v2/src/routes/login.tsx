@@ -1,7 +1,7 @@
 import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
-import { useAuth } from "@/auth";
+import { useAuthSafe } from "@/auth";
 import { LoginPage } from "@/components/auth/login-page";
 
 const loginSearchSchema = z.object({
@@ -21,7 +21,12 @@ export const Route = createFileRoute("/login")({
 
 function LoginRouteComponent() {
 	const { redirectTo } = Route.useSearch();
-	const auth = useAuth();
+	const auth = useAuthSafe();
+
+	// If auth context is not available (e.g., in tests), just render the login page
+	if (!auth) {
+		return <LoginPage redirectTo={redirectTo} />;
+	}
 
 	// Show loading state while auth is initializing
 	if (auth.isLoading) {

@@ -10,7 +10,7 @@ import {
 import { lazy, Suspense, useCallback } from "react";
 import { categorizeError } from "@/api/error-utils";
 import { uiSettings } from "@/api/ui-settings";
-import { type AuthState, useAuth } from "@/auth";
+import { type AuthState, useAuthSafe } from "@/auth";
 import { MainLayout } from "@/components/layouts/MainLayout";
 import { ServerErrorDisplay } from "@/components/ui/server-error";
 
@@ -45,28 +45,31 @@ function RootErrorComponent({ error, reset }: ErrorComponentProps) {
 
 function RootComponent() {
 	const location = useRouterState({ select: (s) => s.location });
-	const auth = useAuth();
+	const auth = useAuthSafe();
 	const isLoginPage = location.pathname === "/login";
 
-	// Show loading state while auth is initializing
-	if (auth.isLoading) {
-		return (
-			<div className="flex h-screen w-screen items-center justify-center">
-				<div className="text-muted-foreground">Loading...</div>
-			</div>
-		);
-	}
+	// If auth context is not available (e.g., in tests), skip auth checks
+	if (auth) {
+		// Show loading state while auth is initializing
+		if (auth.isLoading) {
+			return (
+				<div className="flex h-screen w-screen items-center justify-center">
+					<div className="text-muted-foreground">Loading...</div>
+				</div>
+			);
+		}
 
-	// Redirect to login if auth is required and user is not authenticated
-	// (This handles the case where beforeLoad didn't catch it due to loading state)
-	if (auth.authRequired && !auth.isAuthenticated && !isLoginPage) {
-		return (
-			<Navigate
-				to="/login"
-				search={{ redirectTo: location.href }}
-				replace={true}
-			/>
-		);
+		// Redirect to login if auth is required and user is not authenticated
+		// (This handles the case where beforeLoad didn't catch it due to loading state)
+		if (auth.authRequired && !auth.isAuthenticated && !isLoginPage) {
+			return (
+				<Navigate
+					to="/login"
+					search={{ redirectTo: location.href }}
+					replace={true}
+				/>
+			);
+		}
 	}
 
 	const content = (
