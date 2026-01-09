@@ -38,7 +38,9 @@ test.describe("Protected Routes", () => {
 		test.beforeEach(async ({ page }) => {
 			// Navigate to login page first (always accessible) to establish page context
 			await page.goto("/login");
+			// Clear credentials and reload to reset app auth state
 			await clearAuthCredentials(page);
+			await page.reload();
 		});
 
 		for (const route of PROTECTED_ROUTES) {
@@ -83,6 +85,7 @@ test.describe("Protected Routes", () => {
 		// Clear credentials - navigate to login first to establish page context
 		await page.goto("/login");
 		await clearAuthCredentials(page);
+		await page.reload();
 
 		// Try to access a protected route
 		await page.goto("/automations");

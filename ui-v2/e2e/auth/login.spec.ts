@@ -27,8 +27,9 @@ test.describe("Login Flow", () => {
 	test.beforeEach(async ({ page }) => {
 		// Navigate to login page first (always accessible) to establish page context
 		await page.goto("/login");
-		// Clear any existing credentials
+		// Clear any existing credentials and reload to reset app auth state
 		await clearAuthCredentials(page);
+		await page.reload();
 	});
 
 	test("should redirect unauthenticated user to login page", async ({
