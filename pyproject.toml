@@ -149,7 +149,7 @@ dev = [
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
-    "pytest-mypy-plugins>=3.2.0",
+    "typsht>=0.0.1a3",
     "pytest-timeout>=2.3.1",
     "pytest-xdist>=3.6.1",
     "pyyaml>=6.0.1",
@@ -237,7 +237,7 @@ include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-rfEs --mypy-only-local-stub"
+addopts = "-rfEs"
 norecursedirs = [
     "*.egg-info",
     ".git",
