@@ -12,6 +12,7 @@ import { categorizeError } from "@/api/error-utils";
 import { uiSettings } from "@/api/ui-settings";
 import { type AuthState, useAuthSafe } from "@/auth";
 import { MainLayout } from "@/components/layouts/MainLayout";
+import { PrefectLoading } from "@/components/ui/loading";
 import { ServerErrorDisplay } from "@/components/ui/server-error";
 
 const TanStackRouterDevtools = import.meta.env.DEV
@@ -52,11 +53,7 @@ function RootComponent() {
 	if (auth) {
 		// Show loading state while auth is initializing
 		if (auth.isLoading) {
-			return (
-				<div className="flex h-screen w-screen items-center justify-center">
-					<div className="text-muted-foreground">Loading...</div>
-				</div>
-			);
+			return <PrefectLoading />;
 		}
 
 		// Redirect to login if auth is required and user is not authenticated

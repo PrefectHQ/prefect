@@ -3,6 +3,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { useAuthSafe } from "@/auth";
 import { LoginPage } from "@/components/auth/login-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 const loginSearchSchema = z.object({
 	redirectTo: z.string().optional(),
@@ -30,11 +31,7 @@ function LoginRouteComponent() {
 
 	// Show loading state while auth is initializing
 	if (auth.isLoading) {
-		return (
-			<div className="flex h-screen w-screen items-center justify-center">
-				<div className="text-muted-foreground">Loading...</div>
-			</div>
-		);
+		return <PrefectLoading />;
 	}
 
 	// Redirect to dashboard if already authenticated
