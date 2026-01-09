@@ -4,6 +4,20 @@ import { uiSettings } from "./ui-settings";
 
 const AUTH_STORAGE_KEY = "prefect-password";
 
+// Event for auth state changes (logout on 401)
+const authErrorEvent = new CustomEvent("auth:unauthorized");
+
+const handleUnauthorized: Middleware = {
+	onResponse({ response }) {
+		if (response.status === 401) {
+			// Clear stored credentials
+			localStorage.removeItem(AUTH_STORAGE_KEY);
+			// Dispatch event for UI to handle redirect
+			window.dispatchEvent(authErrorEvent);
+		}
+	},
+};
+
 const throwOnError: Middleware = {
 	async onResponse({ response }) {
 		if (!response.ok) {
@@ -40,6 +54,7 @@ export const getQueryService = async () => {
 			baseUrl: apiUrl,
 		});
 		client.use(authMiddleware);
+		client.use(handleUnauthorized);
 		client.use(throwOnError);
 		clientBaseUrl = apiUrl;
 	}

@@ -279,4 +279,63 @@ describe("AuthProvider", () => {
 			expect(localStorageStore[AUTH_STORAGE_KEY]).toBeUndefined();
 		});
 	});
+
+	describe("auth:unauthorized event", () => {
+		it("sets isAuthenticated to false when auth:unauthorized event is dispatched", async () => {
+			const encodedPassword = btoa("test-password");
+			localStorageStore[AUTH_STORAGE_KEY] = encodedPassword;
+
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: "BASIC",
+				flags: [],
+			});
+
+			vi.spyOn(globalThis, "fetch").mockResolvedValue({
+				ok: true,
+			} as Response);
+
+			const { result } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(result.current.isAuthenticated).toBe(true);
+			});
+
+			act(() => {
+				window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+			});
+
+			expect(result.current.isAuthenticated).toBe(false);
+		});
+
+		it("cleans up event listener on unmount", async () => {
+			vi.mocked(uiSettings.load).mockResolvedValue({
+				apiUrl: "http://localhost:4200/api",
+				csrfEnabled: false,
+				auth: null,
+				flags: [],
+			});
+
+			const removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
+
+			const { unmount } = renderHook(() => useAuth(), { wrapper });
+
+			await waitFor(() => {
+				expect(removeEventListenerSpy).not.toHaveBeenCalledWith(
+					"auth:unauthorized",
+					expect.any(Function),
+				);
+			});
+
+			unmount();
+
+			expect(removeEventListenerSpy).toHaveBeenCalledWith(
+				"auth:unauthorized",
+				expect.any(Function),
+			);
+
+			removeEventListenerSpy.mockRestore();
+		});
+	});
 });
