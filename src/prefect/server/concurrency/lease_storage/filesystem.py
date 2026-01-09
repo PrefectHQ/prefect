@@ -184,9 +184,11 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
             return lease
         except (json.JSONDecodeError, KeyError, ValueError):
-            # Don't delete the file on read errors - with atomic writes,
-            # this should be rare and could be a transient issue.
-            # Let the expiration cleanup handle truly corrupted files.
+            # Clean up corrupted lease file. With atomic writes in place,
+            # corruption indicates a real issue (not a race condition),
+            # so it's safe to clean up.
+            lease_file.unlink(missing_ok=True)
+            await self._remove_from_expiration_index(lease_id)
             return None
 
     async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool:
