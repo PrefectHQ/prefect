@@ -242,14 +242,67 @@ This matches how Prefect's server validates parameters (`actions.py:287-304`).
 - `SDKData` - Complete data needed for generation (flows, work pools, metadata)
 
 **Status**:
-- [ ] Naming utilities created
-- [ ] Safe identifier conversion (ASCII, keywords, digits)
-- [ ] Safe class name conversion (PascalCase)
-- [ ] Reserved name detection and avoidance
-- [ ] Collision detection and suffix generation
-- [ ] Data models created
-- [ ] Unit tests for edge cases (emoji, all-unicode, empty, keywords)
-- [ ] Unit tests pass
+- [x] Naming utilities created
+- [x] Safe identifier conversion (ASCII, keywords, digits)
+- [x] Safe class name conversion (PascalCase)
+- [x] Reserved name detection and avoidance
+- [x] Collision detection and suffix generation
+- [x] Data models created
+- [x] Unit tests for edge cases (emoji, all-unicode, empty, keywords)
+- [x] Unit tests pass
+
+**Phase 2 Implementation Notes** (deviations from plan):
+
+1. **Unicode handling differs from plan**
+   - Plan: "Strip/replace non-ASCII characters with underscores"
+   - Implementation: Unicode separators/punctuation (em-dash, non-breaking space) become underscores; other non-ASCII chars are dropped after NFKD normalization
+   - Rationale: Prevents word-merging (e.g., `a—b` → `a_b` not `ab`) while allowing accented chars to normalize (é → e)
+   - Result: `café-data` → `cafe_data` (not `caf_data`), `🚀-deploy` → `deploy` (not `_deploy`)
+
+2. **Class names don't get underscore suffix for keywords**
+   - Plan: `class` → `Class_`
+   - Implementation: `class` → `Class`
+   - Rationale: Python is case-sensitive, so `Class` is valid. PascalCase naturally avoids keywords.
+
+3. **Expanded reserved names beyond plan**
+   - Plan: Flow=`{flows}`, Deployment=`{run, run_async}`
+   - Implementation: Flow=`{flows, deployments, DeploymentName}`, Deployment=`{run, run_async, with_options, with_infra}`, Module=`{all}`
+   - Rationale: Prevents conflicts with Phase 3 generated SDK surface
+
+4. **Reserved names stored in normalized form**
+   - Plan doesn't specify
+   - Implementation: Reserved sets use normalized names (e.g., `"all"` not `"__all__"`) since `safe_identifier()` normalizes before checking
+   - Rationale: Otherwise `safe_identifier("__all__", ..., "module")` would return `"all"` (not avoided)
+
+5. **WorkPoolInfo.type renamed to pool_type**
+   - Plan: `WorkPoolInfo` has `type` field
+   - Implementation: Field named `pool_type`
+   - Rationale: Avoids shadowing Python built-in `type`
+
+6. **SDKData.deployment_names is derived, not stored**
+   - Plan: `SDKData` has `deployment_names` as stored field
+   - Implementation: Computed property derived from `flows`
+   - Rationale: Single source of truth; prevents data divergence
+
+7. **Deterministic ordering added**
+   - Plan doesn't specify ordering
+   - Implementation: `deployment_names` and `all_deployments()` return sorted results
+   - Rationale: Ensures deterministic code generation regardless of API response order
+
+8. **Additional SDKData convenience methods**
+   - Plan doesn't specify
+   - Implementation: Added `all_deployments()`, `flow_count`, `deployment_count`, `work_pool_count`
+   - Rationale: Simplifies template rendering and statistics reporting
+
+9. **SDKGenerationMetadata.api_url added**
+   - Plan doesn't include this field
+   - Implementation: Added `api_url` field
+   - Rationale: Better traceability of SDK generation source
+
+10. **German ß limitation**
+    - Plan doesn't address
+    - Implementation: ß is dropped (NFKD doesn't decompose it to "ss"), so `straße` → `strae`
+    - Documented as known limitation
 
 ---
 
