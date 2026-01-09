@@ -396,6 +396,22 @@ class ECSJobConfiguration(BaseJobConfiguration):
         return self
 
     @model_validator(mode="after")
+    def at_least_one_container_is_essential(self) -> Self:
+        """
+        Ensures that at least one container will be marked as essential
+        in the task definition.
+        """
+        container_definitions = self.task_definition.get("containerDefinitions", [])
+        if container_definitions and all(
+            container.get("essential") is False for container in container_definitions
+        ):
+            raise ValueError(
+                "At least one container in the task definition must be marked as "
+                "essential."
+            )
+        return self
+
+    @model_validator(mode="after")
     def configure_cloudwatch_logs_requires_execution_role_arn(
         self,
     ) -> Self:
