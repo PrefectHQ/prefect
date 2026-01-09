@@ -1,6 +1,7 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
+import { useAuth } from "@/auth";
 import { LoginPage } from "@/components/auth/login-page";
 
 const loginSearchSchema = z.object({
@@ -20,5 +21,22 @@ export const Route = createFileRoute("/login")({
 
 function LoginRouteComponent() {
 	const { redirectTo } = Route.useSearch();
+	const auth = useAuth();
+
+	// Show loading state while auth is initializing
+	if (auth.isLoading) {
+		return (
+			<div className="flex h-screen w-screen items-center justify-center">
+				<div className="text-muted-foreground">Loading...</div>
+			</div>
+		);
+	}
+
+	// Redirect to dashboard if already authenticated
+	// (This handles the case where beforeLoad didn't catch it due to loading state)
+	if (auth.isAuthenticated) {
+		return <Navigate to={redirectTo ?? "/dashboard"} replace={true} />;
+	}
+
 	return <LoginPage redirectTo={redirectTo} />;
 }

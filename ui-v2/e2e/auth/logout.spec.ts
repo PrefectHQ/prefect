@@ -2,7 +2,6 @@ import {
 	expect,
 	getAuthCredentials,
 	isAuthRequired,
-	setAuthCredentials,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -20,9 +19,12 @@ test.describe("Logout Flow", () => {
 	});
 
 	test.beforeEach(async ({ page }) => {
-		// Start authenticated
+		// Start authenticated by actually logging in through the UI
 		await page.goto("/login");
-		await setAuthCredentials(page, TEST_CREDENTIALS);
+		await page.getByPlaceholder("admin:pass").fill(TEST_CREDENTIALS);
+		await page.getByRole("button", { name: "Login" }).click();
+		// Wait for redirect to dashboard (confirms we're authenticated)
+		await page.waitForURL(/\/dashboard/);
 	});
 
 	test("should show logout button in sidebar when auth is required", async ({
@@ -30,8 +32,8 @@ test.describe("Logout Flow", () => {
 	}) => {
 		await page.goto("/dashboard");
 
-		// Verify logout button is visible in sidebar
-		await expect(page.getByRole("button", { name: /logout/i })).toBeVisible();
+		// Verify logout button is visible in sidebar (it's a SidebarMenuButton, not a button role)
+		await expect(page.getByText("Logout")).toBeVisible();
 	});
 
 	test("should clear credentials and redirect to login on logout", async ({
@@ -43,8 +45,8 @@ test.describe("Logout Flow", () => {
 		const credsBefore = await getAuthCredentials(page);
 		expect(credsBefore).toBeTruthy();
 
-		// Click logout button
-		await page.getByRole("button", { name: /logout/i }).click();
+		// Click logout button (it's a SidebarMenuButton, not a button role)
+		await page.getByText("Logout").click();
 
 		// Should redirect to login
 		await expect(page).toHaveURL(/\/login/);
@@ -59,8 +61,8 @@ test.describe("Logout Flow", () => {
 	}) => {
 		await page.goto("/dashboard");
 
-		// Logout
-		await page.getByRole("button", { name: /logout/i }).click();
+		// Logout (it's a SidebarMenuButton, not a button role)
+		await page.getByText("Logout").click();
 		await expect(page).toHaveURL(/\/login/);
 
 		// Try to navigate to protected route

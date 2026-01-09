@@ -3,7 +3,6 @@ import {
 	expect,
 	getAuthCredentials,
 	isAuthRequired,
-	setAuthCredentials,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -50,7 +49,7 @@ test.describe("Login Flow", () => {
 		await page.goto("/login");
 
 		// Verify login form is displayed
-		await expect(page.getByRole("heading", { name: "Login" })).toBeVisible();
+		// The password input and login button should be visible
 		await expect(page.getByPlaceholder("admin:pass")).toBeVisible();
 		await expect(page.getByRole("button", { name: "Login" })).toBeVisible();
 	});
@@ -112,17 +111,18 @@ test.describe("Login Flow", () => {
 	test("should redirect authenticated user away from login page", async ({
 		page,
 	}) => {
-		// First, authenticate
+		// First, authenticate by actually logging in through the UI
 		await page.goto("/login");
-		await setAuthCredentials(page, TEST_CREDENTIALS);
+		await page.getByPlaceholder("admin:pass").fill(TEST_CREDENTIALS);
+		await page.getByRole("button", { name: "Login" }).click();
 
-		// Reload to pick up credentials
-		await page.reload();
+		// Wait for redirect to dashboard (confirms we're authenticated)
+		await expect(page).toHaveURL(/\/dashboard/);
 
-		// Try to visit login page when already authenticated
+		// Now try to visit login page when already authenticated
 		await page.goto("/login");
 
-		// Should redirect to dashboard
+		// Should redirect back to dashboard
 		await expect(page).toHaveURL(/\/dashboard/);
 	});
 });

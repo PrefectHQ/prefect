@@ -2,7 +2,6 @@ import {
 	clearAuthCredentials,
 	expect,
 	isAuthRequired,
-	setAuthCredentials,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -60,9 +59,12 @@ test.describe("Protected Routes", () => {
 
 	test.describe("Authenticated Access", () => {
 		test.beforeEach(async ({ page }) => {
-			// Navigate first to set localStorage context
+			// Actually log in through the UI to ensure credentials are validated
 			await page.goto("/login");
-			await setAuthCredentials(page, TEST_CREDENTIALS);
+			await page.getByPlaceholder("admin:pass").fill(TEST_CREDENTIALS);
+			await page.getByRole("button", { name: "Login" }).click();
+			// Wait for redirect to dashboard (confirms we're authenticated)
+			await page.waitForURL(/\/dashboard/);
 		});
 
 		for (const route of PROTECTED_ROUTES) {
@@ -74,10 +76,8 @@ test.describe("Protected Routes", () => {
 				// Should stay on the route (not redirect to login)
 				await expect(page).toHaveURL(new RegExp(route));
 
-				// Should not show login page
-				await expect(
-					page.getByRole("heading", { name: "Login" }),
-				).not.toBeVisible();
+				// Should not show login page elements
+				await expect(page.getByPlaceholder("admin:pass")).not.toBeVisible();
 			});
 		}
 	});
