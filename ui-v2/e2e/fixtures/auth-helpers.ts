@@ -1,5 +1,4 @@
 import type { Page } from "@playwright/test";
-import type { PrefectApiClient } from "./api-client";
 
 const AUTH_STORAGE_KEY = "prefect-password";
 
@@ -39,16 +38,27 @@ export async function getAuthCredentials(page: Page): Promise<string | null> {
 	}, AUTH_STORAGE_KEY);
 }
 
+interface UiSettingsResponse {
+	api_url: string;
+	csrf_enabled: boolean;
+	auth: string | null;
+	flags: string[];
+}
+
 /**
  * Check if the server requires authentication by querying the /ui-settings endpoint.
+ * The /ui-settings endpoint is at the root level (not under /api) and doesn't require auth.
  * Returns true if auth is set to "BASIC", false otherwise.
  */
-export async function isAuthRequired(
-	client: PrefectApiClient,
-): Promise<boolean> {
-	const { data, error } = await client.GET("/ui-settings");
-	if (error) {
-		throw new Error(`Failed to fetch UI settings: ${JSON.stringify(error)}`);
+export async function isAuthRequired(): Promise<boolean> {
+	const apiUrl = process.env.PREFECT_API_URL ?? "http://localhost:4200/api";
+	const baseUrl = apiUrl.replace(/\/api\/?$/, "");
+
+	const response = await fetch(`${baseUrl}/ui-settings`);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch UI settings: status ${response.status}`);
 	}
+
+	const data = (await response.json()) as UiSettingsResponse;
 	return data.auth === "BASIC";
 }

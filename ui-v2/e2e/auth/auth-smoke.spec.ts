@@ -9,9 +9,8 @@ test.describe("Auth Smoke Test", () => {
 
 	test("should complete the full login flow when auth is enabled", async ({
 		page,
-		apiClient,
 	}) => {
-		const authRequired = await isAuthRequired(apiClient);
+		const authRequired = await isAuthRequired();
 		test.skip(!authRequired, "Auth is not enabled on this server");
 
 		// Navigate to a protected route (dashboard)
