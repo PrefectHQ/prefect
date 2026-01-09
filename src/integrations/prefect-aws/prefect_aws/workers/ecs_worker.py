@@ -174,9 +174,13 @@ def _drop_empty_keys_from_dict(taskdef: dict):
     Recursively drop keys with 'empty' values from a task definition dict.
 
     Mutates the task definition in place. Only supports recursion into dicts and lists.
+
+    Removes keys with truly empty values (None, empty strings, empty lists, empty dicts)
+    but preserves boolean False values which are meaningful.
     """
     for key, value in tuple(taskdef.items()):
-        if not value:
+        # Only remove truly empty values, not boolean False
+        if not value and value is not False:
             taskdef.pop(key)
         if isinstance(value, dict):
             _drop_empty_keys_from_dict(value)
