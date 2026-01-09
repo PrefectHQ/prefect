@@ -1558,17 +1558,15 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         for taskdef in (taskdef_1, taskdef_2):
             # Set defaults that AWS would set after registration
             container_definitions = taskdef.get("containerDefinitions", [])
-            essential = any(
-                container.get("essential") for container in container_definitions
-            )
-            if not essential:
-                container_definitions[0].setdefault("essential", True)
 
             taskdef.setdefault("networkMode", "bridge")
 
             # Normalize ordering of lists that ECS considers unordered
             # ECS stores these in unordered data structures, so order shouldn't matter for comparison
             for container in container_definitions:
+                # If essential is not explicitly set, AWS will default to setting it to True
+                container.setdefault("essential", True)
+
                 # Sort environment variables by name for consistent comparison
                 if "environment" in container:
                     container["environment"] = sorted(
