@@ -117,11 +117,6 @@ jobs:
         env:
           PREFECT_SERVER_API_AUTH_STRING: admin:secret
 
-      - name: Wait for server health
-        run: uv run python scripts/wait-for-server.py
-        env:
-          PREFECT_API_URL: http://127.0.0.1:4200/api
-
       - uses: actions/setup-node@v6
         with:
           node-version-file: "ui-v2/.nvmrc"
@@ -135,6 +130,11 @@ jobs:
       - name: Install Playwright browsers
         working-directory: ./ui-v2
         run: npx playwright install chromium
+
+      - name: Wait for server health
+        run: uv run python scripts/wait-for-server.py
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
 
       - name: Run Playwright tests
         working-directory: ./ui-v2
