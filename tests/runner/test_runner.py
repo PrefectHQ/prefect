@@ -1031,6 +1031,89 @@ class TestRunner:
         runner_2._mark_flow_run_as_cancelled.assert_not_called()
         runner_2._kill_process.assert_not_called()
 
+    async def test_runner_does_not_start_engine_for_cancelled_flow_run(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Test that if a flow run is already cancelled when execute_flow_run
+        is called, the runner exits early without starting the engine.
+        """
+        runner = Runner()
+        deployment_id = await runner.add_deployment(
+            await tired_flow.to_deployment(__file__)
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Set the flow run to CANCELLED before execution
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=State(
+                name="Cancelled",
+                type=StateType.CANCELLED,
+                message="Cancelled by test",
+            ),
+            force=True,
+        )
+
+        async with runner:
+            # Mock _submit_run_and_capture_errors to verify it's never called
+            runner._submit_run_and_capture_errors = AsyncMock()
+
+            await runner.execute_flow_run(flow_run.id)
+
+            # Verify the engine was never started
+            runner._submit_run_and_capture_errors.assert_not_called()
+
+        # Verify the flow run is still cancelled
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state is not None
+        assert flow_run.state.is_cancelled()
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_does_not_start_engine_for_cancelling_flow_run(
+        self, prefect_client: PrefectClient
+    ):
+        """
+        Test that if a flow run is already cancelling when execute_flow_run
+        is called, the runner exits early without starting the engine.
+        """
+        runner = Runner()
+        deployment_id = await runner.add_deployment(
+            await tired_flow.to_deployment(__file__)
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        # Set the flow run to CANCELLING before execution
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=State(
+                name="Cancelling",
+                type=StateType.CANCELLING,
+                message="Cancelling by test",
+            ),
+            force=True,
+        )
+
+        async with runner:
+            # Mock _submit_run_and_capture_errors to verify it's never called
+            runner._submit_run_and_capture_errors = AsyncMock()
+
+            await runner.execute_flow_run(flow_run.id)
+
+            # Verify the engine was never started
+            runner._submit_run_and_capture_errors.assert_not_called()
+
+        # Verify the flow run state was updated to cancelled
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state is not None
+        assert flow_run.state.is_cancelled()
+
     @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_runs_on_cancellation_hooks_for_remotely_stored_flows(
         self,
