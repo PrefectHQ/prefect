@@ -259,6 +259,10 @@ class DeploymentCreate(ActionBaseModel):
     )
     storage_document_id: Optional[UUID] = Field(default=None)
     infrastructure_document_id: Optional[UUID] = Field(default=None)
+    code_repository_url: Optional[str] = Field(
+        default=None,
+        description="URL to the code repository for this deployment.",
+    )
     description: Optional[str] = Field(default=None)
     path: Optional[str] = Field(default=None)
     entrypoint: Optional[str] = Field(default=None)

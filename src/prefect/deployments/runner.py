@@ -268,6 +268,10 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
+    code_repository_url: Optional[str] = Field(
+        default=None,
+        description="URL to the code repository for this deployment.",
+    )
 
     # (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
     _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = PrivateAttr(
@@ -397,6 +401,7 @@ class RunnerDeployment(BaseModel):
                 entrypoint=self.entrypoint,
                 storage_document_id=None,
                 infrastructure_document_id=None,
+                code_repository_url=self.code_repository_url,
                 parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
                     exclude_unset=True
                 ),
@@ -689,6 +694,7 @@ class RunnerDeployment(BaseModel):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        code_repository_url: Optional[str] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
@@ -723,6 +729,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
+            code_repository_url: URL to the code repository for this deployment.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         constructed_schedules = cls._construct_deployment_schedules(
@@ -756,6 +763,7 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            code_repository_url=code_repository_url,
         )
         deployment._sla = _sla
 
@@ -930,6 +938,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        code_repository_url: Optional[str] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
@@ -969,6 +978,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
+            code_repository_url: URL to the code repository for this deployment.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         from prefect.flows import load_flow_from_entrypoint
@@ -1015,6 +1025,7 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            code_repository_url=code_repository_url,
         )
         deployment._sla = _sla
         deployment._path = str(storage.destination).replace(
@@ -1052,6 +1063,7 @@ class RunnerDeployment(BaseModel):
         work_pool_name: Optional[str] = None,
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        code_repository_url: Optional[str] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
@@ -1091,6 +1103,7 @@ class RunnerDeployment(BaseModel):
             job_variables: Settings used to override the values specified default base job template
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
                 available settings.
+            code_repository_url: URL to the code repository for this deployment.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
         from prefect.flows import load_flow_from_entrypoint
@@ -1135,6 +1148,7 @@ class RunnerDeployment(BaseModel):
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
             job_variables=job_variables,
+            code_repository_url=code_repository_url,
         )
         deployment._sla = _sla
         deployment._path = str(storage.destination).replace(

@@ -32,6 +32,30 @@ class TestCreateDeployment:
         assert deployment.tags == ["foo", "bar"]
         assert deployment.global_concurrency_limit is None
 
+    async def test_create_deployment_with_code_repository_url(self, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="Deployment With Repo",
+                flow_id=flow.id,
+                code_repository_url="https://github.com/PrefectHQ/prefect",
+            ),
+        )
+        assert deployment.name == "Deployment With Repo"
+        assert deployment.flow_id == flow.id
+        assert deployment.code_repository_url == "https://github.com/PrefectHQ/prefect"
+
+    async def test_create_deployment_without_code_repository_url(self, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="Deployment Without Repo",
+                flow_id=flow.id,
+            ),
+        )
+        assert deployment.name == "Deployment Without Repo"
+        assert deployment.code_repository_url is None
+
     async def test_creating_a_deployment_with_existing_work_queue_is_ok(
         self, session, flow, work_queue
     ):

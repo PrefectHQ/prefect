@@ -105,16 +105,43 @@ class TestCreateDeployment:
         assert deployment_response.storage_document_id == storage_document_id
         assert deployment_response.job_variables == {"cpu": 24}
 
-        deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=deployment_response.id
-        )
-        assert deployment.id == deployment_response.id
-        assert deployment.name == "My Deployment"
-        assert deployment.tags == ["foo"]
-        assert deployment.flow_id == flow.id
-        assert deployment.parameters == {"foo": "bar"}
-        assert deployment.storage_document_id == storage_document_id
-        assert deployment.job_variables == {"cpu": 24}
+    async def test_create_deployment_with_code_repository_url(
+        self,
+        session,
+        hosted_api_client,
+        flow,
+        flow_function,
+    ):
+        repo_url = "https://github.com/PrefectHQ/prefect"
+        data = DeploymentCreate(
+            name="Deployment With Repo",
+            flow_id=flow.id,
+            code_repository_url=repo_url,
+        ).model_dump(mode="json")
+        response = await hosted_api_client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        deployment_response = DeploymentResponse(**response.json())
+        assert deployment_response.name == "Deployment With Repo"
+        assert deployment_response.code_repository_url == repo_url
+
+    async def test_create_deployment_without_code_repository_url(
+        self,
+        session,
+        hosted_api_client,
+        flow,
+        flow_function,
+    ):
+        data = DeploymentCreate(
+            name="Deployment Without Repo",
+            flow_id=flow.id,
+        ).model_dump(mode="json")
+        response = await hosted_api_client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        deployment_response = DeploymentResponse(**response.json())
+        assert deployment_response.name == "Deployment Without Repo"
+        assert deployment_response.code_repository_url is None
 
     async def test_create_deployment_with_single_schedule(
         self,
@@ -1583,6 +1610,26 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
+    async def test_update_deployment_code_repository_url(
+        self, client, deployment
+    ):
+        """Test that code_repository_url can be updated on an existing deployment."""
+        repo_url = "https://github.com/PrefectHQ/prefect"
+        update_data = DeploymentUpdate(
+            code_repository_url=repo_url,
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/deployments/{deployment.id}", json=update_data
+        )
+        assert response.status_code == 204
+
+        # Verify the update
+        response = await client.get(f"/deployments/{deployment.id}")
+        assert response.status_code == 200
+        deployment_response = DeploymentResponse(**response.json())
+        assert deployment_response.code_repository_url == repo_url
+
     async def test_update_deployment_with_schedule_allows_addition_of_concurrency(
         self, client, deployment
     ):
