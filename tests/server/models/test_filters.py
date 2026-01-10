@@ -347,6 +347,15 @@ class TestCountFlowsModels:
             dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="test-happy"))),
             2,
         ],
+        # Case-insensitive search tests (issue #19623)
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="TEST-HAPPY"))),
+            2,
+        ],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="Test-Happy"))),
+            2,
+        ],
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
@@ -476,6 +485,19 @@ class TestCountFlowRunModels:
         [
             dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="test-happy"))),
             3,
+        ],
+        # Case-insensitive search tests (issue #19623)
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="TEST-HAPPY"))),
+            3,
+        ],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="Test-Happy"))),
+            3,
+        ],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="DUCK"))),
+            4,  # test-happy-duck, sad-duck, another-test-happy-duck, another-sad-duck
         ],
         [
             dict(
@@ -689,6 +711,15 @@ class TestCountTaskRunsModels:
             dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="test-happy"))),
             3,
         ],
+        # Case-insensitive search tests (issue #19623)
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="TEST-HAPPY"))),
+            3,
+        ],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="Test-Happy"))),
+            3,
+        ],
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
@@ -860,6 +891,9 @@ class TestCountDeploymentModels:
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 2],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
         [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="test-happy"))), 1],
+        # Case-insensitive search tests (issue #19623)
+        [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="TEST-HAPPY"))), 1],
+        [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="Test-Happy"))), 1],
         [dict(flow_run_filter=filters.FlowRunFilter(name=dict(like_="nothing!"))), 0],
         [
             dict(
