@@ -365,6 +365,10 @@ class DeploymentUpdate(ActionBaseModel):
         default_factory=lambda: {"type": "object", "properties": {}}
     )
     pull_steps: Optional[list[dict[str, Any]]] = Field(default=None)
+    code_repository_url: Optional[str] = Field(
+        default=None,
+        description="URL to the code repository for this deployment.",
+    )
 
     def check_valid_configuration(self, base_job_template: dict[str, Any]) -> None:
         """Check that the combination of base_job_template defaults

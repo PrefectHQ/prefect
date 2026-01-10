@@ -1610,18 +1610,14 @@ class TestPaginateDeployments:
 
 
 class TestUpdateDeployment:
-    async def test_update_deployment_code_repository_url(
-        self, client, deployment
-    ):
+    async def test_update_deployment_code_repository_url(self, client, deployment):
         """Test that code_repository_url can be updated on an existing deployment."""
         repo_url = "https://github.com/PrefectHQ/prefect"
         update_data = DeploymentUpdate(
             code_repository_url=repo_url,
         ).model_dump(mode="json", exclude_unset=True)
 
-        response = await client.patch(
-            f"/deployments/{deployment.id}", json=update_data
-        )
+        response = await client.patch(f"/deployments/{deployment.id}", json=update_data)
         assert response.status_code == 204
 
         # Verify the update
