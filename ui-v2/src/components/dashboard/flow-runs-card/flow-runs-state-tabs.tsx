@@ -63,7 +63,7 @@ export const FlowRunStateTabs = ({
 	return (
 		<div className="space-y-2">
 			<Tabs value={selectedStates.join("-")} onValueChange={handleValueChange}>
-				<TabsList className="flex justify-between w-full bg-transparent p-0">
+				<TabsList className="flex justify-between w-full h-auto">
 					{STATE_TYPES.map((stateType) => (
 						<TabsTrigger
 							key={stateType.join("-")}
