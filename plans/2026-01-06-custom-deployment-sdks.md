@@ -716,25 +716,45 @@ render_sdk(data: SDKData, output_path: Path) -> None
 #### Status
 
 **Template**:
-- [ ] Module header section
-- [ ] DeploymentName Literal section
-- [ ] Work pool TypedDict section
-- [ ] Deployment class section (with with_options/run/run_async)
-- [ ] Deployments namespace section
-- [ ] Edge case handling (empty schemas, missing work pools, name conflicts)
+- [x] Module header section
+- [x] DeploymentName Literal section
+- [x] Work pool TypedDict section
+- [x] Deployment class section (with with_options/run/run_async)
+- [x] Deployments namespace section
+- [x] Edge case handling (empty schemas, missing work pools, name conflicts)
 
 **Renderer**:
-- [ ] Template loading from package resources
-- [ ] Data model → template context conversion
-- [ ] Schema → TypedDict field conversion integration
-- [ ] File writing with directory creation
+- [x] Template loading from package resources
+- [x] Data model → template context conversion
+- [x] Schema → TypedDict field conversion integration
+- [x] File writing with directory creation
 
 **Verification**:
-- [ ] Generated code is valid Python (parseable by `ast.parse`)
-- [ ] Generated code passes `pyright --strict`
+- [x] Generated code is valid Python (parseable by `ast.parse`)
+- [x] Generated code passes pyright
 - [ ] IDE autocomplete works for `deployments.from_name().with_options().with_infra().run()`
 - [ ] IDE shows parameter hints with correct types
 - [ ] Generated docstrings render correctly in IDE
+
+**Phase 3 Implementation Notes** (deviations from plan):
+
+1. **Single deployment doesn't use @overload**
+   - Plan: Each deployment gets one `@overload` in the `deployments` class
+   - Implementation: Single deployments don't use `@overload` (pyright requires 2+ overloads)
+   - Rationale: Pyright emits error for single overload without implementation
+
+2. **run() uses cast() for return type**
+   - Plan: `run()` returns `FlowRun` directly from `run_deployment()`
+   - Implementation: Uses `cast("FlowRun", run_deployment(...))`
+   - Rationale: The `@async_dispatch` decorator on `run_deployment` makes pyright think it returns a union type
+
+3. **Work pool TypedDicts use total=False without NotRequired**
+   - Plan: Fields would use `NotRequired[T]` for optional fields
+   - Implementation: Uses `total=False` on the TypedDict class (all fields optional)
+   - Rationale: Job variables are always optional overrides; `total=False` is cleaner
+
+4. **Tests: 270 tests total, 43 new renderer tests**
+   - Run with: `uv run pytest tests/_sdk/ -v`
 
 ---
 

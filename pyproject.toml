@@ -235,6 +235,11 @@ artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui", "src/prefect
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/prefect"]
+# Include Jinja2 templates for SDK generation
+include = ["src/prefect/_sdk/templates/*.jinja"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-rfEs --mypy-only-local-stub"
