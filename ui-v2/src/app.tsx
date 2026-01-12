@@ -4,6 +4,8 @@ import { RouterProvider } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@/auth";
 import { queryClient, router } from "./router";
 
+const showDevtools = import.meta.env.VITE_DISABLE_DEVTOOLS !== "true";
+
 function InnerApp() {
 	const auth = useAuth();
 	return <RouterProvider router={router} context={{ queryClient, auth }} />;
@@ -15,7 +17,7 @@ export const App = () => {
 			<AuthProvider>
 				<InnerApp />
 			</AuthProvider>
-			<ReactQueryDevtools />
+			{showDevtools && <ReactQueryDevtools />}
 		</QueryClientProvider>
 	);
 };
