@@ -718,6 +718,14 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         """
         # If bucket_folder provided, it means we won't write to the root dir of
         # the bucket. So we need to add it on the front of the path.
+        #
+        # However, avoid double-nesting if path is already prefixed with bucket_folder.
+        # This can happen when storage_block_id is null (e.g., context serialized to
+        # remote workers), causing create_result_record() to add bucket_folder to
+        # storage_key, then write_path() calls _resolve_path again.
+        # See https://github.com/PrefectHQ/prefect/issues/20174
+        if self.bucket_folder and path.startswith(self.bucket_folder):
+            return path
         path = (
             str(PurePosixPath(self.bucket_folder, path)) if self.bucket_folder else path
         )

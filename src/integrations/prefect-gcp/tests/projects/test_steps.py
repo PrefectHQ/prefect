@@ -54,12 +54,7 @@ def tmp_files(tmp_path: Path):
         "testdir2/testfile5.txt",
     ]
 
-    (tmp_path / ".prefectignore").write_text(
-        """
-    testdir1/*
-    .prefectignore
-    """
-    )
+    (tmp_path / ".prefectignore").write_text("testdir1/*\n.prefectignore\n")
 
     for file in files:
         filepath = tmp_path / file
