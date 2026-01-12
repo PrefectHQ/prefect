@@ -753,8 +753,48 @@ render_sdk(data: SDKData, output_path: Path) -> None
    - Implementation: Uses `total=False` on the TypedDict class (all fields optional)
    - Rationale: Job variables are always optional overrides; `total=False` is cleaner
 
-4. **Tests: 270 tests total, 43 new renderer tests**
+4. **Tests: 275 tests total, 47 new renderer tests**
    - Run with: `uv run pytest tests/_sdk/ -v`
+
+5. **Return type is PrefectFlowRunFuture[Any]**
+   - Plan: `run()` and `run_async()` return `PrefectFlowRunFuture`
+   - Implementation: Returns `PrefectFlowRunFuture[Any]` with explicit type parameter
+   - Rationale: Avoids pyright "partially unknown type" errors
+
+6. **Conditional imports based on SDK content**
+   - Plan: All imports always present
+   - Implementation: `cast` only when deployments exist, `overload` only when 2+ deployments, `TypedDict` only when work pools exist
+   - Rationale: Avoids unused import warnings (ruff F401)
+
+7. **TYPE_CHECKING imports restored**
+   - Plan: No TYPE_CHECKING block needed
+   - Implementation: `FlowRun` and `PrefectFlowRunFuture` imported under `TYPE_CHECKING`
+   - Rationale: Required for ruff F821 (undefined name) when used in string annotations
+
+8. **Schema descriptions included in docstrings**
+   - Plan: Docstrings describe method purpose only
+   - Implementation: Args sections include parameter/job variable descriptions from JSON Schema
+   - Rationale: Better IDE experience; descriptions flow from schema to generated code
+
+9. **Template locals use _sdk_ prefix**
+   - Plan: Local variables named `parameters`, `options`, etc.
+   - Implementation: Uses `_sdk_params`, `_sdk_options`, `_sdk_job_vars`, etc.
+   - Rationale: Avoids collisions with user-defined parameter names
+
+10. **Reserved names simplified to only 'self'**
+    - Plan: Reserve `run`, `run_async`, `with_options`, `with_infra` for deployment context
+    - Implementation: Only `self` is reserved for deployment context
+    - Rationale: Method names don't conflict with parameter identifiers; only `self` would break signatures
+
+11. **Work pools sorted by name**
+    - Plan: No ordering specified
+    - Implementation: Work pools sorted alphabetically in template context
+    - Rationale: Deterministic output regardless of API response order
+
+12. **Template loaded via importlib.resources**
+    - Plan: Not specified
+    - Implementation: Uses `importlib.resources.files()` for template loading
+    - Rationale: Works correctly across all installation layouts (editable, wheel, etc.)
 
 ---
 
