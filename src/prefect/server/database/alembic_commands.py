@@ -41,24 +41,44 @@ def postgres_advisory_lock(lock_key: int) -> Iterator[None]:
     Args:
         lock_key: A unique integer key identifying the lock to acquire.
     """
-    import sqlalchemy as sa
-    from sqlalchemy import create_engine
+    import asyncio
 
-    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
-    # Convert async URL to sync URL for advisory lock
-    sync_url = connection_url.replace("postgresql+asyncpg://", "postgresql://")
+    import asyncpg
 
-    engine = create_engine(sync_url)
-    with engine.connect() as conn:
-        # Acquire the advisory lock (blocks until acquired)
-        conn.execute(sa.text(f"SELECT pg_advisory_lock({lock_key})"))
+    async def acquire_and_hold_lock() -> asyncpg.Connection:
+        connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+        # Convert SQLAlchemy URL to asyncpg format
+        # postgresql+asyncpg://user:pass@host/db -> postgresql://user:pass@host/db
+        dsn = connection_url.replace("postgresql+asyncpg://", "postgresql://")
+        conn = await asyncpg.connect(dsn)
+        await conn.execute(f"SELECT pg_advisory_lock({lock_key})")
+        return conn
+
+    async def release_lock(conn: asyncpg.Connection) -> None:
+        try:
+            await conn.execute(f"SELECT pg_advisory_unlock({lock_key})")
+        finally:
+            await conn.close()
+
+    # Get or create event loop for running async code
+    try:
+        asyncio.get_running_loop()
+        # If we're in an async context, we need to run in a thread
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            conn = executor.submit(asyncio.run, acquire_and_hold_lock()).result()
+            try:
+                yield
+            finally:
+                executor.submit(asyncio.run, release_lock(conn)).result()
+    except RuntimeError:
+        # No running event loop, we can use asyncio.run directly
+        conn = asyncio.run(acquire_and_hold_lock())
         try:
             yield
         finally:
-            # Release the advisory lock
-            conn.execute(sa.text(f"SELECT pg_advisory_unlock({lock_key})"))
-            conn.commit()
-    engine.dispose()
+            asyncio.run(release_lock(conn))
 
 
 def with_alembic_lock(fn: Callable[P, R]) -> Callable[P, R]:
