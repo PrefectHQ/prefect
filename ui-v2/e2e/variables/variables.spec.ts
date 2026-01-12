@@ -153,13 +153,14 @@ test.describe("Variables Page", () => {
 			await page.goto("/variables");
 
 			await page.getByRole("button", { name: /add variable/i }).click();
-			await expect(
-				page.getByRole("dialog", { name: /new variable/i }),
-			).toBeVisible();
 
-			await page.getByRole("button", { name: /close/i }).first().click();
+			const dialog = page.getByRole("dialog", { name: /new variable/i });
+			await expect(dialog).toBeVisible();
 
-			await expect(page.getByRole("dialog")).not.toBeVisible();
+			// Click the Close button in the dialog footer
+			await dialog.getByRole("button", { name: /close/i }).click();
+
+			await expect(dialog).not.toBeVisible();
 		});
 	});
 
