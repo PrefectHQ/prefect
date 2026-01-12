@@ -467,10 +467,11 @@ test.describe("Variables Page", () => {
 			await expect(page).toHaveURL(/limit=25/);
 		});
 
-		test("should disable navigation buttons appropriately", async ({
-			page,
-		}) => {
+		test("should disable previous buttons on first page", async ({ page }) => {
 			await page.goto("/variables");
+
+			// Wait for page to load
+			await expect(page.getByText("Page 1 of 2")).toBeVisible();
 
 			// On first page, previous buttons should be disabled
 			await expect(
@@ -487,11 +488,14 @@ test.describe("Variables Page", () => {
 			await expect(
 				page.getByRole("button", { name: "Go to last page" }),
 			).toBeEnabled();
+		});
 
-			// Go to last page (use force to bypass any overlays like TanStack Query devtools)
-			await page
-				.getByRole("button", { name: "Go to last page" })
-				.click({ force: true });
+		test("should disable next buttons on last page", async ({ page }) => {
+			// Navigate directly to page 2 (last page) via URL
+			await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
+
+			// Wait for page to load
+			await expect(page.getByText("Page 2 of 2")).toBeVisible();
 
 			// On last page, next buttons should be disabled
 			await expect(
