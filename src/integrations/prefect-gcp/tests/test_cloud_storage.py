@@ -140,6 +140,30 @@ class TestGcsBucket:
             expected = None
         assert actual == expected
 
+    def test_resolve_path_no_double_nesting(self, gcs_bucket):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20174
+
+        When storage_block_id is null (e.g., context serialized to Ray workers),
+        create_result_record() adds bucket_folder to storage_key via _resolve_path.
+        Then write_path() calls _resolve_path again. Without the duplicate check,
+        this causes double-nested paths like "results/results/abc123".
+        """
+        bucket_folder = gcs_bucket.bucket_folder
+        if not bucket_folder:
+            pytest.skip("Test only applies when bucket_folder is set")
+
+        # Simulate path that already has bucket_folder prefix
+        # (as would happen when create_result_record calls _resolve_path)
+        already_prefixed_path = f"{bucket_folder}abc123"
+
+        # When write_path calls _resolve_path again, it should NOT double-nest
+        result = gcs_bucket._resolve_path(already_prefixed_path)
+
+        # Should return the same path, not bucket_folder/bucket_folder/abc123
+        assert result == already_prefixed_path
+        assert not result.startswith(f"{bucket_folder}{bucket_folder}")
+
     def test_read_path(self, gcs_bucket):
         assert gcs_bucket.read_path("blob") == b"bytes"
 
