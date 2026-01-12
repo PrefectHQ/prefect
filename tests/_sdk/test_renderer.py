@@ -140,6 +140,31 @@ class TestProcessFieldsToParams:
         assert required[0].name == "source"
         assert required[1].name == "source_2"
 
+    def test_field_with_description(self):
+        fields = [
+            FieldInfo(
+                name="source",
+                python_type="str",
+                required=True,
+                description="The data source URL to fetch from",
+            )
+        ]
+        required, _ = _process_fields_to_params(fields, set())
+
+        assert required[0].description == "The data source URL to fetch from"
+
+    def test_field_without_description(self):
+        fields = [
+            FieldInfo(
+                name="source",
+                python_type="str",
+                required=True,
+            )
+        ]
+        required, _ = _process_fields_to_params(fields, set())
+
+        assert required[0].description is None
+
 
 class TestProcessFieldsToJobVariables:
     """Tests for _process_fields_to_job_variables function."""
@@ -156,6 +181,25 @@ class TestProcessFieldsToJobVariables:
         assert result[0].name == "image"
         assert result[0].original_name == "image"
         assert result[0].python_type == "str"
+
+    def test_field_with_description(self):
+        fields = [
+            FieldInfo(
+                name="image",
+                python_type="str",
+                required=False,
+                description="The Docker image to use",
+            )
+        ]
+        result = _process_fields_to_job_variables(fields, set())
+
+        assert result[0].description == "The Docker image to use"
+
+    def test_field_without_description(self):
+        fields = [FieldInfo(name="image", python_type="str", required=False)]
+        result = _process_fields_to_job_variables(fields, set())
+
+        assert result[0].description is None
 
 
 class TestProcessWorkPool:
