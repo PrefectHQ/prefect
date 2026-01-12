@@ -1745,7 +1745,7 @@ async def test_task_definition_container_definition_essential(
     assert task_definition["containerDefinitions"][2]["essential"] is False
 
     # Test that a ValueError is thrown when all containers are non-essential
-    try:
+    with pytest.raises(ValueError, match="At least one container in the task definition must be marked as essential."):
         await construct_configuration_with_job_template(
             template_overrides=dict(
                 task_definition={
@@ -1769,16 +1769,6 @@ async def test_task_definition_container_definition_essential(
                 }
             )
         )
-    except ValueError as e:
-        assert (
-            "At least one container in the task definition must be marked as essential."
-            in str(e)
-        ), "Unexpected error message."
-    else:
-        assert False, (
-            "ValueError was not raised when all containers were non-essential."
-        )
-
 
 @pytest.mark.usefixtures("ecs_mocks")
 async def test_worker_cache_miss_for_registered_task_definitions_clears_from_cache(
