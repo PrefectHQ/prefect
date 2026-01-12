@@ -3,6 +3,7 @@
 changelog:
   exclude:
     labels:
+      - plan # implementation plans, not user-facing
       - ui-dependency # these dont affect user environments
       - ui-replatform # lots of ongoing work, but not user facing... yet
   categories:
