@@ -13,7 +13,10 @@ from prefect.testing.utilities import prefect_test_harness
 
 @pytest.fixture(scope="session", autouse=True)
 def prefect_db():
-    with prefect_test_harness():
+    # Increase timeout for CI environments where multiple xdist workers
+    # start servers simultaneously, which can be slower on Python 3.11+
+    # See https://github.com/PrefectHQ/prefect/issues/16397
+    with prefect_test_harness(server_startup_timeout=60):
         yield
 
 
