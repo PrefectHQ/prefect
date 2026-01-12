@@ -3,18 +3,19 @@ from prefect._internal.compatibility.migration import getattr_migration
 
 
 if TYPE_CHECKING:
-    from .flow_runs import run_deployment
+    from .flow_runs import arun_deployment, run_deployment
     from .base import initialize_project
     from .runner import deploy
 
 _public_api: dict[str, tuple[str, str]] = {
     "initialize_project": (__spec__.parent, ".base"),
+    "arun_deployment": (__spec__.parent, ".flow_runs"),
     "run_deployment": (__spec__.parent, ".flow_runs"),
     "deploy": (__spec__.parent, ".runner"),
 }
 
 # Declare API for type-checkers
-__all__ = ["initialize_project", "deploy", "run_deployment"]
+__all__ = ["initialize_project", "deploy", "arun_deployment", "run_deployment"]
 
 
 def __getattr__(attr_name: str) -> object:
