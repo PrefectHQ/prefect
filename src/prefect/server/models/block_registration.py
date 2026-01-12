@@ -1,9 +1,5 @@
-import asyncio
 import json
-import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Lock
 from typing import TYPE_CHECKING, Any, Dict, List, Union, cast
 from uuid import UUID
 
@@ -15,12 +11,6 @@ from prefect.blocks.webhook import Webhook
 from prefect.filesystems import LocalFileSystem
 from prefect.logging import get_logger
 from prefect.server import models, schemas
-from prefect.server.database.alembic_commands import (
-    BLOCK_REGISTRATION_ADVISORY_LOCK_KEY,
-    postgres_advisory_lock,
-)
-from prefect.server.utilities.database import get_dialect
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 if TYPE_CHECKING:
     import logging
@@ -29,9 +19,6 @@ if TYPE_CHECKING:
     from prefect.client.schemas import BlockType as ClientBlockType
 
 logger: "logging.Logger" = get_logger("server")
-
-# Thread-level lock for block registration (single process)
-BLOCK_REGISTRATION_LOCK = Lock()
 
 COLLECTIONS_BLOCKS_DATA_PATH = (
     Path(__file__).parent.parent / "collection_blocks_data.json"
@@ -221,64 +208,14 @@ async def _register_collection_blocks(session: AsyncSession) -> None:
                 )
 
 
-async def _run_block_auto_registration_inner(session: AsyncSession) -> None:
-    """
-    Internal function that performs the actual block registration.
-    This is called while holding the appropriate lock.
-    """
-    await _install_protected_system_blocks(session)
-    await _register_registry_blocks(session)
-    await _register_collection_blocks(session=session)
-
-
 async def run_block_auto_registration(session: AsyncSession) -> None:
     """
     Registers all blocks in the client block registry and any blocks from Prefect
     Collections that are configured for auto-registration.
 
-    For SQLite, uses a threading.Lock() which works within a single process.
-    For PostgreSQL, uses advisory locks which work across multiple processes,
-    enabling safe concurrent startup of multi-worker servers.
-
     Args:
         session: A database session.
     """
-    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
-    dialect = get_dialect(connection_url)
-
-    if dialect.name == "postgresql":
-        # Use PostgreSQL advisory locks for cross-process coordination
-        # We hold the advisory lock in a background thread while the async
-        # block registration runs in the main thread
-        lock_acquired = asyncio.Event()
-        registration_complete = asyncio.Event()
-        loop = asyncio.get_event_loop()
-
-        def hold_advisory_lock() -> None:
-            with postgres_advisory_lock(BLOCK_REGISTRATION_ADVISORY_LOCK_KEY):
-                # Signal that we have acquired the lock
-                loop.call_soon_threadsafe(lock_acquired.set)
-                # Wait for registration to complete before releasing the lock
-                while not registration_complete.is_set():
-                    time.sleep(0.01)
-
-        # Start the lock holder in a background thread
-        executor = ThreadPoolExecutor(max_workers=1)
-        lock_future = executor.submit(hold_advisory_lock)
-
-        try:
-            # Wait for the advisory lock to be acquired
-            await lock_acquired.wait()
-            # Run the actual registration with the thread lock held
-            with BLOCK_REGISTRATION_LOCK:
-                await _run_block_auto_registration_inner(session)
-        finally:
-            # Signal that registration is complete so the lock can be released
-            registration_complete.set()
-            # Wait for the lock holder thread to finish
-            lock_future.result()
-            executor.shutdown(wait=True)
-    else:
-        # Use threading lock for SQLite (single process only)
-        with BLOCK_REGISTRATION_LOCK:
-            await _run_block_auto_registration_inner(session)
+    await _install_protected_system_blocks(session)
+    await _register_registry_blocks(session)
+    await _register_collection_blocks(session=session)
