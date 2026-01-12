@@ -18,12 +18,17 @@ export type { PrefectApiClient } from "./api-client";
 export {
 	type Automation,
 	cleanupAutomations,
+	cleanupVariables,
 	createDeployment,
 	createFlow,
+	createVariable,
 	type Deployment,
 	deleteAutomation,
+	deleteVariable,
 	type Flow,
 	listAutomations,
+	listVariables,
+	type Variable,
 	waitForServerHealth,
 } from "./api-helpers";
 export {
