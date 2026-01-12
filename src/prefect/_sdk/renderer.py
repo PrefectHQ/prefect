@@ -43,6 +43,9 @@ class ParameterContext:
     default_repr: str
     """Python repr of the default value for code generation."""
 
+    description: str | None = None
+    """Description from schema."""
+
 
 @dataclass
 class JobVariableContext:
@@ -56,6 +59,9 @@ class JobVariableContext:
 
     python_type: str
     """Python type annotation string."""
+
+    description: str | None = None
+    """Description from schema."""
 
 
 @dataclass
@@ -199,6 +205,7 @@ def _process_fields_to_params(
             has_default=field_info.has_default,
             default=field_info.default,
             default_repr=_safe_repr(field_info.default),
+            description=field_info.description,
         )
 
         if field_info.required:
@@ -226,6 +233,7 @@ def _process_fields_to_job_variables(
                 name=safe_name,
                 original_name=field_info.name,
                 python_type=field_info.python_type,
+                description=field_info.description,
             )
         )
 

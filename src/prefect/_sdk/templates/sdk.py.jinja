@@ -127,6 +127,13 @@ class {{ dep.class_name }}:
 
         Returns a new instance with merged options (does not mutate self).
         Job variable types are derived from the work pool schema.
+{%- if dep.job_variable_fields %}
+
+        Args:
+{%- for field in dep.job_variable_fields %}
+            {{ field.name }}: {{ field.description if field.description else "(No description)" }}
+{%- endfor %}
+{%- endif %}
         """
         _sdk_options = self._options.copy()
         _sdk_job_vars = _sdk_options.get("job_variables", {}).copy()
@@ -149,11 +156,20 @@ class {{ dep.class_name }}:
 {% endfor %}
     ) -> "PrefectFlowRunFuture[Any]":
         """Run the {{ dep.full_name }} deployment synchronously.
+{%- if dep.required_params or dep.optional_params %}
 
-        Returns a PrefectFlowRunFuture that can be used to:
-        - Get the flow_run_id immediately
-        - Call .result() to wait for completion and get the result
-        - Call .state to check current state
+        Args:
+{%- for param in dep.required_params %}
+            {{ param.name }}: {{ param.description if param.description else "(No description)" }}
+{%- endfor %}
+{%- for param in dep.optional_params %}
+            {{ param.name }}: {{ param.description if param.description else "(No description)" }}
+{%- endfor %}
+{%- endif %}
+
+        Returns:
+            A PrefectFlowRunFuture that can be used to get the flow_run_id
+            immediately, call .result() to wait for completion, or check .state.
         """
         from prefect.deployments import run_deployment
         from prefect.futures import PrefectFlowRunFuture
@@ -194,11 +210,20 @@ class {{ dep.class_name }}:
 {% endfor %}
     ) -> "PrefectFlowRunFuture[Any]":
         """Run the {{ dep.full_name }} deployment asynchronously.
+{%- if dep.required_params or dep.optional_params %}
 
-        Returns a PrefectFlowRunFuture that can be used to:
-        - Get the flow_run_id immediately
-        - Call .result() to wait for completion and get the result
-        - Call .state to check current state
+        Args:
+{%- for param in dep.required_params %}
+            {{ param.name }}: {{ param.description if param.description else "(No description)" }}
+{%- endfor %}
+{%- for param in dep.optional_params %}
+            {{ param.name }}: {{ param.description if param.description else "(No description)" }}
+{%- endfor %}
+{%- endif %}
+
+        Returns:
+            A PrefectFlowRunFuture that can be used to get the flow_run_id
+            immediately, call .result() to wait for completion, or check .state.
         """
         from prefect.deployments import arun_deployment
         from prefect.futures import PrefectFlowRunFuture
