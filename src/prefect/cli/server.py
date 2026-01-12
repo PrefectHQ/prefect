@@ -441,6 +441,8 @@ def _run_in_background(
     env = {**os.environ, **server_settings, "PREFECT__SERVER_FINAL": "1"}
     if no_services:
         env["PREFECT__SERVER_WEBSERVER_ONLY"] = "1"
+    if workers > 1:
+        env["PREFECT_API_DATABASE_MIGRATE_ON_START"] = "False"
 
     process = subprocess.Popen(
         command,
@@ -487,6 +489,7 @@ def _run_in_foreground(
             else:
                 os.environ["PREFECT__SERVER_FINAL"] = "1"
                 os.environ["PREFECT__SERVER_WEBSERVER_ONLY"] = "1"
+                os.environ["PREFECT_API_DATABASE_MIGRATE_ON_START"] = "False"
 
                 uvicorn.run(
                     app="prefect.server.api.server:create_app",
