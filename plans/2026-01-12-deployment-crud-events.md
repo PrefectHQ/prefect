@@ -77,8 +77,8 @@ Event(
     payload={
         "updated_fields": ["description", "parameters"],
         "updates": {
-            "description": {"old": "...", "new": "..."},
-            "parameters": {"old": {...}, "new": {...}},
+            "description": {"from": "...", "to": "..."},
+            "parameters": {"from": {...}, "to": {...}},
         },
     },
 )
@@ -151,7 +151,7 @@ async def _deployment_related_resources(
 - [ ] `deployment_updated_event` function
 - [ ] `deployment_deleted_event` function
 - [ ] `_deployment_related_resources` helper
-- [ ] Unit tests for event factory functions
+- [ ] Unit tests for event factory functions (`tests/server/models/test_events.py`)
 
 ---
 
@@ -213,6 +213,7 @@ async def emit_deployment_deleted_event(
 - [ ] `emit_deployment_created_event` function
 - [ ] `emit_deployment_updated_event` function
 - [ ] `emit_deployment_deleted_event` function
+- [ ] Unit tests for emit functions
 
 ---
 
@@ -245,28 +246,12 @@ In `delete_deployment` model function:
 - [ ] Integrate `updated` event into update flow
 - [ ] Integrate `deleted` event into delete flow
 - [ ] Handle bulk delete if applicable
-- [ ] Integration tests
-
----
-
-### Phase 4: Testing
-
-**Unit tests** (`tests/server/models/test_events.py`):
-- Test event factory functions produce correct event structure
-- Test related resources are populated correctly
-- Test payload structure for updated events
-
-**Integration tests** (`tests/server/api/test_deployments.py`):
-- Test that creating a deployment emits `prefect.deployment.created`
-- Test that upserting (updating existing) emits `prefect.deployment.updated`
-- Test that updating via PATCH emits `prefect.deployment.updated`
-- Test that deleting emits `prefect.deployment.deleted`
-- Test that events include correct related resources
-
-**Status**:
-- [ ] Unit tests for event factory functions
-- [ ] Integration tests for API endpoints
-- [ ] Tests verify event payload structure matches Cloud
+- [ ] Integration tests (`tests/server/api/test_deployments.py`)
+  - creating a deployment emits `prefect.deployment.created`
+  - upserting (updating existing) emits `prefect.deployment.updated`
+  - updating via PATCH emits `prefect.deployment.updated`
+  - deleting emits `prefect.deployment.deleted`
+  - events include correct related resources
 
 ---
 
