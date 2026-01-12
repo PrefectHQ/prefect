@@ -59,7 +59,7 @@ test.describe("Variables Page", () => {
 			).toBeVisible();
 
 			// Fill in the form
-			await page.getByLabel(/name/i).fill(variableName);
+			await page.getByRole("textbox", { name: /name/i }).fill(variableName);
 
 			// Fill JSON value - the input expects valid JSON so we need to quote the string
 			const jsonInput = page.locator(".cm-content");
@@ -94,7 +94,7 @@ test.describe("Variables Page", () => {
 				page.getByRole("dialog", { name: /new variable/i }),
 			).toBeVisible();
 
-			await page.getByLabel(/name/i).fill(variableName);
+			await page.getByRole("textbox", { name: /name/i }).fill(variableName);
 
 			const jsonInput = page.locator(".cm-content");
 			await jsonInput.click();
@@ -123,14 +123,15 @@ test.describe("Variables Page", () => {
 				page.getByRole("dialog", { name: /new variable/i }),
 			).toBeVisible();
 
-			await page.getByLabel(/name/i).fill(variableName);
+			await page.getByRole("textbox", { name: /name/i }).fill(variableName);
 
 			const jsonInput = page.locator(".cm-content");
 			await jsonInput.click();
 			await page.keyboard.type('"tagged-value"');
 
-			// Add tags
-			const tagsInput = page.getByLabel(/tags/i);
+			// Add tags - use dialog-scoped selector to avoid matching filter input
+			const dialog = page.getByRole("dialog");
+			const tagsInput = dialog.getByRole("textbox", { name: /tags/i });
 			for (const tag of tags) {
 				await tagsInput.fill(tag);
 				await page.keyboard.press("Enter");
@@ -189,7 +190,9 @@ test.describe("Variables Page", () => {
 			).toBeVisible();
 
 			// Verify name is pre-filled
-			await expect(page.getByLabel(/name/i)).toHaveValue(variableName);
+			await expect(page.getByRole("textbox", { name: /name/i })).toHaveValue(
+				variableName,
+			);
 
 			// Update the value
 			const jsonInput = page.locator(".cm-content");
