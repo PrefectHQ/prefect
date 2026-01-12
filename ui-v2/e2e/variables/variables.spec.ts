@@ -248,4 +248,270 @@ test.describe("Variables Page", () => {
 			expect(deleted).toBeUndefined();
 		});
 	});
+
+	test.describe("Search and Filter", () => {
+		test.beforeEach(async ({ apiClient }) => {
+			// Create multiple test variables for filtering tests
+			await createVariable(apiClient, {
+				name: `${TEST_PREFIX}alpha-var`,
+				value: "alpha",
+				tags: ["production"],
+			});
+			await createVariable(apiClient, {
+				name: `${TEST_PREFIX}beta-var`,
+				value: "beta",
+				tags: ["staging"],
+			});
+			await createVariable(apiClient, {
+				name: `${TEST_PREFIX}gamma-var`,
+				value: "gamma",
+				tags: ["production", "config"],
+			});
+		});
+
+		test("should filter variables by name search", async ({ page }) => {
+			await page.goto("/variables");
+
+			// Wait for variables to load
+			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
+			await expect(page.getByText(`${TEST_PREFIX}beta-var`)).toBeVisible();
+			await expect(page.getByText(`${TEST_PREFIX}gamma-var`)).toBeVisible();
+
+			// Search for "alpha"
+			await page.getByPlaceholder("Search variables").fill("alpha");
+
+			// Should only show alpha variable
+			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
+			await expect(page.getByText(`${TEST_PREFIX}beta-var`)).not.toBeVisible();
+			await expect(page.getByText(`${TEST_PREFIX}gamma-var`)).not.toBeVisible();
+
+			// Verify URL updated with search param
+			await expect(page).toHaveURL(/name=alpha/);
+		});
+
+		test("should filter variables by tag", async ({ page }) => {
+			await page.goto("/variables");
+
+			// Wait for variables to load
+			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
+
+			// Filter by "production" tag
+			const tagsFilter = page.getByPlaceholder("Filter by tags");
+			await tagsFilter.fill("production");
+			await page.keyboard.press("Enter");
+
+			// Should show alpha and gamma (both have production tag)
+			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
+			await expect(page.getByText(`${TEST_PREFIX}gamma-var`)).toBeVisible();
+			await expect(page.getByText(`${TEST_PREFIX}beta-var`)).not.toBeVisible();
+
+			// Verify URL updated with tags param (tags are URL-encoded as an array)
+			await expect(page).toHaveURL(/tags=/);
+		});
+
+		test("should combine name search and tag filter", async ({ page }) => {
+			await page.goto("/variables");
+
+			// Wait for variables to load
+			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
+
+			// Filter by "production" tag first
+			const tagsFilter = page.getByPlaceholder("Filter by tags");
+			await tagsFilter.fill("production");
+			await page.keyboard.press("Enter");
+
+			// Then search for "gamma"
+			await page.getByPlaceholder("Search variables").fill("gamma");
+
+			// Should only show gamma (has production tag AND matches gamma search)
+			await expect(page.getByText(`${TEST_PREFIX}gamma-var`)).toBeVisible();
+			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).not.toBeVisible();
+			await expect(page.getByText(`${TEST_PREFIX}beta-var`)).not.toBeVisible();
+		});
+	});
+
+	test.describe("Sorting", () => {
+		test.beforeEach(async ({ apiClient }) => {
+			// Create variables with specific names for sorting tests
+			await createVariable(apiClient, {
+				name: `${TEST_PREFIX}aaa-sort-var`,
+				value: "first",
+			});
+			// Small delay to ensure different timestamps
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			await createVariable(apiClient, {
+				name: `${TEST_PREFIX}zzz-sort-var`,
+				value: "last",
+			});
+		});
+
+		test("should sort variables by name A to Z", async ({ page }) => {
+			await page.goto("/variables");
+
+			// Wait for variables to load
+			await expect(page.getByText(`${TEST_PREFIX}aaa-sort-var`)).toBeVisible();
+
+			// Change sort to A to Z
+			await page
+				.getByRole("combobox", { name: /variable sort order/i })
+				.click();
+			await page.getByRole("option", { name: "A to Z" }).click();
+
+			// Verify URL updated
+			await expect(page).toHaveURL(/sort=NAME_ASC/);
+
+			// Get all variable names in order
+			const rows = page.locator("table tbody tr");
+			const firstRow = rows.first();
+			await expect(firstRow).toContainText(`${TEST_PREFIX}aaa-sort-var`);
+		});
+
+		test("should sort variables by name Z to A", async ({ page }) => {
+			await page.goto("/variables");
+
+			// Wait for variables to load
+			await expect(page.getByText(`${TEST_PREFIX}aaa-sort-var`)).toBeVisible();
+
+			// Change sort to Z to A
+			await page
+				.getByRole("combobox", { name: /variable sort order/i })
+				.click();
+			await page.getByRole("option", { name: "Z to A" }).click();
+
+			// Verify URL updated
+			await expect(page).toHaveURL(/sort=NAME_DESC/);
+
+			// Verify zzz comes before aaa
+			const rows = page.locator("table tbody tr");
+			const firstRow = rows.first();
+			await expect(firstRow).toContainText(`${TEST_PREFIX}zzz-sort-var`);
+		});
+
+		test("should sort variables by created date (default)", async ({
+			page,
+		}) => {
+			await page.goto("/variables");
+
+			// Verify default sort is CREATED_DESC
+			await expect(page).toHaveURL(/sort=CREATED_DESC/);
+
+			// Most recently created should be first
+			const rows = page.locator("table tbody tr");
+			const firstRow = rows.first();
+			await expect(firstRow).toContainText(`${TEST_PREFIX}zzz-sort-var`);
+		});
+	});
+
+	test.describe("Pagination", () => {
+		test.beforeEach(async ({ apiClient }) => {
+			// Create enough variables to test pagination (more than default page size of 10)
+			const createPromises = [];
+			for (let i = 0; i < 15; i++) {
+				createPromises.push(
+					createVariable(apiClient, {
+						name: `${TEST_PREFIX}page-var-${String(i).padStart(2, "0")}`,
+						value: `value-${i}`,
+					}),
+				);
+			}
+			await Promise.all(createPromises);
+		});
+
+		test("should show correct page count", async ({ page }) => {
+			await page.goto("/variables");
+
+			// With 15 variables and 10 per page, should have 2 pages
+			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+		});
+
+		test("should navigate to next page", async ({ page }) => {
+			await page.goto("/variables");
+
+			// Wait for initial load
+			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+
+			// Click next page
+			await page.getByRole("button", { name: "Go to next page" }).click();
+
+			// Verify page changed
+			await expect(page.getByText("Page 2 of 2")).toBeVisible();
+			await expect(page).toHaveURL(/offset=10/);
+		});
+
+		test("should navigate to previous page", async ({ page }) => {
+			// Start on page 2
+			await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
+
+			await expect(page.getByText("Page 2 of 2")).toBeVisible();
+
+			// Click previous page
+			await page.getByRole("button", { name: "Go to previous page" }).click();
+
+			// Verify page changed
+			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+			await expect(page).toHaveURL(/offset=0/);
+		});
+
+		test("should change items per page", async ({ page }) => {
+			await page.goto("/variables");
+
+			// Wait for initial load with 10 items per page
+			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+
+			// Change to 25 items per page
+			await page.getByRole("combobox", { name: "Items per page" }).click();
+			await page.getByRole("option", { name: "25" }).click();
+
+			// With 15 items and 25 per page, should be 1 page
+			await expect(page.getByText("Page 1 of 1")).toBeVisible();
+			await expect(page).toHaveURL(/limit=25/);
+		});
+
+		test("should disable previous buttons on first page", async ({ page }) => {
+			await page.goto("/variables");
+
+			// Wait for page to load
+			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+
+			// On first page, previous buttons should be disabled
+			await expect(
+				page.getByRole("button", { name: "Go to first page" }),
+			).toBeDisabled();
+			await expect(
+				page.getByRole("button", { name: "Go to previous page" }),
+			).toBeDisabled();
+
+			// Next buttons should be enabled
+			await expect(
+				page.getByRole("button", { name: "Go to next page" }),
+			).toBeEnabled();
+			await expect(
+				page.getByRole("button", { name: "Go to last page" }),
+			).toBeEnabled();
+		});
+
+		test("should disable next buttons on last page", async ({ page }) => {
+			// Navigate directly to page 2 (last page) via URL
+			await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
+
+			// Wait for page to load
+			await expect(page.getByText("Page 2 of 2")).toBeVisible();
+
+			// On last page, next buttons should be disabled
+			await expect(
+				page.getByRole("button", { name: "Go to next page" }),
+			).toBeDisabled();
+			await expect(
+				page.getByRole("button", { name: "Go to last page" }),
+			).toBeDisabled();
+
+			// Previous buttons should be enabled
+			await expect(
+				page.getByRole("button", { name: "Go to first page" }),
+			).toBeEnabled();
+			await expect(
+				page.getByRole("button", { name: "Go to previous page" }),
+			).toBeEnabled();
+		});
+	});
 });
