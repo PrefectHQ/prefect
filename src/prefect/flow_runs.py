@@ -35,7 +35,11 @@ from prefect.exceptions import (
     Pause,
 )
 from prefect.input import keyset_from_paused_state
-from prefect.input.actions import create_flow_run_input, read_flow_run_input
+from prefect.input.actions import (
+    create_flow_run_input,
+    ensure_flow_run_id,
+    read_flow_run_input,
+)
 from prefect.input.run_input import (
     BaseRunInput,
     RunInputMetadata,
@@ -101,8 +105,6 @@ def _load_input_sync(
     This replicates the behavior of BaseRunInput.load() but uses the sync version
     of read_flow_run_input directly.
     """
-    from prefect.input.actions import ensure_flow_run_id
-
     flow_run_id = ensure_flow_run_id(flow_run_id)
     value = read_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
     if value:
