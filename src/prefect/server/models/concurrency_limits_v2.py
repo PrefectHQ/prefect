@@ -116,9 +116,25 @@ async def read_concurrency_limit(
         if concurrency_limit_id
         else db.ConcurrencyLimitV2.name == name
     )
-    query = sa.select(db.ConcurrencyLimitV2).where(where)
+
+    # Select with computed decay values to accurately reflect current slot availability
+    query = sa.select(
+        db.ConcurrencyLimitV2,
+        active_slots_after_decay(db).label("computed_active_slots"),
+        denied_slots_after_decay(db).label("computed_denied_slots"),
+    ).where(where)
+
     result = await session.execute(query)
-    return result.scalar()
+    row = result.first()
+
+    if row:
+        model = row[0]
+        # Override active_slots and denied_slots with computed values that account for decay
+        model.active_slots = int(row.computed_active_slots)
+        model.denied_slots = int(row.computed_denied_slots)
+        return model
+
+    return None
 
 
 @db_injector
@@ -128,7 +144,12 @@ async def read_all_concurrency_limits(
     limit: int,
     offset: int,
 ) -> Sequence[orm_models.ConcurrencyLimitV2]:
-    query = sa.select(db.ConcurrencyLimitV2).order_by(db.ConcurrencyLimitV2.name)
+    # Select with computed decay values to accurately reflect current slot availability
+    query = sa.select(
+        db.ConcurrencyLimitV2,
+        active_slots_after_decay(db).label("computed_active_slots"),
+        denied_slots_after_decay(db).label("computed_denied_slots"),
+    ).order_by(db.ConcurrencyLimitV2.name)
 
     if offset is not None:
         query = query.offset(offset)
@@ -136,7 +157,17 @@ async def read_all_concurrency_limits(
         query = query.limit(limit)
 
     result = await session.execute(query)
-    return result.scalars().unique().all()
+    rows = result.all()
+
+    # Override active_slots and denied_slots with computed values that account for decay
+    models = []
+    for row in rows:
+        model = row[0]
+        model.active_slots = int(row.computed_active_slots)
+        model.denied_slots = int(row.computed_denied_slots)
+        models.append(model)
+
+    return models
 
 
 @db_injector
