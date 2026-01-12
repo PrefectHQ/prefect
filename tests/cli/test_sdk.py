@@ -53,10 +53,11 @@ class TestSDKGenerate:
     """Tests for the prefect sdk generate command."""
 
     def test_sdk_generate_help(self) -> None:
-        """Shows help text."""
+        """Shows help text with beta indicator."""
         invoke_and_assert(
             ["sdk", "generate", "--help"],
             expected_output_contains=[
+                "beta",
                 "Generate a typed Python SDK",
                 "--output",
                 "--flow",
@@ -104,6 +105,7 @@ class TestSDKGenerate:
             invoke_and_assert(
                 ["sdk", "generate", "--output", str(output_path)],
                 expected_output_contains=[
+                    "beta",
                     "SDK generated successfully",
                     "Flows:       1",
                     "Deployments: 1",

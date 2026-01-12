@@ -21,7 +21,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 
-sdk_app: PrefectTyper = PrefectTyper(name="sdk", help="Manage Prefect SDKs.")
+sdk_app: PrefectTyper = PrefectTyper(name="sdk", help="Manage Prefect SDKs. (beta)")
 
 app.add_typer(sdk_app)
 
@@ -56,7 +56,7 @@ async def generate(
     ),
 ) -> None:
     """
-    Generate a typed Python SDK from workspace deployments.
+    (beta) Generate a typed Python SDK from workspace deployments.
 
     The generated SDK provides IDE autocomplete and type checking for your deployments.
     Requires an active Prefect API connection (use `prefect cloud login` or configure
@@ -73,6 +73,12 @@ async def generate(
         Generate SDK for specific deployments:
             $ prefect sdk generate --output ./my_sdk.py --deployment my-flow/production
     """
+    app.console.print(
+        "[yellow]Note:[/yellow] This command is in beta. "
+        "APIs may change in future releases."
+    )
+    app.console.print()
+
     # Pre-validate output path
     if output.exists() and output.is_dir():
         exit_with_error(
