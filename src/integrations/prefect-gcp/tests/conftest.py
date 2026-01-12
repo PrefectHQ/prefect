@@ -8,19 +8,12 @@ from google.cloud.aiplatform_v1.types.job_state import JobState
 from google.cloud.exceptions import NotFound
 from prefect_gcp.credentials import GcpCredentials
 
-from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
 
 @pytest.fixture(scope="session", autouse=True)
 def prefect_db():
     with prefect_test_harness():
-        yield
-
-
-@pytest.fixture(scope="session", autouse=True)
-def disable_logging():
-    with temporary_settings({PREFECT_LOGGING_TO_API_ENABLED: False}):
         yield
 
 
