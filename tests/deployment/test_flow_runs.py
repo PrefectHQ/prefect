@@ -1,3 +1,4 @@
+import inspect
 import re
 from datetime import timedelta
 from typing import TYPE_CHECKING
@@ -901,8 +902,6 @@ class TestAsyncDispatchBehavior:
         test_deployment: DeploymentResponse,
     ):
         """Test that run_deployment returns a coroutine when called in async context."""
-        import inspect
-
         deployment = test_deployment
 
         # When called without await, run_deployment should return a coroutine in async context
