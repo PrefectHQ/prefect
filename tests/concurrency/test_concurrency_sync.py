@@ -221,8 +221,8 @@ async def test_concurrency_can_be_used_while_event_loop_is_running(
 
 
 @pytest.fixture
-def mock_increment_concurrency_slots(monkeypatch):
-    async def mocked_increment_concurrency_slots(*args, **kwargs):
+def mock_increment_concurrency_slots_with_lease(monkeypatch):
+    async def mocked_increment_concurrency_slots_with_lease(*args, **kwargs):
         response = Response(
             status_code=status.HTTP_423_LOCKED,
             # Use a large Retry-After value to ensure the timeout triggers
@@ -236,12 +236,14 @@ def mock_increment_concurrency_slots(monkeypatch):
         )
 
     monkeypatch.setattr(
-        "prefect.client.orchestration.PrefectClient.increment_concurrency_slots",
-        mocked_increment_concurrency_slots,
+        "prefect.client.orchestration.PrefectClient.increment_concurrency_slots_with_lease",
+        mocked_increment_concurrency_slots_with_lease,
     )
 
 
-@pytest.mark.usefixtures("concurrency_limit", "mock_increment_concurrency_slots")
+@pytest.mark.usefixtures(
+    "concurrency_limit", "mock_increment_concurrency_slots_with_lease"
+)
 def test_concurrency_respects_timeout():
     with pytest.raises(TimeoutError, match=".*timed out after 0.01 second(s)*."):
         with concurrency("test", occupy=1, timeout_seconds=0.01):
