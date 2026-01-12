@@ -145,7 +145,7 @@ class {{ dep.class_name }}:
 {% for param in dep.optional_params %}
         {{ param.name }}: {{ param.python_type }}{% if param.has_default %} = {{ param.default_repr }}{% else %} | None = None{% endif %},
 {% endfor %}
-    ) -> "PrefectFlowRunFuture":
+    ) -> "PrefectFlowRunFuture[Any]":
         """Run the {{ dep.full_name }} deployment synchronously.
 
         Returns a PrefectFlowRunFuture that can be used to:
@@ -190,7 +190,7 @@ class {{ dep.class_name }}:
 {% for param in dep.optional_params %}
         {{ param.name }}: {{ param.python_type }}{% if param.has_default %} = {{ param.default_repr }}{% else %} | None = None{% endif %},
 {% endfor %}
-    ) -> "PrefectFlowRunFuture":
+    ) -> "PrefectFlowRunFuture[Any]":
         """Run the {{ dep.full_name }} deployment asynchronously.
 
         Returns a PrefectFlowRunFuture that can be used to:
