@@ -424,10 +424,7 @@ def pause_flow_run(
             if wait_for_input:
                 # The flow run wanted input, so we need to load it and return it
                 # to the user.
-                # Note: wait_for_input.load is async, but in sync context we need
-                # to handle this differently - for now, this path is not fully
-                # supported in sync mode
-                pass
+                return wait_for_input.load(run_input_keyset)
 
             return
 
@@ -442,10 +439,7 @@ def pause_flow_run(
             # Save the schema of the users `RunInput` subclass, stored in
             # `wait_for_input`, so the UI can display the form and we can validate
             # the input when the flow is resumed.
-            # Note: wait_for_input.save is async, but in sync context we need
-            # to handle this differently - for now, this path is not fully
-            # supported in sync mode
-            pass
+            wait_for_input.save(run_input_keyset)
 
         # Otherwise, block and check for completion on an interval
         start_time = time.monotonic()
@@ -457,8 +451,7 @@ def pause_flow_run(
             if flow_run.state and flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
                 if wait_for_input:
-                    # Note: wait_for_input.load is async
-                    pass
+                    return wait_for_input.load(run_input_keyset)
                 return
             if time.monotonic() - start_time >= timeout:
                 break
@@ -469,8 +462,7 @@ def pause_flow_run(
         if flow_run.state and flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
             if wait_for_input:
-                # Note: wait_for_input.load is async
-                pass
+                return wait_for_input.load(run_input_keyset)
             return
 
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
@@ -708,10 +700,7 @@ def suspend_flow_run(
             if wait_for_input:
                 # The flow run wanted input, so we need to load it and return it
                 # to the user.
-                # Note: wait_for_input.load is async, but in sync context we need
-                # to handle this differently - for now, this path is not fully
-                # supported in sync mode
-                pass
+                return wait_for_input.load(run_input_keyset)
             return
 
         if not state.is_paused():
@@ -721,10 +710,7 @@ def suspend_flow_run(
             )
 
         if wait_for_input:
-            # Note: wait_for_input.save is async, but in sync context we need
-            # to handle this differently - for now, this path is not fully
-            # supported in sync mode
-            pass
+            wait_for_input.save(run_input_keyset)
 
     if suspending_current_flow_run:
         # Exit this process so the run can be resubmitted later
