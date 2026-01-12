@@ -157,8 +157,11 @@ test.describe("Variables Page", () => {
 			const dialog = page.getByRole("dialog", { name: /new variable/i });
 			await expect(dialog).toBeVisible();
 
-			// Click the Close button in the dialog footer
-			await dialog.getByRole("button", { name: /close/i }).click();
+			// Click the Close button in the dialog footer (not the X button in the corner)
+			await dialog
+				.locator("form")
+				.getByRole("button", { name: /close/i })
+				.click();
 
 			await expect(dialog).not.toBeVisible();
 		});
