@@ -174,9 +174,13 @@ def _drop_empty_keys_from_dict(taskdef: dict):
     Recursively drop keys with 'empty' values from a task definition dict.
 
     Mutates the task definition in place. Only supports recursion into dicts and lists.
+
+    Removes keys with truly empty values (None, empty strings, empty lists, empty dicts)
+    but preserves boolean False values which are meaningful.
     """
     for key, value in tuple(taskdef.items()):
-        if not value:
+        # Only remove truly empty values, not boolean False
+        if not value and value is not False:
             taskdef.pop(key)
         if isinstance(value, dict):
             _drop_empty_keys_from_dict(value)
@@ -393,6 +397,22 @@ class ECSJobConfiguration(BaseJobConfiguration):
             # definition arn. In that case, we'll perform similar logic later to find
             # the name to treat as the "orchestration" container.
 
+        return self
+
+    @model_validator(mode="after")
+    def at_least_one_container_is_essential(self) -> Self:
+        """
+        Ensures that at least one container will be marked as essential
+        in the task definition.
+        """
+        container_definitions = self.task_definition.get("containerDefinitions", [])
+        if container_definitions and all(
+            container.get("essential") is False for container in container_definitions
+        ):
+            raise ValueError(
+                "At least one container in the task definition must be marked as "
+                "essential."
+            )
         return self
 
     @model_validator(mode="after")
@@ -1542,17 +1562,15 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         for taskdef in (taskdef_1, taskdef_2):
             # Set defaults that AWS would set after registration
             container_definitions = taskdef.get("containerDefinitions", [])
-            essential = any(
-                container.get("essential") for container in container_definitions
-            )
-            if not essential:
-                container_definitions[0].setdefault("essential", True)
 
             taskdef.setdefault("networkMode", "bridge")
 
             # Normalize ordering of lists that ECS considers unordered
             # ECS stores these in unordered data structures, so order shouldn't matter for comparison
             for container in container_definitions:
+                # If essential is not explicitly set, AWS will default to setting it to True
+                container.setdefault("essential", True)
+
                 # Sort environment variables by name for consistent comparison
                 if "environment" in container:
                     container["environment"] = sorted(
