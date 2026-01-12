@@ -102,6 +102,14 @@ asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
 filterwarnings = [
   "ignore:Type google._upb._message.* uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14:DeprecationWarning",
+  "ignore:'setName' deprecated:DeprecationWarning:httplib2",
+  "ignore:'setParseAction' deprecated:DeprecationWarning:httplib2",
+  "ignore:'addParseAction' deprecated:DeprecationWarning:httplib2",
+  "ignore:'leaveWhitespace' deprecated:DeprecationWarning:httplib2",
+  "ignore:'delimitedList' deprecated:DeprecationWarning:httplib2",
+  "ignore:GitWildMatchPattern .* is deprecated:DeprecationWarning:pathspec",
+  "ignore:You are using a Python version .* which Google will stop supporting:FutureWarning:google.api_core",
+  "ignore:codecs.open\\(\\) is deprecated:DeprecationWarning:coolname",
 ]
 
 [tool.uv.sources]
