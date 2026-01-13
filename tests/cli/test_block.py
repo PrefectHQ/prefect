@@ -318,6 +318,24 @@ def test_listing_system_block_types(register_block_types):
     )
 
 
+def test_listing_system_block_types_json_output(register_block_types):
+    expected_output = (
+        "slug",
+        "description",
+        "slack",
+        "local-file-system",
+        "remote-file-system",
+        "secret",
+        "slack-webhook",
+    )
+
+    invoke_and_assert(
+        ["block", "type", "ls", "-o", "json"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+
 async def test_inspecting_a_block():
     await system.Secret(value="sk-1234567890").save("secretblob")
 
