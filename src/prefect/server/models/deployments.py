@@ -1134,7 +1134,7 @@ async def mark_deployments_ready(
             .values(
                 status=DeploymentStatus.READY,
                 last_polled=last_polled,
-                updated=db.Deployment.updated
+                updated=db.Deployment.updated,
             )
         )
 
@@ -1190,8 +1190,7 @@ async def mark_deployments_not_ready(
                     )
                 )
                 .values(
-                    status=DeploymentStatus.NOT_READY,
-                    updated=db.Deployment.updated
+                    status=DeploymentStatus.NOT_READY, updated=db.Deployment.updated
                 )
             )
 
