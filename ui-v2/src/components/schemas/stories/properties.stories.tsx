@@ -533,3 +533,45 @@ export const prefectKindJson: Story = {
 	},
 };
 prefectKindJson.storyName = "prefect_kind:json";
+
+export const prefectKindJinjaEmpty: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				template: {
+					type: "string",
+					title: "Template",
+				},
+			},
+		},
+		values: {
+			template: {
+				__prefect_kind: "jinja",
+				template: undefined,
+			},
+		},
+	},
+};
+prefectKindJinjaEmpty.storyName = "prefect_kind:jinja (empty)";
+
+export const prefectKindJinjaWithValue: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				template: {
+					type: "string",
+					title: "Template",
+				},
+			},
+		},
+		values: {
+			template: {
+				__prefect_kind: "jinja",
+				template: "{{ flow_run.name }}",
+			},
+		},
+	},
+};
+prefectKindJinjaWithValue.storyName = "prefect_kind:jinja (with value)";

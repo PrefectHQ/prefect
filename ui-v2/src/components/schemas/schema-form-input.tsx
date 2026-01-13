@@ -7,6 +7,7 @@ import { SchemaFormInputInteger } from "./schema-form-input-integer";
 import { SchemaFormInputNull } from "./schema-form-input-null";
 import { SchemaFormInputNumber } from "./schema-form-input-number";
 import { SchemaFormInputObject } from "./schema-form-input-object";
+import { SchemaFormInputPrefectKindJinja } from "./schema-form-input-prefect-kind-jinja";
 import { SchemaFormInputPrefectKindJson } from "./schema-form-input-prefect-kind-json";
 import { SchemaFormInputString } from "./schema-form-input-string";
 import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
@@ -48,7 +49,13 @@ export function SchemaFormInput({
 		}
 
 		if (isPrefectKindValue(value, "jinja")) {
-			throw new Error("not implemented");
+			return (
+				<SchemaFormInputPrefectKindJinja
+					value={value}
+					onValueChange={onValueChange}
+					id={id}
+				/>
+			);
 		}
 
 		// @ts-expect-error This is an exhaustive check. If a prefect kind is not implemented this will get flaggged.
