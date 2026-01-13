@@ -111,7 +111,10 @@ async def locked_concurrency_limit_with_decay(
             name="test_limit_with_decay",
             limit=10,
             active_slots=10,
-            slot_decay_per_second=1.0,
+            # Use a low decay rate to prevent race conditions in tests.
+            # With 0.1 decay/sec, it takes 10 seconds before any slot decays
+            # (since decay uses floor()), giving ample time for test execution.
+            slot_decay_per_second=0.1,
         ),
     )
     await session.commit()
@@ -711,10 +714,10 @@ async def test_increment_concurrency_limit_with_decay_locked_retry_after_header(
     )
     assert response.status_code == 423
 
-    assert locked_concurrency_limit_with_decay.slot_decay_per_second == 1.0
+    assert locked_concurrency_limit_with_decay.slot_decay_per_second == 0.1
     # (1.0 / slot_decay) * (num slots requested + num denied slots)
     # clamped_poisson_interval adds jitter, so check approximate value
-    expected_retry_after = 1.0 * (1.0 + 10)
+    expected_retry_after = 10.0 * (1.0 + 10)
     actual_retry_after = float(response.headers["Retry-After"])
     assert abs(actual_retry_after - expected_retry_after) < expected_retry_after * 0.5
 
