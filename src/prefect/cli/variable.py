@@ -26,15 +26,33 @@ async def list_variables(
         "--limit",
         help="The maximum number of variables to return.",
     ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     List variables.
+
+    Arguments:
+
+    limit: Maximum number of flow runs to list. Defaults to 100.
+    output: Return variables in specified format.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
     async with get_client() as client:
         variables = await client.read_variables(
             limit=limit,
         )
 
+    if output and output.lower() == "json":
+        variables_json = [variable.model_dump(mode="json") for variable in variables]
+        json_output = orjson.dumps(variables_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
         table = Table(
             title="Variables",
             caption="List Variables using `prefect variable ls`",
