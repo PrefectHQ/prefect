@@ -180,6 +180,22 @@ def _sanitize_docstring(text: str | None) -> str | None:
     return text.strip()
 
 
+def _make_optional(python_type: str) -> str:
+    """
+    Make a type optional (add | None) if it isn't already nullable.
+
+    Avoids redundant `str | None | None` patterns when the schema type
+    is already nullable.
+    """
+    # Check if type already includes None
+    # Handle both "T | None" and "None | T" patterns
+    # Also handle "T | None | U" embedded patterns
+    type_parts = [p.strip() for p in python_type.split("|")]
+    if "None" in type_parts:
+        return python_type
+    return f"{python_type} | None"
+
+
 def _process_fields_to_params(
     fields: list[FieldInfo],
     existing_identifiers: set[str],
@@ -429,6 +445,7 @@ def _get_template() -> jinja2.Template:
 
     # Add custom filters
     env.filters["repr"] = repr
+    env.filters["make_optional"] = _make_optional
 
     return env.from_string(template_content)
 

@@ -120,7 +120,7 @@ class {{ dep.class_name }}:
         self,
         *,
 {% for field in dep.job_variable_fields %}
-        {{ field.name }}: {{ field.python_type }} | None = None,
+        {{ field.name }}: {{ field.python_type | make_optional }} = None,
 {% endfor %}
     ) -> "{{ dep.class_name }}":
         """Create a new deployment handle with updated job variables.
@@ -152,7 +152,7 @@ class {{ dep.class_name }}:
         {{ param.name }}: {{ param.python_type }},
 {% endfor %}
 {% for param in dep.optional_params %}
-        {{ param.name }}: {{ param.python_type }}{% if param.has_default %} = {{ param.default_repr }}{% else %} | None = None{% endif %},
+        {{ param.name }}: {% if param.has_default %}{{ param.python_type }} = {{ param.default_repr }}{% else %}{{ param.python_type | make_optional }} = None{% endif %},
 {% endfor %}
     ) -> "PrefectFlowRunFuture[Any]":
         """Run the {{ dep.full_name }} deployment synchronously.
@@ -188,13 +188,14 @@ class {{ dep.class_name }}:
 {% endif %}
 {% endfor %}
 
-        # cast() handles the @async_dispatch decorator's union return type
+        # _sync=True ensures @async_dispatch returns sync result, not coroutine
         _sdk_flow_run = cast(
             "FlowRun",
             run_deployment(
                 name={{ dep.full_name | repr }},
                 parameters=_sdk_params,
                 timeout=0,
+                _sync=True,  # pyright: ignore[reportCallIssue]
                 **self._options,
             ),
         )
@@ -206,7 +207,7 @@ class {{ dep.class_name }}:
         {{ param.name }}: {{ param.python_type }},
 {% endfor %}
 {% for param in dep.optional_params %}
-        {{ param.name }}: {{ param.python_type }}{% if param.has_default %} = {{ param.default_repr }}{% else %} | None = None{% endif %},
+        {{ param.name }}: {% if param.has_default %}{{ param.python_type }} = {{ param.default_repr }}{% else %}{{ param.python_type | make_optional }} = None{% endif %},
 {% endfor %}
     ) -> "PrefectFlowRunFuture[Any]":
         """Run the {{ dep.full_name }} deployment asynchronously.
