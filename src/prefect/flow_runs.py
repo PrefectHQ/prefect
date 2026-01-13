@@ -12,7 +12,6 @@ from uuid import UUID, uuid4
 import anyio
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect._internal.pydantic.v2_schema import create_v2_schema, is_v2_model
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.objects import (
@@ -35,16 +34,7 @@ from prefect.exceptions import (
     Pause,
 )
 from prefect.input import keyset_from_paused_state
-from prefect.input.actions import (
-    create_flow_run_input,
-    ensure_flow_run_id,
-    read_flow_run_input,
-)
-from prefect.input.run_input import (
-    BaseRunInput,
-    RunInputMetadata,
-    run_input_subclass_from_type,
-)
+from prefect.input.run_input import run_input_subclass_from_type
 from prefect.logging import get_logger
 from prefect.logging.loggers import (
     get_run_logger,
@@ -60,61 +50,6 @@ from prefect.utilities.engine import (
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.input.run_input import Keyset
-
-
-def _save_input_schema_sync(
-    wait_for_input: Type[BaseRunInput],
-    keyset: "Keyset",
-    flow_run_id: UUID | None = None,
-) -> None:
-    """
-    Save the run input schema synchronously without using @sync_compatible.
-
-    This replicates the behavior of BaseRunInput.save() but uses the sync version
-    of create_flow_run_input directly.
-    """
-    if is_v2_model(wait_for_input):
-        schema = create_v2_schema(wait_for_input.__name__, model_base=wait_for_input)
-    else:
-        schema = wait_for_input.model_json_schema(by_alias=True)
-
-    create_flow_run_input(key=keyset["schema"], value=schema, flow_run_id=flow_run_id)
-
-    description = (
-        wait_for_input._description
-        if isinstance(wait_for_input._description, str)
-        else None
-    )
-    if description:
-        create_flow_run_input(
-            key=keyset["description"],
-            value=description,
-            flow_run_id=flow_run_id,
-        )
-
-
-def _load_input_sync(
-    wait_for_input: Type[BaseRunInput],
-    keyset: "Keyset",
-    flow_run_id: UUID | None = None,
-) -> BaseRunInput:
-    """
-    Load the run input synchronously without using @sync_compatible.
-
-    This replicates the behavior of BaseRunInput.load() but uses the sync version
-    of read_flow_run_input directly.
-    """
-    flow_run_id = ensure_flow_run_id(flow_run_id)
-    value = read_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
-    if value:
-        instance = wait_for_input(**value)
-    else:
-        instance = wait_for_input()
-    instance._metadata = RunInputMetadata(
-        key=keyset["response"], sender=None, receiver=flow_run_id
-    )
-    return instance
 
 
 @inject_client
@@ -335,7 +270,7 @@ async def apause_flow_run(
             if wait_for_input:
                 # The flow run wanted input, so we need to load it and return it
                 # to the user.
-                await wait_for_input.load(run_input_keyset)
+                await wait_for_input.aload(run_input_keyset)
 
             return
 
@@ -350,7 +285,7 @@ async def apause_flow_run(
             # Save the schema of the users `RunInput` subclass, stored in
             # `wait_for_input`, so the UI can display the form and we can validate
             # the input when the flow is resumed.
-            await wait_for_input.save(run_input_keyset)
+            await wait_for_input.asave(run_input_keyset)
 
         # Otherwise, block and check for completion on an interval
         with anyio.move_on_after(timeout):
@@ -362,7 +297,7 @@ async def apause_flow_run(
                 if flow_run.state and flow_run.state.is_running():
                     logger.info("Resuming flow run execution!")
                     if wait_for_input:
-                        return await wait_for_input.load(run_input_keyset)
+                        return await wait_for_input.aload(run_input_keyset)
                     return
                 await anyio.sleep(poll_interval)
 
@@ -371,7 +306,7 @@ async def apause_flow_run(
         if flow_run.state and flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
             if wait_for_input:
-                return await wait_for_input.load(run_input_keyset)
+                return await wait_for_input.aload(run_input_keyset)
             return
 
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
@@ -489,7 +424,7 @@ def pause_flow_run(
             if wait_for_input:
                 # The flow run wanted input, so we need to load it and return it
                 # to the user.
-                return _load_input_sync(wait_for_input, run_input_keyset)
+                return wait_for_input.load(run_input_keyset)
 
             return
 
@@ -504,7 +439,7 @@ def pause_flow_run(
             # Save the schema of the users `RunInput` subclass, stored in
             # `wait_for_input`, so the UI can display the form and we can validate
             # the input when the flow is resumed.
-            _save_input_schema_sync(wait_for_input, run_input_keyset)
+            wait_for_input.save(run_input_keyset)
 
         # Otherwise, block and check for completion on an interval
         start_time = time.monotonic()
@@ -516,7 +451,7 @@ def pause_flow_run(
             if flow_run.state and flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
                 if wait_for_input:
-                    return _load_input_sync(wait_for_input, run_input_keyset)
+                    return wait_for_input.load(run_input_keyset)
                 return
             if time.monotonic() - start_time >= timeout:
                 break
@@ -527,7 +462,7 @@ def pause_flow_run(
         if flow_run.state and flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
             if wait_for_input:
-                return _load_input_sync(wait_for_input, run_input_keyset)
+                return wait_for_input.load(run_input_keyset)
             return
 
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
@@ -640,7 +575,7 @@ async def asuspend_flow_run(
             if wait_for_input:
                 # The flow run wanted input, so we need to load it and return it
                 # to the user.
-                return await wait_for_input.load(run_input_keyset)
+                return await wait_for_input.aload(run_input_keyset)
             return
 
         if not state.is_paused():
@@ -650,7 +585,7 @@ async def asuspend_flow_run(
             )
 
         if wait_for_input:
-            await wait_for_input.save(run_input_keyset)
+            await wait_for_input.asave(run_input_keyset)
 
     if suspending_current_flow_run:
         # Exit this process so the run can be resubmitted later
@@ -765,7 +700,7 @@ def suspend_flow_run(
             if wait_for_input:
                 # The flow run wanted input, so we need to load it and return it
                 # to the user.
-                return _load_input_sync(wait_for_input, run_input_keyset)
+                return wait_for_input.load(run_input_keyset)
             return
 
         if not state.is_paused():
@@ -775,7 +710,7 @@ def suspend_flow_run(
             )
 
         if wait_for_input:
-            _save_input_schema_sync(wait_for_input, run_input_keyset)
+            wait_for_input.save(run_input_keyset)
 
     if suspending_current_flow_run:
         # Exit this process so the run can be resubmitted later
