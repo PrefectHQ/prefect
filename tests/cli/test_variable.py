@@ -60,6 +60,40 @@ async def variables(
     return models
 
 
+def test_list_output_variables_with_limit(variables):
+    name = sorted([variable.name for variable in variables])[0]
+    invoke_and_assert(
+        ["variable", "ls", "--limit", "1", "-o", "json"],
+        expected_output_contains=name,
+        expected_code=0,
+    )
+
+
+def test_list_output_variables(variables):
+    names = (variable.name for variable in variables)
+    invoke_and_assert(
+        ["variable", "ls", "-o", "json"],
+        expected_output_contains=(names),
+        expected_code=0,
+    )
+
+
+def test_list_output_invaild_format_variables():
+    invoke_and_assert(
+        ["variable", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
+def test_list_output_variables_none_exist():
+    invoke_and_assert(
+        ["variable", "ls", "-o", "json"],
+        expected_output_contains="[]",
+        expected_code=0,
+    )
+
+
 def test_list_variables_none_exist():
     invoke_and_assert(
         ["variable", "ls"],
