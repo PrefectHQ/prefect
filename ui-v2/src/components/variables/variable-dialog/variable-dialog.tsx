@@ -7,7 +7,6 @@ import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
-	DialogClose,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
@@ -191,11 +190,13 @@ export const VariableDialog = ({
 							)}
 						/>
 						<DialogFooter>
-							<DialogClose asChild>
-								<Button type="button" variant="outline">
-									Close
-								</Button>
-							</DialogClose>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => onOpenChange(false)}
+							>
+								Close
+							</Button>
 							<Button type="submit" loading={isCreating || isUpdating}>
 								{variableToEdit ? "Save" : "Create"}
 							</Button>
