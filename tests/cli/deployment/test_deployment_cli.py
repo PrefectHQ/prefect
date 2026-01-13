@@ -128,6 +128,53 @@ def test_list_schedules(flojo_deployment: DeploymentResponse):
     )
 
 
+def test_list_schedules_with_json_output(flojo_deployment: DeploymentResponse):
+    create_commands = [
+        "deployment",
+        "schedule",
+        "create",
+        "rence-griffith/test-deployment",
+    ]
+
+    invoke_and_assert(
+        [
+            *create_commands,
+            "--cron",
+            "5 4 * * *",
+        ],
+        expected_code=0,
+    )
+
+    invoke_and_assert(
+        [
+            *create_commands,
+            "--rrule",
+            '{"rrule": "RRULE:FREQ=HOURLY"}',
+        ],
+        expected_code=0,
+    )
+
+    invoke_and_assert(
+        [
+            "deployment",
+            "schedule",
+            "ls",
+            "-o",
+            "json",
+            "rence-griffith/test-deployment",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            str(flojo_deployment.schedules[0].id)[:8],
+            "interval: 0:00:10.760000s",
+            "cron: 5 4 * * *",
+            "rrule: RRULE:FREQ=HOURLY",
+            "true",
+        ],
+        expected_output_does_not_contain="false",
+    )
+
+
 class TestDeploymentSchedules:
     @pytest.fixture(autouse=True)
     def enable_triggers(self):
@@ -1420,4 +1467,40 @@ class TestDeploymentDelete:
             ["deployment", "delete", "--all", "test-deployment"],
             expected_code=1,
             expected_output_contains="Cannot provide a deployment name or id when deleting all deployments.",
+        )
+
+
+class TestDeploymentList:
+    @pytest.fixture
+    async def setup_many_deployments(
+        self,
+        prefect_client: PrefectClient,
+        flojo_deployment: DeploymentResponse,
+    ):
+        for i in range(3):
+            await prefect_client.create_deployment(
+                flow_id=flojo_deployment.flow_id,
+                name=f"test-deployment-{i}",
+            )
+
+    @pytest.mark.usefixtures("setup_many_deployments")
+    def test_list_deployments_output_json(self):
+        invoke_and_assert(
+            ["deployment", "ls", "-o", "json"],
+            expected_code=0,
+            expected_output_contains=[
+                "id",
+                "name",
+                "work_pool_name",
+                "version",
+                "flow_id",
+            ],
+        )
+
+    @pytest.mark.usefixtures("setup_many_deployments")
+    def test_list_deployments_output_is_not_json(self):
+        invoke_and_assert(
+            ["deployment", "ls", "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
         )
