@@ -158,11 +158,17 @@ test.describe("Variables Page", () => {
 			await expect(dialog).toBeVisible();
 
 			// Click the Close button in the dialog footer (not the X button in the corner)
-			// Wait for the button to be visible and stable before clicking to avoid race conditions
+			// Wait for the button to be visible and enabled before clicking
 			const closeButton = dialog
 				.locator("form")
 				.getByRole("button", { name: /close/i });
 			await expect(closeButton).toBeVisible();
+			await expect(closeButton).toBeEnabled();
+
+			// Wait for dialog animation to complete (200ms duration) before clicking
+			// This ensures the DialogClose event handler is fully attached
+			await page.waitForTimeout(250);
+
 			await closeButton.click();
 
 			await expect(dialog).not.toBeVisible();
