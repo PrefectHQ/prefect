@@ -178,9 +178,18 @@ class TestMultipleWorkerServer:
 
     @patch("prefect.cli.server._validate_multi_worker")
     async def test_multi_worker_in_background(
-        self, mock_validate_multi_worker, unused_tcp_port: int
+        self,
+        mock_validate_multi_worker,
+        unused_tcp_port: int,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         """Test starting the server with multiple workers in the background."""
+        # Disable migrations and block registration to avoid race conditions
+        # when multiple workers start concurrently. Each worker would try to
+        # run migrations/block registration at the same time, causing database
+        # deadlocks and race conditions.
+        monkeypatch.setenv("PREFECT_API_DATABASE_MIGRATE_ON_START", "false")
+        monkeypatch.setenv("PREFECT_API_BLOCKS_REGISTER_ON_START", "false")
 
         try:
             await run_sync_in_worker_thread(
