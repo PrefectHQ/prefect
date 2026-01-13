@@ -766,10 +766,21 @@ async def clear_schedules(
 
 
 @deployment_app.command()
-async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
+async def ls(
+    flow_name: Optional[list[str]] = None,
+    by_created: bool = False,
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     View all deployments or deployments for specific flows.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
     async with get_client() as client:
         deployments = await client.read_deployments(
             flow_filter=FlowFilter(name=FlowFilterName(any_=flow_name))
@@ -792,26 +803,35 @@ async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
         assert d.created is not None, "All deployments should have a created time."
         return DateTime.now("utc") - d.created
 
-    table = Table(
-        title="Deployments",
-        expand=True,
-    )
-    table.add_column("Name", style="blue", no_wrap=True, ratio=40)
-    table.add_column("ID", style="cyan", no_wrap=True, ratio=40)
-    table.add_column(
-        "Work Pool", style="green", no_wrap=True, ratio=20, overflow="crop"
-    )
-
-    for deployment in sorted(
-        deployments, key=sort_by_created_key if by_created else sort_by_name_keys
-    ):
-        table.add_row(
-            f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
-            str(deployment.id),
-            deployment.work_pool_name or "",
+    if output and output.lower() == "json":
+        deployments_json = [
+            deployment.model_dump(mode="json") for deployment in deployments
+        ]
+        json_output = orjson.dumps(
+            deployments_json, option=orjson.OPT_INDENT_2
+        ).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(
+            title="Deployments",
+            expand=True,
+        )
+        table.add_column("Name", style="blue", no_wrap=True, ratio=40)
+        table.add_column("ID", style="cyan", no_wrap=True, ratio=40)
+        table.add_column(
+            "Work Pool", style="green", no_wrap=True, ratio=20, overflow="crop"
         )
 
-    app.console.print(table)
+        for deployment in sorted(
+            deployments, key=sort_by_created_key if by_created else sort_by_name_keys
+        ):
+            table.add_row(
+                f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
+                str(deployment.id),
+                deployment.work_pool_name or "",
+            )
+
+        app.console.print(table)
 
 
 @deployment_app.command()

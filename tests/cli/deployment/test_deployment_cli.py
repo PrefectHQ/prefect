@@ -1468,3 +1468,39 @@ class TestDeploymentDelete:
             expected_code=1,
             expected_output_contains="Cannot provide a deployment name or id when deleting all deployments.",
         )
+
+
+class TestDeploymentList:
+    @pytest.fixture
+    async def setup_many_deployments(
+        self,
+        prefect_client: PrefectClient,
+        flojo_deployment: DeploymentResponse,
+    ):
+        for i in range(3):
+            await prefect_client.create_deployment(
+                flow_id=flojo_deployment.flow_id,
+                name=f"test-deployment-{i}",
+            )
+
+    @pytest.mark.usefixtures("setup_many_deployments")
+    def test_list_deployments_output_json(self):
+        invoke_and_assert(
+            ["deployment", "ls", "-o", "json"],
+            expected_code=0,
+            expected_output_contains=[
+                "id",
+                "name",
+                "work_pool_name",
+                "version",
+                "flow_id",
+            ],
+        )
+
+    @pytest.mark.usefixtures("setup_many_deployments")
+    def test_list_deployments_output_is_not_json(self):
+        invoke_and_assert(
+            ["deployment", "ls", "-o", "xml"],
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
