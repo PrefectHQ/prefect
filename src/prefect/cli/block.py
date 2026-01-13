@@ -416,36 +416,53 @@ async def block_inspect(
 
 
 @blocktypes_app.command("ls")
-async def list_types():
+async def list_types(
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     List all block types.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
     async with get_client() as client:
         block_types = await client.read_block_types()
-
-    table = Table(
-        title="Block Types",
-        show_lines=True,
-    )
-
-    table.add_column("Block Type Slug", style="italic cyan", no_wrap=True)
-    table.add_column("Description", style="blue", no_wrap=False, justify="left")
-    table.add_column(
-        "Generate creation link", style="italic cyan", no_wrap=False, justify="left"
-    )
-
-    for blocktype in sorted(block_types, key=lambda x: x.name):
-        table.add_row(
-            str(blocktype.slug),
-            (
-                str(blocktype.description.splitlines()[0].partition(".")[0])
-                if blocktype.description is not None
-                else ""
-            ),
-            f"prefect block create {blocktype.slug}",
+    if output and output.lower() == "json":
+        block_types_json = [
+            block_type.model_dump(mode="json") for block_type in block_types
+        ]
+        json_output = orjson.dumps(
+            block_types_json, option=orjson.OPT_INDENT_2
+        ).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(
+            title="Block Types",
+            show_lines=True,
         )
 
-    app.console.print(table)
+        table.add_column("Block Type Slug", style="italic cyan", no_wrap=True)
+        table.add_column("Description", style="blue", no_wrap=False, justify="left")
+        table.add_column(
+            "Generate creation link", style="italic cyan", no_wrap=False, justify="left"
+        )
+
+        for blocktype in sorted(block_types, key=lambda x: x.name):
+            table.add_row(
+                str(blocktype.slug),
+                (
+                    str(blocktype.description.splitlines()[0].partition(".")[0])
+                    if blocktype.description is not None
+                    else ""
+                ),
+                f"prefect block create {blocktype.slug}",
+            )
+
+        app.console.print(table)
 
 
 @blocktypes_app.command("inspect")
