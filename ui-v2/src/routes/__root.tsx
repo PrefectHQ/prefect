@@ -15,7 +15,10 @@ import { MainLayout } from "@/components/layouts/MainLayout";
 import { PrefectLoading } from "@/components/ui/loading";
 import { ServerErrorDisplay } from "@/components/ui/server-error";
 
-const TanStackRouterDevtools = import.meta.env.DEV
+const showDevtools =
+	import.meta.env.DEV && import.meta.env.VITE_DISABLE_DEVTOOLS !== "true";
+
+const TanStackRouterDevtools = showDevtools
 	? lazy(() =>
 			import("@tanstack/router-devtools").then((mod) => ({
 				default: mod.TanStackRouterDevtools,
@@ -72,7 +75,7 @@ function RootComponent() {
 	const content = (
 		<>
 			<Outlet />
-			{import.meta.env.DEV && (
+			{showDevtools && (
 				<Suspense fallback={null}>
 					<TanStackRouterDevtools />
 				</Suspense>

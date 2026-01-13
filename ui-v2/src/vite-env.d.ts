@@ -7,6 +7,11 @@ interface ImportMetaEnv {
 	 * Only used when running `npm run dev`.
 	 */
 	readonly VITE_API_URL?: string;
+	/**
+	 * When set to "true", disables TanStack Router and Query devtools.
+	 * Used during Playwright E2E tests to prevent devtools from interfering with tests.
+	 */
+	readonly VITE_DISABLE_DEVTOOLS?: string;
 }
 
 interface ImportMeta {
