@@ -35,11 +35,6 @@ async def list_variables(
 ):
     """
     List variables.
-
-    Arguments:
-
-    limit: Maximum number of flow runs to list. Defaults to 100.
-    output: Return variables in specified format.
     """
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
