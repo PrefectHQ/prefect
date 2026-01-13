@@ -9,6 +9,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
@@ -52,13 +53,14 @@ describe("Variables page", () => {
 			await renderVariablesPage();
 
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
-			expect(screen.queryByRole("dialog")).toBeVisible();
-			// Get the footer close button for the dialog
-			const closeButtons = screen.getByRole("button", {
+			const dialog = screen.getByRole("dialog");
+			expect(dialog).toBeVisible();
+			// Get the footer close button for the dialog (the one inside the form, not the X icon in the corner)
+			const form = dialog.querySelector("form");
+			const closeButton = within(form as HTMLElement).getByRole("button", {
 				name: "Close",
-				expanded: true,
 			});
-			await user.click(closeButtons);
+			await user.click(closeButton);
 			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 		});
 
@@ -67,11 +69,15 @@ describe("Variables page", () => {
 			await renderVariablesPage();
 
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
+			const dialog = screen.getByRole("dialog");
 			await user.type(screen.getByLabelText("Name"), "my-variable");
 			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
-			await user.click(
-				screen.getByRole("button", { name: "Close", expanded: true }),
-			);
+			// Get the footer close button for the dialog (the one inside the form, not the X icon in the corner)
+			const form = dialog.querySelector("form");
+			const closeButton = within(form as HTMLElement).getByRole("button", {
+				name: "Close",
+			});
+			await user.click(closeButton);
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 
 			expect(screen.getByLabelText("Name")).toHaveValue("");
