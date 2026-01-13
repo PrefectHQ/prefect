@@ -664,7 +664,15 @@ async def resume_schedule(
 
 
 @schedule_app.command("ls")
-async def list_schedules(deployment_name: str):
+async def list_schedules(
+    deployment_name: str,
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     View all schedules for a deployment.
     """
@@ -674,6 +682,9 @@ async def list_schedules(deployment_name: str):
             deployment = await client.read_deployment_by_name(deployment_name)
         except ObjectNotFound:
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
@@ -689,21 +700,32 @@ async def list_schedules(deployment_name: str):
         else:
             return "unknown"
 
-    table = Table(
-        title="Deployment Schedules",
-    )
-    table.add_column("ID", style="blue", no_wrap=True)
-    table.add_column("Schedule", style="cyan", no_wrap=False)
-    table.add_column("Active", style="purple", no_wrap=True)
-
-    for schedule in sorted(deployment.schedules, key=sort_by_created_key):
-        table.add_row(
-            str(schedule.id),
-            schedule_details(schedule),
-            str(schedule.active),
+    if output and output.lower() == "json":
+        schedules_json = [
+            {
+                **schedule.model_dump(mode="json"),
+                "schedule": schedule_details(schedule),
+            }
+            for schedule in deployment.schedules
+        ]
+        json_output = orjson.dumps(schedules_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(
+            title="Deployment Schedules",
         )
+        table.add_column("ID", style="blue", no_wrap=True)
+        table.add_column("Schedule", style="cyan", no_wrap=False)
+        table.add_column("Active", style="purple", no_wrap=True)
 
-    app.console.print(table)
+        for schedule in sorted(deployment.schedules, key=sort_by_created_key):
+            table.add_row(
+                str(schedule.id),
+                schedule_details(schedule),
+                str(schedule.active),
+            )
+
+        app.console.print(table)
 
 
 @schedule_app.command("clear")
