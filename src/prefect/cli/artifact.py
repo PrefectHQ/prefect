@@ -47,9 +47,9 @@ async def list_artifacts(
     List artifacts.
 
     Arguments:
-    limit: Maximum number of flow runs to list. Defaults to 100.
-    all: Whether or not to only return the latest version of each artifact.
-    output: Return variables in specified format.
+        limit: Maximum number of flow runs to list. Defaults to 100.
+        all: Whether or not to only return the latest version of each artifact.
+        output: Return variables in specified format.
     """
 
     if output and output.lower() != "json":
