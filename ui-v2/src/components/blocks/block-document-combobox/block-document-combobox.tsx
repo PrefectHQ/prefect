@@ -75,6 +75,7 @@ const BlockDocumentComboboxImplementation = ({
 			},
 			offset: 0,
 			limit: 50,
+			sort: "NAME_ASC",
 			include_secrets: false,
 		}),
 	);
