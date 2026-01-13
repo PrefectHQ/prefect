@@ -118,11 +118,15 @@ async def read_concurrency_limit(
     )
 
     # Select with computed decay values to accurately reflect current slot availability
-    query = sa.select(
-        db.ConcurrencyLimitV2,
-        active_slots_after_decay(db).label("computed_active_slots"),
-        denied_slots_after_decay(db).label("computed_denied_slots"),
-    ).where(where)
+    query = (
+        sa.select(
+            db.ConcurrencyLimitV2,
+            active_slots_after_decay(db).label("computed_active_slots"),
+            denied_slots_after_decay(db).label("computed_denied_slots"),
+        )
+        .where(where)
+        .execution_options(populate_existing=True)
+    )
 
     result = await session.execute(query)
     row = result.first()
@@ -145,11 +149,15 @@ async def read_all_concurrency_limits(
     offset: int,
 ) -> Sequence[orm_models.ConcurrencyLimitV2]:
     # Select with computed decay values to accurately reflect current slot availability
-    query = sa.select(
-        db.ConcurrencyLimitV2,
-        active_slots_after_decay(db).label("computed_active_slots"),
-        denied_slots_after_decay(db).label("computed_denied_slots"),
-    ).order_by(db.ConcurrencyLimitV2.name)
+    query = (
+        sa.select(
+            db.ConcurrencyLimitV2,
+            active_slots_after_decay(db).label("computed_active_slots"),
+            denied_slots_after_decay(db).label("computed_denied_slots"),
+        )
+        .order_by(db.ConcurrencyLimitV2.name)
+        .execution_options(populate_existing=True)
+    )
 
     if offset is not None:
         query = query.offset(offset)
