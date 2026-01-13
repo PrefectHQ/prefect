@@ -12,7 +12,6 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/components/ui/dialog";
 import {
 	Form,
@@ -191,11 +190,13 @@ export const VariableDialog = ({
 							)}
 						/>
 						<DialogFooter>
-							<DialogTrigger asChild>
-								<Button type="button" variant="outline">
-									Close
-								</Button>
-							</DialogTrigger>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => onOpenChange(false)}
+							>
+								Close
+							</Button>
 							<Button type="submit" loading={isCreating || isUpdating}>
 								{variableToEdit ? "Save" : "Create"}
 							</Button>
