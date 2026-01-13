@@ -235,6 +235,13 @@ artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui", "src/prefect
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/prefect"]
+# Hatch only includes Python files in wheel builds by default. Non-Python files
+# like Jinja2 templates must be explicitly included here so they're available
+# at runtime when using importlib.resources to load the SDK template.
+include = ["src/prefect/_sdk/templates/*.jinja"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-rfEs --mypy-only-local-stub"
