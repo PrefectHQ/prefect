@@ -1159,6 +1159,7 @@ class TestGetRunsInWorkQueue:
         )
         assert deployment_response.status_code == status.HTTP_200_OK
         assert deployment_response.json()["status"] == "NOT_READY"
+        original_updated = deployment_response.json()["updated"]
 
         # trigger a poll of the work queue, which should update the deployment status
         response = await hosted_api_client.post(
@@ -1175,6 +1176,8 @@ class TestGetRunsInWorkQueue:
                 )
                 assert updated_deployment_response.status_code == status.HTTP_200_OK
                 assert updated_deployment_response.json()["status"] == "READY"
+                # Regression test for #14655 - updated should NOT change when polling
+                assert updated_deployment_response.json()["updated"] == original_updated
 
     async def test_read_work_queue_runs_updates_work_queue_status(
         self,

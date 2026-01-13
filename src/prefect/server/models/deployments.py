@@ -1122,6 +1122,7 @@ async def mark_deployments_ready(
 
         last_polled = now("UTC")
 
+        # keeps `updated` untouched to not trigger recent schedules calculation
         await session.execute(
             sa.update(db.Deployment)
             .where(
@@ -1130,7 +1131,11 @@ async def mark_deployments_ready(
                     db.Deployment.work_queue_id.in_(work_queue_ids),
                 )
             )
-            .values(status=DeploymentStatus.READY, last_polled=last_polled)
+            .values(
+                status=DeploymentStatus.READY,
+                last_polled=last_polled,
+                updated=db.Deployment.updated,
+            )
         )
 
         if not unready_deployments:
@@ -1175,6 +1180,7 @@ async def mark_deployments_not_ready(
             )
             ready_deployments = list(result.scalars().unique().all())
 
+            # keeps `updated` untouched to not trigger recent schedules calculation
             await session.execute(
                 sa.update(db.Deployment)
                 .where(
@@ -1183,7 +1189,9 @@ async def mark_deployments_not_ready(
                         db.Deployment.work_queue_id.in_(work_queue_ids),
                     )
                 )
-                .values(status=DeploymentStatus.NOT_READY)
+                .values(
+                    status=DeploymentStatus.NOT_READY, updated=db.Deployment.updated
+                )
             )
 
             if not ready_deployments:
