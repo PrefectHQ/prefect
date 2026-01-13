@@ -32,7 +32,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         super().__init__(*args, **kwargs)
 
     def _start_apprise_client(self, url: SecretStr):
-        from apprise import Apprise, AppriseAsset
+        from apprise import Apprise, AppriseAsset  # noqa: PLC0415
 
         # A custom `AppriseAsset` that ensures Prefect Notifications
         # appear correctly across multiple messaging platforms
@@ -173,12 +173,12 @@ class SlackWebhook(AppriseNotificationBlock):
         # (rather than passing slack_instance.url()) because the webhook_url
         # override is an instance attribute that would be lost if apprise
         # re-parsed the URL string.
-        from apprise import Apprise, AppriseAsset
+        from apprise import Apprise, AppriseAsset  # noqa: PLC0415
 
         try:
-            from apprise.plugins.slack import NotifySlack
+            from apprise.plugins.slack import NotifySlack  # noqa: PLC0415
         except ImportError:
-            from apprise.plugins.NotifySlack import (
+            from apprise.plugins.NotifySlack import (  # noqa: PLC0415
                 NotifySlack,  # pyright: ignore[reportMissingImports]
             )
 
@@ -245,7 +245,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
 
     def block_initialization(self) -> None:
         """see https://github.com/caronc/apprise/pull/1172"""
-        from apprise.plugins.workflows import NotifyWorkflows
+        from apprise.plugins.workflows import NotifyWorkflows  # noqa: PLC0415
 
         if not (
             parsed_url := cast(
@@ -354,10 +354,10 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     def block_initialization(self) -> None:
         try:
             # Try importing for apprise>=1.18.0
-            from apprise.plugins.pagerduty import NotifyPagerDuty
+            from apprise.plugins.pagerduty import NotifyPagerDuty  # noqa: PLC0415
         except ImportError:
             # Fallback for versions apprise<1.18.0
-            from apprise.plugins.NotifyPagerDuty import (  # pyright: ignore[reportMissingImports] this is a fallback
+            from apprise.plugins.NotifyPagerDuty import (  # pyright: ignore[reportMissingImports] this is a fallback  # noqa: PLC0415
                 NotifyPagerDuty,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 
@@ -454,10 +454,10 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     def block_initialization(self) -> None:
         try:
             # Try importing for apprise>=1.18.0
-            from apprise.plugins.twilio import NotifyTwilio
+            from apprise.plugins.twilio import NotifyTwilio  # noqa: PLC0415
         except ImportError:
             # Fallback for versions apprise<1.18.0
-            from apprise.plugins.NotifyTwilio import (  # pyright: ignore[reportMissingImports] this is a fallback
+            from apprise.plugins.NotifyTwilio import (  # pyright: ignore[reportMissingImports] this is a fallback  # noqa: PLC0415
                 NotifyTwilio,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 
@@ -563,10 +563,10 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     def block_initialization(self) -> None:
         try:
             # Try importing for apprise>=1.18.0
-            from apprise.plugins.opsgenie import NotifyOpsgenie
+            from apprise.plugins.opsgenie import NotifyOpsgenie  # noqa: PLC0415
         except ImportError:
             # Fallback for versions apprise<1.18.0
-            from apprise.plugins.NotifyOpsgenie import (  # pyright: ignore[reportMissingImports] this is a fallback
+            from apprise.plugins.NotifyOpsgenie import (  # pyright: ignore[reportMissingImports] this is a fallback  # noqa: PLC0415
                 NotifyOpsgenie,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 
@@ -667,10 +667,10 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     def block_initialization(self) -> None:
         try:
             # Try importing for apprise>=1.18.0
-            from apprise.plugins.mattermost import NotifyMattermost
+            from apprise.plugins.mattermost import NotifyMattermost  # noqa: PLC0415
         except ImportError:
             # Fallback for versions apprise<1.18.0
-            from apprise.plugins.NotifyMattermost import (  # pyright: ignore[reportMissingImports] this is a fallback
+            from apprise.plugins.NotifyMattermost import (  # pyright: ignore[reportMissingImports] this is a fallback  # noqa: PLC0415
                 NotifyMattermost,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 
@@ -772,10 +772,10 @@ class DiscordWebhook(AbstractAppriseNotificationBlock):
     def block_initialization(self) -> None:
         try:
             # Try importing for apprise>=1.18.0
-            from apprise.plugins.discord import NotifyDiscord
+            from apprise.plugins.discord import NotifyDiscord  # noqa: PLC0415
         except ImportError:
             # Fallback for versions apprise<1.18.0
-            from apprise.plugins.NotifyDiscord import (  # pyright: ignore[reportMissingImports] this is a fallback
+            from apprise.plugins.NotifyDiscord import (  # pyright: ignore[reportMissingImports] this is a fallback  # noqa: PLC0415
                 NotifyDiscord,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 
@@ -923,7 +923,7 @@ class CustomWebhookNotificationBlock(NotificationBlock):
 
     @sync_compatible
     async def notify(self, body: str, subject: str | None = None) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
-        import httpx
+        import httpx  # noqa: PLC0415
 
         request_args = self._build_request_args(body, subject)
         cookies = request_args.pop("cookies", dict())
@@ -984,10 +984,10 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
     def block_initialization(self) -> None:
         try:
             # Try importing for apprise>=1.18.0
-            from apprise.plugins.sendgrid import NotifySendGrid
+            from apprise.plugins.sendgrid import NotifySendGrid  # noqa: PLC0415
         except ImportError:
             # Fallback for versions apprise<1.18.0
-            from apprise.plugins.NotifySendGrid import (  # pyright: ignore[reportMissingImports] this is a fallback
+            from apprise.plugins.NotifySendGrid import (  # pyright: ignore[reportMissingImports] this is a fallback  # noqa: PLC0415
                 NotifySendGrid,  # pyright: ignore[reportUnknownVariableType] incomplete type hints in apprise
             )
 

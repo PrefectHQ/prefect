@@ -97,7 +97,7 @@ class DeploymentClient(BaseClient):
             the ID of the deployment in the backend
         """
 
-        from prefect.client.schemas.actions import DeploymentCreate
+        from prefect.client.schemas.actions import DeploymentCreate  # noqa: PLC0415
 
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
@@ -312,7 +312,7 @@ class DeploymentClient(BaseClient):
             a Deployment model representation of the deployment
         """
 
-        from prefect.client.schemas.responses import DeploymentResponse
+        from prefect.client.schemas.responses import DeploymentResponse  # noqa: PLC0415
 
         if not isinstance(deployment_id, UUID):
             try:
@@ -350,7 +350,7 @@ class DeploymentClient(BaseClient):
         Returns:
             a Deployment model representation of the deployment
         """
-        from prefect.client.schemas.responses import DeploymentResponse
+        from prefect.client.schemas.responses import DeploymentResponse  # noqa: PLC0415
 
         try:
             flow_name, deployment_name = name.split("/")
@@ -405,7 +405,7 @@ class DeploymentClient(BaseClient):
             a list of Deployment model representations
                 of the deployments
         """
-        from prefect.client.schemas.responses import DeploymentResponse
+        from prefect.client.schemas.responses import DeploymentResponse  # noqa: PLC0415
 
         body: dict[str, Any] = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
@@ -478,8 +478,10 @@ class DeploymentClient(BaseClient):
         Returns:
             the list of schedules created in the backend
         """
-        from prefect.client.schemas.actions import DeploymentScheduleCreate
-        from prefect.client.schemas.objects import DeploymentSchedule
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
+            DeploymentScheduleCreate,  # noqa: PLC0415
+        )
+        from prefect.client.schemas.objects import DeploymentSchedule  # noqa: PLC0415
 
         deployment_schedule_create = [
             DeploymentScheduleCreate(schedule=schedule[0], active=schedule[1])
@@ -511,7 +513,7 @@ class DeploymentClient(BaseClient):
         Returns:
             a list of DeploymentSchedule model representations of the deployment schedules
         """
-        from prefect.client.schemas.objects import DeploymentSchedule
+        from prefect.client.schemas.objects import DeploymentSchedule  # noqa: PLC0415
 
         try:
             response = self.request(
@@ -542,7 +544,9 @@ class DeploymentClient(BaseClient):
             active: whether or not the schedule should be active
             schedule: the cron, rrule, or interval schedule this deployment schedule should use
         """
-        from prefect.client.schemas.actions import DeploymentScheduleUpdate
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
+            DeploymentScheduleUpdate,  # noqa: PLC0415
+        )
 
         kwargs: dict[str, Any] = {}
         if active is not None:
@@ -599,7 +603,7 @@ class DeploymentClient(BaseClient):
         scheduled_before: "datetime.datetime | None" = None,
         limit: int | None = None,
     ) -> list["FlowRunResponse"]:
-        from prefect.client.schemas.responses import FlowRunResponse
+        from prefect.client.schemas.responses import FlowRunResponse  # noqa: PLC0415
 
         body: dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
         if scheduled_before:
@@ -660,9 +664,11 @@ class DeploymentClient(BaseClient):
         Returns:
             The flow run model
         """
-        from prefect.client.schemas.actions import DeploymentFlowRunCreate
-        from prefect.client.schemas.objects import FlowRun
-        from prefect.states import Scheduled, to_state_create
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
+            DeploymentFlowRunCreate,  # noqa: PLC0415
+        )
+        from prefect.client.schemas.objects import FlowRun  # noqa: PLC0415
+        from prefect.states import Scheduled, to_state_create  # noqa: PLC0415
 
         parameters = parameters or {}
         context = context or {}
@@ -701,8 +707,10 @@ class DeploymentClient(BaseClient):
         options: "DeploymentBranchingOptions | None" = None,
         overrides: "DeploymentUpdate | None" = None,
     ) -> UUID:
-        from prefect.client.schemas.actions import DeploymentBranch
-        from prefect.client.schemas.objects import DeploymentBranchingOptions
+        from prefect.client.schemas.actions import DeploymentBranch  # noqa: PLC0415
+        from prefect.client.schemas.objects import (  # noqa: PLC0415
+            DeploymentBranchingOptions,  # noqa: PLC0415
+        )
 
         response = self.request(
             "POST",
@@ -769,7 +777,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             the ID of the deployment in the backend
         """
 
-        from prefect.client.schemas.actions import DeploymentCreate
+        from prefect.client.schemas.actions import DeploymentCreate  # noqa: PLC0415
 
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
@@ -991,7 +999,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             a Deployment model representation of the deployment
         """
 
-        from prefect.client.schemas.responses import DeploymentResponse
+        from prefect.client.schemas.responses import DeploymentResponse  # noqa: PLC0415
 
         if not isinstance(deployment_id, UUID):
             try:
@@ -1029,7 +1037,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         Returns:
             a Deployment model representation of the deployment
         """
-        from prefect.client.schemas.responses import DeploymentResponse
+        from prefect.client.schemas.responses import DeploymentResponse  # noqa: PLC0415
 
         try:
             flow_name, deployment_name = name.split("/")
@@ -1084,7 +1092,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             a list of Deployment model representations
                 of the deployments
         """
-        from prefect.client.schemas.responses import DeploymentResponse
+        from prefect.client.schemas.responses import DeploymentResponse  # noqa: PLC0415
 
         body: dict[str, Any] = {
             "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
@@ -1157,8 +1165,10 @@ class DeploymentAsyncClient(BaseAsyncClient):
         Returns:
             the list of schedules created in the backend
         """
-        from prefect.client.schemas.actions import DeploymentScheduleCreate
-        from prefect.client.schemas.objects import DeploymentSchedule
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
+            DeploymentScheduleCreate,  # noqa: PLC0415
+        )
+        from prefect.client.schemas.objects import DeploymentSchedule  # noqa: PLC0415
 
         deployment_schedule_create = [
             DeploymentScheduleCreate(schedule=schedule[0], active=schedule[1])
@@ -1190,7 +1200,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         Returns:
             a list of DeploymentSchedule model representations of the deployment schedules
         """
-        from prefect.client.schemas.objects import DeploymentSchedule
+        from prefect.client.schemas.objects import DeploymentSchedule  # noqa: PLC0415
 
         try:
             response = await self.request(
@@ -1221,7 +1231,9 @@ class DeploymentAsyncClient(BaseAsyncClient):
             active: whether or not the schedule should be active
             schedule: the cron, rrule, or interval schedule this deployment schedule should use
         """
-        from prefect.client.schemas.actions import DeploymentScheduleUpdate
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
+            DeploymentScheduleUpdate,  # noqa: PLC0415
+        )
 
         kwargs: dict[str, Any] = {}
         if active is not None:
@@ -1278,7 +1290,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         scheduled_before: "datetime.datetime | None" = None,
         limit: int | None = None,
     ) -> list["FlowRun"]:
-        from prefect.client.schemas.objects import FlowRun
+        from prefect.client.schemas.objects import FlowRun  # noqa: PLC0415
 
         body: dict[str, Any] = dict(deployment_ids=[str(id) for id in deployment_ids])
         if scheduled_before:
@@ -1339,9 +1351,11 @@ class DeploymentAsyncClient(BaseAsyncClient):
         Returns:
             The flow run model
         """
-        from prefect.client.schemas.actions import DeploymentFlowRunCreate
-        from prefect.client.schemas.objects import FlowRun
-        from prefect.states import Scheduled, to_state_create
+        from prefect.client.schemas.actions import (  # noqa: PLC0415
+            DeploymentFlowRunCreate,  # noqa: PLC0415
+        )
+        from prefect.client.schemas.objects import FlowRun  # noqa: PLC0415
+        from prefect.states import Scheduled, to_state_create  # noqa: PLC0415
 
         parameters = parameters or {}
         context = context or {}
@@ -1380,8 +1394,10 @@ class DeploymentAsyncClient(BaseAsyncClient):
         options: "DeploymentBranchingOptions | None" = None,
         overrides: "DeploymentUpdate | None" = None,
     ) -> UUID:
-        from prefect.client.schemas.actions import DeploymentBranch
-        from prefect.client.schemas.objects import DeploymentBranchingOptions
+        from prefect.client.schemas.actions import DeploymentBranch  # noqa: PLC0415
+        from prefect.client.schemas.objects import (  # noqa: PLC0415
+            DeploymentBranchingOptions,  # noqa: PLC0415
+        )
 
         response = await self.request(
             "POST",

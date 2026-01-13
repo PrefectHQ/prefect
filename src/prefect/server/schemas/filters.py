@@ -53,7 +53,9 @@ class PrefectFilterBaseModel(PrefectBaseModel):
 
     def as_sql_filter(self) -> sa.ColumnElement[bool]:
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         filters = self._get_filter_list(db)
@@ -77,7 +79,9 @@ class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
     )
 
     def as_sql_filter(self) -> sa.ColumnElement[bool]:
-        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.database.dependencies import (  # noqa: PLC0415
+            provide_database_interface,  # noqa: PLC0415
+        )
 
         db = provide_database_interface()
         filters = self._get_filter_list(db)
@@ -1194,7 +1198,7 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     def _get_filter_list(
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
-        from prefect.server.database import orm_models
+        from prefect.server.database import orm_models  # noqa: PLC0415
 
         filters: list[sa.ColumnElement[bool]] = []
         if self.all_ is not None:
@@ -1416,7 +1420,7 @@ class LogFilterTextSearch(PrefectFilterBaseModel):
 
     def includes(self, log: "Log") -> bool:
         """Check if this text filter includes the given log."""
-        from prefect.server.schemas.core import Log
+        from prefect.server.schemas.core import Log  # noqa: PLC0415
 
         if not isinstance(log, Log):
             raise TypeError(f"Expected Log object, got {type(log)}")

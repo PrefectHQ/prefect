@@ -1472,7 +1472,7 @@ def test_materialization_metadata(asserting_events_worker: EventsWorker):
 @pytest.mark.usefixtures("reset_worker_events")
 def test_materialization_metadata_str_utility(asserting_events_worker: EventsWorker):
     """Test that metadata is still captured when a materializing task succeeds."""
-    from prefect.assets import add_asset_metadata
+    from prefect.assets import add_asset_metadata  # noqa: PLC0415
 
     @materialize("s3://bucket/data.csv")
     def my_task():
@@ -1594,7 +1594,7 @@ def test_materialization_metadata_with_task_failure(
 
 def test_add_asset_metadata_throws_error_for_invalid_asset_key():
     """Test that add_asset_metadata throws ValueError for asset keys not in downstream_assets."""
-    from prefect.assets import add_asset_metadata
+    from prefect.assets import add_asset_metadata  # noqa: PLC0415
 
     # Test case 1: Valid asset key should work
     valid_asset = Asset(key="s3://bucket/valid_data.csv")

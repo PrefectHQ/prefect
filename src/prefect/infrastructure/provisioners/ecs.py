@@ -1178,7 +1178,7 @@ class ElasticContainerServicePushProvisioner:
         Returns:
             dict: An updated copy base job template.
         """
-        from prefect.cli._prompts import prompt
+        from prefect.cli._prompts import prompt  # noqa: PLC0415
 
         if not self.is_boto3_installed():
             if self.console.is_interactive and Confirm.ask(

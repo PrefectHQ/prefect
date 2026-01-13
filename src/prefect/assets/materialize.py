@@ -32,7 +32,7 @@ def materialize(
             "materialize requires at least one asset argument, e.g. `@materialize(asset)`"
         )
 
-    from prefect.tasks import MaterializingTask
+    from prefect.tasks import MaterializingTask  # noqa: PLC0415
 
     def decorator(fn: Callable[P, R]) -> MaterializingTask[P, R]:
         return MaterializingTask(

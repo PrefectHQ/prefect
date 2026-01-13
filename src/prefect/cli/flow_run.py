@@ -71,7 +71,7 @@ async def _get_flow_run_by_id_or_name(
     Raises:
         typer.Exit: If flow run not found, or if multiple flow runs match the name
     """
-    from prefect.client.schemas.filters import FlowRunFilterName
+    from prefect.client.schemas.filters import FlowRunFilterName  # noqa: PLC0415
 
     # First, try parsing as UUID
     try:
@@ -374,9 +374,9 @@ async def retry(
         $ prefect flow-run retry my-flow-run-name
         $ prefect flow-run retry abc123 --entrypoint ./flows/my_flow.py:my_flow
     """
-    from prefect.flow_engine import run_flow
-    from prefect.flows import load_flow_from_entrypoint
-    from prefect.states import Scheduled
+    from prefect.flow_engine import run_flow  # noqa: PLC0415
+    from prefect.flows import load_flow_from_entrypoint  # noqa: PLC0415
+    from prefect.states import Scheduled  # noqa: PLC0415
 
     terminal_states = {
         StateType.COMPLETED,
@@ -438,7 +438,7 @@ async def retry(
                 )
 
             # Check if this is an infrastructure-bound flow
-            from prefect.flows import InfrastructureBoundFlow
+            from prefect.flows import InfrastructureBoundFlow  # noqa: PLC0415
 
             if isinstance(flow, InfrastructureBoundFlow):
                 app.console.print(

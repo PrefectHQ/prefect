@@ -268,7 +268,9 @@ class FlowOrchestrationContext(
             None
         """
         # (circular import)
-        from prefect.server.api.server import is_client_retryable_exception
+        from prefect.server.api.server import (  # noqa: PLC0415
+            is_client_retryable_exception,  # noqa: PLC0415
+        )
 
         try:
             await self._validate_proposed_state()
@@ -425,7 +427,9 @@ class TaskOrchestrationContext(
             None
         """
         # (circular import)
-        from prefect.server.api.server import is_client_retryable_exception
+        from prefect.server.api.server import (  # noqa: PLC0415
+            is_client_retryable_exception,  # noqa: PLC0415
+        )
 
         try:
             await self._validate_proposed_state()

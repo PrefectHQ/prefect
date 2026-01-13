@@ -531,7 +531,7 @@ class AutomationCore(PrefectBaseModel, extra="ignore"):
     @model_validator(mode="after")
     def prevent_run_deployment_loops(self) -> Self:
         """Detects potential infinite loops in automations with RunDeployment actions"""
-        from prefect.server.events.actions import RunDeployment
+        from prefect.server.events.actions import RunDeployment  # noqa: PLC0415
 
         if not self.enabled:
             # Disabled automations can't cause problems

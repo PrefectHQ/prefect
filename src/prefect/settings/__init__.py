@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 
 def __getattr__(name: str) -> "Setting":
-    from prefect.settings.legacy import (
+    from prefect.settings.legacy import (  # noqa: PLC0415
         _get_settings_fields,
         _get_valid_setting_names,
     )

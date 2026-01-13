@@ -79,7 +79,7 @@ def configure_logfire() -> Any | None:
         )
 
     try:
-        import logfire  # pyright: ignore
+        import logfire  # pyright: ignore  # noqa: PLC0415
     except ImportError as exc:
         raise ImportError(
             "logfire is not installed. install it with: uv add logfire"

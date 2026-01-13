@@ -45,7 +45,7 @@ def _get_uv_path() -> str:
     Falls back to "uv" string (assumes uv is in PATH).
     """
     try:
-        import uv
+        import uv  # noqa: PLC0415
 
         return uv.find_uv_bin()
     except (ImportError, ModuleNotFoundError, FileNotFoundError):

@@ -187,7 +187,9 @@ class ProcessWorker(
                     start_client_metrics_server()
 
                     if with_healthcheck:
-                        from prefect.workers.server import build_healthcheck_server
+                        from prefect.workers.server import (  # noqa: PLC0415
+                            build_healthcheck_server,  # noqa: PLC0415
+                        )
 
                         # we'll start the ASGI server in a separate thread so that
                         # uvicorn does not block the main thread
@@ -265,7 +267,7 @@ class ProcessWorker(
         task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
         flow_run: "FlowRun | None" = None,
     ):
-        from prefect._experimental.bundles import (
+        from prefect._experimental.bundles import (  # noqa: PLC0415
             create_bundle_for_flow_run,
         )
 

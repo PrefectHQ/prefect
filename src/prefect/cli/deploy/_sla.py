@@ -21,7 +21,7 @@ def _gather_deployment_sla_definitions(
         for s in sla_flags:
             try:
                 if s.endswith(".yaml"):
-                    import yaml
+                    import yaml  # noqa: PLC0415
 
                     with open(s, "r") as f:
                         sla_specs.extend(yaml.safe_load(f).get("sla", []))

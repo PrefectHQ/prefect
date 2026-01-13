@@ -114,7 +114,7 @@ async def logger_test_deployment(prefect_client: PrefectClient):
 
     @prefect.flow
     def my_flow() -> dict[str, Any]:
-        import logging
+        import logging  # noqa: PLC0415
 
         settings: dict[str, Any] = {}
 
@@ -238,7 +238,7 @@ def test_setup_logging_preserves_existing_root_logger_configuration(
     This addresses issue #18872 where importing Prefect would overwrite
     user-defined logging formats and handlers.
     """
-    import logging
+    import logging  # noqa: PLC0415
 
     # Simulate user configuring the root logger before importing Prefect
     root_logger = logging.getLogger()
@@ -264,7 +264,7 @@ def test_setup_logging_applies_root_config_when_no_prior_configuration(
     Test that setup_logging applies the root logger configuration
     when the user hasn't configured logging beforehand.
     """
-    import logging
+    import logging  # noqa: PLC0415
 
     # Ensure root logger has no handlers (fresh state)
     root_logger = logging.getLogger()
@@ -812,7 +812,7 @@ class TestAPILogHandler:
         logger: logging.Logger,
         mock_log_worker: MagicMock,
     ):
-        from inspect import currentframe, getframeinfo
+        from inspect import currentframe, getframeinfo  # noqa: PLC0415
 
         # Warns in the main process
         with pytest.warns(

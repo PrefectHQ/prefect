@@ -107,7 +107,7 @@ async def read_automation_by_id(
 
 
 async def _notify(session: AsyncSession, automation: Automation, event: str):
-    from prefect.server.events.triggers import automation_changed
+    from prefect.server.events.triggers import automation_changed  # noqa: PLC0415
 
     event_key: AutomationChangeEvent
     if event == "created":
@@ -325,7 +325,7 @@ async def _sync_automation_related_resources(
     automation: Optional[Union[Automation, AutomationUpdate]],
 ):
     """Actively maintains the set of related resources for an automation"""
-    from prefect.server.events import actions
+    from prefect.server.events import actions  # noqa: PLC0415
 
     await session.execute(
         sa.delete(db.AutomationRelatedResource).where(

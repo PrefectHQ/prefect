@@ -275,7 +275,7 @@ async def pull_with_block(
         block_document_name: The name of the block document to use
         block_type_slug: The slug of the type of block to use
     """
-    from prefect.blocks.core import Block
+    from prefect.blocks.core import Block  # noqa: PLC0415
 
     full_slug = f"{block_type_slug}/{block_document_name}"
     try:

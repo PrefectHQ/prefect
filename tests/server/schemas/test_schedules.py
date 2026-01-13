@@ -272,7 +272,7 @@ class TestIntervalSchedule:
         alongside a named timezone (e.g. "Asia/Tokyo"), the scheduler must preserve the
         instant rather than misinterpreting it as UTC.
         """
-        from datetime import timezone
+        from datetime import timezone  # noqa: PLC0415
 
         anchor = datetime(
             2024,

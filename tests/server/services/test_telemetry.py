@@ -33,7 +33,7 @@ def error_sens_o_matic_mock():
 
 
 async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
-    from prefect.client.constants import SERVER_API_VERSION
+    from prefect.client.constants import SERVER_API_VERSION  # noqa: PLC0415
 
     await send_telemetry_heartbeat()
 
@@ -62,7 +62,7 @@ async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
 
 
 async def test_sets_and_fetches_session_information():
-    from prefect.server.database import provide_database_interface
+    from prefect.server.database import provide_database_interface  # noqa: PLC0415
 
     db = provide_database_interface()
 

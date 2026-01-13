@@ -53,7 +53,7 @@ async def test_runner_resilience_with_missing_file(tmp_path: Path):
             print(f"Deployed flow: {deployment_id}")
 
             # Create a flow run
-            from prefect import get_client
+            from prefect import get_client  # noqa: PLC0415
 
             async with get_client() as client:
                 flow_run = await client.create_flow_run_from_deployment(

@@ -186,7 +186,7 @@ async def transfer(
 
 async def _collect_resources(client: PrefectClient) -> Sequence["MigratableProtocol"]:
     """Collect all resources from the source profile."""
-    from ._migratable_resources import construct_migratable_resource
+    from ._migratable_resources import construct_migratable_resource  # noqa: PLC0415
 
     resources = []
 

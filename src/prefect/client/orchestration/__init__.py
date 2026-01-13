@@ -206,7 +206,7 @@ def get_client(
         client.hello()
     ```
     """
-    import prefect.context
+    import prefect.context  # noqa: PLC0415
 
     # try to load clients from a client context, if possible
     # only load clients that match the provided config / loop
@@ -236,7 +236,7 @@ def get_client(
 
     if not api and PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         # create an ephemeral API if none was provided
-        from prefect.server.api.server import SubprocessASGIServer
+        from prefect.server.api.server import SubprocessASGIServer  # noqa: PLC0415
 
         server = SubprocessASGIServer()
         server.start()

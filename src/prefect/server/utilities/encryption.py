@@ -14,7 +14,7 @@ from prefect.server import schemas
 
 
 async def _get_fernet_encryption(session: AsyncSession) -> Fernet:
-    from prefect.server.models import configuration
+    from prefect.server.models import configuration  # noqa: PLC0415
 
     environment_key = os.getenv(
         "PREFECT_SERVER_ENCRYPTION_KEY",

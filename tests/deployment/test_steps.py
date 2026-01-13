@@ -35,7 +35,7 @@ async def variables(prefect_client: PrefectClient):
 
 @pytest.fixture(scope="session")
 def set_dummy_env_var():
-    import os
+    import os  # noqa: PLC0415
 
     os.environ["DUMMY_ENV_VAR"] = "dummy"
 
@@ -270,7 +270,7 @@ class TestRunSteps:
     async def test_run_steps_emits_pull_step_events(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        from prefect.events.clients import AssertingEventsClient
+        from prefect.events.clients import AssertingEventsClient  # noqa: PLC0415
 
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
@@ -346,7 +346,7 @@ class TestRunSteps:
     async def test_run_steps_skips_event_without_flow_run_id(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        from prefect.events.clients import AssertingEventsClient
+        from prefect.events.clients import AssertingEventsClient  # noqa: PLC0415
 
         monkeypatch.delenv("PREFECT__FLOW_RUN_ID", raising=False)
 
@@ -388,7 +388,7 @@ class TestRunSteps:
     async def test_run_steps_emits_event_on_failure(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        from prefect.events.clients import AssertingEventsClient
+        from prefect.events.clients import AssertingEventsClient  # noqa: PLC0415
 
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
@@ -456,7 +456,7 @@ class TestRunSteps:
     async def test_run_steps_does_not_expose_secrets_in_event(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        from prefect.events.clients import AssertingEventsClient
+        from prefect.events.clients import AssertingEventsClient  # noqa: PLC0415
 
         flow_run_id = str(uuid.uuid4())
         monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
@@ -531,7 +531,7 @@ class TestRunSteps:
     async def test_run_steps_includes_deployment_as_related_resource(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        from prefect.events.clients import AssertingEventsClient
+        from prefect.events.clients import AssertingEventsClient  # noqa: PLC0415
 
         flow_run_id = str(uuid.uuid4())
         deployment_id = str(uuid.uuid4())

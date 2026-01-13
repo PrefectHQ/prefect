@@ -166,7 +166,7 @@ class TestUploadBundle:
     @pytest.mark.usefixtures("mock_s3_client")
     def test_upload_bundle_cli(self, mock_bundle_file: Path):
         """Test upload via CLI."""
-        from prefect_aws.experimental.bundles import upload
+        from prefect_aws.experimental.bundles import upload  # noqa: PLC0415
 
         captured_args: dict[str, Any] = {}
         original_func = upload.upload_bundle_to_s3
@@ -217,7 +217,7 @@ class TestUploadBundle:
     @pytest.mark.usefixtures("mock_s3_client", "mock_aws_credentials")
     def test_upload_bundle_cli_with_credentials(self, mock_bundle_file: Path):
         """Test upload via CLI with AWS credentials."""
-        from prefect_aws.experimental.bundles import upload
+        from prefect_aws.experimental.bundles import upload  # noqa: PLC0415
 
         captured_args: dict[str, Any] = {}
         original_func = upload.upload_bundle_to_s3
@@ -270,7 +270,7 @@ class TestUploadBundle:
     @pytest.mark.usefixtures("mock_s3_client")
     def test_upload_bundle_cli_missing_required(self, mock_bundle_file: Path):
         """Test upload via CLI with missing required options."""
-        from prefect_aws.experimental.bundles import upload
+        from prefect_aws.experimental.bundles import upload  # noqa: PLC0415
 
         # Missing --bucket
         old_argv = sys.argv
@@ -429,7 +429,7 @@ class TestExecuteBundle:
     def test_execute_bundle_cli(self, mock_s3_client: MagicMock):
         """Test execution via CLI."""
         with patch("typer.run") as mock_run:
-            from prefect_aws.experimental.bundles import execute
+            from prefect_aws.experimental.bundles import execute  # noqa: PLC0415
 
             mock_run.assert_not_called()  # Should not be called on import
 
@@ -446,7 +446,7 @@ class TestExecuteBundle:
     def test_execute_bundle_cli_with_credentials(self):
         """Test execution via CLI with AWS credentials."""
         with patch("typer.run") as mock_run:
-            from prefect_aws.experimental.bundles import execute
+            from prefect_aws.experimental.bundles import execute  # noqa: PLC0415
 
             old_argv = sys.argv
             sys.argv = [
@@ -468,7 +468,7 @@ class TestExecuteBundle:
     @pytest.mark.usefixtures("mock_s3_client")
     def test_execute_bundle_cli_missing_required(self):
         """Test execution via CLI with missing required options."""
-        from prefect_aws.experimental.bundles import execute
+        from prefect_aws.experimental.bundles import execute  # noqa: PLC0415
 
         # Missing --key
         old_argv = sys.argv

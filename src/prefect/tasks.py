@@ -619,7 +619,7 @@ class Task(Generic[P, R]):
         self.retry_condition_fn = retry_condition_fn
         self.viz_return_value = viz_return_value
 
-        from prefect.assets import Asset
+        from prefect.assets import Asset  # noqa: PLC0415
 
         self.asset_deps: list[Asset] = (
             [Asset(key=a) if isinstance(a, str) else a for a in asset_deps]
@@ -878,8 +878,10 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities._engine import dynamic_key_for_task_run
-        from prefect.utilities.engine import collect_task_run_inputs_sync
+        from prefect.utilities._engine import dynamic_key_for_task_run  # noqa: PLC0415
+        from prefect.utilities.engine import (  # noqa: PLC0415
+            collect_task_run_inputs_sync,  # noqa: PLC0415
+        )
 
         if flow_run_context is None:
             flow_run_context = FlowRunContext.get()
@@ -909,7 +911,7 @@ class Task(Generic[P, R]):
             # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
-                from prefect.task_worker import store_parameters
+                from prefect.task_worker import store_parameters  # noqa: PLC0415
 
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
@@ -981,8 +983,8 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities._engine import dynamic_key_for_task_run
-        from prefect.utilities.engine import (
+        from prefect.utilities._engine import dynamic_key_for_task_run  # noqa: PLC0415
+        from prefect.utilities.engine import (  # noqa: PLC0415
             collect_task_run_inputs_sync,
         )
 
@@ -1014,7 +1016,7 @@ class Task(Generic[P, R]):
             # store parameters for background tasks so that task worker
             # can retrieve them at runtime
             if deferred and (parameters or wait_for):
-                from prefect.task_worker import store_parameters
+                from prefect.task_worker import store_parameters  # noqa: PLC0415
 
                 parameters_id = uuid4()
                 state.state_details.task_parameters_id = parameters_id
@@ -1187,7 +1189,7 @@ class Task(Generic[P, R]):
         Run the task and return the result. If `return_state` is True returns
         the result is wrapped in a Prefect State which provides error handling.
         """
-        from prefect.utilities.visualization import (
+        from prefect.utilities.visualization import (  # noqa: PLC0415
             get_task_viz_tracker,
             track_viz_task,
         )
@@ -1203,7 +1205,7 @@ class Task(Generic[P, R]):
                 self.isasync, self.name, parameters, self.viz_return_value
             )
 
-        from prefect.task_engine import run_task
+        from prefect.task_engine import run_task  # noqa: PLC0415
 
         return run_task(
             task=self,
@@ -1364,7 +1366,7 @@ class Task(Generic[P, R]):
 
         """
 
-        from prefect.utilities.visualization import (
+        from prefect.utilities.visualization import (  # noqa: PLC0415
             VisualizationUnsupportedError,
             get_task_viz_tracker,
         )
@@ -1591,8 +1593,8 @@ class Task(Generic[P, R]):
             ```
         """
 
-        from prefect.task_runners import TaskRunner
-        from prefect.utilities.visualization import (
+        from prefect.task_runners import TaskRunner  # noqa: PLC0415
+        from prefect.utilities.visualization import (  # noqa: PLC0415
             VisualizationUnsupportedError,
             get_task_viz_tracker,
         )
@@ -1708,7 +1710,7 @@ class Task(Generic[P, R]):
             ```
 
         """
-        from prefect.utilities.visualization import (
+        from prefect.utilities.visualization import (  # noqa: PLC0415
             VisualizationUnsupportedError,
             get_task_viz_tracker,
         )
@@ -1733,7 +1735,9 @@ class Task(Generic[P, R]):
             )
         )  # type: ignore
 
-        from prefect.utilities.engine import emit_task_run_state_change_event
+        from prefect.utilities.engine import (  # noqa: PLC0415
+            emit_task_run_state_change_event,  # noqa: PLC0415
+        )
 
         # emit a `SCHEDULED` event for the task run
         emit_task_run_state_change_event(
@@ -1817,7 +1821,7 @@ class Task(Generic[P, R]):
             my_task.serve()
             ```
         """
-        from prefect.task_worker import serve
+        from prefect.task_worker import serve  # noqa: PLC0415
 
         await serve(self)
 
@@ -2190,7 +2194,7 @@ class MaterializingTask(Task[P, R]):
         assets: Optional[Sequence[Union[str, Asset]]] = None,
         **task_kwargs: Unpack[TaskOptions],
     ) -> "MaterializingTask[P, R]":
-        import inspect
+        import inspect  # noqa: PLC0415
 
         sig = inspect.signature(Task.__init__)
 

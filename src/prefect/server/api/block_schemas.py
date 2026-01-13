@@ -35,7 +35,7 @@ async def create_block_schema(
 
     For more information, see https://docs.prefect.io/v3/concepts/blocks.
     """
-    from prefect.blocks.core import Block
+    from prefect.blocks.core import Block  # noqa: PLC0415
 
     async with db.session_context(begin_transaction=True) as session:
         block_type = await models.block_types.read_block_type(

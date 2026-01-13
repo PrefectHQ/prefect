@@ -2139,7 +2139,7 @@ class TestCachePolicy:
 
         @flow
         def my_param_flow(x: int):
-            import threading
+            import threading  # noqa: PLC0415
 
             thread = threading.Thread()
 

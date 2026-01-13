@@ -78,7 +78,7 @@ async def construct_migratable_resource(obj: "Variable") -> "MigratableVariable"
 async def construct_migratable_resource(
     obj: MigratableType,
 ) -> MigratableProtocol:
-    from prefect.client.schemas.objects import (
+    from prefect.client.schemas.objects import (  # noqa: PLC0415
         BlockDocument,
         BlockSchema,
         BlockType,
@@ -86,30 +86,30 @@ async def construct_migratable_resource(
         WorkPool,
         WorkQueue,
     )
-    from prefect.client.schemas.responses import (
+    from prefect.client.schemas.responses import (  # noqa: PLC0415
         DeploymentResponse,
         GlobalConcurrencyLimitResponse,
     )
-    from prefect.events.schemas.automations import Automation
+    from prefect.events.schemas.automations import Automation  # noqa: PLC0415
 
-    from prefect.cli.transfer._migratable_resources.blocks import (
+    from prefect.cli.transfer._migratable_resources.blocks import (  # noqa: PLC0415
         MigratableBlockDocument,
         MigratableBlockSchema,
         MigratableBlockType,
     )
-    from prefect.cli.transfer._migratable_resources.concurrency_limits import (
+    from prefect.cli.transfer._migratable_resources.concurrency_limits import (  # noqa: PLC0415
         MigratableGlobalConcurrencyLimit,
     )
-    from prefect.cli.transfer._migratable_resources.deployments import (
+    from prefect.cli.transfer._migratable_resources.deployments import (  # noqa: PLC0415
         MigratableDeployment,
     )
-    from prefect.cli.transfer._migratable_resources.flows import MigratableFlow
-    from prefect.cli.transfer._migratable_resources.variables import MigratableVariable
-    from prefect.cli.transfer._migratable_resources.work_pools import MigratableWorkPool
-    from prefect.cli.transfer._migratable_resources.work_queues import (
+    from prefect.cli.transfer._migratable_resources.flows import MigratableFlow  # noqa: PLC0415
+    from prefect.cli.transfer._migratable_resources.variables import MigratableVariable  # noqa: PLC0415
+    from prefect.cli.transfer._migratable_resources.work_pools import MigratableWorkPool  # noqa: PLC0415
+    from prefect.cli.transfer._migratable_resources.work_queues import (  # noqa: PLC0415
         MigratableWorkQueue,
     )
-    from prefect.cli.transfer._migratable_resources.automations import (
+    from prefect.cli.transfer._migratable_resources.automations import (  # noqa: PLC0415
         MigratableAutomation,
     )
 

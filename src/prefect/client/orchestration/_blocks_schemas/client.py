@@ -34,7 +34,7 @@ class BlocksSchemaClient(BaseClient):
                 raise ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        from prefect.client.schemas.objects import BlockSchema
+        from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
         return BlockSchema.model_validate(response.json())
 
@@ -56,7 +56,7 @@ class BlocksSchemaClient(BaseClient):
                 raise ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        from prefect.client.schemas.objects import BlockSchema
+        from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
         return BlockSchema.model_validate(response.json())
 
@@ -70,7 +70,7 @@ class BlocksSchemaClient(BaseClient):
             A BlockSchema.
         """
         response = self.request("POST", "/block_schemas/filter", json={})
-        from prefect.client.schemas.objects import BlockSchema
+        from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
         return BlockSchema.model_validate_list(response.json())
 
@@ -101,7 +101,7 @@ class BlocksSchemaClient(BaseClient):
             )
         except HTTPStatusError:
             raise
-        from prefect.client.schemas.objects import BlockSchema
+        from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
         return next(iter(BlockSchema.model_validate_list(response.json())), None)
 
@@ -128,7 +128,7 @@ class BlocksSchemaAsyncClient(BaseAsyncClient):
                 raise ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        from prefect.client.schemas.objects import BlockSchema
+        from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
         return BlockSchema.model_validate(response.json())
 
@@ -150,7 +150,7 @@ class BlocksSchemaAsyncClient(BaseAsyncClient):
                 raise ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        from prefect.client.schemas.objects import BlockSchema
+        from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
         return BlockSchema.model_validate(response.json())
 
@@ -164,7 +164,7 @@ class BlocksSchemaAsyncClient(BaseAsyncClient):
             A BlockSchema.
         """
         response = await self.request("POST", "/block_schemas/filter", json={})
-        from prefect.client.schemas.objects import BlockSchema
+        from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
         return BlockSchema.model_validate_list(response.json())
 
@@ -195,6 +195,6 @@ class BlocksSchemaAsyncClient(BaseAsyncClient):
             )
         except HTTPStatusError:
             raise
-        from prefect.client.schemas.objects import BlockSchema
+        from prefect.client.schemas.objects import BlockSchema  # noqa: PLC0415
 
         return next(iter(BlockSchema.model_validate_list(response.json())), None)

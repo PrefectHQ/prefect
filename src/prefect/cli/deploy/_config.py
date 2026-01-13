@@ -294,7 +294,7 @@ def _apply_cli_options_to_deploy_config(
 def _handle_pick_deploy_without_name(
     deploy_configs: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    from prefect.cli._prompts import prompt_select_from_table
+    from prefect.cli._prompts import prompt_select_from_table  # noqa: PLC0415
 
     selectable_deploy_configs = [
         deploy_config for deploy_config in deploy_configs if deploy_config.get("name")
@@ -397,7 +397,7 @@ def _handle_pick_deploy_with_name(
     deploy_configs: list[dict[str, Any]],
     names: list[str],
 ) -> list[dict[str, Any]]:
-    from prefect.cli._prompts import prompt_select_from_table
+    from prefect.cli._prompts import prompt_select_from_table  # noqa: PLC0415
 
     matched_deploy_configs: list[dict[str, Any]] = []
     deployment_names: list[str] = []

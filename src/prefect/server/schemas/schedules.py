@@ -165,7 +165,7 @@ class IntervalSchedule(PrefectBaseModel):
 
         if sys.version_info >= (3, 13):
             # `pendulum` is not supported in Python 3.13, so we use `whenever` instead
-            from whenever import PlainDateTime, ZonedDateTime
+            from whenever import PlainDateTime, ZonedDateTime  # noqa: PLC0415
 
             if start is None:
                 start = ZonedDateTime.now("UTC").py_datetime()
@@ -428,7 +428,7 @@ class CronSchedule(PrefectBaseModel):
             next_time = cron.get_next(datetime.datetime)
             delta = next_time - start_naive_tz
             if sys.version_info >= (3, 13):
-                from whenever import ZonedDateTime
+                from whenever import ZonedDateTime  # noqa: PLC0415
 
                 # Use `whenever` to handle DST correctly
                 next_date = (

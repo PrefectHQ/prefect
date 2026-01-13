@@ -98,12 +98,14 @@ async def version(
     ),
 ):
     """Get the current Prefect version and integration information."""
-    import sqlite3
+    import sqlite3  # noqa: PLC0415
 
-    import sqlalchemy as sa
+    import sqlalchemy as sa  # noqa: PLC0415
 
-    from prefect.server.database.dependencies import provide_database_interface
-    from prefect.server.utilities.database import get_dialect
+    from prefect.server.database.dependencies import (  # noqa: PLC0415
+        provide_database_interface,  # noqa: PLC0415
+    )
+    from prefect.server.utilities.database import get_dialect  # noqa: PLC0415
 
     if build_date_str := prefect.__version_info__.get("date", None):
         build_date = parse_datetime(build_date_str).strftime("%a, %b %d, %Y %I:%M %p")
@@ -157,7 +159,7 @@ async def version(
 
 def get_prefect_integrations() -> dict[str, str]:
     """Get information about installed Prefect integrations."""
-    from importlib.metadata import distributions
+    from importlib.metadata import distributions  # noqa: PLC0415
 
     integrations: dict[str, str] = {}
     for dist in distributions():

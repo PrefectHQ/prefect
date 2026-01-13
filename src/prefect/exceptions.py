@@ -137,7 +137,7 @@ class ScriptError(PrefectException):
         user_exc: Exception,
         path: str,
     ) -> None:
-        import prefect.utilities.importtools
+        import prefect.utilities.importtools  # noqa: PLC0415
 
         message = f"Script at {str(path)!r} encountered an exception: {user_exc!r}"
         super().__init__(message)

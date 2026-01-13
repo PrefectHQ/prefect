@@ -284,7 +284,7 @@ def not_enough_open_files() -> bool:
     You can increase the number of open files with `ulimit -n 512`.
     """
     try:
-        import resource
+        import resource  # noqa: PLC0415
     except ImportError:
         # resource limits is not a concept on all systems, notably Windows
         return False
@@ -2354,7 +2354,7 @@ class TestArtifacts:
         asserting_events_worker,
         reset_worker_events,
     ):
-        from prefect.client.schemas.actions import ArtifactUpdate
+        from prefect.client.schemas.actions import ArtifactUpdate  # noqa: PLC0415
 
         update_call = artifact_client.update_artifact(
             artifact_id=artifacts[0].id,

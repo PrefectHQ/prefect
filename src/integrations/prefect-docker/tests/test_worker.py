@@ -179,7 +179,7 @@ async def test_container_name_includes_index_on_conflict(
     flow_run,
     default_docker_worker_job_configuration,
 ):
-    import docker.errors
+    import docker.errors  # noqa: PLC0415
 
     if collision_count:
         # Add the basic name first
@@ -218,7 +218,7 @@ async def test_container_name_includes_index_on_conflict(
 async def test_container_creation_failure_reraises_if_not_name_conflict(
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
-    import docker.errors
+    import docker.errors  # noqa: PLC0415
 
     mock_docker_client.containers.create.side_effect = docker.errors.APIError(
         "test error"
@@ -282,7 +282,7 @@ async def test_does_not_login_when_image_exists_locally(
     can still run using cached images without requiring authentication.
     See: https://github.com/PrefectHQ/prefect/issues/19865
     """
-    from docker.models.images import Image
+    from docker.models.images import Image  # noqa: PLC0415
 
     credentials = DockerRegistryCredentials(
         username="my_username",
@@ -334,7 +334,7 @@ async def test_uses_credentials_with_always_pull_policy(
     default_docker_worker_job_configuration,
 ):
     """Test that credentials are used when pull policy is ALWAYS."""
-    from docker.models.images import Image
+    from docker.models.images import Image  # noqa: PLC0415
 
     credentials = DockerRegistryCredentials(
         username="my_username",
@@ -813,7 +813,7 @@ async def test_default_image_pull_policy_pulls_image_with_no_tag(
 async def test_default_image_pull_policy_pulls_image_with_tag_other_than_latest_if_not_present(  # noqa
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
-    from docker.errors import ImageNotFound
+    from docker.errors import ImageNotFound  # noqa: PLC0415
 
     mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
 
@@ -830,7 +830,7 @@ async def test_default_image_pull_policy_pulls_image_with_tag_other_than_latest_
 async def test_default_image_pull_policy_does_not_pull_image_with_tag_other_than_latest_if_present(  # noqa
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
-    from docker.models.images import Image
+    from docker.models.images import Image  # noqa: PLC0415
 
     mock_docker_client.images.get.return_value = Image()
 
@@ -876,7 +876,7 @@ async def test_image_pull_policy_never_does_not_pull(
 async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
-    from docker.errors import ImageNotFound
+    from docker.errors import ImageNotFound  # noqa: PLC0415
 
     mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
 
@@ -894,7 +894,7 @@ async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
 async def test_image_pull_policy_if_not_present_does_not_pull_image_if_present(
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
-    from docker.models.images import Image
+    from docker.models.images import Image  # noqa: PLC0415
 
     mock_docker_client.images.get.return_value = Image()
 
@@ -1105,7 +1105,7 @@ async def test_container_auto_remove(
     flow_run,
     default_docker_worker_job_configuration,
 ):
-    from docker.errors import NotFound
+    from docker.errors import NotFound  # noqa: PLC0415
 
     default_docker_worker_job_configuration.auto_remove = True
 
@@ -1324,7 +1324,7 @@ async def test_emits_events(
 async def test_emits_event_container_creation_failure(
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
-    import docker.errors
+    import docker.errors  # noqa: PLC0415
 
     mock_docker_client.containers.create.side_effect = docker.errors.APIError(
         "test error"
@@ -1396,7 +1396,7 @@ class TestSubmitAdhocRunWithFlowRunParameter:
     @pytest.fixture
     def test_flow(self):
         """Create a test flow for use in tests."""
-        from prefect import flow
+        from prefect import flow  # noqa: PLC0415
 
         @flow
         def my_test_flow():
@@ -1408,8 +1408,8 @@ class TestSubmitAdhocRunWithFlowRunParameter:
         self, mock_docker_client, work_pool, test_flow
     ):
         """Test that _submit_adhoc_run with flow_run parameter reuses the flow run ID."""
-        from prefect.client.schemas.objects import StateType
-        from prefect.states import Failed
+        from prefect.client.schemas.objects import StateType  # noqa: PLC0415
+        from prefect.states import Failed  # noqa: PLC0415
 
         async with get_client() as client:
             # Create an initial flow run in a failed state
@@ -1436,8 +1436,8 @@ class TestSubmitAdhocRunWithFlowRunParameter:
         self, mock_docker_client, work_pool, test_flow
     ):
         """Test that _submit_adhoc_run sets the state to Pending when retrying."""
-        from prefect.client.schemas.objects import StateType
-        from prefect.states import Failed
+        from prefect.client.schemas.objects import StateType  # noqa: PLC0415
+        from prefect.states import Failed  # noqa: PLC0415
 
         async with get_client() as client:
             # Create an initial flow run in a failed state

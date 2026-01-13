@@ -720,7 +720,7 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
+            import time  # noqa: PLC0415
 
             time.sleep(1)
 
@@ -752,7 +752,7 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
+            import time  # noqa: PLC0415
 
             time.sleep(1)
 
@@ -789,7 +789,7 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
+            import time  # noqa: PLC0415
 
             time.sleep(1)
 
@@ -882,7 +882,7 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
+            import time  # noqa: PLC0415
 
             time.sleep(1)
 
@@ -918,7 +918,7 @@ class TestTaskWorkerLimit:
     ):
         @task
         def slow_task():
-            import time
+            import time  # noqa: PLC0415
 
             time.sleep(1)
 

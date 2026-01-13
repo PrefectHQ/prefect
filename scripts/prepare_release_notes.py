@@ -108,7 +108,7 @@ def format_release_notes(release_info: dict, version: str) -> str:
     tag = version
 
     # For draft releases, we need to generate a date
-    from datetime import datetime
+    from datetime import datetime  # noqa: PLC0415
 
     date = datetime.now().strftime("%Y-%m-%d")
 
@@ -120,7 +120,7 @@ def format_release_notes(release_info: dict, version: str) -> str:
     body = body.replace("\r\n", "\n")
 
     # Remove duplicate headers that might be in the body
-    import re
+    import re  # noqa: PLC0415
 
     lines = body.split("\n")
     filtered_lines = []
@@ -331,7 +331,7 @@ def format_release_notes(release_info: dict, version: str) -> str:
             patch_title = f"## {tag} - {name_parts}"
 
     # Format the date nicely on a separate line
-    from datetime import datetime
+    from datetime import datetime  # noqa: PLC0415
 
     try:
         date_obj = datetime.strptime(date, "%Y-%m-%d")

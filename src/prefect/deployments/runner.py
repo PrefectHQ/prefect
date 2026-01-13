@@ -862,7 +862,7 @@ class RunnerDeployment(BaseModel):
                 available settings.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
-        from prefect.flows import load_flow_from_entrypoint
+        from prefect.flows import load_flow_from_entrypoint  # noqa: PLC0415
 
         job_variables = job_variables or {}
         flow = load_flow_from_entrypoint(entrypoint)
@@ -971,7 +971,7 @@ class RunnerDeployment(BaseModel):
                 available settings.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
-        from prefect.flows import load_flow_from_entrypoint
+        from prefect.flows import load_flow_from_entrypoint  # noqa: PLC0415
 
         constructed_schedules = cls._construct_deployment_schedules(
             interval=interval,
@@ -1093,7 +1093,7 @@ class RunnerDeployment(BaseModel):
                 available settings.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
         """
-        from prefect.flows import load_flow_from_entrypoint
+        from prefect.flows import load_flow_from_entrypoint  # noqa: PLC0415
 
         constructed_schedules = cls._construct_deployment_schedules(
             interval=interval,

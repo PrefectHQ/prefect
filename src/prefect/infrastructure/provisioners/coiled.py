@@ -73,7 +73,7 @@ class CoiledPushProvisioner:
         """
         Gets a Coiled API token from the current Coiled configuration.
         """
-        import dask.config
+        import dask.config  # noqa: PLC0415
 
         return dask.config.get("coiled.token", "")
 

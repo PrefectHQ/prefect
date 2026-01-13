@@ -245,7 +245,7 @@ class PrefectServerEventsAPIClient:
     _http_client: PrefectHttpxAsyncClient
 
     def __init__(self, additional_headers: dict[str, str] = {}):
-        from prefect.server.api.server import create_app
+        from prefect.server.api.server import create_app  # noqa: PLC0415
 
         # create_app caches application instances, and invoking it with no arguments
         # will point it to the the currently running server instance

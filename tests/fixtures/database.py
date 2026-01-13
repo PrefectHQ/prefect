@@ -120,7 +120,7 @@ async def clear_db(db, request):
                     raise
 
     # Also clear the memory lease storage singleton to prevent test pollution
-    from prefect.server.concurrency.lease_storage.memory import (
+    from prefect.server.concurrency.lease_storage.memory import (  # noqa: PLC0415
         ConcurrencyLeaseStorage,
     )
 

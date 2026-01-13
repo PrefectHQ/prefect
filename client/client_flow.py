@@ -13,7 +13,7 @@ def skip_remote_run():
     those conditions are true, we won't try to run the flow against the remote
     API
     """
-    import os
+    import os  # noqa: PLC0415
 
     in_gha = os.environ.get("CI", False)
     secret_not_set = os.environ.get("PREFECT_API_KEY", "") == ""

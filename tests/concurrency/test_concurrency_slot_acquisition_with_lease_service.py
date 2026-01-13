@@ -363,7 +363,7 @@ class TestCreateEmptyLimitsResponse:
         response = _create_empty_limits_response()
         data = response.json()
         assert "lease_id" in data
-        from uuid import UUID
+        from uuid import UUID  # noqa: PLC0415
 
         UUID(data["lease_id"])
 

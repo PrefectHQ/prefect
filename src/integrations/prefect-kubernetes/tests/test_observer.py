@@ -377,7 +377,10 @@ class TestLoggingConfiguration:
         monkeypatch.setenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER", "json")
 
         # Import and setup logging fresh to pick up env var
-        from prefect.logging.configuration import PROCESS_LOGGING_CONFIG, setup_logging
+        from prefect.logging.configuration import (  # noqa: PLC0415
+            PROCESS_LOGGING_CONFIG,
+            setup_logging,
+        )
 
         PROCESS_LOGGING_CONFIG.clear()
         setup_logging(incremental=False)
@@ -421,7 +424,10 @@ class TestLoggingConfiguration:
         stop_observer()
 
         # Use default logging configuration (standard formatter)
-        from prefect.logging.configuration import PROCESS_LOGGING_CONFIG, setup_logging
+        from prefect.logging.configuration import (  # noqa: PLC0415
+            PROCESS_LOGGING_CONFIG,
+            setup_logging,
+        )
 
         PROCESS_LOGGING_CONFIG.clear()
         setup_logging(incremental=False)
@@ -462,7 +468,10 @@ class TestLoggingConfiguration:
         # Set up JSON formatting
         monkeypatch.setenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER", "json")
 
-        from prefect.logging.configuration import PROCESS_LOGGING_CONFIG, setup_logging
+        from prefect.logging.configuration import (  # noqa: PLC0415
+            PROCESS_LOGGING_CONFIG,
+            setup_logging,
+        )
 
         PROCESS_LOGGING_CONFIG.clear()
         setup_logging(incremental=False)
@@ -517,7 +526,10 @@ class TestLoggingConfiguration:
         # Set up JSON formatting
         monkeypatch.setenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER", "json")
 
-        from prefect.logging.configuration import PROCESS_LOGGING_CONFIG, setup_logging
+        from prefect.logging.configuration import (  # noqa: PLC0415
+            PROCESS_LOGGING_CONFIG,
+            setup_logging,
+        )
 
         PROCESS_LOGGING_CONFIG.clear()
         setup_logging(incremental=False)

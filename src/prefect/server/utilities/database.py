@@ -77,7 +77,7 @@ def db_injector(func: _DBFunction[P, R]) -> _Function[P, R]: ...
 def db_injector(
     func: Union[_DBMethod[T, P, R], _DBFunction[P, R]],
 ) -> Union[_Method[T, P, R], _Function[P, R]]:
-    from prefect.server.database import db_injector
+    from prefect.server.database import db_injector  # noqa: PLC0415
 
     return db_injector(func)
 

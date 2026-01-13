@@ -54,7 +54,10 @@ async def create_block_schema(
     Returns:
         block_schema: an ORM block schema model
     """
-    from prefect.blocks.core import Block, _get_non_block_reference_definitions
+    from prefect.blocks.core import (  # noqa: PLC0415
+        Block,
+        _get_non_block_reference_definitions,
+    )
 
     # We take a shortcut in many unit tests and in block registration to pass client
     # models directly to this function.  We will support this by converting them to
@@ -254,7 +257,7 @@ def _get_fields_for_child_schema(
     dictionary based on the information extracted from `base_fields` using the `reference_name`. `reference_block_type`
     is used to disambiguate fields that have a union type.
     """
-    from prefect.blocks.core import _collect_nested_reference_strings
+    from prefect.blocks.core import _collect_nested_reference_strings  # noqa: PLC0415
 
     spec_reference = base_fields["properties"][reference_name]
     sub_block_schema_fields = None

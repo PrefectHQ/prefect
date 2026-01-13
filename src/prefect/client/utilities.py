@@ -22,7 +22,9 @@ def _current_async_client(
     client: Union["PrefectClient", "SyncPrefectClient"],
 ) -> TypeGuard["PrefectClient"]:
     """Determine if the client is a PrefectClient instance attached to the current loop"""
-    from prefect._internal.concurrency.event_loop import get_running_loop
+    from prefect._internal.concurrency.event_loop import (  # noqa: PLC0415
+        get_running_loop,  # noqa: PLC0415
+    )
 
     # Only a PrefectClient will have a _loop attribute that is the current loop
     return getattr(client, "_loop", None) == get_running_loop()
@@ -43,7 +45,11 @@ def get_or_create_client(
     if client is not None:
         return client, True
 
-    from prefect.context import AsyncClientContext, FlowRunContext, TaskRunContext
+    from prefect.context import (  # noqa: PLC0415
+        AsyncClientContext,
+        FlowRunContext,
+        TaskRunContext,
+    )
 
     async_client_context = AsyncClientContext.get()
     flow_run_context = FlowRunContext.get()
@@ -55,7 +61,9 @@ def get_or_create_client(
         if _current_async_client(context_client := context.client):
             return context_client, True
 
-    from prefect.client.orchestration import get_client as get_httpx_client
+    from prefect.client.orchestration import (  # noqa: PLC0415
+        get_client as get_httpx_client,  # noqa: PLC0415
+    )
 
     return get_httpx_client(), False
 
@@ -91,7 +99,7 @@ def inject_client(
         if not inferred:
             context = client
         else:
-            from prefect.utilities.asyncutils import asyncnullcontext
+            from prefect.utilities.asyncutils import asyncnullcontext  # noqa: PLC0415
 
             context = asyncnullcontext(client)
         async with context as new_client:

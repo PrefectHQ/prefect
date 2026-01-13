@@ -339,7 +339,7 @@ async def test_distributor_message_handler_queue_full(
 @pytest.mark.asyncio
 async def test_start_stop_distributor():
     """Test starting and stopping the distributor"""
-    from prefect.server.logs import stream
+    from prefect.server.logs import stream  # noqa: PLC0415
 
     # Ensure clean initial state
     await stop_distributor()
@@ -392,7 +392,7 @@ def test_log_distributor_service_class_methods():
 @pytest.mark.asyncio
 async def test_start_distributor_already_started():
     """Test starting distributor when already started"""
-    from prefect.server.logs import stream
+    from prefect.server.logs import stream  # noqa: PLC0415
 
     # Ensure clean state
     await stop_distributor()

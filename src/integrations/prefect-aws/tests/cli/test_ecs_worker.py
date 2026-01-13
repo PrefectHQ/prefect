@@ -404,7 +404,7 @@ class TestECSWorkerUtils:
 
     def test_cli_tags_generation(self):
         """Test that CLI tags are generated correctly."""
-        from prefect_aws._cli.utils import add_cli_tags
+        from prefect_aws._cli.utils import add_cli_tags  # noqa: PLC0415
 
         tags = add_cli_tags("test-pool", "service")
 
@@ -419,7 +419,7 @@ class TestECSWorkerUtils:
     @patch("prefect_aws._cli.utils.boto3.Session")
     def test_get_aws_client(self, mock_session):
         """Test AWS client creation."""
-        from prefect_aws._cli.utils import get_aws_client
+        from prefect_aws._cli.utils import get_aws_client  # noqa: PLC0415
 
         mock_client = Mock()
         mock_session_instance = Mock()
@@ -436,7 +436,7 @@ class TestECSWorkerUtils:
 
     def test_load_template_success(self):
         """Test successful template loading."""
-        from prefect_aws._cli.utils import load_template
+        from prefect_aws._cli.utils import load_template  # noqa: PLC0415
 
         # This test requires the actual template files to exist
         # In a real test environment, you might want to mock this
@@ -472,7 +472,7 @@ class TestWorkPoolDefaults:
 
     async def test_update_work_pool_defaults_success(self, test_work_pool):
         """Test successful work pool defaults update."""
-        from prefect_aws._cli.utils import update_work_pool_defaults
+        from prefect_aws._cli.utils import update_work_pool_defaults  # noqa: PLC0415
 
         stack_outputs = {
             "VpcId": "vpc-123456",
@@ -511,7 +511,7 @@ class TestWorkPoolDefaults:
 
     async def test_update_work_pool_defaults_preserves_existing(self, test_work_pool):
         """Test that existing defaults are preserved."""
-        from prefect_aws._cli.utils import update_work_pool_defaults
+        from prefect_aws._cli.utils import update_work_pool_defaults  # noqa: PLC0415
 
         # First, set some existing defaults
         async with prefect.get_client() as client:
@@ -524,7 +524,7 @@ class TestWorkPoolDefaults:
                 "default"
             ] = "existing-role"
 
-            from prefect.client.schemas.actions import WorkPoolUpdate
+            from prefect.client.schemas.actions import WorkPoolUpdate  # noqa: PLC0415
 
             await client.update_work_pool(
                 test_work_pool.name, WorkPoolUpdate(base_job_template=base_template)
@@ -558,7 +558,7 @@ class TestWorkPoolDefaults:
         self, test_work_pool
     ):
         """Test handling of missing stack outputs."""
-        from prefect_aws._cli.utils import update_work_pool_defaults
+        from prefect_aws._cli.utils import update_work_pool_defaults  # noqa: PLC0415
 
         # Only provide some outputs
         stack_outputs = {
@@ -579,7 +579,7 @@ class TestWorkPoolDefaults:
 
     async def test_update_work_pool_defaults_handles_nonexistent_pool(self):
         """Test that errors for nonexistent work pools are handled gracefully."""
-        from prefect_aws._cli.utils import update_work_pool_defaults
+        from prefect_aws._cli.utils import update_work_pool_defaults  # noqa: PLC0415
 
         stack_outputs = {"VpcId": "vpc-123456"}
 
@@ -864,7 +864,7 @@ class TestExportTemplate:
         # Content should be YAML if pyyaml is available, otherwise JSON
         if "AWSTemplateFormatVersion:" in content:
             # YAML format
-            import yaml
+            import yaml  # noqa: PLC0415
 
             yaml_content = yaml.safe_load(content)
             assert yaml_content == mock_template
@@ -879,7 +879,7 @@ class TestExportTemplate:
     ):
         """Test YAML format falls back to JSON when PyYAML not available."""
         # Mock yaml import in the specific function context
-        import sys
+        import sys  # noqa: PLC0415
 
         if "yaml" in sys.modules:
             monkeypatch.setitem(sys.modules, "yaml", None)

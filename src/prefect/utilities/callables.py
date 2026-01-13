@@ -286,7 +286,7 @@ def process_v1_params(
     docstrings: dict[str, str],
     aliases: dict[str, str],
 ) -> tuple[str, Any, Any]:
-    import pydantic.v1 as pydantic_v1
+    import pydantic.v1 as pydantic_v1  # noqa: PLC0415
 
     # Pydantic model creation will fail if names collide with the BaseModel type
     if hasattr(pydantic_v1.BaseModel, param.name):
@@ -313,7 +313,7 @@ def process_v1_params(
 def create_v1_schema(
     name_: str, model_cfg: type[Any], model_fields: Optional[dict[str, Any]] = None
 ) -> dict[str, Any]:
-    import pydantic.v1 as pydantic_v1
+    import pydantic.v1 as pydantic_v1  # noqa: PLC0415
 
     with warnings.catch_warnings():
         # Note: pydantic.v1 doesn't have the warnings module, so we can't suppress them

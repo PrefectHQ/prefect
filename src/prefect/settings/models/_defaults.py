@@ -89,7 +89,7 @@ def default_database_connection_url(settings: "Settings") -> SecretStr:
                 f"Missing required database connection settings: {', '.join(missing)}"
             )
 
-        from sqlalchemy import URL
+        from sqlalchemy import URL  # noqa: PLC0415
 
         value = URL(
             drivername=settings.server.database.driver,

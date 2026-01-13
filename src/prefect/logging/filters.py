@@ -33,7 +33,7 @@ class ObfuscateApiKeyFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         # Need to import here to avoid circular imports
-        from prefect.settings import PREFECT_API_KEY
+        from prefect.settings import PREFECT_API_KEY  # noqa: PLC0415
 
         if PREFECT_API_KEY:
             record.msg = redact_substr(record.msg, PREFECT_API_KEY.value())

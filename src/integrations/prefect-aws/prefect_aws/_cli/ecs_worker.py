@@ -343,8 +343,8 @@ def list_stacks(
 
     if output_format == "json":
         # Convert datetime objects to strings for JSON serialization
-        import json
-        from datetime import datetime
+        import json  # noqa: PLC0415
+        from datetime import datetime  # noqa: PLC0415
 
         def serialize_datetime(obj):
             if isinstance(obj, datetime):
@@ -489,7 +489,7 @@ def export_template(
             content = json.dumps(template, indent=2)
         elif format == "yaml":
             try:
-                import yaml
+                import yaml  # noqa: PLC0415
 
                 content = yaml.dump(template, default_flow_style=False, sort_keys=False)
             except ImportError:

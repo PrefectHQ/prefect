@@ -485,7 +485,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         """
         Submit a flow to run in a Docker container.
         """
-        from prefect._experimental.bundles import (
+        from prefect._experimental.bundles import (  # noqa: PLC0415
             convert_step_to_command,
             create_bundle_for_flow_run,
         )

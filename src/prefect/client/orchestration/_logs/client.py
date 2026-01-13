@@ -22,7 +22,7 @@ class LogClient(BaseClient):
         """
         Create logs for a flow or task run
         """
-        from prefect.client.schemas.actions import LogCreate
+        from prefect.client.schemas.actions import LogCreate  # noqa: PLC0415
 
         serialized_logs = [
             log.model_dump(mode="json") if isinstance(log, LogCreate) else log
@@ -40,7 +40,7 @@ class LogClient(BaseClient):
         """
         Read flow and task run logs.
         """
-        from prefect.client.schemas.sorting import LogSort
+        from prefect.client.schemas.sorting import LogSort  # noqa: PLC0415
 
         body: dict[str, Any] = {
             "logs": log_filter.model_dump(mode="json") if log_filter else None,
@@ -49,7 +49,7 @@ class LogClient(BaseClient):
             "sort": sort or LogSort.TIMESTAMP_ASC,
         }
         response = self.request("POST", "/logs/filter", json=body)
-        from prefect.client.schemas.objects import Log
+        from prefect.client.schemas.objects import Log  # noqa: PLC0415
 
         return Log.model_validate_list(response.json())
 
@@ -64,7 +64,7 @@ class LogAsyncClient(BaseAsyncClient):
         Args:
             logs: An iterable of `LogCreate` objects or already json-compatible dicts
         """
-        from prefect.client.schemas.actions import LogCreate
+        from prefect.client.schemas.actions import LogCreate  # noqa: PLC0415
 
         serialized_logs = [
             log.model_dump(mode="json") if isinstance(log, LogCreate) else log
@@ -82,7 +82,7 @@ class LogAsyncClient(BaseAsyncClient):
         """
         Read flow and task run logs.
         """
-        from prefect.client.schemas.sorting import LogSort
+        from prefect.client.schemas.sorting import LogSort  # noqa: PLC0415
 
         body: dict[str, Any] = {
             "logs": log_filter.model_dump(mode="json") if log_filter else None,
@@ -92,6 +92,6 @@ class LogAsyncClient(BaseAsyncClient):
         }
 
         response = await self.request("POST", "/logs/filter", json=body)
-        from prefect.client.schemas.objects import Log
+        from prefect.client.schemas.objects import Log  # noqa: PLC0415
 
         return Log.model_validate_list(response.json())

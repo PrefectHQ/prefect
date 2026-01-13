@@ -45,7 +45,7 @@ from prefect.utilities.processutils import open_process
 def add_prefect_loggers_to_caplog(
     caplog: pytest.LogCaptureFixture,
 ) -> Generator[None, None, None]:
-    import logging
+    import logging  # noqa: PLC0415
 
     logger = logging.getLogger("prefect")
     logger.propagate = True

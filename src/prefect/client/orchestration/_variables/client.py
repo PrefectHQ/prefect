@@ -39,7 +39,7 @@ class VariableClient(BaseClient):
             else:
                 raise
 
-        from prefect.client.schemas.objects import Variable
+        from prefect.client.schemas.objects import Variable  # noqa: PLC0415
 
         return Variable.model_validate(response.json())
 
@@ -49,7 +49,7 @@ class VariableClient(BaseClient):
             response = self.request(
                 "GET", "/variables/name/{name}", path_params={"name": name}
             )
-            from prefect.client.schemas.objects import Variable
+            from prefect.client.schemas.objects import Variable  # noqa: PLC0415
 
             return Variable(**response.json())
         except httpx.HTTPStatusError as e:
@@ -61,7 +61,7 @@ class VariableClient(BaseClient):
     def read_variables(self, limit: int | None = None) -> list["Variable"]:
         """Reads all variables."""
         response = self.request("POST", "/variables/filter", json={"limit": limit})
-        from prefect.client.schemas.objects import Variable
+        from prefect.client.schemas.objects import Variable  # noqa: PLC0415
 
         return Variable.model_validate_list(response.json())
 
@@ -111,7 +111,7 @@ class VariableAsyncClient(BaseAsyncClient):
             else:
                 raise
 
-        from prefect.client.schemas.objects import Variable
+        from prefect.client.schemas.objects import Variable  # noqa: PLC0415
 
         return Variable.model_validate(response.json())
 
@@ -123,7 +123,7 @@ class VariableAsyncClient(BaseAsyncClient):
                 "/variables/name/{name}",
                 path_params={"name": name},
             )
-            from prefect.client.schemas.objects import Variable
+            from prefect.client.schemas.objects import Variable  # noqa: PLC0415
 
             return Variable.model_validate(response.json())
         except httpx.HTTPStatusError as e:
@@ -137,7 +137,7 @@ class VariableAsyncClient(BaseAsyncClient):
         response = await self.request(
             "POST", "/variables/filter", json={"limit": limit}
         )
-        from prefect.client.schemas.objects import Variable
+        from prefect.client.schemas.objects import Variable  # noqa: PLC0415
 
         return Variable.model_validate_list(response.json())
 

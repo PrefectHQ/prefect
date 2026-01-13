@@ -699,7 +699,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     start_client_metrics_server()
 
                     if with_healthcheck:
-                        from prefect.workers.server import build_healthcheck_server
+                        from prefect.workers.server import (  # noqa: PLC0415
+                            build_healthcheck_server,  # noqa: PLC0415
+                        )
 
                         # we'll start the ASGI server in a separate thread so that
                         # uvicorn does not block the main thread
@@ -826,7 +828,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             task_status: Task status for signaling when the flow run is ready
             flow_run: Optional existing flow run to retry (reuses ID instead of creating new)
         """
-        from prefect._experimental.bundles import (
+        from prefect._experimental.bundles import (  # noqa: PLC0415
             aupload_bundle_to_storage,
             convert_step_to_command,
             create_bundle_for_flow_run,
@@ -842,7 +844,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 "work-pool storage configure`."
             )
 
-        from prefect.results import aresolve_result_storage, get_result_store
+        from prefect.results import (  # noqa: PLC0415
+            aresolve_result_storage,
+            get_result_store,
+        )
 
         current_result_store = get_result_store()
         # Check result storage and use the work pool default if needed

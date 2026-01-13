@@ -10,12 +10,12 @@ if TYPE_CHECKING:
 
 def _load_provisioners() -> dict[str, type]:
     """Lazy load provisioners to avoid importing heavy cloud SDKs at module import time."""
-    from prefect.infrastructure.provisioners.coiled import CoiledPushProvisioner
-    from prefect.infrastructure.provisioners.modal import ModalPushProvisioner
+    from prefect.infrastructure.provisioners.coiled import CoiledPushProvisioner  # noqa: PLC0415
+    from prefect.infrastructure.provisioners.modal import ModalPushProvisioner  # noqa: PLC0415
 
-    from .cloud_run import CloudRunPushProvisioner
-    from .container_instance import ContainerInstancePushProvisioner
-    from .ecs import ElasticContainerServicePushProvisioner
+    from .cloud_run import CloudRunPushProvisioner  # noqa: PLC0415
+    from .container_instance import ContainerInstancePushProvisioner  # noqa: PLC0415
+    from .ecs import ElasticContainerServicePushProvisioner  # noqa: PLC0415
 
     return {
         "cloud-run:push": CloudRunPushProvisioner,

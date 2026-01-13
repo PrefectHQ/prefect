@@ -101,7 +101,9 @@ class RelatedResource(Resource):
 
 
 def _validate_related_resources(value) -> List:
-    from prefect.settings import PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES
+    from prefect.settings import (  # noqa: PLC0415
+        PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,  # noqa: PLC0415
+    )
 
     if len(value) > PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES.value():
         raise ValueError(

@@ -496,7 +496,7 @@ class TestInspectWorkQueue:
 
     def test_inspect_with_json_output(self, work_queue):
         """Test work-queue inspect command with JSON output flag."""
-        import json
+        import json  # noqa: PLC0415
 
         result = invoke_and_assert(
             command=f"work-queue inspect {work_queue.name} --output json",

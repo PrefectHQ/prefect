@@ -558,11 +558,11 @@ async def prompt_push_custom_docker_image(
             default=False,
         ):
             try:
-                import prefect_docker
+                import prefect_docker  # noqa: PLC0415
             except ImportError:
                 console.print("Installing prefect-docker...")
                 await ainstall_packages(["prefect[docker]"], stream_output=True)
-                import prefect_docker
+                import prefect_docker  # noqa: PLC0415
 
             credentials_block = prefect_docker.DockerRegistryCredentials
             push_step["credentials"] = (

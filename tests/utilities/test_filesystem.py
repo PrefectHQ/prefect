@@ -179,7 +179,7 @@ def test_get_open_file_limit():
 
 @pytest.mark.skipif(os.name == "nt", reason="This is a Unix-specific test")
 def test_get_open_file_limit_exception_unix(monkeypatch):
-    import resource
+    import resource  # noqa: PLC0415
 
     def mock_getrlimit(*args, **kwargs):
         raise OSError
@@ -191,7 +191,7 @@ def test_get_open_file_limit_exception_unix(monkeypatch):
 
 @pytest.mark.skipif(os.name != "nt", reason="This is a Windows-specific test")
 def test_get_open_file_limit_exception_windows(monkeypatch):
-    import ctypes
+    import ctypes  # noqa: PLC0415
 
     # General error when calling _getmaxstdio
     def mock_getmaxstdio_error(*args, **kwargs):

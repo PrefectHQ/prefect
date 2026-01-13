@@ -53,7 +53,7 @@ class BlocksDocumentClient(BaseClient):
                 raise ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        from prefect.client.schemas.objects import BlockDocument
+        from prefect.client.schemas.objects import BlockDocument  # noqa: PLC0415
 
         return BlockDocument.model_validate(response.json())
 
@@ -134,7 +134,7 @@ class BlocksDocumentClient(BaseClient):
                 raise ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        from prefect.client.schemas.objects import BlockDocument
+        from prefect.client.schemas.objects import BlockDocument  # noqa: PLC0415
 
         return BlockDocument.model_validate(response.json())
 
@@ -172,7 +172,7 @@ class BlocksDocumentClient(BaseClient):
                 include_secrets=include_secrets,
             ),
         )
-        from prefect.client.schemas.objects import BlockDocument
+        from prefect.client.schemas.objects import BlockDocument  # noqa: PLC0415
 
         return BlockDocument.model_validate_list(response.json())
 
@@ -211,7 +211,7 @@ class BlocksDocumentAsyncClient(BaseAsyncClient):
                 raise ObjectAlreadyExists(http_exc=e) from e
             else:
                 raise
-        from prefect.client.schemas.objects import BlockDocument
+        from prefect.client.schemas.objects import BlockDocument  # noqa: PLC0415
 
         return BlockDocument.model_validate(response.json())
 
@@ -291,7 +291,7 @@ class BlocksDocumentAsyncClient(BaseAsyncClient):
                 raise ObjectNotFound(http_exc=e) from e
             else:
                 raise
-        from prefect.client.schemas.objects import BlockDocument
+        from prefect.client.schemas.objects import BlockDocument  # noqa: PLC0415
 
         return BlockDocument.model_validate(response.json())
 
@@ -329,6 +329,6 @@ class BlocksDocumentAsyncClient(BaseAsyncClient):
                 include_secrets=include_secrets,
             ),
         )
-        from prefect.client.schemas.objects import BlockDocument
+        from prefect.client.schemas.objects import BlockDocument  # noqa: PLC0415
 
         return BlockDocument.model_validate_list(response.json())

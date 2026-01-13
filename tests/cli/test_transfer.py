@@ -356,7 +356,7 @@ class TestHelperFunctions:
         self, mock_resources: list[MockMigratableResource]
     ):
         """Test _find_root_resources when no resources have dependencies."""
-        from prefect.cli.transfer import _find_root_resources
+        from prefect.cli.transfer import _find_root_resources  # noqa: PLC0415
 
         # All resources have no dependencies - all should be roots
         async def mock_get_deps_empty():

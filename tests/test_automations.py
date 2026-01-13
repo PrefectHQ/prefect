@@ -210,7 +210,7 @@ def test_disabled_automation_can_be_enabled_sync(automation: Automation):
 
 
 async def test_find_automation(automation: Automation):
-    from prefect.client.orchestration import get_client
+    from prefect.client.orchestration import get_client  # noqa: PLC0415
 
     client = get_client()
 
@@ -241,7 +241,7 @@ async def test_find_automation(automation: Automation):
 
 async def test_concurrent_automation_deletion():
     """Test that concurrent automation deletions don't deadlock."""
-    import asyncio
+    import asyncio  # noqa: PLC0415
 
     automations_to_create = [
         Automation(

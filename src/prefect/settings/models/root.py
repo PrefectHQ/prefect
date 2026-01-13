@@ -165,7 +165,7 @@ class Settings(PrefectBaseSettings):
     # allow deprecated access to PREFECT_SOME_SETTING_NAME
 
     def __getattribute__(self, name: str) -> Any:
-        from prefect.settings.legacy import _env_var_to_accessor
+        from prefect.settings.legacy import _env_var_to_accessor  # noqa: PLC0415
 
         if name.startswith("PREFECT_"):
             accessor = _env_var_to_accessor(name)

@@ -102,9 +102,9 @@ def hydrated_context(
     # We need to rebuild the models because we might be hydrating in a remote
     # environment where the models are not available.
     # TODO: Remove this once we have fixed our circular imports and we don't need to rebuild models any more.
-    from prefect._result_records import ResultRecordMetadata
-    from prefect.flows import Flow
-    from prefect.tasks import Task
+    from prefect._result_records import ResultRecordMetadata  # noqa: PLC0415
+    from prefect.flows import Flow  # noqa: PLC0415
+    from prefect.tasks import Task  # noqa: PLC0415
 
     _types: dict[str, Any] = dict(
         Flow=Flow,
@@ -146,7 +146,7 @@ def hydrated_context(
                 stack.enter_context(AssetContext(**asset_context))
             # Restore deployment ContextVars for cross-process context propagation
             if deployment_id_str := serialized_context.get("deployment_id"):
-                from uuid import UUID
+                from uuid import UUID  # noqa: PLC0415
 
                 deployment_id_token = _deployment_id.set(UUID(deployment_id_str))
                 stack.callback(_deployment_id.reset, deployment_id_token)
@@ -538,8 +538,8 @@ class AssetContext(ContextModel):
         Returns:
             Configured AssetContext
         """
-        from prefect.client.schemas import TaskRunResult
-        from prefect.tasks import MaterializingTask
+        from prefect.client.schemas import TaskRunResult  # noqa: PLC0415
+        from prefect.tasks import MaterializingTask  # noqa: PLC0415
 
         upstream_assets: set[Asset] = set()
 
@@ -638,7 +638,7 @@ class AssetContext(ContextModel):
         Emit asset events
         """
 
-        from prefect.events import emit_event
+        from prefect.events import emit_event  # noqa: PLC0415
 
         if state.name == "Cached":
             return

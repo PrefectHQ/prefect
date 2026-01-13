@@ -447,7 +447,7 @@ class TestInspect:
 
     async def test_inspect_with_json_output(self, prefect_client, work_pool):
         """Test work-pool inspect command with JSON output flag."""
-        import json
+        import json  # noqa: PLC0415
 
         res = await run_sync_in_worker_thread(
             invoke_and_assert,

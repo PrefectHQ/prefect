@@ -225,7 +225,7 @@ async def update_deployment(
 
     """
 
-    from prefect.server.api.workers import WorkerLookups
+    from prefect.server.api.workers import WorkerLookups  # noqa: PLC0415
 
     schedules = deployment.schedules
 

@@ -33,12 +33,12 @@ def is_valid_timezone(v: str) -> bool:
     Unfortunately this list is slightly different from the list of valid
     timezones we use for cron and interval timezone validation.
     """
-    from prefect._internal.pytz import HAS_PYTZ
+    from prefect._internal.pytz import HAS_PYTZ  # noqa: PLC0415
 
     if HAS_PYTZ:
-        import pytz
+        import pytz  # noqa: PLC0415
     else:
-        from prefect._internal import pytz
+        from prefect._internal import pytz  # noqa: PLC0415
 
     return v in pytz.all_timezones_set
 

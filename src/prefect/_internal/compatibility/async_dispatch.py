@@ -23,8 +23,8 @@ def is_in_async_context() -> bool:
         - a running event loop
         - a task or flow that is async
     """
-    from prefect.context import get_run_context
-    from prefect.exceptions import MissingContextError
+    from prefect.context import get_run_context  # noqa: PLC0415
+    from prefect.exceptions import MissingContextError  # noqa: PLC0415
 
     try:
         run_ctx = get_run_context()

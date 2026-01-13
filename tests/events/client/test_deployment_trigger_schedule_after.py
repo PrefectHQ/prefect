@@ -48,7 +48,7 @@ async def test_deployment_trigger_rejects_negative_schedule_after():
 
 async def test_deployment_trigger_passes_schedule_after_to_action():
     """Test that deployment trigger passes schedule_after to RunDeployment action"""
-    from uuid import uuid4
+    from uuid import uuid4  # noqa: PLC0415
 
     trigger = DeploymentEventTrigger.model_validate(
         {

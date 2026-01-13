@@ -35,7 +35,7 @@ def to_page_token(
 
 
 def from_page_token(page_token: str) -> Tuple["EventFilter", int, int, int]:
-    from prefect.server.events.filters import EventFilter
+    from prefect.server.events.filters import EventFilter  # noqa: PLC0415
 
     try:
         parameters = json.loads(b64decode(page_token))

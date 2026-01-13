@@ -44,7 +44,7 @@ async def init(
         key, value = field.split("=")
         inputs[key] = value
 
-    from prefect.cli._prompts import prompt_select_from_table
+    from prefect.cli._prompts import prompt_select_from_table  # noqa: PLC0415
 
     if not recipe and is_interactive():
         recipe_paths = prefect.__module_path__ / "deployments" / "recipes"

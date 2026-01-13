@@ -239,7 +239,7 @@ class Topic:
 
 @asynccontextmanager
 async def break_topic():
-    from unittest import mock
+    from unittest import mock  # noqa: PLC0415
 
     publishing_mock = mock.AsyncMock(side_effect=ValueError("oops"))
 

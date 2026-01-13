@@ -380,7 +380,7 @@ def __getattr__(name: str) -> Any:
             DeprecationWarning,
             stacklevel=2,
         )
-        from ._deprecated import JsonPatch
+        from ._deprecated import JsonPatch  # noqa: PLC0415
 
         return JsonPatch
     else:

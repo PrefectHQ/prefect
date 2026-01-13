@@ -42,7 +42,7 @@ def collection_paths() -> Generator[Path, None, None]:
 
 @contextmanager
 def _default_profile() -> Generator[None, None, None]:
-    import prefect.context
+    import prefect.context  # noqa: PLC0415
 
     original = prefect.context.get_settings_context().profile.name
     if original == "default":

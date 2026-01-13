@@ -256,7 +256,7 @@ class TestPluginManager:
 
     async def test_function_based_plugin_sync(self, mock_ctx: HookContext):
         """Test that function-based plugins work (sync)."""
-        from types import ModuleType
+        from types import ModuleType  # noqa: PLC0415
 
         # Create a mock module with a function-based plugin
         plugin_module = ModuleType("test_plugin")
@@ -280,7 +280,7 @@ class TestPluginManager:
 
     async def test_function_based_plugin_async(self, mock_ctx: HookContext):
         """Test that function-based plugins work (async)."""
-        from types import ModuleType
+        from types import ModuleType  # noqa: PLC0415
 
         # Create a mock module with an async function-based plugin
         plugin_module = ModuleType("test_plugin")

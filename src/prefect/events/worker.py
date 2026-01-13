@@ -64,7 +64,7 @@ class EventsWorker(QueueService[Event]):
     @asynccontextmanager
     async def _lifespan(self):
         self._client = self.client_type(**{k: v for k, v in self.client_options})
-        from prefect.client.orchestration import get_client
+        from prefect.client.orchestration import get_client  # noqa: PLC0415
 
         self._orchestration_client = get_client()
         async with self._client:
@@ -114,7 +114,9 @@ class EventsWorker(QueueService[Event]):
                 client_type = PrefectEventsClient
             elif should_emit_events_to_ephemeral_server():
                 # create an ephemeral API if none was provided
-                from prefect.server.api.server import SubprocessASGIServer
+                from prefect.server.api.server import (  # noqa: PLC0415
+                    SubprocessASGIServer,  # noqa: PLC0415
+                )
 
                 server = SubprocessASGIServer()
                 server.start()

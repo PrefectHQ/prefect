@@ -141,7 +141,7 @@ class TestTaskKey:
         assert my_task.task_key.startswith("my_task-")
 
     def test_task_key_after_import(self):
-        from tests.generic_tasks import noop
+        from tests.generic_tasks import noop  # noqa: PLC0415
 
         assert noop.task_key.startswith("noop-")
 
@@ -183,7 +183,7 @@ class TestTaskSourceCode:
         assert my_task.source_code is None
 
     def test_source_code_survives_cloudpickle(self):
-        import cloudpickle
+        import cloudpickle  # noqa: PLC0415
 
         @task
         def my_task():
@@ -1531,7 +1531,7 @@ class TestResultPersistence:
         assert new_task.persist_result is True
 
     def test_result_storage_accepts_path_object(self, tmpdir):
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         storage_path = Path(tmpdir) / "results"
 
@@ -1543,7 +1543,7 @@ class TestResultPersistence:
         assert my_task.persist_result is True
 
     def test_result_storage_with_path_execution(self, tmpdir):
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         storage_path = Path(tmpdir) / "results"
 
@@ -1559,7 +1559,7 @@ class TestResultPersistence:
         assert result == 10
 
     def test_result_storage_path_with_with_options(self, tmpdir):
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         path1 = Path(tmpdir) / "path1"
         path2 = Path(tmpdir) / "path2"
@@ -1576,7 +1576,7 @@ class TestResultPersistence:
         assert new_task.persist_result is True
 
     def test_result_storage_path_relative(self):
-        from pathlib import Path
+        from pathlib import Path  # noqa: PLC0415
 
         @task(result_storage=Path("./relative/path"))
         def my_task():
@@ -1586,7 +1586,7 @@ class TestResultPersistence:
         assert my_task.persist_result is True
 
     def test_result_storage_unsaved_block_still_rejected(self, tmpdir):
-        import pytest
+        import pytest  # noqa: PLC0415
 
         block = LocalFileSystem(basepath=str(tmpdir))
 
@@ -2317,7 +2317,7 @@ class TestTaskCaching:
     async def test_disable_caching_setting_disables_caching_regardless_of_cache_policy(
         self, caplog
     ):
-        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING
+        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING  # noqa: PLC0415
 
         with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: True}):
 
@@ -2332,7 +2332,7 @@ class TestTaskCaching:
         )
 
     async def test_disable_caching_setting_allows_normal_caching_when_false(self):
-        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING
+        from prefect.settings import PREFECT_TASKS_DISABLE_CACHING  # noqa: PLC0415
 
         with temporary_settings({PREFECT_TASKS_DISABLE_CACHING: False}):
 

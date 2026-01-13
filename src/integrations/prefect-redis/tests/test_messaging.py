@@ -686,7 +686,7 @@ async def test_consumer_recovers_from_redis_connection_error(
 async def test_clear_cached_clients():
     """Test that clear_cached_clients clears the cache."""
     # Get a client to populate the cache
-    from prefect_redis.client import get_async_redis_client
+    from prefect_redis.client import get_async_redis_client  # noqa: PLC0415
 
     get_async_redis_client()  # Populate cache
     assert len(_client_cache) > 0, "Cache should have at least one client"

@@ -593,7 +593,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
     @contextmanager
     def setup_run_context(self, client: Optional[SyncPrefectClient] = None):
-        from prefect.utilities.engine import (
+        from prefect.utilities.engine import (  # noqa: PLC0415
             should_log_prints,
         )
 
@@ -1177,7 +1177,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
     @asynccontextmanager
     async def setup_run_context(self, client: Optional[PrefectClient] = None):
-        from prefect.utilities.engine import (
+        from prefect.utilities.engine import (  # noqa: PLC0415
             should_log_prints,
         )
 
@@ -1634,7 +1634,7 @@ def run_flow_in_subprocess(
     Returns:
         A multiprocessing.context.SpawnProcess representing the process that is running the flow.
     """
-    from prefect.flow_engine import run_flow
+    from prefect.flow_engine import run_flow  # noqa: PLC0415
 
     @wraps(run_flow)
     def run_flow_with_env(

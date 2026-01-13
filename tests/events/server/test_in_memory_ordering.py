@@ -605,7 +605,9 @@ class TestScopeIsolation:
 class TestFactoryFunction:
     def test_get_task_run_recorder_causal_ordering(self):
         """Test that the factory function returns the correct scoped instance."""
-        from prefect.server.events.ordering import get_task_run_recorder_causal_ordering
+        from prefect.server.events.ordering import (  # noqa: PLC0415
+            get_task_run_recorder_causal_ordering,  # noqa: PLC0415
+        )
 
         CausalOrdering.clear_all_scopes()
 

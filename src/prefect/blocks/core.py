@@ -1195,7 +1195,7 @@ class Block(BaseModel, ABC):
         # TODO: replace with only sync client once all internal calls are updated to use `Block.aload` and `@async_dispatch` is removed
         if client is None:
             # If a client wasn't provided, we get to use a sync client
-            from prefect.client.orchestration import get_client
+            from prefect.client.orchestration import get_client  # noqa: PLC0415
 
             with get_client(sync_client=True) as sync_client:
                 block_document, _ = cls._get_block_document(name, client=sync_client)

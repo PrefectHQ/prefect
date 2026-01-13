@@ -55,7 +55,7 @@ class Asset(PrefectBaseModel):
         return hash(self.key)
 
     def add_metadata(self, metadata: dict[str, Any]) -> None:
-        from prefect.context import AssetContext
+        from prefect.context import AssetContext  # noqa: PLC0415
 
         asset_ctx = AssetContext.get()
         if not asset_ctx:
@@ -67,7 +67,7 @@ class Asset(PrefectBaseModel):
 
 
 def add_asset_metadata(asset: str | Asset, metadata: dict[str, Any]) -> None:
-    from prefect.context import AssetContext
+    from prefect.context import AssetContext  # noqa: PLC0415
 
     asset_ctx = AssetContext.get()
     if not asset_ctx:

@@ -398,7 +398,7 @@ class TestDaskTaskRunner:
             """
             this is a regression test for https://github.com/PrefectHQ/prefect/issues/6905
             """
-            from dataclasses import dataclass
+            from dataclasses import dataclass  # noqa: PLC0415
 
             @dataclass
             class Foo:

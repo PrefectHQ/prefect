@@ -455,7 +455,7 @@ def test_subflow_in_task_uses_own_result_serializer():
     When a subflow runs inside a task, it should use its own result_serializer,
     not inherit from the parent flow.
     """
-    from prefect.context import FlowRunContext
+    from prefect.context import FlowRunContext  # noqa: PLC0415
 
     @flow(result_serializer="json")
     def child_flow():

@@ -79,7 +79,7 @@ async def test_fails_multiple_expired_pauses(
 
 async def test_handles_deleted_flow_run(db):
     """Test that fail_expired_pause handles missing flow runs gracefully."""
-    from uuid import uuid4
+    from uuid import uuid4  # noqa: PLC0415
 
     # Should not raise an error
     await fail_expired_pause(uuid4(), str(THE_PAST), db=db)

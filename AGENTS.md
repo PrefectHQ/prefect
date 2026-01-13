@@ -47,7 +47,7 @@ prefect config view            # Inspect configuration
 - Private implementation details (`_private_method`)
 - No public API changes without approval
 - Use `uv` for dependency management, not `pip`
-- Do not use deferred imports (imports inside functions) unless absolutely necessary to avoid circular imports or for optional dependencies
+- Imports must be at the top of the file (enforced by ruff PLC0415). If you hit this lint error, move the import to the top of the file. Do NOT add `# noqa: PLC0415` - only a human can approve inline imports for circular import avoidance or optional dependencies
 
 ### Testing
 

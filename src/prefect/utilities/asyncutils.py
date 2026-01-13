@@ -306,7 +306,10 @@ def sync_compatible(
     def coroutine_wrapper(
         *args: Any, _sync: Optional[bool] = None, **kwargs: Any
     ) -> Union[R, Coroutine[Any, Any, R]]:
-        from prefect.context import MissingContextError, get_run_context
+        from prefect.context import (  # noqa: PLC0415
+            MissingContextError,
+            get_run_context,
+        )
 
         if _sync is False:
             return async_fn(*args, **kwargs)

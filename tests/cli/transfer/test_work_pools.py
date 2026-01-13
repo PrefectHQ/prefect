@@ -198,7 +198,9 @@ class TestMigratableWorkPool:
         self, mock_get_client: MagicMock, mock_construct_resource: AsyncMock
     ):
         """Test get_dependencies with result storage block dependency."""
-        from prefect.client.schemas.objects import WorkPoolStorageConfiguration
+        from prefect.client.schemas.objects import (  # noqa: PLC0415
+            WorkPoolStorageConfiguration,  # noqa: PLC0415
+        )
 
         # Create work pool with result storage block
         storage_block_id = uuid.uuid4()

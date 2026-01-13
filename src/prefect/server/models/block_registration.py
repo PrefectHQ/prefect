@@ -71,7 +71,7 @@ async def register_block_schema(
         The ID of the registered block schema.
     """
 
-    from prefect.server.models.block_schemas import (
+    from prefect.server.models.block_schemas import (  # noqa: PLC0415
         create_block_schema,
         read_block_schema_by_checksum,
     )
@@ -106,7 +106,7 @@ async def register_block_type(
     Returns:
         The ID of the registered block type.
     """
-    from prefect.server.models.block_types import (
+    from prefect.server.models.block_types import (  # noqa: PLC0415
         create_block_type,
         read_block_type_by_slug,
         update_block_type,
@@ -134,7 +134,7 @@ async def register_block_type(
 
 async def _load_collection_blocks_data() -> Dict[str, Any]:
     """Loads blocks data for whitelisted collections."""
-    import anyio
+    import anyio  # noqa: PLC0415
 
     async with await anyio.open_file(COLLECTIONS_BLOCKS_DATA_PATH, "r") as f:
         return json.loads(await f.read())
@@ -142,8 +142,8 @@ async def _load_collection_blocks_data() -> Dict[str, Any]:
 
 async def _register_registry_blocks(session: AsyncSession) -> None:
     """Registers block from the client block registry."""
-    from prefect.blocks.core import Block
-    from prefect.utilities.dispatch import get_registry_for_type
+    from prefect.blocks.core import Block  # noqa: PLC0415
+    from prefect.utilities.dispatch import get_registry_for_type  # noqa: PLC0415
 
     block_registry = get_registry_for_type(Block) or {}
 

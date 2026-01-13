@@ -477,7 +477,7 @@ class TestFunctionToSchema:
         reason="pydantic v1 is not supported in Python 3.14+",
     )
     def test_function_with_v1_secretstr_from_compat_module(self):
-        import pydantic.v1 as pydantic
+        import pydantic.v1 as pydantic  # noqa: PLC0415
 
         def f(x: pydantic.SecretStr):
             pass

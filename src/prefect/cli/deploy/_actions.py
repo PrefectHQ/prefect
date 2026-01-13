@@ -214,7 +214,7 @@ async def _generate_default_pull_action(
     deploy_config: dict[str, Any],
     actions: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    from prefect.cli._utilities import exit_with_error
+    from prefect.cli._utilities import exit_with_error  # noqa: PLC0415
 
     build_docker_image_step = await _check_for_build_docker_image_step(
         deploy_config.get("build") or actions["build"]

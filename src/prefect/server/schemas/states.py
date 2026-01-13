@@ -175,7 +175,7 @@ class State(StateBaseModel):
 
     @model_validator(mode="after")
     def default_scheduled_start_time(self) -> Self:
-        from prefect.server.schemas.states import StateType
+        from prefect.server.schemas.states import StateType  # noqa: PLC0415
 
         if self.type == StateType.SCHEDULED:
             if not self.state_details.scheduled_time:
@@ -241,7 +241,7 @@ class State(StateBaseModel):
 
     def result(self, raise_on_failure: bool = True) -> Union[Any, Exception]:
         # Backwards compatible `result` handling on the server-side schema
-        from prefect.states import State
+        from prefect.states import State  # noqa: PLC0415
 
         warnings.warn(
             (
@@ -257,7 +257,7 @@ class State(StateBaseModel):
         return state.result(raise_on_failure=raise_on_failure)
 
     def to_state_create(self) -> "StateCreate":
-        from prefect.server.schemas.actions import StateCreate
+        from prefect.server.schemas.actions import StateCreate  # noqa: PLC0415
 
         return StateCreate(
             type=self.type,

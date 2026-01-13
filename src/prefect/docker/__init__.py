@@ -11,7 +11,7 @@ _public_api: dict[str, tuple[str, str]] = {
 
 
 def __getattr__(name: str) -> object:
-    from importlib import import_module
+    from importlib import import_module  # noqa: PLC0415
 
     if name in _public_api:
         module, attr = _public_api[name]

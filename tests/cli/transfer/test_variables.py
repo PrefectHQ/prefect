@@ -177,7 +177,7 @@ class TestMigratableVariable:
         self, session: AsyncSession, test_value: Any
     ):
         """Test migration with variables containing different value types."""
-        from prefect.server import models, schemas
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         # Clear instances before test
         MigratableVariable._instances.clear()
@@ -209,7 +209,7 @@ class TestMigratableVariable:
 
     async def test_variable_with_tags(self, session: AsyncSession):
         """Test variable with tags."""
-        from prefect.server import models, schemas
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         tags = ["tag1", "tag2", "environment:prod", "team:data"]
         orm_variable = await models.variables.create_variable(
@@ -237,7 +237,7 @@ class TestMigratableVariable:
 
     async def test_variable_without_tags(self, session: AsyncSession):
         """Test variable without tags."""
-        from prefect.server import models, schemas
+        from prefect.server import models, schemas  # noqa: PLC0415
 
         orm_variable = await models.variables.create_variable(
             session=session,

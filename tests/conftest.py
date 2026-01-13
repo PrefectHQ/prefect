@@ -276,7 +276,7 @@ def pytest_runtest_call(item: pytest.Item):
 def assert_lifespan_is_not_left_open():
     # This checks for regressions where the application lifespan is left open
     # across tests.
-    from prefect.client import APP_LIFESPANS
+    from prefect.client import APP_LIFESPANS  # noqa: PLC0415
 
     yield
 
@@ -520,7 +520,7 @@ def caplog(
     Overrides caplog to apply to all of our loggers that do not propagate and
     consequently would not be captured by caplog.
     """
-    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG
+    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG  # noqa: PLC0415
 
     for name, logger_config in PROCESS_LOGGING_CONFIG["loggers"].items():
         if not logger_config.get("propagate", True):
@@ -544,7 +544,7 @@ def start_of_test() -> datetime.datetime:
 
 @pytest.fixture(autouse=True)
 def reset_sys_modules():
-    import importlib
+    import importlib  # noqa: PLC0415
 
     original_modules = sys.modules.copy()
 

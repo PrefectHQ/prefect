@@ -104,7 +104,7 @@ def import_string_class_method(new_location: str) -> Callable[..., Any]:
     Raises:
         PrefectImportError: If the method is not found in the class.
     """
-    from pydantic._internal._validators import import_string
+    from pydantic._internal._validators import import_string  # noqa: PLC0415
 
     class_name, method_name = new_location.rsplit(".", 1)
 
@@ -132,9 +132,9 @@ def getattr_migration(module_name: str) -> Callable[[str], Any]:
 
         if name == "__path__":
             raise AttributeError(f"{module_name!r} object has no attribute {name!r}")
-        import warnings
+        import warnings  # noqa: PLC0415
 
-        from pydantic._internal._validators import import_string
+        from pydantic._internal._validators import import_string  # noqa: PLC0415
 
         import_path = f"{module_name}:{name}"
 

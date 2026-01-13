@@ -48,7 +48,9 @@ async def provide_task_policy() -> type[TaskRunOrchestrationPolicy]:
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("task_policy_provider")
 
     if policy_provider is None:
-        from prefect.server.orchestration.core_policy import CoreTaskPolicy
+        from prefect.server.orchestration.core_policy import (  # noqa: PLC0415
+            CoreTaskPolicy,  # noqa: PLC0415
+        )
 
         return CoreTaskPolicy
 
@@ -59,7 +61,7 @@ async def provide_flow_policy() -> type[FlowRunOrchestrationPolicy]:
     policy_provider = ORCHESTRATION_DEPENDENCIES.get("flow_policy_provider")
 
     if policy_provider is None:
-        from prefect.server.orchestration.core_policy import (
+        from prefect.server.orchestration.core_policy import (  # noqa: PLC0415
             CoreFlowPolicy,
         )
 

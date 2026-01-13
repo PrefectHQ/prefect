@@ -19,7 +19,7 @@ class SafeLogger(logging.Logger):
     def isEnabledFor(self, level: int):
         # Override `logger.isEnabledFor` to avoid taking a logging lock which can cause
         # deadlocks during complex concurrency handling
-        from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL
+        from prefect.settings import PREFECT_LOGGING_INTERNAL_LEVEL  # noqa: PLC0415
 
         internal_level = getLevelNamesMapping()[PREFECT_LOGGING_INTERNAL_LEVEL.value()]
 

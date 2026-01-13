@@ -45,7 +45,7 @@ def create_default_prefect_yaml(
     with default_file.open(mode="r") as df:
         default_contents = yaml.safe_load(df)
 
-    import prefect
+    import prefect  # noqa: PLC0415
 
     contents["prefect-version"] = prefect.__version__
     contents["name"] = name

@@ -134,7 +134,9 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
             assert my_flow() == 'Done!' # run against temporary db
         ```
     """
-    from prefect.server.database.dependencies import temporary_database_interface
+    from prefect.server.database.dependencies import (  # noqa: PLC0415
+        temporary_database_interface,
+    )
 
     # create temp directory for the testing database
     temp_dir = mkdtemp()

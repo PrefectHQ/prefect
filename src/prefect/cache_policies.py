@@ -37,7 +37,7 @@ def _register_stable_transforms() -> None:
     so that cache keys that utilize them are deterministic across invocations.
     """
     try:
-        import pandas as pd  # pyright: ignore
+        import pandas as pd  # pyright: ignore  # noqa: PLC0415
 
         STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [  # pyright: ignore
             df[col] for col in sorted(df.columns)

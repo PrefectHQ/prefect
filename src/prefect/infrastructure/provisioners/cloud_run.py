@@ -84,7 +84,7 @@ class CloudRunPushProvisioner:
             )
 
     async def _get_project(self):
-        from prefect.cli._prompts import prompt_select_from_table
+        from prefect.cli._prompts import prompt_select_from_table  # noqa: PLC0415
 
         if self._console.is_interactive:
             with Progress(
@@ -277,7 +277,7 @@ class CloudRunPushProvisioner:
     async def _customize_resource_names(
         self, work_pool_name: str, client: "PrefectClient"
     ) -> bool:
-        from prefect.cli._prompts import prompt
+        from prefect.cli._prompts import prompt  # noqa: PLC0415
 
         self._service_account_name = prompt(
             "Please enter a name for the service account",
@@ -305,7 +305,7 @@ class CloudRunPushProvisioner:
         base_job_template: dict,
         client: Optional["PrefectClient"] = None,
     ) -> Dict[str, Any]:
-        from prefect.cli._prompts import prompt_select_from_table
+        from prefect.cli._prompts import prompt_select_from_table  # noqa: PLC0415
 
         assert client, "Client injection failed"
         await self._verify_gcloud_ready()

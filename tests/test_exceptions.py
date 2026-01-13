@@ -125,7 +125,7 @@ class TestSignatureMismatchError:
 
 class TestPrefectModuleImportExceptions:
     def test_attribute_error_on_getattr(self):
-        import prefect
+        import prefect  # noqa: PLC0415
 
         with pytest.raises(
             AttributeError, match=r"module prefect has no attribute foo"

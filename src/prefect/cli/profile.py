@@ -313,7 +313,7 @@ def show_profile_changes(
 @profile_app.command()
 def populate_defaults():
     """Populate the profiles configuration with default base profiles, preserving existing user profiles."""
-    from prefect.settings.profiles import (
+    from prefect.settings.profiles import (  # noqa: PLC0415
         _read_profiles_from,  # type: ignore[reportPrivateUsage]
         _write_profiles_to,  # type: ignore[reportPrivateUsage]
     )

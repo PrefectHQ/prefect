@@ -196,7 +196,7 @@ def escape_mdx(text: str) -> str:
     - Escape backticks, pipes, and arrow functions
     - Escape dollar signs to avoid template interpolation.
     """
-    import re
+    import re  # noqa: PLC0415
 
     if not text:
         return ""

@@ -18,7 +18,7 @@ async def read_flow_run(flow_run_id: str):
 @flow
 def flow_that_needs_pandas() -> str:
     """A flow that needs pandas."""
-    import pandas
+    import pandas  # noqa: PLC0415
 
     df = pandas.DataFrame({"a": [1, 2, 3]})
 
