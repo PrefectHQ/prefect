@@ -348,9 +348,8 @@ async def fetch_sdk_data(
     warnings.extend(flow_warnings)
     warnings.extend(wp_warnings)
 
-    # Group deployments by flow, tracking full names for duplicate detection
+    # Group deployments by flow
     flows: dict[str, FlowInfo] = {}
-    seen_full_names: dict[str, str] = {}  # full_name -> flow_id for duplicate detection
 
     # Track short name -> full names mapping to detect ambiguity
     short_name_matches: dict[str, list[str]] = {}  # short_name -> list of full_names
@@ -392,18 +391,6 @@ async def fetch_sdk_data(
                 if matched_short_name not in short_name_matches:
                     short_name_matches[matched_short_name] = []
                 short_name_matches[matched_short_name].append(full_name)
-
-        # Check for duplicate full names (can happen with multiple flows having same name)
-        if full_name in seen_full_names:
-            previous_flow_id = seen_full_names[full_name]
-            if previous_flow_id != flow_id:
-                warnings.append(
-                    f"Duplicate deployment name '{full_name}' from different flows "
-                    f"(flow_ids: {previous_flow_id}, {flow_id}). "
-                    f"Only the first occurrence will be included in the SDK."
-                )
-                continue
-        seen_full_names[full_name] = flow_id
 
         # Create DeploymentInfo
         deployment_info = DeploymentInfo(

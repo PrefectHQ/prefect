@@ -557,27 +557,6 @@ class TestFetchSDKData:
         assert any("Connection timeout" in w for w in result.warnings)
         assert any("error-pool" in w for w in result.warnings)
 
-    async def test_fetch_sdk_data_duplicate_deployment_names_warning(
-        self, mock_client: AsyncMock
-    ) -> None:
-        """Warns about duplicate deployment names from different flows."""
-        # Two different flows with same name (edge case)
-        flow_id1 = uuid4()
-        flow_id2 = uuid4()
-        dep1 = make_deployment_response("production", flow_id=flow_id1)
-        dep2 = make_deployment_response("production", flow_id=flow_id2)
-        flow1 = make_flow_response("my-flow", flow_id1)
-        flow2 = make_flow_response("my-flow", flow_id2)  # Same name, different ID
-
-        mock_client.read_deployments = AsyncMock(return_value=[dep1, dep2])
-        mock_client.read_flows = AsyncMock(return_value=[flow1, flow2])
-
-        result = await fetch_sdk_data(mock_client)
-
-        # Should warn about duplicate and only include one
-        assert any("Duplicate deployment name" in w for w in result.warnings)
-        assert result.data.deployment_count == 1
-
     async def test_fetch_sdk_data_ambiguous_short_name_warning(
         self, mock_client: AsyncMock
     ) -> None:
