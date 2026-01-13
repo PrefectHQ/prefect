@@ -314,6 +314,27 @@ class TestFetchFlowsForDeployments:
         assert any("not-a-uuid" in w for w in warnings)
         assert any("also-invalid" in w for w in warnings)
 
+    async def test_fetch_flows_multiple_pages(self) -> None:
+        """Fetches multiple pages of flows."""
+        client = AsyncMock()
+
+        # Create 250 flows - first page of 200, second page of 50
+        all_flow_ids = [uuid4() for _ in range(250)]
+        page1 = [make_flow_response(f"flow-{i}", all_flow_ids[i]) for i in range(200)]
+        page2 = [
+            make_flow_response(f"flow-{i}", all_flow_ids[i]) for i in range(200, 250)
+        ]
+
+        client.read_flows = AsyncMock(side_effect=[page1, page2])
+
+        result, warnings = await _fetch_flows_for_deployments(
+            client, {str(fid) for fid in all_flow_ids}
+        )
+
+        assert len(result) == 250
+        assert client.read_flows.call_count == 2
+        assert warnings == []
+
 
 class TestFetchSDKData:
     """Tests for fetch_sdk_data main function."""

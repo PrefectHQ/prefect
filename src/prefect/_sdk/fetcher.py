@@ -257,12 +257,31 @@ async def _fetch_flows_for_deployments(
     if not flow_uuids:
         return {}, warnings
 
-    # Fetch flows by ID
-    flows = await client.read_flows(
-        flow_filter=FlowFilter(id=FlowFilterId(any_=flow_uuids))
-    )
+    # Fetch flows by ID with pagination
+    page_size = 200
+    offset = 0
+    flow_id_to_name: dict[str, str] = {}
+    flow_filter = FlowFilter(id=FlowFilterId(any_=flow_uuids))
 
-    return {str(flow.id): flow.name for flow in flows}, warnings
+    while True:
+        flows = await client.read_flows(
+            flow_filter=flow_filter,
+            limit=page_size,
+            offset=offset,
+        )
+
+        if not flows:
+            break
+
+        for flow in flows:
+            flow_id_to_name[str(flow.id)] = flow.name
+
+        if len(flows) < page_size:
+            break
+
+        offset += page_size
+
+    return flow_id_to_name, warnings
 
 
 async def fetch_sdk_data(
