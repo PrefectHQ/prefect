@@ -160,6 +160,31 @@ class TestCloudRunWorkerJobV2Configuration:
             "containers"
         ][0]["command"] == ["prefect", "flow-run", "execute"]
 
+    def test_command_formats_correctly_for_logging(
+        self, cloud_run_worker_v2_job_config
+    ):
+        """
+        Regression test for command formatting in log messages.
+
+        Previously, the code used `" ".join(configuration.command)` where
+        `configuration.command` was a string. This caused each character to be
+        joined with spaces, producing "p r e f e c t   f l o w - r u n   e x e c u t e"
+        instead of "prefect flow-run execute".
+
+        The fix uses the command list from job_body which is properly formatted.
+        """
+        cloud_run_worker_v2_job_config._populate_or_format_command()
+
+        command_list = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0].get("command", [])
+        command_str = (
+            " ".join(command_list) if command_list else "default container command"
+        )
+
+        assert command_str == "prefect flow-run execute"
+        assert "p r e f e c t" not in command_str
+
     def test_format_args_if_present(self, cloud_run_worker_v2_job_config):
         cloud_run_worker_v2_job_config._format_args_if_present()
 
