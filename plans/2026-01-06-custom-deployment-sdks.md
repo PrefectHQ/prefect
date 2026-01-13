@@ -836,14 +836,14 @@ render_sdk(data: SDKData, output_path: Path) -> None
 - Zero deployments can be processed
 
 **Status**:
-- [ ] Authentication check implemented
-- [ ] Fetcher module created
-- [ ] Deployment listing with pagination
-- [ ] Work pool fetching (parallel/batched)
-- [ ] Graceful handling of missing work pools
-- [ ] Generator orchestrator created
-- [ ] Flow/deployment filtering
-- [ ] Partial failure handling with warnings
+- [x] Authentication check implemented
+- [x] Fetcher module created
+- [x] Deployment listing with pagination
+- [x] Work pool fetching (parallel/batched)
+- [x] Graceful handling of missing work pools
+- [x] Generator orchestrator created
+- [x] Flow/deployment filtering
+- [x] Partial failure handling with warnings
 - [ ] Works against live Prefect API
 - [ ] Generated SDK works end-to-end
 - [ ] **Checkpoint**: Manually verified with real data before proceeding to CLI
