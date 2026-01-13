@@ -271,31 +271,39 @@ class TestMakeUniqueIdentifier:
         assert result == "my_flow_5"
 
     def test_reserved_name_avoided(self):
-        result = make_unique_identifier("run", set(), RESERVED_DEPLOYMENT_IDENTIFIERS)
-        assert result == "run_2"
+        # 'self' is reserved for deployment context
+        result = make_unique_identifier("self", set(), RESERVED_DEPLOYMENT_IDENTIFIERS)
+        assert result == "self_2"
 
     def test_reserved_name_with_existing(self):
-        existing = {"run_2"}
+        existing = {"self_2"}
         result = make_unique_identifier(
-            "run", existing, RESERVED_DEPLOYMENT_IDENTIFIERS
+            "self", existing, RESERVED_DEPLOYMENT_IDENTIFIERS
         )
-        assert result == "run_3"
+        assert result == "self_3"
+
+    def test_run_not_reserved_in_deployment_context(self):
+        # 'run' is a method name but doesn't conflict with parameter names
+        result = make_unique_identifier("run", set(), RESERVED_DEPLOYMENT_IDENTIFIERS)
+        assert result == "run"
 
     def test_flows_reserved(self):
         result = make_unique_identifier("flows", set(), RESERVED_FLOW_IDENTIFIERS)
         assert result == "flows_2"
 
-    def test_with_options_reserved(self):
+    def test_with_options_not_reserved(self):
+        """with_options is not reserved - no functional collision with method."""
         result = make_unique_identifier(
             "with_options", set(), RESERVED_DEPLOYMENT_IDENTIFIERS
         )
-        assert result == "with_options_2"
+        assert result == "with_options"
 
-    def test_with_infra_reserved(self):
+    def test_with_infra_not_reserved(self):
+        """with_infra is not reserved - no functional collision with method."""
         result = make_unique_identifier(
             "with_infra", set(), RESERVED_DEPLOYMENT_IDENTIFIERS
         )
-        assert result == "with_infra_2"
+        assert result == "with_infra"
 
     def test_all_reserved_in_module_context(self):
         """Test that 'all' is reserved (normalized form of '__all__')."""
@@ -337,10 +345,13 @@ class TestGetReservedNames:
 
     def test_deployment_context(self):
         reserved = get_reserved_names("deployment")
-        assert "run" in reserved
-        assert "run_async" in reserved
-        assert "with_options" in reserved
-        assert "with_infra" in reserved
+        # Only 'self' is reserved - would break method signatures
+        assert "self" in reserved
+        # Method names are NOT reserved - no functional collision with parameters
+        assert "run" not in reserved
+        assert "run_async" not in reserved
+        assert "with_options" not in reserved
+        assert "with_infra" not in reserved
 
     def test_work_pool_context(self):
         reserved = get_reserved_names("work_pool")
@@ -369,8 +380,9 @@ class TestSafeIdentifier:
         assert result2 == "my_flow_2"
 
     def test_with_reserved_names(self):
-        result = safe_identifier("run", set(), "deployment")
-        assert result == "run_2"
+        # 'self' is reserved in deployment context
+        result = safe_identifier("self", set(), "deployment")
+        assert result == "self_2"
 
     def test_keyword_handling(self):
         result = safe_identifier("class", set())

@@ -38,13 +38,14 @@ PYTHON_KEYWORDS = frozenset(keyword.kwlist)
 # Flow identifiers that would shadow the root namespace
 RESERVED_FLOW_IDENTIFIERS = frozenset({"flows", "deployments", "DeploymentName"})
 
-# Deployment identifiers that would shadow class methods/attributes
+# Deployment identifiers that would break method signatures
+# Note: Method names (run, run_async, etc.) don't need to be reserved because
+# parameters are kwargs to run(), not attributes on the class.
+# Template locals now use _sdk_ prefix to avoid collisions.
 RESERVED_DEPLOYMENT_IDENTIFIERS = frozenset(
     {
-        "run",
-        "run_async",
-        "with_options",
-        "with_infra",
+        # Python built-in that would break method signatures
+        "self",
     }
 )
 
