@@ -18,8 +18,7 @@ and model-level observability to your dbt workflows.**
 This example shows patterns for:
 
 * **Conditional downstream execution** – Only run downstream models when upstream succeeds
-* **Staged pipelines** – Run model groups in sequence with gates between stages
-* **Model-level observability** – Each model run is a separate Prefect task
+* **Model-level observability** – Each dbt run is a separate Prefect task with results
 
 > **Note**: This example uses **dbt Core**. dbt Cloud's API only supports job-level operations.
 
@@ -166,35 +165,6 @@ def run_model_then_downstream(
         "downstream": downstream_result,
         "downstream_skipped": False,
     }
-
-
-@flow(name="staged_model_execution", log_prints=True)
-def staged_model_execution(
-    project_dir: Path,
-    stages: list[str],
-) -> dict[str, Any]:
-    """Run models in stages - each stage must succeed before the next runs.
-
-    Example:
-        staged_model_execution(project_dir, ["tag:staging", "tag:marts"])
-    """
-    logger = get_run_logger()
-    results = {"stages": [], "failed_at_stage": None}
-
-    for i, stage_select in enumerate(stages):
-        logger.info(f"Stage {i + 1}/{len(stages)}: {stage_select}")
-
-        stage_result = run_dbt_models(project_dir, select=stage_select)
-        results["stages"].append({"select": stage_select, "result": stage_result})
-
-        if not stage_result["success"]:
-            logger.error(f"Stage '{stage_select}' failed - stopping pipeline")
-            results["failed_at_stage"] = i
-            break
-
-        logger.info(f"Stage '{stage_select}' succeeded")
-
-    return results
 
 
 @flow(name="model_level_dbt_orchestration", log_prints=True)
