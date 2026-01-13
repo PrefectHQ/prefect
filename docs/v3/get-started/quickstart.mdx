@@ -83,8 +83,15 @@ In this tutorial, you'll deploy your first workflow to Prefect -- by specifying 
       </Step>
       <Step title="Where should it run?">
         At this point, you've successfully run a Prefect `flow` locally. Let's get it running off of your machine! Again, for simplicity, 
-        we'll deploy this workflow to Prefect's Serverless Compute (so we don't have to wrangle any infrastructure). We'll tell Prefect to clone
+        we'll deploy this workflow to Prefect's Serverless Compute (so we don't have to wrangle any infrastructure). 
+        
+        :::note
+        Deployment is optional — it’s only required if you want Prefect to run your workflow remotely or on a schedule.
+        :::
+
+        We'll tell Prefect to clone
         `https://github.com/PrefectHQ/quickstart` and invoke `01_getting_started.py:main`.
+        
         ```bash
         uvx prefect-cloud deploy 01_getting_started.py:main \
         --name my_first_deployment \
