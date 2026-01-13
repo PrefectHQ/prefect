@@ -1131,7 +1131,11 @@ async def mark_deployments_ready(
                     db.Deployment.work_queue_id.in_(work_queue_ids),
                 )
             )
-            .values(status=DeploymentStatus.READY, last_polled=last_polled, updated=db.Deployment.updated)
+            .values(
+                status=DeploymentStatus.READY,
+                last_polled=last_polled,
+                updated=db.Deployment.updated
+            )
         )
 
         if not unready_deployments:
@@ -1185,7 +1189,10 @@ async def mark_deployments_not_ready(
                         db.Deployment.work_queue_id.in_(work_queue_ids),
                     )
                 )
-                .values(status=DeploymentStatus.NOT_READY, updated=db.Deployment.updated)
+                .values(
+                    status=DeploymentStatus.NOT_READY,
+                    updated=db.Deployment.updated
+                )
             )
 
             if not ready_deployments:
