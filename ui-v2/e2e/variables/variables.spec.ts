@@ -158,10 +158,12 @@ test.describe("Variables Page", () => {
 			await expect(dialog).toBeVisible();
 
 			// Click the Close button in the dialog footer (not the X button in the corner)
-			await dialog
+			// Wait for the button to be visible and stable before clicking to avoid race conditions
+			const closeButton = dialog
 				.locator("form")
-				.getByRole("button", { name: /close/i })
-				.click();
+				.getByRole("button", { name: /close/i });
+			await expect(closeButton).toBeVisible();
+			await closeButton.click();
 
 			await expect(dialog).not.toBeVisible();
 		});
