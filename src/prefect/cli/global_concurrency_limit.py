@@ -30,45 +30,63 @@ app.add_typer(global_concurrency_limit_app, aliases=["gcl"])
 
 
 @global_concurrency_limit_app.command("ls")
-async def list_global_concurrency_limits():
+async def list_global_concurrency_limits(
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     List all global concurrency limits.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
     async with get_client() as client:
         gcl_limits = await client.read_global_concurrency_limits(limit=100, offset=0)
-        if not gcl_limits:
+        if not gcl_limits and not output:
             exit_with_success("No global concurrency limits found.")
 
-    table = Table(
-        title="Global Concurrency Limits",
-        caption="List Global Concurrency Limits using `prefect global-concurrency-limit ls`",
-        show_header=True,
-    )
-
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True, overflow="fold")
-    table.add_column("Name", style="blue", no_wrap=True, overflow="fold")
-    table.add_column("Active", style="blue", no_wrap=True)
-    table.add_column("Limit", style="blue", no_wrap=True)
-    table.add_column("Active Slots", style="blue", no_wrap=True)
-    table.add_column("Slot Decay Per Second", style="blue", no_wrap=True)
-    table.add_column("Created", style="blue", no_wrap=True)
-    table.add_column("Updated", style="blue", no_wrap=True)
-
-    for gcl_limit in sorted(gcl_limits, key=lambda x: f"{x.name}"):
-        assert gcl_limit.created is not None, "created is not None"
-        assert gcl_limit.updated is not None, "updated is not None"
-        table.add_row(
-            str(gcl_limit.id),
-            gcl_limit.name,
-            str(gcl_limit.active),
-            str(gcl_limit.limit),
-            str(gcl_limit.active_slots),
-            str(gcl_limit.slot_decay_per_second),
-            gcl_limit.created.isoformat(),
-            human_friendly_diff(gcl_limit.updated),
+    if output and output.lower() == "json":
+        gcl_limits_json = [
+            gcl_limit.model_dump(mode="json") for gcl_limit in gcl_limits
+        ]
+        json_output = orjson.dumps(gcl_limits_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(
+            title="Global Concurrency Limits",
+            caption="List Global Concurrency Limits using `prefect global-concurrency-limit ls`",
+            show_header=True,
         )
 
-    app.console.print(table)
+        table.add_column(
+            "ID", justify="right", style="cyan", no_wrap=True, overflow="fold"
+        )
+        table.add_column("Name", style="blue", no_wrap=True, overflow="fold")
+        table.add_column("Active", style="blue", no_wrap=True)
+        table.add_column("Limit", style="blue", no_wrap=True)
+        table.add_column("Active Slots", style="blue", no_wrap=True)
+        table.add_column("Slot Decay Per Second", style="blue", no_wrap=True)
+        table.add_column("Created", style="blue", no_wrap=True)
+        table.add_column("Updated", style="blue", no_wrap=True)
+
+        for gcl_limit in sorted(gcl_limits, key=lambda x: f"{x.name}"):
+            assert gcl_limit.created is not None, "created is not None"
+            assert gcl_limit.updated is not None, "updated is not None"
+            table.add_row(
+                str(gcl_limit.id),
+                gcl_limit.name,
+                str(gcl_limit.active),
+                str(gcl_limit.limit),
+                str(gcl_limit.active_slots),
+                str(gcl_limit.slot_decay_per_second),
+                gcl_limit.created.isoformat(),
+                human_friendly_diff(gcl_limit.updated),
+            )
+
+        app.console.print(table)
 
 
 @global_concurrency_limit_app.command("inspect")

@@ -52,6 +52,27 @@ def test_listing_gcl_empty(read_global_concurrency_limits: mock.AsyncMock):
     )
 
 
+def test_listing_gcl_empty_json_output(read_global_concurrency_limits: mock.AsyncMock):
+    read_global_concurrency_limits.return_value = []
+
+    invoke_and_assert(
+        ["global-concurrency-limit", "ls", "-o", "json"],
+        expected_output="[]",
+    )
+
+
+def test_listing_gcl_empty_something_else_output(
+    read_global_concurrency_limits: mock.AsyncMock,
+):
+    read_global_concurrency_limits.return_value = []
+
+    invoke_and_assert(
+        ["global-concurrency-limit", "ls", "-o", "xml"],
+        expected_output="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
 @pytest.fixture
 def various_global_concurrency_limits(
     read_global_concurrency_limits: mock.AsyncMock,
@@ -95,6 +116,21 @@ def various_global_concurrency_limits(
 def test_listing_gcl(various_global_concurrency_limits: List[GlobalConcurrencyLimit]):
     invoke_and_assert(
         ["global-concurrency-limit", "ls"],
+        expected_output_contains=(
+            # name check is truncated during tests as we can't match the full name without changing the width of the column
+            str(various_global_concurrency_limits[0].name[:14]),
+            str(various_global_concurrency_limits[1].name[:14]),
+            str(various_global_concurrency_limits[2].name[:14]),
+        ),
+        expected_code=0,
+    )
+
+
+def test_listing_gcl_json_output(
+    various_global_concurrency_limits: List[GlobalConcurrencyLimit],
+):
+    invoke_and_assert(
+        ["global-concurrency-limit", "ls", "-o", "json"],
         expected_output_contains=(
             # name check is truncated during tests as we can't match the full name without changing the width of the column
             str(various_global_concurrency_limits[0].name[:14]),
