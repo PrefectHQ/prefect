@@ -32,6 +32,7 @@ export {
 	createFakeTaskRun,
 	createFakeTaskRunResponse,
 } from "./create-fake-task-run";
+export { createFakeVariable } from "./create-fake-variable";
 export { createFakeVersion } from "./create-fake-version";
 export {
 	createFakeWorkPool,

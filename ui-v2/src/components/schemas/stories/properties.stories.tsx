@@ -575,3 +575,47 @@ export const prefectKindJinjaWithValue: Story = {
 	},
 };
 prefectKindJinjaWithValue.storyName = "prefect_kind:jinja (with value)";
+
+export const prefectKindWorkspaceVariableEmpty: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				config: {
+					type: "string",
+					title: "Config",
+				},
+			},
+		},
+		values: {
+			config: {
+				__prefect_kind: "workspace_variable",
+				variable_name: undefined,
+			},
+		},
+	},
+};
+prefectKindWorkspaceVariableEmpty.storyName =
+	"prefect_kind:workspace_variable (empty)";
+
+export const prefectKindWorkspaceVariableWithValue: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				config: {
+					type: "string",
+					title: "Config",
+				},
+			},
+		},
+		values: {
+			config: {
+				__prefect_kind: "workspace_variable",
+				variable_name: "my_variable",
+			},
+		},
+	},
+};
+prefectKindWorkspaceVariableWithValue.storyName =
+	"prefect_kind:workspace_variable (with value)";

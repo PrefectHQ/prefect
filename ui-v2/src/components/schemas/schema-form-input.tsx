@@ -9,6 +9,7 @@ import { SchemaFormInputNumber } from "./schema-form-input-number";
 import { SchemaFormInputObject } from "./schema-form-input-object";
 import { SchemaFormInputPrefectKindJinja } from "./schema-form-input-prefect-kind-jinja";
 import { SchemaFormInputPrefectKindJson } from "./schema-form-input-prefect-kind-json";
+import { SchemaFormInputPrefectKindWorkspaceVariable } from "./schema-form-input-prefect-kind-workspace-variable";
 import { SchemaFormInputString } from "./schema-form-input-string";
 import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
 import type { SchemaFormErrors } from "./types/errors";
@@ -51,6 +52,16 @@ export function SchemaFormInput({
 		if (isPrefectKindValue(value, "jinja")) {
 			return (
 				<SchemaFormInputPrefectKindJinja
+					value={value}
+					onValueChange={onValueChange}
+					id={id}
+				/>
+			);
+		}
+
+		if (isPrefectKindValue(value, "workspace_variable")) {
+			return (
+				<SchemaFormInputPrefectKindWorkspaceVariable
 					value={value}
 					onValueChange={onValueChange}
 					id={id}
