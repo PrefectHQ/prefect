@@ -1179,7 +1179,6 @@ class TestGetRunsInWorkQueue:
                 # Regression test for #14655 - updated should NOT change when polling
                 assert updated_deployment_response.json()["updated"] == original_updated
 
-
     async def test_read_work_queue_runs_updates_work_queue_status(
         self,
         hosted_api_client,
