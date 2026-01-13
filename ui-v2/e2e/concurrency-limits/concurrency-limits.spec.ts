@@ -88,7 +88,7 @@ test.describe("Concurrency Limits Page", () => {
 			page.getByRole("dialog", { name: /delete concurrency limit/i }),
 		).toBeVisible();
 		await page.getByRole("button", { name: /delete/i }).click();
-		await expect(page.getByText(limitName)).not.toBeVisible();
+		await expect(page.getByRole("dialog")).not.toBeVisible();
 
 		// Verify empty state returns
 		await expect(
@@ -149,7 +149,7 @@ test.describe("Concurrency Limits Page", () => {
 			page.getByRole("dialog", { name: /delete concurrency limit/i }),
 		).toBeVisible();
 		await page.getByRole("button", { name: /delete/i }).click();
-		await expect(page.getByText(tagName)).not.toBeVisible();
+		await expect(page.getByRole("dialog")).not.toBeVisible();
 
 		// Verify empty state returns
 		await expect(
