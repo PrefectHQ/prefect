@@ -574,7 +574,7 @@ class GetInputHandler(Generic[R]):
                 raise
             raise StopAsyncIteration
 
-    async def afilter_for_inputs(self) -> list["FlowRunInput"]:
+    async def filter_for_inputs(self) -> list["FlowRunInput"]:
         """Filter for inputs asynchronously."""
         flow_run_inputs = await afilter_flow_run_input(
             key_prefix=self.key_prefix,
@@ -607,14 +607,14 @@ class GetInputHandler(Generic[R]):
 
     async def anext(self) -> R:
         """Get the next input asynchronously."""
-        flow_run_inputs = await self.afilter_for_inputs()
+        flow_run_inputs = await self.filter_for_inputs()
         if flow_run_inputs:
             return self.to_instance(flow_run_inputs[0])
 
         with anyio.fail_after(self.timeout):
             while True:
                 await anyio.sleep(self.poll_interval)
-                flow_run_inputs = await self.afilter_for_inputs()
+                flow_run_inputs = await self.filter_for_inputs()
                 if flow_run_inputs:
                     return self.to_instance(flow_run_inputs[0])
 
@@ -686,7 +686,7 @@ class GetAutomaticInputHandler(Generic[T]):
                 raise
             raise StopAsyncIteration
 
-    async def afilter_for_inputs(self) -> list["FlowRunInput"]:
+    async def filter_for_inputs(self) -> list["FlowRunInput"]:
         """Filter for inputs asynchronously."""
         flow_run_inputs = await afilter_flow_run_input(
             key_prefix=self.key_prefix,
@@ -716,14 +716,14 @@ class GetAutomaticInputHandler(Generic[T]):
 
     async def anext(self) -> Union[T, AutomaticRunInput[T]]:
         """Get the next input asynchronously."""
-        flow_run_inputs = await self.afilter_for_inputs()
+        flow_run_inputs = await self.filter_for_inputs()
         if flow_run_inputs:
             return self.to_instance(flow_run_inputs[0])
 
         with anyio.fail_after(self.timeout):
             while True:
                 await anyio.sleep(self.poll_interval)
-                flow_run_inputs = await self.afilter_for_inputs()
+                flow_run_inputs = await self.filter_for_inputs()
                 if flow_run_inputs:
                     return self.to_instance(flow_run_inputs[0])
 
