@@ -38,27 +38,32 @@ export const useSchemaForm = () => {
 	const [hasValidatedOnce, setHasValidatedOnce] = useState(false);
 	const schemaRef = useRef<Record<string, unknown> | null>(null);
 
-	const performValidation = useCallback(async () => {
-		if (!schemaRef.current) {
-			return;
-		}
-
-		try {
-			const { errors: validationErrors, valid } = await validateSchemaValues(
-				schemaRef.current,
-				values,
-			);
-			if (valid) {
-				setErrors([]);
-			} else {
-				setErrors(validationErrors);
+	const runValidation = useCallback(
+		async (options?: { throwOnError?: boolean }) => {
+			if (!schemaRef.current) {
+				return;
 			}
-		} catch {
-			// Silently fail for auto-validation
-		}
-	}, [values, setErrors]);
 
-	const debouncedValidation = useDebounceCallback(performValidation, 1000);
+			try {
+				const { errors: validationErrors, valid } = await validateSchemaValues(
+					schemaRef.current,
+					values,
+				);
+				if (valid) {
+					setErrors([]);
+				} else {
+					setErrors(validationErrors);
+				}
+			} catch {
+				if (options?.throwOnError) {
+					throw new Error("Server error occurred validating schema");
+				}
+			}
+		},
+		[values, setErrors],
+	);
+
+	const debouncedValidation = useDebounceCallback(runValidation, 1000);
 
 	useEffect(() => {
 		if (hasValidatedOnce && errors.length > 0 && schemaRef.current) {
@@ -72,21 +77,8 @@ export const useSchemaForm = () => {
 		schema: Record<string, unknown>;
 	}) => {
 		schemaRef.current = schema;
-
-		try {
-			const { errors: validationErrors, valid } = await validateSchemaValues(
-				schema,
-				values,
-			);
-			if (valid) {
-				setErrors([]);
-			} else {
-				setErrors(validationErrors);
-			}
-			setHasValidatedOnce(true);
-		} catch {
-			throw new Error("Server error occurred validating schema");
-		}
+		await runValidation({ throwOnError: true });
+		setHasValidatedOnce(true);
 	};
 
 	return {
