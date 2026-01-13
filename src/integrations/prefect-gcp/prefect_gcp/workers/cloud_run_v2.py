@@ -844,10 +844,11 @@ class CloudRunWorkerV2(
                 execution_id=submission["metadata"]["name"],
             )
 
+            command_list = configuration.job_body["template"]["template"]["containers"][
+                0
+            ].get("command", [])
             command = (
-                " ".join(configuration.command)
-                if configuration.command
-                else "default container command"
+                " ".join(command_list) if command_list else "default container command"
             )
 
             logger.info(
