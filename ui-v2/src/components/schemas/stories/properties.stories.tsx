@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
 import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
+import { createFakeBlockDocument, createFakeBlockType } from "@/mocks";
 import { TestSchemaForm } from "./utilities";
 
 const userDefinition: PrefectSchemaObject = {
@@ -619,3 +622,40 @@ export const prefectKindWorkspaceVariableWithValue: Story = {
 };
 prefectKindWorkspaceVariableWithValue.storyName =
 	"prefect_kind:workspace_variable (with value)";
+
+const MOCK_BLOCK_TYPE = createFakeBlockType({
+	slug: "aws-credentials",
+	name: "AWS Credentials",
+});
+
+const MOCK_BLOCK_DOCUMENTS = Array.from({ length: 5 }, (_, i) =>
+	createFakeBlockDocument({ name: `aws-credentials-${i}` }),
+);
+
+export const blockTypeSlug: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				credentials: {
+					title: "AWS Credentials",
+					// @ts-expect-error blockTypeSlug is a custom property not in the schema types
+					blockTypeSlug: "aws-credentials",
+				},
+			},
+		},
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.get(buildApiUrl("/block_types/slug/:slug"), () => {
+					return HttpResponse.json(MOCK_BLOCK_TYPE);
+				}),
+				http.post(buildApiUrl("/block_documents/filter"), () => {
+					return HttpResponse.json(MOCK_BLOCK_DOCUMENTS);
+				}),
+			],
+		},
+	},
+};
+blockTypeSlug.storyName = "blockTypeSlug";
