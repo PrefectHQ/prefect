@@ -424,7 +424,7 @@ async def work_pool_updated_event(
     work_pool: "ORMWorkPool",
     changed_fields: Dict[
         str, Dict[str, Any]
-    ],  # {"field_name": {"old": value, "new": value}}
+    ],  # {"field_name": {"from": value, "to": value}}
     occurred: DateTime,
 ) -> Event:
     """Create an event for work pool field updates (non-status)."""
