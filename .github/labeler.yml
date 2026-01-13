@@ -1,6 +1,6 @@
 plan:
   - changed-files:
-      - any-glob-to-any-file: plans/**
+      - all-globs-to-all-files: plans/**
 
 docs:
   - all:
