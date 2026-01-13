@@ -2,6 +2,7 @@ import type { SchemaObject } from "openapi-typescript";
 import { SchemaFormInputAllOf } from "./schema-form-input-all-of";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
 import { SchemaFormInputArray } from "./schema-form-input-array";
+import { SchemaFormInputBlockDocument } from "./schema-form-input-block-document";
 import { SchemaFormInputBoolean } from "./schema-form-input-boolean";
 import { SchemaFormInputInteger } from "./schema-form-input-integer";
 import { SchemaFormInputNull } from "./schema-form-input-null";
@@ -74,7 +75,17 @@ export function SchemaFormInput({
 	}
 
 	if ("blockTypeSlug" in property) {
-		throw new Error("not implemented");
+		const blockTypeSlug = property.blockTypeSlug;
+		if (typeof blockTypeSlug === "string") {
+			return (
+				<SchemaFormInputBlockDocument
+					value={value as { $ref: string } | undefined}
+					onValueChange={onValueChange}
+					blockTypeSlug={blockTypeSlug}
+					id={id}
+				/>
+			);
+		}
 	}
 
 	if (isAnyOfObject(property)) {

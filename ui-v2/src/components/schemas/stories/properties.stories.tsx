@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
 import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
+import { createFakeBlockDocument } from "@/mocks";
+import { reactQueryDecorator } from "@/storybook/utils";
 import { TestSchemaForm } from "./utilities";
+
+const MOCK_BLOCK_DOCUMENTS = Array.from({ length: 5 }, (_, i) =>
+	createFakeBlockDocument({ id: `block-${i}`, name: `my-block-${i}` }),
+);
 
 const userDefinition: PrefectSchemaObject = {
 	type: "object",
@@ -23,6 +31,7 @@ const userDefinition: PrefectSchemaObject = {
 const meta = {
 	title: "Components/SchemaForm/Properties",
 	component: TestSchemaForm,
+	decorators: [reactQueryDecorator],
 	parameters: {
 		layout: "fullscreen",
 	},
@@ -619,3 +628,58 @@ export const prefectKindWorkspaceVariableWithValue: Story = {
 };
 prefectKindWorkspaceVariableWithValue.storyName =
 	"prefect_kind:workspace_variable (with value)";
+
+export const blockTypeSlugEmpty: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				credentials: {
+					title: "AWS Credentials",
+					// @ts-expect-error blockTypeSlug is a custom property not in the schema types
+					blockTypeSlug: "aws-credentials",
+				},
+			},
+		},
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/block_documents/filter"), () => {
+					return HttpResponse.json(MOCK_BLOCK_DOCUMENTS);
+				}),
+			],
+		},
+	},
+};
+blockTypeSlugEmpty.storyName = "blockTypeSlug (empty)";
+
+export const blockTypeSlugWithValue: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				credentials: {
+					title: "AWS Credentials",
+					// @ts-expect-error blockTypeSlug is a custom property not in the schema types
+					blockTypeSlug: "aws-credentials",
+				},
+			},
+		},
+		values: {
+			credentials: {
+				$ref: "block-0",
+			},
+		},
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/block_documents/filter"), () => {
+					return HttpResponse.json(MOCK_BLOCK_DOCUMENTS);
+				}),
+			],
+		},
+	},
+};
+blockTypeSlugWithValue.storyName = "blockTypeSlug (with value)";
