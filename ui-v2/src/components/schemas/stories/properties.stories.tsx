@@ -3,6 +3,7 @@ import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
 import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
 import { createFakeBlockDocument } from "@/mocks";
+import { reactQueryDecorator } from "@/storybook/utils";
 import { TestSchemaForm } from "./utilities";
 
 const MOCK_BLOCK_DOCUMENTS = Array.from({ length: 5 }, (_, i) =>
@@ -30,6 +31,7 @@ const userDefinition: PrefectSchemaObject = {
 const meta = {
 	title: "Components/SchemaForm/Properties",
 	component: TestSchemaForm,
+	decorators: [reactQueryDecorator],
 	parameters: {
 		layout: "fullscreen",
 	},
