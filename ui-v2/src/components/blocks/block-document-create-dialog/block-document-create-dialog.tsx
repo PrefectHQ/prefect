@@ -29,6 +29,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type BlockDocumentCreateDialogProps = {
 	open: boolean;
@@ -60,15 +61,10 @@ export const BlockDocumentCreateDialog = ({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-				<Suspense
-					fallback={
-						<div className="flex flex-col gap-4">
-							<div className="h-6 w-48 animate-pulse bg-muted rounded" />
-							<div className="h-10 animate-pulse bg-muted rounded" />
-							<div className="h-32 animate-pulse bg-muted rounded" />
-						</div>
-					}
-				>
+				<DialogHeader>
+					<DialogTitle>Create New Block</DialogTitle>
+				</DialogHeader>
+				<Suspense fallback={<BlockDocumentCreateDialogSkeleton />}>
 					<BlockDocumentCreateDialogContent
 						blockTypeSlug={blockTypeSlug}
 						onCreated={onCreated}
@@ -77,6 +73,16 @@ export const BlockDocumentCreateDialog = ({
 				</Suspense>
 			</DialogContent>
 		</Dialog>
+	);
+};
+
+const BlockDocumentCreateDialogSkeleton = () => {
+	return (
+		<div className="flex flex-col gap-4">
+			<Skeleton className="h-10 w-full" />
+			<Skeleton className="h-32 w-full" />
+			<Skeleton className="h-10 w-24 ml-auto" />
+		</div>
 	);
 };
 
@@ -91,9 +97,6 @@ const BlockDocumentCreateDialogContent = ({
 	onCreated,
 	onOpenChange,
 }: BlockDocumentCreateDialogContentProps) => {
-	const { values, setValues, errors, validateForm } = useSchemaForm();
-	const { createBlockDocument, isPending } = useCreateBlockDocument();
-
 	const { data: blockType } = useSuspenseQuery(
 		buildGetBlockTypeQuery(blockTypeSlug),
 	);
@@ -102,13 +105,49 @@ const BlockDocumentCreateDialogContent = ({
 		buildListFilterBlockSchemasQuery({
 			block_schemas: {
 				block_type_id: { any_: [blockType.id] },
-				operator: "and_",
 			},
-			offset: 0,
+			limit: 1,
 		}),
 	);
 
 	const blockSchema = blockSchemas[0];
+
+	if (!blockSchema) {
+		return (
+			<div className="text-muted-foreground">
+				No schema found for this block type.
+			</div>
+		);
+	}
+
+	return (
+		<BlockDocumentCreateForm
+			blockTypeId={blockType.id}
+			blockSchemaId={blockSchema.id}
+			blockSchemaFields={blockSchema.fields as unknown as PrefectSchemaObject}
+			onCreated={onCreated}
+			onOpenChange={onOpenChange}
+		/>
+	);
+};
+
+type BlockDocumentCreateFormProps = {
+	blockTypeId: string;
+	blockSchemaId: string;
+	blockSchemaFields: PrefectSchemaObject;
+	onCreated: (blockDocumentId: string) => void;
+	onOpenChange: (open: boolean) => void;
+};
+
+const BlockDocumentCreateForm = ({
+	blockTypeId,
+	blockSchemaId,
+	blockSchemaFields,
+	onCreated,
+	onOpenChange,
+}: BlockDocumentCreateFormProps) => {
+	const { values, setValues, errors, validateForm } = useSchemaForm();
+	const { createBlockDocument, isPending } = useCreateBlockDocument();
 
 	const form = useForm({
 		resolver: zodResolver(BlockNameFormSchema),
@@ -116,11 +155,6 @@ const BlockDocumentCreateDialogContent = ({
 	});
 
 	const onSave = async (zodFormValues: BlockNameFormSchema) => {
-		if (!blockSchema) {
-			toast.error("Block schema not found");
-			return;
-		}
-
 		try {
 			await validateForm({ schema: values });
 			if (errors.length > 0) {
@@ -128,8 +162,8 @@ const BlockDocumentCreateDialogContent = ({
 			}
 			createBlockDocument(
 				{
-					block_schema_id: blockSchema.id,
-					block_type_id: blockType.id,
+					block_schema_id: blockSchemaId,
+					block_type_id: blockTypeId,
 					is_anonymous: false,
 					data: values,
 					name: zodFormValues.blockName,
@@ -138,6 +172,7 @@ const BlockDocumentCreateDialogContent = ({
 					onSuccess: (res) => {
 						toast.success("Block created successfully");
 						onCreated(res.id);
+						onOpenChange(false);
 					},
 					onError: (err) => {
 						const message = "Unknown error while creating block.";
@@ -153,60 +188,47 @@ const BlockDocumentCreateDialogContent = ({
 		}
 	};
 
-	if (!blockSchema) {
-		return (
-			<div className="text-center py-4 text-muted-foreground">
-				No schema found for this block type.
-			</div>
-		);
-	}
-
 	return (
-		<>
-			<DialogHeader>
-				<DialogTitle>Create {blockType.name}</DialogTitle>
-			</DialogHeader>
-			<Form {...form}>
-				<form
-					className="flex flex-col gap-4"
-					onSubmit={(e) => void form.handleSubmit(onSave)(e)}
-				>
-					<FormField
-						control={form.control}
-						name="blockName"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Name</FormLabel>
-								<FormControl>
-									<Input {...field} value={field.value} />
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
+		<Form {...form}>
+			<form
+				className="flex flex-col gap-4"
+				onSubmit={(e) => void form.handleSubmit(onSave)(e)}
+			>
+				<FormField
+					control={form.control}
+					name="blockName"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Name</FormLabel>
+							<FormControl>
+								<Input {...field} value={field.value} />
+							</FormControl>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
-					<LazySchemaForm
-						values={values}
-						onValuesChange={setValues}
-						errors={errors}
-						kinds={["json"]}
-						schema={blockSchema.fields as unknown as PrefectSchemaObject}
-					/>
+				<LazySchemaForm
+					values={values}
+					onValuesChange={setValues}
+					errors={errors}
+					kinds={["json"]}
+					schema={blockSchemaFields}
+				/>
 
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="secondary"
-							onClick={() => onOpenChange(false)}
-						>
-							Cancel
-						</Button>
-						<Button loading={isPending} type="submit">
-							Create
-						</Button>
-					</DialogFooter>
-				</form>
-			</Form>
-		</>
+				<DialogFooter>
+					<Button
+						variant="secondary"
+						type="button"
+						onClick={() => onOpenChange(false)}
+					>
+						Cancel
+					</Button>
+					<Button loading={isPending} type="submit">
+						Create
+					</Button>
+				</DialogFooter>
+			</form>
+		</Form>
 	);
 };

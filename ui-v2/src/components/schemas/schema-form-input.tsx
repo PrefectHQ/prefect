@@ -74,15 +74,18 @@ export function SchemaFormInput({
 		throw new Error(`Prefect kind not implemented: ${value.__prefect_kind}`);
 	}
 
-	if ("blockTypeSlug" in property && property.blockTypeSlug) {
-		return (
-			<SchemaFormInputBlockDocument
-				value={value as { $ref: string } | undefined}
-				onValueChange={onValueChange}
-				blockTypeSlug={property.blockTypeSlug as string}
-				id={id}
-			/>
-		);
+	if ("blockTypeSlug" in property) {
+		const blockTypeSlug = property.blockTypeSlug;
+		if (typeof blockTypeSlug === "string") {
+			return (
+				<SchemaFormInputBlockDocument
+					value={value as { $ref: string } | undefined}
+					onValueChange={onValueChange}
+					blockTypeSlug={blockTypeSlug}
+					id={id}
+				/>
+			);
+		}
 	}
 
 	if (isAnyOfObject(property)) {

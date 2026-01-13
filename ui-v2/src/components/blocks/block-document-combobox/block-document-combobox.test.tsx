@@ -4,21 +4,17 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { createFakeBlockDocument, createFakeBlockType } from "@/mocks";
+import type { components } from "@/api/prefect";
+import { createFakeBlockDocument } from "@/mocks";
 import { BlockDocumentCombobox } from "./block-document-combobox";
 
 describe("BlockDocumentCombobox", () => {
 	beforeAll(mockPointerEvents);
 
-	const mockBlockType = createFakeBlockType({ slug: "test-block-type" });
-
-	const mockBlockDocumentsAPI = (
-		blockDocuments: ReturnType<typeof createFakeBlockDocument>[],
+	const mockListBlockDocumentsAPI = (
+		blockDocuments: Array<components["schemas"]["BlockDocument"]>,
 	) => {
 		server.use(
-			http.get(buildApiUrl("/block_types/slug/:slug"), () => {
-				return HttpResponse.json(mockBlockType);
-			}),
 			http.post(buildApiUrl("/block_documents/filter"), () => {
 				return HttpResponse.json(blockDocuments);
 			}),
@@ -28,16 +24,16 @@ describe("BlockDocumentCombobox", () => {
 	it("able to select a block document", async () => {
 		const mockOnSelect = vi.fn();
 		const blockDocuments = [
-			createFakeBlockDocument({ name: "my-block-0" }),
-			createFakeBlockDocument({ name: "my-block-1" }),
+			createFakeBlockDocument({ id: "block-1", name: "my_block_0" }),
+			createFakeBlockDocument({ id: "block-2", name: "my_block_1" }),
 		];
-		mockBlockDocumentsAPI(blockDocuments);
+		mockListBlockDocumentsAPI(blockDocuments);
 
 		const user = userEvent.setup();
 
 		render(
 			<BlockDocumentCombobox
-				blockTypeSlug="test-block-type"
+				blockTypeSlug="aws-credentials"
 				selectedBlockDocumentId={undefined}
 				onSelect={mockOnSelect}
 			/>,
@@ -45,42 +41,40 @@ describe("BlockDocumentCombobox", () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByLabelText(`Select a ${mockBlockType.name}`),
-			).toBeVisible(),
+			expect(screen.getByLabelText(/select a block/i)).toBeVisible(),
 		);
 
-		await user.click(screen.getByLabelText(`Select a ${mockBlockType.name}`));
-		await user.click(screen.getByRole("option", { name: "my-block-0" }));
+		await user.click(screen.getByLabelText(/select a block/i));
+		await user.click(screen.getByRole("option", { name: "my_block_0" }));
 
-		expect(mockOnSelect).toHaveBeenLastCalledWith(blockDocuments[0].id);
+		expect(mockOnSelect).toHaveBeenLastCalledWith("block-1");
 	});
 
 	it("has the selected value displayed", async () => {
 		const blockDocuments = [
-			createFakeBlockDocument({ name: "my-block-0" }),
-			createFakeBlockDocument({ name: "my-block-1" }),
+			createFakeBlockDocument({ id: "block-1", name: "my_block_0" }),
+			createFakeBlockDocument({ id: "block-2", name: "my_block_1" }),
 		];
-		mockBlockDocumentsAPI(blockDocuments);
+		mockListBlockDocumentsAPI(blockDocuments);
 
 		render(
 			<BlockDocumentCombobox
-				blockTypeSlug="test-block-type"
-				selectedBlockDocumentId={blockDocuments[0].id}
+				blockTypeSlug="aws-credentials"
+				selectedBlockDocumentId="block-1"
 				onSelect={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
 
-		await waitFor(() => expect(screen.getByText("my-block-0")).toBeVisible());
+		await waitFor(() => expect(screen.getByText("my_block_0")).toBeVisible());
 	});
 
 	it("shows placeholder when no block document is selected", async () => {
-		mockBlockDocumentsAPI([]);
+		mockListBlockDocumentsAPI([]);
 
 		render(
 			<BlockDocumentCombobox
-				blockTypeSlug="test-block-type"
+				blockTypeSlug="aws-credentials"
 				selectedBlockDocumentId={undefined}
 				onSelect={vi.fn()}
 			/>,
@@ -88,21 +82,19 @@ describe("BlockDocumentCombobox", () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByText(`Select a ${mockBlockType.name}...`),
-			).toBeVisible(),
+			expect(screen.getByText("Select a block...")).toBeVisible(),
 		);
 	});
 
 	it("shows create new button when onCreateNew is provided", async () => {
 		const mockOnCreateNew = vi.fn();
-		mockBlockDocumentsAPI([]);
+		mockListBlockDocumentsAPI([]);
 
 		const user = userEvent.setup();
 
 		render(
 			<BlockDocumentCombobox
-				blockTypeSlug="test-block-type"
+				blockTypeSlug="aws-credentials"
 				selectedBlockDocumentId={undefined}
 				onSelect={vi.fn()}
 				onCreateNew={mockOnCreateNew}
@@ -111,15 +103,11 @@ describe("BlockDocumentCombobox", () => {
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByLabelText(`Select a ${mockBlockType.name}`),
-			).toBeVisible(),
+			expect(screen.getByLabelText(/select a block/i)).toBeVisible(),
 		);
 
-		await user.click(screen.getByLabelText(`Select a ${mockBlockType.name}`));
-		await user.click(
-			screen.getByRole("button", { name: `Create new ${mockBlockType.name}` }),
-		);
+		await user.click(screen.getByLabelText(/select a block/i));
+		await user.click(screen.getByRole("option", { name: /create new block/i }));
 
 		expect(mockOnCreateNew).toHaveBeenCalled();
 	});

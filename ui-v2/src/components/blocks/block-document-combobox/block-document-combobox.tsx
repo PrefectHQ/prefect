@@ -1,8 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useDeferredValue, useMemo, useState } from "react";
 import { buildListFilterBlockDocumentsQuery } from "@/api/block-documents";
-import { buildGetBlockTypeQuery } from "@/api/block-types";
-import { Button } from "@/components/ui/button";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -29,9 +27,7 @@ export const BlockDocumentCombobox = ({
 	onCreateNew,
 }: BlockDocumentComboboxProps) => {
 	return (
-		<Suspense
-			fallback={<div className="h-10 animate-pulse bg-muted rounded" />}
-		>
+		<Suspense>
 			<BlockDocumentComboboxImplementation
 				blockTypeSlug={blockTypeSlug}
 				selectedBlockDocumentId={selectedBlockDocumentId}
@@ -51,89 +47,77 @@ const BlockDocumentComboboxImplementation = ({
 	const [search, setSearch] = useState("");
 	const deferredSearch = useDeferredValue(search);
 
-	const { data: blockType } = useSuspenseQuery(
-		buildGetBlockTypeQuery(blockTypeSlug),
-	);
-
-	const { data: blockDocuments } = useSuspenseQuery(
+	const { data } = useSuspenseQuery(
 		buildListFilterBlockDocumentsQuery({
-			block_types: {
-				slug: {
-					any_: [blockTypeSlug],
-				},
-			},
-			block_documents: {
-				operator: "and_",
-				is_anonymous: { eq_: false },
-				...(deferredSearch
-					? {
-							name: {
-								like_: deferredSearch,
-							},
-						}
-					: {}),
-			},
 			offset: 0,
-			limit: 50,
-			sort: "NAME_ASC",
+			sort: "BLOCK_TYPE_AND_NAME_ASC",
 			include_secrets: false,
+			block_types: {
+				slug: { any_: [blockTypeSlug] },
+			},
+			block_documents: deferredSearch
+				? { name: { like_: deferredSearch } }
+				: undefined,
+			limit: 50,
 		}),
 	);
 
 	const filteredData = useMemo(() => {
-		return blockDocuments.filter((doc) =>
-			doc.name?.toLowerCase().includes(deferredSearch.toLowerCase()),
+		return data.filter((blockDocument) =>
+			blockDocument.name?.toLowerCase().includes(deferredSearch.toLowerCase()),
 		);
-	}, [blockDocuments, deferredSearch]);
+	}, [data, deferredSearch]);
 
 	const selectedBlockDocument = useMemo(() => {
-		return blockDocuments.find((doc) => doc.id === selectedBlockDocumentId);
-	}, [blockDocuments, selectedBlockDocumentId]);
-
-	const displayName =
-		selectedBlockDocument?.name ?? `Select a ${blockType.name}...`;
+		return data.find(
+			(blockDocument) => blockDocument.id === selectedBlockDocumentId,
+		);
+	}, [data, selectedBlockDocumentId]);
 
 	return (
 		<Combobox>
 			<ComboboxTrigger
 				selected={Boolean(selectedBlockDocumentId)}
-				aria-label={`Select a ${blockType.name}`}
+				aria-label="Select a block"
 			>
-				{displayName}
+				{selectedBlockDocument?.name ?? "Select a block..."}
 			</ComboboxTrigger>
 			<ComboboxContent>
 				<ComboboxCommandInput
 					value={search}
 					onValueChange={setSearch}
-					placeholder={`Search for a ${blockType.name}...`}
+					placeholder="Search for a block..."
 				/>
-				<ComboboxCommandEmtpy>No block document found</ComboboxCommandEmtpy>
+				<ComboboxCommandEmtpy>No block found</ComboboxCommandEmtpy>
 				<ComboboxCommandList>
 					<ComboboxCommandGroup>
-						{filteredData.map((doc) => (
+						{filteredData.map((blockDocument) => (
 							<ComboboxCommandItem
-								key={doc.id}
-								selected={selectedBlockDocumentId === doc.id}
-								onSelect={() => {
-									onSelect(doc.id);
+								key={blockDocument.id}
+								selected={selectedBlockDocumentId === blockDocument.id}
+								onSelect={(value) => {
+									onSelect(value);
 									setSearch("");
 								}}
-								value={doc.id}
+								value={blockDocument.id}
 							>
-								{doc.name}
+								{blockDocument.name}
 							</ComboboxCommandItem>
 						))}
 					</ComboboxCommandGroup>
 					{onCreateNew && (
 						<ComboboxCommandGroup>
-							<Button
-								variant="ghost"
-								className="w-full justify-start"
-								onClick={onCreateNew}
+							<ComboboxCommandItem
+								onSelect={() => {
+									onCreateNew();
+									setSearch("");
+								}}
+								value="__create_new__"
+								closeOnSelect={true}
 							>
 								<Icon id="Plus" className="mr-2 size-4" />
-								Create new {blockType.name}
-							</Button>
+								Create new block
+							</ComboboxCommandItem>
 						</ComboboxCommandGroup>
 					)}
 				</ComboboxCommandList>

@@ -4,98 +4,81 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { createFakeBlockDocument, createFakeBlockType } from "@/mocks";
+import { createFakeBlockDocument } from "@/mocks";
 import { SchemaFormInputBlockDocument } from "./schema-form-input-block-document";
 
 describe("SchemaFormInputBlockDocument", () => {
 	beforeAll(mockPointerEvents);
 
-	const mockBlockType = createFakeBlockType({ slug: "test-block-type" });
+	const mockBlockDocuments = [
+		createFakeBlockDocument({ id: "block-1", name: "my_block_0" }),
+		createFakeBlockDocument({ id: "block-2", name: "my_block_1" }),
+	];
 
-	const mockBlockDocumentsAPI = (
-		blockDocuments: ReturnType<typeof createFakeBlockDocument>[],
-	) => {
+	const setupMocks = () => {
 		server.use(
-			http.get(buildApiUrl("/block_types/slug/:slug"), () => {
-				return HttpResponse.json(mockBlockType);
-			}),
 			http.post(buildApiUrl("/block_documents/filter"), () => {
-				return HttpResponse.json(blockDocuments);
+				return HttpResponse.json(mockBlockDocuments);
 			}),
 		);
 	};
 
-	it("renders the combobox with placeholder when no value is selected", async () => {
-		mockBlockDocumentsAPI([]);
+	it("renders the combobox", async () => {
+		setupMocks();
 
 		render(
 			<SchemaFormInputBlockDocument
 				value={undefined}
 				onValueChange={vi.fn()}
-				blockTypeSlug="test-block-type"
-				id="test-input"
+				blockTypeSlug="aws-credentials"
+				id="test-id"
 			/>,
 			{ wrapper: createWrapper() },
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByText(`Select a ${mockBlockType.name}...`),
-			).toBeVisible(),
+			expect(screen.getByLabelText(/select a block/i)).toBeVisible(),
 		);
 	});
 
-	it("calls onValueChange with $ref when a block document is selected", async () => {
+	it("calls onValueChange with $ref when a block is selected", async () => {
+		setupMocks();
 		const mockOnValueChange = vi.fn();
-		const blockDocuments = [
-			createFakeBlockDocument({ name: "my-block-0" }),
-			createFakeBlockDocument({ name: "my-block-1" }),
-		];
-		mockBlockDocumentsAPI(blockDocuments);
-
 		const user = userEvent.setup();
 
 		render(
 			<SchemaFormInputBlockDocument
 				value={undefined}
 				onValueChange={mockOnValueChange}
-				blockTypeSlug="test-block-type"
-				id="test-input"
+				blockTypeSlug="aws-credentials"
+				id="test-id"
 			/>,
 			{ wrapper: createWrapper() },
 		);
 
 		await waitFor(() =>
-			expect(
-				screen.getByLabelText(`Select a ${mockBlockType.name}`),
-			).toBeVisible(),
+			expect(screen.getByLabelText(/select a block/i)).toBeVisible(),
 		);
 
-		await user.click(screen.getByLabelText(`Select a ${mockBlockType.name}`));
-		await user.click(screen.getByRole("option", { name: "my-block-0" }));
+		await user.click(screen.getByLabelText(/select a block/i));
+		await user.click(screen.getByRole("option", { name: "my_block_0" }));
 
-		expect(mockOnValueChange).toHaveBeenLastCalledWith({
-			$ref: blockDocuments[0].id,
-		});
+		expect(mockOnValueChange).toHaveBeenCalledWith({ $ref: "block-1" });
 	});
 
 	it("displays the selected block document name", async () => {
-		const blockDocuments = [
-			createFakeBlockDocument({ name: "my-block-0" }),
-			createFakeBlockDocument({ name: "my-block-1" }),
-		];
-		mockBlockDocumentsAPI(blockDocuments);
+		setupMocks();
 
 		render(
 			<SchemaFormInputBlockDocument
-				value={{ $ref: blockDocuments[0].id }}
+				value={{ $ref: "block-1" }}
 				onValueChange={vi.fn()}
-				blockTypeSlug="test-block-type"
-				id="test-input"
+				blockTypeSlug="aws-credentials"
+				id="test-id"
 			/>,
 			{ wrapper: createWrapper() },
 		);
 
-		await waitFor(() => expect(screen.getByText("my-block-0")).toBeVisible());
+		await waitFor(() => expect(screen.getByText("my_block_0")).toBeVisible());
 	});
 });

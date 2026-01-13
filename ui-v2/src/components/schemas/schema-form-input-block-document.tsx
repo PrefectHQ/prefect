@@ -1,14 +1,16 @@
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { BlockDocumentCombobox } from "@/components/blocks/block-document-combobox";
 import { BlockDocumentCreateDialog } from "@/components/blocks/block-document-create-dialog";
 
-type BlockDocumentReferenceValue = {
-	$ref: string;
-};
+type BlockDocumentReferenceValue =
+	| {
+			$ref: string;
+	  }
+	| undefined;
 
 type SchemaFormInputBlockDocumentProps = {
-	value: BlockDocumentReferenceValue | undefined;
-	onValueChange: (value: BlockDocumentReferenceValue | undefined) => void;
+	value: BlockDocumentReferenceValue;
+	onValueChange: (value: BlockDocumentReferenceValue) => void;
 	blockTypeSlug: string;
 	id: string;
 };
@@ -21,36 +23,33 @@ export function SchemaFormInputBlockDocument({
 }: SchemaFormInputBlockDocumentProps) {
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
+	const selectedBlockDocumentId = value?.$ref;
+
 	const handleSelect = (blockDocumentId: string | undefined) => {
-		if (!blockDocumentId) {
+		if (blockDocumentId) {
+			onValueChange({ $ref: blockDocumentId });
+		} else {
 			onValueChange(undefined);
-			return;
 		}
-		onValueChange({ $ref: blockDocumentId });
 	};
 
-	const handleBlockCreated = (blockDocumentId: string) => {
+	const handleCreated = (blockDocumentId: string) => {
 		onValueChange({ $ref: blockDocumentId });
-		setCreateDialogOpen(false);
 	};
 
 	return (
 		<div id={id}>
-			<Suspense
-				fallback={<div className="h-10 animate-pulse bg-muted rounded" />}
-			>
-				<BlockDocumentCombobox
-					blockTypeSlug={blockTypeSlug}
-					selectedBlockDocumentId={value?.$ref}
-					onSelect={handleSelect}
-					onCreateNew={() => setCreateDialogOpen(true)}
-				/>
-			</Suspense>
+			<BlockDocumentCombobox
+				blockTypeSlug={blockTypeSlug}
+				selectedBlockDocumentId={selectedBlockDocumentId}
+				onSelect={handleSelect}
+				onCreateNew={() => setCreateDialogOpen(true)}
+			/>
 			<BlockDocumentCreateDialog
 				open={createDialogOpen}
 				onOpenChange={setCreateDialogOpen}
 				blockTypeSlug={blockTypeSlug}
-				onCreated={handleBlockCreated}
+				onCreated={handleCreated}
 			/>
 		</div>
 	);
