@@ -11,6 +11,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
+import orjson
 import typer
 import yaml
 from rich.table import Table
@@ -255,32 +256,45 @@ async def register(
 
 
 @blocks_app.command("ls")
-async def block_ls():
+async def block_ls(
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     View all configured blocks.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
     async with get_client() as client:
         blocks = await client.read_block_documents()
-
-    table = Table(
-        title="Blocks", caption="List Block Types using `prefect block type ls`"
-    )
-    table.add_column("ID", style="cyan", no_wrap=True)
-    table.add_column("Type", style="blue", no_wrap=True)
-    table.add_column("Name", style="blue", no_wrap=True)
-    table.add_column("Slug", style="blue", no_wrap=True)
-
-    for block in sorted(
-        blocks, key=lambda x: f"{getattr(x.block_type, 'slug', '')}/{x.name}"
-    ):
-        table.add_row(
-            str(block.id),
-            getattr(block.block_type, "name", ""),
-            str(block.name),
-            f"{getattr(block.block_type, 'slug', '')}/{block.name}",
+    if output and output.lower() == "json":
+        blocks_json = [block.model_dump(mode="json") for block in blocks]
+        json_output = orjson.dumps(blocks_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(
+            title="Blocks", caption="List Block Types using `prefect block type ls`"
         )
+        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("Type", style="blue", no_wrap=True)
+        table.add_column("Name", style="blue", no_wrap=True)
+        table.add_column("Slug", style="blue", no_wrap=True)
 
-    app.console.print(table)
+        for block in sorted(
+            blocks, key=lambda x: f"{getattr(x.block_type, 'slug', '')}/{x.name}"
+        ):
+            table.add_row(
+                str(block.id),
+                getattr(block.block_type, "name", ""),
+                str(block.name),
+                f"{getattr(block.block_type, 'slug', '')}/{block.name}",
+            )
+
+        app.console.print(table)
 
 
 @blocks_app.command("delete")
