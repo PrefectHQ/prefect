@@ -104,8 +104,10 @@ const BlockDocumentCreateDialogContent = ({
 	const { data: blockSchemas } = useSuspenseQuery(
 		buildListFilterBlockSchemasQuery({
 			block_schemas: {
+				operator: "and_",
 				block_type_id: { any_: [blockType.id] },
 			},
+			offset: 0,
 			limit: 1,
 		}),
 	);

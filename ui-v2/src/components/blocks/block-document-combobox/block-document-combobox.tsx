@@ -55,9 +55,11 @@ const BlockDocumentComboboxImplementation = ({
 			block_types: {
 				slug: { any_: [blockTypeSlug] },
 			},
-			block_documents: deferredSearch
-				? { name: { like_: deferredSearch } }
-				: undefined,
+			block_documents: {
+				operator: "and_",
+				is_anonymous: { eq_: false },
+				...(deferredSearch ? { name: { like_: deferredSearch } } : {}),
+			},
 			limit: 50,
 		}),
 	);

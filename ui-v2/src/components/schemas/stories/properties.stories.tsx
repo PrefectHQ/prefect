@@ -632,9 +632,9 @@ export const blockTypeSlugEmpty: Story = {
 		schema: {
 			type: "object",
 			properties: {
-				//@ts-expect-error blockTypeSlug isn't part of the schema types
 				credentials: {
 					title: "AWS Credentials",
+					// @ts-expect-error blockTypeSlug is a custom property not in the schema types
 					blockTypeSlug: "aws-credentials",
 				},
 			},
@@ -657,9 +657,9 @@ export const blockTypeSlugWithValue: Story = {
 		schema: {
 			type: "object",
 			properties: {
-				//@ts-expect-error blockTypeSlug isn't part of the schema types
 				credentials: {
 					title: "AWS Credentials",
+					// @ts-expect-error blockTypeSlug is a custom property not in the schema types
 					blockTypeSlug: "aws-credentials",
 				},
 			},
