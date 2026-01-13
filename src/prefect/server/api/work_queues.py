@@ -161,14 +161,20 @@ async def read_work_queue_runs(
     if x_prefect_ui:
         return flow_runs
 
-    await docket.add(mark_work_queues_ready)(
+    await docket.add(
+        mark_work_queues_ready,
+        key=f"mark_work_queues_ready:{work_queue_id}",
+    )(
         polled_work_queue_ids=[work_queue_id],
         ready_work_queue_ids=(
             [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
         ),
     )
 
-    await docket.add(mark_deployments_ready)(
+    await docket.add(
+        mark_deployments_ready,
+        key=f"mark_deployments_ready:work_queue:{work_queue_id}",
+    )(
         work_queue_ids=[work_queue_id],
     )
 
