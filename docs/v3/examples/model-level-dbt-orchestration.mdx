@@ -1,0 +1,510 @@
+---
+title: Model-Level dbt Orchestration
+description: Orchestrate dbt models individually with dependency-aware execution, enabling fine-grained control over your data pipeline.
+icon: sitemap
+keywords: ["dbt", "orchestration", "dependencies", "models", "lineage", "dag"]
+---
+
+
+{/*
+This page is automatically generated via the `generate_example_pages.py` script. Any changes to this page will be overwritten.
+*/}
+<a href="https://github.com/PrefectHQ/prefect/blob/main/examples/model_level_dbt_orchestration.py" target="_blank">View on GitHub</a>
+
+
+**Run dbt models individually with automatic dependency resolution – trigger downstream models only when their upstream dependencies succeed.**
+
+This example demonstrates **model-level orchestration** with dbt Core, which provides:
+
+* **Fine-grained control** – Run specific models or model groups based on your needs
+* **Dependency-aware execution** – Automatically understand and respect the dbt DAG
+* **Conditional downstream triggers** – Only run downstream models when upstream models succeed
+* **Model-level observability** – See exactly which models ran, succeeded, or failed
+
+This pattern is especially useful when you need to:
+- Trigger specific downstream models when upstream data is ready
+- Run subsets of your dbt project based on business logic
+- Implement custom orchestration patterns beyond simple `dbt run`
+
+> **Note**: This example uses **dbt Core** which provides full access to the manifest
+> and allows model-level execution. dbt Cloud's API currently only supports job-level
+> orchestration without model-level events.
+
+This example demonstrates these Prefect features:
+* [`@task`](https://docs.prefect.io/v3/develop/write-tasks#write-and-run-tasks) – Individual model runs as observable tasks
+* [`@flow`](https://docs.prefect.io/v3/develop/write-flows) – Orchestrate model execution order
+* [**prefect-dbt integration**](https://docs.prefect.io/integrations/prefect-dbt) – Native dbt execution with manifest access
+
+### The Scenario: Dependency-Aware Model Execution
+
+You have a dbt project where certain models are critical dependencies for downstream
+analytics. Instead of running the entire project, you want to:
+1. Parse the dbt manifest to understand model dependencies
+2. Run specific models in dependency order
+3. Only trigger downstream models when upstream models succeed
+4. Get model-level status for monitoring and alerting
+
+### Running the example locally
+```bash
+python examples/model_level_dbt_orchestration.py
+```
+
+```python
+import io
+import json
+import shutil
+import urllib.request
+import zipfile
+from pathlib import Path
+from typing import Any
+
+from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
+
+from prefect import flow, task
+from prefect.logging import get_run_logger
+
+DEFAULT_REPO_ZIP = (
+    "https://github.com/PrefectHQ/examples/archive/refs/heads/examples-markdown.zip"
+)
+
+
+```
+
+---------------------------------------------------------------------------
+Project Setup – reuse from the basic dbt example
+---------------------------------------------------------------------------
+
+```python
+@task(retries=2, retry_delay_seconds=5, log_prints=True)
+def setup_dbt_project(repo_zip_url: str = DEFAULT_REPO_ZIP) -> Path:
+    """Download and setup the demo dbt project with DuckDB profile."""
+
+    project_dir = Path(__file__).parent / "prefect_dbt_project"
+
+    if not project_dir.exists():
+        print(f"Downloading dbt project archive → {repo_zip_url}\n")
+        tmp_extract_base = project_dir.parent / "_tmp_dbt_extract"
+        if tmp_extract_base.exists():
+            shutil.rmtree(tmp_extract_base)
+
+        with urllib.request.urlopen(repo_zip_url) as resp:
+            data = resp.read()
+
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            zf.extractall(tmp_extract_base)
+
+        candidates = list(
+            tmp_extract_base.rglob("**/resources/prefect_dbt_project/dbt_project.yml")
+        )
+        if not candidates:
+            raise ValueError("dbt_project.yml not found in expected location")
+
+        project_root = candidates[0].parent
+        shutil.move(str(project_root), str(project_dir))
+        shutil.rmtree(tmp_extract_base)
+        print(f"Extracted dbt project to {project_dir}\n")
+    else:
+        print(f"Using cached dbt project at {project_dir}\n")
+
+    # Create profiles.yml for DuckDB
+    profiles_content = f"""demo:
+  outputs:
+    dev:
+      type: duckdb
+      path: {project_dir}/demo.duckdb
+      threads: 1
+  target: dev"""
+
+    profiles_path = project_dir / "profiles.yml"
+    with open(profiles_path, "w") as f:
+        f.write(profiles_content)
+
+    return project_dir
+
+
+```
+
+---------------------------------------------------------------------------
+Manifest Parsing – Extract model dependencies from dbt
+---------------------------------------------------------------------------
+
+```python
+@task(log_prints=True)
+def parse_manifest(project_dir: Path) -> dict[str, Any]:
+    """Parse the dbt manifest to extract model dependencies.
+
+    The manifest.json contains the full DAG of your dbt project, including:
+    - All models, sources, seeds, snapshots, and tests
+    - Dependencies between nodes (depends_on)
+    - Configuration and metadata for each node
+
+    This enables Prefect to understand your dbt project structure and
+    orchestrate models based on their actual dependencies.
+    """
+    logger = get_run_logger()
+
+    # First, we need to generate the manifest by running dbt parse
+    settings = PrefectDbtSettings(
+        project_dir=str(project_dir),
+        profiles_dir=str(project_dir),
+    )
+    runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+    runner.invoke(["parse"])
+
+    # Load the manifest
+    manifest_path = project_dir / "target" / "manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Manifest not found at {manifest_path}")
+
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+
+    # Extract model information
+    models = {}
+    for node_id, node in manifest.get("nodes", {}).items():
+        if node.get("resource_type") == "model":
+            models[node_id] = {
+                "name": node["name"],
+                "unique_id": node_id,
+                "depends_on": node.get("depends_on", {}).get("nodes", []),
+                "schema": node.get("schema"),
+                "materialized": node.get("config", {}).get("materialized", "view"),
+            }
+
+    logger.info(f"Found {len(models)} models in manifest")
+    for model_id, model in models.items():
+        deps = [d.split(".")[-1] for d in model["depends_on"] if "model." in d]
+        logger.info(f"  - {model['name']}: depends on {deps or 'nothing'}")
+
+    return {"models": models, "manifest": manifest}
+
+
+```
+
+---------------------------------------------------------------------------
+Model Execution – Run individual models with status tracking
+---------------------------------------------------------------------------
+
+```python
+@task(retries=1, retry_delay_seconds=5, log_prints=True)
+def run_model(
+    project_dir: Path,
+    model_name: str,
+) -> dict[str, Any]:
+    """Run a single dbt model and return its execution status.
+
+    This task runs one model at a time using dbt's --select flag,
+    enabling fine-grained control over execution order and providing
+    model-level success/failure status.
+    """
+    logger = get_run_logger()
+    logger.info(f"Running model: {model_name}")
+
+    settings = PrefectDbtSettings(
+        project_dir=str(project_dir),
+        profiles_dir=str(project_dir),
+    )
+    runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+
+    # Run the specific model using --select
+    runner.invoke(["run", "--select", model_name])
+
+    # Check run_results.json for detailed status
+    run_results_path = project_dir / "target" / "run_results.json"
+    status = "unknown"
+    execution_time = 0.0
+
+    if run_results_path.exists():
+        with open(run_results_path) as f:
+            run_results = json.load(f)
+
+        for r in run_results.get("results", []):
+            if r.get("unique_id", "").endswith(f".{model_name}"):
+                status = r.get("status", "unknown")
+                execution_time = r.get("execution_time", 0.0)
+                break
+
+    result_info = {
+        "model": model_name,
+        "status": status,
+        "execution_time": execution_time,
+        "success": status == "success",
+    }
+
+    if result_info["success"]:
+        logger.info(f"✓ Model {model_name} completed in {execution_time:.2f}s")
+    else:
+        logger.warning(f"✗ Model {model_name} failed with status: {status}")
+
+    return result_info
+
+
+```
+
+---------------------------------------------------------------------------
+Dependency Resolution – Determine execution order from DAG
+---------------------------------------------------------------------------
+
+```python
+def get_execution_order(
+    models: dict[str, Any],
+    target_models: list[str] | None = None,
+) -> list[str]:
+    """Determine the correct execution order based on dependencies.
+
+    Uses topological sorting to ensure models run after their dependencies.
+    If target_models is specified, only includes those models and their
+    upstream dependencies.
+    """
+    # Build a simple dependency graph
+    # model_name -> list of model_names it depends on
+    deps_graph: dict[str, list[str]] = {}
+
+    for model_id, model in models.items():
+        model_name = model["name"]
+        model_deps = []
+        for dep_id in model["depends_on"]:
+            if dep_id in models:  # Only include model dependencies
+                model_deps.append(models[dep_id]["name"])
+        deps_graph[model_name] = model_deps
+
+    # If target models specified, filter to only those and their dependencies
+    if target_models:
+        needed_models = set()
+
+        def add_with_deps(model_name: str):
+            if model_name in needed_models or model_name not in deps_graph:
+                return
+            needed_models.add(model_name)
+            for dep in deps_graph.get(model_name, []):
+                add_with_deps(dep)
+
+        for target in target_models:
+            add_with_deps(target)
+
+        deps_graph = {k: v for k, v in deps_graph.items() if k in needed_models}
+
+    # Topological sort (Kahn's algorithm)
+    in_degree = {m: 0 for m in deps_graph}
+    for model, deps in deps_graph.items():
+        for dep in deps:
+            if dep in in_degree:
+                in_degree[model] += 1
+
+    # Start with models that have no dependencies
+    queue = [m for m, degree in in_degree.items() if degree == 0]
+    execution_order = []
+
+    while queue:
+        model = queue.pop(0)
+        execution_order.append(model)
+
+        # Reduce in-degree for dependent models
+        for dependent, deps in deps_graph.items():
+            if model in deps:
+                in_degree[dependent] -= 1
+                if in_degree[dependent] == 0:
+                    queue.append(dependent)
+
+    return execution_order
+
+
+```
+
+---------------------------------------------------------------------------
+Orchestration Flow – Model-level execution with dependency awareness
+---------------------------------------------------------------------------
+
+```python
+@flow(name="model_level_dbt_orchestration", log_prints=True)
+def model_level_dbt_flow(
+    target_models: list[str] | None = None,
+    stop_on_failure: bool = True,
+) -> dict[str, Any]:
+    """Orchestrate dbt models with dependency-aware execution.
+
+    This flow demonstrates model-level orchestration:
+    1. Parse the dbt manifest to understand the DAG
+    2. Determine execution order based on dependencies
+    3. Run each model as a separate Prefect task
+    4. Track success/failure at the model level
+    5. Optionally stop on first failure
+
+    Args:
+        target_models: Specific models to run (with their dependencies).
+                      If None, runs all models.
+        stop_on_failure: If True, stops execution when a model fails.
+
+    Returns:
+        Summary of model execution results.
+    """
+    logger = get_run_logger()
+
+    # Setup project and parse manifest
+    project_dir = setup_dbt_project()
+
+    # Install dependencies first
+    settings = PrefectDbtSettings(
+        project_dir=str(project_dir),
+        profiles_dir=str(project_dir),
+    )
+    runner = PrefectDbtRunner(settings=settings, raise_on_failure=False)
+    runner.invoke(["deps"])
+
+    # Parse manifest to get model dependencies
+    manifest_info = parse_manifest(project_dir)
+    models = manifest_info["models"]
+
+    # Determine execution order
+    execution_order = get_execution_order(models, target_models)
+    logger.info(f"\nExecution order: {' → '.join(execution_order)}\n")
+
+    # Track results
+    results = {
+        "models_run": [],
+        "succeeded": [],
+        "failed": [],
+        "skipped": [],
+    }
+
+    # Execute models in dependency order
+    for model_name in execution_order:
+        # Check if upstream dependencies succeeded
+        model_info = next((m for m in models.values() if m["name"] == model_name), None)
+        if model_info:
+            upstream_deps = [
+                models[d]["name"] for d in model_info["depends_on"] if d in models
+            ]
+            failed_deps = [d for d in upstream_deps if d in results["failed"]]
+
+            if failed_deps:
+                logger.warning(
+                    f"Skipping {model_name} - upstream dependencies failed: {failed_deps}"
+                )
+                results["skipped"].append(model_name)
+                continue
+
+        # Run the model
+        result = run_model(project_dir, model_name)
+        results["models_run"].append(model_name)
+
+        if result["success"]:
+            results["succeeded"].append(model_name)
+        else:
+            results["failed"].append(model_name)
+            if stop_on_failure:
+                logger.error(f"Stopping execution due to failure in {model_name}")
+                # Mark remaining models as skipped
+                remaining = execution_order[execution_order.index(model_name) + 1 :]
+                results["skipped"].extend(remaining)
+                break
+
+    # Summary
+    logger.info("\n" + "=" * 50)
+    logger.info("EXECUTION SUMMARY")
+    logger.info("=" * 50)
+    logger.info(f"✓ Succeeded: {len(results['succeeded'])} - {results['succeeded']}")
+    logger.info(f"✗ Failed:    {len(results['failed'])} - {results['failed']}")
+    logger.info(f"○ Skipped:   {len(results['skipped'])} - {results['skipped']}")
+
+    return results
+
+
+```
+
+---------------------------------------------------------------------------
+Advanced Pattern: Conditional Downstream Execution
+---------------------------------------------------------------------------
+
+```python
+@flow(name="conditional_downstream_flow", log_prints=True)
+def conditional_downstream_flow(
+    upstream_models: list[str],
+    downstream_models: list[str],
+) -> dict[str, Any]:
+    """Run downstream models only if all upstream models succeed.
+
+    This pattern is useful when you have:
+    - Critical upstream models that must succeed
+    - Downstream models that should only run conditionally
+    - Business logic that requires specific models to complete first
+
+    Example use case: Run mart models only after all staging models succeed.
+    """
+    logger = get_run_logger()
+
+    # First, run all upstream models
+    logger.info(f"Running upstream models: {upstream_models}")
+    upstream_results = model_level_dbt_flow(
+        target_models=upstream_models,
+        stop_on_failure=True,
+    )
+
+    # Check if all upstream models succeeded
+    upstream_success = len(upstream_results["failed"]) == 0
+
+    if not upstream_success:
+        logger.error("Upstream models failed - skipping downstream execution")
+        return {
+            "upstream": upstream_results,
+            "downstream": {"skipped": True, "reason": "upstream failure"},
+        }
+
+    # Run downstream models
+    logger.info(f"\nUpstream succeeded! Running downstream models: {downstream_models}")
+    downstream_results = model_level_dbt_flow(
+        target_models=downstream_models,
+        stop_on_failure=False,
+    )
+
+    return {
+        "upstream": upstream_results,
+        "downstream": downstream_results,
+    }
+
+
+```
+
+### What This Enables
+
+With model-level orchestration, you can:
+
+1. **Fine-grained execution** – Run exactly the models you need, when you need them
+2. **Dependency awareness** – Automatically respect the dbt DAG without manual wiring
+3. **Conditional logic** – Implement business rules for when models should run
+4. **Model-level observability** – See exactly which models succeeded or failed
+5. **Smart failure handling** – Skip downstream models when upstream fails
+
+### Why dbt Core (not Cloud) for This Pattern
+
+This pattern requires direct access to:
+- The dbt manifest (for dependency information)
+- Model-level execution (via --select)
+- Run results (for success/failure status)
+
+dbt Core provides all of this. dbt Cloud's API currently only exposes
+job-level operations – you can trigger and monitor jobs, but not
+individual models within a job.
+
+### Extending This Pattern
+
+You can extend this pattern to:
+- Integrate with external systems (wait for upstream data)
+- Add custom business date logic
+- Implement model-level alerting
+- Build dynamic model selection based on data changes
+- Create approval workflows for critical models
+
+```python
+if __name__ == "__main__":
+    # Run all models in dependency order
+    print("Running all models with dependency-aware orchestration...\n")
+    results = model_level_dbt_flow()
+
+    print("\n" + "=" * 50)
+    print("To run specific models with their dependencies:")
+    print('  model_level_dbt_flow(target_models=["my_model"])')
+    print("\nTo run conditional downstream execution:")
+    print('  conditional_downstream_flow(["stg_a", "stg_b"], ["mart_x"])')
+
+```
