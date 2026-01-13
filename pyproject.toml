@@ -237,7 +237,9 @@ include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/prefect"]
-# Include Jinja2 templates for SDK generation
+# Hatch only includes Python files in wheel builds by default. Non-Python files
+# like Jinja2 templates must be explicitly included here so they're available
+# at runtime when using importlib.resources to load the SDK template.
 include = ["src/prefect/_sdk/templates/*.jinja"]
 
 [tool.pytest.ini_options]
