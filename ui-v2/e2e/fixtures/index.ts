@@ -40,7 +40,7 @@ export {
 	type TaskRunConcurrencyLimit,
 	type Variable,
 	waitForServerHealth,
-} from "./api-helpers";
+} from "./api-helpers/index";
 export {
 	clearAuthCredentials,
 	getAuthCredentials,
