@@ -21,36 +21,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect._internal.compatibility.starlette import status
 from prefect.client.base import app_lifespan_context
 from prefect.server import models, schemas
-from prefect.server.api.server import create_app
 from prefect.server.schemas.statuses import DeploymentStatus
-from prefect.settings import PREFECT_SERVER_DOCKET_NAME, temporary_settings
-
-
-@pytest.fixture
-async def app_with_real_docket() -> AsyncGenerator[FastAPI, Any]:
-    """Create an app with a real Docket instance via lifespan context."""
-    unique_name = f"test-docket-{uuid4().hex[:8]}"
-    with temporary_settings({PREFECT_SERVER_DOCKET_NAME: unique_name}):
-        app = create_app(ephemeral=True)
-        async with app_lifespan_context(app):
-            yield app
 
 
 @pytest.fixture
 async def client_with_real_docket(
-    app_with_real_docket: FastAPI,
+    app: FastAPI,
 ) -> AsyncGenerator[AsyncClient, Any]:
-    """Yield a test client with a real Docket instance."""
-    async with httpx.AsyncClient(
-        transport=ASGITransport(app=app_with_real_docket), base_url="https://test/api"
-    ) as async_client:
-        yield async_client
+    """Yield a test client with a real Docket instance via lifespan context."""
+    async with app_lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test/api"
+        ) as async_client:
+            yield async_client
 
 
 @pytest.fixture
-def real_docket(app_with_real_docket: FastAPI) -> Docket:
-    """Get the real Docket instance from the app."""
-    return app_with_real_docket.api_app.state.docket
+async def real_docket(app: FastAPI, client_with_real_docket: AsyncClient) -> Docket:
+    """Get the real Docket instance from the app.
+
+    Depends on client_with_real_docket to ensure lifespan context is active.
+    """
+    return app.api_app.state.docket
 
 
 class TestDocketAtMostOnceExecution:
