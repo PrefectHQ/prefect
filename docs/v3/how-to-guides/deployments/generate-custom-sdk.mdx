@@ -4,63 +4,26 @@ sidebarTitle: Generate a Custom SDK
 description: Generate a custom Python SDK from your deployments for IDE autocomplete and type checking.
 ---
 
-<Info>
-The `prefect sdk generate` command is in **beta**. APIs may change in future releases.
-</Info>
+The `prefect sdk generate` command creates a typed Python file from your [deployments](/v3/concepts/deployments). This gives you IDE autocomplete and static type checking when triggering deployment runs programmatically.
 
-The Custom Deployments SDK feature generates a typed Python file from your workspace deployments. This provides:
-- **IDE autocomplete** for discovering flows and deployments
-- **Static type checking** for parameters and job variables
-- **Reduced runtime errors** by catching type mismatches before execution
-
-## Before and after
-
-### Without a generated SDK
-
-{/* pmd-metadata: notest */}
-```python
-from prefect.deployments import run_deployment
-
-# No autocomplete, no type checking, runtime errors for typos
-run_deployment(
-    name="my-etl-flow/production",  # Easy to typo
-    parameters={"sorce": "s3://bucket"},  # Typo not caught until runtime  # codespell:ignore sorce
-)
-```
-
-### With a generated SDK
-
-{/* pmd-metadata: notest */}
-```python
-from my_sdk import deployments
-
-# IDE autocomplete, type checking, errors caught immediately
-deployments.from_name("my-etl-flow/production").with_options(
-    tags=["production"],
-).with_infra(
-    memory="8Gi",
-).run(
-    source="s3://bucket",
-    batch_size=100,
-)
-```
+<Note>
+This feature is in **beta**. APIs may change in future releases.
+</Note>
 
 ## Prerequisites
 
 - An active Prefect API connection (Prefect Cloud or self-hosted server)
-- At least one deployment in your workspace
+- At least one [deployment](/v3/how-to-guides/deployments/create-deployments) in your workspace
 
-## Generate the SDK
+## Generate an SDK from the CLI
 
-Run the following command to generate a typed SDK:
+Generate a typed SDK for all deployments in your workspace:
 
 ```bash
 prefect sdk generate --output ./my_sdk.py
 ```
 
-This fetches all deployments from your connected workspace and generates a Python file with typed classes for each deployment.
-
-### Filter by flow or deployment
+### Filter to specific flows or deployments
 
 Generate an SDK for specific flows:
 
@@ -83,9 +46,9 @@ prefect sdk generate --output ./my_sdk.py \
     --deployment analytics/daily
 ```
 
-## Using the generated SDK
+## Run deployments with the generated SDK
 
-### Basic usage
+The generated SDK provides a `deployments.from_name()` method that returns a typed deployment object:
 
 {/* pmd-metadata: notest */}
 ```python
@@ -109,7 +72,7 @@ result = future.result()
 
 ### Configure run options
 
-Use `with_options()` to configure how the deployment runs:
+Use `with_options()` to set tags, scheduling, and other run configuration:
 
 {/* pmd-metadata: notest */}
 ```python
@@ -134,9 +97,9 @@ Available options:
 - `scheduled_time`: Schedule the run for a future time
 - `flow_run_name`: Custom name for the flow run
 
-### Configure infrastructure (job variables)
+### Override job variables
 
-Use `with_infra()` to configure work pool-specific job variables:
+Use `with_infra()` to override work pool job variables:
 
 {/* pmd-metadata: notest */}
 ```python
@@ -151,30 +114,29 @@ future = deployments.from_name("my-etl-flow/production").with_infra(
 )
 ```
 
-The available job variables depend on your work pool type. The generated SDK provides type hints for all available options.
+The available job variables depend on your work pool type. The generated SDK provides type hints for the options available on each deployment's work pool.
 
 ### Async usage
 
-For async contexts, use `run_async()`:
+In an async context, use `run_async()`:
 
 {/* pmd-metadata: notest */}
 ```python
 import asyncio
 from my_sdk import deployments
 
-async def main():
+async def trigger_deployment():
     future = await deployments.from_name("my-etl-flow/production").run_async(
         source="s3://bucket",
     )
     result = await future.result()
-    print(f"Result: {result}")
+    return result
 
-asyncio.run(main())
+# Run it
+result = asyncio.run(trigger_deployment())
 ```
 
-### Method chaining
-
-Methods can be chained together:
+### Chain methods together
 
 {/* pmd-metadata: notest */}
 ```python
@@ -188,31 +150,12 @@ future = (
 )
 ```
 
-## Type safety
+## Regenerate the SDK after changes
 
-The generated SDK enables type checkers like pyright or mypy to catch errors:
-
-{/* pmd-metadata: notest */}
-```python
-from my_sdk import deployments
-
-# Type error: "staging" is not a valid deployment name
-deployment = deployments.from_name("my-etl-flow/staging")
-
-# Type error: unknown parameter "sorce"  # codespell:ignore sorce
-deployment.run(sorce="s3://bucket")  # Should be "source"  # codespell:ignore sorce
-
-# Type error: batch_size should be int, not str
-deployment.run(source="s3://bucket", batch_size="100")
-```
-
-## Regenerating the SDK
-
-Regenerate your SDK when:
+The SDK is generated from server-side metadata. Regenerate it when:
 - Deployments are added, removed, or renamed
-- Work pool schemas change
-- Parameter schemas change
-- You upgrade Prefect to a new version
+- Flow parameter schemas change
+- Work pool job variable schemas change
 
 The `generate` command overwrites the existing file:
 
@@ -221,20 +164,11 @@ prefect sdk generate --output ./my_sdk.py
 ```
 
 <Tip>
-Consider adding SDK regeneration to your CI/CD pipeline to keep it up to date.
+Add SDK regeneration to your CI/CD pipeline to keep it in sync with your deployments.
 </Tip>
 
-## What gets generated
+## Further reading
 
-The generated SDK file contains:
-
-1. **DeploymentName type** - A `Literal` type with all deployment names for autocomplete
-2. **Work pool TypedDicts** - Typed dictionaries for job variables per work pool
-3. **Deployment classes** - One class per deployment with typed `run()` and `run_async()` methods
-4. **Deployments namespace** - The `deployments.from_name()` entry point with `@overload` for type-safe dispatch
-
-## Limitations
-
-- The SDK is generated from server-side metadata (JSON Schema). It does not inspect flow source code.
-- Changes to deployments require regenerating the SDK.
-- Complex nested types may be simplified to `Any` in some cases.
+- [Create deployments](/v3/how-to-guides/deployments/create-deployments)
+- [Trigger ad-hoc deployment runs](/v3/how-to-guides/deployments/run-deployments)
+- [Override job configuration](/v3/how-to-guides/deployments/customize-job-variables)
