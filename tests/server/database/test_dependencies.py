@@ -85,6 +85,8 @@ async def test_injecting_really_dumb_query_components():
 
         def json_arr_agg(self, json_array): ...
 
+        def json_contains(self, json_col, values): ...
+
         # --- dialect-optimized subqueries
 
         def make_timestamp_intervals(
