@@ -7,7 +7,9 @@ from starlette import status
 
 from prefect import flow, task
 from prefect.concurrency.v1._asyncio import (
+    aacquire_concurrency_slots,
     acquire_concurrency_slots,
+    arelease_concurrency_slots,
     release_concurrency_slots,
 )
 from prefect.concurrency.v1.sync import concurrency
@@ -214,3 +216,28 @@ def test_concurrency_without_limit_names_sync(names):
             release_spy.assert_not_called()
 
     assert executed
+
+
+class TestAsyncDispatchMigration:
+    """Tests for the sync_compatible to async_dispatch migration."""
+
+    def test_aio_attribute_exists(self):
+        """Test that the .aio attribute exists for backward compatibility."""
+        assert hasattr(acquire_concurrency_slots, "aio")
+        assert hasattr(release_concurrency_slots, "aio")
+        assert acquire_concurrency_slots.aio is aacquire_concurrency_slots
+        assert release_concurrency_slots.aio is arelease_concurrency_slots
+
+    def test_sync_functions_are_not_coroutines(self):
+        """Test that the sync functions are not coroutine functions."""
+        import inspect
+
+        assert not inspect.iscoroutinefunction(acquire_concurrency_slots)
+        assert not inspect.iscoroutinefunction(release_concurrency_slots)
+
+    def test_async_functions_are_coroutines(self):
+        """Test that the async functions are coroutine functions."""
+        import inspect
+
+        assert inspect.iscoroutinefunction(aacquire_concurrency_slots)
+        assert inspect.iscoroutinefunction(arelease_concurrency_slots)
