@@ -645,6 +645,37 @@ class FlowRunFilterIdempotencyKey(PrefectFilterBaseModel):
         return filters
 
 
+class FlowRunFilterLabels(PrefectOperatorFilterBaseModel):
+    """Filter by `FlowRun.labels`."""
+
+    all_: Optional[schemas.core.KeyValueLabels] = Field(
+        default=None,
+        examples=[{"key": "value", "key2": 42}],
+        description=(
+            "A dictionary of labels. Flow runs will be returned only if their labels"
+            " contain all the specified key-value pairs."
+        ),
+    )
+
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only include flow runs without labels"
+    )
+
+    def _get_filter_list(
+        self, db: "PrefectDBInterface"
+    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
+        filters: list[sa.ColumnExpressionArgument[bool]] = []
+        if self.all_ is not None:
+            filters.append(db.queries.json_contains(db.FlowRun.labels, self.all_))
+        if self.is_null_ is not None:
+            filters.append(
+                sa.or_(db.FlowRun.labels.is_(None), db.FlowRun.labels == {})
+                if self.is_null_
+                else sa.and_(db.FlowRun.labels.is_not(None), db.FlowRun.labels != {})
+            )
+        return filters
+
+
 class FlowRunFilter(PrefectOperatorFilterBaseModel):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
@@ -691,6 +722,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     idempotency_key: Optional[FlowRunFilterIdempotencyKey] = Field(
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
     )
+    labels: Optional[FlowRunFilterLabels] = Field(
+        default=None, description="Filter criteria for `FlowRun.labels`"
+    )
 
     def only_filters_on_id(self) -> bool:
         return bool(
@@ -709,6 +743,7 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             and self.parent_flow_run_id is None
             and self.parent_task_run_id is None
             and self.idempotency_key is None
+            and self.labels is None
         )
 
     def _get_filter_list(
@@ -744,6 +779,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.parent_task_run_id.as_sql_filter())
         if self.idempotency_key is not None:
             filters.append(self.idempotency_key.as_sql_filter())
+        if self.labels is not None:
+            filters.append(self.labels.as_sql_filter())
 
         return filters
 

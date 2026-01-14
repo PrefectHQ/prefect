@@ -531,6 +531,73 @@ class TestReadFlowRuns:
         )
         assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
 
+    async def test_read_flow_runs_filters_by_labels(self, flow, session, db):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, labels={"env": "prod", "team": "data"}
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, labels={"env": "prod"}),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        # Directly set labels to empty dict to test is_null_ filter
+        # (bypassing system labels that are normally added)
+        await session.execute(
+            sa.update(db.FlowRun)
+            .where(db.FlowRun.id == flow_run_3.id)
+            .values(labels={})
+        )
+
+        # all_ - filter by key-value pairs
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                labels=schemas.filters.FlowRunFilterLabels(
+                    all_={"env": "prod", "team": "data"}
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                labels=schemas.filters.FlowRunFilterLabels(all_={"env": "prod"})
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                labels=schemas.filters.FlowRunFilterLabels(all_={"env": "dev"})
+            ),
+        )
+        assert len(result) == 0
+
+        # is_null_ - filter for null/empty labels
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                labels=schemas.filters.FlowRunFilterLabels(is_null_=True)
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_3.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                labels=schemas.filters.FlowRunFilterLabels(is_null_=False)
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
+
     async def test_read_flow_runs_filters_by_states_any(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,

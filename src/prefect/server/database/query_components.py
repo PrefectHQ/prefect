@@ -104,6 +104,14 @@ class BaseQueryComponents(ABC):
     def json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
         """aggregates a JSON array"""
 
+    @abstractmethod
+    def json_contains(
+        self,
+        json_col: sa.ColumnElement[Any],
+        values: dict[str, Any],
+    ) -> sa.ColumnElement[bool]:
+        """Check if a JSON column contains all specified key-value pairs"""
+
     # --- dialect-optimized subqueries
 
     @abstractmethod
@@ -562,6 +570,13 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     def json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
         return sa.func.jsonb_agg(json_array)
 
+    def json_contains(
+        self,
+        json_col: sa.ColumnElement[Any],
+        values: dict[str, Any],
+    ) -> sa.ColumnElement[bool]:
+        return sa.type_coerce(json_col, postgresql.JSONB).contains(values)
+
     # --- Postgres-optimized subqueries
 
     def make_timestamp_intervals(
@@ -811,6 +826,19 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
         return sa.func.json_group_array(json_array)
+
+    def json_contains(
+        self,
+        json_col: sa.ColumnElement[Any],
+        values: dict[str, Any],
+    ) -> sa.ColumnElement[bool]:
+        # SQLite doesn't have a native JSON containment operator, so we check
+        # each key-value pair using json_extract
+        conditions = [
+            sa.func.json_extract(json_col, f"$.{key}") == value
+            for key, value in values.items()
+        ]
+        return sa.and_(*conditions) if conditions else sa.true()
 
     # --- Sqlite-optimized subqueries
 
