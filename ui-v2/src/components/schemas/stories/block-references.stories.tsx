@@ -1,11 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
+import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { Typography } from "@/components/ui/typography";
 import type { SchemaFormValues } from "../types/values";
 import { resolveBlockReferences } from "../utilities/resolveBlockReferences";
 import { toBlockReferenceRequest } from "../utilities/toBlockReferenceRequest";
+
+type BlockDocumentReferences =
+	components["schemas"]["BlockDocument"]["block_document_references"];
 
 /**
  * Demo component to visualize block reference resolution.
@@ -16,7 +20,7 @@ function BlockReferenceDemo({
 	blockDocumentReferences,
 }: {
 	apiValues: SchemaFormValues;
-	blockDocumentReferences: Record<string, unknown>;
+	blockDocumentReferences: BlockDocumentReferences;
 }) {
 	const [currentFormat, setCurrentFormat] = useState<"api" | "ui">("api");
 
