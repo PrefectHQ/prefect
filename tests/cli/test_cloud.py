@@ -50,13 +50,11 @@ def interactive_console(monkeypatch):
     # a version that does not require a fd to be attached
     def readchar():
         sys.stdin.flush()
-        position = sys.stdin.tell()
-        if not sys.stdin.read():
+        char = sys.stdin.read(1)
+        if not char:
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
             raise Exit(-2)
-        else:
-            sys.stdin.seek(position)
-        return sys.stdin.read(1)
+        return char
 
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
@@ -857,10 +855,9 @@ def test_login_already_logged_in_to_another_profile():
             ["cloud", "login"],
             expected_code=0,
             user_input=(
-                # Yes, switch profiles
-                "y"
-                + readchar.key.ENTER
-                # Use the first profile
+                # Yes, switch profiles (use \n for typer.confirm)
+                "y\n"
+                # Use the first profile (use readchar keys for prompt_select_from_list)
                 + readchar.key.ENTER
             ),
             expected_output_contains=[
@@ -918,10 +915,9 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select():
             ["cloud", "login"],
             expected_code=130,  # assumes typer > 0.13.0
             user_input=(
-                # Yes, switch profiles
-                "y"
-                + readchar.key.ENTER
-                # Abort!
+                # Yes, switch profiles (use \n for typer.confirm)
+                "y\n"
+                # Abort! (use readchar keys for prompt_select_from_list)
                 + readchar.key.CTRL_C
             ),
             expected_output_contains=[
