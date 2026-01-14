@@ -927,6 +927,7 @@ async def test_flow_run_lateness(client, session, start_of_test):
             flows=dict(id=dict(any_=[str(f.id)])),
         ),
     )
+    response_time = datetime.now(timezone.utc)
     response_histories = validate_response(response)
     interval = response_histories[0]
 
@@ -968,9 +969,10 @@ async def test_flow_run_lateness(client, session, start_of_test):
     # SQLite does not store microseconds. Hence each of the two
     # Scheduled runs estimated lateness can be 'off' by up to
     # a second based on how we estimate the 'current' time used by the api.
-    # Calculate tolerance based on test execution time to avoid flakes.
+    # Calculate tolerance based on test execution time and API call time to avoid flakes.
     test_elapsed = (datetime.now(timezone.utc) - start_of_test).total_seconds()
-    tolerance = 2.0 + test_elapsed  # 2s for SQLite precision + test overhead
+    api_call_time = (response_time - request_time).total_seconds()
+    tolerance = 2.0 + test_elapsed + api_call_time  # 2s for SQLite precision + test overhead + API call time
 
     assert (
         abs(
