@@ -17,7 +17,7 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
 from prefect.server.models import deployments, flow_runs, flows
 from prefect.server.schemas.core import Deployment, Flow, FlowRun
-from prefect.server.schemas.states import Running, StateType
+from prefect.server.schemas.states import Failed, Running, StateType
 from prefect.types._datetime import now
 
 
@@ -338,3 +338,99 @@ async def test_failed_transition(
         actions.ActionFailed, match="cannot transition to a PENDING state"
     ):
         await action.act(pend_that_long_exposure)
+
+
+@pytest.fixture
+async def failed_flow_run(
+    take_a_picture: Deployment,
+    session: AsyncSession,
+) -> FlowRun:
+    failed_flow_run = await flow_runs.create_flow_run(
+        session=session,
+        flow_run=FlowRun(
+            deployment_id=take_a_picture.id,
+            flow_id=take_a_picture.flow_id,
+            state=Failed(),
+        ),
+    )
+    await session.commit()
+
+    return FlowRun.model_validate(failed_flow_run, from_attributes=True)
+
+
+@pytest.fixture
+def force_resume_failed_flow_run(
+    take_a_picture: Deployment,
+) -> Automation:
+    return Automation(
+        name="Force resume failed flow run",
+        trigger=EventTrigger(
+            match_related={
+                "prefect.resource.role": "deployment",
+                "prefect.resource.id": f"prefect.deployment.{take_a_picture.id}",
+            },
+            after={"prefect.flow-run.Failed"},
+            expect={"prefect.flow-run.Running"},
+            posture=Posture.Proactive,
+            threshold=0,
+            within=timedelta(minutes=1),
+        ),
+        actions=[
+            actions.ChangeFlowRunState(
+                state=StateType.SCHEDULED,
+                force=True,
+            )
+        ],
+    )
+
+
+@pytest.fixture
+def force_resume_that_failed_flow_run(
+    force_resume_failed_flow_run: Automation,
+    failed_flow_run: FlowRun,
+) -> TriggeredAction:
+    firing = Firing(
+        trigger=force_resume_failed_flow_run.trigger,
+        trigger_states={TriggerState.Triggered},
+        triggered=now("UTC"),
+        triggering_labels={
+            "prefect.resource.id": f"prefect.flow-run.{failed_flow_run.id}"
+        },
+        triggering_event=None,
+    )
+    return TriggeredAction(
+        automation=force_resume_failed_flow_run,
+        firing=firing,
+        triggered=firing.triggered,
+        triggering_labels=firing.triggering_labels,
+        triggering_event=firing.triggering_event,
+        action=force_resume_failed_flow_run.actions[0],
+    )
+
+
+async def test_force_resuming_failed_flow_run(
+    force_resume_that_failed_flow_run: TriggeredAction,
+    failed_flow_run: FlowRun,
+    session: AsyncSession,
+):
+    flow_run = await flow_runs.read_flow_run(
+        session,
+        failed_flow_run.id,
+    )
+    assert flow_run.state_type == StateType.FAILED
+
+    action = force_resume_that_failed_flow_run.action
+    assert isinstance(action, actions.ChangeFlowRunState)
+    assert action.force is True
+
+    await action.act(force_resume_that_failed_flow_run)
+
+    session.expunge_all()
+
+    flow_run = await flow_runs.read_flow_run(
+        session,
+        failed_flow_run.id,
+    )
+
+    assert flow_run
+    assert flow_run.state.type == StateType.SCHEDULED

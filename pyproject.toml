@@ -77,7 +77,7 @@ dependencies = [
     "toml>=0.10.0",
     "typing_extensions>=4.10.0,<5.0.0",
     "uvicorn>=0.14.0,!=0.29.0",
-    "websockets>=15.0.1,<16.0",
+    "websockets>=15.0.1,<17.0",
     "whenever>=0.7.3,<0.10.0; python_version>='3.13'",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
@@ -149,7 +149,7 @@ dev = [
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
-    "pytest-mypy-plugins>=3.2.0",
+    "typsht>=0.0.1a4",
     "pytest-timeout>=2.3.1",
     "pytest-xdist>=3.6.1",
     "pyyaml>=6.0.1",
@@ -161,7 +161,7 @@ dev = [
     "watchfiles>=1.0.4",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.14.10",
+    "ruff==0.14.11",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -235,9 +235,16 @@ artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui", "src/prefect
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/prefect"]
+# Hatch only includes Python files in wheel builds by default. Non-Python files
+# like Jinja2 templates must be explicitly included here so they're available
+# at runtime when using importlib.resources to load the SDK template.
+include = ["src/prefect/_sdk/templates/*.jinja"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-rfEs --mypy-only-local-stub"
+addopts = "-rfEs"
 norecursedirs = [
     "*.egg-info",
     ".git",

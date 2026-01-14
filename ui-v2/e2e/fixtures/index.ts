@@ -18,11 +18,32 @@ export type { PrefectApiClient } from "./api-client";
 export {
 	type Automation,
 	cleanupAutomations,
+	cleanupGlobalConcurrencyLimits,
+	cleanupTaskRunConcurrencyLimits,
+	cleanupVariables,
 	createDeployment,
 	createFlow,
+	createGlobalConcurrencyLimit,
+	createTaskRunConcurrencyLimit,
+	createVariable,
 	type Deployment,
 	deleteAutomation,
+	deleteGlobalConcurrencyLimit,
+	deleteTaskRunConcurrencyLimit,
+	deleteVariable,
 	type Flow,
+	type GlobalConcurrencyLimit,
 	listAutomations,
+	listGlobalConcurrencyLimits,
+	listTaskRunConcurrencyLimits,
+	listVariables,
+	type TaskRunConcurrencyLimit,
+	type Variable,
 	waitForServerHealth,
-} from "./api-helpers";
+} from "./api-helpers/index";
+export {
+	clearAuthCredentials,
+	getAuthCredentials,
+	isAuthRequired,
+	setAuthCredentials,
+} from "./auth-helpers";

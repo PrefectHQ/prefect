@@ -299,6 +299,49 @@ async def test_listing_blocks_after_saving_a_block():
     )
 
 
+def test_listing_blocks_when_none_are_registered_not_json_output():
+    invoke_and_assert(
+        ["block", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
+def test_listing_blocks_when_none_are_registered_json_output():
+    invoke_and_assert(
+        ["block", "ls", "-o", "json"],
+        expected_output_contains="[]",
+        expected_code=0,
+    )
+
+
+async def test_listing_blocks_after_saving_a_block_json_output():
+    block_id = await system.Secret(value="a casual test block").save("wildblock")
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "json"],
+        expected_output_contains=[
+            "id",
+            "type",
+            "name",
+            "slug",
+            str(block_id),
+            "secret",
+            "wildblock",
+        ],
+    )
+
+
+async def test_listing_blocks_after_saving_a_block_not_json_output():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
 def test_listing_system_block_types(register_block_types):
     expected_output = (
         "Block Types",
@@ -313,6 +356,24 @@ def test_listing_system_block_types(register_block_types):
 
     invoke_and_assert(
         ["block", "type", "ls"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+
+def test_listing_system_block_types_json_output(register_block_types):
+    expected_output = (
+        "slug",
+        "description",
+        "slack",
+        "local-file-system",
+        "remote-file-system",
+        "secret",
+        "slack-webhook",
+    )
+
+    invoke_and_assert(
+        ["block", "type", "ls", "-o", "json"],
         expected_code=0,
         expected_output_contains=expected_output,
     )
