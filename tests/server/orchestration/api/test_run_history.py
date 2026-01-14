@@ -972,7 +972,9 @@ async def test_flow_run_lateness(client, session, start_of_test):
     # Calculate tolerance based on test execution time and API call time to avoid flakes.
     test_elapsed = (datetime.now(timezone.utc) - start_of_test).total_seconds()
     api_call_time = (response_time - request_time).total_seconds()
-    tolerance = 2.0 + test_elapsed + api_call_time  # 2s for SQLite precision + test overhead + API call time
+    tolerance = (
+        2.0 + test_elapsed + api_call_time
+    )  # 2s for SQLite precision + test overhead + API call time
 
     assert (
         abs(
