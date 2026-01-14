@@ -90,7 +90,12 @@ async def _check_authentication(client: "PrefectClient") -> None:
         if exc is not None:
             # Check if it's an authentication error
             exc_str = str(exc).lower()
-            if "unauthorized" in exc_str or "401" in exc_str:
+            if (
+                "unauthorized" in exc_str
+                or "forbidden" in exc_str
+                or "401" in exc_str
+                or "403" in exc_str
+            ):
                 raise AuthenticationError(
                     "Not authenticated. Run `prefect cloud login` or configure "
                     "PREFECT_API_URL."
