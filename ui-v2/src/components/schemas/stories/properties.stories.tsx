@@ -138,6 +138,61 @@ export const TypeStringWithFormatDateTime: Story = {
 };
 TypeStringWithFormatDateTime.storyName = "type:string & format:date-time";
 
+export const TypeStringWithFormatDateTimeWithTimezone: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				scheduled_time: {
+					default: "2021-01-01T00:00:00-05:00",
+					title: "Scheduled Time",
+					description: "Select a date, time, and timezone",
+					type: "string",
+					format: "date-time",
+				},
+			},
+		},
+	},
+};
+TypeStringWithFormatDateTimeWithTimezone.storyName =
+	"type:string & format:date-time (with timezone)";
+
+export const TypeStringWithFormatTimeDelta: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				duration: {
+					default: "3600",
+					title: "Duration",
+					description: "Duration in seconds",
+					type: "string",
+					format: "time-delta",
+				},
+			},
+		},
+	},
+};
+TypeStringWithFormatTimeDelta.storyName = "type:string & format:time-delta";
+
+export const TypeStringWithFormatTimeDeltaEmpty: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				timeout: {
+					title: "Timeout",
+					description: "Timeout duration in seconds",
+					type: "string",
+					format: "time-delta",
+				},
+			},
+		},
+	},
+};
+TypeStringWithFormatTimeDeltaEmpty.storyName =
+	"type:string & format:time-delta (empty)";
+
 export const TypeStringWithFormatJson: Story = {
 	args: {
 		schema: {
