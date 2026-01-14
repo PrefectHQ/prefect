@@ -121,6 +121,14 @@ export function SchemaFormInputArrayList({
 		onValuesChange(newValues.map(({ value }) => value));
 	}
 
+	function moveToTop(index: number) {
+		moveItem(index, 0);
+	}
+
+	function moveToBottom(index: number) {
+		moveItem(index, localKeyedValues.length - 1);
+	}
+
 	function deleteItem(key: string) {
 		const newValues = localKeyedValues.filter((item) => item.key !== key);
 		setLocalKeyedValues(newValues);
@@ -178,6 +186,8 @@ export function SchemaFormInputArrayList({
 							canMove={getCanMoveForIndex(index)}
 							moveUp={() => moveItem(index, index - 1)}
 							moveDown={() => moveItem(index, index + 1)}
+							moveToTop={() => moveToTop(index)}
+							moveToBottom={() => moveToBottom(index)}
 						/>
 					))}
 				</SortableContext>
