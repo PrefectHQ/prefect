@@ -55,10 +55,12 @@ export function FlowRunDetails({ flowRun }: FlowRunDetailsProps) {
 			{flowRun.empirical_policy?.retries != null && (
 				<>
 					<KeyValue label="Retries" value={flowRun.empirical_policy.retries} />
-					<KeyValue
-						label="Retry Delay"
-						value={flowRun.empirical_policy.retry_delay}
-					/>
+					{flowRun.empirical_policy.retry_delay != null && (
+						<KeyValue
+							label="Retry Delay"
+							value={`${flowRun.empirical_policy.retry_delay}s`}
+						/>
+					)}
 				</>
 			)}
 		</div>

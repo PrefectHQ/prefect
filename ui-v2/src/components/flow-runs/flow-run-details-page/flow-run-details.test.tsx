@@ -268,7 +268,7 @@ describe("FlowRunDetails", () => {
 		});
 		expect(screen.getByText("3")).toBeInTheDocument();
 		expect(screen.getByText("Retry Delay")).toBeInTheDocument();
-		expect(screen.getByText("60")).toBeInTheDocument();
+		expect(screen.getByText("60s")).toBeInTheDocument();
 	});
 
 	it("should not display retry configuration when retries is null", async () => {
@@ -291,6 +291,29 @@ describe("FlowRunDetails", () => {
 			expect(screen.getByText("Run Count")).toBeInTheDocument();
 		});
 		expect(screen.queryByText("Retries")).not.toBeInTheDocument();
+		expect(screen.queryByText("Retry Delay")).not.toBeInTheDocument();
+	});
+
+	it("should not display retry delay when retry_delay is null even if retries is set", async () => {
+		const flowRun = createFakeFlowRun({
+			empirical_policy: {
+				max_retries: 0,
+				retry_delay_seconds: 0,
+				retries: 5,
+				retry_delay: null,
+				pause_keys: [],
+				resuming: false,
+				retry_type: null,
+			},
+		});
+		render(<FlowRunDetailsRouter flowRun={flowRun} />, {
+			wrapper: createWrapper(),
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("Retries")).toBeInTheDocument();
+		});
+		expect(screen.getByText("5")).toBeInTheDocument();
 		expect(screen.queryByText("Retry Delay")).not.toBeInTheDocument();
 	});
 
