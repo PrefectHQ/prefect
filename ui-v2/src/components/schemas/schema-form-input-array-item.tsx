@@ -24,6 +24,8 @@ export type SchemaFormInputArrayItemProps = {
 	canMove: boolean;
 	moveUp: () => void;
 	moveDown: () => void;
+	moveToTop: () => void;
+	moveToBottom: () => void;
 };
 
 export function SchemaFormInputArrayItem({
@@ -38,6 +40,8 @@ export function SchemaFormInputArrayItem({
 	canMove,
 	moveUp,
 	moveDown,
+	moveToTop,
+	moveToBottom,
 }: SchemaFormInputArrayItemProps) {
 	const { schema } = useSchemaFormContext();
 	const id = useId();
@@ -110,10 +114,18 @@ export function SchemaFormInputArrayItem({
 			>
 				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
 				{canMove && !first && (
-					<DropdownMenuItem onClick={moveUp}>Move up</DropdownMenuItem>
+					<>
+						<DropdownMenuItem onClick={moveToTop}>Move to top</DropdownMenuItem>
+						<DropdownMenuItem onClick={moveUp}>Move up</DropdownMenuItem>
+					</>
 				)}
 				{canMove && !last && (
-					<DropdownMenuItem onClick={moveDown}>Move down</DropdownMenuItem>
+					<>
+						<DropdownMenuItem onClick={moveDown}>Move down</DropdownMenuItem>
+						<DropdownMenuItem onClick={moveToBottom}>
+							Move to bottom
+						</DropdownMenuItem>
+					</>
 				)}
 			</SchemaFormPropertyMenu>
 		</div>
