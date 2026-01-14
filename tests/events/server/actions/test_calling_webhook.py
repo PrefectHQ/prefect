@@ -427,6 +427,12 @@ async def test_success_event(
                 "prefect.resource.role": "block-type",
             }
         ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{call_webhook.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,
