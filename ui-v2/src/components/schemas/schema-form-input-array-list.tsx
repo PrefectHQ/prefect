@@ -1,3 +1,17 @@
+import {
+	closestCenter,
+	DndContext,
+	type DragEndEvent,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	sortableKeyboardCoordinates,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import type { ArraySubtype, SchemaObject } from "openapi-typescript";
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -27,6 +41,17 @@ export function SchemaFormInputArrayList({
 	const canAddMore =
 		property.maxItems === undefined ||
 		(values?.length ?? 0) < (property.maxItems ?? Number.POSITIVE_INFINITY);
+
+	const prefixItemsCount = isArray(property.prefixItems)
+		? property.prefixItems.length
+		: 0;
+
+	const sensors = useSensors(
+		useSensor(PointerSensor),
+		useSensor(KeyboardSensor, {
+			coordinateGetter: sortableKeyboardCoordinates,
+		}),
+	);
 
 	const [localKeyedValues, setLocalKeyedValues] = useState<
 		{
@@ -102,27 +127,61 @@ export function SchemaFormInputArrayList({
 		onValuesChange(newValues.map(({ value }) => value));
 	}
 
+	function handleDragEnd(event: DragEndEvent) {
+		const { active, over } = event;
+
+		if (over && active.id !== over.id) {
+			const oldIndex = localKeyedValues.findIndex(
+				(item) => item.key === active.id,
+			);
+			const newIndex = localKeyedValues.findIndex(
+				(item) => item.key === over.id,
+			);
+
+			if (oldIndex !== -1 && newIndex !== -1) {
+				moveItem(oldIndex, newIndex);
+			}
+		}
+	}
+
+	// Get the keys of items that can be dragged (non-prefix items)
+	const sortableKeys = localKeyedValues
+		.slice(prefixItemsCount)
+		.map((item) => item.key);
+
 	return (
 		<Card className="flex flex-col gap-2 p-2">
 			{isEmpty && (
 				<p className="text-sm text-subdued italic">No items in this list</p>
 			)}
 
-			{localKeyedValues?.map(({ key, value }, index) => (
-				<SchemaFormInputArrayItem
-					key={key}
-					items={getPropertyForIndex(index)}
-					value={value}
-					onValueChange={(value) => handleValueChange(key, value)}
-					errors={getErrorsForIndex(index)}
-					onDelete={() => deleteItem(key)}
-					first={getFirstForIndex(index)}
-					last={getLastForIndex(index)}
-					canMove={getCanMoveForIndex(index)}
-					moveUp={() => moveItem(index, index - 1)}
-					moveDown={() => moveItem(index, index + 1)}
-				/>
-			))}
+			<DndContext
+				sensors={sensors}
+				collisionDetection={closestCenter}
+				onDragEnd={handleDragEnd}
+			>
+				<SortableContext
+					items={sortableKeys}
+					strategy={verticalListSortingStrategy}
+				>
+					{localKeyedValues?.map(({ key, value }, index) => (
+						<SchemaFormInputArrayItem
+							key={key}
+							itemKey={key}
+							items={getPropertyForIndex(index)}
+							value={value}
+							onValueChange={(value) => handleValueChange(key, value)}
+							errors={getErrorsForIndex(index)}
+							onDelete={() => deleteItem(key)}
+							first={getFirstForIndex(index)}
+							last={getLastForIndex(index)}
+							canMove={getCanMoveForIndex(index)}
+							moveUp={() => moveItem(index, index - 1)}
+							moveDown={() => moveItem(index, index + 1)}
+						/>
+					))}
+				</SortableContext>
+			</DndContext>
 
 			{canAddMore && (
 				<div className="flex justify-end">
