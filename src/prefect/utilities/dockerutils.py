@@ -110,12 +110,12 @@ with silence_docker_warnings():
 
 
 @contextmanager
-def docker_client() -> Generator["DockerClient", None, None]:
+def docker_client(**kwargs: Any) -> Generator["DockerClient", None, None]:
     """Get the environmentally-configured Docker client"""
     client = None
     try:
         with silence_docker_warnings():
-            client = docker.DockerClient.from_env()
+            client = docker.DockerClient.from_env(**kwargs)
 
             yield client
     except docker.errors.DockerException as exc:

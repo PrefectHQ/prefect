@@ -76,8 +76,8 @@ class DockerImage:
             build_kwargs["dockerfile"] = self.dockerfile
             build_image(**build_kwargs)
 
-    def push(self) -> None:
-        with docker_client() as client:
+    def push(self, **kwargs: Any) -> None:
+        with docker_client(**kwargs) as client:
             events = client.api.push(
                 repository=self.name, tag=self.tag, stream=True, decode=True
             )
