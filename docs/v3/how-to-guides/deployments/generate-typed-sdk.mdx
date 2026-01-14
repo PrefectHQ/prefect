@@ -1,0 +1,232 @@
+---
+title: Generate a Typed SDK for Your Deployments
+sidebarTitle: Generate Typed SDK
+description: Generate a typed Python SDK from your workspace deployments for IDE autocomplete and type checking.
+---
+
+<Info>
+The `prefect sdk generate` command is in **beta**. APIs may change in future releases.
+</Info>
+
+The Custom Deployments SDK feature generates a typed Python file from your workspace deployments. This provides:
+- **IDE autocomplete** for discovering flows and deployments
+- **Static type checking** for parameters and job variables
+- **Reduced runtime errors** by catching type mismatches before execution
+
+## Before and after
+
+### Without a generated SDK
+
+```python
+from prefect.deployments import run_deployment
+
+# No autocomplete, no type checking, runtime errors for typos
+run_deployment(
+    name="my-etl-flow/production",  # Easy to typo
+    parameters={"sorce": "s3://bucket"},  # Typo not caught until runtime  # codespell:ignore sorce
+)
+```
+
+### With a generated SDK
+
+```python
+from my_sdk import deployments
+
+# IDE autocomplete, type checking, errors caught immediately
+deployments.from_name("my-etl-flow/production").with_options(
+    tags=["production"],
+).with_infra(
+    memory="8Gi",
+).run(
+    source="s3://bucket",
+    batch_size=100,
+)
+```
+
+## Prerequisites
+
+- An active Prefect API connection (Prefect Cloud or self-hosted server)
+- At least one deployment in your workspace
+
+## Generate the SDK
+
+Run the following command to generate a typed SDK:
+
+```bash
+prefect sdk generate --output ./my_sdk.py
+```
+
+This fetches all deployments from your connected workspace and generates a Python file with typed classes for each deployment.
+
+### Filter by flow or deployment
+
+Generate an SDK for specific flows:
+
+```bash
+prefect sdk generate --output ./my_sdk.py --flow my-etl-flow
+```
+
+Generate an SDK for specific deployments:
+
+```bash
+prefect sdk generate --output ./my_sdk.py --deployment my-flow/production
+```
+
+Combine multiple filters:
+
+```bash
+prefect sdk generate --output ./my_sdk.py \
+    --flow etl-flow \
+    --flow data-sync \
+    --deployment analytics/daily
+```
+
+## Using the generated SDK
+
+### Basic usage
+
+```python
+from my_sdk import deployments
+
+# Get a deployment by name
+deployment = deployments.from_name("my-etl-flow/production")
+
+# Run with parameters
+future = deployment.run(
+    source="s3://my-bucket/data",
+    batch_size=100,
+)
+
+# Get the flow run ID immediately
+print(f"Started flow run: {future.flow_run_id}")
+
+# Wait for completion and get result
+result = future.result()
+```
+
+### Configure run options
+
+Use `with_options()` to configure how the deployment runs:
+
+```python
+from my_sdk import deployments
+from datetime import datetime, timedelta
+
+future = deployments.from_name("my-etl-flow/production").with_options(
+    tags=["manual", "production"],
+    idempotency_key="daily-run-2024-01-15",
+    scheduled_time=datetime.now() + timedelta(hours=1),
+    flow_run_name="custom-run-name",
+).run(
+    source="s3://bucket",
+)
+```
+
+Available options:
+- `tags`: Tags to apply to the flow run
+- `idempotency_key`: Unique key to prevent duplicate runs
+- `work_queue_name`: Override the work queue
+- `as_subflow`: Run as a subflow of the current flow
+- `scheduled_time`: Schedule the run for a future time
+- `flow_run_name`: Custom name for the flow run
+
+### Configure infrastructure (job variables)
+
+Use `with_infra()` to configure work pool-specific job variables:
+
+```python
+from my_sdk import deployments
+
+future = deployments.from_name("my-etl-flow/production").with_infra(
+    image="my-registry/my-image:latest",
+    cpu_request="2",
+    memory="8Gi",
+).run(
+    source="s3://bucket",
+)
+```
+
+The available job variables depend on your work pool type. The generated SDK provides type hints for all available options.
+
+### Async usage
+
+For async contexts, use `run_async()`:
+
+```python
+import asyncio
+from my_sdk import deployments
+
+async def main():
+    future = await deployments.from_name("my-etl-flow/production").run_async(
+        source="s3://bucket",
+    )
+    result = await future.result()
+    print(f"Result: {result}")
+
+asyncio.run(main())
+```
+
+### Method chaining
+
+Methods can be chained together:
+
+```python
+from my_sdk import deployments
+
+future = (
+    deployments.from_name("my-etl-flow/production")
+    .with_options(tags=["production"])
+    .with_infra(memory="8Gi")
+    .run(source="s3://bucket", batch_size=100)
+)
+```
+
+## Type safety
+
+The generated SDK enables type checkers like pyright or mypy to catch errors:
+
+```python
+from my_sdk import deployments
+
+# Type error: "staging" is not a valid deployment name
+deployment = deployments.from_name("my-etl-flow/staging")
+
+# Type error: unknown parameter "sorce"  # codespell:ignore sorce
+deployment.run(sorce="s3://bucket")  # Should be "source"  # codespell:ignore sorce
+
+# Type error: batch_size should be int, not str
+deployment.run(source="s3://bucket", batch_size="100")
+```
+
+## Regenerating the SDK
+
+Regenerate your SDK when:
+- Deployments are added, removed, or renamed
+- Work pool schemas change
+- Parameter schemas change
+- You upgrade Prefect to a new version
+
+The `generate` command overwrites the existing file:
+
+```bash
+prefect sdk generate --output ./my_sdk.py
+```
+
+<Tip>
+Consider adding SDK regeneration to your CI/CD pipeline to keep it up to date.
+</Tip>
+
+## What gets generated
+
+The generated SDK file contains:
+
+1. **DeploymentName type** - A `Literal` type with all deployment names for autocomplete
+2. **Work pool TypedDicts** - Typed dictionaries for job variables per work pool
+3. **Deployment classes** - One class per deployment with typed `run()` and `run_async()` methods
+4. **Deployments namespace** - The `deployments.from_name()` entry point with `@overload` for type-safe dispatch
+
+## Limitations
+
+- The SDK is generated from server-side metadata (JSON Schema). It does not inspect flow source code.
+- Changes to deployments require regenerating the SDK.
+- Complex nested types may be simplified to `Any` in some cases.

@@ -157,7 +157,8 @@
               "v3/how-to-guides/deployments/prefect-yaml",
               "v3/how-to-guides/deployments/store-flow-code",
               "v3/how-to-guides/deployments/versioning",
-              "v3/how-to-guides/deployments/customize-job-variables"
+              "v3/how-to-guides/deployments/customize-job-variables",
+              "v3/how-to-guides/deployments/generate-typed-sdk"
             ]
           },
           {
@@ -800,6 +801,7 @@
                   "v3/api-ref/cli/init",
                   "v3/api-ref/cli/profile",
                   "v3/api-ref/cli/profiles",
+                  "v3/api-ref/cli/sdk",
                   "v3/api-ref/cli/server",
                   "v3/api-ref/cli/shell",
                   "v3/api-ref/cli/task-run",
