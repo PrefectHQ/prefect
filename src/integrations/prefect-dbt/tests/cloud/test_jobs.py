@@ -6,6 +6,8 @@ import respx
 from httpx import Response
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
+    DbtCloudCreateJobFailed,
+    DbtCloudDeleteJobFailed,
     DbtCloudJobRunIncomplete,
     DbtCloudJobRunTimedOut,
 )
@@ -14,6 +16,8 @@ from prefect_dbt.cloud.jobs import (
     DbtCloudJobRunCancelled,
     DbtCloudJobRunFailed,
     DbtCloudJobRunTriggerFailed,
+    create_dbt_cloud_job,
+    delete_dbt_cloud_job,
     get_dbt_cloud_job_info,
     get_run_id,
     retry_dbt_cloud_job_run_subset_and_wait_for_completion,
@@ -928,3 +932,135 @@ def test_get_job(dbt_cloud_job):
             )
         )
         assert dbt_cloud_job.get_job()["id"] == 10000
+
+
+class TestCreateDbtCloudJob:
+    async def test_create_job_success(self, dbt_cloud_credentials):
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200,
+                    json={
+                        "data": {
+                            "id": 99999,
+                            "project_id": 12345,
+                            "environment_id": 67890,
+                            "name": "Test Job",
+                        }
+                    },
+                )
+            )
+
+            with disable_run_logger():
+                result = await create_dbt_cloud_job.fn(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    project_id=12345,
+                    environment_id=67890,
+                    name="Test Job",
+                    execute_steps=["dbt run -s my_model"],
+                )
+
+            assert result["id"] == 99999
+            assert result["name"] == "Test Job"
+
+            request_body = json.loads(respx_mock.calls.last.request.content.decode())
+            assert request_body["project_id"] == 12345
+            assert request_body["environment_id"] == 67890
+            assert request_body["name"] == "Test Job"
+            assert request_body["execute_steps"] == ["dbt run -s my_model"]
+
+    async def test_create_job_with_default_steps(self, dbt_cloud_credentials):
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200,
+                    json={"data": {"id": 99999, "name": "Test Job"}},
+                )
+            )
+
+            with disable_run_logger():
+                await create_dbt_cloud_job.fn(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    project_id=12345,
+                    environment_id=67890,
+                    name="Test Job",
+                )
+
+            request_body = json.loads(respx_mock.calls.last.request.content.decode())
+            assert request_body["execute_steps"] == ["dbt build"]
+
+    async def test_create_job_failure(self, dbt_cloud_credentials):
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    400, json={"status": {"user_message": "Invalid project ID"}}
+                )
+            )
+
+            @flow
+            async def test_create_job_failure_flow():
+                task_shorter_retry = create_dbt_cloud_job.with_options(
+                    retries=1, retry_delay_seconds=1
+                )
+                await task_shorter_retry(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    project_id=12345,
+                    environment_id=67890,
+                    name="Test Job",
+                )
+
+            with pytest.raises(DbtCloudCreateJobFailed, match="Invalid project ID"):
+                await test_create_job_failure_flow()
+
+
+class TestDeleteDbtCloudJob:
+    async def test_delete_job_success(self, dbt_cloud_credentials):
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.delete(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/99999/",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json={"data": {"id": 99999}}))
+
+            with disable_run_logger():
+                await delete_dbt_cloud_job.fn(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    job_id=99999,
+                )
+
+    async def test_delete_job_not_found(self, dbt_cloud_credentials):
+        with respx.mock(using="httpx", assert_all_called=False) as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.delete(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/99999/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    404, json={"status": {"user_message": "Job not found"}}
+                )
+            )
+
+            @flow
+            async def test_delete_job_not_found_flow():
+                task_shorter_retry = delete_dbt_cloud_job.with_options(
+                    retries=1, retry_delay_seconds=1
+                )
+                await task_shorter_retry(
+                    dbt_cloud_credentials=dbt_cloud_credentials,
+                    job_id=99999,
+                )
+
+            with pytest.raises(DbtCloudDeleteJobFailed, match="Job not found"):
+                await test_delete_job_not_found_flow()
