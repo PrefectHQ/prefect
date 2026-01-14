@@ -3157,3 +3157,59 @@ class TestDumpSecrets:
 def test_dunder_new_loads_collections(mock_load_prefect_collections):
     Block.__new__(FunSecretModel, block_type_slug="funsecretmodel")
     mock_load_prefect_collections.assert_called_once()
+
+
+class TestAsyncDispatchMigration:
+    """Tests for the sync_compatible to async_dispatch migration."""
+
+    def test_aio_attribute_exists_for_load_from_ref(self):
+        """Test that the .aio attribute exists for backward compatibility."""
+        from prefect.blocks.core import Block
+
+        assert hasattr(Block.load_from_ref, "aio")
+        assert Block.load_from_ref.aio.__name__ == "aload_from_ref"
+
+    def test_aio_attribute_exists_for_register_type_and_schema(self):
+        """Test that the .aio attribute exists for backward compatibility."""
+        from prefect.blocks.core import Block
+
+        assert hasattr(Block.register_type_and_schema, "aio")
+        assert (
+            Block.register_type_and_schema.aio.__name__ == "aregister_type_and_schema"
+        )
+
+    def test_aio_attribute_exists_for_save(self):
+        """Test that the .aio attribute exists for backward compatibility."""
+        from prefect.blocks.core import Block
+
+        assert hasattr(Block.save, "aio")
+        assert Block.save.aio.__name__ == "asave"
+
+    def test_aio_attribute_exists_for_delete(self):
+        """Test that the .aio attribute exists for backward compatibility."""
+        from prefect.blocks.core import Block
+
+        assert hasattr(Block.delete, "aio")
+        assert Block.delete.aio.__name__ == "adelete"
+
+    def test_sync_functions_are_not_coroutines(self):
+        """Test that the sync functions are not coroutine functions."""
+        import inspect
+
+        from prefect.blocks.core import Block
+
+        assert not inspect.iscoroutinefunction(Block.load_from_ref)
+        assert not inspect.iscoroutinefunction(Block.register_type_and_schema)
+        assert not inspect.iscoroutinefunction(Block.save)
+        assert not inspect.iscoroutinefunction(Block.delete)
+
+    def test_async_functions_are_coroutines(self):
+        """Test that the async functions are coroutine functions."""
+        import inspect
+
+        from prefect.blocks.core import Block
+
+        assert inspect.iscoroutinefunction(Block.aload_from_ref)
+        assert inspect.iscoroutinefunction(Block.aregister_type_and_schema)
+        assert inspect.iscoroutinefunction(Block.asave)
+        assert inspect.iscoroutinefunction(Block.adelete)
