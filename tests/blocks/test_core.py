@@ -3162,54 +3162,95 @@ def test_dunder_new_loads_collections(mock_load_prefect_collections):
 class TestAsyncDispatchMigration:
     """Tests for the sync_compatible to async_dispatch migration."""
 
-    def test_aio_attribute_exists_for_load_from_ref(self):
-        """Test that the .aio attribute exists for backward compatibility."""
-        from prefect.blocks.core import Block
-
+    def test_aio_attributes_exist(self):
+        """Test that the .aio attributes exist for backward compatibility."""
         assert hasattr(Block.load_from_ref, "aio")
-        assert Block.load_from_ref.aio.__name__ == "aload_from_ref"
-
-    def test_aio_attribute_exists_for_register_type_and_schema(self):
-        """Test that the .aio attribute exists for backward compatibility."""
-        from prefect.blocks.core import Block
-
         assert hasattr(Block.register_type_and_schema, "aio")
-        assert (
-            Block.register_type_and_schema.aio.__name__ == "aregister_type_and_schema"
+        assert hasattr(Block.save, "aio")
+        assert hasattr(Block.delete, "aio")
+
+    async def test_save_sync_in_sync_flow(self):
+        """Test that save works in sync context via sync flow."""
+        await CoolBlock(cool_factor=42).asave("test-save-sync-flow", overwrite=True)
+
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load("test-save-sync-flow")
+            return loaded.cool_factor
+
+        result = my_flow()
+        assert result == 42
+
+    async def test_save_async_in_async_flow(self):
+        """Test that asave works in async context."""
+        block = CoolBlock(cool_factor=43)
+        block_id = await block.asave("test-save-async-flow", overwrite=True)
+        assert block_id is not None
+
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload("test-save-async-flow")
+            return loaded.cool_factor
+
+        result = await my_flow()
+        assert result == 43
+
+    async def test_delete_sync_in_sync_flow(self):
+        """Test that delete works in sync context via sync flow."""
+        await CoolBlock(cool_factor=44).asave("test-delete-sync-flow", overwrite=True)
+
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load("test-delete-sync-flow")
+            loaded.delete("test-delete-sync-flow")
+            return True
+
+        result = my_flow()
+        assert result is True
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            await CoolBlock.aload("test-delete-sync-flow")
+
+    async def test_delete_async_in_async_flow(self):
+        """Test that adelete works in async context."""
+        await CoolBlock(cool_factor=45).asave("test-delete-async-flow", overwrite=True)
+
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload("test-delete-async-flow")
+            await loaded.adelete("test-delete-async-flow")
+            return True
+
+        result = await my_flow()
+        assert result is True
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            await CoolBlock.aload("test-delete-async-flow")
+
+    async def test_load_from_ref_sync_in_sync_flow(self):
+        """Test that load_from_ref works in sync context via sync flow."""
+        block_id = await CoolBlock(cool_factor=46).asave(
+            "test-load-from-ref-sync", overwrite=True
         )
 
-    def test_aio_attribute_exists_for_save(self):
-        """Test that the .aio attribute exists for backward compatibility."""
-        from prefect.blocks.core import Block
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load_from_ref(block_id)
+            return loaded.cool_factor
 
-        assert hasattr(Block.save, "aio")
-        assert Block.save.aio.__name__ == "asave"
+        result = my_flow()
+        assert result == 46
 
-    def test_aio_attribute_exists_for_delete(self):
-        """Test that the .aio attribute exists for backward compatibility."""
-        from prefect.blocks.core import Block
+    async def test_aload_from_ref_async_in_async_flow(self):
+        """Test that aload_from_ref works in async context."""
+        block_id = await CoolBlock(cool_factor=47).asave(
+            "test-aload-from-ref-async", overwrite=True
+        )
 
-        assert hasattr(Block.delete, "aio")
-        assert Block.delete.aio.__name__ == "adelete"
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload_from_ref(block_id)
+            return loaded.cool_factor
 
-    def test_sync_functions_are_not_coroutines(self):
-        """Test that the sync functions are not coroutine functions."""
-        import inspect
-
-        from prefect.blocks.core import Block
-
-        assert not inspect.iscoroutinefunction(Block.load_from_ref)
-        assert not inspect.iscoroutinefunction(Block.register_type_and_schema)
-        assert not inspect.iscoroutinefunction(Block.save)
-        assert not inspect.iscoroutinefunction(Block.delete)
-
-    def test_async_functions_are_coroutines(self):
-        """Test that the async functions are coroutine functions."""
-        import inspect
-
-        from prefect.blocks.core import Block
-
-        assert inspect.iscoroutinefunction(Block.aload_from_ref)
-        assert inspect.iscoroutinefunction(Block.aregister_type_and_schema)
-        assert inspect.iscoroutinefunction(Block.asave)
-        assert inspect.iscoroutinefunction(Block.adelete)
+        result = await my_flow()
+        assert result == 47
