@@ -1,11 +1,12 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/typeddjango/pytest-mypy-plugins/master/pytest_mypy_plugins/schema.json
+# typsht type safety tests - runs against mypy, pyright, and ty
 - case: prefect_flow_from_source
+  checkers: [mypy, pyright, ty]
   main: |
     from prefect import flow
     reveal_type(flow.from_source)
   regex: true
   # this has to be a regex, because mypy randomly (!) switches between ... and [*Any, **Any] syntax here
-  out: "main:2: note: Revealed type is \"\
+  out_mypy: "main:2: note: Revealed type is \"\
         def \\(\
            source: Union\\[builtins\\.str, pathlib\\.Path, prefect\\.runner\\.storage\\.RunnerStorage, prefect\\.filesystems\\.ReadableDeploymentStorage\\],
            entrypoint: builtins\\.str\
@@ -15,28 +16,31 @@
      \""
 
 - case: prefect_flow_decorator_no_args
+  checkers: [mypy, pyright, ty]
   main: |
     from prefect import flow
     @flow
     def foo(bar: str) -> int:
         return 42
     reveal_type(foo)
-  out: "main:5: note: Revealed type is \"\
+  out_mypy: "main:5: note: Revealed type is \"\
       prefect.flows.Flow[[bar: builtins.str], builtins.int]\
     \""
 
 - case: prefect_flow_decorator_with_name_arg
+  checkers: [mypy, pyright, ty]
   main: |
     from prefect import flow
     @flow(name="bar")
     def foo(bar: str) -> int:
         return 42
     reveal_type(foo)
-  out: "main:5: note: Revealed type is \"\
+  out_mypy: "main:5: note: Revealed type is \"\
       prefect.flows.Flow[[bar: builtins.str], builtins.int]\
     \""
 
 - case: prefect_flow_call
+  checkers: [mypy, pyright, ty]
   main: |
     from prefect import flow
     @flow
@@ -44,11 +48,12 @@
         return 42
     ret = foo(bar="baz")
     reveal_type(ret)
-  out: "main:6: note: Revealed type is \"\
+  out_mypy: "main:6: note: Revealed type is \"\
       builtins.int\
     \""
 
 - case: prefect_flow_async_call
+  checkers: [mypy, pyright, ty]
   main: |
     from prefect import flow
     @flow
@@ -58,11 +63,12 @@
     async def main() -> None:
        ret = await foo(bar="baz")
        reveal_type(ret)
-  out: "main:8: note: Revealed type is \"\
+  out_mypy: "main:8: note: Revealed type is \"\
       builtins.int\
     \""
 
 - case: prefect_flow_async_call_wrong_args
+  checkers: [mypy, pyright, ty]
   regex: yes
   main: |
     from prefect import flow
@@ -72,7 +78,7 @@
     
     async def main() -> None:
        ret = await foo(None)
-  out: |
+  out_mypy: |
     main:7: error: No overload variant of "__call__" of "Flow" matches argument type "None"  \[call-overload\]
     main:7: note: Possible overload variants:
     main:7: note:     def __call__.*

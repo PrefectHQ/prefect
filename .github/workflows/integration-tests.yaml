@@ -189,7 +189,6 @@ jobs:
             uv \
             docker \
             sqlalchemy \
-            pytest-mypy-plugins \
             pytest-asyncio \
             pytest-xdist \
             pytest-timeout \
