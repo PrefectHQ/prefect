@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from prefect.client.schemas.objects import DeploymentStatus
 from prefect.client.schemas.responses import DeploymentResponse
 
