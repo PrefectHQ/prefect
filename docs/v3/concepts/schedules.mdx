@@ -91,11 +91,16 @@ Longer schedules, such as one that fires at 9 AM every morning, adjust for DST a
 
 ### Interval
 
-As the name suggests, an `Interval` schedule is best for deployments that need to run at a consistent cadence not strictly tied to absolute clock time (e.g., "every 10 minutes" or "every 3 hours"). It creates new flow runs on a regular interval, measured in seconds, which can be anchored to a specific `anchor_date`.
+As the name suggests, an `Interval` schedule is best for deployments that need to run at a consistent cadence not strictly tied to absolute clock time (e.g., "every 10 minutes" or "every 3 hours"). It creates new flow runs on a regular interval which can be anchored to a specific `anchor_date`.
+
+The `interval` value accepts multiple formats:
+- Integer or float (seconds): `600`, `3600.5`
+- ISO 8601 duration strings: `PT10M` (10 minutes), `PT1H30M` (1 hour 30 minutes), `P1D` (1 day)
+- Time format strings: `1:30:00` (1 hour 30 minutes), `00:10:00` (10 minutes)
 
 ```yaml
 schedule:
-  interval: 600
+  interval: PT10M  # 10 minutes, equivalent to 600
   timezone: America/Chicago
 ```
 
@@ -103,7 +108,7 @@ schedule:
 
 | Property    | Description                                                                                                                                                                        |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| interval    | `datetime.timedelta` indicating the time between flow runs. (Required)                                                                                                             |
+| interval    | Time between flow runs. Accepts seconds (int/float), ISO 8601 durations, or time format strings. (Required)                                                                        |
 | anchor_date | `datetime.datetime` indicating the starting or "anchor" date to begin the schedule. If no `anchor_date` is supplied, the current UTC time is used.                                 |
 | timezone    | String name of a time zone, used to enforce localization behaviors like DST boundaries. (See the [IANA Time Zone Database](https://www.iana.org/time-zones) for valid time zones.) |
 

@@ -658,7 +658,8 @@
                 "interval": {
                     "anyOf": [
                         {
-                            "type": "integer"
+                            "format": "duration",
+                            "type": "string"
                         },
                         {
                             "type": "null"
