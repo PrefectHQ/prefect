@@ -191,6 +191,23 @@ export const TypeStringWithFormatJson: Story = {
 };
 TypeStringWithFormatJson.storyName = "type:string & format:json-string";
 
+export const TypeStringWithFormatPassword: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				api_key: {
+					default: "secret-api-key-12345",
+					title: "API Key",
+					type: "string",
+					format: "password",
+				},
+			},
+		},
+	},
+};
+TypeStringWithFormatPassword.storyName = "type:string & format:password";
+
 export const TypeBoolean: Story = {
 	args: {
 		schema: {
