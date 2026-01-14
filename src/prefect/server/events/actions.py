@@ -205,32 +205,12 @@ class Action(PrefectBaseModel, abc.ABC):
                     follows=follows_id,
                 )
             )
-            # Build related resources for the failed event
-            failed_related_resources = list(self._resulting_related_resources)
-            if triggered_action.automation_triggered_event_id:
-                failed_related_resources.append(
-                    RelatedResource(
-                        {
-                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
-                            "prefect.resource.role": "automation-triggered-event",
-                        }
-                    )
-                )
-            if triggered_action.triggering_event:
-                failed_related_resources.append(
-                    RelatedResource(
-                        {
-                            "prefect.resource.id": f"prefect.event.{triggered_action.triggering_event.id}",
-                            "prefect.resource.role": "triggering-event",
-                        }
-                    )
-                )
             await events.emit(
                 Event(
                     occurred=now("UTC"),
                     event="prefect.automation.action.failed",
                     resource=resource,
-                    related=failed_related_resources,
+                    related=related_resources,
                     payload={
                         **action_details,
                         "reason": reason,
@@ -307,51 +287,19 @@ class Action(PrefectBaseModel, abc.ABC):
                 Event(
                     occurred=triggered_action.triggered,
                     event="prefect.automation.action.triggered",
-                    resource=Resource(
-                        {
-                            "prefect.resource.id": automation_resource_id,
-                            "prefect.resource.name": automation.name,
-                            "prefect.trigger-type": automation.trigger.type,
-                        }
-                    ),
+                    resource=resource,
                     related=related_resources,
                     payload=action_details,
                     id=triggered_event_id,
                     follows=follows_id,
                 )
             )
-            # Build related resources for the executed event
-            executed_related_resources = list(self._resulting_related_resources)
-            if triggered_action.automation_triggered_event_id:
-                executed_related_resources.append(
-                    RelatedResource(
-                        {
-                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
-                            "prefect.resource.role": "automation-triggered-event",
-                        }
-                    )
-                )
-            if triggered_action.triggering_event:
-                executed_related_resources.append(
-                    RelatedResource(
-                        {
-                            "prefect.resource.id": f"prefect.event.{triggered_action.triggering_event.id}",
-                            "prefect.resource.role": "triggering-event",
-                        }
-                    )
-                )
             await events.emit(
                 Event(
                     occurred=now("UTC"),
                     event="prefect.automation.action.executed",
-                    resource=Resource(
-                        {
-                            "prefect.resource.id": automation_resource_id,
-                            "prefect.resource.name": automation.name,
-                            "prefect.trigger-type": automation.trigger.type,
-                        }
-                    ),
-                    related=executed_related_resources,
+                    resource=resource,
+                    related=related_resources,
                     payload={
                         **action_details,
                         **self._result_details,
