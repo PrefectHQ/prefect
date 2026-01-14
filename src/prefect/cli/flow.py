@@ -124,6 +124,10 @@ async def serve(
     """
     Serve a flow via an entrypoint.
     """
+    if entrypoint is None:
+        raise typer.BadParameter("Missing argument 'ENTRYPOINT'.")
+    if name is None:
+        raise typer.BadParameter("Missing option '--name' / '-n'.")
     runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
     try:
         schedules = []
