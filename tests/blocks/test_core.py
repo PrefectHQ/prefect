@@ -3157,3 +3157,100 @@ class TestDumpSecrets:
 def test_dunder_new_loads_collections(mock_load_prefect_collections):
     Block.__new__(FunSecretModel, block_type_slug="funsecretmodel")
     mock_load_prefect_collections.assert_called_once()
+
+
+class TestAsyncDispatchMigration:
+    """Tests for the sync_compatible to async_dispatch migration."""
+
+    def test_aio_attributes_exist(self):
+        """Test that the .aio attributes exist for backward compatibility."""
+        assert hasattr(Block.load_from_ref, "aio")
+        assert hasattr(Block.register_type_and_schema, "aio")
+        assert hasattr(Block.save, "aio")
+        assert hasattr(Block.delete, "aio")
+
+    async def test_save_sync_in_sync_flow(self):
+        """Test that save works in sync context via sync flow."""
+        await CoolBlock(cool_factor=42).asave("test-save-sync-flow", overwrite=True)
+
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load("test-save-sync-flow")
+            return loaded.cool_factor
+
+        result = my_flow()
+        assert result == 42
+
+    async def test_save_async_in_async_flow(self):
+        """Test that asave works in async context."""
+        block = CoolBlock(cool_factor=43)
+        block_id = await block.asave("test-save-async-flow", overwrite=True)
+        assert block_id is not None
+
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload("test-save-async-flow")
+            return loaded.cool_factor
+
+        result = await my_flow()
+        assert result == 43
+
+    async def test_delete_sync_in_sync_flow(self):
+        """Test that delete works in sync context via sync flow."""
+        await CoolBlock(cool_factor=44).asave("test-delete-sync-flow", overwrite=True)
+
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load("test-delete-sync-flow")
+            loaded.delete("test-delete-sync-flow")
+            return True
+
+        result = my_flow()
+        assert result is True
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            await CoolBlock.aload("test-delete-sync-flow")
+
+    async def test_delete_async_in_async_flow(self):
+        """Test that adelete works in async context."""
+        await CoolBlock(cool_factor=45).asave("test-delete-async-flow", overwrite=True)
+
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload("test-delete-async-flow")
+            await loaded.adelete("test-delete-async-flow")
+            return True
+
+        result = await my_flow()
+        assert result is True
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            await CoolBlock.aload("test-delete-async-flow")
+
+    async def test_load_from_ref_sync_in_sync_flow(self):
+        """Test that load_from_ref works in sync context via sync flow."""
+        block_id = await CoolBlock(cool_factor=46).asave(
+            "test-load-from-ref-sync", overwrite=True
+        )
+
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load_from_ref(block_id)
+            return loaded.cool_factor
+
+        result = my_flow()
+        assert result == 46
+
+    async def test_aload_from_ref_async_in_async_flow(self):
+        """Test that aload_from_ref works in async context."""
+        block_id = await CoolBlock(cool_factor=47).asave(
+            "test-aload-from-ref-async", overwrite=True
+        )
+
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload_from_ref(block_id)
+            return loaded.cool_factor
+
+        result = await my_flow()
+        assert result == 47
