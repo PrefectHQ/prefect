@@ -174,8 +174,17 @@ class Action(PrefectBaseModel, abc.ABC):
                 if abs(time_since_trigger) < TIGHT_TIMING:
                     follows_id = triggered_action.triggering_event.id
 
-            # Build related resources including triggering event reference
+            # Build related resources including automation.triggered and triggering event
             related_resources = list(self._resulting_related_resources)
+            if triggered_action.automation_triggered_event_id:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
+                            "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
             if triggered_action.triggering_event:
                 related_resources.append(
                     RelatedResource(
@@ -196,12 +205,23 @@ class Action(PrefectBaseModel, abc.ABC):
                     follows=follows_id,
                 )
             )
+            # Build related resources for the failed event
+            failed_related_resources = list(self._resulting_related_resources)
+            if triggered_action.automation_triggered_event_id:
+                failed_related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
+                            "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
             await events.emit(
                 Event(
                     occurred=now("UTC"),
                     event="prefect.automation.action.failed",
                     resource=resource,
-                    related=self._resulting_related_resources,
+                    related=failed_related_resources,
                     payload={
                         **action_details,
                         "reason": reason,
@@ -254,8 +274,17 @@ class Action(PrefectBaseModel, abc.ABC):
                 if abs(time_since_trigger) < TIGHT_TIMING:
                     follows_id = triggered_action.triggering_event.id
 
-            # Build related resources including triggering event reference
+            # Build related resources including automation.triggered and triggering event
             related_resources = list(self._resulting_related_resources)
+            if triggered_action.automation_triggered_event_id:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
+                            "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
             if triggered_action.triggering_event:
                 related_resources.append(
                     RelatedResource(
@@ -282,6 +311,17 @@ class Action(PrefectBaseModel, abc.ABC):
                     follows=follows_id,
                 )
             )
+            # Build related resources for the executed event
+            executed_related_resources = list(self._resulting_related_resources)
+            if triggered_action.automation_triggered_event_id:
+                executed_related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
+                            "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
             await events.emit(
                 Event(
                     occurred=now("UTC"),
@@ -293,7 +333,7 @@ class Action(PrefectBaseModel, abc.ABC):
                             "prefect.trigger-type": automation.trigger.type,
                         }
                     ),
-                    related=self._resulting_related_resources,
+                    related=executed_related_resources,
                     payload={
                         **action_details,
                         **self._result_details,
