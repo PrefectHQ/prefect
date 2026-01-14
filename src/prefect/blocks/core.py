@@ -1640,7 +1640,7 @@ class Block(BaseModel, ABC):
             cls._block_schema_id = block_schema.id
 
     @inject_client
-    async def _asave(
+    async def _save(
         self,
         name: Optional[str] = None,
         is_anonymous: bool = False,
@@ -1648,7 +1648,7 @@ class Block(BaseModel, ABC):
         client: Optional["PrefectClient"] = None,
     ) -> UUID:
         """
-        Asynchronously saves the values of a block as a block document with an option to save as an
+        Saves the values of a block as a block document with an option to save as an
         anonymous block document.
 
         Args:
@@ -1852,7 +1852,7 @@ class Block(BaseModel, ABC):
         Returns:
             The ID of the saved block document.
         """
-        document_id = await self._asave(name=name, overwrite=overwrite, client=client)
+        document_id = await self._save(name=name, overwrite=overwrite, client=client)
         return document_id
 
     @async_dispatch(asave)
