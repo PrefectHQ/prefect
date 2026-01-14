@@ -731,15 +731,13 @@ def test_login_already_logged_in_to_current_profile_yes_reauth():
                 ["cloud", "login"],
                 expected_code=0,
                 user_input=(
-                    # Yes, reauth
-                    "y"
-                    + readchar.key.ENTER
-                    # Enter key manually
+                    # Yes, reauth (use \n for typer.confirm)
+                    "y\n"
+                    # Enter key manually (use readchar keys for prompt_select_from_list)
                     + readchar.key.DOWN
                     + readchar.key.ENTER
-                    # Enter new key
-                    + "bar"
-                    + readchar.key.ENTER
+                    # Enter new key (use \n for typer.prompt)
+                    + "bar\n"
                 ),
                 expected_output_contains=[
                     "Would you like to reauthenticate? [y/N]",
@@ -798,15 +796,14 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change()
                 ["cloud", "login"],
                 expected_code=0,
                 user_input=(
-                    # Yes, reauth
-                    "y"
-                    + readchar.key.ENTER
-                    # Enter a key
+                    # Yes, reauth (use \n for typer.confirm)
+                    "y\n"
+                    # Enter a key (use readchar keys for prompt_select_from_list)
                     + readchar.key.DOWN
                     + readchar.key.ENTER
-                    + "bar"
-                    + readchar.key.ENTER
-                    # Select the first workspace
+                    # Enter new key (use \n for typer.prompt)
+                    + "bar\n"
+                    # Select the first workspace (use readchar keys for prompt_select_from_list)
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
