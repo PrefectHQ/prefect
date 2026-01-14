@@ -12,8 +12,10 @@ if TYPE_CHECKING:
     from importlib.machinery import ModuleSpec
     from .main import (
         allow_failure,
+        apause_flow_run,
         aresume_flow_run,
         aserve,
+        asuspend_flow_run,
         flow,
         Flow,
         get_client,
@@ -126,8 +128,10 @@ _initialize_plugins()
 
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
+    "apause_flow_run": (__spec__.parent, ".main"),
     "aresume_flow_run": (__spec__.parent, ".main"),
     "aserve": (__spec__.parent, ".main"),
+    "asuspend_flow_run": (__spec__.parent, ".main"),
     "deploy": (__spec__.parent, ".deployments.runner"),
     "flow": (__spec__.parent, ".main"),
     "Flow": (__spec__.parent, ".main"),
@@ -149,8 +153,10 @@ _public_api: dict[str, tuple[Optional[str], str]] = {
 __all__ = [
     "__version__",
     "allow_failure",
+    "apause_flow_run",
     "aresume_flow_run",
     "aserve",
+    "asuspend_flow_run",
     "deploy",
     "flow",
     "Flow",
