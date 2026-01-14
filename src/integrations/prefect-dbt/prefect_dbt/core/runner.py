@@ -1080,7 +1080,7 @@ class PrefectDbtRunner:
                 command_name = arg
                 if isinstance(cli.commands[arg], click.Group):
                     # look one arg ahead for subcommand
-                    if (next_arg := args_copy[i+1]) in cli.commands[arg].commands:
+                    if (next_arg := args_copy[i + 1]) in cli.commands[arg].commands:
                         subcommand_name = next_arg
                 break
 
