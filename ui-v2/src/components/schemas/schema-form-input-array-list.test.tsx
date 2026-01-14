@@ -253,6 +253,260 @@ describe("SchemaFormInputArrayList", () => {
 		});
 	});
 
+	describe("move to top/bottom menu options", () => {
+		test("shows 'Move to top' option for non-first items", async () => {
+			const user = userEvent.setup();
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					items: {
+						type: "array",
+						items: { type: "string" },
+					},
+				},
+			};
+
+			render(
+				<TestSchemaForm
+					schema={schema}
+					values={{ items: ["first", "second", "third"] }}
+				/>,
+			);
+
+			// Find all menu trigger buttons
+			const menuButtons = screen.getAllByRole("button", { name: /open menu/i });
+
+			// Click the second array item's menu (index 2 - after property menu and first item menu)
+			await user.click(menuButtons[2]);
+
+			// Check that move to top option exists
+			await waitFor(() => {
+				expect(
+					screen.getByRole("menuitem", { name: /move to top/i }),
+				).toBeVisible();
+			});
+		});
+
+		test("does not show 'Move to top' for first item", async () => {
+			const user = userEvent.setup();
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					items: {
+						type: "array",
+						items: { type: "string" },
+					},
+				},
+			};
+
+			render(
+				<TestSchemaForm
+					schema={schema}
+					values={{ items: ["first", "second", "third"] }}
+				/>,
+			);
+
+			// Find all menu trigger buttons
+			const menuButtons = screen.getAllByRole("button", { name: /open menu/i });
+
+			// Click the first array item's menu (index 1 - after property menu)
+			await user.click(menuButtons[1]);
+
+			// Wait for menu to open
+			await waitFor(() => {
+				expect(screen.getByRole("menuitem", { name: /delete/i })).toBeVisible();
+			});
+
+			// Move to top should not be present for first item
+			expect(
+				screen.queryByRole("menuitem", { name: /move to top/i }),
+			).not.toBeInTheDocument();
+		});
+
+		test("shows 'Move to bottom' option for non-last items", async () => {
+			const user = userEvent.setup();
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					items: {
+						type: "array",
+						items: { type: "string" },
+					},
+				},
+			};
+
+			render(
+				<TestSchemaForm
+					schema={schema}
+					values={{ items: ["first", "second", "third"] }}
+				/>,
+			);
+
+			// Find all menu trigger buttons
+			const menuButtons = screen.getAllByRole("button", { name: /open menu/i });
+
+			// Click the second array item's menu (index 2 - after property menu and first item menu)
+			await user.click(menuButtons[2]);
+
+			// Check that move to bottom option exists
+			await waitFor(() => {
+				expect(
+					screen.getByRole("menuitem", { name: /move to bottom/i }),
+				).toBeVisible();
+			});
+		});
+
+		test("does not show 'Move to bottom' for last item", async () => {
+			const user = userEvent.setup();
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					items: {
+						type: "array",
+						items: { type: "string" },
+					},
+				},
+			};
+
+			render(
+				<TestSchemaForm
+					schema={schema}
+					values={{ items: ["first", "second", "third"] }}
+				/>,
+			);
+
+			// Find all menu trigger buttons
+			const menuButtons = screen.getAllByRole("button", { name: /open menu/i });
+
+			// Click the last array item's menu (index 3 - after property menu and two item menus)
+			await user.click(menuButtons[3]);
+
+			// Wait for menu to open
+			await waitFor(() => {
+				expect(screen.getByRole("menuitem", { name: /delete/i })).toBeVisible();
+			});
+
+			// Move to bottom should not be present for last item
+			expect(
+				screen.queryByRole("menuitem", { name: /move to bottom/i }),
+			).not.toBeInTheDocument();
+		});
+
+		test("clicking 'Move to top' moves item to first position", async () => {
+			const user = userEvent.setup();
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState<Record<string, unknown>>({
+					items: ["first", "second", "third"],
+				});
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				const schema: SchemaObject = {
+					type: "object",
+					properties: {
+						items: {
+							type: "array",
+							items: { type: "string" },
+						},
+					},
+				};
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+
+			// Find all menu trigger buttons
+			const menuButtons = screen.getAllByRole("button", { name: /open menu/i });
+
+			// Click the third array item's menu (index 3 - after property menu and two item menus)
+			await user.click(menuButtons[3]);
+
+			// Wait for menu to open and click move to top
+			await waitFor(() => {
+				expect(
+					screen.getByRole("menuitem", { name: /move to top/i }),
+				).toBeVisible();
+			});
+
+			await user.click(screen.getByRole("menuitem", { name: /move to top/i }));
+
+			// Verify the items were reordered
+			await waitFor(() => {
+				expect(spy).toHaveBeenCalledWith({
+					items: ["third", "first", "second"],
+				});
+			});
+		});
+
+		test("clicking 'Move to bottom' moves item to last position", async () => {
+			const user = userEvent.setup();
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState<Record<string, unknown>>({
+					items: ["first", "second", "third"],
+				});
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				const schema: SchemaObject = {
+					type: "object",
+					properties: {
+						items: {
+							type: "array",
+							items: { type: "string" },
+						},
+					},
+				};
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+
+			// Find all menu trigger buttons
+			const menuButtons = screen.getAllByRole("button", { name: /open menu/i });
+
+			// Click the first array item's menu (index 1 - after property menu)
+			await user.click(menuButtons[1]);
+
+			// Wait for menu to open and click move to bottom
+			await waitFor(() => {
+				expect(
+					screen.getByRole("menuitem", { name: /move to bottom/i }),
+				).toBeVisible();
+			});
+
+			await user.click(
+				screen.getByRole("menuitem", { name: /move to bottom/i }),
+			);
+
+			// Verify the items were reordered
+			await waitFor(() => {
+				expect(spy).toHaveBeenCalledWith({
+					items: ["second", "third", "first"],
+				});
+			});
+		});
+	});
+
 	describe("prefix items behavior", () => {
 		test("prefix items cannot be moved", async () => {
 			const user = userEvent.setup();
