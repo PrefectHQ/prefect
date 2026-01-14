@@ -132,6 +132,7 @@ class DeploymentStatus(AutoEnum):
 
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
+    DISABLED = AutoEnum.auto()  # Prefect Cloud only
 
 
 class WorkQueueStatus(AutoEnum):
