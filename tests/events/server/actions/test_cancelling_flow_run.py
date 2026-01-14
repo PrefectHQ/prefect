@@ -247,7 +247,13 @@ async def test_success_event(
                 "prefect.resource.id": f"prefect.flow-run.{super_long_exposure.id}",
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{cancel_that_weird_exposure.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,

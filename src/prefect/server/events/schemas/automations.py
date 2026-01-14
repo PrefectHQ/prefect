@@ -760,6 +760,14 @@ class TriggeredAction(PrefectBaseModel):
         default=0,
         description="The index of the action within the automation",
     )
+    automation_triggered_event_id: UUID | None = Field(
+        default=None,
+        description=(
+            "The ID of the automation.triggered or automation.resolved event that "
+            "prompted this action, used to link automation.action.* events back to "
+            "the state change event"
+        ),
+    )
 
     def idempotency_key(self) -> str:
         """Produce a human-friendly idempotency key for this action"""
