@@ -2,8 +2,8 @@ from typing import AsyncGenerator, Generator
 from unittest import mock
 
 import pytest
-from uuid_extensions import uuid7
 
+from prefect._internal.uuid7 import uuid7
 from prefect.server.events import actions
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.events.schemas.automations import (
