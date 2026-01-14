@@ -228,16 +228,85 @@ class TestAsyncDispatchMigration:
         assert acquire_concurrency_slots.aio is aacquire_concurrency_slots
         assert release_concurrency_slots.aio is arelease_concurrency_slots
 
-    def test_sync_functions_are_not_coroutines(self):
-        """Test that the sync functions are not coroutine functions."""
+    async def test_arelease_concurrency_slots_calls_async_client(self):
+        """Test that arelease_concurrency_slots uses the async client."""
+        import uuid
+
+        from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
+
+        task_run_id = uuid.UUID("00000000-0000-0000-0000-000000000000")
+        limits = [
+            MinimalConcurrencyLimitResponse(id=uuid.uuid4(), name="test", limit=1)
+        ]
+
+        with mock.patch(
+            "prefect.client.orchestration.PrefectClient.decrement_v1_concurrency_slots"
+        ) as mock_decrement:
+            response = Response(
+                200, json=[limit.model_dump(mode="json") for limit in limits]
+            )
+            mock_decrement.return_value = response
+
+            result = await arelease_concurrency_slots(
+                names=["test"], task_run_id=task_run_id, occupancy_seconds=1.0
+            )
+            mock_decrement.assert_called_once()
+            assert result == limits
+
+    def test_release_concurrency_slots_sync_uses_sync_client(self):
+        """Test that release_concurrency_slots with _sync=True uses sync client."""
+        import uuid
+
+        from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
+
+        task_run_id = uuid.UUID("00000000-0000-0000-0000-000000000000")
+        limits = [
+            MinimalConcurrencyLimitResponse(id=uuid.uuid4(), name="test", limit=1)
+        ]
+
+        with mock.patch(
+            "prefect.client.orchestration.SyncPrefectClient.decrement_v1_concurrency_slots"
+        ) as mock_decrement:
+            response = Response(
+                200, json=[limit.model_dump(mode="json") for limit in limits]
+            )
+            mock_decrement.return_value = response
+
+            result = release_concurrency_slots(
+                names=["test"],
+                task_run_id=task_run_id,
+                occupancy_seconds=1.0,
+                _sync=True,
+            )
+            mock_decrement.assert_called_once()
+            assert result == limits
+
+    async def test_release_concurrency_slots_dispatches_to_async_in_async_context(self):
+        """Test that release_concurrency_slots returns coroutine in async context."""
         import inspect
+        import uuid
 
-        assert not inspect.iscoroutinefunction(acquire_concurrency_slots)
-        assert not inspect.iscoroutinefunction(release_concurrency_slots)
+        from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 
-    def test_async_functions_are_coroutines(self):
-        """Test that the async functions are coroutine functions."""
-        import inspect
+        task_run_id = uuid.UUID("00000000-0000-0000-0000-000000000000")
+        limits = [
+            MinimalConcurrencyLimitResponse(id=uuid.uuid4(), name="test", limit=1)
+        ]
 
-        assert inspect.iscoroutinefunction(aacquire_concurrency_slots)
-        assert inspect.iscoroutinefunction(arelease_concurrency_slots)
+        with mock.patch(
+            "prefect.client.orchestration.PrefectClient.decrement_v1_concurrency_slots"
+        ) as mock_decrement:
+            response = Response(
+                200, json=[limit.model_dump(mode="json") for limit in limits]
+            )
+            mock_decrement.return_value = response
+
+            # In async context, without _sync, should return a coroutine
+            result = release_concurrency_slots(
+                names=["test"], task_run_id=task_run_id, occupancy_seconds=1.0
+            )
+            assert inspect.iscoroutine(result)
+
+            # Await it to get the actual result
+            actual = await result
+            assert actual == limits
