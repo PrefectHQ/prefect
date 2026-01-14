@@ -1485,6 +1485,36 @@ class Runner:
                 )
         return state
 
+    async def _handle_cancellation_observer_failure(
+        self, flow_run_ids: set[UUID]
+    ) -> None:
+        """Handle failure of the cancellation observer by crashing all in-flight flow runs.
+
+        This is called when both the websocket and polling mechanisms for detecting
+        cancellation events have failed. Without cancellation observing, flow runs
+        cannot be cancelled and may run indefinitely.
+
+        Raises a RuntimeError to trigger runner shutdown after marking flow runs as crashed.
+        """
+        message = (
+            "Cancellation observing failed - both websocket and polling mechanisms "
+            "are unavailable. Marking flow run as crashed to prevent indefinite execution."
+        )
+
+        for flow_run_id in flow_run_ids:
+            process_entry = self._flow_run_process_map.get(flow_run_id)
+            if process_entry:
+                flow_run = process_entry["flow_run"]
+                run_logger = self._get_flow_run_logger(flow_run)
+                run_logger.error(message)
+                await self._propose_crashed_state(flow_run, message)
+
+        # Raise to trigger runner shutdown - the task group will handle cleanup
+        raise RuntimeError(
+            "Cancellation observer failed. Runner cannot safely continue without "
+            "the ability to respond to cancellation requests."
+        )
+
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
     ) -> None:
@@ -1597,6 +1627,9 @@ class Runner:
             FlowRunCancellingObserver(
                 on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
                     self._cancel_run, flow_run_id
+                ),
+                on_failure=lambda flow_run_ids: self._runs_task_group.start_soon(
+                    self._handle_cancellation_observer_failure, flow_run_ids
                 ),
                 polling_interval=self.query_seconds,
             )
