@@ -23,6 +23,7 @@ import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.global_concurrency_limit
 import prefect.cli.profile
+import prefect.cli.sdk
 import prefect.cli.server
 import prefect.cli.task
 import prefect.cli.variable
