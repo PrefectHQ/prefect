@@ -658,6 +658,26 @@ class TestPrefectDbtRunnerInvoke:
             f"--target-path should not be passed to 'deps' command, got: {args_list}"
         )
 
+    def test_invoke_handles_multi_word_commands(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that multi-word commands include all necessary parameters."""
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        result = runner.invoke(["source", "freshness"])
+
+        assert result.success
+        mock_dbt_runner_class.assert_called_once()
+
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        args_list = call_args[0][0]
+        assert "--profiles-dir" in args_list
+        # --project-dir is accepted by `source freshness`, but not by `source`
+        assert "--project-dir" in args_list
+
 
 class TestPrefectDbtRunnerCallbackCreation:
     """Test callback creation functionality."""
