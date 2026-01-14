@@ -519,6 +519,12 @@ async def test_success_event(
                 "prefect.resource.role": "flow-run",
             }
         ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{snap_that_naughty_woodchuck.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,

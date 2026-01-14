@@ -436,21 +436,37 @@ async def act(firing: Firing) -> None:
     }
     await messaging.publish(state_change_events.values())
 
-    # By default, all `automation.actions` are fired
-    source_actions: List[Tuple[Optional[ReceivedEvent], ServerActionTypes]] = [
-        (firing.triggering_event, action) for action in automation.actions
+    # Determine the primary state change event ID for linking action events back to
+    # the automation.triggered or automation.resolved event. Prefer Triggered over
+    # Resolved when both are present.
+    primary_state_change_event = state_change_events.get(
+        TriggerState.Triggered
+    ) or state_change_events.get(TriggerState.Resolved)
+    primary_state_change_event_id = (
+        primary_state_change_event.id if primary_state_change_event else None
+    )
+
+    # By default, all `automation.actions` are fired. Each tuple contains:
+    # (triggering_event, action, automation_triggered_event_id)
+    source_actions: List[
+        Tuple[Optional[ReceivedEvent], ServerActionTypes, UUID | None]
+    ] = [
+        (firing.triggering_event, action, primary_state_change_event_id)
+        for action in automation.actions
     ]
 
     # Conditionally add in actions that fire on specific trigger states
     if TriggerState.Triggered in firing.trigger_states:
+        triggered_event = state_change_events[TriggerState.Triggered]
         source_actions += [
-            (state_change_events[TriggerState.Triggered], action)
+            (triggered_event, action, triggered_event.id)
             for action in automation.actions_on_trigger
         ]
 
     if TriggerState.Resolved in firing.trigger_states:
+        resolved_event = state_change_events[TriggerState.Resolved]
         source_actions += [
-            (state_change_events[TriggerState.Resolved], action)
+            (resolved_event, action, resolved_event.id)
             for action in automation.actions_on_resolve
         ]
 
@@ -463,8 +479,13 @@ async def act(firing: Firing) -> None:
             triggering_event=action_triggering_event,
             action=action,
             action_index=index,
+            automation_triggered_event_id=automation_triggered_event_id,
         )
-        for index, (action_triggering_event, action) in enumerate(source_actions)
+        for index, (
+            action_triggering_event,
+            action,
+            automation_triggered_event_id,
+        ) in enumerate(source_actions)
     ]
 
     async with messaging.create_actions_publisher() as publisher:

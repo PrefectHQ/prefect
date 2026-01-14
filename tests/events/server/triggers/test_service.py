@@ -57,6 +57,7 @@ async def test_acting_publishes_an_action_message_from_a_reactive_event(
         triggering_event=daddy_long_legs_walked,
         action=actions.DoNothing(),
         id=parsed.id,
+        automation_triggered_event_id=parsed.automation_triggered_event_id,
     )
 
 
@@ -90,6 +91,7 @@ async def test_acting_publishes_an_action_message_from_a_proactive_trigger(
         triggering_event=None,
         action=actions.DoNothing(),
         id=parsed.id,
+        automation_triggered_event_id=parsed.automation_triggered_event_id,
     )
 
 
