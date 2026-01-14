@@ -931,6 +931,7 @@ To add a new variable that can be set per-deployment, you need to:
 
 For example, to allow per-deployment customization of container secrets (for injecting values from AWS Secrets Manager or Parameter Store):
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect.client.schemas.actions import WorkPoolUpdate
 from prefect import get_client
