@@ -216,6 +216,15 @@ class Action(PrefectBaseModel, abc.ABC):
                         }
                     )
                 )
+            if triggered_action.triggering_event:
+                failed_related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.triggering_event.id}",
+                            "prefect.resource.role": "triggering-event",
+                        }
+                    )
+                )
             await events.emit(
                 Event(
                     occurred=now("UTC"),
@@ -319,6 +328,15 @@ class Action(PrefectBaseModel, abc.ABC):
                         {
                             "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
                             "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
+            if triggered_action.triggering_event:
+                executed_related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.triggering_event.id}",
+                            "prefect.resource.role": "triggering-event",
                         }
                     )
                 )

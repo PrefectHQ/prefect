@@ -136,7 +136,13 @@ async def test_successes_emit_events(
         executed_event.resource["prefect.resource.name"]
         == "React immediately to spiders"
     )
-    assert not executed_event.related
+    # Verify triggering-event related resource on executed event
+    assert len(executed_event.related) == 1
+    assert (
+        executed_event.related[0]["prefect.resource.id"]
+        == f"prefect.event.{email_me_when_that_dang_spider_comes.triggering_event.id}"
+    )
+    assert executed_event.related[0]["prefect.resource.role"] == "triggering-event"
     assert executed_event.payload == {
         "action_index": 0,
         "action_type": "do-nothing",
@@ -196,7 +202,13 @@ async def test_failures_emit_events(
         executed_event.resource["prefect.resource.name"]
         == "React immediately to spiders"
     )
-    assert not executed_event.related
+    # Verify triggering-event related resource on failed event
+    assert len(executed_event.related) == 1
+    assert (
+        executed_event.related[0]["prefect.resource.id"]
+        == f"prefect.event.{email_me_when_that_dang_spider_comes.triggering_event.id}"
+    )
+    assert executed_event.related[0]["prefect.resource.role"] == "triggering-event"
     assert executed_event.payload == {
         "action_index": 0,
         "action_type": "do-nothing",
@@ -382,6 +394,21 @@ async def test_success_events_include_automation_triggered_event_link(
         == f"prefect.event.{automation_triggered_id}"
     )
 
+    # Verify triggering-event related resource on action.executed event
+    executed_triggering_event_related = next(
+        (
+            r
+            for r in executed_event.related
+            if r["prefect.resource.role"] == "triggering-event"
+        ),
+        None,
+    )
+    assert executed_triggering_event_related is not None
+    assert (
+        executed_triggering_event_related["prefect.resource.id"]
+        == f"prefect.event.{daddy_long_legs_walked.id}"
+    )
+
 
 async def test_failure_events_include_automation_triggered_event_link(
     message_handler: MessageHandler,
@@ -459,15 +486,29 @@ async def test_failure_events_include_automation_triggered_event_link(
         == f"prefect.event.{automation_triggered_id}"
     )
 
+    # Verify triggering-event related resource on action.failed event
+    failed_triggering_event_related = next(
+        (
+            r
+            for r in failed_event.related
+            if r["prefect.resource.role"] == "triggering-event"
+        ),
+        None,
+    )
+    assert failed_triggering_event_related is not None
+    assert (
+        failed_triggering_event_related["prefect.resource.id"]
+        == f"prefect.event.{daddy_long_legs_walked.id}"
+    )
+
 
 async def test_action_events_without_automation_triggered_event_id(
     message_handler: MessageHandler,
     email_me_when_that_dang_spider_comes: TriggeredAction,
 ):
     """
-    For backward compatibility, when automation_triggered_event_id is None (the
-    default), only the triggering-event related resource should be included on
-    action.triggered and no automation-triggered-event on action.executed.
+    When automation_triggered_event_id is None (the default), events should still
+    include the triggering-event related resource but no automation-triggered-event.
     """
     # The default fixture doesn't set automation_triggered_event_id
     assert email_me_when_that_dang_spider_comes.automation_triggered_event_id is None
@@ -497,7 +538,10 @@ async def test_action_events_without_automation_triggered_event_id(
     )
     assert triggered_automation_related is None
 
-    # No automation-triggered-event related resource on action.executed either
+    # action.executed should have triggering-event but no automation-triggered-event
+    assert len(executed_event.related) == 1
+    assert executed_event.related[0]["prefect.resource.role"] == "triggering-event"
+
     executed_automation_related = next(
         (
             r
