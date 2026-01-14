@@ -121,6 +121,8 @@ export function SchemaFormProperty({
 							onValueChange={handleValueChange}
 							property={property}
 							disableKinds={unknownPropertyType}
+							defaultValue={property.default}
+							hasDefaultValue={isDefined(property.default)}
 						>
 							<DropdownMenuItem onClick={handleOmittedChange}>
 								{omitted ? "Include value" : "Omit value"}
