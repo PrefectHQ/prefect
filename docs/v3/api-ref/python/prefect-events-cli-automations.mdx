@@ -139,3 +139,19 @@ Create one or more automations from a file or JSON string.
 `$ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'`
 `$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'`
 
+
+### `update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/cli/automations.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update(id: str = typer.Option(..., '--id', help='The ID of the automation to update'), from_file: Optional[Path] = typer.Option(None, '--from-file', '-f', help='Path to YAML or JSON file containing the updated automation'), from_json: Optional[str] = typer.Option(None, '--from-json', '-j', help='JSON string containing the updated automation'))
+```
+
+
+Update an existing automation from a file or JSON string.
+
+**Examples:**
+
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-file automation.yaml`
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -f automation.json`
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-json '{"name": "updated-automation", "trigger": {...}, "actions": [...]}'`
+

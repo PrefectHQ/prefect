@@ -7,20 +7,20 @@ sidebarTitle: jinja_filters
 
 ## Functions
 
-### `ui_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/jinja_filters.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ui_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/jinja_filters.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-ui_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]
+ui_url(ctx: Mapping[str, Any], obj: Any) -> str | None
 ```
 
 
 Return the UI URL for the given object.
 
 
-### `ui_resource_events_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/jinja_filters.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ui_resource_events_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/jinja_filters.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> Optional[str]
+ui_resource_events_url(ctx: Mapping[str, Any], obj: Any) -> str | None
 ```
 
 
@@ -31,4 +31,14 @@ return `None`.
 Currently supports Automation, Resource, Deployment, Flow, FlowRun, TaskRun, and
 WorkQueue objects. Within a Resource, deployment, flow, flow-run, task-run,
 and work-queue are supported.
+
+
+### `flow_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/jinja_filters.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+flow_run_id(text: str | None) -> str | None
+```
+
+
+Extract a flow run ID from a string, such as a PR body.
 

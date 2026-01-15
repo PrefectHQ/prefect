@@ -895,6 +895,7 @@
                       "v3/api-ref/python/prefect-cli-global_concurrency_limit",
                       "v3/api-ref/python/prefect-cli-profile",
                       "v3/api-ref/python/prefect-cli-root",
+                      "v3/api-ref/python/prefect-cli-sdk",
                       "v3/api-ref/python/prefect-cli-server",
                       "v3/api-ref/python/prefect-cli-shell",
                       "v3/api-ref/python/prefect-cli-task",
