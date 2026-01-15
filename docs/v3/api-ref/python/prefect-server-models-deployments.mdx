@@ -289,13 +289,13 @@ Deletes a deployment schedule.
 mark_deployments_ready() -> None
 ```
 
-### `mark_deployments_not_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mark_deployments_not_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mark_deployments_not_ready(db: PrefectDBInterface, deployment_ids: Optional[Iterable[UUID]] = None, work_queue_ids: Optional[Iterable[UUID]] = None) -> None
 ```
 
-### `with_system_labels_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_system_labels_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1214" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_system_labels_for_deployment(session: AsyncSession, deployment: schemas.core.Deployment) -> schemas.core.KeyValueLabels
@@ -305,7 +305,7 @@ with_system_labels_for_deployment(session: AsyncSession, deployment: schemas.cor
 Augment user supplied labels with system default labels for a deployment.
 
 
-### `with_system_labels_for_deployment_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_system_labels_for_deployment_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_system_labels_for_deployment_flow_run(session: AsyncSession, deployment: orm_models.Deployment, user_supplied_labels: Optional[schemas.core.KeyValueLabels] = None) -> schemas.core.KeyValueLabels
