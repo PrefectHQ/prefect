@@ -2,6 +2,70 @@
 title: 3.6
 ---
 
+## 3.6.11
+
+*Released on January 15, 2026*
+
+**New Features 🎉**
+
+* Add template and renderer for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20167](https://github.com/PrefectHQ/prefect/pull/20167)
+* Add schema converter for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20150](https://github.com/PrefectHQ/prefect/pull/20150)
+* Add naming and data models for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20158](https://github.com/PrefectHQ/prefect/pull/20158)
+* Add CLI command for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20173](https://github.com/PrefectHQ/prefect/pull/20173)
+
+**Enhancements ➕➕**
+
+* Add JSON output to `prefect variable ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20192](https://github.com/PrefectHQ/prefect/pull/20192)
+* Add JSON output to `prefect global-concurrency-limit ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20194](https://github.com/PrefectHQ/prefect/pull/20194)
+* Add JSON output to `prefect artifact` CLI commands by [@xeniumcode](https://github.com/xeniumcode) in [#20193](https://github.com/PrefectHQ/prefect/pull/20193)
+* Add JSON output to `prefect block ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20195](https://github.com/PrefectHQ/prefect/pull/20195)
+* Add JSON output to `prefect block type ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20196](https://github.com/PrefectHQ/prefect/pull/20196)
+* Add JSON output to `prefect deployment schedule` CLI commands by [@xeniumcode](https://github.com/xeniumcode) in [#20197](https://github.com/PrefectHQ/prefect/pull/20197)
+* Add JSON output to `prefect deployment` CLI commands by [@xeniumcode](https://github.com/xeniumcode) in [#20198](https://github.com/PrefectHQ/prefect/pull/20198)
+* Add data fetching and generator for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20172](https://github.com/PrefectHQ/prefect/pull/20172)
+* Migrate `pause`, `suspend`, `resume`, and `run_input` from `@sync_compatible` to `@async_dispatch` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20178](https://github.com/PrefectHQ/prefect/pull/20178)
+* Add `force` parameter to `ChangeFlowRunState` and `flow_run_id` Jinja filter by [@zzstoatzz](https://github.com/zzstoatzz) in [#20112](https://github.com/PrefectHQ/prefect/pull/20112)
+* Link `automation.action.*` events to `automation.triggered` event by [@chrisguidry](https://github.com/chrisguidry) in [#20227](https://github.com/PrefectHQ/prefect/pull/20227)
+* Add `DISABLED` to client `DeploymentStatus` enum for Cloud compatibility by [@chrisguidry](https://github.com/chrisguidry) in [#20244](https://github.com/PrefectHQ/prefect/pull/20244)
+* Add `kill_infrastructure` method to worker integrations by [@joshuastagner](https://github.com/joshuastagner) in [#20075](https://github.com/PrefectHQ/prefect/pull/20075)
+
+**Bug Fixes 🐞**
+
+* Fix flow run cancellation handling bugs by [@joshuastagner](https://github.com/joshuastagner) in [#20143](https://github.com/PrefectHQ/prefect/pull/20143)
+* Fix race condition in filesystem lease storage with atomic writes by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20153](https://github.com/PrefectHQ/prefect/pull/20153)
+* Add task keys to docket calls in API handlers to prevent duplicate execution by [@desertaxle](https://github.com/desertaxle) in [#20210](https://github.com/PrefectHQ/prefect/pull/20210)
+* Separate Prefect and AWS resources in ECS provisioner display by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20232](https://github.com/PrefectHQ/prefect/pull/20232)
+* Support ISO 8601 duration strings for interval schedules in `prefect.yaml` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20238](https://github.com/PrefectHQ/prefect/pull/20238)
+* Disable Docket result storage to prevent memory bloat by [@desertaxle](https://github.com/desertaxle) in [#20253](https://github.com/PrefectHQ/prefect/pull/20253)
+* Preserve the `updated` column value of deployments when marking them as ready by [@vkrot-innio](https://github.com/vkrot-innio) in [#19936](https://github.com/PrefectHQ/prefect/pull/19936)
+
+**Development & Tidiness 🧹**
+
+* Add `arun_deployment` and replace `@sync_compatible` with `@async_dispatch` by [@desertaxle](https://github.com/desertaxle) in [#20160](https://github.com/PrefectHQ/prefect/pull/20160)
+* Patch correct method in `test_concurrency_respects_timeout` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20185](https://github.com/PrefectHQ/prefect/pull/20185)
+* Fix flaky test by reducing `slot_decay_per_second` to prevent race condition by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20208](https://github.com/PrefectHQ/prefect/pull/20208)
+* Remove incorrect docstrings from CLI ls commands by [@zzstoatzz](https://github.com/zzstoatzz) in [#20206](https://github.com/PrefectHQ/prefect/pull/20206)
+* Add Claude command frontmatter by [@zzstoatzz](https://github.com/zzstoatzz) in [#20224](https://github.com/PrefectHQ/prefect/pull/20224)
+* Enable multi-checker type safety tests with mypy, pyright, and ty by [@zzstoatzz](https://github.com/zzstoatzz) in [#20159](https://github.com/PrefectHQ/prefect/pull/20159)
+* Migrate `concurrency/v1` from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20225](https://github.com/PrefectHQ/prefect/pull/20225)
+* Migrate `blocks/core.py` from `@sync_compatible` to `@async_dispatch` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20226](https://github.com/PrefectHQ/prefect/pull/20226)
+* Stale item cleanup enhancements by [@bdalpe](https://github.com/bdalpe) in [#20145](https://github.com/PrefectHQ/prefect/pull/20145)
+* Add plan label to exclude from release notes by [@zzstoatzz](https://github.com/zzstoatzz) in [#20182](https://github.com/PrefectHQ/prefect/pull/20182)
+* Auto-label PRs that touch `plans/` directory by [@zzstoatzz](https://github.com/zzstoatzz) in [#20183](https://github.com/PrefectHQ/prefect/pull/20183)
+* Disable migrations and block registration for multi-worker test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20179](https://github.com/PrefectHQ/prefect/pull/20179)
+* Fix plan label to only apply when all changed files are in `plans/` by [@desertaxle](https://github.com/desertaxle) in [#20207](https://github.com/PrefectHQ/prefect/pull/20207)
+
+**Documentation 📓**
+
+* Add ECS base job template customization guide by [@zzstoatzz](https://github.com/zzstoatzz) in [#20249](https://github.com/PrefectHQ/prefect/pull/20249)
+* Fix MDX parsing error in events CLI documentation by [@desertaxle](https://github.com/desertaxle) in [#20252](https://github.com/PrefectHQ/prefect/pull/20252)
+* Add documentation for `prefect sdk generate` CLI by [@desertaxle](https://github.com/desertaxle) in [#20241](https://github.com/PrefectHQ/prefect/pull/20241)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.10...3.6.11
+
+
+---
+
 ## 3.6.10 - Five Bugs Walked Into A Bar And None Of Them Left
 
 *Released on January 08, 2026*

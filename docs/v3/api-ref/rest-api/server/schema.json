@@ -14640,6 +14640,12 @@
                         ],
                         "title": "Message",
                         "description": "An optional message to associate with the state change"
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "title": "Force",
+                        "description": "Force the state change even if the transition is not allowed",
+                        "default": false
                     }
                 },
                 "type": "object",
