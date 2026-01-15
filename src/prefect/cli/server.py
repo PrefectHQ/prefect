@@ -13,6 +13,7 @@ import socket
 import subprocess
 import sys
 import textwrap
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -718,8 +719,6 @@ def run_manager_process():
 
 async def _run_all_services() -> None:
     """Run Service-based services and docket-based perpetual services."""
-    from datetime import timedelta
-
     from docket import Docket
 
     from prefect.server.api.background_workers import background_worker
