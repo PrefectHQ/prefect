@@ -1488,32 +1488,44 @@ class Runner:
     async def _handle_cancellation_observer_failure(
         self, flow_run_ids: set[UUID]
     ) -> None:
-        """Handle failure of the cancellation observer by crashing all in-flight flow runs.
+        """Handle failure of the cancellation observer.
 
         This is called when both the websocket and polling mechanisms for detecting
         cancellation events have failed. Without cancellation observing, flow runs
         cannot be cancelled and may run indefinitely.
 
-        Raises a RuntimeError to trigger runner shutdown after marking flow runs as crashed.
+        Behavior depends on the `PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE` setting:
+        - When enabled: marks all in-flight flow runs as crashed and raises RuntimeError
+          to trigger runner shutdown
+        - When disabled (default): logs an error but allows execution to continue
         """
-        message = (
+        will_cancel = get_current_settings().runner.crash_on_cancellation_failure
+        cancel_message = (
             "Cancellation observing failed - both websocket and polling mechanisms "
             "are unavailable. Marking flow run as crashed to prevent indefinite execution."
         )
-
+        continue_message = (
+            "Cancellation observing failed - both websocket and polling mechanisms "
+            "are unavailable. Flow run will continue executing but cannot be "
+            "cancelled. Set PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE=true to "
+            "crash flow runs and shut down the runner when this occurs."
+        )
         for flow_run_id in flow_run_ids:
             process_entry = self._flow_run_process_map.get(flow_run_id)
             if process_entry:
                 flow_run = process_entry["flow_run"]
                 run_logger = self._get_flow_run_logger(flow_run)
-                run_logger.error(message)
-                await self._propose_crashed_state(flow_run, message)
-
-        # Raise to trigger runner shutdown - the task group will handle cleanup
-        raise RuntimeError(
-            "Cancellation observer failed. Runner cannot safely continue without "
-            "the ability to respond to cancellation requests."
-        )
+                if will_cancel:
+                    run_logger.error(cancel_message)
+                    await self._propose_crashed_state(flow_run, cancel_message)
+                else:
+                    run_logger.warning(continue_message)
+        if will_cancel:
+            # Raise to trigger runner shutdown - the task group will handle cleanup
+            raise RuntimeError(
+                "Cancellation observer failed. Runner cannot safely continue without "
+                "the ability to respond to cancellation requests."
+            )
 
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None

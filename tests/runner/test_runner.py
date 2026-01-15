@@ -4122,3 +4122,150 @@ class TestDockerImage:
     def test_no_default_registry_url_by_default(self):
         image = DockerImage(name="my-org/test-image")
         assert image.name == "my-org/test-image"
+
+
+class TestCancellationObserverFailureHandling:
+    """Tests for the _handle_cancellation_observer_failure method."""
+
+    @pytest.fixture
+    def runner(self):
+        return Runner(name="test-runner")
+
+    @pytest.fixture
+    def mock_flow_run(self):
+        """Create a mock flow run for testing."""
+        flow_run = MagicMock(spec=FlowRun)
+        flow_run.id = uuid.uuid4()
+        flow_run.name = "test-flow-run"
+        return flow_run
+
+    async def test_logs_warning_to_flow_run_logger_when_crash_on_cancellation_failure_disabled(
+        self, runner, mock_flow_run
+    ):
+        """When crash_on_cancellation_failure is False (default), should log warning to flow run logger but not raise."""
+        # Add the flow run to the process map
+        runner._flow_run_process_map[mock_flow_run.id] = {
+            "flow_run": mock_flow_run,
+            "pid": 12345,
+        }
+
+        flow_run_ids = {mock_flow_run.id}
+
+        mock_logger = MagicMock()
+        # Should not raise when setting is disabled (default)
+        with patch.object(
+            runner, "_propose_crashed_state", new_callable=AsyncMock
+        ) as mock_propose_crashed:
+            with patch.object(
+                runner, "_get_flow_run_logger", return_value=mock_logger
+            ) as mock_get_logger:
+                await runner._handle_cancellation_observer_failure(flow_run_ids)
+
+                # Flow run logger should have been retrieved and warning logged
+                mock_get_logger.assert_called_once_with(mock_flow_run)
+                mock_logger.warning.assert_called_once()
+                assert (
+                    "Cancellation observing failed"
+                    in mock_logger.warning.call_args[0][0]
+                )
+
+                # Flow run should NOT have been marked as crashed
+                mock_propose_crashed.assert_not_called()
+
+    async def test_logs_warning_to_each_flow_run_logger_when_disabled(self, runner):
+        """When disabled, should log warning to each flow run's logger."""
+        # Create multiple mock flow runs
+        flow_runs = []
+        flow_run_ids = set()
+        for i in range(3):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.id = uuid.uuid4()
+            flow_run.name = f"test-flow-run-{i}"
+            flow_runs.append(flow_run)
+            flow_run_ids.add(flow_run.id)
+            runner._flow_run_process_map[flow_run.id] = {
+                "flow_run": flow_run,
+                "pid": 12345,
+            }
+
+        mock_logger = MagicMock()
+        with patch.object(
+            runner, "_get_flow_run_logger", return_value=mock_logger
+        ) as mock_get_logger:
+            await runner._handle_cancellation_observer_failure(flow_run_ids)
+
+            # Logger should have been retrieved for each flow run
+            assert mock_get_logger.call_count == 3
+            # Warning should have been logged for each flow run
+            assert mock_logger.warning.call_count == 3
+
+    async def test_crashes_flow_runs_when_crash_on_cancellation_failure_enabled(
+        self, runner, mock_flow_run
+    ):
+        """When crash_on_cancellation_failure is True, should crash flow runs and raise."""
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        # Add the flow run to the process map
+        runner._flow_run_process_map[mock_flow_run.id] = {
+            "flow_run": mock_flow_run,
+            "pid": 12345,
+        }
+
+        flow_run_ids = {mock_flow_run.id}
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(
+                runner, "_propose_crashed_state", new_callable=AsyncMock
+            ) as mock_propose_crashed:
+                with pytest.raises(RuntimeError, match="Cancellation observer failed"):
+                    await runner._handle_cancellation_observer_failure(flow_run_ids)
+
+                # Flow run should have been marked as crashed
+                mock_propose_crashed.assert_called_once()
+                call_args = mock_propose_crashed.call_args
+                assert call_args[0][0] == mock_flow_run  # First arg is the flow run
+
+    async def test_handles_multiple_flow_runs_when_enabled(self, runner):
+        """When enabled, should crash all in-flight flow runs."""
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        # Create multiple mock flow runs
+        flow_runs = []
+        flow_run_ids = set()
+        for _ in range(3):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.id = uuid.uuid4()
+            flow_run.name = f"test-flow-run-{flow_run.id}"
+            flow_runs.append(flow_run)
+            flow_run_ids.add(flow_run.id)
+            runner._flow_run_process_map[flow_run.id] = {
+                "flow_run": flow_run,
+                "pid": 12345,
+            }
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(
+                runner, "_propose_crashed_state", new_callable=AsyncMock
+            ) as mock_propose_crashed:
+                with pytest.raises(RuntimeError):
+                    await runner._handle_cancellation_observer_failure(flow_run_ids)
+
+                # All flow runs should have been marked as crashed
+                assert mock_propose_crashed.call_count == 3
+
+    async def test_skips_flow_runs_not_in_process_map(self, runner, mock_flow_run):
+        """Should skip flow runs that are no longer in the process map."""
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        # Don't add flow run to process map - simulate it already completed
+        flow_run_ids = {mock_flow_run.id}
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(
+                runner, "_propose_crashed_state", new_callable=AsyncMock
+            ) as mock_propose_crashed:
+                with pytest.raises(RuntimeError):
+                    await runner._handle_cancellation_observer_failure(flow_run_ids)
+
+                # Should not have tried to crash the flow run since it's not in map
+                mock_propose_crashed.assert_not_called()
