@@ -42,6 +42,7 @@ Emit a single event to Prefect.
 
 **Examples:**
 
+```bash
 # Simple event with resource ID
 prefect event emit user.logged_in --resource-id user-123
 
@@ -50,6 +51,7 @@ prefect event emit order.shipped --resource-id order-456 --payload '{"tracking":
 
 # Event with full resource specification
 prefect event emit customer.subscribed --resource '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp"}'
+```
 
 
 ## Classes
