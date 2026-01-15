@@ -1,3 +1,4 @@
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
@@ -10,19 +11,18 @@ import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
 import type { components } from "@/api/prefect";
 import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbList,
-} from "@/components/ui/breadcrumb";
+	buildCountVariablesQuery,
+	buildFilterVariablesQuery,
+	type VariablesFilter,
+} from "@/api/variables";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import { VariablesEmptyState } from "@/components/variables/empty-state";
-import { VariablesLayout } from "@/components/variables/layout";
+import { VariablesPageHeader } from "@/components/variables/header";
 import {
 	useVariableDialog,
 	VariableDialog,
 } from "@/components/variables/variable-dialog";
-import { useVariables } from "@/hooks/variables";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -44,39 +44,25 @@ const searchParams = z.object({
 	tags: z.array(z.string()).optional().catch(undefined),
 });
 
-function VariablesPage() {
-	const search = Route.useSearch();
-
-	const { variables, filteredCount, totalCount } = useVariables(
-		buildFilterBody(search),
-	);
-	const hasVariables = (totalCount ?? 0) > 0;
-	const [pagination, onPaginationChange] = usePagination();
-	const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
-	const [sorting, onSortingChange] = useVariableSorting();
-	const [variableDialogState, onVariableAddOrEdit] = useVariableDialog();
-
-	return (
-		<VariablesLayout onAddVariableClick={onVariableAddOrEdit}>
-			<VariableDialog {...variableDialogState} />
-			{hasVariables ? (
-				<VariablesDataTable
-					variables={variables ?? []}
-					currentVariableCount={filteredCount ?? 0}
-					pagination={pagination}
-					onPaginationChange={onPaginationChange}
-					columnFilters={columnFilters}
-					onColumnFiltersChange={onColumnFiltersChange}
-					sorting={sorting}
-					onSortingChange={onSortingChange}
-					onVariableEdit={onVariableAddOrEdit}
-				/>
-			) : (
-				<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
-			)}
-		</VariablesLayout>
-	);
-}
+/**
+ * Builds a filter body for the variables API based on search parameters.
+ * @param search - Optional search parameters containing offset, limit, sort, name filter, and tags filter
+ * @returns An object containing pagination parameters and variable filters that can be passed to the variables API
+ */
+const buildFilterBody = (
+	search?: z.infer<typeof searchParams>,
+): VariablesFilter => ({
+	offset: search?.offset ?? 0,
+	limit: search?.limit ?? 10,
+	sort: search?.sort ?? "CREATED_DESC",
+	variables: {
+		operator: "and_" as const,
+		...(search?.name && { name: { like_: search.name } }),
+		...(search?.tags?.length && {
+			tags: { operator: "and_" as const, all_: search.tags },
+		}),
+	},
+});
 
 function VariablesErrorComponent({ error, reset }: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load variables");
@@ -92,45 +78,26 @@ function VariablesErrorComponent({ error, reset }: ErrorComponentProps) {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<div className="flex items-center gap-2">
-				<Breadcrumb>
-					<BreadcrumbList>
-						<BreadcrumbItem className="text-xl font-semibold">
-							Variables
-						</BreadcrumbItem>
-					</BreadcrumbList>
-				</Breadcrumb>
-			</div>
+			<VariablesPageHeader />
 			<RouteErrorState error={serverError} onRetry={reset} />
 		</div>
 	);
 }
 
-export const Route = createFileRoute("/variables")({
+export const Route = createFileRoute("/variables/")({
 	validateSearch: zodValidator(searchParams),
-	component: VariablesPage,
+	component: RouteComponent,
 	errorComponent: VariablesErrorComponent,
 	loaderDeps: ({ search }) => buildFilterBody(search),
-	loader: useVariables.loader,
-	wrapInSuspense: true,
-});
-
-/**
- * Builds a filter body for the variables API based on search parameters.
- * @param search - Optional search parameters containing offset, limit, sort, name filter, and tags filter
- * @returns An object containing pagination parameters and variable filters that can be passed to the variables API
- */
-const buildFilterBody = (search?: z.infer<typeof searchParams>) => ({
-	offset: search?.offset ?? 0,
-	limit: search?.limit ?? 10,
-	sort: search?.sort ?? "CREATED_DESC",
-	variables: {
-		operator: "and_" as const,
-		...(search?.name && { name: { like_: search.name } }),
-		...(search?.tags?.length && {
-			tags: { operator: "and_" as const, all_: search.tags },
-		}),
+	loader: ({ deps, context }) => {
+		// Prefetch filtered variables
+		void context.queryClient.prefetchQuery(buildFilterVariablesQuery(deps));
+		// Prefetch filtered count
+		void context.queryClient.prefetchQuery(buildCountVariablesQuery(deps));
+		// Prefetch total count (no filter)
+		void context.queryClient.prefetchQuery(buildCountVariablesQuery());
 	},
+	wrapInSuspense: true,
 });
 
 /**
@@ -249,3 +216,44 @@ const useVariableSorting = () => {
 
 	return [search.sort, onSortingChange] as const;
 };
+
+function RouteComponent() {
+	const search = Route.useSearch();
+	const [pagination, onPaginationChange] = usePagination();
+	const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
+	const [sorting, onSortingChange] = useVariableSorting();
+	const [variableDialogState, onVariableAddOrEdit] = useVariableDialog();
+
+	const [{ data: variables }, { data: filteredCount }, { data: totalCount }] =
+		useSuspenseQueries({
+			queries: [
+				buildFilterVariablesQuery(buildFilterBody(search)),
+				buildCountVariablesQuery(buildFilterBody(search)),
+				buildCountVariablesQuery(),
+			],
+		});
+
+	const hasVariables = (totalCount ?? 0) > 0;
+
+	return (
+		<div className="flex flex-col gap-4">
+			<VariablesPageHeader onAddVariableClick={onVariableAddOrEdit} />
+			<VariableDialog {...variableDialogState} />
+			{hasVariables ? (
+				<VariablesDataTable
+					variables={variables ?? []}
+					currentVariableCount={filteredCount ?? 0}
+					pagination={pagination}
+					onPaginationChange={onPaginationChange}
+					columnFilters={columnFilters}
+					onColumnFiltersChange={onColumnFiltersChange}
+					sorting={sorting}
+					onSortingChange={onSortingChange}
+					onVariableEdit={onVariableAddOrEdit}
+				/>
+			) : (
+				<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
+			)}
+		</div>
+	);
+}

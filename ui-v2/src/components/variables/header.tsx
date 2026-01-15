@@ -6,23 +6,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 
-export const VariablesLayout = ({
+type VariablesPageHeaderProps = {
+	onAddVariableClick?: () => void;
+};
+
+export const VariablesPageHeader = ({
 	onAddVariableClick,
-	children,
-}: {
-	onAddVariableClick: () => void;
-	children: React.ReactNode;
-}) => {
+}: VariablesPageHeaderProps) => {
 	return (
-		<div className="flex flex-col gap-4">
-			<div className="flex items-center gap-2">
-				<Breadcrumb>
-					<BreadcrumbList>
-						<BreadcrumbItem className="text-xl font-semibold">
-							Variables
-						</BreadcrumbItem>
-					</BreadcrumbList>
-				</Breadcrumb>
+		<div className="flex items-center gap-2">
+			<Breadcrumb>
+				<BreadcrumbList>
+					<BreadcrumbItem className="text-xl font-semibold">
+						Variables
+					</BreadcrumbItem>
+				</BreadcrumbList>
+			</Breadcrumb>
+			{onAddVariableClick && (
 				<Button
 					size="icon"
 					className="size-7"
@@ -31,8 +31,7 @@ export const VariablesLayout = ({
 				>
 					<Icon id="Plus" className="size-4" />
 				</Button>
-			</div>
-			{children}
+			)}
 		</div>
 	);
 };

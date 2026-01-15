@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { components } from "@/api/prefect";
+import { useCreateVariable, useUpdateVariable } from "@/api/variables";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -25,7 +26,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { TagsInput } from "@/components/ui/tags-input";
-import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
 
 export type JSONValue =
 	| string
