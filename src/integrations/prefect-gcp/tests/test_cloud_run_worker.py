@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import uuid
+from unittest import mock
 from unittest.mock import Mock
 
+import googleapiclient.errors
 import pydantic
 import pytest
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
-from prefect_gcp.utilities import slugify_name
+from prefect_gcp.utilities import Execution, slugify_name
 from prefect_gcp.workers.cloud_run import (
     CloudRunWorker,
     CloudRunWorkerJobConfiguration,
@@ -15,6 +17,8 @@ from prefect_gcp.workers.cloud_run import (
 )
 
 from prefect.client.schemas.objects import FlowRun
+from prefect.exceptions import InfrastructureNotFound
+from prefect.logging.loggers import PrefectLogAdapter
 from prefect.server.schemas.actions import DeploymentCreate
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.schema_tools.validation import (
@@ -841,3 +845,143 @@ class TestCloudRunWorker:
             calls = list_mock_calls(mock_client, 2)
             for call, expected_call in zip(calls, expected_calls):
                 assert call.startswith(expected_call)
+
+    async def test_kill_infrastructure_deletes_job(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that kill_infrastructure successfully deletes a Cloud Run job."""
+        job_name = "test-job-name"
+
+        with mock.patch("prefect_gcp.workers.cloud_run.Job.delete") as mock_delete:
+            async with CloudRunWorker("my-work-pool") as worker:
+                await worker.kill_infrastructure(
+                    infrastructure_pid=job_name,
+                    configuration=cloud_run_worker_job_config,
+                    grace_seconds=30,
+                )
+
+            mock_delete.assert_called_once_with(
+                client=mock_client,
+                namespace=cloud_run_worker_job_config.project,
+                job_name=job_name,
+            )
+
+    async def test_kill_infrastructure_raises_not_found(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that kill_infrastructure raises InfrastructureNotFound for missing job."""
+        job_name = "nonexistent-job"
+
+        # Create a proper mock response with status attribute
+        mock_resp = Mock()
+        mock_resp.status = 404
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Not found"
+        )
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run.Job.delete", side_effect=mock_http_error
+        ):
+            async with CloudRunWorker("my-work-pool") as worker:
+                with pytest.raises(InfrastructureNotFound):
+                    await worker.kill_infrastructure(
+                        infrastructure_pid=job_name,
+                        configuration=cloud_run_worker_job_config,
+                        grace_seconds=30,
+                    )
+
+    def test_watch_job_execution_raises_not_found_on_404(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that _watch_job_execution raises InfrastructureNotFound when execution is deleted."""
+        # Create a mock execution that is initially running
+        mock_execution = Mock()
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a 404 error for when we try to get the execution
+        mock_resp = Mock()
+        mock_resp.status = 404
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Execution not found"
+        )
+
+        with mock.patch.object(Execution, "get", side_effect=mock_http_error):
+            worker = CloudRunWorker("my-work-pool")
+            with pytest.raises(InfrastructureNotFound) as exc_info:
+                worker._watch_job_execution(
+                    client=mock_client,
+                    job_execution=mock_execution,
+                    poll_interval=0,
+                )
+
+            assert "was deleted" in str(exc_info.value)
+
+    def test_watch_job_execution_and_get_result_handles_deleted_execution(
+        self, mock_client, cloud_run_worker_job_config, flow_run
+    ):
+        """Test that _watch_job_execution_and_get_result handles InfrastructureNotFound gracefully."""
+        # Prepare config so it has a proper job_name
+        cloud_run_worker_job_config.prepare_for_flow_run(flow_run, None, None)
+
+        # Create a mock execution
+        mock_execution = Mock(spec=Execution)
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a mock logger
+        mock_logger = Mock(spec=PrefectLogAdapter)
+
+        worker = CloudRunWorker("my-work-pool")
+
+        # Mock _watch_job_execution on the instance to raise InfrastructureNotFound
+        with mock.patch.object(
+            worker,
+            "_watch_job_execution",
+            side_effect=InfrastructureNotFound("Execution was deleted"),
+        ):
+            result = worker._watch_job_execution_and_get_result(
+                configuration=cloud_run_worker_job_config,
+                client=mock_client,
+                execution=mock_execution,
+                logger=mock_logger,
+                poll_interval=0,
+            )
+
+            # Should return a result with status_code=-1, not raise an exception
+            assert isinstance(result, CloudRunWorkerResult)
+            assert result.status_code == -1
+
+            # Should log an info message, not an error
+            mock_logger.info.assert_called_once()
+            assert "was deleted" in mock_logger.info.call_args[0][0]
+
+    def test_watch_job_execution_reraises_non_404_errors(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that _watch_job_execution re-raises non-404 HTTP errors."""
+        # Create a mock execution that is initially running
+        mock_execution = Mock()
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a 500 error (not 404)
+        mock_resp = Mock()
+        mock_resp.status = 500
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Internal server error"
+        )
+
+        with mock.patch.object(Execution, "get", side_effect=mock_http_error):
+            worker = CloudRunWorker("my-work-pool")
+            with pytest.raises(googleapiclient.errors.HttpError) as exc_info:
+                worker._watch_job_execution(
+                    client=mock_client,
+                    job_execution=mock_execution,
+                    poll_interval=0,
+                )
+
+            assert exc_info.value.status_code == 500
