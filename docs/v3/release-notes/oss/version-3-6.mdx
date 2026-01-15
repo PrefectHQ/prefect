@@ -2,16 +2,13 @@
 title: 3.6
 ---
 
-## 3.6.11
+## 3.6.11 - It's my generation, baby
 
 *Released on January 15, 2026*
 
 **New Features 🎉**
 
-* Add template and renderer for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20167](https://github.com/PrefectHQ/prefect/pull/20167)
-* Add schema converter for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20150](https://github.com/PrefectHQ/prefect/pull/20150)
-* Add naming and data models for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20158](https://github.com/PrefectHQ/prefect/pull/20158)
-* Add CLI command for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20173](https://github.com/PrefectHQ/prefect/pull/20173)
+* Add `prefect sdk generate` CLI command for generating custom deployment SDKs from work pool base job templates by [@desertaxle](https://github.com/desertaxle) in [#20150](https://github.com/PrefectHQ/prefect/pull/20150), [#20158](https://github.com/PrefectHQ/prefect/pull/20158), [#20167](https://github.com/PrefectHQ/prefect/pull/20167), [#20172](https://github.com/PrefectHQ/prefect/pull/20172), [#20173](https://github.com/PrefectHQ/prefect/pull/20173)
 
 **Enhancements ➕➕**
 
@@ -22,19 +19,16 @@ title: 3.6
 * Add JSON output to `prefect block type ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20196](https://github.com/PrefectHQ/prefect/pull/20196)
 * Add JSON output to `prefect deployment schedule` CLI commands by [@xeniumcode](https://github.com/xeniumcode) in [#20197](https://github.com/PrefectHQ/prefect/pull/20197)
 * Add JSON output to `prefect deployment` CLI commands by [@xeniumcode](https://github.com/xeniumcode) in [#20198](https://github.com/PrefectHQ/prefect/pull/20198)
-* Add data fetching and generator for Custom Deployments SDK by [@desertaxle](https://github.com/desertaxle) in [#20172](https://github.com/PrefectHQ/prefect/pull/20172)
 * Migrate `pause`, `suspend`, `resume`, and `run_input` from `@sync_compatible` to `@async_dispatch` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20178](https://github.com/PrefectHQ/prefect/pull/20178)
 * Add `force` parameter to `ChangeFlowRunState` and `flow_run_id` Jinja filter by [@zzstoatzz](https://github.com/zzstoatzz) in [#20112](https://github.com/PrefectHQ/prefect/pull/20112)
 * Link `automation.action.*` events to `automation.triggered` event by [@chrisguidry](https://github.com/chrisguidry) in [#20227](https://github.com/PrefectHQ/prefect/pull/20227)
 * Add `DISABLED` to client `DeploymentStatus` enum for Cloud compatibility by [@chrisguidry](https://github.com/chrisguidry) in [#20244](https://github.com/PrefectHQ/prefect/pull/20244)
-* Add `kill_infrastructure` method to worker integrations by [@joshuastagner](https://github.com/joshuastagner) in [#20075](https://github.com/PrefectHQ/prefect/pull/20075)
 
 **Bug Fixes 🐞**
 
 * Fix flow run cancellation handling bugs by [@joshuastagner](https://github.com/joshuastagner) in [#20143](https://github.com/PrefectHQ/prefect/pull/20143)
 * Fix race condition in filesystem lease storage with atomic writes by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20153](https://github.com/PrefectHQ/prefect/pull/20153)
 * Add task keys to docket calls in API handlers to prevent duplicate execution by [@desertaxle](https://github.com/desertaxle) in [#20210](https://github.com/PrefectHQ/prefect/pull/20210)
-* Separate Prefect and AWS resources in ECS provisioner display by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20232](https://github.com/PrefectHQ/prefect/pull/20232)
 * Support ISO 8601 duration strings for interval schedules in `prefect.yaml` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20238](https://github.com/PrefectHQ/prefect/pull/20238)
 * Disable Docket result storage to prevent memory bloat by [@desertaxle](https://github.com/desertaxle) in [#20253](https://github.com/PrefectHQ/prefect/pull/20253)
 * Preserve the `updated` column value of deployments when marking them as ready by [@vkrot-innio](https://github.com/vkrot-innio) in [#19936](https://github.com/PrefectHQ/prefect/pull/19936)
