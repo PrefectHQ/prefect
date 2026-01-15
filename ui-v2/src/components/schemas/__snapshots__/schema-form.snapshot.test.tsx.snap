@@ -31,7 +31,7 @@ exports[`property.type > array > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -150,7 +150,7 @@ exports[`property.type > array > with enum items 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -266,7 +266,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -337,7 +337,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
               <button
                 aria-expanded="false"
                 aria-haspopup="menu"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
@@ -410,7 +410,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
               <button
                 aria-expanded="false"
                 aria-haspopup="menu"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
@@ -527,7 +527,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
               <button
                 aria-expanded="false"
                 aria-haspopup="menu"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
@@ -644,7 +644,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
               <button
                 aria-expanded="false"
                 aria-haspopup="menu"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
@@ -752,7 +752,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -875,7 +875,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
               <button
                 aria-expanded="false"
                 aria-haspopup="menu"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
@@ -992,7 +992,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
               <button
                 aria-expanded="false"
                 aria-haspopup="menu"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
@@ -1109,7 +1109,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
               <button
                 aria-expanded="false"
                 aria-haspopup="menu"
-                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
@@ -1217,7 +1217,7 @@ exports[`property.type > boolean > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1316,7 +1316,7 @@ exports[`property.type > boolean > enum 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1432,7 +1432,7 @@ exports[`property.type > boolean > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1531,7 +1531,7 @@ exports[`property.type > boolean > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1630,7 +1630,7 @@ exports[`property.type > integer > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1719,7 +1719,7 @@ exports[`property.type > integer > enum 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1835,7 +1835,7 @@ exports[`property.type > integer > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1924,7 +1924,7 @@ exports[`property.type > integer > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2013,7 +2013,7 @@ exports[`property.type > null > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2101,7 +2101,7 @@ exports[`property.type > number > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2190,7 +2190,7 @@ exports[`property.type > number > enum 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2306,7 +2306,7 @@ exports[`property.type > number > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2395,7 +2395,7 @@ exports[`property.type > number > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2484,7 +2484,7 @@ exports[`property.type > string >  1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2573,7 +2573,7 @@ exports[`property.type > string > enum 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2689,7 +2689,7 @@ exports[`property.type > string > enum with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2805,7 +2805,7 @@ exports[`property.type > string > enum with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2921,7 +2921,7 @@ exports[`property.type > string > format:date 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3048,7 +3048,7 @@ exports[`property.type > string > format:date with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3173,7 +3173,7 @@ exports[`property.type > string > format:date with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3298,7 +3298,7 @@ exports[`property.type > string > format:date-time 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3446,7 +3446,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3592,7 +3592,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3738,7 +3738,7 @@ exports[`property.type > string > format:json-string 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3824,7 +3824,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3912,7 +3912,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -4000,7 +4000,7 @@ exports[`property.type > string > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -4091,7 +4091,7 @@ exports[`property.type > string > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -4182,7 +4182,7 @@ exports[`property.type > unknown > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -4268,7 +4268,7 @@ exports[`property.type > unknown > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -4354,7 +4354,7 @@ exports[`property.type > unknown > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
