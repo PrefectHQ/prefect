@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it, vi } from "vitest";
-import { createFakeBlockSchema, createFakeBlockType } from "@/mocks";
+import { BLOCK_SCHEMAS, createFakeBlockType } from "@/mocks";
 import { BlockDocumentCreateDialog } from "./block-document-create-dialog";
 
 describe("BlockDocumentCreateDialog", () => {
@@ -13,7 +13,15 @@ describe("BlockDocumentCreateDialog", () => {
 		name: "AWS Credentials",
 	});
 
-	const mockBlockSchema = createFakeBlockSchema();
+	// Use a specific AWS credentials schema instead of a random one to avoid
+	// flaky tests caused by schema/block-type mismatches
+	const awsCredentialsSchema = BLOCK_SCHEMAS.find(
+		(schema) => schema.fields?.block_type_slug === "aws-credentials",
+	);
+	if (!awsCredentialsSchema) {
+		throw new Error("AWS credentials schema not found in BLOCK_SCHEMAS");
+	}
+	const mockBlockSchema = awsCredentialsSchema;
 
 	const setupMocks = () => {
 		server.use(
