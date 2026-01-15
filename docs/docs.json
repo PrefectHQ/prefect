@@ -157,8 +157,7 @@
               "v3/how-to-guides/deployments/prefect-yaml",
               "v3/how-to-guides/deployments/store-flow-code",
               "v3/how-to-guides/deployments/versioning",
-              "v3/how-to-guides/deployments/customize-job-variables",
-              "v3/how-to-guides/deployments/generate-custom-sdk"
+              "v3/how-to-guides/deployments/customize-job-variables"
             ]
           },
           {
@@ -256,9 +255,15 @@
               "v3/advanced/transactions",
               "v3/advanced/cancel-workflows",
               "v3/advanced/interactive",
-              "v3/advanced/form-building",
               "v3/advanced/results",
               "v3/advanced/background-tasks"
+            ]
+          },
+          {
+            "group": "Deployments",
+            "pages": [
+              "v3/advanced/form-building",
+              "v3/advanced/generate-custom-sdk"
             ]
           },
           {
