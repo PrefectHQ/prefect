@@ -1,0 +1,52 @@
+name: Fix Flaky Tests with Devin
+
+on:
+  workflow_run:
+    workflows:
+      - "Unit tests"
+      - "Integration tests"
+    branches:
+      - main
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  trigger-devin:
+    name: Trigger Devin to fix flaky tests
+    runs-on: ubuntu-latest
+    # Only run when a test workflow fails on main branch
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main'
+
+    steps:
+      - name: Get failed workflow details
+        id: workflow-info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+          echo "workflow_run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+          echo "workflow_url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+          echo "head_sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          echo "head_commit_message<<EOF" >> $GITHUB_OUTPUT
+          echo "${{ github.event.workflow_run.head_commit.message }}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Trigger Devin session to fix flaky tests
+        env:
+          DEVIN_API_TOKEN: ${{ secrets.DEVIN_API_TOKEN }}
+        run: |
+          curl -X POST "https://api.devin.ai/v1/sessions" \
+            -H "Authorization: Bearer $DEVIN_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d @- << EOF
+          {
+            "prompt": "The '${{ steps.workflow-info.outputs.workflow_name }}' workflow failed on the main branch of the PrefectHQ/prefect repository.\n\nWorkflow run: ${{ steps.workflow-info.outputs.workflow_url }}\nCommit SHA: ${{ steps.workflow-info.outputs.head_sha }}\nCommit message: ${{ steps.workflow-info.outputs.head_commit_message }}\n\nPlease investigate the test failures:\n1. Review the failed workflow run logs at the URL above\n2. Identify which tests failed and why\n3. Determine if this is a flaky test (intermittent failure) or a real bug\n4. If it's a flaky test, fix the underlying cause of the flakiness\n5. If it's a real bug introduced by the commit, fix the bug\n6. Create a pull request with the fix\n\nCommon causes of flaky tests include:\n- Race conditions in async code\n- Timing-dependent assertions\n- Shared state between tests\n- Network/database connection issues\n- Resource cleanup problems\n\nMake sure to run the tests locally to verify your fix before creating the PR.",
+            "idempotent": true
+          }
+          EOF
