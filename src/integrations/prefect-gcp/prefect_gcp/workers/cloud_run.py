@@ -171,6 +171,7 @@ from googleapiclient.discovery import Resource
 from jsonpatch import JsonPatch
 from pydantic import Field, field_validator
 
+from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -859,6 +860,14 @@ class CloudRunWorker(BaseWorker):
                 job_execution=execution,
                 poll_interval=poll_interval,
             )
+        except InfrastructureNotFound:
+            logger.info(
+                f"Cloud Run Job {configuration.job_name!r} was deleted. "
+                "The flow run will be marked based on its current state."
+            )
+            return CloudRunWorkerResult(
+                identifier=configuration.job_name, status_code=-1
+            )
         except Exception:
             logger.exception(
                 "Received an unexpected exception while monitoring Cloud Run Job "
@@ -905,13 +914,23 @@ class CloudRunWorker(BaseWorker):
     ):
         """
         Update job_execution status until it is no longer running.
+
+        Raises:
+            InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
         while job_execution.is_running():
-            job_execution = Execution.get(
-                client=client,
-                namespace=job_execution.namespace,
-                execution_name=job_execution.name,
-            )
+            try:
+                job_execution = Execution.get(
+                    client=client,
+                    namespace=job_execution.namespace,
+                    execution_name=job_execution.name,
+                )
+            except googleapiclient.errors.HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run execution {job_execution.name!r} was deleted."
+                    ) from exc
+                raise
 
             time.sleep(poll_interval)
 
@@ -945,3 +964,54 @@ class CloudRunWorker(BaseWorker):
             )
 
             time.sleep(poll_interval)
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: CloudRunWorkerJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Cloud Run Job by deleting it.
+
+        Args:
+            infrastructure_pid: The job name.
+            configuration: The job configuration used to connect to GCP.
+            grace_seconds: Not used for Cloud Run (GCP handles graceful shutdown).
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        job_name = infrastructure_pid
+
+        await run_sync_in_worker_thread(self._delete_job, job_name, configuration)
+
+    def _delete_job(
+        self, job_name: str, configuration: CloudRunWorkerJobConfiguration
+    ) -> None:
+        """
+        Delete a Cloud Run Job.
+
+        Args:
+            job_name: The name of the job to delete.
+            configuration: The job configuration used to connect to GCP.
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        with self._get_client(configuration) as client:
+            try:
+                Job.delete(
+                    client=client,
+                    namespace=configuration.project,
+                    job_name=job_name,
+                )
+                self._logger.info(
+                    f"Deleted Cloud Run Job {job_name!r} in project {configuration.project!r}"
+                )
+            except googleapiclient.errors.HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run Job {job_name!r} not found in project {configuration.project!r}"
+                    )
+                raise

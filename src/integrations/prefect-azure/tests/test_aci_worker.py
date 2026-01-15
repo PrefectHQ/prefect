@@ -2,13 +2,14 @@ import asyncio
 import datetime
 import uuid
 from typing import Dict, List, Tuple, Union
+from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 import dateutil.parser
 import prefect_azure.container_instance
 import pytest
 from anyio.abc import TaskStatus
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.resource import ResourceManagementClient
 from prefect_azure import AzureContainerInstanceCredentials
@@ -27,6 +28,7 @@ from prefect_docker.credentials import DockerRegistryCredentials
 from pydantic import SecretStr
 
 from prefect.client.schemas import FlowRun
+from prefect.exceptions import InfrastructureNotFound
 from prefect.server.schemas.core import Flow
 from prefect.settings import get_current_settings
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -1246,3 +1248,133 @@ def test_stream_output_handles_timezone_naive_timestamps(aci_worker):
         2022, 10, 3, 20, 41, 7, 311952, tzinfo=datetime.timezone.utc
     )
     assert result_time == expected_time
+
+
+async def test_kill_infrastructure_deletes_container_group_by_default(
+    aci_credentials, worker_flow_run
+):
+    """Test that kill_infrastructure deletes the container group when keep_container_group is False (default)."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+    # Ensure keep_container_group is False (the default)
+    job_configuration.keep_container_group = False
+
+    mock_aci_client = MagicMock()
+    mock_deletion_poller = MagicMock()
+    mock_deletion_poller.done.return_value = True
+    mock_aci_client.container_groups.begin_delete = MagicMock(
+        return_value=mock_deletion_poller
+    )
+
+    with mock.patch.object(
+        aci_credentials,
+        "get_container_client",
+        return_value=mock_aci_client,
+    ):
+        async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+            await worker.kill_infrastructure(
+                infrastructure_pid="flow-run-id:test-container-group",
+                configuration=job_configuration,
+                grace_seconds=30,
+            )
+
+    mock_aci_client.container_groups.begin_delete.assert_called_once_with(
+        resource_group_name=job_configuration.resource_group_name,
+        container_group_name="test-container-group",
+    )
+    # Ensure stop was NOT called
+    mock_aci_client.container_groups.stop.assert_not_called()
+
+
+async def test_kill_infrastructure_stops_container_group_when_keep_container_group_true(
+    aci_credentials, worker_flow_run
+):
+    """Test that kill_infrastructure stops (but doesn't delete) the container group when keep_container_group is True."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+    job_configuration.keep_container_group = True
+
+    mock_aci_client = MagicMock()
+    mock_aci_client.container_groups.stop = MagicMock()
+
+    with mock.patch.object(
+        aci_credentials,
+        "get_container_client",
+        return_value=mock_aci_client,
+    ):
+        async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+            await worker.kill_infrastructure(
+                infrastructure_pid="flow-run-id:test-container-group",
+                configuration=job_configuration,
+                grace_seconds=30,
+            )
+
+    mock_aci_client.container_groups.stop.assert_called_once_with(
+        resource_group_name=job_configuration.resource_group_name,
+        container_group_name="test-container-group",
+    )
+    # Ensure begin_delete was NOT called
+    mock_aci_client.container_groups.begin_delete.assert_not_called()
+
+
+async def test_kill_infrastructure_raises_not_found_on_stop(
+    aci_credentials, worker_flow_run
+):
+    """Test that kill_infrastructure raises InfrastructureNotFound when stop fails with ResourceNotFoundError."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+    job_configuration.keep_container_group = True
+
+    mock_aci_client = MagicMock()
+    mock_aci_client.container_groups.stop = MagicMock(
+        side_effect=ResourceNotFoundError("Container group not found")
+    )
+
+    with mock.patch.object(
+        aci_credentials,
+        "get_container_client",
+        return_value=mock_aci_client,
+    ):
+        async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+            with pytest.raises(InfrastructureNotFound):
+                await worker.kill_infrastructure(
+                    infrastructure_pid="flow-run-id:nonexistent-container",
+                    configuration=job_configuration,
+                    grace_seconds=30,
+                )
+
+
+async def test_kill_infrastructure_raises_not_found_on_delete(
+    aci_credentials, worker_flow_run
+):
+    """Test that kill_infrastructure raises InfrastructureNotFound when delete fails with ResourceNotFoundError."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+    job_configuration.keep_container_group = False
+
+    mock_aci_client = MagicMock()
+    mock_aci_client.container_groups.begin_delete = MagicMock(
+        side_effect=ResourceNotFoundError("Container group not found")
+    )
+
+    with mock.patch.object(
+        aci_credentials,
+        "get_container_client",
+        return_value=mock_aci_client,
+    ):
+        async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+            with pytest.raises(InfrastructureNotFound):
+                await worker.kill_infrastructure(
+                    infrastructure_pid="flow-run-id:nonexistent-container",
+                    configuration=job_configuration,
+                    grace_seconds=30,
+                )
+
+
+async def test_kill_infrastructure_invalid_pid_format(aci_credentials, worker_flow_run):
+    """Test that kill_infrastructure raises ValueError for invalid pid format."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+
+    async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+        with pytest.raises(ValueError, match="Invalid infrastructure_pid format"):
+            await worker.kill_infrastructure(
+                infrastructure_pid="invalid-format-no-colon-separator",
+                configuration=job_configuration,
+                grace_seconds=30,
+            )

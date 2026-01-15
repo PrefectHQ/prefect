@@ -32,6 +32,7 @@ from jsonpatch import JsonPatch
 from pydantic import Field, field_validator
 from slugify import slugify
 
+from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -683,3 +684,44 @@ class VertexAIWorker(
                 regex_pattern=_DISALLOWED_GCP_LABEL_CHARACTERS,
             )
         return compatible_labels
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: VertexAIWorkerJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Vertex AI Custom Job by cancelling it.
+
+        Args:
+            infrastructure_pid: The full job name
+                (e.g., "projects/123/locations/us-central1/customJobs/456").
+            configuration: The job configuration used to connect to GCP.
+            grace_seconds: Not used for Vertex AI (GCP handles graceful shutdown).
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        full_job_name = infrastructure_pid
+
+        client_options = ClientOptions(
+            api_endpoint=f"{configuration.region}-aiplatform.googleapis.com"
+        )
+        job_service_async_client = (
+            configuration.credentials.get_job_service_async_client(
+                client_options=client_options
+            )
+        )
+
+        try:
+            await job_service_async_client.cancel_custom_job(name=full_job_name)
+            self._logger.info(f"Cancelled Vertex AI job {full_job_name!r}")
+        except Exception as exc:
+            # Handle NotFound errors from the GCP API
+            error_str = str(exc)
+            if "404" in error_str or "not found" in error_str.lower():
+                raise InfrastructureNotFound(
+                    f"Vertex AI job {full_job_name!r} not found"
+                )
+            raise

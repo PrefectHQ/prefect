@@ -53,6 +53,7 @@ from prefect.client.schemas.objects import (
 )
 from prefect.client.schemas.objects import FlowRun
 from prefect.events import Event, RelatedResource, emit_event
+from prefect.exceptions import InfrastructureNotFound
 from prefect.settings import PREFECT_API_URL
 from prefect.states import Pending
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -968,3 +969,50 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             related=related + [worker_related_resource],
             follows=last_event,
         )
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: DockerWorkerJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Docker container.
+
+        Args:
+            infrastructure_pid: The infrastructure identifier in format
+                "docker_host_base_url:container_id".
+            configuration: The job configuration (not used for Docker but kept
+                for API compatibility).
+            grace_seconds: Time to allow for graceful shutdown before force killing.
+
+        Raises:
+            InfrastructureNotFound: If the container doesn't exist.
+        """
+        base_url, container_id = self._parse_infrastructure_pid(infrastructure_pid)
+
+        await run_sync_in_worker_thread(
+            self._stop_container, container_id, grace_seconds
+        )
+
+    def _stop_container(self, container_id: str, grace_seconds: int) -> None:
+        """
+        Stop a Docker container.
+
+        Args:
+            container_id: The ID of the container to stop.
+            grace_seconds: Time to allow for graceful shutdown before force killing.
+
+        Raises:
+            InfrastructureNotFound: If the container doesn't exist.
+        """
+        docker_client = self._get_client()
+
+        try:
+            container = docker_client.containers.get(container_id)
+            container.stop(timeout=grace_seconds)
+            self._logger.info(f"Stopped Docker container {container_id!r}")
+        except docker.errors.NotFound:
+            raise InfrastructureNotFound(f"Docker container {container_id!r} not found")
+        finally:
+            docker_client.close()
