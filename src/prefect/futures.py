@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import concurrent.futures
 import threading
+import time
 import uuid
 import warnings
 from collections.abc import Generator, Iterator
@@ -602,40 +603,42 @@ def wait(
         return DoneAndNotDoneFutures(done, not_done)
 
     # With timeout, monitor all futures concurrently
-    try:
-        with timeout_context(timeout):
-            finished_event = threading.Event()
-            finished_lock = threading.Lock()
-            finished_futures: list[PrefectFuture[R]] = []
+    deadline = time.monotonic() + timeout
+    finished_event = threading.Event()
+    finished_lock = threading.Lock()
+    finished_futures: list[PrefectFuture[R]] = []
 
-            def mark_done(future: PrefectFuture[R]):
-                with finished_lock:
-                    finished_futures.append(future)
-                    finished_event.set()
+    def mark_done(future: PrefectFuture[R]):
+        with finished_lock:
+            finished_futures.append(future)
+            finished_event.set()
 
-            # Add callbacks to all pending futures
-            for future in not_done:
-                future.add_done_callback(mark_done)
+    # Add callbacks to all pending futures
+    for future in not_done:
+        future.add_done_callback(mark_done)
 
-            # Wait for futures to complete within timeout
-            while not_done:
-                # Wait for at least one future to complete
-                finished_event.wait()
-                with finished_lock:
-                    newly_done = finished_futures[:]
-                    finished_futures.clear()
-                    finished_event.clear()
+    # Wait for futures to complete within timeout
+    while not_done:
+        # Calculate remaining time until deadline
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
 
-                # Move completed futures to done set
-                for future in newly_done:
-                    if future in not_done:
-                        not_done.remove(future)
-                        done.add(future)
+        # Wait for at least one future to complete, with timeout to respect deadline
+        finished_event.wait(timeout=remaining)
 
-            return DoneAndNotDoneFutures(done, not_done)
-    except TimeoutError:
-        logger.debug("Timed out waiting for all futures to complete.")
-        return DoneAndNotDoneFutures(done, not_done)
+        with finished_lock:
+            newly_done = finished_futures[:]
+            finished_futures.clear()
+            finished_event.clear()
+
+        # Move completed futures to done set
+        for future in newly_done:
+            if future in not_done:
+                not_done.remove(future)
+                done.add(future)
+
+    return DoneAndNotDoneFutures(done, not_done)
 
 
 def resolve_futures_to_states(
