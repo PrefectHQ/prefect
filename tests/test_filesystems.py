@@ -657,7 +657,15 @@ class TestRemoteFileSystemAsyncDispatch:
         assert content == b"hello aput"
 
 
-@pytest.importorskip("fsspec_implementations.smb", reason="requires fsspec[smb]")
+try:
+    import fsspec.implementations.smb  # noqa: F401
+
+    HAS_SMB = True
+except ImportError:
+    HAS_SMB = False
+
+
+@pytest.mark.skipif(not HAS_SMB, reason="requires fsspec[smb]")
 class TestSMB:
     @pytest.fixture
     def smb_block(self):
