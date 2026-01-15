@@ -7,14 +7,14 @@ sidebarTitle: flow_runs
 
 ## Functions
 
-### `run_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/flow_runs.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `arun_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/flow_runs.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_deployment(name: Union[str, UUID], client: Optional['PrefectClient'] = None, parameters: Optional[dict[str, Any]] = None, scheduled_time: Optional[datetime] = None, flow_run_name: Optional[str] = None, timeout: Optional[float] = None, poll_interval: Optional[float] = 5, tags: Optional[Iterable[str]] = None, idempotency_key: Optional[str] = None, work_queue_name: Optional[str] = None, as_subflow: Optional[bool] = True, job_variables: Optional[dict[str, Any]] = None) -> 'FlowRun'
+arun_deployment(name: Union[str, UUID], client: Optional['PrefectClient'] = None, parameters: Optional[dict[str, Any]] = None, scheduled_time: Optional[datetime] = None, flow_run_name: Optional[str] = None, timeout: Optional[float] = None, poll_interval: Optional[float] = 5, tags: Optional[Iterable[str]] = None, idempotency_key: Optional[str] = None, work_queue_name: Optional[str] = None, as_subflow: Optional[bool] = True, job_variables: Optional[dict[str, Any]] = None) -> 'FlowRun'
 ```
 
 
-Create a flow run for a deployment and return it after completion or a timeout.
+Asynchronously create a flow run for a deployment and return it after completion or a timeout.
 
 By default, this function blocks until the flow run finishes executing.
 Specify a timeout (in seconds) to wait for the flow run to execute before
@@ -31,6 +31,58 @@ passing `as_subflow=False`.
 **Args:**
 - `name`: The deployment id or deployment name in the form\:
 `"flow name/deployment name"`
+- `client`: An optional PrefectClient to use for API requests.
+- `parameters`: Parameter overrides for this flow run. Merged with the deployment
+defaults.
+- `scheduled_time`: The time to schedule the flow run for, defaults to scheduling
+the flow run to start now.
+- `flow_run_name`: A name for the created flow run
+- `timeout`: The amount of time to wait (in seconds) for the flow run to
+complete before returning. Setting `timeout` to 0 will return the flow
+run metadata immediately. Setting `timeout` to None will allow this
+function to poll indefinitely. Defaults to None.
+- `poll_interval`: The number of seconds between polls
+- `tags`: A list of tags to associate with this flow run; tags can be used in
+automations and for organizational purposes.
+- `idempotency_key`: A unique value to recognize retries of the same run, and
+prevent creating multiple flow runs.
+- `work_queue_name`: The name of a work queue to use for this run. Defaults to
+the default work queue for the deployment.
+- `as_subflow`: Whether to link the flow run as a subflow of the current
+flow or task run.
+- `job_variables`: A dictionary of dot delimited infrastructure overrides that
+will be applied at runtime; for example `env.CONFIG_KEY=config_value` or
+`namespace='prefect'`
+
+
+### `run_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/flow_runs.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_deployment(name: Union[str, UUID], client: Optional['PrefectClient'] = None, parameters: Optional[dict[str, Any]] = None, scheduled_time: Optional[datetime] = None, flow_run_name: Optional[str] = None, timeout: Optional[float] = None, poll_interval: Optional[float] = 5, tags: Optional[Iterable[str]] = None, idempotency_key: Optional[str] = None, work_queue_name: Optional[str] = None, as_subflow: Optional[bool] = True, job_variables: Optional[dict[str, Any]] = None) -> 'FlowRun'
+```
+
+
+Create a flow run for a deployment and return it after completion or a timeout.
+
+This function will dispatch to `arun_deployment` when called from an async context.
+
+By default, this function blocks until the flow run finishes executing.
+Specify a timeout (in seconds) to wait for the flow run to execute before
+returning flow run metadata. To return immediately, without waiting for the
+flow run to execute, set `timeout=0`.
+
+Note that if you specify a timeout, this function will return the flow run
+metadata whether or not the flow run finished executing.
+
+If called within a flow or task, the flow run this function creates will
+be linked to the current flow run as a subflow. Disable this behavior by
+passing `as_subflow=False`.
+
+**Args:**
+- `name`: The deployment id or deployment name in the form\:
+`"flow name/deployment name"`
+- `client`: An optional PrefectClient to use for API requests. This is ignored
+when called from a synchronous context.
 - `parameters`: Parameter overrides for this flow run. Merged with the deployment
 defaults.
 - `scheduled_time`: The time to schedule the flow run for, defaults to scheduling

@@ -142,7 +142,7 @@ resume_work_queue(self, work_queue_id: UUID) -> Response
 #### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-set_flow_run_state(self, flow_run_id: UUID, state: StateCreate) -> Response
+set_flow_run_state(self, flow_run_id: UUID, state: StateCreate, force: bool = False) -> Response
 ```
 
 ### `WorkPoolsOrchestrationClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/clients.py#L226" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
