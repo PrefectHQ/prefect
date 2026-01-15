@@ -65,7 +65,7 @@ def bar_task():
 @pytest.fixture
 def mock_task_worker_start(monkeypatch):
     monkeypatch.setattr(
-        "prefect.task_worker.TaskWorker.start", mock_start := AsyncMock()
+        "prefect.task_worker.TaskWorker.astart", mock_start := AsyncMock()
     )
     return mock_start
 
@@ -108,7 +108,7 @@ async def test_handle_sigterm(mock_create_subscription):
 
     with (
         patch("sys.exit") as mock_exit,
-        patch.object(task_worker, "stop", new_callable=AsyncMock) as mock_stop,
+        patch.object(task_worker, "astop", new_callable=AsyncMock) as mock_stop,
     ):
         await task_worker.start()
 
