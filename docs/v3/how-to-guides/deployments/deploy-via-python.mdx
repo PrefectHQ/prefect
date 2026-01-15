@@ -172,7 +172,7 @@ if __name__ == "__main__":
         work_pool_name="my-work-pool",
         image="my-registry.com/my-docker-image:my-tag",
         build=False,  # Skip building, use existing image
-        push=False,   # Also skip pushing since image already exists
+        push=False,   # You can also skip pushing if the image is already available in a remote registry
     )
 ```
 
