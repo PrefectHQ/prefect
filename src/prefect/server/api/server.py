@@ -20,6 +20,7 @@ import subprocess
 import sys
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
+from datetime import timedelta
 from functools import wraps
 from hashlib import sha256
 from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
@@ -705,7 +706,11 @@ def create_app(
 
         async with AsyncExitStack() as stack:
             docket = await stack.enter_async_context(
-                Docket(name=settings.server.docket.name, url=settings.server.docket.url)
+                Docket(
+                    name=settings.server.docket.name,
+                    url=settings.server.docket.url,
+                    execution_ttl=timedelta(0),
+                )
             )
             await stack.enter_async_context(
                 background_worker(
