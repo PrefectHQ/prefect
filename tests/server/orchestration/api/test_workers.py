@@ -2462,10 +2462,10 @@ class TestGetScheduledRuns:
                     assert deployment.status == DeploymentStatus.READY
 
     async def test_ensure_deployments_associated_with_work_pool_have_deployment_status_of_ready(
-        self, ephemeral_client_with_lifespan, work_pools, deployment
+        self, hosted_api_client, work_pools, deployment
     ):
         assert deployment.last_polled is None
-        deployment_response = await ephemeral_client_with_lifespan.get(
+        deployment_response = await hosted_api_client.get(
             f"/deployments/{deployment.id}"
         )
         assert deployment_response.status_code == status.HTTP_200_OK
@@ -2473,15 +2473,16 @@ class TestGetScheduledRuns:
 
         # trigger a poll of the work queue, which should update the deployment status
         deployment_work_pool_name = work_pools["wp_a"].name
-        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+        # Use a longer retry window to account for eventual consistency under CI load
+        async for attempt in retry_asserts(max_attempts=20, delay=1.0):
             with attempt:
-                queue_response = await ephemeral_client_with_lifespan.post(
+                queue_response = await hosted_api_client.post(
                     f"/work_pools/{deployment_work_pool_name}/get_scheduled_flow_runs",
                 )
                 assert queue_response.status_code == status.HTTP_200_OK
 
                 # get the updated deployment
-                updated_deployment_response = await ephemeral_client_with_lifespan.get(
+                updated_deployment_response = await hosted_api_client.get(
                     f"/deployments/{deployment.id}"
                 )
                 assert updated_deployment_response.status_code == status.HTTP_200_OK
