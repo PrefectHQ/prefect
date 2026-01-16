@@ -33,6 +33,11 @@ import {
 	TaskRunsSortFilter,
 	useTaskRunsSelectedRows,
 } from "@/components/task-runs/task-runs-list";
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+} from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { DocsLink } from "@/components/ui/docs-link";
 import {
@@ -47,7 +52,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagsInput } from "@/components/ui/tags-input";
-import { Typography } from "@/components/ui/typography";
 import { SaveFilterDialog } from "./save-filter-dialog";
 import { isSystemFilter } from "./use-saved-filters";
 
@@ -389,11 +393,13 @@ export const RunsPage = ({
 };
 
 const RunsHeader = () => (
-	<header>
-		<nav>
-			<Typography variant="h2">Runs</Typography>
-		</nav>
-	</header>
+	<div className="flex items-center gap-2">
+		<Breadcrumb>
+			<BreadcrumbList>
+				<BreadcrumbItem className="text-xl font-semibold">Runs</BreadcrumbItem>
+			</BreadcrumbList>
+		</Breadcrumb>
+	</div>
 );
 
 const RunsEmptyState = () => (
