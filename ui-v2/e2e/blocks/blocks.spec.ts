@@ -1,0 +1,277 @@
+import type { Page } from "@playwright/test";
+import {
+	cleanupBlockDocuments,
+	createBlockDocument,
+	expect,
+	getBlockTypeBySlug,
+	listBlockDocuments,
+	listBlockSchemas,
+	test,
+	waitForServerHealth,
+} from "../fixtures";
+
+const TEST_PREFIX = "e2e-block-";
+
+// JSON block type is a simple built-in type that's always available
+const JSON_BLOCK_SLUG = "json";
+
+/**
+ * Wait for the blocks page to be fully loaded.
+ */
+async function waitForBlocksPageReady(page: Page): Promise<void> {
+	await expect(
+		page
+			.getByRole("heading", { name: /add a block to get started/i })
+			.or(page.getByRole("table")),
+	).toBeVisible();
+}
+
+test.describe("Blocks Page", () => {
+	test.beforeAll(async ({ apiClient }) => {
+		await waitForServerHealth(apiClient);
+	});
+
+	test.beforeEach(async ({ apiClient }) => {
+		await cleanupBlockDocuments(apiClient, TEST_PREFIX);
+	});
+
+	test.afterEach(async ({ apiClient }) => {
+		await cleanupBlockDocuments(apiClient, TEST_PREFIX);
+	});
+
+	test.describe("Empty State", () => {
+		test("should show empty state when no blocks exist", async ({ page }) => {
+			await page.goto("/blocks");
+
+			await expect(
+				page.getByRole("heading", { name: /add a block to get started/i }),
+			).toBeVisible();
+			await expect(
+				page.getByRole("button", { name: /add block/i }),
+			).toBeVisible();
+		});
+	});
+
+	test.describe("Full Flow: Create, View, Edit, Delete Block", () => {
+		test("should complete full block lifecycle via UI", async ({
+			page,
+			apiClient,
+		}) => {
+			const blockName = `${TEST_PREFIX}lifecycle-${Date.now()}`;
+			const initialValue = { key: "initial-value" };
+			const updatedValue = { key: "updated-value" };
+
+			// --- CREATE BLOCK ---
+			// Navigate to blocks page
+			await page.goto("/blocks");
+			await waitForBlocksPageReady(page);
+
+			// Click add block button to go to catalog
+			await page.getByRole("link", { name: /add block/i }).click();
+
+			// Wait for catalog page
+			await expect(page).toHaveURL(/\/blocks\/catalog/);
+
+			// Search for JSON block type
+			await page.getByPlaceholder(/search/i).fill("JSON");
+
+			// Click Create on the JSON block type card
+			await page
+				.getByRole("button", { name: /create/i })
+				.first()
+				.click();
+
+			// Wait for create page
+			await expect(page).toHaveURL(/\/blocks\/catalog\/json\/create/);
+
+			// Fill in the block name
+			await page.getByLabel(/name/i).fill(blockName);
+
+			// Fill in the JSON data using the code mirror editor
+			const jsonInput = page.locator(".cm-content");
+			await jsonInput.click();
+			await page.keyboard.type(JSON.stringify(initialValue));
+
+			// Save the block
+			await page.getByRole("button", { name: /save/i }).click();
+
+			// Wait for navigation to block details page
+			await expect(page).toHaveURL(/\/blocks\/block\/[a-f0-9-]+$/);
+
+			// Verify block was created via API
+			await expect
+				.poll(
+					async () => {
+						const documents = await listBlockDocuments(apiClient);
+						return documents.find((d) => d.name === blockName);
+					},
+					{ timeout: 5000 },
+				)
+				.toBeDefined();
+
+			// --- VIEW BLOCK DETAILS ---
+			// Verify we can see the block name on the details page
+			await expect(page.getByText(blockName)).toBeVisible();
+
+			// --- EDIT BLOCK ---
+			// Open action menu and click edit
+			await page.getByRole("button", { name: /open menu/i }).click();
+			await page.getByRole("menuitem", { name: /edit/i }).click();
+
+			// Wait for edit page
+			await expect(page).toHaveURL(/\/blocks\/block\/[a-f0-9-]+\/edit$/);
+
+			// Update the JSON data
+			const editJsonInput = page.locator(".cm-content");
+			await editJsonInput.click();
+			await page.keyboard.press("Control+A");
+			await page.keyboard.type(JSON.stringify(updatedValue));
+
+			// Save changes
+			await page.getByRole("button", { name: /save/i }).click();
+
+			// Wait for navigation back to details
+			await expect(page).toHaveURL(/\/blocks\/block\/[a-f0-9-]+$/);
+
+			// Verify update via API
+			await expect
+				.poll(
+					async () => {
+						const documents = await listBlockDocuments(apiClient);
+						const doc = documents.find((d) => d.name === blockName);
+						return doc?.data;
+					},
+					{ timeout: 5000 },
+				)
+				.toEqual(updatedValue);
+
+			// --- DELETE BLOCK ---
+			// Open action menu and click delete
+			await page.getByRole("button", { name: /open menu/i }).click();
+			await page.getByRole("menuitem", { name: /delete/i }).click();
+
+			// Confirm deletion in dialog if present
+			const deleteDialog = page.getByRole("dialog");
+			if (await deleteDialog.isVisible()) {
+				await page.getByRole("button", { name: /delete/i }).click();
+			}
+
+			// Verify navigation away from details page (to blocks list)
+			await expect(page).toHaveURL(/\/blocks\/?$/);
+
+			// Verify block was deleted via API
+			await expect
+				.poll(
+					async () => {
+						const documents = await listBlockDocuments(apiClient);
+						return documents.find((d) => d.name === blockName);
+					},
+					{ timeout: 5000 },
+				)
+				.toBeUndefined();
+		});
+	});
+
+	test.describe("Block Listing", () => {
+		test("should display existing blocks in the list", async ({
+			page,
+			apiClient,
+		}) => {
+			// Create a block via API first
+			const blockName = `${TEST_PREFIX}list-${Date.now()}`;
+			const blockType = await getBlockTypeBySlug(apiClient, JSON_BLOCK_SLUG);
+			const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
+			const blockSchema = blockSchemas[0];
+
+			await createBlockDocument(apiClient, {
+				name: blockName,
+				blockTypeId: blockType.id,
+				blockSchemaId: blockSchema.id,
+				data: { test: "value" },
+			});
+
+			// Navigate to blocks page
+			await page.goto("/blocks");
+
+			// Wait for block to appear in the list
+			await expect(page.getByText(blockName)).toBeVisible();
+
+			// Verify table is shown (not empty state)
+			await expect(page.getByRole("table")).toBeVisible();
+		});
+
+		test("should navigate to block details when clicking a block", async ({
+			page,
+			apiClient,
+		}) => {
+			// Create a block via API first
+			const blockName = `${TEST_PREFIX}navigate-${Date.now()}`;
+			const blockType = await getBlockTypeBySlug(apiClient, JSON_BLOCK_SLUG);
+			const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
+			const blockSchema = blockSchemas[0];
+
+			const block = await createBlockDocument(apiClient, {
+				name: blockName,
+				blockTypeId: blockType.id,
+				blockSchemaId: blockSchema.id,
+				data: { navigate: "test" },
+			});
+
+			// Navigate to blocks page
+			await page.goto("/blocks");
+
+			// Wait for block to appear
+			await expect(page.getByText(blockName)).toBeVisible();
+
+			// Click on the block name link
+			await page.getByRole("link", { name: blockName }).click();
+
+			// Verify navigation to details page
+			await expect(page).toHaveURL(`/blocks/block/${block.id}`);
+		});
+	});
+
+	test.describe("Delete from List", () => {
+		test("should delete a block via action menu from the list", async ({
+			page,
+			apiClient,
+		}) => {
+			// Create a block via API first
+			const blockName = `${TEST_PREFIX}delete-list-${Date.now()}`;
+			const blockType = await getBlockTypeBySlug(apiClient, JSON_BLOCK_SLUG);
+			const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
+			const blockSchema = blockSchemas[0];
+
+			await createBlockDocument(apiClient, {
+				name: blockName,
+				blockTypeId: blockType.id,
+				blockSchemaId: blockSchema.id,
+				data: { delete: "me" },
+			});
+
+			// Navigate to blocks page
+			await page.goto("/blocks");
+
+			// Wait for block to appear
+			await expect(page.getByText(blockName)).toBeVisible();
+
+			// Open action menu for the block row
+			// Note: The action menu button is in each row
+			await page.getByRole("button", { name: /open menu/i }).click();
+			await page.getByRole("menuitem", { name: /delete/i }).click();
+
+			// Confirm deletion in dialog if present
+			const deleteDialog = page.getByRole("dialog");
+			if (await deleteDialog.isVisible()) {
+				await page.getByRole("button", { name: /delete/i }).click();
+			}
+
+			// Wait for block to disappear from list
+			await expect(page.getByText(blockName)).not.toBeVisible();
+
+			// Verify via API
+			const documents = await listBlockDocuments(apiClient);
+			expect(documents.find((d) => d.name === blockName)).toBeUndefined();
+		});
+	});
+});
