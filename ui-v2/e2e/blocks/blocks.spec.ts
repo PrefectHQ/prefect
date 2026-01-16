@@ -103,11 +103,12 @@ test.describe("Blocks Page", () => {
 			// Navigate directly to the JSON block create page to avoid search issues
 			await page.goto("/blocks/catalog/json/create");
 
-			// Wait for create page to load
+			// Wait for create page to load - verify URL and wait for the form to be ready
 			await expect(page).toHaveURL(/\/blocks\/catalog\/json\/create/);
+			await expect(page.getByRole("textbox", { name: /name/i })).toBeVisible();
 
 			// Fill in the block name
-			await page.getByLabel(/name/i).fill(blockName);
+			await page.getByRole("textbox", { name: /name/i }).fill(blockName);
 
 			// Fill in the JSON data using the code mirror editor
 			const jsonInput = page.locator(".cm-content");
