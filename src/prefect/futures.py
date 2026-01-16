@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import concurrent.futures
 import threading
+import time
 import uuid
 import warnings
 from collections.abc import Generator, Iterator
@@ -604,6 +605,7 @@ def wait(
     # With timeout, monitor all futures concurrently
     try:
         with timeout_context(timeout):
+            deadline = time.monotonic() + timeout
             finished_event = threading.Event()
             finished_lock = threading.Lock()
             finished_futures: list[PrefectFuture[R]] = []
@@ -619,8 +621,16 @@ def wait(
 
             # Wait for futures to complete within timeout
             while not_done:
-                # Wait for at least one future to complete
-                finished_event.wait()
+                # Calculate remaining time until deadline
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+
+                # Wait for at least one future to complete, with timeout to respect deadline
+                # The timeout parameter ensures we don't block indefinitely even if
+                # WatcherThreadCancelScope is used (which can't interrupt blocking calls)
+                finished_event.wait(timeout=remaining)
+
                 with finished_lock:
                     newly_done = finished_futures[:]
                     finished_futures.clear()
