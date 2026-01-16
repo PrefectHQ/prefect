@@ -1738,7 +1738,7 @@ class EnforceCancellingToCancelledTransition(TaskRunOrchestrationRule):
     Rejects transitions from Cancelling to any terminal state except for Cancelled.
     """
 
-    FROM_STATES = {StateType.CANCELLED, StateType.CANCELLING}
+    FROM_STATES = {StateType.CANCELLING}
     TO_STATES = ALL_ORCHESTRATION_STATES - {StateType.CANCELLED}
 
     async def before_transition(
