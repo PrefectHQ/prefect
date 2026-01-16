@@ -1,19 +1,45 @@
 import type { Page } from "@playwright/test";
 import {
+	type BlockSchema,
+	type BlockType,
 	cleanupBlockDocuments,
 	createBlockDocument,
 	expect,
-	getBlockTypeBySlug,
 	listBlockDocuments,
 	listBlockSchemas,
+	listBlockTypes,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
 
 const TEST_PREFIX = "e2e-block-";
 
-// JSON block type is a simple built-in type that's always available
-const JSON_BLOCK_SLUG = "json";
+/**
+ * Get a block type and schema for testing.
+ * Prefers the "secret" block type as it's always available and simple.
+ * Falls back to any available block type if "secret" is not found.
+ */
+async function getTestBlockTypeAndSchema(
+	apiClient: Parameters<typeof listBlockTypes>[0],
+): Promise<{ blockType: BlockType; blockSchema: BlockSchema }> {
+	const blockTypes = await listBlockTypes(apiClient);
+	if (blockTypes.length === 0) {
+		throw new Error("No block types available for testing");
+	}
+
+	// Prefer "secret" block type as it's always available and simple
+	const secretBlockType = blockTypes.find((bt) => bt.slug === "secret");
+	const blockType = secretBlockType ?? blockTypes[0];
+
+	const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
+	if (blockSchemas.length === 0) {
+		throw new Error(
+			`No block schemas available for block type ${blockType.slug}`,
+		);
+	}
+
+	return { blockType, blockSchema: blockSchemas[0] };
+}
 
 /**
  * Wait for the blocks page to be fully loaded.
@@ -174,15 +200,14 @@ test.describe("Blocks Page", () => {
 		}) => {
 			// Create a block via API first
 			const blockName = `${TEST_PREFIX}list-${Date.now()}`;
-			const blockType = await getBlockTypeBySlug(apiClient, JSON_BLOCK_SLUG);
-			const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
-			const blockSchema = blockSchemas[0];
+			const { blockType, blockSchema } =
+				await getTestBlockTypeAndSchema(apiClient);
 
 			await createBlockDocument(apiClient, {
 				name: blockName,
 				blockTypeId: blockType.id,
 				blockSchemaId: blockSchema.id,
-				data: { test: "value" },
+				data: { value: "test" },
 			});
 
 			// Navigate to blocks page
@@ -202,15 +227,14 @@ test.describe("Blocks Page", () => {
 		}) => {
 			// Create a block via API first
 			const blockName = `${TEST_PREFIX}navigate-${Date.now()}`;
-			const blockType = await getBlockTypeBySlug(apiClient, JSON_BLOCK_SLUG);
-			const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
-			const blockSchema = blockSchemas[0];
+			const { blockType, blockSchema } =
+				await getTestBlockTypeAndSchema(apiClient);
 
 			const block = await createBlockDocument(apiClient, {
 				name: blockName,
 				blockTypeId: blockType.id,
 				blockSchemaId: blockSchema.id,
-				data: { navigate: "test" },
+				data: { value: "navigate-test" },
 			});
 
 			// Navigate to blocks page
@@ -235,15 +259,14 @@ test.describe("Blocks Page", () => {
 		}) => {
 			// Create a block via API first
 			const blockName = `${TEST_PREFIX}delete-list-${Date.now()}`;
-			const blockType = await getBlockTypeBySlug(apiClient, JSON_BLOCK_SLUG);
-			const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
-			const blockSchema = blockSchemas[0];
+			const { blockType, blockSchema } =
+				await getTestBlockTypeAndSchema(apiClient);
 
 			await createBlockDocument(apiClient, {
 				name: blockName,
 				blockTypeId: blockType.id,
 				blockSchemaId: blockSchema.id,
-				data: { delete: "me" },
+				data: { value: "delete-me" },
 			});
 
 			// Navigate to blocks page
