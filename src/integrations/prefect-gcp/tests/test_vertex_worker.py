@@ -1,5 +1,5 @@
 import uuid
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pydantic
 import pytest
@@ -12,6 +12,7 @@ from prefect_gcp.workers.vertex import (
 )
 
 from prefect.client.schemas import FlowRun
+from prefect.exceptions import InfrastructureNotFound
 
 
 @pytest.fixture
@@ -272,3 +273,41 @@ class TestVertexAIWorker:
             assert result == VertexAIWorkerResult(
                 status_code=1, identifier=job_display_name
             )
+
+
+class TestVertexAIWorkerKillInfrastructure:
+    """Tests for VertexAIWorker.kill_infrastructure method."""
+
+    async def test_kill_infrastructure_cancels_job(self, flow_run, job_config):
+        """Test that kill_infrastructure successfully cancels a Vertex AI job."""
+        job_config.prepare_for_flow_run(flow_run, None, None)
+        full_job_name = "projects/123/locations/us-central1/customJobs/456"
+
+        async with VertexAIWorker("test-pool") as worker:
+            await worker.kill_infrastructure(
+                infrastructure_pid=full_job_name,
+                configuration=job_config,
+                grace_seconds=30,
+            )
+
+        job_config.credentials.job_service_async_client.cancel_custom_job.assert_called_once_with(
+            name=full_job_name
+        )
+
+    async def test_kill_infrastructure_raises_not_found(self, flow_run, job_config):
+        """Test that kill_infrastructure raises InfrastructureNotFound for missing job."""
+        job_config.prepare_for_flow_run(flow_run, None, None)
+        full_job_name = "projects/123/locations/us-central1/customJobs/nonexistent"
+
+        # Configure mock to raise a 404 error
+        job_config.credentials.job_service_async_client.cancel_custom_job = AsyncMock(
+            side_effect=Exception("404 Not found")
+        )
+
+        async with VertexAIWorker("test-pool") as worker:
+            with pytest.raises(InfrastructureNotFound):
+                await worker.kill_infrastructure(
+                    infrastructure_pid=full_job_name,
+                    configuration=job_config,
+                    grace_seconds=30,
+                )

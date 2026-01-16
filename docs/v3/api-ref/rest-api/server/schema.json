@@ -14640,6 +14640,12 @@
                         ],
                         "title": "Message",
                         "description": "An optional message to associate with the state change"
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "title": "Force",
+                        "description": "Force the state change even if the transition is not allowed",
+                        "default": false
                     }
                 },
                 "type": "object",
@@ -24431,6 +24437,15 @@
                             "PREFECT_UI_ENABLED"
                         ]
                     },
+                    "v2_enabled": {
+                        "type": "boolean",
+                        "title": "V2 Enabled",
+                        "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_UI_V2_ENABLED"
+                        ]
+                    },
                     "api_url": {
                         "anyOf": [
                             {
@@ -28780,6 +28795,24 @@
                         "default": 10,
                         "supported_environment_variables": [
                             "PREFECT_WORKER_PREFETCH_SECONDS"
+                        ]
+                    },
+                    "enable_cancellation": {
+                        "type": "boolean",
+                        "title": "Enable Cancellation",
+                        "description": "Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_WORKER_ENABLE_CANCELLATION"
+                        ]
+                    },
+                    "cancellation_poll_seconds": {
+                        "type": "number",
+                        "title": "Cancellation Poll Seconds",
+                        "description": "Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.",
+                        "default": 120,
+                        "supported_environment_variables": [
+                            "PREFECT_WORKER_CANCELLATION_POLL_SECONDS"
                         ]
                     },
                     "webserver": {

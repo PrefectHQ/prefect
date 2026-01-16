@@ -489,7 +489,13 @@ async def test_pausing_success_event(
                 "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{pause_their_deployment.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,
@@ -540,7 +546,13 @@ async def test_resuming_success_event(
                 "prefect.resource.id": f"prefect.deployment.{hourly_garden_patrol.id}",
                 "prefect.resource.role": "target",
             }
-        )
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{resume_their_deployment.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
+            }
+        ),
     ]
     assert executed_event.payload == {
         "action_index": 0,

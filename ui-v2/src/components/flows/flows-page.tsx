@@ -4,6 +4,7 @@ import type {
 } from "@tanstack/react-table";
 import type { Flow } from "@/api/flows";
 import FlowsTable from "./data-table";
+import { FlowsEmptyState } from "./empty-state";
 import { FlowsHeader } from "./flows-page-header";
 
 type FlowSortValue = "NAME_ASC" | "NAME_DESC" | "CREATED_DESC" | "UPDATED_DESC";
@@ -11,6 +12,7 @@ type FlowSortValue = "NAME_ASC" | "NAME_DESC" | "CREATED_DESC" | "UPDATED_DESC";
 type FlowsPageProps = {
 	flows: Flow[];
 	count: number;
+	totalCount: number;
 	pageCount: number;
 	sort: FlowSortValue;
 	pagination: PaginationState;
@@ -24,6 +26,7 @@ type FlowsPageProps = {
 export default function FlowsPage({
 	flows,
 	count,
+	totalCount,
 	pageCount,
 	sort,
 	pagination,
@@ -34,20 +37,24 @@ export default function FlowsPage({
 	onPrefetchPage,
 }: FlowsPageProps) {
 	return (
-		<div>
+		<div className="flex flex-col gap-4">
 			<FlowsHeader />
-			<FlowsTable
-				flows={flows}
-				count={count}
-				pageCount={pageCount}
-				sort={sort}
-				pagination={pagination}
-				onPaginationChange={onPaginationChange}
-				onSortChange={onSortChange}
-				columnFilters={columnFilters}
-				onColumnFiltersChange={onColumnFiltersChange}
-				onPrefetchPage={onPrefetchPage}
-			/>
+			{totalCount === 0 ? (
+				<FlowsEmptyState />
+			) : (
+				<FlowsTable
+					flows={flows}
+					count={count}
+					pageCount={pageCount}
+					sort={sort}
+					pagination={pagination}
+					onPaginationChange={onPaginationChange}
+					onSortChange={onSortChange}
+					columnFilters={columnFilters}
+					onColumnFiltersChange={onColumnFiltersChange}
+					onPrefetchPage={onPrefetchPage}
+				/>
+			)}
 		</div>
 	);
 }

@@ -16,6 +16,7 @@ from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
 
+from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -844,10 +845,11 @@ class CloudRunWorkerV2(
                 execution_id=submission["metadata"]["name"],
             )
 
+            command_list = configuration.job_body["template"]["template"]["containers"][
+                0
+            ].get("command", [])
             command = (
-                " ".join(configuration.command)
-                if configuration.command
-                else "default container command"
+                " ".join(command_list) if command_list else "default container command"
             )
 
             logger.info(
@@ -893,6 +895,14 @@ class CloudRunWorkerV2(
                 configuration=configuration,
                 execution=execution,
                 poll_interval=poll_interval,
+            )
+        except InfrastructureNotFound:
+            logger.info(
+                f"Cloud Run V2 Job {configuration.job_name!r} was deleted. "
+                "The flow run will be marked based on its current state."
+            )
+            return CloudRunWorkerV2Result(
+                identifier=configuration.job_name, status_code=-1
             )
         except Exception as exc:
             logger.critical(
@@ -957,12 +967,22 @@ class CloudRunWorkerV2(
 
         Returns:
             The execution.
+
+        Raises:
+            InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
         while execution.is_running():
-            execution = ExecutionV2.get(
-                cr_client=cr_client,
-                execution_id=execution.name,
-            )
+            try:
+                execution = ExecutionV2.get(
+                    cr_client=cr_client,
+                    execution_id=execution.name,
+                )
+            except HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run V2 execution {execution.name!r} was deleted."
+                    ) from exc
+                raise
 
             time.sleep(poll_interval)
 
@@ -997,3 +1017,57 @@ class CloudRunWorkerV2(
                 ) from exc
             else:
                 raise exc
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: CloudRunWorkerJobV2Configuration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Cloud Run V2 Job by deleting it.
+
+        Args:
+            infrastructure_pid: The job name.
+            configuration: The job configuration used to connect to GCP.
+            grace_seconds: Not used for Cloud Run V2 (GCP handles graceful shutdown).
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        job_name = infrastructure_pid
+
+        await run_sync_in_worker_thread(self._delete_job, job_name, configuration)
+
+    def _delete_job(
+        self, job_name: str, configuration: CloudRunWorkerJobV2Configuration
+    ) -> None:
+        """
+        Delete a Cloud Run V2 Job.
+
+        Args:
+            job_name: The name of the job to delete.
+            configuration: The job configuration used to connect to GCP.
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        with self._get_client(configuration) as cr_client:
+            try:
+                JobV2.delete(
+                    cr_client=cr_client,
+                    project=configuration.project,
+                    location=configuration.region,
+                    job_name=job_name,
+                )
+                self._logger.info(
+                    f"Deleted Cloud Run V2 Job {job_name!r} in project "
+                    f"{configuration.project!r} region {configuration.region!r}"
+                )
+            except HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run V2 Job {job_name!r} not found in project "
+                        f"{configuration.project!r} region {configuration.region!r}"
+                    )
+                raise

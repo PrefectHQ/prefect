@@ -900,6 +900,11 @@ export const BLOCK_TYPES: Array<components["schemas"]["BlockType"]> = [
 	},
 ];
 
-export const createFakeBlockType = (): components["schemas"]["BlockType"] => {
-	return rand(BLOCK_TYPES);
+export const createFakeBlockType = (
+	overrides?: Partial<components["schemas"]["BlockType"]>,
+): components["schemas"]["BlockType"] => {
+	return {
+		...rand(BLOCK_TYPES),
+		...overrides,
+	};
 };

@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
-import type { PrefectSchemaObject } from "@/components/schemas";
-import { SchemaForm } from "@/components/schemas";
+import { LazySchemaForm, type PrefectSchemaObject } from "@/components/schemas";
 import {
 	Accordion,
 	AccordionContent,
@@ -18,7 +17,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { Switch } from "@/components/ui/switch";
 import { TagsInput } from "@/components/ui/tags-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,7 +75,7 @@ export const CreateFlowRunForm = ({
 							Parameters
 						</Typography>
 
-						<SchemaForm
+						<LazySchemaForm
 							schema={parametersOpenAPISchema as unknown as PrefectSchemaObject}
 							errors={parameterFormErrors}
 							values={parametersFormValues}

@@ -1,15 +1,14 @@
-import { Link } from "@tanstack/react-router";
 import { useCallback } from "react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
+	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { DocsLink } from "@/components/ui/docs-link";
 import { Icon } from "@/components/ui/icons";
+import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 import {
 	Menubar,
 	MenubarContent,
@@ -54,7 +53,7 @@ export const ArtifactsKeyHeader = ({
 			{pageHeader && (
 				<div className="">
 					<Typography variant="h2" className="my-4 font-bold prose lg:prose-xl">
-						<Markdown remarkPlugins={[remarkGfm]}>{pageHeader}</Markdown>
+						<LazyMarkdown>{pageHeader}</LazyMarkdown>
 					</Typography>
 					<hr />
 				</div>
@@ -64,16 +63,16 @@ export const ArtifactsKeyHeader = ({
 };
 
 const Header = ({ artifactKey }: ArtifactsKeyHeaderProps) => (
-	<div className="flex items-center ">
+	<div className="flex items-center gap-2">
 		<Breadcrumb>
 			<BreadcrumbList>
-				<Link to={"/artifacts"}>
-					<BreadcrumbItem className="text-xl font-bold text-blue-700 hover:underline">
+				<BreadcrumbItem>
+					<BreadcrumbLink to="/artifacts" className="text-xl font-semibold">
 						Artifacts
-					</BreadcrumbItem>
-				</Link>
-				<BreadcrumbSeparator>/</BreadcrumbSeparator>
-				<BreadcrumbItem className="text-xl font-bold text-foreground">
+					</BreadcrumbLink>
+				</BreadcrumbItem>
+				<BreadcrumbSeparator />
+				<BreadcrumbItem className="text-xl font-semibold">
 					{artifactKey}
 				</BreadcrumbItem>
 			</BreadcrumbList>

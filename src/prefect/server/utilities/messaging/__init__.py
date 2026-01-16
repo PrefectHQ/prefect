@@ -149,6 +149,17 @@ class Consumer(abc.ABC):
         """Runs the consumer (indefinitely)"""
         ...
 
+    async def cleanup(self) -> None:
+        """Cleanup resources when the consumer is stopped.
+
+        Override this method in subclasses that need to perform cleanup,
+        such as unsubscribing from topics or closing connections.
+
+        The default implementation is a no-op, which is appropriate for
+        consumers that don't need explicit cleanup.
+        """
+        pass
+
 
 @runtime_checkable
 class CacheModule(Protocol):

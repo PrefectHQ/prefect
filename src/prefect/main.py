@@ -9,7 +9,9 @@ from prefect.context import tags
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect._result_records import ResultRecordMetadata
 from prefect.flow_runs import (
+    apause_flow_run,
     aresume_flow_run,
+    asuspend_flow_run,
     pause_flow_run,
     resume_flow_run,
     suspend_flow_run,
@@ -63,8 +65,10 @@ flow: FlowDecorator
 # Declare API for type-checkers
 __all__ = [
     "allow_failure",
+    "apause_flow_run",
     "aresume_flow_run",
     "aserve",
+    "asuspend_flow_run",
     "flow",
     "Flow",
     "get_client",

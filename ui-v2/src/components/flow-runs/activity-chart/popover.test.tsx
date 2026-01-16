@@ -5,8 +5,7 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { waitFor } from "@testing-library/dom";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { createFakeFlowRun } from "@/mocks";
 import { Popover, type PopoverProps } from "./popover";
@@ -29,26 +28,24 @@ const PopoverRouter = (props: PopoverProps) => {
 
 describe("Flow Run Activity Chart Popover", () => {
 	const flowRun = createFakeFlowRun({
+		name: "test-flow-run",
 		estimated_run_time: 1,
+		start_time: "2025-01-01T12:00:00.000Z",
 	});
 
 	it("renders popover", async () => {
-		const { getByTestId } = await waitFor(() =>
-			render(<PopoverRouter name="test-flow" flowRun={flowRun} />),
-		);
+		render(<PopoverRouter name="test-flow" flowRun={flowRun} />);
 
-		await waitFor(() => expect(getByTestId("popover")).toBeInTheDocument());
+		expect(await screen.findByTestId("popover")).toBeInTheDocument();
 	});
 
 	it("renders popover with expected content", async () => {
-		const { getByText } = await waitFor(() =>
-			render(<PopoverRouter name="testFlow" flowRun={flowRun} />),
-		);
+		render(<PopoverRouter name="testFlow" flowRun={flowRun} />);
 
-		expect(getByText(flowRun.name ?? "")).toBeInTheDocument();
-		expect(getByText("1 second")).toBeInTheDocument();
+		expect(await screen.findByText("test-flow-run")).toBeInTheDocument();
+		expect(await screen.findByText("1 second")).toBeInTheDocument();
 		expect(
-			getByText(
+			await screen.findByText(
 				new Date(
 					flowRun.start_time ?? flowRun.expected_start_time ?? "",
 				).toLocaleString(),

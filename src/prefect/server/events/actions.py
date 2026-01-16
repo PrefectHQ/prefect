@@ -174,8 +174,17 @@ class Action(PrefectBaseModel, abc.ABC):
                 if abs(time_since_trigger) < TIGHT_TIMING:
                     follows_id = triggered_action.triggering_event.id
 
-            # Build related resources including triggering event reference
+            # Build related resources including automation.triggered and triggering event
             related_resources = list(self._resulting_related_resources)
+            if triggered_action.automation_triggered_event_id:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
+                            "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
             if triggered_action.triggering_event:
                 related_resources.append(
                     RelatedResource(
@@ -201,7 +210,7 @@ class Action(PrefectBaseModel, abc.ABC):
                     occurred=now("UTC"),
                     event="prefect.automation.action.failed",
                     resource=resource,
-                    related=self._resulting_related_resources,
+                    related=related_resources,
                     payload={
                         **action_details,
                         "reason": reason,
@@ -254,8 +263,17 @@ class Action(PrefectBaseModel, abc.ABC):
                 if abs(time_since_trigger) < TIGHT_TIMING:
                     follows_id = triggered_action.triggering_event.id
 
-            # Build related resources including triggering event reference
+            # Build related resources including automation.triggered and triggering event
             related_resources = list(self._resulting_related_resources)
+            if triggered_action.automation_triggered_event_id:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
+                            "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
             if triggered_action.triggering_event:
                 related_resources.append(
                     RelatedResource(
@@ -269,13 +287,7 @@ class Action(PrefectBaseModel, abc.ABC):
                 Event(
                     occurred=triggered_action.triggered,
                     event="prefect.automation.action.triggered",
-                    resource=Resource(
-                        {
-                            "prefect.resource.id": automation_resource_id,
-                            "prefect.resource.name": automation.name,
-                            "prefect.trigger-type": automation.trigger.type,
-                        }
-                    ),
+                    resource=resource,
                     related=related_resources,
                     payload=action_details,
                     id=triggered_event_id,
@@ -286,14 +298,8 @@ class Action(PrefectBaseModel, abc.ABC):
                 Event(
                     occurred=now("UTC"),
                     event="prefect.automation.action.executed",
-                    resource=Resource(
-                        {
-                            "prefect.resource.id": automation_resource_id,
-                            "prefect.resource.name": automation.name,
-                            "prefect.trigger-type": automation.trigger.type,
-                        }
-                    ),
-                    related=self._resulting_related_resources,
+                    resource=resource,
+                    related=related_resources,
                     payload={
                         **action_details,
                         **self._result_details,
@@ -1095,7 +1101,9 @@ class FlowRunStateChangeAction(FlowRunAction):
 
         async with await self.orchestration_client(triggered_action) as orchestration:
             response = await orchestration.set_flow_run_state(
-                flow_run_id, await self.new_state(triggered_action=triggered_action)
+                flow_run_id,
+                await self.new_state(triggered_action=triggered_action),
+                force=getattr(self, "force", False),
             )
 
             self._result_details["status_code"] = response.status_code
@@ -1112,7 +1120,7 @@ class ChangeFlowRunState(FlowRunStateChangeAction):
 
     type: Literal["change-flow-run-state"] = "change-flow-run-state"
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         None,
         description="The name of the state to change the flow run to",
     )
@@ -1120,9 +1128,13 @@ class ChangeFlowRunState(FlowRunStateChangeAction):
         ...,
         description="The type of the state to change the flow run to",
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None,
         description="An optional message to associate with the state change",
+    )
+    force: bool = Field(
+        False,
+        description="Force the state change even if the transition is not allowed",
     )
 
     async def new_state(self, triggered_action: "TriggeredAction") -> StateCreate:

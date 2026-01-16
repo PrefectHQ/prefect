@@ -13,6 +13,7 @@ import socket
 import subprocess
 import sys
 import textwrap
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -726,7 +727,9 @@ async def _run_all_services() -> None:
 
     docket_url = get_current_settings().server.docket.url
 
-    async with Docket(name="prefect", url=docket_url) as docket:
+    async with Docket(
+        name="prefect", url=docket_url, execution_ttl=timedelta(0)
+    ) as docket:
         async with background_worker(docket, ephemeral=False, webserver_only=False):
             # Run Service-based services (will block until shutdown)
             await Service.run_services()

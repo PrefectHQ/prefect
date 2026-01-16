@@ -82,6 +82,7 @@ from prefect._internal.concurrency.api import (
     from_async,
     from_sync,
 )
+from prefect._observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
@@ -97,7 +98,6 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.runner._observers import FlowRunCancellingObserver
 from prefect.runner.storage import RunnerStorage
 from prefect.schedules import Schedule
 from prefect.settings import (
@@ -113,6 +113,7 @@ from prefect.states import (
 )
 from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
+from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
@@ -604,6 +605,23 @@ class Runner:
 
             self._submitting_flow_run_ids.add(flow_run_id)
             flow_run = await self._client.read_flow_run(flow_run_id)
+
+            # If the flow run is already cancelling or cancelled, exit early
+            if flow_run.state and flow_run.state.is_cancelling():
+                await self._mark_flow_run_as_cancelled(
+                    flow_run,
+                    state_updates={
+                        "message": "Flow run was cancelled before execution started."
+                    },
+                )
+                self._release_limit_slot(flow_run_id)
+                self._submitting_flow_run_ids.discard(flow_run_id)
+                return
+
+            if flow_run.state and flow_run.state.is_cancelled():
+                self._release_limit_slot(flow_run_id)
+                self._submitting_flow_run_ids.discard(flow_run_id)
+                return
 
             process: (
                 anyio.abc.Process | multiprocessing.context.SpawnProcess | Exception
@@ -1568,6 +1586,13 @@ class Runner:
         if not hasattr(self, "_loop") or not self._loop:
             self._loop = asyncio.get_event_loop()
 
+        await self._exit_stack.enter_async_context(self._client)
+        await self._exit_stack.enter_async_context(self._events_client)
+
+        if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
+            self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
+        await self._exit_stack.enter_async_context(self._runs_task_group)
+
         self._cancelling_observer = await self._exit_stack.enter_async_context(
             FlowRunCancellingObserver(
                 on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
@@ -1576,12 +1601,6 @@ class Runner:
                 polling_interval=self.query_seconds,
             )
         )
-        await self._exit_stack.enter_async_context(self._client)
-        await self._exit_stack.enter_async_context(self._events_client)
-
-        if not hasattr(self, "_runs_task_group") or not self._runs_task_group:
-            self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-        await self._exit_stack.enter_async_context(self._runs_task_group)
 
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
@@ -1637,9 +1656,10 @@ async def _run_hooks(
 ):
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:
+        hook_name = get_hook_name(hook)
         try:
             logger.info(
-                f"Running hook {hook.__name__!r} in response to entering state"
+                f"Running hook {hook_name!r} in response to entering state"
                 f" {state.name!r}"
             )
             if is_async_fn(hook):
@@ -1650,8 +1670,8 @@ async def _run_hooks(
                 )
         except Exception:
             logger.error(
-                f"An error was encountered while running hook {hook.__name__!r}",
+                f"An error was encountered while running hook {hook_name!r}",
                 exc_info=True,
             )
         else:
-            logger.info(f"Hook {hook.__name__!r} finished running successfully")
+            logger.info(f"Hook {hook_name!r} finished running successfully")
