@@ -128,9 +128,16 @@ test.describe("Concurrency Limits Page", () => {
 		await expect(page.getByRole("dialog")).not.toBeVisible();
 		await expect(page.getByText(tagName)).toBeVisible();
 
-		// Verify create via API
-		let limits = await listTaskRunConcurrencyLimits(apiClient);
-		expect(limits.find((l) => l.tag === tagName)?.concurrency_limit).toBe(10);
+		// Verify create via API (use poll to handle eventual consistency)
+		await expect
+			.poll(
+				async () => {
+					const limits = await listTaskRunConcurrencyLimits(apiClient);
+					return limits.find((l) => l.tag === tagName)?.concurrency_limit;
+				},
+				{ timeout: 5000 },
+			)
+			.toBe(10);
 
 		// Reset
 		await page.getByRole("button", { name: /open menu/i }).click();
@@ -159,7 +166,7 @@ test.describe("Concurrency Limits Page", () => {
 		).toBeVisible();
 
 		// Verify delete via API
-		limits = await listTaskRunConcurrencyLimits(apiClient);
+		const limits = await listTaskRunConcurrencyLimits(apiClient);
 		expect(limits.find((l) => l.tag === tagName)).toBeUndefined();
 	});
 
