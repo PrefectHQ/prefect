@@ -1033,7 +1033,7 @@ export function RouteComponent() {
 							<div>
 								<Breadcrumb>
 									<BreadcrumbList>
-										<BreadcrumbItem className="text-2xl font-bold text-foreground">
+										<BreadcrumbItem className="text-xl font-semibold">
 											Dashboard
 										</BreadcrumbItem>
 									</BreadcrumbList>

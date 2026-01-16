@@ -1,6 +1,10 @@
+import {
+	Breadcrumb,
+	BreadcrumbItem,
+	BreadcrumbList,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
 
 type TaskRunConcurrencyLimitsHeaderProps = {
 	onAdd: () => void;
@@ -10,10 +14,14 @@ export const TaskRunConcurrencyLimitsHeader = ({
 	onAdd,
 }: TaskRunConcurrencyLimitsHeaderProps) => {
 	return (
-		<div className="flex gap-2 items-center">
-			<Typography className="font-semibold">
-				Task Run Concurrency Limits
-			</Typography>
+		<div className="flex items-center gap-2">
+			<Breadcrumb>
+				<BreadcrumbList>
+					<BreadcrumbItem className="text-xl font-semibold">
+						Task Run Concurrency Limits
+					</BreadcrumbItem>
+				</BreadcrumbList>
+			</Breadcrumb>
 			<Button
 				onClick={onAdd}
 				size="icon"
