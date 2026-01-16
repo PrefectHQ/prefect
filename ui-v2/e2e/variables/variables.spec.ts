@@ -339,16 +339,26 @@ test.describe("Variables Page", () => {
 	});
 
 	test.describe("Sorting", () => {
+		// Use unique suffix per test run to avoid conflicts with parallel test execution
+		let sortTestSuffix: string;
+		let aaaVarName: string;
+		let zzzVarName: string;
+
 		test.beforeEach(async ({ apiClient }) => {
+			// Generate unique suffix for this test run
+			sortTestSuffix = `${Date.now()}`;
+			aaaVarName = `${TEST_PREFIX}aaa-sort-${sortTestSuffix}`;
+			zzzVarName = `${TEST_PREFIX}zzz-sort-${sortTestSuffix}`;
+
 			// Create variables with specific names for sorting tests
 			await createVariable(apiClient, {
-				name: `${TEST_PREFIX}aaa-sort-var`,
+				name: aaaVarName,
 				value: "first",
 			});
 			// Small delay to ensure different timestamps
 			await new Promise((resolve) => setTimeout(resolve, 100));
 			await createVariable(apiClient, {
-				name: `${TEST_PREFIX}zzz-sort-var`,
+				name: zzzVarName,
 				value: "last",
 			});
 		});
@@ -357,7 +367,7 @@ test.describe("Variables Page", () => {
 			await page.goto("/variables");
 
 			// Wait for variables to load
-			await expect(page.getByText(`${TEST_PREFIX}aaa-sort-var`)).toBeVisible();
+			await expect(page.getByText(aaaVarName)).toBeVisible();
 
 			// Change sort to A to Z
 			await page
@@ -370,14 +380,14 @@ test.describe("Variables Page", () => {
 
 			// Get all variable names in order
 			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
-			await expect(firstRow).toContainText(`${TEST_PREFIX}aaa-sort-var`);
+			await expect(firstRow).toContainText(aaaVarName);
 		});
 
 		test("should sort variables by name Z to A", async ({ page }) => {
 			await page.goto("/variables");
 
 			// Wait for variables to load
-			await expect(page.getByText(`${TEST_PREFIX}aaa-sort-var`)).toBeVisible();
+			await expect(page.getByText(aaaVarName)).toBeVisible();
 
 			// Change sort to Z to A
 			await page
@@ -390,7 +400,7 @@ test.describe("Variables Page", () => {
 
 			// Verify zzz comes before aaa
 			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
-			await expect(firstRow).toContainText(`${TEST_PREFIX}zzz-sort-var`);
+			await expect(firstRow).toContainText(zzzVarName);
 		});
 
 		test("should sort variables by created date (default)", async ({
@@ -403,7 +413,7 @@ test.describe("Variables Page", () => {
 
 			// Most recently created should be first
 			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
-			await expect(firstRow).toContainText(`${TEST_PREFIX}zzz-sort-var`);
+			await expect(firstRow).toContainText(zzzVarName);
 		});
 	});
 
