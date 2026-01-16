@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import {
 	cleanupVariables,
 	createVariable,
@@ -8,6 +9,21 @@ import {
 } from "../fixtures";
 
 const TEST_PREFIX = "e2e-test-";
+
+/**
+ * Wait for the variables page to be fully loaded.
+ * This ensures the page has rendered before tests interact with it,
+ * which is important when running tests in parallel.
+ */
+async function waitForVariablesPageReady(page: Page): Promise<void> {
+	// Wait for either the empty state heading or the variables table to be visible
+	// This handles both cases: when there are no variables and when there are variables
+	await expect(
+		page
+			.getByRole("heading", { name: /add a variable to get started/i })
+			.or(page.getByRole("table")),
+	).toBeVisible();
+}
 
 test.describe("Variables Page", () => {
 	test.beforeAll(async ({ apiClient }) => {
@@ -49,6 +65,7 @@ test.describe("Variables Page", () => {
 			const variableValue = "test-string-value";
 
 			await page.goto("/variables");
+			await waitForVariablesPageReady(page);
 
 			// Click Add Variable button
 			await page.getByRole("button", { name: /add variable/i }).click();
@@ -88,6 +105,7 @@ test.describe("Variables Page", () => {
 			const variableValue = { key: "value", number: 42 };
 
 			await page.goto("/variables");
+			await waitForVariablesPageReady(page);
 
 			await page.getByRole("button", { name: /add variable/i }).click();
 			await expect(
@@ -117,6 +135,7 @@ test.describe("Variables Page", () => {
 			const tags = ["production", "config"];
 
 			await page.goto("/variables");
+			await waitForVariablesPageReady(page);
 
 			await page.getByRole("button", { name: /add variable/i }).click();
 			await expect(
@@ -151,6 +170,7 @@ test.describe("Variables Page", () => {
 
 		test("should close dialog when clicking Close button", async ({ page }) => {
 			await page.goto("/variables");
+			await waitForVariablesPageReady(page);
 
 			await page.getByRole("button", { name: /add variable/i }).click();
 
