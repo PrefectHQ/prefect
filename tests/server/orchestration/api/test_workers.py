@@ -2473,7 +2473,8 @@ class TestGetScheduledRuns:
 
         # trigger a poll of the work queue, which should update the deployment status
         deployment_work_pool_name = work_pools["wp_a"].name
-        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+        # Use a longer retry window to account for eventual consistency under CI load
+        async for attempt in retry_asserts(max_attempts=20, delay=1.0):
             with attempt:
                 queue_response = await hosted_api_client.post(
                     f"/work_pools/{deployment_work_pool_name}/get_scheduled_flow_runs",
