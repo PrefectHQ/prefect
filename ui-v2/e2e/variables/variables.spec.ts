@@ -278,20 +278,32 @@ test.describe("Variables Page", () => {
 	});
 
 	test.describe("Search and Filter", () => {
+		// Use unique suffix per test run to avoid conflicts with parallel test execution
+		let filterTestSuffix: string;
+		let alphaVarName: string;
+		let betaVarName: string;
+		let gammaVarName: string;
+
 		test.beforeEach(async ({ apiClient }) => {
+			// Generate unique suffix for this test run
+			filterTestSuffix = `${Date.now()}`;
+			alphaVarName = `${TEST_PREFIX}alpha-${filterTestSuffix}`;
+			betaVarName = `${TEST_PREFIX}beta-${filterTestSuffix}`;
+			gammaVarName = `${TEST_PREFIX}gamma-${filterTestSuffix}`;
+
 			// Create multiple test variables for filtering tests
 			await createVariable(apiClient, {
-				name: `${TEST_PREFIX}alpha-var`,
+				name: alphaVarName,
 				value: "alpha",
 				tags: ["production"],
 			});
 			await createVariable(apiClient, {
-				name: `${TEST_PREFIX}beta-var`,
+				name: betaVarName,
 				value: "beta",
 				tags: ["staging"],
 			});
 			await createVariable(apiClient, {
-				name: `${TEST_PREFIX}gamma-var`,
+				name: gammaVarName,
 				value: "gamma",
 				tags: ["production", "config"],
 			});
@@ -301,17 +313,17 @@ test.describe("Variables Page", () => {
 			await page.goto("/variables");
 
 			// Wait for variables to load
-			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
-			await expect(page.getByText(`${TEST_PREFIX}beta-var`)).toBeVisible();
-			await expect(page.getByText(`${TEST_PREFIX}gamma-var`)).toBeVisible();
+			await expect(page.getByText(alphaVarName)).toBeVisible();
+			await expect(page.getByText(betaVarName)).toBeVisible();
+			await expect(page.getByText(gammaVarName)).toBeVisible();
 
 			// Search for "alpha"
 			await page.getByPlaceholder("Search variables").fill("alpha");
 
 			// Should only show alpha variable
-			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
-			await expect(page.getByText(`${TEST_PREFIX}beta-var`)).not.toBeVisible();
-			await expect(page.getByText(`${TEST_PREFIX}gamma-var`)).not.toBeVisible();
+			await expect(page.getByText(alphaVarName)).toBeVisible();
+			await expect(page.getByText(betaVarName)).not.toBeVisible();
+			await expect(page.getByText(gammaVarName)).not.toBeVisible();
 
 			// Verify URL updated with search param
 			await expect(page).toHaveURL(/name=alpha/);
@@ -321,7 +333,7 @@ test.describe("Variables Page", () => {
 			await page.goto("/variables");
 
 			// Wait for variables to load
-			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
+			await expect(page.getByText(alphaVarName)).toBeVisible();
 
 			// Filter by "production" tag
 			const tagsFilter = page.getByPlaceholder("Filter by tags");
@@ -329,9 +341,9 @@ test.describe("Variables Page", () => {
 			await page.keyboard.press("Enter");
 
 			// Should show alpha and gamma (both have production tag)
-			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
-			await expect(page.getByText(`${TEST_PREFIX}gamma-var`)).toBeVisible();
-			await expect(page.getByText(`${TEST_PREFIX}beta-var`)).not.toBeVisible();
+			await expect(page.getByText(alphaVarName)).toBeVisible();
+			await expect(page.getByText(gammaVarName)).toBeVisible();
+			await expect(page.getByText(betaVarName)).not.toBeVisible();
 
 			// Verify URL updated with tags param (tags are URL-encoded as an array)
 			await expect(page).toHaveURL(/tags=/);
@@ -341,7 +353,7 @@ test.describe("Variables Page", () => {
 			await page.goto("/variables");
 
 			// Wait for variables to load
-			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).toBeVisible();
+			await expect(page.getByText(alphaVarName)).toBeVisible();
 
 			// Filter by "production" tag first
 			const tagsFilter = page.getByPlaceholder("Filter by tags");
@@ -352,9 +364,9 @@ test.describe("Variables Page", () => {
 			await page.getByPlaceholder("Search variables").fill("gamma");
 
 			// Should only show gamma (has production tag AND matches gamma search)
-			await expect(page.getByText(`${TEST_PREFIX}gamma-var`)).toBeVisible();
-			await expect(page.getByText(`${TEST_PREFIX}alpha-var`)).not.toBeVisible();
-			await expect(page.getByText(`${TEST_PREFIX}beta-var`)).not.toBeVisible();
+			await expect(page.getByText(gammaVarName)).toBeVisible();
+			await expect(page.getByText(alphaVarName)).not.toBeVisible();
+			await expect(page.getByText(betaVarName)).not.toBeVisible();
 		});
 	});
 
@@ -438,13 +450,19 @@ test.describe("Variables Page", () => {
 	});
 
 	test.describe("Pagination", () => {
+		// Use unique suffix per test run to avoid conflicts with parallel test execution
+		let paginationTestSuffix: string;
+
 		test.beforeEach(async ({ apiClient }) => {
+			// Generate unique suffix for this test run
+			paginationTestSuffix = `${Date.now()}`;
+
 			// Create enough variables to test pagination (more than default page size of 10)
 			const createPromises = [];
 			for (let i = 0; i < 15; i++) {
 				createPromises.push(
 					createVariable(apiClient, {
-						name: `${TEST_PREFIX}page-var-${String(i).padStart(2, "0")}`,
+						name: `${TEST_PREFIX}page-${paginationTestSuffix}-${String(i).padStart(2, "0")}`,
 						value: `value-${i}`,
 					}),
 				);
