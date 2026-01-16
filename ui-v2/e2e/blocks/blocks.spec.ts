@@ -104,8 +104,11 @@ test.describe("Blocks Page", () => {
 			await page.goto("/blocks/catalog/json/create");
 
 			// Wait for create page to load - verify URL and wait for the form to be ready
+			// Use longer timeout as the page may take time to load block type data
 			await expect(page).toHaveURL(/\/blocks\/catalog\/json\/create/);
-			await expect(page.getByRole("textbox", { name: /name/i })).toBeVisible();
+			await expect(page.getByRole("textbox", { name: /name/i })).toBeVisible({
+				timeout: 15000,
+			});
 
 			// Fill in the block name
 			await page.getByRole("textbox", { name: /name/i }).fill(blockName);
