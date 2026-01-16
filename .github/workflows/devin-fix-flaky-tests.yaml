@@ -36,13 +36,32 @@ jobs:
 
       - name: Trigger Devin session to fix flaky tests
         env:
-          DEVIN_API_TOKEN: ${{ secrets.DEVIN_API_TOKEN }}
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
         run: |
-          curl -X POST "https://api.devin.ai/v1/sessions" \
-            -H "Authorization: Bearer $DEVIN_API_TOKEN" \
+          prompt="The ${{ steps.workflow-info.outputs.workflow_name }} workflow failed on main. Workflow: ${{ steps.workflow-info.outputs.workflow_url }}, Commit: ${{ steps.workflow-info.outputs.head_sha }}. Investigate and fix the flaky test."
+
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://api.devin.ai/v1/sessions" \
+            -H "Authorization: Bearer $DEVIN_API_KEY" \
             -H "Content-Type: application/json" \
-            -d '{
-              "prompt": "The ${{ steps.workflow-info.outputs.workflow_name }} workflow failed on main. Workflow: ${{ steps.workflow-info.outputs.workflow_url }}, Commit: ${{ steps.workflow-info.outputs.head_sha }}. Investigate and fix the flaky test.",
-              "playbook_id": "playbook-8967ef2920e24b9cbd076184b53e170e",
-              "idempotent": true
-            }'
+            -d "{
+              \"prompt\": \"$prompt\",
+              \"playbook_id\": \"playbook-8967ef2920e24b9cbd076184b53e170e\",
+              \"idempotent\": true
+            }")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Successfully triggered Devin session"
+            session_url=$(echo "$body" | jq -r '.url // empty')
+            if [ -n "$session_url" ]; then
+              echo "📎 Session URL: $session_url"
+              echo "### Devin Session" >> "$GITHUB_STEP_SUMMARY"
+              echo "[$session_url]($session_url)" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "❌ Failed to trigger session (HTTP $http_code)"
+            echo "Response: $body"
+            exit 1
+          fi
