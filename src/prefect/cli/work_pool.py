@@ -35,7 +35,11 @@ from prefect.client.schemas.objects import (
     WorkPool,
     WorkPoolStorageConfiguration,
 )
-from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.exceptions import (
+    ObjectAlreadyExists,
+    ObjectNotFound,
+    PrefectHTTPStatusError,
+)
 from prefect.infrastructure import provisioners
 from prefect.settings import update_current_profile
 from prefect.types._datetime import now as now_fn
@@ -262,6 +266,12 @@ async def create(
             exit_with_error(
                 f"Work pool named {name!r} already exists. Please use --overwrite to update it."
             )
+        except PrefectHTTPStatusError as exc:
+            detail = exc.response.json().get("detail")
+            if detail:
+                exit_with_error(detail)
+            else:
+                raise
 
 
 @work_pool_app.command()

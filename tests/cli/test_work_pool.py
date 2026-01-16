@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 import readchar
 from typer import Exit
@@ -15,7 +16,7 @@ from prefect.client.schemas.actions import (
 )
 from prefect.client.schemas.objects import BlockDocument, WorkPool
 from prefect.context import get_settings_context
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -431,6 +432,41 @@ class TestCreate:
             expected_output_contains=[
                 f"Work pool named {pool_name!r} already exists. Use --overwrite to update it."
             ],
+        )
+
+    @pytest.mark.usefixtures("mock_collection_registry")
+    async def test_create_work_pool_http_error_displays_detail(self, monkeypatch):
+        """Test that HTTP errors with detail messages are displayed nicely."""
+        error_detail = (
+            "You have reached the maximum number of work pools for your workspace: 4."
+        )
+
+        mock_request = httpx.Request("POST", "https://api.prefect.cloud/work_pools/")
+        mock_response = httpx.Response(
+            status_code=403,
+            json={"detail": error_detail},
+            request=mock_request,
+        )
+        http_error = httpx.HTTPStatusError(
+            "Client error '403 Forbidden'",
+            request=mock_request,
+            response=mock_response,
+        )
+        prefect_error = PrefectHTTPStatusError.from_httpx_error(http_error)
+
+        async def mock_create_work_pool(*args, **kwargs):
+            raise prefect_error
+
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.create_work_pool",
+            mock_create_work_pool,
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool create test-pool --type process",
+            expected_code=1,
+            expected_output_contains=[error_detail],
         )
 
 
