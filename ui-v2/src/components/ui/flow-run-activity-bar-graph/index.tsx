@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
+import { scaleSymlog } from "d3-scale";
 import { format, formatDistanceStrict } from "date-fns";
 import { Calendar, ChevronRight, Clock } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, Cell, type TooltipContentProps } from "recharts";
 import type { components } from "@/api/prefect";
 import { DeploymentIconText } from "@/components/deployments/deployment-icon-text";
@@ -211,12 +212,36 @@ export const FlowRunActivityBarChart = ({
 		numberOfBars,
 	);
 
-	const data = buckets.map((flowRun, index) => ({
-		value: flowRun?.total_run_time ?? 0,
-		id: flowRun?.id ?? `empty-${index}`,
-		stateType: flowRun?.state_type,
-		flowRun,
-	}));
+	// Calculate max duration for scaling
+	const maxDuration = useMemo(() => {
+		return cappedFlowRuns.reduce((max, flowRun) => {
+			const duration = flowRun.total_run_time ?? 0;
+			return duration > max ? duration : max;
+		}, 0);
+	}, [cappedFlowRuns]);
+
+	// Create symlog scale for logarithmic scaling that handles zero values gracefully
+	// This matches the Vue implementation's use of d3's scaleSymlog
+	const yScale = useMemo(() => {
+		const scale = scaleSymlog();
+		scale.domain([0, maxDuration]);
+		// Range is normalized to [0, 1] since recharts handles the actual pixel scaling
+		scale.range([0, 1]);
+		return scale;
+	}, [maxDuration]);
+
+	const data = buckets.map((flowRun, index) => {
+		const rawValue = flowRun?.total_run_time ?? 0;
+		// Apply symlog scale to the value, then multiply by maxDuration to preserve
+		// the relative scale that recharts expects
+		const scaledValue = maxDuration > 0 ? yScale(rawValue) * maxDuration : 0;
+		return {
+			value: scaledValue,
+			id: flowRun?.id ?? `empty-${index}`,
+			stateType: flowRun?.state_type,
+			flowRun,
+		};
+	});
 
 	return (
 		<ChartContainer
