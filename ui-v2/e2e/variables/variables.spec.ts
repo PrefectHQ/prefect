@@ -369,8 +369,7 @@ test.describe("Variables Page", () => {
 			await expect(page).toHaveURL(/sort=NAME_ASC/);
 
 			// Get all variable names in order
-			const rows = page.locator("table tbody tr");
-			const firstRow = rows.first();
+			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
 			await expect(firstRow).toContainText(`${TEST_PREFIX}aaa-sort-var`);
 		});
 
@@ -390,8 +389,7 @@ test.describe("Variables Page", () => {
 			await expect(page).toHaveURL(/sort=NAME_DESC/);
 
 			// Verify zzz comes before aaa
-			const rows = page.locator("table tbody tr");
-			const firstRow = rows.first();
+			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
 			await expect(firstRow).toContainText(`${TEST_PREFIX}zzz-sort-var`);
 		});
 
@@ -404,8 +402,7 @@ test.describe("Variables Page", () => {
 			await expect(page).toHaveURL(/sort=CREATED_DESC/);
 
 			// Most recently created should be first
-			const rows = page.locator("table tbody tr");
-			const firstRow = rows.first();
+			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
 			await expect(firstRow).toContainText(`${TEST_PREFIX}zzz-sort-var`);
 		});
 	});
