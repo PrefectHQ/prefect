@@ -86,6 +86,85 @@ expect(await page.getByText("Success").isVisible()).toBe(true);
 - Clean up in both `beforeEach` and `afterEach`
 - Never depend on data from other tests
 
+### Parallel Test Execution
+
+Tests run with multiple workers in CI (configured in `playwright.config.ts`). This means tests can run simultaneously, which introduces potential race conditions. Follow these patterns to write resilient tests:
+
+**Use unique identifiers for ALL test data:**
+
+```typescript
+// ✅ Good - unique per test run, won't conflict with parallel tests
+const variableName = `${TEST_PREFIX}my-var-${Date.now()}`;
+
+// ❌ Bad - fixed names can be deleted by parallel test cleanup
+const variableName = `${TEST_PREFIX}my-var`;
+```
+
+**Handle eventual consistency with `expect.poll()`:**
+
+When verifying data via API after a UI action, the API might return stale data. Use `expect.poll()` to retry until the expected data appears:
+
+```typescript
+// ✅ Good - retries until data is available
+await expect
+  .poll(
+    async () => {
+      const items = await listItems(apiClient);
+      return items.find((i) => i.name === itemName)?.value;
+    },
+    { timeout: 5000 },
+  )
+  .toBe(expectedValue);
+
+// ❌ Bad - may fail due to eventual consistency
+const items = await listItems(apiClient);
+expect(items.find((i) => i.name === itemName)?.value).toBe(expectedValue);
+```
+
+**Isolate test data by test file:**
+
+Each test file should use its own `TEST_PREFIX` or unique identifiers to avoid conflicts with other test files running in parallel.
+
+### Handling Page Loading States
+
+When tests navigate to a page and immediately interact with it, the page might not be fully loaded, especially under parallel execution when the API server is handling multiple requests. Always wait for the page to be ready before interacting:
+
+**Create page-ready helpers:**
+
+```typescript
+async function waitForPageReady(page: Page): Promise<void> {
+  // Wait for either the empty state or the data table to be visible
+  await expect(
+    page
+      .getByRole("heading", { name: /add an item to get started/i })
+      .or(page.getByRole("table")),
+  ).toBeVisible();
+}
+```
+
+**Use the helper before interactions:**
+
+```typescript
+test("should create an item", async ({ page }) => {
+  await page.goto("/items");
+  await waitForPageReady(page); // Ensures page is loaded
+
+  await page.getByRole("button", { name: /add item/i }).click();
+  // ... rest of test
+});
+```
+
+**When to use page-ready helpers:**
+
+- Tests that click buttons immediately after navigation
+- Tests that interact with elements that depend on API data loading
+- Tests that run in the "Create" or "Empty State" describe blocks
+
+**When page-ready helpers are NOT needed:**
+
+- Tests that already wait for specific data to appear (e.g., `await expect(page.getByText(itemName)).toBeVisible()`)
+- Tests that verify the empty state itself (the assertion serves as the wait)
+
 ### Dual Verification Pattern
 
 Verify actions through both UI and API:
