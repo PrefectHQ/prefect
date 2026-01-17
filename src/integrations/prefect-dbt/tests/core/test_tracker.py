@@ -463,7 +463,7 @@ class TestNodeTaskTrackerThreadExecution:
         # Verify run_task_sync was called with correct dependencies
         mock_thread_execution_setup.assert_called_once()
         call_args = mock_thread_execution_setup.call_args
-        assert len(call_args[1]["wait_for"]) == expected_wait_count
+        assert len(call_args.kwargs["wait_for"]) == expected_wait_count
 
     def test_run_task_in_thread_starts_daemon_thread(
         self, sample_node_id, mock_task, sample_task_run_id, mock_thread_execution_setup
