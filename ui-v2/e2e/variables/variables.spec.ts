@@ -123,10 +123,19 @@ test.describe("Variables Page", () => {
 			await expect(page.getByRole("dialog")).not.toBeVisible();
 			await expect(page.getByText(variableName)).toBeVisible();
 
-			// Verify via API
+			// Verify via API with polling to handle eventual consistency
+			await expect
+				.poll(
+					async () => {
+						const variables = await listVariables(apiClient);
+						return variables.find((v) => v.name === variableName);
+					},
+					{ timeout: 10000 },
+				)
+				.toBeDefined();
+
 			const variables = await listVariables(apiClient);
 			const created = variables.find((v) => v.name === variableName);
-			expect(created).toBeDefined();
 			expect(created?.value).toEqual(variableValue);
 		});
 
@@ -207,13 +216,19 @@ test.describe("Variables Page", () => {
 				value: initialValue,
 			});
 
-			await page.goto("/variables");
+			// Use toPass to handle eventual consistency - retry navigation if data not visible
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText(variableName)).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
-			// Wait for variable to appear
-			await expect(page.getByText(variableName)).toBeVisible();
-
-			// Click actions menu
-			await page.getByRole("button", { name: /open menu/i }).click();
+			// Find the row containing our variable and click its actions menu
+			const variableRow = page
+				.getByRole("row")
+				.filter({ hasText: variableName });
+			await variableRow.getByRole("button", { name: /open menu/i }).click();
 			await page.getByRole("menuitem", { name: /edit/i }).click();
 
 			// Verify edit dialog opens with correct title
@@ -258,13 +273,19 @@ test.describe("Variables Page", () => {
 				value: "to-be-deleted",
 			});
 
-			await page.goto("/variables");
+			// Use toPass to handle eventual consistency - retry navigation if data not visible
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText(variableName)).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
-			// Wait for variable to appear
-			await expect(page.getByText(variableName)).toBeVisible();
-
-			// Click actions menu and delete
-			await page.getByRole("button", { name: /open menu/i }).click();
+			// Find the row containing our variable and click its actions menu
+			const variableRow = page
+				.getByRole("row")
+				.filter({ hasText: variableName });
+			await variableRow.getByRole("button", { name: /open menu/i }).click();
 			await page.getByRole("menuitem", { name: /delete/i }).click();
 
 			// Wait for variable to be removed from list
@@ -396,10 +417,11 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should sort variables by name A to Z", async ({ page }) => {
-			await page.goto("/variables");
-
-			// Wait for variables to load
-			await expect(page.getByText(aaaVarName)).toBeVisible();
+			// Use toPass to handle eventual consistency - retry navigation if data not visible
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText(aaaVarName)).toBeVisible({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 
 			// Change sort to A to Z
 			await page
@@ -416,10 +438,11 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should sort variables by name Z to A", async ({ page }) => {
-			await page.goto("/variables");
-
-			// Wait for variables to load
-			await expect(page.getByText(aaaVarName)).toBeVisible();
+			// Use toPass to handle eventual consistency - retry navigation if data not visible
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText(aaaVarName)).toBeVisible({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 
 			// Change sort to Z to A
 			await page
@@ -438,7 +461,11 @@ test.describe("Variables Page", () => {
 		test("should sort variables by created date (default)", async ({
 			page,
 		}) => {
-			await page.goto("/variables");
+			// Use toPass to handle eventual consistency - retry navigation if data not visible
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText(zzzVarName)).toBeVisible({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 
 			// Verify default sort is CREATED_DESC
 			await expect(page).toHaveURL(/sort=CREATED_DESC/);

@@ -184,12 +184,12 @@ test.describe("Blocks Page", () => {
 				data: { value: "test" },
 			});
 
-			// Navigate to blocks page
-			await page.goto("/blocks");
-
-			// Wait for page to be ready and block to appear in the list
-			await waitForBlocksPageReady(page);
-			await expect(page.getByText(blockName)).toBeVisible({ timeout: 10000 });
+			// Use toPass to handle eventual consistency - retry navigation if data not visible
+			await expect(async () => {
+				await page.goto("/blocks");
+				await waitForBlocksPageReady(page);
+				await expect(page.getByText(blockName)).toBeVisible({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 
 			// Verify table is shown (not empty state)
 			await expect(page.getByRole("table")).toBeVisible();
@@ -211,12 +211,12 @@ test.describe("Blocks Page", () => {
 				data: { value: "navigate-test" },
 			});
 
-			// Navigate to blocks page
-			await page.goto("/blocks");
-
-			// Wait for page to be ready and block to appear
-			await waitForBlocksPageReady(page);
-			await expect(page.getByText(blockName)).toBeVisible({ timeout: 10000 });
+			// Use toPass to handle eventual consistency - retry navigation if data not visible
+			await expect(async () => {
+				await page.goto("/blocks");
+				await waitForBlocksPageReady(page);
+				await expect(page.getByText(blockName)).toBeVisible({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 
 			// Click on the block name link
 			await page.getByRole("link", { name: blockName }).click();
@@ -243,16 +243,16 @@ test.describe("Blocks Page", () => {
 				data: { value: "delete-me" },
 			});
 
-			// Navigate to blocks page
-			await page.goto("/blocks");
+			// Use toPass to handle eventual consistency - retry navigation if data not visible
+			await expect(async () => {
+				await page.goto("/blocks");
+				await waitForBlocksPageReady(page);
+				await expect(page.getByText(blockName)).toBeVisible({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 
-			// Wait for page to be ready and block to appear
-			await waitForBlocksPageReady(page);
-			await expect(page.getByText(blockName)).toBeVisible({ timeout: 10000 });
-
-			// Open action menu for the block row
-			// Note: The action menu button is in each row
-			await page.getByRole("button", { name: /open menu/i }).click();
+			// Find the row containing our block and click its actions menu
+			const blockRow = page.getByRole("row").filter({ hasText: blockName });
+			await blockRow.getByRole("button", { name: /open menu/i }).click();
 			await page.getByRole("menuitem", { name: /delete/i }).click();
 
 			// Wait for and confirm deletion in dialog
