@@ -6,73 +6,201 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	--background: hsl(0 0% 100%);
-	--foreground: hsl(0 0% 3.9%);
-	--card: hsl(0 0% 100%);
-	--card-foreground: hsl(0 0% 3.9%);
-	--popover: hsl(0 0% 100%);
-	--popover-foreground: hsl(0 0% 3.9%);
-	--primary: hsl(0 0% 9%);
-	--primary-foreground: hsl(0 0% 98%);
-	--secondary: hsl(0 0% 96.1%);
-	--secondary-foreground: hsl(0 0% 9%);
-	--muted: hsl(0 0% 96.1%);
-	--muted-foreground: hsl(0 0% 45.1%);
-	--accent: hsl(0 0% 96.1%);
-	--accent-foreground: hsl(0 0% 9%);
-	--destructive: hsl(0 84.2% 60.2%);
-	--destructive-foreground: hsl(0 0% 98%);
-	--border: hsl(0 0% 89.8%);
-	--input: hsl(0 0% 89.8%);
-	--ring: hsl(0 0% 3.9%);
+	/* Primary hue - Prefect Blue */
+	--p-primary-hue: 228;
+
+	/* Core theme tokens matching V1 */
+	--background: hsl(228 3.23% 92%);
+	--foreground: hsl(228 6% 9.02%);
+	--card: hsl(228 0% 100%);
+	--card-foreground: hsl(228 6% 9.02%);
+	--popover: hsl(228 0% 100%);
+	--popover-foreground: hsl(228 6% 9.02%);
+	--primary: hsl(228 80.34% 44%);
+	--primary-foreground: hsl(0 0% 100%);
+	--secondary: hsl(228 6% 86%);
+	--secondary-foreground: hsl(228 6% 9.02%);
+	--muted: hsl(228 6% 86%);
+	--muted-foreground: hsl(228 6% 48%);
+	--accent: hsl(228 6% 85%);
+	--accent-foreground: hsl(228 6% 9.02%);
+	--destructive: hsl(4 74% 49%);
+	--destructive-foreground: hsl(0 0% 100%);
+	--border: hsl(228 11.3% 76%);
+	--input: hsl(228 11.3% 76%);
+	--ring: hsl(228 87.25% 52%);
+
+	/* Chart colors - keep existing for now */
 	--chart-1: hsl(12 76% 61%);
 	--chart-2: hsl(173 58% 39%);
 	--chart-3: hsl(197 37% 24%);
 	--chart-4: hsl(43 74% 66%);
 	--chart-5: hsl(27 87% 67%);
 	--radius: 0.5rem;
-	--sidebar-background: hsl(0 0% 98%);
-	--sidebar-foreground: hsl(240 5.3% 26.1%);
-	--sidebar-primary: hsl(240 5.9% 10%);
-	--sidebar-primary-foreground: hsl(0 0% 98%);
-	--sidebar-accent: hsl(240 4.8% 95.9%);
-	--sidebar-accent-foreground: hsl(240 5.9% 10%);
-	--sidebar-border: hsl(220 13% 91%);
-	--sidebar-ring: hsl(217.2 91.2% 59.8%);
+
+	/* Sidebar matching V1 light mode */
+	--sidebar-background: hsl(228 0% 100%);
+	--sidebar-foreground: hsl(228 6% 9.02%);
+	--sidebar-primary: hsl(228 80.34% 44%);
+	--sidebar-primary-foreground: hsl(0 0% 100%);
+	--sidebar-accent: hsl(228 6% 85%);
+	--sidebar-accent-foreground: hsl(228 6% 9.02%);
+	--sidebar-border: hsl(228 11.3% 76%);
+	--sidebar-ring: hsl(228 87.25% 52%);
+
+	/* Sentiment colors matching V1 */
+	--sentiment-positive: hsl(142 71% 45%);
+	--sentiment-neutral: hsl(228 5% 46%);
+	--sentiment-warning: hsl(40 92% 50%);
+	--sentiment-negative: hsl(4 74% 49%);
+
+	/* State colors - Default color mode (matches V1) */
+	/* Completed - Green */
+	--state-completed-50: #def8f0;
+	--state-completed-100: #c9f4e6;
+	--state-completed-200: #9febcd;
+	--state-completed-300: #75e2af;
+	--state-completed-400: #4bd98d;
+	--state-completed-500: #2ac769;
+	--state-completed-600: #219d4b;
+	--state-completed-700: #187330;
+	--state-completed-800: #0f491b;
+	--state-completed-900: #061f0a;
+
+	/* Failed - Red */
+	--state-failed-50: #fed6be;
+	--state-failed-100: #fdcbb2;
+	--state-failed-200: #fdb299;
+	--state-failed-300: #fc9580;
+	--state-failed-400: #fc7367;
+	--state-failed-500: #fb4e4e;
+	--state-failed-600: #fa1c2f;
+	--state-failed-700: #de0529;
+	--state-failed-800: #ac042e;
+	--state-failed-900: #7a032b;
+
+	/* Running - Blue */
+	--state-running-50: #f1f4fe;
+	--state-running-100: #d9e0fd;
+	--state-running-200: #a9bcfa;
+	--state-running-300: #799af7;
+	--state-running-400: #487bf5;
+	--state-running-500: #1860f2;
+	--state-running-600: #0b51cc;
+	--state-running-700: #09439b;
+	--state-running-800: #06316b;
+	--state-running-900: #031d3b;
+
+	/* Pending - Gray/Purple */
+	--state-pending-50: #ffffff;
+	--state-pending-100: #f8f7f8;
+	--state-pending-200: #e4e1e5;
+	--state-pending-300: #d0cbd2;
+	--state-pending-400: #bdb5c0;
+	--state-pending-500: #a99fad;
+	--state-pending-600: #8e8093;
+	--state-pending-700: #726576;
+	--state-pending-800: #554b58;
+	--state-pending-900: #38313a;
+
+	/* Paused - Same as Pending */
+	--state-paused-50: #ffffff;
+	--state-paused-100: #f8f7f8;
+	--state-paused-200: #e4e1e5;
+	--state-paused-300: #d0cbd2;
+	--state-paused-400: #bdb5c0;
+	--state-paused-500: #a99fad;
+	--state-paused-600: #8e8093;
+	--state-paused-700: #726576;
+	--state-paused-800: #554b58;
+	--state-paused-900: #38313a;
+
+	/* Scheduled - Yellow */
+	--state-scheduled-50: #fcffec;
+	--state-scheduled-100: #fbfeda;
+	--state-scheduled-200: #fefeb7;
+	--state-scheduled-300: #fdf594;
+	--state-scheduled-400: #fde671;
+	--state-scheduled-500: #fcd14e;
+	--state-scheduled-600: #fbb11c;
+	--state-scheduled-700: #e08504;
+	--state-scheduled-800: #ae5903;
+	--state-scheduled-900: #7c3502;
+
+	/* Cancelled - Gray */
+	--state-cancelled-50: #dedede;
+	--state-cancelled-100: #cccccc;
+	--state-cancelled-200: #a8a8a8;
+	--state-cancelled-300: #848484;
+	--state-cancelled-400: #616161;
+	--state-cancelled-500: #3d3d3d;
+	--state-cancelled-600: #333333;
+	--state-cancelled-700: #292929;
+	--state-cancelled-800: #1e1e1e;
+	--state-cancelled-900: #141414;
+
+	/* Cancelling - Blue-Gray */
+	--state-cancelling-50: #dee1e6;
+	--state-cancelling-100: #ccd2db;
+	--state-cancelling-200: #a8b3c2;
+	--state-cancelling-300: #8494a9;
+	--state-cancelling-400: #617590;
+	--state-cancelling-500: #3d5677;
+	--state-cancelling-600: #334863;
+	--state-cancelling-700: #293a4f;
+	--state-cancelling-800: #1e2c3b;
+	--state-cancelling-900: #141d27;
+
+	/* Crashed - Orange */
+	--state-crashed-50: #fff7ed;
+	--state-crashed-100: #ffedd5;
+	--state-crashed-200: #fed7aa;
+	--state-crashed-300: #fdba74;
+	--state-crashed-400: #fb923c;
+	--state-crashed-500: #f97316;
+	--state-crashed-600: #ea580c;
+	--state-crashed-700: #c2410c;
+	--state-crashed-800: #9a3412;
+	--state-crashed-900: #7c2d12;
 }
 .dark {
-	--background: hsl(0 0% 3.9%);
-	--foreground: hsl(0 0% 98%);
-	--card: hsl(0 0% 3.9%);
-	--card-foreground: hsl(0 0% 98%);
-	--popover: hsl(0 0% 3.9%);
-	--popover-foreground: hsl(0 0% 98%);
-	--primary: hsl(0 0% 98%);
-	--primary-foreground: hsl(0 0% 9%);
-	--secondary: hsl(0 0% 14.9%);
-	--secondary-foreground: hsl(0 0% 98%);
-	--muted: hsl(0 0% 14.9%);
-	--muted-foreground: hsl(0 0% 63.9%);
-	--accent: hsl(0 0% 14.9%);
-	--accent-foreground: hsl(0 0% 98%);
-	--destructive: hsl(0 62.8% 30.6%);
-	--destructive-foreground: hsl(0 0% 98%);
-	--border: hsl(0 0% 14.9%);
-	--input: hsl(0 0% 14.9%);
-	--ring: hsl(0 0% 83.1%);
+	/* Core theme tokens matching V1 dark mode */
+	--background: hsl(228 6% 16%);
+	--foreground: hsl(0 0% 100%);
+	--card: hsl(228 6% 12%);
+	--card-foreground: hsl(0 0% 100%);
+	--popover: hsl(228 6% 12%);
+	--popover-foreground: hsl(0 0% 100%);
+	--primary: hsl(228 80.34% 44%);
+	--primary-foreground: hsl(0 0% 100%);
+	--secondary: hsl(228 6% 24%);
+	--secondary-foreground: hsl(0 0% 100%);
+	--muted: hsl(228 6% 24%);
+	--muted-foreground: hsl(0 0% 67.84%);
+	--accent: hsl(228 6% 24%);
+	--accent-foreground: hsl(0 0% 100%);
+	--destructive: hsl(4 74% 49%);
+	--destructive-foreground: hsl(0 0% 100%);
+	--border: hsl(228 6% 32%);
+	--input: hsl(228 6% 32%);
+	--ring: hsl(228 87.25% 52%);
+
+	/* Chart colors for dark mode */
 	--chart-1: hsl(220 70% 50%);
 	--chart-2: hsl(160 60% 45%);
 	--chart-3: hsl(30 80% 55%);
 	--chart-4: hsl(280 65% 60%);
 	--chart-5: hsl(340 75% 55%);
-	--sidebar-background: hsl(240 5.9% 10%);
-	--sidebar-foreground: hsl(240 4.8% 95.9%);
-	--sidebar-primary: hsl(224.3 76.3% 48%);
+
+	/* Sidebar matching V1 dark mode */
+	--sidebar-background: hsl(228 6% 12%);
+	--sidebar-foreground: hsl(0 0% 100%);
+	--sidebar-primary: hsl(228 80.34% 44%);
 	--sidebar-primary-foreground: hsl(0 0% 100%);
-	--sidebar-accent: hsl(240 3.7% 15.9%);
-	--sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-	--sidebar-border: hsl(240 3.7% 15.9%);
-	--sidebar-ring: hsl(217.2 91.2% 59.8%);
+	--sidebar-accent: hsl(228 6% 24%);
+	--sidebar-accent-foreground: hsl(0 0% 100%);
+	--sidebar-border: hsl(228 6% 32%);
+	--sidebar-ring: hsl(228 87.25% 52%);
 }
 
 @theme inline {
@@ -122,6 +250,106 @@
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
+
+	/* State colors for Tailwind utilities */
+	--color-state-completed-50: var(--state-completed-50);
+	--color-state-completed-100: var(--state-completed-100);
+	--color-state-completed-200: var(--state-completed-200);
+	--color-state-completed-300: var(--state-completed-300);
+	--color-state-completed-400: var(--state-completed-400);
+	--color-state-completed-500: var(--state-completed-500);
+	--color-state-completed-600: var(--state-completed-600);
+	--color-state-completed-700: var(--state-completed-700);
+	--color-state-completed-800: var(--state-completed-800);
+	--color-state-completed-900: var(--state-completed-900);
+
+	--color-state-failed-50: var(--state-failed-50);
+	--color-state-failed-100: var(--state-failed-100);
+	--color-state-failed-200: var(--state-failed-200);
+	--color-state-failed-300: var(--state-failed-300);
+	--color-state-failed-400: var(--state-failed-400);
+	--color-state-failed-500: var(--state-failed-500);
+	--color-state-failed-600: var(--state-failed-600);
+	--color-state-failed-700: var(--state-failed-700);
+	--color-state-failed-800: var(--state-failed-800);
+	--color-state-failed-900: var(--state-failed-900);
+
+	--color-state-running-50: var(--state-running-50);
+	--color-state-running-100: var(--state-running-100);
+	--color-state-running-200: var(--state-running-200);
+	--color-state-running-300: var(--state-running-300);
+	--color-state-running-400: var(--state-running-400);
+	--color-state-running-500: var(--state-running-500);
+	--color-state-running-600: var(--state-running-600);
+	--color-state-running-700: var(--state-running-700);
+	--color-state-running-800: var(--state-running-800);
+	--color-state-running-900: var(--state-running-900);
+
+	--color-state-pending-50: var(--state-pending-50);
+	--color-state-pending-100: var(--state-pending-100);
+	--color-state-pending-200: var(--state-pending-200);
+	--color-state-pending-300: var(--state-pending-300);
+	--color-state-pending-400: var(--state-pending-400);
+	--color-state-pending-500: var(--state-pending-500);
+	--color-state-pending-600: var(--state-pending-600);
+	--color-state-pending-700: var(--state-pending-700);
+	--color-state-pending-800: var(--state-pending-800);
+	--color-state-pending-900: var(--state-pending-900);
+
+	--color-state-paused-50: var(--state-paused-50);
+	--color-state-paused-100: var(--state-paused-100);
+	--color-state-paused-200: var(--state-paused-200);
+	--color-state-paused-300: var(--state-paused-300);
+	--color-state-paused-400: var(--state-paused-400);
+	--color-state-paused-500: var(--state-paused-500);
+	--color-state-paused-600: var(--state-paused-600);
+	--color-state-paused-700: var(--state-paused-700);
+	--color-state-paused-800: var(--state-paused-800);
+	--color-state-paused-900: var(--state-paused-900);
+
+	--color-state-scheduled-50: var(--state-scheduled-50);
+	--color-state-scheduled-100: var(--state-scheduled-100);
+	--color-state-scheduled-200: var(--state-scheduled-200);
+	--color-state-scheduled-300: var(--state-scheduled-300);
+	--color-state-scheduled-400: var(--state-scheduled-400);
+	--color-state-scheduled-500: var(--state-scheduled-500);
+	--color-state-scheduled-600: var(--state-scheduled-600);
+	--color-state-scheduled-700: var(--state-scheduled-700);
+	--color-state-scheduled-800: var(--state-scheduled-800);
+	--color-state-scheduled-900: var(--state-scheduled-900);
+
+	--color-state-cancelled-50: var(--state-cancelled-50);
+	--color-state-cancelled-100: var(--state-cancelled-100);
+	--color-state-cancelled-200: var(--state-cancelled-200);
+	--color-state-cancelled-300: var(--state-cancelled-300);
+	--color-state-cancelled-400: var(--state-cancelled-400);
+	--color-state-cancelled-500: var(--state-cancelled-500);
+	--color-state-cancelled-600: var(--state-cancelled-600);
+	--color-state-cancelled-700: var(--state-cancelled-700);
+	--color-state-cancelled-800: var(--state-cancelled-800);
+	--color-state-cancelled-900: var(--state-cancelled-900);
+
+	--color-state-cancelling-50: var(--state-cancelling-50);
+	--color-state-cancelling-100: var(--state-cancelling-100);
+	--color-state-cancelling-200: var(--state-cancelling-200);
+	--color-state-cancelling-300: var(--state-cancelling-300);
+	--color-state-cancelling-400: var(--state-cancelling-400);
+	--color-state-cancelling-500: var(--state-cancelling-500);
+	--color-state-cancelling-600: var(--state-cancelling-600);
+	--color-state-cancelling-700: var(--state-cancelling-700);
+	--color-state-cancelling-800: var(--state-cancelling-800);
+	--color-state-cancelling-900: var(--state-cancelling-900);
+
+	--color-state-crashed-50: var(--state-crashed-50);
+	--color-state-crashed-100: var(--state-crashed-100);
+	--color-state-crashed-200: var(--state-crashed-200);
+	--color-state-crashed-300: var(--state-crashed-300);
+	--color-state-crashed-400: var(--state-crashed-400);
+	--color-state-crashed-500: var(--state-crashed-500);
+	--color-state-crashed-600: var(--state-crashed-600);
+	--color-state-crashed-700: var(--state-crashed-700);
+	--color-state-crashed-800: var(--state-crashed-800);
+	--color-state-crashed-900: var(--state-crashed-900);
 }
 
 /*
