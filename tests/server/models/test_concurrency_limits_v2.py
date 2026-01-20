@@ -53,7 +53,10 @@ async def concurrency_limit_with_decay(session: AsyncSession) -> ConcurrencyLimi
         concurrency_limit=ConcurrencyLimitV2(
             name="test_limit_with_decay",
             limit=10,
-            slot_decay_per_second=10.0,
+            # Use a moderate decay rate to prevent race conditions in tests.
+            # With 5.0 decay/sec, it takes 0.2 seconds before any slot decays
+            # (since decay uses floor()), giving time for test assertions.
+            slot_decay_per_second=5.0,
         ),
     )
 
@@ -425,7 +428,7 @@ async def test_increment_active_slots_with_decay_slots_decay_over_time(
 
         await session.commit()
 
-    # `concurrency_limit_with_decay` has a decay of 10.0 slots/second.
+    # `concurrency_limit_with_decay` has a decay of 5.0 slots/second.
     # Immediately after filling to 10, we shouldn't be able to acquire 5 more.
     async with db.session_context() as session:
         assert not await bulk_increment_active_slots(
@@ -434,9 +437,9 @@ async def test_increment_active_slots_with_decay_slots_decay_over_time(
             slots=5,
         )
 
-    # After 1 second, all 10 slots should have decayed (10 * 1.0 = 10),
+    # After 2 seconds, all 10 slots should have decayed (5.0 * 2.0 = 10),
     # so we should be able to acquire 5 slots.
-    await asyncio.sleep(1.0)
+    await asyncio.sleep(2.0)
 
     async with db.session_context() as session:
         assert await bulk_increment_active_slots(
