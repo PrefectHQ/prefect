@@ -161,7 +161,10 @@ class TestDocketAtMostOnceExecution:
         )
 
         # Verify the tasks have the expected keys
+        # Include both future (queued) and running tasks since the worker may have
+        # already started processing some tasks by the time we take the snapshot
         task_keys = {task.key for task in final_snapshot.future}
+        task_keys.update(task.key for task in final_snapshot.running)
         expected_keys = {
             f"mark_work_queues_ready:{work_queue.id}",
             f"mark_deployments_ready:work_queue:{work_queue.id}",
@@ -200,7 +203,10 @@ class TestDocketAtMostOnceExecution:
             "Duplicate requests should not create additional tasks."
         )
 
+        # Include both future (queued) and running tasks since the worker may have
+        # already started processing some tasks by the time we take the snapshot
         task_keys = {task.key for task in final_snapshot.future}
+        task_keys.update(task.key for task in final_snapshot.running)
         expected_keys = {
             f"mark_work_queues_ready:work_pool:{work_pool.id}",
             f"mark_deployments_ready:work_pool:{work_pool.id}",
@@ -241,7 +247,10 @@ class TestDocketAtMostOnceExecution:
 
         sorted_ids = ",".join(str(d) for d in sorted(UUID(id) for id in deployment_ids))
         expected_key = f"mark_deployments_ready:deployments:{sorted_ids}"
+        # Include both future (queued) and running tasks since the worker may have
+        # already started processing some tasks by the time we take the snapshot
         task_keys = {task.key for task in final_snapshot.future}
+        task_keys.update(task.key for task in final_snapshot.running)
         assert expected_key in task_keys
 
     async def test_deployments_different_order_same_task(
@@ -304,7 +313,10 @@ class TestDocketAtMostOnceExecution:
         assert new_tasks == 1, f"Expected 1 task, but got {new_tasks}"
 
         expected_key = f"delete_flow_run_logs:{flow_run.id}"
+        # Include both future (queued) and running tasks since the worker may have
+        # already started processing some tasks by the time we take the snapshot
         task_keys = {task.key for task in final_snapshot.future}
+        task_keys.update(task.key for task in final_snapshot.running)
         assert expected_key in task_keys
 
     async def test_task_run_delete_queues_single_task(
@@ -328,5 +340,8 @@ class TestDocketAtMostOnceExecution:
         assert new_tasks == 1, f"Expected 1 task, but got {new_tasks}"
 
         expected_key = f"delete_task_run_logs:{task_run.id}"
+        # Include both future (queued) and running tasks since the worker may have
+        # already started processing some tasks by the time we take the snapshot
         task_keys = {task.key for task in final_snapshot.future}
+        task_keys.update(task.key for task in final_snapshot.running)
         assert expected_key in task_keys
