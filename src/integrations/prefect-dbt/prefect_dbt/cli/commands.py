@@ -458,7 +458,7 @@ async def run_dbt_build(
                     it will be indicated by the exception raised.
     """
 
-    results = await trigger_dbt_cli_command.fn(
+    results = await trigger_dbt_cli_command.fn.aio(
         command="build",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -532,7 +532,7 @@ async def run_dbt_model(
                     it will be indicated by the exception raised.
     """
 
-    results = await trigger_dbt_cli_command.fn(
+    results = await trigger_dbt_cli_command.fn.aio(
         command="run",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -607,7 +607,7 @@ async def run_dbt_test(
                     it will be indicated by the exception raised.
     """
 
-    results = await trigger_dbt_cli_command.fn(
+    results = await trigger_dbt_cli_command.fn.aio(
         command="test",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -682,7 +682,7 @@ async def run_dbt_snapshot(
                     it will be indicated by the exception raised.
     """
 
-    results = await trigger_dbt_cli_command.fn(
+    results = await trigger_dbt_cli_command.fn.aio(
         command="snapshot",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -757,7 +757,7 @@ async def run_dbt_seed(
                     it will be indicated by the exception raised.
     """
 
-    results = await trigger_dbt_cli_command.fn(
+    results = await trigger_dbt_cli_command.fn.aio(
         command="seed",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -832,7 +832,7 @@ async def run_dbt_source_freshness(
                     it will be indicated by the exception raised.
     """
 
-    results = await trigger_dbt_cli_command.fn(
+    results = await trigger_dbt_cli_command.fn.aio(
         command="source freshness",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
