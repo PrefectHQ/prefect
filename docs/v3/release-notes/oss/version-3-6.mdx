@@ -2,6 +2,39 @@
 title: 3.6
 ---
 
+## 3.6.12 - It's not a feature, it's a bug!
+
+*Released on January 20, 2026*
+
+**Enhancements ➕➕**
+
+* Add httpx.ConnectError to client retry exceptions by [@joshuastagner](https://github.com/joshuastagner) in [#20276](https://github.com/PrefectHQ/prefect/pull/20276)
+
+**Bug Fixes 🐞**
+
+* Add build=False documentation to flow.deploy guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20269](https://github.com/PrefectHQ/prefect/pull/20269)
+* fix: display error details nicely in `work-pool create` command by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20277](https://github.com/PrefectHQ/prefect/pull/20277)
+* fix: remove CANCELLED from EnforceCancellingToCancelledTransition to allow retrying cancelled flows by [@zzstoatzz](https://github.com/zzstoatzz) in [#20275](https://github.com/PrefectHQ/prefect/pull/20275)
+* Add retry logic to `PrefectEventSubscriber.__aenter__()` for initial connections by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20295](https://github.com/PrefectHQ/prefect/pull/20295)
+* fix: convert dynamic_key to str in sync client's create_task_run by [@zzstoatzz](https://github.com/zzstoatzz) in [#20302](https://github.com/PrefectHQ/prefect/pull/20302)
+* Fix wait() timeout not being respected when using WatcherThreadCancelScope by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20257](https://github.com/PrefectHQ/prefect/pull/20257)
+
+**Development & Tidiness 🧹**
+
+* migrate RemoteFileSystem and SMB from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch by [@zzstoatzz](https://github.com/zzstoatzz) in [#20230](https://github.com/PrefectHQ/prefect/pull/20230)
+* Migrate notification blocks from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch by [@zzstoatzz](https://github.com/zzstoatzz) in [#20258](https://github.com/PrefectHQ/prefect/pull/20258)
+* Fix Devin flaky tests workflow API integration by [@desertaxle](https://github.com/desertaxle) in [#20272](https://github.com/PrefectHQ/prefect/pull/20272)
+* Add GitHub Actions workflow to trigger Devin.ai on test failures by [@desertaxle](https://github.com/desertaxle) in [#20255](https://github.com/PrefectHQ/prefect/pull/20255)
+
+**Documentation 📓**
+
+* Add release notes for integration packages by [@desertaxle](https://github.com/desertaxle) in [#20266](https://github.com/PrefectHQ/prefect/pull/20266)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.11...3.6.12
+
+
+---
+
 ## 3.6.11 - It's my generation, baby
 
 *Released on January 15, 2026*
