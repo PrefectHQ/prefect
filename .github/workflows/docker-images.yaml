@@ -72,13 +72,13 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Generate tags for ${{ matrix.image }}-dev
+      - name: Generate tags for ${{ matrix.image }} (dev)
         id: metadata-dev
         uses: docker/metadata-action@v5
         # generate dev tags on pre-releases or when manually triggered with a tag input
         if: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') }}
         with:
-          images: ${{ matrix.image }}-dev
+          images: ${{ matrix.image }}
           tags: |
             type=raw,value=${{ github.event.inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=sha,suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
