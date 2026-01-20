@@ -947,3 +947,73 @@ class TestTaskWorkerLimit:
 
         assert updated_task_run_1.state.is_completed()
         assert updated_task_run_2.state.is_scheduled()
+
+
+class TestAsyncDispatchMigration:
+    """Tests for the sync_compatible to async_dispatch migration."""
+
+    def test_aio_attributes_exist(self):
+        """Test that the .aio attributes exist for backward compatibility."""
+        assert hasattr(TaskWorker.start, "aio")
+        assert hasattr(TaskWorker.stop, "aio")
+        assert hasattr(serve, "aio")
+
+    async def test_astart_works_in_async_context(
+        self, foo_task, mock_create_subscription
+    ):
+        """Test that astart works when awaited directly."""
+        task_worker = TaskWorker(foo_task)
+
+        with anyio.move_on_after(0.1):
+            await task_worker.astart()
+
+        mock_create_subscription.assert_called_once()
+
+    async def test_start_works_in_async_context(
+        self, foo_task, mock_create_subscription
+    ):
+        """Test that start dispatches to astart in async context."""
+        task_worker = TaskWorker(foo_task)
+
+        with anyio.move_on_after(0.1):
+            await task_worker.start()
+
+        mock_create_subscription.assert_called_once()
+
+    async def test_astop_raises_stop_task_worker(
+        self, foo_task, mock_create_subscription
+    ):
+        """Test that astop raises StopTaskWorker to signal shutdown."""
+        from prefect.task_worker import StopTaskWorker
+
+        task_worker = TaskWorker(foo_task)
+
+        async with task_worker:
+            with pytest.raises(StopTaskWorker):
+                await task_worker.astop()
+
+    async def test_stop_dispatches_to_astop(self, foo_task, mock_create_subscription):
+        """Test that stop dispatches to astop in async context."""
+        from prefect.task_worker import StopTaskWorker
+
+        task_worker = TaskWorker(foo_task)
+
+        async with task_worker:
+            with pytest.raises(StopTaskWorker):
+                await task_worker.stop()
+
+    async def test_aserve_works_in_async_context(
+        self, foo_task, mock_task_worker_start
+    ):
+        """Test that aserve works when awaited directly."""
+        from prefect.task_worker import aserve
+
+        await aserve(foo_task)
+        mock_task_worker_start.assert_called_once()
+
+    async def test_serve_dispatches_to_aserve_in_async_context(
+        self, foo_task, mock_task_worker_start
+    ):
+        """Test that serve dispatches to aserve in async context."""
+        await serve(foo_task)
+        mock_task_worker_start.assert_called_once()
