@@ -561,10 +561,26 @@ class PrefectEventSubscriber:
         return self.__class__.__name__
 
     async def __aenter__(self) -> Self:
-        # Don't handle any errors in the initial connection, because these are most
-        # likely a permission or configuration issue that should propagate
+        # Retry initial connection with same logic as __anext__
         try:
-            await self._reconnect()
+            for i in range(self._reconnection_attempts + 1):
+                try:
+                    await self._reconnect()
+                    break
+                except (ConnectionClosed, TimeoutError) as e:
+                    logger.debug(
+                        "Initial connection attempt %s/%s failed: %s",
+                        i + 1,
+                        self._reconnection_attempts + 1,
+                        str(e),
+                    )
+                    if i == self._reconnection_attempts:
+                        # Final attempt failed, propagate error
+                        raise
+                    if i > 2:
+                        # Match __anext__ backoff pattern: no delay for first 2 attempts,
+                        # then 1 second delay
+                        await asyncio.sleep(1)
         finally:
             EVENT_WEBSOCKET_CONNECTIONS.labels(self.client_name, "out", "initial").inc()
         return self
