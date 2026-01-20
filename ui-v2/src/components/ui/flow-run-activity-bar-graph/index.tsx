@@ -35,16 +35,16 @@ type CustomShapeProps = {
 const barVariants = cva("gap-1 z-1", {
 	variants: {
 		state: {
-			COMPLETED: "fill-green-600",
-			FAILED: "fill-red-600",
-			RUNNING: "fill-blue-700",
-			CANCELLED: "fill-gray-500",
-			CANCELLING: "fill-gray-600",
-			CRASHED: "fill-orange-600",
-			PAUSED: "fill-gray-500",
-			PENDING: "fill-gray-400",
-			SCHEDULED: "fill-yellow-400",
-			NONE: "fill-gray-300",
+			COMPLETED: "fill-state-completed-600",
+			FAILED: "fill-state-failed-700",
+			RUNNING: "fill-state-running-700",
+			CANCELLED: "fill-state-cancelled-500",
+			CANCELLING: "fill-state-cancelling-600",
+			CRASHED: "fill-state-crashed-600",
+			PAUSED: "fill-state-paused-600",
+			PENDING: "fill-state-pending-500",
+			SCHEDULED: "fill-state-scheduled-600",
+			NONE: "fill-state-cancelled-100",
 		} satisfies Record<components["schemas"]["StateType"] | "NONE", string>,
 	},
 	defaultVariants: {
