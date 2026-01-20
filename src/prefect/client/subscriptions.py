@@ -90,7 +90,7 @@ class Subscription(Generic[S]):
             )
 
             auth: dict[str, Any] = orjson.loads(await websocket.recv())
-            assert auth["type"] == "auth_success", auth.get("message")
+            assert auth["type"] == "auth_success", auth.get("reason", "")
 
             message: dict[str, Any] = {"type": "subscribe", "keys": self.keys}
             if self.client_id:
