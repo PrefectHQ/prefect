@@ -22,6 +22,7 @@ from prometheus_client import Counter
 from typing_extensions import Self
 from websockets import Subprotocol
 from websockets.asyncio.client import ClientConnection
+from websockets.asyncio.client import process_exception as default_process_exception
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
@@ -72,6 +73,29 @@ if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+
+def process_exception(exc: Exception) -> Exception | None:
+    """
+    Determine whether a connection error is retryable or fatal.
+
+    This extends the websockets library's default process_exception to also
+    consider ConnectionClosed (except ConnectionClosedOK) as transient errors
+    that should be retried. This matches Prefect's existing retry behavior.
+
+    Returns None if the exception is transient (retry), or the exception if fatal.
+    """
+    # First check if websockets considers it transient
+    if default_process_exception(exc) is None:
+        return None
+
+    # Also consider ConnectionClosed (except OK) as transient
+    # ConnectionClosedOK signals intentional closure, so don't retry
+    if isinstance(exc, ConnectionClosed) and not isinstance(exc, ConnectionClosedOK):
+        return None
+
+    # All other exceptions are fatal
+    return exc
 
 
 def http_to_ws(url: str) -> str:
@@ -402,8 +426,14 @@ class PrefectEventsClient(EventsClient):
                 await self._checkpoint()
 
                 return
-            except ConnectionClosed as e:
-                self._log_debug("Got ConnectionClosed error.")
+            except Exception as e:
+                # Use process_exception to determine if error is transient
+                # Returns None for transient errors (retry), or the exception for fatal errors
+                if process_exception(e) is not None:
+                    # Fatal error - log warning and propagate immediately
+                    self._log_connection_error(e)
+                    raise
+                self._log_debug("Got transient connection error.")
                 if i == self._reconnection_attempts:
                     # this was our final chance, log warning and raise
                     self._log_connection_error(e)
@@ -562,12 +592,18 @@ class PrefectEventSubscriber:
 
     async def __aenter__(self) -> Self:
         # Retry initial connection with same logic as __anext__
+        # Use process_exception to determine if an error is transient (retry) or fatal (propagate)
         try:
             for i in range(self._reconnection_attempts + 1):
                 try:
                     await self._reconnect()
                     break
-                except (ConnectionClosed, TimeoutError) as e:
+                except Exception as e:
+                    # Use process_exception to determine if error is transient
+                    # Returns None for transient errors (retry), or the exception for fatal errors
+                    if process_exception(e) is not None:
+                        # Fatal error - propagate immediately
+                        raise
                     logger.debug(
                         "Initial connection attempt %s/%s failed: %s",
                         i + 1,
@@ -681,7 +717,12 @@ class PrefectEventSubscriber:
             except ConnectionClosedOK:
                 logger.debug('Connection closed with "OK" status')
                 raise StopAsyncIteration
-            except ConnectionClosed:
+            except Exception as e:
+                # Use process_exception to determine if error is transient
+                # Returns None for transient errors (retry), or the exception for fatal errors
+                if process_exception(e) is not None:
+                    # Fatal error - propagate immediately
+                    raise
                 logger.debug(
                     "Connection closed with %s/%s attempts",
                     i + 1,

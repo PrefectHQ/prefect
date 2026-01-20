@@ -7,6 +7,7 @@ to avoid duplication between events and logs clients.
 
 import ssl
 import warnings
+from collections.abc import Callable
 from functools import wraps
 from typing import Any, Optional
 from urllib.parse import urlparse
@@ -39,13 +40,26 @@ def create_ssl_context_for_websocket(uri: str) -> Optional[ssl.SSLContext]:
 
 
 @wraps(connect)
-def websocket_connect(uri: str, **kwargs: Any) -> connect:
+def websocket_connect(
+    uri: str,
+    process_exception: Callable[[Exception], Exception | None] | None = None,
+    **kwargs: Any,
+) -> connect:
     """
     Create a WebSocket connection with proxy and SSL support.
 
     Proxy support is automatic via HTTP_PROXY/HTTPS_PROXY environment variables.
     The websockets library handles proxy detection and connection automatically.
+
+    Args:
+        uri: The WebSocket URI to connect to.
+        process_exception: A callback to determine if an exception is transient
+            (return None to retry) or fatal (return the exception to propagate).
+            If not provided, the default websockets behavior is used.
+        **kwargs: Additional arguments passed to websockets.connect().
     """
+    if process_exception is not None:
+        kwargs["process_exception"] = process_exception
     # Configure SSL context for HTTPS connections
     ssl_context = create_ssl_context_for_websocket(uri)
     if ssl_context:
