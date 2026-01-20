@@ -1,13 +1,13 @@
 import type { StateType } from "@prefecthq/graphs";
 
 export const stateTypeColors: Record<StateType, string> = {
-	COMPLETED: "#219D4B",
-	RUNNING: "#09439B",
-	SCHEDULED: "#E08504",
-	PENDING: "#554B58",
-	FAILED: "#DE0529",
-	CANCELLED: "#333333",
-	CANCELLING: "#333333",
-	CRASHED: "#EA580C",
-	PAUSED: "#554B58",
+	COMPLETED: "var(--state-completed-600)",
+	RUNNING: "var(--state-running-700)",
+	SCHEDULED: "var(--state-scheduled-700)",
+	PENDING: "var(--state-pending-800)",
+	FAILED: "var(--state-failed-700)",
+	CANCELLED: "var(--state-cancelled-600)",
+	CANCELLING: "var(--state-cancelling-600)",
+	CRASHED: "var(--state-crashed-600)",
+	PAUSED: "var(--state-paused-800)",
 };
