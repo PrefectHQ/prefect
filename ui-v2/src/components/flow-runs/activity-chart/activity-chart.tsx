@@ -126,15 +126,15 @@ const FlowRunsBarChart = ({
 	const stateBadgeVariants = cva("gap-1", {
 		variants: {
 			state: {
-				COMPLETED: "bg-green-500",
-				FAILED: "bg-red-500",
-				RUNNING: "bg-blue-500",
-				CANCELLED: "bg-gray-500",
-				CANCELLING: "bg-gray-500",
-				CRASHED: "bg-orange-500",
-				PAUSED: "bg-gray-500",
-				PENDING: "bg-gray-500",
-				SCHEDULED: "bg-yellow-500",
+				COMPLETED: "bg-[var(--state-completed-500)]",
+				FAILED: "bg-[var(--state-failed-500)]",
+				RUNNING: "bg-[var(--state-running-500)]",
+				CANCELLED: "bg-[var(--state-cancelled-500)]",
+				CANCELLING: "bg-[var(--state-cancelling-500)]",
+				CRASHED: "bg-[var(--state-crashed-500)]",
+				PAUSED: "bg-[var(--state-paused-500)]",
+				PENDING: "bg-[var(--state-pending-500)]",
+				SCHEDULED: "bg-[var(--state-scheduled-500)]",
 			} satisfies Record<components["schemas"]["StateType"], string>,
 		},
 	});
