@@ -513,12 +513,28 @@ async def aserve(
             raise
 
     except BaseExceptionGroup as exc:  # novermin
-        exceptions = exc.exceptions
-        n_exceptions = len(exceptions)
-        logger.error(
-            f"Task worker stopped with {n_exceptions} exception{'s' if n_exceptions != 1 else ''}:"
-            f"\n" + "\n".join(str(e) for e in exceptions)
+        # Unwrap exception groups to handle inner exceptions appropriately
+        # split() returns (matching, rest) - we want to separate expected from unexpected
+        expected, unexpected = exc.split(
+            (StopTaskWorker, asyncio.CancelledError, KeyboardInterrupt, TimeoutError)
         )
+
+        if expected:
+            # Handle expected shutdown exceptions
+            for e in expected.exceptions:
+                if isinstance(e, StopTaskWorker):
+                    logger.info("Task worker stopped.")
+                elif isinstance(e, TimeoutError):
+                    if timeout is not None:
+                        logger.info(
+                            f"Task worker timed out after {timeout} seconds. Exiting..."
+                        )
+                elif isinstance(e, (asyncio.CancelledError, KeyboardInterrupt)):
+                    logger.info("Task worker interrupted, stopping...")
+
+        if unexpected:
+            # Re-raise unexpected exceptions so they're not silently swallowed
+            raise unexpected
 
     except StopTaskWorker:
         logger.info("Task worker stopped.")
