@@ -14,15 +14,15 @@ const STATE_TYPES: readonly StateType[][] = [
 ] as const;
 
 const STATE_PILL_COLORS: Record<StateType, string> = {
-	COMPLETED: "bg-green-600",
-	FAILED: "bg-red-600",
-	RUNNING: "bg-blue-700",
-	CANCELLED: "bg-gray-800",
-	CRASHED: "bg-orange-600",
-	PAUSED: "bg-gray-800",
-	PENDING: "bg-gray-800",
-	SCHEDULED: "bg-yellow-700",
-	CANCELLING: "bg-gray-800",
+	COMPLETED: "bg-state-completed-600",
+	FAILED: "bg-state-failed-600",
+	RUNNING: "bg-state-running-700",
+	CANCELLED: "bg-state-cancelled-500",
+	CRASHED: "bg-state-crashed-600",
+	PAUSED: "bg-state-paused-500",
+	PENDING: "bg-state-pending-500",
+	SCHEDULED: "bg-state-scheduled-700",
+	CANCELLING: "bg-state-cancelling-500",
 };
 
 type FlowRunStateCountPillProps = {
