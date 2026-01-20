@@ -1485,7 +1485,7 @@ class SyncPrefectClient(
             name=name,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
-            dynamic_key=dynamic_key,
+            dynamic_key=str(dynamic_key),
             tags=list(tags),
             task_version=task.version,
             empirical_policy=TaskRunPolicy(
