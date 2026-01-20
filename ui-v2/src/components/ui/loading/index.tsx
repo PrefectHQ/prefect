@@ -9,7 +9,7 @@ export function PrefectLoading() {
 				xmlns="http://www.w3.org/2000/svg"
 				fill="none"
 				viewBox="0 0 76 76"
-				className="size-16 animate-pulse text-primary"
+				className="size-16 animate-pulse text-foreground"
 				aria-label="Loading"
 			>
 				<title>Loading</title>
