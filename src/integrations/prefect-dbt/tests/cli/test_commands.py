@@ -28,7 +28,7 @@ from prefect_dbt.cli.commands import (
 )
 from prefect_dbt.cli.credentials import DbtCliProfile
 
-from prefect import flow
+from prefect import Task, flow
 from prefect.artifacts import Artifact
 
 
@@ -775,7 +775,19 @@ async def test_run_dbt_model_throws_error(profiles_dir, dbt_cli_profile_bare):
         await test_flow()
 
 
-class TestDbtCliCommandsAreProperTasks:
+@pytest.mark.parametrize(
+    "dbt_task",
+    [
+        trigger_dbt_cli_command,
+        run_dbt_build,
+        run_dbt_model,
+        run_dbt_test,
+        run_dbt_snapshot,
+        run_dbt_seed,
+        run_dbt_source_freshness,
+    ],
+)
+def test_dbt_cli_commands_are_proper_tasks(dbt_task):
     """Test that dbt CLI command functions are proper Prefect Tasks.
 
     This tests for the bug where @sync_compatible was placed outside @task,
@@ -784,59 +796,7 @@ class TestDbtCliCommandsAreProperTasks:
 
     See: https://github.com/PrefectHQ/prefect/issues/20297
     """
-
-    def test_trigger_dbt_cli_command_is_task(self):
-        from prefect import Task
-
-        assert isinstance(trigger_dbt_cli_command, Task)
-        assert hasattr(trigger_dbt_cli_command, "with_options")
-        configured = trigger_dbt_cli_command.with_options(retries=3)
-        assert isinstance(configured, Task)
-
-    def test_run_dbt_build_is_task(self):
-        from prefect import Task
-
-        assert isinstance(run_dbt_build, Task)
-        assert hasattr(run_dbt_build, "with_options")
-        configured = run_dbt_build.with_options(retries=3)
-        assert isinstance(configured, Task)
-
-    def test_run_dbt_model_is_task(self):
-        from prefect import Task
-
-        assert isinstance(run_dbt_model, Task)
-        assert hasattr(run_dbt_model, "with_options")
-        configured = run_dbt_model.with_options(retries=3)
-        assert isinstance(configured, Task)
-
-    def test_run_dbt_test_is_task(self):
-        from prefect import Task
-
-        assert isinstance(run_dbt_test, Task)
-        assert hasattr(run_dbt_test, "with_options")
-        configured = run_dbt_test.with_options(retries=3)
-        assert isinstance(configured, Task)
-
-    def test_run_dbt_snapshot_is_task(self):
-        from prefect import Task
-
-        assert isinstance(run_dbt_snapshot, Task)
-        assert hasattr(run_dbt_snapshot, "with_options")
-        configured = run_dbt_snapshot.with_options(retries=3)
-        assert isinstance(configured, Task)
-
-    def test_run_dbt_seed_is_task(self):
-        from prefect import Task
-
-        assert isinstance(run_dbt_seed, Task)
-        assert hasattr(run_dbt_seed, "with_options")
-        configured = run_dbt_seed.with_options(retries=3)
-        assert isinstance(configured, Task)
-
-    def test_run_dbt_source_freshness_is_task(self):
-        from prefect import Task
-
-        assert isinstance(run_dbt_source_freshness, Task)
-        assert hasattr(run_dbt_source_freshness, "with_options")
-        configured = run_dbt_source_freshness.with_options(retries=3)
-        assert isinstance(configured, Task)
+    assert isinstance(dbt_task, Task)
+    assert hasattr(dbt_task, "with_options")
+    configured = dbt_task.with_options(retries=3)
+    assert isinstance(configured, Task)
