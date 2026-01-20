@@ -39,7 +39,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types._datetime import DateTime, now
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import open_process
 
 
@@ -440,7 +439,6 @@ async def events_pipeline(
     asserting_events_worker: EventsWorker,
 ) -> AsyncGenerator[EventsPipeline, None]:
     class AssertingEventsPipeline(EventsPipeline):
-        @sync_compatible
         async def process_events(
             self,
             dequeue_events: bool = True,
@@ -477,7 +475,6 @@ async def emitting_events_pipeline(
     asserting_and_emitting_events_worker: EventsWorker,
 ) -> AsyncGenerator[EventsPipeline, None]:
     class AssertingAndEmittingEventsPipeline(EventsPipeline):
-        @sync_compatible
         async def process_events(self):
             asserting_and_emitting_events_worker.wait_until_empty()
             events = asserting_and_emitting_events_worker._client.pop_events()
