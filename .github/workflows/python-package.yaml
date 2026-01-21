@@ -2,7 +2,7 @@ name: Publish Python package
 
 on:
   release:
-    types: [released, prereleased]
+    types: [published]
   workflow_dispatch:
     inputs:
       commit:
