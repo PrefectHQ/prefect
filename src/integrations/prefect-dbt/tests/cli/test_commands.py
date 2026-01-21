@@ -806,3 +806,134 @@ def test_dbt_cli_commands_are_proper_tasks(dbt_task):
     assert hasattr(dbt_task, "with_options")
     configured = dbt_task.with_options(retries=3)
     assert isinstance(configured, Task)
+
+
+# Tests for @async_dispatch behavior - sync functions called in async context
+# should dispatch to async implementation automatically
+
+
+@pytest.mark.usefixtures("dbt_runner_model_result")
+async def test_run_dbt_build_dispatches_in_async_context(
+    profiles_dir, dbt_cli_profile_bare
+):
+    """Test that run_dbt_build (sync) dispatches to async when called in async context."""
+
+    @flow
+    async def test_flow():
+        # Call sync function WITHOUT await - dispatch handles it
+        return run_dbt_build(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            summary_artifact_key="foo-dispatch",
+            create_summary_artifact=True,
+        )
+
+    await test_flow()
+    assert (a := await Artifact.get(key="foo-dispatch"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# dbt build Task Summary")
+
+
+@pytest.mark.usefixtures("dbt_runner_model_result")
+async def test_run_dbt_model_dispatches_in_async_context(
+    profiles_dir, dbt_cli_profile_bare
+):
+    """Test that run_dbt_model (sync) dispatches to async when called in async context."""
+
+    @flow
+    async def test_flow():
+        return run_dbt_model(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            summary_artifact_key="foo-dispatch",
+            create_summary_artifact=True,
+        )
+
+    await test_flow()
+    assert (a := await Artifact.get(key="foo-dispatch"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# dbt run Task Summary")
+
+
+@pytest.mark.usefixtures("dbt_runner_model_result")
+async def test_run_dbt_test_dispatches_in_async_context(
+    profiles_dir, dbt_cli_profile_bare
+):
+    """Test that run_dbt_test (sync) dispatches to async when called in async context."""
+
+    @flow
+    async def test_flow():
+        return run_dbt_test(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            summary_artifact_key="foo-dispatch",
+            create_summary_artifact=True,
+        )
+
+    await test_flow()
+    assert (a := await Artifact.get(key="foo-dispatch"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# dbt test Task Summary")
+
+
+@pytest.mark.usefixtures("dbt_runner_model_result")
+async def test_run_dbt_snapshot_dispatches_in_async_context(
+    profiles_dir, dbt_cli_profile_bare
+):
+    """Test that run_dbt_snapshot (sync) dispatches to async when called in async context."""
+
+    @flow
+    async def test_flow():
+        return run_dbt_snapshot(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            summary_artifact_key="foo-dispatch",
+            create_summary_artifact=True,
+        )
+
+    await test_flow()
+    assert (a := await Artifact.get(key="foo-dispatch"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# dbt snapshot Task Summary")
+
+
+@pytest.mark.usefixtures("dbt_runner_model_result")
+async def test_run_dbt_seed_dispatches_in_async_context(
+    profiles_dir, dbt_cli_profile_bare
+):
+    """Test that run_dbt_seed (sync) dispatches to async when called in async context."""
+
+    @flow
+    async def test_flow():
+        return run_dbt_seed(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            summary_artifact_key="foo-dispatch",
+            create_summary_artifact=True,
+        )
+
+    await test_flow()
+    assert (a := await Artifact.get(key="foo-dispatch"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# dbt seed Task Summary")
+
+
+@pytest.mark.usefixtures("dbt_runner_freshness_success")
+async def test_run_dbt_source_freshness_dispatches_in_async_context(
+    profiles_dir, dbt_cli_profile_bare
+):
+    """Test that run_dbt_source_freshness (sync) dispatches to async when called in async context."""
+
+    @flow
+    async def test_flow():
+        return run_dbt_source_freshness(
+            profiles_dir=profiles_dir,
+            dbt_cli_profile=dbt_cli_profile_bare,
+            summary_artifact_key="foo-dispatch",
+            create_summary_artifact=True,
+        )
+
+    await test_flow()
+    assert (a := await Artifact.get(key="foo-dispatch"))
+    assert a.type == "markdown"
+    assert a.data.startswith("# dbt source freshness Task Summary")
