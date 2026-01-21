@@ -12,7 +12,6 @@ import signal
 import sys
 import threading
 import time
-import warnings
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Optional, overload
 
@@ -581,18 +580,6 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
     ):
         scope = AlarmCancelScope(name=name, timeout=timeout)
     else:
-        if timeout is not None and thread is not threading.main_thread():
-            warnings.warn(
-                "A timeout was set for a synchronous operation running in a worker thread. "
-                "Timeouts in worker threads cannot interrupt blocking operations like "
-                "`time.sleep()`, network requests, or file I/O. The timeout will only take "
-                "effect after the blocking operation completes. "
-                "Consider using an async task with `await` statements for reliable timeout behavior. "
-                "See https://docs.prefect.io/v3/how-to-guides/workflows/write-and-run#task-timeout-behavior "
-                "for more information.",
-                UserWarning,
-                stacklevel=4,
-            )
         scope = WatcherThreadCancelScope(name=name, timeout=timeout)
 
     with scope:

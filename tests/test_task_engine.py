@@ -3,7 +3,6 @@ import logging
 import os
 import random
 import time
-import warnings
 from datetime import timedelta
 from pathlib import Path
 from typing import List, Optional
@@ -1971,7 +1970,9 @@ class TestTimeout:
 class TestSyncTaskTimeoutWarning:
     """Tests for the warning emitted when a sync task with timeout runs in a worker thread."""
 
-    def test_warning_emitted_when_sync_task_with_timeout_runs_in_worker_thread(self):
+    def test_warning_emitted_when_sync_task_with_timeout_runs_in_worker_thread(
+        self, caplog
+    ):
         """Test that a warning is emitted when a sync task with timeout runs in a worker thread."""
 
         @task(timeout_seconds=10)
@@ -1984,20 +1985,16 @@ class TestSyncTaskTimeoutWarning:
             future = my_task.submit()
             return future.result()
 
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+        with caplog.at_level(logging.WARNING):
             result = my_flow()
 
-            # Check that warning was emitted
-            timeout_warnings = [
-                warning
-                for warning in w
-                if "timeout was set for a synchronous operation" in str(warning.message)
-            ]
-            assert len(timeout_warnings) >= 1
-            assert result == "result"
+        # Check that warning was emitted
+        assert any(
+            "running in a worker thread" in record.message for record in caplog.records
+        )
+        assert result == "result"
 
-    def test_no_warning_when_sync_task_with_timeout_runs_on_main_thread(self):
+    def test_no_warning_when_sync_task_with_timeout_runs_on_main_thread(self, caplog):
         """Test that no warning is emitted when a sync task with timeout runs on main thread."""
 
         @task(timeout_seconds=10)
@@ -2009,20 +2006,16 @@ class TestSyncTaskTimeoutWarning:
             # Direct call runs on main thread
             return my_task()
 
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+        with caplog.at_level(logging.WARNING):
             result = my_flow()
 
-            # Check that no timeout warning was emitted
-            timeout_warnings = [
-                warning
-                for warning in w
-                if "timeout was set for a synchronous operation" in str(warning.message)
-            ]
-            assert len(timeout_warnings) == 0
-            assert result == "result"
+        # Check that no timeout warning was emitted
+        assert not any(
+            "running in a worker thread" in record.message for record in caplog.records
+        )
+        assert result == "result"
 
-    def test_no_warning_when_sync_task_has_no_timeout(self):
+    def test_no_warning_when_sync_task_has_no_timeout(self, caplog):
         """Test that no warning is emitted when a sync task has no timeout."""
 
         @task
@@ -2034,19 +2027,15 @@ class TestSyncTaskTimeoutWarning:
             future = my_task.submit()
             return future.result()
 
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+        with caplog.at_level(logging.WARNING):
             result = my_flow()
 
-            timeout_warnings = [
-                warning
-                for warning in w
-                if "timeout was set for a synchronous operation" in str(warning.message)
-            ]
-            assert len(timeout_warnings) == 0
-            assert result == "result"
+        assert not any(
+            "running in a worker thread" in record.message for record in caplog.records
+        )
+        assert result == "result"
 
-    async def test_no_warning_for_async_task_with_timeout(self):
+    async def test_no_warning_for_async_task_with_timeout(self, caplog):
         """Test that no warning is emitted for async tasks with timeout."""
 
         @task(timeout_seconds=10)
@@ -2058,17 +2047,13 @@ class TestSyncTaskTimeoutWarning:
             future = my_task.submit()
             return future.result()
 
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
+        with caplog.at_level(logging.WARNING):
             result = await my_flow()
 
-            timeout_warnings = [
-                warning
-                for warning in w
-                if "timeout was set for a synchronous operation" in str(warning.message)
-            ]
-            assert len(timeout_warnings) == 0
-            assert result == "result"
+        assert not any(
+            "running in a worker thread" in record.message for record in caplog.records
+        )
+        assert result == "result"
 
 
 class TestPersistence:
