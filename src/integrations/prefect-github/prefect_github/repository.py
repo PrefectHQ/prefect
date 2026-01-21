@@ -8,6 +8,7 @@ GitHub query_repository* tasks and the GitHub storage block.
 # is outdated, rerun scripts/generate.py.
 
 import io
+import re
 import shlex
 import shutil
 from datetime import datetime
@@ -30,6 +31,27 @@ from prefect_github.utils import initialize_return_fields_defaults, strip_kwargs
 
 config_path = Path(__file__).parent.resolve() / "configs" / "query" / "repository.json"
 return_fields_defaults = initialize_return_fields_defaults(config_path)
+
+_URL_PATTERN = re.compile(r"https?://[^\s'\"<>]+")
+
+
+def _strip_auth_from_url(url: str) -> str:
+    parsed = urlparse(url)
+    if not (parsed.username or parsed.password):
+        return url
+
+    netloc = parsed.hostname or ""
+    if parsed.port:
+        netloc = f"{netloc}:{parsed.port}"
+
+    return urlunparse(parsed._replace(netloc=netloc))
+
+
+def _sanitize_git_error(message: str) -> str:
+    def _replace(match: re.Match[str]) -> str:
+        return _strip_auth_from_url(match.group(0))
+
+    return _URL_PATTERN.sub(_replace, message)
 
 
 class GitHubRepository(ReadableDeploymentStorage):
@@ -130,7 +152,10 @@ class GitHubRepository(ReadableDeploymentStorage):
             process = await run_process(cmd, stream_output=(out_stream, err_stream))
             if process.returncode != 0:
                 err_stream.seek(0)
-                raise RuntimeError(f"Failed to pull from remote:\n {err_stream.read()}")
+                sanitized_error = _sanitize_git_error(err_stream.read())
+                raise RuntimeError(
+                    f"Failed to pull from remote:\n {sanitized_error}"
+                )
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_path_str, sub_directory=from_path
