@@ -1,13 +1,18 @@
 import type { StateType } from "@prefecthq/graphs";
 
-export const stateTypeColors: Record<StateType, string> = {
-	COMPLETED: "var(--state-completed-600)",
-	RUNNING: "var(--state-running-700)",
-	SCHEDULED: "var(--state-scheduled-700)",
-	PENDING: "var(--state-pending-800)",
-	FAILED: "var(--state-failed-700)",
-	CANCELLED: "var(--state-cancelled-600)",
-	CANCELLING: "var(--state-cancelling-600)",
-	CRASHED: "var(--state-crashed-600)",
-	PAUSED: "var(--state-paused-800)",
+/**
+ * Shade values for each state type, used with getStateColor().
+ * Different states use different shades for visual distinction.
+ * See: ui-v2/src/index.css for the CSS variable definitions.
+ */
+export const stateTypeShades: Record<StateType, number> = {
+	COMPLETED: 600,
+	RUNNING: 700,
+	SCHEDULED: 700,
+	PENDING: 800,
+	FAILED: 700,
+	CANCELLED: 600,
+	CANCELLING: 600,
+	CRASHED: 600,
+	PAUSED: 800,
 };

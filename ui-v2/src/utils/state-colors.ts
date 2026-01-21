@@ -1,6 +1,6 @@
 import type { components } from "@/api/prefect";
 
-type StateType = components["schemas"]["StateType"];
+export type StateType = components["schemas"]["StateType"];
 
 /**
  * Default state colors (matches CSS variable defaults).
