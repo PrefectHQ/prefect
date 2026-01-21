@@ -1967,6 +1967,95 @@ class TestTimeout:
             await async_task()
 
 
+class TestSyncTaskTimeoutWarning:
+    """Tests for the warning emitted when a sync task with timeout runs in a worker thread."""
+
+    def test_warning_emitted_when_sync_task_with_timeout_runs_in_worker_thread(
+        self, caplog
+    ):
+        """Test that a warning is emitted when a sync task with timeout runs in a worker thread."""
+
+        @task(timeout_seconds=10)
+        def my_task():
+            return "result"
+
+        @flow
+        def my_flow():
+            # Submit runs the task in a thread pool
+            future = my_task.submit()
+            return future.result()
+
+        with caplog.at_level(logging.WARNING):
+            result = my_flow()
+
+        # Check that warning was emitted
+        assert any(
+            "running in a worker thread" in record.message for record in caplog.records
+        )
+        assert result == "result"
+
+    def test_no_warning_when_sync_task_with_timeout_runs_on_main_thread(self, caplog):
+        """Test that no warning is emitted when a sync task with timeout runs on main thread."""
+
+        @task(timeout_seconds=10)
+        def my_task():
+            return "result"
+
+        @flow
+        def my_flow():
+            # Direct call runs on main thread
+            return my_task()
+
+        with caplog.at_level(logging.WARNING):
+            result = my_flow()
+
+        # Check that no timeout warning was emitted
+        assert not any(
+            "running in a worker thread" in record.message for record in caplog.records
+        )
+        assert result == "result"
+
+    def test_no_warning_when_sync_task_has_no_timeout(self, caplog):
+        """Test that no warning is emitted when a sync task has no timeout."""
+
+        @task
+        def my_task():
+            return "result"
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.result()
+
+        with caplog.at_level(logging.WARNING):
+            result = my_flow()
+
+        assert not any(
+            "running in a worker thread" in record.message for record in caplog.records
+        )
+        assert result == "result"
+
+    async def test_no_warning_for_async_task_with_timeout(self, caplog):
+        """Test that no warning is emitted for async tasks with timeout."""
+
+        @task(timeout_seconds=10)
+        async def my_task():
+            return "result"
+
+        @flow
+        async def my_flow():
+            future = my_task.submit()
+            return future.result()
+
+        with caplog.at_level(logging.WARNING):
+            result = await my_flow()
+
+        assert not any(
+            "running in a worker thread" in record.message for record in caplog.records
+        )
+        assert result == "result"
+
+
 class TestPersistence:
     async def test_task_can_return_result_record(self):
         @task
