@@ -61,6 +61,7 @@ class TestHostedApiServerWindowsProcessHandling:
         # Verify open_process was called without creationflags
         assert "creationflags" not in captured_kwargs
 
+    @pytest.mark.windows
     @pytest.mark.skipif(
         sys.platform != "win32",
         reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",

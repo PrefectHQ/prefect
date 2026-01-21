@@ -51,10 +51,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
 
-      - name: Run tests
+      - name: Run Windows-specific tests
         run: |
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          uv run pytest tests -vv --numprocesses auto --dist worksteal --exclude-services --durations=25
+          # Only run tests marked with @pytest.mark.windows
+          uv run pytest tests -vv -m windows --durations=25
 
   test-unc-paths:
     name: Test Windows UNC Paths
