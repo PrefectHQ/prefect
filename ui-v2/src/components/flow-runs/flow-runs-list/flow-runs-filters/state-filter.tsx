@@ -104,7 +104,10 @@ export const StateFilter = ({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" className="justify-between w-full">
+				<Button
+					variant="outline"
+					className="justify-between w-full bg-card dark:bg-background"
+				>
 					<span className="flex-1 min-w-0">{renderSelectedTags()}</span>
 					<Icon id="ChevronDown" className="ml-2 size-4 shrink-0" />
 				</Button>

@@ -68,7 +68,7 @@ export function DateTimePicker({
 				<Button
 					variant="outline"
 					className={cn(
-						"w-full justify-start text-left font-normal",
+						"w-full justify-start text-left font-normal bg-card dark:bg-background",
 						!date && "text-muted-foreground",
 					)}
 					id={id}
