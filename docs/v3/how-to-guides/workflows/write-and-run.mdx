@@ -123,29 +123,39 @@ Task timeouts work differently depending on how the task is executed:
 
 **Sync tasks called directly**: When a sync task is called directly (not via `.submit()`), it typically runs on the main thread where timeouts can use OS signals to interrupt execution, including blocking operations.
 
-**Sync tasks via `.submit()`**: When a sync task is submitted to a task runner, it runs in a worker thread. In this context, timeouts **cannot interrupt blocking operations** like `time.sleep()`, network requests, or file I/O. The timeout will only take effect after the blocking operation completes naturally.
+**Sync tasks via `.submit()` with ThreadPoolTaskRunner**: When a sync task is submitted using the default `ThreadPoolTaskRunner`, it runs in a worker thread. In this context, timeouts **cannot interrupt blocking operations** like `time.sleep()`, network requests, or file I/O. The timeout will only take effect after the blocking operation completes naturally.
 
 <Warning>
 If you need reliable timeout behavior for sync tasks that perform blocking operations, consider:
-1. Converting the task to async and using `await`-based I/O
-2. Breaking long blocking operations into smaller chunks that check for cancellation
-3. Using libraries that support timeout parameters natively (e.g., `requests.get(url, timeout=5)`)
+1. Using `ProcessPoolTaskRunner` instead of the default `ThreadPoolTaskRunner` - processes can be terminated to enforce timeouts
+2. Converting the task to async and using `await`-based I/O
+3. Breaking long blocking operations into smaller chunks that check for cancellation
+4. Using libraries that support timeout parameters natively (e.g., `requests.get(url, timeout=5)`)
 </Warning>
 
 ```python
 from prefect import task, flow
+from prefect.task_runners import ThreadPoolTaskRunner, ProcessPoolTaskRunner
 import time
 
-# This timeout may not interrupt the sleep when submitted
+# This timeout may not interrupt the sleep when submitted with ThreadPoolTaskRunner
 @task(timeout_seconds=1)
 def sync_task_with_blocking():
     time.sleep(10)  # Will complete before timeout triggers
 
-# This timeout works reliably
+# This timeout works reliably with async
 @task(timeout_seconds=1)
 async def async_task_with_sleep():
     import anyio
     await anyio.sleep(10)  # Will be interrupted at timeout
+
+@flow(task_runner=ThreadPoolTaskRunner())
+def flow_with_threads():
+    sync_task_with_blocking.submit()  # Timeout may not interrupt blocking operations
+
+@flow(task_runner=ProcessPoolTaskRunner())
+def flow_with_processes():
+    sync_task_with_blocking.submit()  # Timeout can interrupt via process termination
 ```
 
 ## Configure flows and tasks
@@ -175,7 +185,7 @@ Tasks allow for customization through optional arguments that can be provided to
 | `name`                | An optional name for the task. If not provided, the name is inferred from the function name.                                                                                                                       |
 | `description`         | An optional string description for the task. If not provided, the description is pulled from the docstring for the decorated function.                                                                             |
 | `tags`                | An optional set of tags associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime.                                                             |
-| `timeout_seconds`     | An optional number of seconds indicating a maximum runtime for the task. If the task exceeds this runtime, it will be marked as failed. Note: For sync tasks running in worker threads (via `.submit()`), the timeout cannot interrupt blocking operations. See [Task timeout behavior](#task-timeout-behavior) for details. |
+| `timeout_seconds`     | An optional number of seconds indicating a maximum runtime for the task. If the task exceeds this runtime, it will be marked as failed. Note: For sync tasks using `ThreadPoolTaskRunner` (the default), the timeout cannot interrupt blocking operations. See [Task timeout behavior](#task-timeout-behavior) for details. |
 | `cache_key_fn`        | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result is restored instead of running the task again. |
 | `cache_policy`        | An optional policy that determines what information is used to generate cache keys. Available policies include `INPUTS`, `TASK_SOURCE`, `RUN_ID`, `FLOW_PARAMETERS`, and `NO_CACHE`. Can be combined using the + operator. |
 | `cache_expiration`    | An optional amount of time indicating how long cached states for this task are restorable; if not provided, cached states will never expire. |
