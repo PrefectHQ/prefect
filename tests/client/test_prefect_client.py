@@ -2800,6 +2800,65 @@ async def test_global_concurrency_limit_read_nonexistent_by_name(prefect_client)
         await prefect_client.read_global_concurrency_limit_by_name(name="not-here")
 
 
+async def test_upsert_global_concurrency_limit_by_name_without_slot_decay(
+    prefect_client,
+):
+    """Test that upsert works without providing slot_decay_per_second.
+
+    This verifies the fix for the bug where passing None for slot_decay_per_second
+    would cause a 422 error because None was explicitly passed to the Pydantic model,
+    overriding its default value of 0.0.
+    """
+    # Test creating a new limit without slot_decay_per_second
+    await prefect_client.upsert_global_concurrency_limit_by_name(
+        name="upsert-test-no-decay",
+        limit=5,
+    )
+    created_limit = await prefect_client.read_global_concurrency_limit_by_name(
+        name="upsert-test-no-decay"
+    )
+    assert created_limit.limit == 5
+    assert created_limit.slot_decay_per_second == 0.0  # Default value
+
+    # Test updating the limit without slot_decay_per_second
+    await prefect_client.upsert_global_concurrency_limit_by_name(
+        name="upsert-test-no-decay",
+        limit=10,
+    )
+    updated_limit = await prefect_client.read_global_concurrency_limit_by_name(
+        name="upsert-test-no-decay"
+    )
+    assert updated_limit.limit == 10
+    assert updated_limit.slot_decay_per_second == 0.0  # Should remain unchanged
+
+
+async def test_upsert_global_concurrency_limit_by_name_with_slot_decay(prefect_client):
+    """Test that upsert works when explicitly providing slot_decay_per_second."""
+    # Test creating with explicit slot_decay_per_second
+    await prefect_client.upsert_global_concurrency_limit_by_name(
+        name="upsert-test-with-decay",
+        limit=3,
+        slot_decay_per_second=1.5,
+    )
+    created_limit = await prefect_client.read_global_concurrency_limit_by_name(
+        name="upsert-test-with-decay"
+    )
+    assert created_limit.limit == 3
+    assert created_limit.slot_decay_per_second == 1.5
+
+    # Test updating with explicit slot_decay_per_second
+    await prefect_client.upsert_global_concurrency_limit_by_name(
+        name="upsert-test-with-decay",
+        limit=6,
+        slot_decay_per_second=2.5,
+    )
+    updated_limit = await prefect_client.read_global_concurrency_limit_by_name(
+        name="upsert-test-with-decay"
+    )
+    assert updated_limit.limit == 6
+    assert updated_limit.slot_decay_per_second == 2.5
+
+
 class TestPrefectClientDeploymentSchedules:
     @pytest.fixture
     async def deployment(self, prefect_client):

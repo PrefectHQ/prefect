@@ -446,22 +446,22 @@ class ConcurrencyLimitClient(BaseClient):
             existing_limit = None
 
         if not existing_limit:
+            create_kwargs: dict[str, Any] = {"name": name, "limit": limit}
+            if slot_decay_per_second is not None:
+                create_kwargs["slot_decay_per_second"] = slot_decay_per_second
             self.create_global_concurrency_limit(
-                GlobalConcurrencyLimitCreate(
-                    name=name,
-                    limit=limit,
-                    slot_decay_per_second=slot_decay_per_second,
-                )
+                GlobalConcurrencyLimitCreate(**create_kwargs)
             )
         elif existing_limit.limit != limit or (
             slot_decay_per_second is not None
             and existing_limit.slot_decay_per_second != slot_decay_per_second
         ):
+            update_kwargs: dict[str, Any] = {"limit": limit}
+            if slot_decay_per_second is not None:
+                update_kwargs["slot_decay_per_second"] = slot_decay_per_second
             self.update_global_concurrency_limit(
                 name,
-                GlobalConcurrencyLimitUpdate(
-                    limit=limit, slot_decay_per_second=slot_decay_per_second
-                ),
+                GlobalConcurrencyLimitUpdate(**update_kwargs),
             )
 
     def read_global_concurrency_limits(
@@ -908,22 +908,22 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             existing_limit = None
 
         if not existing_limit:
+            create_kwargs: dict[str, Any] = {"name": name, "limit": limit}
+            if slot_decay_per_second is not None:
+                create_kwargs["slot_decay_per_second"] = slot_decay_per_second
             await self.create_global_concurrency_limit(
-                GlobalConcurrencyLimitCreate(
-                    name=name,
-                    limit=limit,
-                    slot_decay_per_second=slot_decay_per_second,
-                )
+                GlobalConcurrencyLimitCreate(**create_kwargs)
             )
         elif existing_limit.limit != limit or (
             slot_decay_per_second is not None
             and existing_limit.slot_decay_per_second != slot_decay_per_second
         ):
+            update_kwargs: dict[str, Any] = {"limit": limit}
+            if slot_decay_per_second is not None:
+                update_kwargs["slot_decay_per_second"] = slot_decay_per_second
             await self.update_global_concurrency_limit(
                 name,
-                GlobalConcurrencyLimitUpdate(
-                    limit=limit, slot_decay_per_second=slot_decay_per_second
-                ),
+                GlobalConcurrencyLimitUpdate(**update_kwargs),
             )
 
     async def read_global_concurrency_limits(
