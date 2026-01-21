@@ -18,6 +18,12 @@ from dbt.contracts.results import (
 )
 from prefect_dbt.cli.commands import (
     DbtCoreOperation,
+    arun_dbt_build,
+    arun_dbt_model,
+    arun_dbt_seed,
+    arun_dbt_snapshot,
+    arun_dbt_source_freshness,
+    arun_dbt_test,
     run_dbt_build,
     run_dbt_model,
     run_dbt_seed,
@@ -594,7 +600,7 @@ def test_sync_dbt_cli_command_creates_artifact(
 async def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_build(
+        return await arun_dbt_build(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -613,7 +619,7 @@ async def test_run_dbt_build_creates_artifact(profiles_dir, dbt_cli_profile_bare
 async def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_test(
+        return await arun_dbt_test(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -632,7 +638,7 @@ async def test_run_dbt_test_creates_artifact(profiles_dir, dbt_cli_profile_bare)
 async def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_snapshot(
+        return await arun_dbt_snapshot(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -651,7 +657,7 @@ async def test_run_dbt_snapshot_creates_artifact(profiles_dir, dbt_cli_profile_b
 async def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_seed(
+        return await arun_dbt_seed(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -670,7 +676,7 @@ async def test_run_dbt_seed_creates_artifact(profiles_dir, dbt_cli_profile_bare)
 async def test_run_dbt_model_creates_artifact(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_model(
+        return await arun_dbt_model(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -691,7 +697,7 @@ async def test_run_dbt_source_freshness_creates_artifact(
 ):
     @flow
     async def test_flow():
-        return await run_dbt_source_freshness(
+        return await arun_dbt_source_freshness(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -718,7 +724,7 @@ async def test_run_dbt_model_creates_unsuccessful_artifact(
 ):
     @flow
     async def test_flow():
-        return await run_dbt_model(
+        return await arun_dbt_model(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -742,7 +748,7 @@ async def test_run_dbt_source_freshness_creates_unsuccessful_artifact(
 ):
     @flow
     async def test_flow():
-        return await run_dbt_source_freshness(
+        return await arun_dbt_source_freshness(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",
@@ -764,7 +770,7 @@ async def test_run_dbt_source_freshness_creates_unsuccessful_artifact(
 async def test_run_dbt_model_throws_error(profiles_dir, dbt_cli_profile_bare):
     @flow
     async def test_flow():
-        return await run_dbt_model(
+        return await arun_dbt_model(
             profiles_dir=profiles_dir,
             dbt_cli_profile=dbt_cli_profile_bare,
             summary_artifact_key="foo",

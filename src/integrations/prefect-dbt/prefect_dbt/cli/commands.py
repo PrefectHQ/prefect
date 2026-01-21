@@ -13,17 +13,137 @@ from prefect_shell.commands import ShellOperation
 from pydantic import Field
 
 from prefect import task
-from prefect.artifacts import acreate_markdown_artifact
+from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect.artifacts import acreate_markdown_artifact, create_markdown_artifact
 from prefect.logging import get_run_logger
 from prefect.states import Failed
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect_dbt.cli.credentials import DbtCliProfile
 
 
+def _run_dbt_command(
+    command: str,
+    profiles_dir: Optional[Union[Path, str]],
+    project_dir: Optional[Union[Path, str]],
+    overwrite_profiles: bool,
+    dbt_cli_profile: Optional[DbtCliProfile],
+    extra_command_args: Optional[List[str]],
+    stream_output: bool,
+) -> dbtRunnerResult:
+    """Shared implementation for running dbt commands."""
+    logger = get_run_logger()
+
+    if profiles_dir is None:
+        profiles_dir = os.getenv("DBT_PROFILES_DIR", str(Path.home()) + "/.dbt")
+
+    profiles_path = profiles_dir + "/profiles.yml"
+    logger.debug(f"Using this profiles path: {profiles_path}")
+
+    if overwrite_profiles or not Path(profiles_path).expanduser().exists():
+        if dbt_cli_profile is None:
+            raise ValueError(
+                "Profile not found. Provide `dbt_cli_profile` or"
+                f" ensure profiles.yml exists at {profiles_path}."
+            )
+        profile = dbt_cli_profile.get_profile()
+        Path(profiles_dir).expanduser().mkdir(exist_ok=True)
+        with open(profiles_path, "w+") as f:
+            yaml.dump(profile, f, default_flow_style=False)
+        logger.info(f"Wrote profile to {profiles_path}")
+    elif dbt_cli_profile is not None:
+        raise ValueError(
+            f"Since overwrite_profiles is False and profiles_path ({profiles_path}) "
+            f"already exists, the profile within dbt_cli_profile could not be used; "
+            f"if the existing profile is satisfactory, do not pass dbt_cli_profile"
+        )
+
+    cli_args = [arg for arg in command.split() if arg != "dbt"]
+    cli_args.append("--profiles-dir")
+    cli_args.append(profiles_dir)
+    if project_dir is not None:
+        project_dir = Path(project_dir).expanduser()
+        cli_args.append("--project-dir")
+        cli_args.append(project_dir)
+
+    if extra_command_args:
+        for value in extra_command_args:
+            cli_args.append(value)
+
+    callbacks = []
+    if stream_output:
+
+        def _stream_output(event):
+            if event.info.level != "debug":
+                logger.info(event.info.msg)
+
+        callbacks.append(_stream_output)
+
+    dbt_runner_client = dbtRunner(callbacks=callbacks)
+    logger.info(f"Running dbt command: {cli_args}")
+    result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
+
+    if result.exception is not None:
+        logger.error(f"dbt task failed with exception: {result.exception}")
+        raise result.exception
+
+    return result
+
+
 @task
-@sync_compatible
-async def trigger_dbt_cli_command(
+async def atrigger_dbt_cli_command(
+    command: str,
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: Optional[str] = "dbt-cli-command-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
+) -> Optional[dbtRunnerResult]:
+    """Async task for running dbt commands. See trigger_dbt_cli_command for full docs."""
+    logger = get_run_logger()
+    result = _run_dbt_command(
+        command=command,
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
+
+    if create_summary_artifact and isinstance(result.result, ExecutionResult):
+        run_results = consolidate_run_results(result)
+        markdown = create_summary_markdown(run_results, command)
+        artifact_id = await acreate_markdown_artifact(
+            markdown=markdown, key=summary_artifact_key
+        )
+        if not artifact_id:
+            logger.error(f"Summary Artifact was not created for dbt {command} task")
+        else:
+            logger.info(
+                f"dbt {command} task completed successfully with artifact {artifact_id}"
+            )
+    else:
+        logger.debug(
+            f"Artifacts were not created for dbt {command} this task "
+            "due to create_artifact=False or the dbt command did not "
+            "return any RunExecutionResults. "
+            "See https://docs.getdbt.com/reference/programmatic-invocations "
+            "for more details on dbtRunnerResult."
+        )
+
+    if isinstance(result.result, ExecutionResult) and not result.success:
+        return Failed(
+            message=f"dbt task result success: {result.success} with exception: {result.exception}"
+        )
+    return result
+
+
+@task
+@async_dispatch(atrigger_dbt_cli_command)
+def trigger_dbt_cli_command(
     command: str,
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
@@ -67,11 +187,7 @@ async def trigger_dbt_cli_command(
             Defaults to True.
 
     Returns:
-        last_line_cli_output (str): The last line of the CLI output will be returned
-            if `return_all` in `shell_run_command_kwargs` is False. This is the default
-            behavior.
-        full_cli_output (List[str]): Full CLI output will be returned if `return_all`
-            in `shell_run_command_kwargs` is True.
+        dbtRunnerResult: The result from the dbt CLI invocation.
 
     Examples:
         Execute `dbt debug` with a pre-populated profiles.yml.
@@ -86,115 +202,22 @@ async def trigger_dbt_cli_command(
 
         trigger_dbt_cli_command_flow()
         ```
-
-        Execute `dbt debug` without a pre-populated profiles.yml.
-        ```python
-        from prefect import flow
-        from prefect_dbt.cli.credentials import DbtCliProfile
-        from prefect_dbt.cli.commands import trigger_dbt_cli_command
-        from prefect_dbt.cli.configs import SnowflakeTargetConfigs
-        from prefect_snowflake.credentials import SnowflakeCredentials
-
-        @flow
-        def trigger_dbt_cli_command_flow():
-            credentials = SnowflakeCredentials(
-                user="user",
-                password="password",
-                account="account.region.aws",
-                role="role",
-            )
-            connector = SnowflakeConnector(
-                schema="public",
-                database="database",
-                warehouse="warehouse",
-                credentials=credentials,
-            )
-            target_configs = SnowflakeTargetConfigs(
-                connector=connector
-            )
-            dbt_cli_profile = DbtCliProfile(
-                name="jaffle_shop",
-                target="dev",
-                target_configs=target_configs,
-            )
-            result = trigger_dbt_cli_command(
-                "dbt run",
-                overwrite_profiles=True,
-                dbt_cli_profile=dbt_cli_profile,
-                extra_command_args=["--model", "foo_model"]
-            )
-            return result
-
-        trigger_dbt_cli_command_flow()
-        ```
     """
     logger = get_run_logger()
+    result = _run_dbt_command(
+        command=command,
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
 
-    if profiles_dir is None:
-        profiles_dir = os.getenv("DBT_PROFILES_DIR", str(Path.home()) + "/.dbt")
-
-    # https://docs.getdbt.com/dbt-cli/configure-your-profile
-    # Note that the file always needs to be called profiles.yml,
-    # regardless of which directory it is in.
-    profiles_path = profiles_dir + "/profiles.yml"
-    logger.debug(f"Using this profiles path: {profiles_path}")
-
-    # write the profile if overwrite or no profiles exist
-    if overwrite_profiles or not Path(profiles_path).expanduser().exists():
-        if dbt_cli_profile is None:
-            raise ValueError(
-                "Profile not found. Provide `dbt_cli_profile` or"
-                f" ensure profiles.yml exists at {profiles_path}."
-            )
-        profile = dbt_cli_profile.get_profile()
-        Path(profiles_dir).expanduser().mkdir(exist_ok=True)
-        with open(profiles_path, "w+") as f:
-            yaml.dump(profile, f, default_flow_style=False)
-        logger.info(f"Wrote profile to {profiles_path}")
-    elif dbt_cli_profile is not None:
-        raise ValueError(
-            f"Since overwrite_profiles is False and profiles_path ({profiles_path}) "
-            f"already exists, the profile within dbt_cli_profile could not be used; "
-            f"if the existing profile is satisfactory, do not pass dbt_cli_profile"
-        )
-
-    # append the options
-    cli_args = [arg for arg in command.split() if arg != "dbt"]
-    cli_args.append("--profiles-dir")
-    cli_args.append(profiles_dir)
-    if project_dir is not None:
-        project_dir = Path(project_dir).expanduser()
-        cli_args.append("--project-dir")
-        cli_args.append(project_dir)
-
-    if extra_command_args:
-        for value in extra_command_args:
-            cli_args.append(value)
-
-    # Add the dbt event log callback if enabled
-    callbacks = []
-    if stream_output:
-
-        def _stream_output(event):
-            if event.info.level != "debug":
-                logger.info(event.info.msg)
-
-        callbacks.append(_stream_output)
-
-    # fix up empty shell_run_command_kwargs
-    dbt_runner_client = dbtRunner(callbacks=callbacks)
-    logger.info(f"Running dbt command: {cli_args}")
-    result: dbtRunnerResult = dbt_runner_client.invoke(cli_args)
-
-    if result.exception is not None:
-        logger.error(f"dbt task failed with exception: {result.exception}")
-        raise result.exception
-
-    # Creating the dbt Summary Markdown if enabled
     if create_summary_artifact and isinstance(result.result, ExecutionResult):
         run_results = consolidate_run_results(result)
         markdown = create_summary_markdown(run_results, command)
-        artifact_id = await acreate_markdown_artifact(
+        artifact_id = create_markdown_artifact(
             markdown=markdown, key=summary_artifact_key
         )
         if not artifact_id:
@@ -211,6 +234,7 @@ async def trigger_dbt_cli_command(
             "See https://docs.getdbt.com/reference/programmatic-invocations "
             "for more details on dbtRunnerResult."
         )
+
     if isinstance(result.result, ExecutionResult) and not result.success:
         return Failed(
             message=f"dbt task result success: {result.success} with exception: {result.exception}"
@@ -399,7 +423,33 @@ class DbtCoreOperation(ShellOperation):
 
 
 @task
-async def run_dbt_build(
+async def arun_dbt_build(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-build-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
+):
+    """Async version of run_dbt_build. See run_dbt_build for full documentation."""
+    return await atrigger_dbt_cli_command.fn(
+        command="build",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
+
+
+@task
+@async_dispatch(arun_dbt_build)
+def run_dbt_build(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
@@ -437,27 +487,13 @@ async def run_dbt_build(
             as it happens.
             Defaults to True.
 
-    Example:
-    ```python
-        from prefect import flow
-        from prefect_dbt.cli.tasks import dbt_build_task
-
-        @flow
-        def dbt_test_flow():
-            dbt_build_task(
-                project_dir="/Users/test/my_dbt_project_dir",
-                extra_command_args=["--model", "foo_model"]
-            )
-    ```
-
     Raises:
         ValueError: If required dbt_cli_profile is not provided
                     when needed for profile writing.
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-
-    results = await trigger_dbt_cli_command.fn.aio(
+    return trigger_dbt_cli_command.fn(
         command="build",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -468,11 +504,36 @@ async def run_dbt_build(
         extra_command_args=extra_command_args,
         stream_output=stream_output,
     )
-    return results
 
 
 @task
-async def run_dbt_model(
+async def arun_dbt_model(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-run-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
+):
+    """Async version of run_dbt_model. See run_dbt_model for full documentation."""
+    return await atrigger_dbt_cli_command.fn(
+        command="run",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
+
+
+@task
+@async_dispatch(arun_dbt_model)
+def run_dbt_model(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
@@ -510,27 +571,13 @@ async def run_dbt_model(
             as it happens.
             Defaults to True.
 
-    Example:
-    ```python
-        from prefect import flow
-        from prefect_dbt.cli.tasks import dbt_run_task
-
-        @flow
-        def dbt_test_flow():
-            dbt_run_task(
-                project_dir="/Users/test/my_dbt_project_dir",
-                extra_command_args=["--model", "foo_model"]
-            )
-    ```
-
     Raises:
         ValueError: If required dbt_cli_profile is not provided
                     when needed for profile writing.
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-
-    results = await trigger_dbt_cli_command.fn.aio(
+    return trigger_dbt_cli_command.fn(
         command="run",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -542,11 +589,35 @@ async def run_dbt_model(
         stream_output=stream_output,
     )
 
-    return results
+
+@task
+async def arun_dbt_test(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-test-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
+):
+    """Async version of run_dbt_test. See run_dbt_test for full documentation."""
+    return await atrigger_dbt_cli_command.fn(
+        command="test",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
 
 
 @task
-async def run_dbt_test(
+@async_dispatch(arun_dbt_test)
+def run_dbt_test(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
@@ -584,27 +655,13 @@ async def run_dbt_test(
             as it happens.
             Defaults to True.
 
-    Example:
-    ```python
-        from prefect import flow
-        from prefect_dbt.cli.tasks import dbt_test_task
-
-        @flow
-        def dbt_test_flow():
-            dbt_test_task(
-                project_dir="/Users/test/my_dbt_project_dir",
-                extra_command_args=["--model", "foo_model"]
-            )
-    ```
-
     Raises:
         ValueError: If required dbt_cli_profile is not provided
                     when needed for profile writing.
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-
-    results = await trigger_dbt_cli_command.fn.aio(
+    return trigger_dbt_cli_command.fn(
         command="test",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -616,11 +673,35 @@ async def run_dbt_test(
         stream_output=stream_output,
     )
 
-    return results
+
+@task
+async def arun_dbt_snapshot(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-snapshot-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
+):
+    """Async version of run_dbt_snapshot. See run_dbt_snapshot for full documentation."""
+    return await atrigger_dbt_cli_command.fn(
+        command="snapshot",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
 
 
 @task
-async def run_dbt_snapshot(
+@async_dispatch(arun_dbt_snapshot)
+def run_dbt_snapshot(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
@@ -658,27 +739,13 @@ async def run_dbt_snapshot(
             as it happens.
             Defaults to True.
 
-    Example:
-    ```python
-        from prefect import flow
-        from prefect_dbt.cli.tasks import dbt_snapshot_task
-
-        @flow
-        def dbt_test_flow():
-            dbt_snapshot_task(
-                project_dir="/Users/test/my_dbt_project_dir",
-                extra_command_args=["--fail-fast"]
-            )
-    ```
-
     Raises:
         ValueError: If required dbt_cli_profile is not provided
                     when needed for profile writing.
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-
-    results = await trigger_dbt_cli_command.fn.aio(
+    return trigger_dbt_cli_command.fn(
         command="snapshot",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -690,11 +757,35 @@ async def run_dbt_snapshot(
         stream_output=stream_output,
     )
 
-    return results
+
+@task
+async def arun_dbt_seed(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-seed-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
+):
+    """Async version of run_dbt_seed. See run_dbt_seed for full documentation."""
+    return await atrigger_dbt_cli_command.fn(
+        command="seed",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
 
 
 @task
-async def run_dbt_seed(
+@async_dispatch(arun_dbt_seed)
+def run_dbt_seed(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
@@ -732,27 +823,13 @@ async def run_dbt_seed(
             as it happens.
             Defaults to True.
 
-    Example:
-    ```python
-        from prefect import flow
-        from prefect_dbt.cli.tasks import dbt_seed_task
-
-        @flow
-        def dbt_test_flow():
-            dbt_seed_task(
-                project_dir="/Users/test/my_dbt_project_dir",
-                extra_command_args=["--fail-fast"]
-            )
-    ```
-
     Raises:
         ValueError: If required dbt_cli_profile is not provided
                     when needed for profile writing.
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-
-    results = await trigger_dbt_cli_command.fn.aio(
+    return trigger_dbt_cli_command.fn(
         command="seed",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -764,11 +841,35 @@ async def run_dbt_seed(
         stream_output=stream_output,
     )
 
-    return results
+
+@task
+async def arun_dbt_source_freshness(
+    profiles_dir: Optional[Union[Path, str]] = None,
+    project_dir: Optional[Union[Path, str]] = None,
+    overwrite_profiles: bool = False,
+    dbt_cli_profile: Optional[DbtCliProfile] = None,
+    create_summary_artifact: bool = False,
+    summary_artifact_key: str = "dbt-source-freshness-task-summary",
+    extra_command_args: Optional[List[str]] = None,
+    stream_output: bool = True,
+):
+    """Async version of run_dbt_source_freshness. See run_dbt_source_freshness for full documentation."""
+    return await atrigger_dbt_cli_command.fn(
+        command="source freshness",
+        profiles_dir=profiles_dir,
+        project_dir=project_dir,
+        overwrite_profiles=overwrite_profiles,
+        dbt_cli_profile=dbt_cli_profile,
+        create_summary_artifact=create_summary_artifact,
+        summary_artifact_key=summary_artifact_key,
+        extra_command_args=extra_command_args,
+        stream_output=stream_output,
+    )
 
 
 @task
-async def run_dbt_source_freshness(
+@async_dispatch(arun_dbt_source_freshness)
+def run_dbt_source_freshness(
     profiles_dir: Optional[Union[Path, str]] = None,
     project_dir: Optional[Union[Path, str]] = None,
     overwrite_profiles: bool = False,
@@ -806,27 +907,13 @@ async def run_dbt_source_freshness(
             as it happens.
             Defaults to True.
 
-    Example:
-    ```python
-        from prefect import flow
-        from prefect_dbt.cli.commands import run_dbt_source_freshness
-
-        @flow
-        def dbt_test_flow():
-            run_dbt_source_freshness(
-                project_dir="/Users/test/my_dbt_project_dir",
-                extra_command_args=["--fail-fast"]
-            )
-    ```
-
     Raises:
         ValueError: If required dbt_cli_profile is not provided
                     when needed for profile writing.
         RuntimeError: If the dbt build fails for any reason,
                     it will be indicated by the exception raised.
     """
-
-    results = await trigger_dbt_cli_command.fn.aio(
+    return trigger_dbt_cli_command.fn(
         command="source freshness",
         profiles_dir=profiles_dir,
         project_dir=project_dir,
@@ -837,8 +924,6 @@ async def run_dbt_source_freshness(
         extra_command_args=extra_command_args,
         stream_output=stream_output,
     )
-
-    return results
 
 
 def create_summary_markdown(run_results: dict[str, Any], command: str) -> str:
