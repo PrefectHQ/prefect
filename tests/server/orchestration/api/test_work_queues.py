@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 from uuid import uuid4
 
+import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1079,10 +1080,16 @@ class TestGetRunsInWorkQueue:
         running_flow_runs,
         concurrency_limit,
     ):
-        await hosted_api_client.patch(
-            f"/work_queues/{work_queue.id}",
-            json=dict(concurrency_limit=concurrency_limit),
-        )
+        async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+            with attempt:
+                try:
+                    patch_response = await hosted_api_client.patch(
+                        f"/work_queues/{work_queue.id}",
+                        json=dict(concurrency_limit=concurrency_limit),
+                    )
+                    assert patch_response.status_code == status.HTTP_204_NO_CONTENT
+                except httpx.ReadError:
+                    raise AssertionError("PATCH request failed with ReadError")
 
         response1 = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs"
