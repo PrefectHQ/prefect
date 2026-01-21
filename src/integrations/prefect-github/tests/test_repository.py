@@ -72,6 +72,34 @@ class TestGitHubRepository:
             in " ".join(mock.await_args[0][0])
         )
 
+    async def test_get_directory_redacts_token_in_error(self, monkeypatch):
+        """Ensure GitHub access tokens are not surfaced in git error messages."""
+
+        class p:
+            returncode = 1
+
+        async def mock(cmd, stream_output=None, **kwargs):
+            if stream_output:
+                _, err_stream = stream_output
+                err_stream.write(
+                    "fatal: Authentication failed for "
+                    "'https://XYZ@github.com/PrefectHQ/prefect.git/'"
+                )
+            return p()
+
+        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
+        credential = GitHubCredentials(token="XYZ")
+        g = GitHubRepository(
+            repository_url="https://github.com/PrefectHQ/prefect.git",
+            credentials=credential,
+        )
+        with pytest.raises(RuntimeError) as excinfo:
+            await g.get_directory()
+
+        message = str(excinfo.value)
+        assert "XYZ" not in message
+        assert "https://github.com/PrefectHQ/prefect.git" in message
+
     def setup_test_directory(
         self, tmp_src: str, sub_dir: str = "puppy"
     ) -> Tuple[str, str]:
