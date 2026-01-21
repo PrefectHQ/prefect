@@ -20,8 +20,9 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { getStateColor } from "@/utils/state-colors";
 import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
-import { stateTypeColors } from "./consts";
+import { stateTypeShades } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
 
 type FlowRunGraphProps = {
@@ -68,10 +69,13 @@ export function FlowRunGraph({
 			fetchEvents: fetchFlowRunEvents,
 			styles: () => ({
 				node: (node: RunGraphNode) => ({
-					background: stateTypeColors[node.state_type],
+					background: getStateColor(
+						node.state_type,
+						stateTypeShades[node.state_type],
+					),
 				}),
 				state: (event: RunGraphStateEvent) => ({
-					background: stateTypeColors[event.type],
+					background: getStateColor(event.type, stateTypeShades[event.type]),
 				}),
 			}),
 			theme: resolvedTheme === "dark" ? "dark" : "light",
