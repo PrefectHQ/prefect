@@ -4,7 +4,7 @@ from typing import Any, Union
 from prefect.filesystems import NullFileSystem, WritableFileSystem
 
 
-def call_block_method(
+def call_explicitly_sync_block_method(
     block: Union[WritableFileSystem, NullFileSystem],
     method: str,
     args: tuple[Any, ...],
