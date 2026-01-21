@@ -73,6 +73,17 @@ if TYPE_CHECKING:
 
 logger: "logging.Logger" = get_logger(__name__)
 
+# Exceptions that indicate transient network issues and should trigger retries.
+# These are used consistently across all event client retry loops.
+# - ConnectionClosed: WebSocket connection was closed (e.g., server restart, load balancer timeout)
+# - TimeoutError: Connection or operation timed out
+# - OSError: Network-level errors (connection refused, DNS failures, network unreachable, etc.)
+RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
+    ConnectionClosed,
+    TimeoutError,
+    OSError,
+)
+
 
 def http_to_ws(url: str) -> str:
     return url.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
@@ -285,7 +296,7 @@ class PrefectEventsClient(EventsClient):
             try:
                 await self._reconnect()
                 break
-            except (ConnectionClosed, TimeoutError) as e:
+            except RETRYABLE_EXCEPTIONS as e:
                 logger.debug(
                     "Initial connection attempt %s/%s failed: %s",
                     i + 1,
@@ -424,8 +435,8 @@ class PrefectEventsClient(EventsClient):
                 await self._checkpoint()
 
                 return
-            except ConnectionClosed as e:
-                self._log_debug("Got ConnectionClosed error.")
+            except RETRYABLE_EXCEPTIONS as e:
+                self._log_debug("Got retryable error: %s", type(e).__name__)
                 if i == self._reconnection_attempts:
                     # this was our final chance, log warning and raise
                     self._log_connection_error(e)
@@ -709,9 +720,9 @@ class PrefectEventSubscriber:
             except ConnectionClosedOK:
                 logger.debug('Connection closed with "OK" status')
                 raise StopAsyncIteration
-            except ConnectionClosed:
+            except RETRYABLE_EXCEPTIONS:
                 logger.debug(
-                    "Connection closed with %s/%s attempts",
+                    "Retryable error with %s/%s attempts",
                     i + 1,
                     self._reconnection_attempts,
                 )

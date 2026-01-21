@@ -510,8 +510,6 @@ async def test_initial_connection_retries_and_succeeds(
 ):
     """Test that initial connection in __aenter__ retries on ConnectionClosed errors
     and eventually succeeds after a few failures."""
-    from websockets.exceptions import ConnectionClosedError
-
     attempt_count = [0]
     max_failures = 2
 
@@ -564,8 +562,6 @@ async def test_initial_connection_exhausts_all_retry_attempts(
 ):
     """Test that initial connection in __aenter__ attempts exactly
     reconnection_attempts + 1 times before giving up."""
-    from websockets.exceptions import ConnectionClosedError
-
     attempt_count = [0]
 
     class MockConnect:
@@ -674,8 +670,6 @@ async def test_initial_connection_backoff_timing(
 ):
     """Test that initial connection retries follow the correct backoff pattern:
     no sleep for first 3 attempts (indices 0, 1, 2), 1 second sleep thereafter."""
-    from websockets.exceptions import ConnectionClosedError
-
     attempt_count = [0]
     sleep_calls = []
 
