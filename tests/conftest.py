@@ -156,6 +156,12 @@ def pytest_collection_modifyitems(
     for async_test in pytest_asyncio_tests:
         async_test.add_marker(session_scope_marker, append=False)
 
+    # Skip tests marked with @pytest.mark.windows on non-Windows platforms
+    if sys.platform != "win32":
+        for item in items:
+            if item.get_closest_marker("windows"):
+                item.add_marker(pytest.mark.skip(reason="Test only runs on Windows"))
+
     exclude_all_services = config.getoption("--exclude-services")
     if exclude_all_services:
         for item in items:
