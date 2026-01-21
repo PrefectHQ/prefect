@@ -295,6 +295,11 @@ class PrefectEventsClient(EventsClient):
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
+        # Only call __aexit__ on the connection if it was successfully established.
+        # The websockets library sets the "connection" attribute on the connect
+        # object only after __aenter__() completes successfully. Without this guard,
+        # we would get an AttributeError when cleaning up a connection that failed
+        # during establishment.
         if hasattr(self._connect, "connection"):
             await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
@@ -644,6 +649,11 @@ class PrefectEventSubscriber:
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
+        # Only call __aexit__ on the connection if it was successfully established.
+        # The websockets library sets the "connection" attribute on the connect
+        # object only after __aenter__() completes successfully. Without this guard,
+        # we would get an AttributeError when cleaning up a connection that failed
+        # during establishment.
         if hasattr(self._connect, "connection"):
             await self._connect.__aexit__(exc_type, exc_val, exc_tb)
 
