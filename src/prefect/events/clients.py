@@ -295,7 +295,7 @@ class PrefectEventsClient(EventsClient):
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
-        if hasattr(self._connect, "protocol"):
+        if hasattr(self._connect, "connection"):
             await self._connect.__aexit__(exc_type, exc_val, exc_tb)
         return await super().__aexit__(exc_type, exc_val, exc_tb)
 
@@ -644,7 +644,7 @@ class PrefectEventSubscriber:
         exc_tb: Optional[TracebackType],
     ) -> None:
         self._websocket = None
-        if hasattr(self._connect, "protocol"):
+        if hasattr(self._connect, "connection"):
             await self._connect.__aexit__(exc_type, exc_val, exc_tb)
 
     def __aiter__(self) -> Self:
