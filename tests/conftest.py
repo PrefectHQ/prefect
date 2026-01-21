@@ -379,8 +379,10 @@ def cleanup(drain_log_workers: None, drain_events_workers: None):
     yield
 
     # delete the temporary directory
+    # Use ignore_errors=True to handle race conditions where SQLite auxiliary
+    # files (.db-shm, .db-wal) may be deleted by SQLite before rmtree runs
     if TEST_PREFECT_HOME is not None:
-        shutil.rmtree(TEST_PREFECT_HOME)
+        shutil.rmtree(TEST_PREFECT_HOME, ignore_errors=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
