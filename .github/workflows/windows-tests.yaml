@@ -2,13 +2,16 @@ name: Windows Tests
 
 on:
   workflow_dispatch: {}
-  # pull_request:
-  #   branches:
-  #   paths:
-  #     - "pyproject.toml"
-  #     - "src/prefect/**/*.py"
-  #     - "scripts/test_unc_paths.py"
-  #     - ".github/workflows/windows-tests.yaml"
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "src/prefect/testing/**/*.py"
+      - "tests/testing/**/*.py"
+      - "src/prefect/utilities/processutils.py"
+      - "src/prefect/runner/runner.py"
+      - "src/prefect/cli/server.py"
+      - "scripts/test_unc_paths.py"
+      - ".github/workflows/windows-tests.yaml"
 
 permissions: {}
 
