@@ -443,3 +443,62 @@ async def test_events_subscriber_auth_string(puppeteer: Puppeteer, events_api_ur
             ):
                 async with get_events_subscriber():
                     pass  # Connection should fail during __aenter__
+
+
+async def test_events_client_aexit_handles_failed_connection(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that PrefectEventsClient.__aexit__ doesn't raise AttributeError when
+    the websocket connection was never successfully established.
+
+    This guards against regression of the bug where __aexit__ would unconditionally
+    call self._connect.__aexit__() even when the connection failed during __aenter__,
+    causing an AttributeError because the websockets library only sets the "connection"
+    attribute after a successful connection.
+    """
+
+    class MockConnectFailsOnEnter:
+        async def __aenter__(self):
+            raise ConnectionError("Connection failed")
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            raise AttributeError("'connect' object has no attribute 'connection'")
+
+    def mock_connect(*args, **kwargs):
+        return MockConnectFailsOnEnter()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    with pytest.raises(ConnectionError, match="Connection failed"):
+        async with PrefectEventsClient("ws://localhost"):
+            pass
+
+
+async def test_events_subscriber_aexit_handles_failed_connection(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that PrefectEventSubscriber.__aexit__ doesn't raise AttributeError when
+    the websocket connection was never successfully established.
+
+    This guards against regression of the bug where __aexit__ would unconditionally
+    call self._connect.__aexit__() even when the connection failed during __aenter__,
+    causing an AttributeError because the websockets library only sets the "connection"
+    attribute after a successful connection.
+    """
+    from prefect.events.clients import PrefectEventSubscriber
+
+    class MockConnectFailsOnEnter:
+        async def __aenter__(self):
+            raise ConnectionError("Connection failed")
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            raise AttributeError("'connect' object has no attribute 'connection'")
+
+    def mock_connect(*args, **kwargs):
+        return MockConnectFailsOnEnter()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    with pytest.raises(ConnectionError, match="Connection failed"):
+        async with PrefectEventSubscriber(api_url="http://localhost/api"):
+            pass
