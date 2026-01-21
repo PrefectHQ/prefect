@@ -200,7 +200,7 @@ exports[`property.type > array > with enum items 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_4b_"
@@ -1366,7 +1366,7 @@ exports[`property.type > boolean > enum 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_2s_"
@@ -1676,7 +1676,7 @@ exports[`property.type > integer > base 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_26_"
             type="number"
             value=""
@@ -1769,7 +1769,7 @@ exports[`property.type > integer > enum 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_2f_"
@@ -1881,7 +1881,7 @@ exports[`property.type > integer > with default 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_2c_"
             type="number"
             value="123"
@@ -1970,7 +1970,7 @@ exports[`property.type > integer > with value 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_29_"
             type="number"
             value="123"
@@ -2147,7 +2147,7 @@ exports[`property.type > number > base 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_1p_"
             type="number"
             value=""
@@ -2240,7 +2240,7 @@ exports[`property.type > number > enum 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_22_"
@@ -2352,7 +2352,7 @@ exports[`property.type > number > with default 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_1v_"
             type="number"
             value="123.45"
@@ -2441,7 +2441,7 @@ exports[`property.type > number > with value 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_1s_"
             type="number"
             value="123.45"
@@ -2623,7 +2623,7 @@ exports[`property.type > string > enum 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_1d_"
@@ -2739,7 +2739,7 @@ exports[`property.type > string > enum with default 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_1l_"
@@ -2855,7 +2855,7 @@ exports[`property.type > string > enum with value 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_1h_"
@@ -3350,7 +3350,7 @@ exports[`property.type > string > format:date-time 1`] = `
               aria-controls="radix-_r_o_"
               aria-expanded="false"
               aria-haspopup="dialog"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal text-muted-foreground"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
               id="_r_l_"
@@ -3380,7 +3380,7 @@ exports[`property.type > string > format:date-time 1`] = `
               aria-expanded="false"
               aria-haspopup="listbox"
               aria-label="Select timezone"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
               type="button"
@@ -3498,7 +3498,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               aria-controls="radix-_r_12_"
               aria-expanded="false"
               aria-haspopup="dialog"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background"
               data-slot="popover-trigger"
               data-state="closed"
               id="_r_v_"
@@ -3526,7 +3526,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               aria-expanded="false"
               aria-haspopup="listbox"
               aria-label="Select timezone"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
               type="button"
@@ -3644,7 +3644,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               aria-controls="radix-_r_t_"
               aria-expanded="false"
               aria-haspopup="dialog"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background"
               data-slot="popover-trigger"
               data-state="closed"
               id="_r_q_"
@@ -3672,7 +3672,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               aria-expanded="false"
               aria-haspopup="listbox"
               aria-label="Select timezone"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
               type="button"
@@ -4404,7 +4404,7 @@ exports[`property.type > unknown > with value 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_36_"
