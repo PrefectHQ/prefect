@@ -1,5 +1,4 @@
 import os
-import sys
 from pathlib import Path, PosixPath, WindowsPath
 
 import pytest
@@ -121,7 +120,6 @@ class TestFilterFiles:
 
 
 class TestPlatformSpecificRelpath:
-    @pytest.mark.skipif(sys.platform == "win32", reason="This is a unix-specific test")
     @pytest.mark.parametrize(
         "path_str,expected",
         [
@@ -137,9 +135,7 @@ class TestPlatformSpecificRelpath:
         assert isinstance(new_path, PosixPath)
         assert str(new_path) == expected
 
-    @pytest.mark.skipif(
-        sys.platform != "win32", reason="This is a windows-specific test"
-    )
+    @pytest.mark.windows
     @pytest.mark.parametrize(
         "path_str,expected",
         [
