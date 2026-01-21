@@ -118,6 +118,7 @@ def test_prefect_test_harness_timeout(monkeypatch):
         )
 
 
+@pytest.mark.unix
 def test_multiprocessing_after_test_harness():
     """
     Test that multiprocessing works after using prefect_test_harness.

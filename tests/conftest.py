@@ -162,6 +162,12 @@ def pytest_collection_modifyitems(
             if item.get_closest_marker("windows"):
                 item.add_marker(pytest.mark.skip(reason="Test only runs on Windows"))
 
+    # Skip tests marked with @pytest.mark.unix on Windows
+    if sys.platform == "win32":
+        for item in items:
+            if item.get_closest_marker("unix"):
+                item.add_marker(pytest.mark.skip(reason="Test only runs on Unix"))
+
     exclude_all_services = config.getoption("--exclude-services")
     if exclude_all_services:
         for item in items:

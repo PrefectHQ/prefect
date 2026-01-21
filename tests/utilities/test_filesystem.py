@@ -120,6 +120,7 @@ class TestFilterFiles:
 
 
 class TestPlatformSpecificRelpath:
+    @pytest.mark.unix
     @pytest.mark.parametrize(
         "path_str,expected",
         [

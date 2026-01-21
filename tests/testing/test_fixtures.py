@@ -14,6 +14,7 @@ from prefect.testing import fixtures
 class TestHostedApiServerWindowsProcessHandling:
     """Tests for Windows-specific process handling in hosted_api_server fixture."""
 
+    @pytest.mark.unix
     async def test_unix_hosted_api_server_does_not_set_creation_flag(
         self, monkeypatch: pytest.MonkeyPatch
     ):
@@ -100,6 +101,7 @@ class TestHostedApiServerWindowsProcessHandling:
         assert "creationflags" in captured_kwargs
         assert captured_kwargs["creationflags"] == subprocess.CREATE_NEW_PROCESS_GROUP
 
+    @pytest.mark.unix
     async def test_unix_hosted_api_server_uses_terminate_for_shutdown(
         self, monkeypatch: pytest.MonkeyPatch
     ):
