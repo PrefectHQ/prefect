@@ -1,7 +1,9 @@
 import asyncio
 import json
 import os
+import signal
 import socket
+import subprocess
 import sys
 from contextlib import contextmanager
 from typing import Any, AsyncGenerator, Callable, Generator, List, Optional, Union
@@ -83,6 +85,14 @@ async def hosted_api_server(
 
     # Will connect to the same database as normal test clients
     settings = get_current_settings().to_environment_variables(exclude_unset=True)
+
+    # We must add creationflags to a dict so it is only passed as a function
+    # parameter on Windows, because the presence of creationflags causes
+    # errors on Unix even if set to None
+    kwargs: dict[str, object] = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
     async with open_process(
         command=[
             "uvicorn",
@@ -101,6 +111,7 @@ async def hosted_api_server(
             **os.environ,
             **settings,
         },
+        **kwargs,
     ) as process:
         api_url = f"http://localhost:{port}/api"
 
@@ -129,7 +140,13 @@ async def hosted_api_server(
 
         # Then shutdown the process
         try:
-            process.terminate()
+            # In a non-windows environment first send a SIGTERM via terminate().
+            # In Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
+            # https://bugs.python.org/issue26350
+            if sys.platform == "win32":
+                os.kill(process.pid, signal.CTRL_BREAK_EVENT)
+            else:
+                process.terminate()
 
             # Give the process a 10 second grace period to shutdown
             for _ in range(10):
