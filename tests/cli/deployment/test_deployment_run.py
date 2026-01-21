@@ -289,8 +289,8 @@ def test_start_in_option_invalid_input(
     [
         (
             "20 minutes",
-            "in 19 minutes" if sys.version_info < (3, 13) else "19 minutes from now",
-        ),  # difference due to different libraries used for parsing and display
+            "in 19 minutes" if sys.version_info < (3, 13) else "20 minutes from now",
+        ),
         ("5 days", "in 5 days" if sys.version_info < (3, 13) else "4 days from now"),
         (
             "3 seconds",
@@ -299,7 +299,7 @@ def test_start_in_option_invalid_input(
         (None, "now"),
         (
             "1 year and 3 months",
-            "in 1 year" if sys.version_info < (3, 13) else "1 year, 2 months from now",
+            "in 1 year" if sys.version_info < (3, 13) else "1 year, 3 months from now",
         ),
         (
             "2 weeks & 1 day",

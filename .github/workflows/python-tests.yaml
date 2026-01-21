@@ -12,6 +12,7 @@ on:
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
       - pyproject.toml
+      - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
   push:
@@ -22,6 +23,7 @@ on:
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
       - pyproject.toml
+      - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
 permissions:

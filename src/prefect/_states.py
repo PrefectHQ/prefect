@@ -58,10 +58,13 @@ def exception_to_crashed_state_sync(
     # calling it from sync-only code raises an error. Since anyio cancellation
     # exceptions can only occur in async contexts anyway, we can safely skip
     # this check when no async backend is running.
+    # anyio 4.12+ raises anyio.NoEventLoopError, older versions raise
+    # sniffio.AsyncLibraryNotFoundError. Catch both for compatibility.
+    # TODO: remove sniffio handling once anyio lower bound is >=4.12.1
     try:
         cancelled_exc_class = anyio.get_cancelled_exc_class()
         is_anyio_cancelled = isinstance(exc, cancelled_exc_class)
-    except sniffio.AsyncLibraryNotFoundError:
+    except (sniffio.AsyncLibraryNotFoundError, anyio.NoEventLoopError):
         is_anyio_cancelled = False
 
     if is_anyio_cancelled:
