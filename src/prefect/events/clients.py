@@ -278,14 +278,30 @@ class PrefectEventsClient(EventsClient):
         self._checkpoint_every = checkpoint_every
 
     async def __aenter__(self) -> Self:
-        # Don't handle any errors in the initial connection, because these are most
-        # likely a permission or configuration issue that should propagate
         await super().__aenter__()
-        try:
-            await self._reconnect()
-        except Exception as e:
-            self._log_connection_error(e)
-            raise
+        # Ensure at least one connection attempt even if reconnection_attempts is negative
+        max_attempts = max(1, self._reconnection_attempts + 1)
+        for i in range(max_attempts):
+            try:
+                await self._reconnect()
+                break
+            except (ConnectionClosed, TimeoutError) as e:
+                logger.debug(
+                    "Initial connection attempt %s/%s failed: %s",
+                    i + 1,
+                    max_attempts,
+                    str(e),
+                )
+                if i == max_attempts - 1:
+                    self._log_connection_error(e)
+                    raise
+                if i > 2:
+                    await asyncio.sleep(1)
+            except Exception as e:
+                # Non-retryable exceptions (config/permission issues) should
+                # propagate immediately with a warning
+                self._log_connection_error(e)
+                raise
         return self
 
     async def __aexit__(
