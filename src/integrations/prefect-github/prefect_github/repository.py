@@ -21,6 +21,7 @@ from pydantic import Field
 from sgqlc.operation import Operation
 
 from prefect import task
+from prefect._internal.urls import strip_auth_from_url
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
@@ -35,21 +36,9 @@ return_fields_defaults = initialize_return_fields_defaults(config_path)
 _URL_PATTERN = re.compile(r"https?://[^\s'\"<>]+")
 
 
-def _strip_auth_from_url(url: str) -> str:
-    parsed = urlparse(url)
-    if not (parsed.username or parsed.password):
-        return url
-
-    netloc = parsed.hostname or ""
-    if parsed.port:
-        netloc = f"{netloc}:{parsed.port}"
-
-    return urlunparse(parsed._replace(netloc=netloc))
-
-
 def _sanitize_git_error(message: str) -> str:
     def _replace(match: re.Match[str]) -> str:
-        return _strip_auth_from_url(match.group(0))
+        return strip_auth_from_url(match.group(0))
 
     return _URL_PATTERN.sub(_replace, message)
 
