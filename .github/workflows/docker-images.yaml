@@ -3,7 +3,7 @@ name: Docker images
 on:
   # On release events (also when a published release is converted from/to prerelease), push all patterns
   release:
-    types: [released, prereleased]
+    types: [published]
 
   # On workflow_dispatch, allow publishing 3-latest images or a specific tag
   workflow_dispatch:
