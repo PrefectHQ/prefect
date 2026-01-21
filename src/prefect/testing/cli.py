@@ -12,6 +12,19 @@ from typer.testing import CliRunner, Result  # type: ignore
 from prefect.cli import app
 from prefect.utilities.asyncutils import in_async_main_thread
 
+# Regex pattern to match ANSI escape codes
+_ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi_codes(text: str) -> str:
+    """Remove ANSI escape codes from text.
+
+    This is necessary because Typer/Rich may output ANSI codes in CI environments
+    (e.g., GitHub Actions) even when Click's CliRunner has color=False, due to
+    Typer's terminal detection logic.
+    """
+    return _ANSI_ESCAPE_PATTERN.sub("", text)
+
 
 def check_contains(cli_result: Result, content: str, should_contain: bool) -> None:
     """
@@ -21,12 +34,12 @@ def check_contains(cli_result: Result, content: str, should_contain: bool) -> No
         should_contain: if True, checks that content is in cli_result,
             if False, checks that content is not in cli_result
     """
-    stdout_output = cli_result.stdout.strip()
+    stdout_output = _strip_ansi_codes(cli_result.stdout.strip())
 
     # Try to get stderr, but handle the case where it's not captured separately
     stderr_output = ""
     try:
-        stderr_output = getattr(cli_result, "stderr", "").strip()
+        stderr_output = _strip_ansi_codes(getattr(cli_result, "stderr", "").strip())
     except ValueError:
         # In some Click/Typer versions, stderr is not separately captured
         pass

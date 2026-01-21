@@ -1,5 +1,1191 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`property.type > array > base 1`] = `
+<div>
+  <div
+    class="flex flex-col gap-4"
+  >
+    <div
+      class="flex flex-col gap-4"
+    >
+      <div
+        class="flex flex-col gap-2 group"
+      >
+        <div
+          class="grid grid-cols-[1fr_auto] items-center gap-2"
+        >
+          <div
+            class="flex flex-col gap-1"
+          >
+            <label
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
+              for="_r_3d_"
+            >
+              list (Optional)
+            </label>
+          </div>
+          <div
+            class="ml-auto"
+          >
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+              data-open="false"
+              data-slot="dropdown-menu-trigger"
+              data-state="closed"
+              id="radix-_r_3e_"
+              type="button"
+            >
+              <span
+                class="sr-only"
+              >
+                Open menu
+              </span>
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <fieldset>
+          <div
+            class="bg-card text-card-foreground rounded-xl border shadow-sm flex flex-col gap-2 p-2"
+            data-slot="card"
+          >
+            <p
+              class="text-sm text-subdued italic"
+            >
+              No items in this list
+            </p>
+            <div
+              id="DndDescribedBy-0"
+              style="display: none;"
+            >
+              
+    To pick up a draggable item, press the space bar.
+    While dragging, use the arrow keys to move the item.
+    Press space again to drop the item in its new position, or press escape to cancel.
+  
+            </div>
+            <div
+              aria-atomic="true"
+              aria-live="assertive"
+              id="DndLiveRegion-0"
+              role="status"
+              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;"
+            />
+            <div
+              class="flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-8 rounded-md px-3 text-xs"
+              >
+                Add item
+              </button>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`property.type > array > with enum items 1`] = `
+<div>
+  <div
+    class="flex flex-col gap-4"
+  >
+    <div
+      class="flex flex-col gap-4"
+    >
+      <div
+        class="flex flex-col gap-2 group"
+      >
+        <div
+          class="grid grid-cols-[1fr_auto] items-center gap-2"
+        >
+          <div
+            class="flex flex-col gap-1"
+          >
+            <label
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
+              for="_r_4b_"
+            >
+              list (Optional)
+            </label>
+          </div>
+          <div
+            class="ml-auto"
+          >
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+              data-open="false"
+              data-slot="dropdown-menu-trigger"
+              data-state="closed"
+              id="radix-_r_4c_"
+              type="button"
+            >
+              <span
+                class="sr-only"
+              >
+                Open menu
+              </span>
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <fieldset>
+          <button
+            aria-controls="radix-_r_4e_"
+            aria-expanded="false"
+            aria-haspopup="listbox"
+            aria-label="Select undefined"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
+            data-slot="popover-trigger"
+            data-state="closed"
+            id="_r_4b_"
+            type="button"
+          >
+            foo, bar
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-chevrons-up-down size-4 opacity-50"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m7 15 5 5 5-5"
+              />
+              <path
+                d="m7 9 5-5 5 5"
+              />
+            </svg>
+          </button>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`property.type > array > with prefixItems - no drag handles on prefix items 1`] = `
+<div>
+  <div
+    class="flex flex-col gap-4"
+  >
+    <div
+      class="flex flex-col gap-4"
+    >
+      <div
+        class="flex flex-col gap-2 group"
+      >
+        <div
+          class="grid grid-cols-[1fr_auto] items-center gap-2"
+        >
+          <div
+            class="flex flex-col gap-1"
+          >
+            <label
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
+              for="_r_3s_"
+            >
+              list (Optional)
+            </label>
+          </div>
+          <div
+            class="ml-auto"
+          >
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+              data-open="false"
+              data-slot="dropdown-menu-trigger"
+              data-state="closed"
+              id="radix-_r_3t_"
+              type="button"
+            >
+              <span
+                class="sr-only"
+              >
+                Open menu
+              </span>
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <fieldset>
+          <div
+            class="bg-card text-card-foreground rounded-xl border shadow-sm flex flex-col gap-2 p-2"
+            data-slot="card"
+          >
+            <div
+              class="grid grid-cols-[auto_1fr_auto] gap-2"
+              style="opacity: 1; transition: transform 0ms linear;"
+            >
+              <div
+                class="w-5"
+              />
+              <div
+                class="grid grid-cols-1 gap-2"
+              >
+                <textarea
+                  class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+                  data-slot="textarea"
+                  id="_r_3v_"
+                  rows="1"
+                >
+                  prefix1
+                </textarea>
+              </div>
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                data-open="false"
+                data-slot="dropdown-menu-trigger"
+                data-state="closed"
+                id="radix-_r_40_"
+                type="button"
+              >
+                <span
+                  class="sr-only"
+                >
+                  Open menu
+                </span>
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-ellipsis-vertical size-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div
+              class="grid grid-cols-[auto_1fr_auto] gap-2"
+              style="opacity: 1; transition: transform 0ms linear;"
+            >
+              <div
+                class="w-5"
+              />
+              <div
+                class="grid grid-cols-1 gap-2"
+              >
+                <button
+                  aria-checked="true"
+                  class="peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                  data-slot="switch"
+                  data-state="checked"
+                  id="_r_42_"
+                  role="switch"
+                  type="button"
+                  value="on"
+                >
+                  <span
+                    class="bg-background dark:data-[state=unchecked]:bg-foreground dark:data-[state=checked]:bg-primary-foreground pointer-events-none block size-4 rounded-full ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0"
+                    data-slot="switch-thumb"
+                    data-state="checked"
+                  />
+                </button>
+              </div>
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                data-open="false"
+                data-slot="dropdown-menu-trigger"
+                data-state="closed"
+                id="radix-_r_43_"
+                type="button"
+              >
+                <span
+                  class="sr-only"
+                >
+                  Open menu
+                </span>
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-ellipsis-vertical size-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div
+              class="grid grid-cols-[auto_1fr_auto] gap-2"
+              style="opacity: 1; transition: transform 0ms linear;"
+            >
+              <button
+                aria-describedby="DndDescribedBy-2"
+                aria-disabled="false"
+                aria-label="Drag to reorder"
+                aria-roledescription="sortable"
+                class="flex items-center justify-center cursor-grab text-muted-foreground hover:text-foreground focus:outline-none"
+                role="button"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-grip-vertical h-5 w-5"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="9"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="19"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+              <div
+                class="grid grid-cols-1 gap-2"
+              >
+                <textarea
+                  class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+                  data-slot="textarea"
+                  id="_r_45_"
+                  rows="1"
+                >
+                  regular1
+                </textarea>
+              </div>
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                data-open="false"
+                data-slot="dropdown-menu-trigger"
+                data-state="closed"
+                id="radix-_r_46_"
+                type="button"
+              >
+                <span
+                  class="sr-only"
+                >
+                  Open menu
+                </span>
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-ellipsis-vertical size-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div
+              class="grid grid-cols-[auto_1fr_auto] gap-2"
+              style="opacity: 1; transition: transform 0ms linear;"
+            >
+              <button
+                aria-describedby="DndDescribedBy-2"
+                aria-disabled="false"
+                aria-label="Drag to reorder"
+                aria-roledescription="sortable"
+                class="flex items-center justify-center cursor-grab text-muted-foreground hover:text-foreground focus:outline-none"
+                role="button"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-grip-vertical h-5 w-5"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="9"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="19"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+              <div
+                class="grid grid-cols-1 gap-2"
+              >
+                <textarea
+                  class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+                  data-slot="textarea"
+                  id="_r_48_"
+                  rows="1"
+                >
+                  regular2
+                </textarea>
+              </div>
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                data-open="false"
+                data-slot="dropdown-menu-trigger"
+                data-state="closed"
+                id="radix-_r_49_"
+                type="button"
+              >
+                <span
+                  class="sr-only"
+                >
+                  Open menu
+                </span>
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-ellipsis-vertical size-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div
+              id="DndDescribedBy-2"
+              style="display: none;"
+            >
+              
+    To pick up a draggable item, press the space bar.
+    While dragging, use the arrow keys to move the item.
+    Press space again to drop the item in its new position, or press escape to cancel.
+  
+            </div>
+            <div
+              aria-atomic="true"
+              aria-live="assertive"
+              id="DndLiveRegion-2"
+              role="status"
+              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;"
+            />
+            <div
+              class="flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-8 rounded-md px-3 text-xs"
+              >
+                Add item
+              </button>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`property.type > array > with values - drag handles visible 1`] = `
+<div>
+  <div
+    class="flex flex-col gap-4"
+  >
+    <div
+      class="flex flex-col gap-4"
+    >
+      <div
+        class="flex flex-col gap-2 group"
+      >
+        <div
+          class="grid grid-cols-[1fr_auto] items-center gap-2"
+        >
+          <div
+            class="flex flex-col gap-1"
+          >
+            <label
+              class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
+              data-slot="label"
+              for="_r_3g_"
+            >
+              list (Optional)
+            </label>
+          </div>
+          <div
+            class="ml-auto"
+          >
+            <button
+              aria-expanded="false"
+              aria-haspopup="menu"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+              data-open="false"
+              data-slot="dropdown-menu-trigger"
+              data-state="closed"
+              id="radix-_r_3h_"
+              type="button"
+            >
+              <span
+                class="sr-only"
+              >
+                Open menu
+              </span>
+              <svg
+                aria-hidden="true"
+                class="lucide lucide-ellipsis-vertical size-4"
+                fill="none"
+                height="24"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+                width="24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="5"
+                  r="1"
+                />
+                <circle
+                  cx="12"
+                  cy="19"
+                  r="1"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <fieldset>
+          <div
+            class="bg-card text-card-foreground rounded-xl border shadow-sm flex flex-col gap-2 p-2"
+            data-slot="card"
+          >
+            <div
+              class="grid grid-cols-[auto_1fr_auto] gap-2"
+              style="opacity: 1; transition: transform 0ms linear;"
+            >
+              <button
+                aria-describedby="DndDescribedBy-1"
+                aria-disabled="false"
+                aria-label="Drag to reorder"
+                aria-roledescription="sortable"
+                class="flex items-center justify-center cursor-grab text-muted-foreground hover:text-foreground focus:outline-none"
+                role="button"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-grip-vertical h-5 w-5"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="9"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="19"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+              <div
+                class="grid grid-cols-1 gap-2"
+              >
+                <textarea
+                  class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+                  data-slot="textarea"
+                  id="_r_3j_"
+                  rows="1"
+                >
+                  foo
+                </textarea>
+              </div>
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                data-open="false"
+                data-slot="dropdown-menu-trigger"
+                data-state="closed"
+                id="radix-_r_3k_"
+                type="button"
+              >
+                <span
+                  class="sr-only"
+                >
+                  Open menu
+                </span>
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-ellipsis-vertical size-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div
+              class="grid grid-cols-[auto_1fr_auto] gap-2"
+              style="opacity: 1; transition: transform 0ms linear;"
+            >
+              <button
+                aria-describedby="DndDescribedBy-1"
+                aria-disabled="false"
+                aria-label="Drag to reorder"
+                aria-roledescription="sortable"
+                class="flex items-center justify-center cursor-grab text-muted-foreground hover:text-foreground focus:outline-none"
+                role="button"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-grip-vertical h-5 w-5"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="9"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="19"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+              <div
+                class="grid grid-cols-1 gap-2"
+              >
+                <textarea
+                  class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+                  data-slot="textarea"
+                  id="_r_3m_"
+                  rows="1"
+                >
+                  bar
+                </textarea>
+              </div>
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                data-open="false"
+                data-slot="dropdown-menu-trigger"
+                data-state="closed"
+                id="radix-_r_3n_"
+                type="button"
+              >
+                <span
+                  class="sr-only"
+                >
+                  Open menu
+                </span>
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-ellipsis-vertical size-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div
+              class="grid grid-cols-[auto_1fr_auto] gap-2"
+              style="opacity: 1; transition: transform 0ms linear;"
+            >
+              <button
+                aria-describedby="DndDescribedBy-1"
+                aria-disabled="false"
+                aria-label="Drag to reorder"
+                aria-roledescription="sortable"
+                class="flex items-center justify-center cursor-grab text-muted-foreground hover:text-foreground focus:outline-none"
+                role="button"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-grip-vertical h-5 w-5"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="9"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="9"
+                    cy="19"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="15"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+              <div
+                class="grid grid-cols-1 gap-2"
+              >
+                <textarea
+                  class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
+                  data-slot="textarea"
+                  id="_r_3p_"
+                  rows="1"
+                >
+                  baz
+                </textarea>
+              </div>
+              <button
+                aria-expanded="false"
+                aria-haspopup="menu"
+                class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                data-open="false"
+                data-slot="dropdown-menu-trigger"
+                data-state="closed"
+                id="radix-_r_3q_"
+                type="button"
+              >
+                <span
+                  class="sr-only"
+                >
+                  Open menu
+                </span>
+                <svg
+                  aria-hidden="true"
+                  class="lucide lucide-ellipsis-vertical size-4"
+                  fill="none"
+                  height="24"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="5"
+                    r="1"
+                  />
+                  <circle
+                    cx="12"
+                    cy="19"
+                    r="1"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div
+              id="DndDescribedBy-1"
+              style="display: none;"
+            >
+              
+    To pick up a draggable item, press the space bar.
+    While dragging, use the arrow keys to move the item.
+    Press space again to drop the item in its new position, or press escape to cancel.
+  
+            </div>
+            <div
+              aria-atomic="true"
+              aria-live="assertive"
+              id="DndLiveRegion-1"
+              role="status"
+              style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;"
+            />
+            <div
+              class="flex justify-end"
+            >
+              <button
+                class="inline-flex items-center justify-center whitespace-nowrap font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-8 rounded-md px-3 text-xs"
+              >
+                Add item
+              </button>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
 exports[`property.type > boolean > base 1`] = `
 <div>
   <div
@@ -31,7 +1217,7 @@ exports[`property.type > boolean > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -130,7 +1316,7 @@ exports[`property.type > boolean > enum 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -180,7 +1366,7 @@ exports[`property.type > boolean > enum 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_2s_"
@@ -246,7 +1432,7 @@ exports[`property.type > boolean > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -345,7 +1531,7 @@ exports[`property.type > boolean > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -444,7 +1630,7 @@ exports[`property.type > integer > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -490,7 +1676,7 @@ exports[`property.type > integer > base 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_26_"
             type="number"
             value=""
@@ -533,7 +1719,7 @@ exports[`property.type > integer > enum 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -583,7 +1769,7 @@ exports[`property.type > integer > enum 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_2f_"
@@ -649,7 +1835,7 @@ exports[`property.type > integer > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -695,7 +1881,7 @@ exports[`property.type > integer > with default 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_2c_"
             type="number"
             value="123"
@@ -738,7 +1924,7 @@ exports[`property.type > integer > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -784,7 +1970,7 @@ exports[`property.type > integer > with value 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_29_"
             type="number"
             value="123"
@@ -827,7 +2013,7 @@ exports[`property.type > null > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -915,7 +2101,7 @@ exports[`property.type > number > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -961,7 +2147,7 @@ exports[`property.type > number > base 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_1p_"
             type="number"
             value=""
@@ -1004,7 +2190,7 @@ exports[`property.type > number > enum 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1054,7 +2240,7 @@ exports[`property.type > number > enum 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_22_"
@@ -1120,7 +2306,7 @@ exports[`property.type > number > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1166,7 +2352,7 @@ exports[`property.type > number > with default 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_1v_"
             type="number"
             value="123.45"
@@ -1209,7 +2395,7 @@ exports[`property.type > number > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1255,7 +2441,7 @@ exports[`property.type > number > with value 1`] = `
         </div>
         <fieldset>
           <input
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="_r_1s_"
             type="number"
             value="123.45"
@@ -1298,7 +2484,7 @@ exports[`property.type > string >  1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1387,7 +2573,7 @@ exports[`property.type > string > enum 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1437,7 +2623,7 @@ exports[`property.type > string > enum 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_1d_"
@@ -1503,7 +2689,7 @@ exports[`property.type > string > enum with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1553,7 +2739,7 @@ exports[`property.type > string > enum with default 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_1l_"
@@ -1619,7 +2805,7 @@ exports[`property.type > string > enum with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1669,7 +2855,7 @@ exports[`property.type > string > enum with value 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_1h_"
@@ -1735,7 +2921,7 @@ exports[`property.type > string > format:date 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1862,7 +3048,7 @@ exports[`property.type > string > format:date with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -1987,7 +3173,7 @@ exports[`property.type > string > format:date with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2112,7 +3298,7 @@ exports[`property.type > string > format:date-time 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2164,7 +3350,7 @@ exports[`property.type > string > format:date-time 1`] = `
               aria-controls="radix-_r_o_"
               aria-expanded="false"
               aria-haspopup="dialog"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal text-muted-foreground"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
               id="_r_l_"
@@ -2194,7 +3380,7 @@ exports[`property.type > string > format:date-time 1`] = `
               aria-expanded="false"
               aria-haspopup="listbox"
               aria-label="Select timezone"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
               type="button"
@@ -2260,7 +3446,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2312,7 +3498,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               aria-controls="radix-_r_12_"
               aria-expanded="false"
               aria-haspopup="dialog"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background"
               data-slot="popover-trigger"
               data-state="closed"
               id="_r_v_"
@@ -2340,7 +3526,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               aria-expanded="false"
               aria-haspopup="listbox"
               aria-label="Select timezone"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
               type="button"
@@ -2406,7 +3592,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2458,7 +3644,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               aria-controls="radix-_r_t_"
               aria-expanded="false"
               aria-haspopup="dialog"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background"
               data-slot="popover-trigger"
               data-state="closed"
               id="_r_q_"
@@ -2486,7 +3672,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               aria-expanded="false"
               aria-haspopup="listbox"
               aria-label="Select timezone"
-              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+              class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
               type="button"
@@ -2552,7 +3738,7 @@ exports[`property.type > string > format:json-string 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2638,7 +3824,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2726,7 +3912,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2814,7 +4000,7 @@ exports[`property.type > string > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2905,7 +4091,7 @@ exports[`property.type > string > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -2996,7 +4182,7 @@ exports[`property.type > unknown > base 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3082,7 +4268,7 @@ exports[`property.type > unknown > with default 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3168,7 +4354,7 @@ exports[`property.type > unknown > with value 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="menu"
-              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
+              class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
@@ -3218,7 +4404,7 @@ exports[`property.type > unknown > with value 1`] = `
             aria-expanded="false"
             aria-haspopup="listbox"
             aria-label="Select undefined"
-            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between text-muted-foreground"
+            class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
             id="_r_36_"

@@ -2,6 +2,101 @@
 title: 3.6
 ---
 
+## 3.6.12 - It's not a feature, it's a bug!
+
+*Released on January 20, 2026*
+
+**Enhancements ➕➕**
+
+* Add httpx.ConnectError to client retry exceptions by [@joshuastagner](https://github.com/joshuastagner) in [#20276](https://github.com/PrefectHQ/prefect/pull/20276)
+
+**Bug Fixes 🐞**
+
+* Add build=False documentation to flow.deploy guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20269](https://github.com/PrefectHQ/prefect/pull/20269)
+* fix: display error details nicely in `work-pool create` command by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20277](https://github.com/PrefectHQ/prefect/pull/20277)
+* fix: remove CANCELLED from EnforceCancellingToCancelledTransition to allow retrying cancelled flows by [@zzstoatzz](https://github.com/zzstoatzz) in [#20275](https://github.com/PrefectHQ/prefect/pull/20275)
+* Add retry logic to `PrefectEventSubscriber.__aenter__()` for initial connections by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20295](https://github.com/PrefectHQ/prefect/pull/20295)
+* fix: convert dynamic_key to str in sync client's create_task_run by [@zzstoatzz](https://github.com/zzstoatzz) in [#20302](https://github.com/PrefectHQ/prefect/pull/20302)
+* Fix wait() timeout not being respected when using WatcherThreadCancelScope by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20257](https://github.com/PrefectHQ/prefect/pull/20257)
+
+**Development & Tidiness 🧹**
+
+* migrate RemoteFileSystem and SMB from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch by [@zzstoatzz](https://github.com/zzstoatzz) in [#20230](https://github.com/PrefectHQ/prefect/pull/20230)
+* Migrate notification blocks from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch by [@zzstoatzz](https://github.com/zzstoatzz) in [#20258](https://github.com/PrefectHQ/prefect/pull/20258)
+* Fix Devin flaky tests workflow API integration by [@desertaxle](https://github.com/desertaxle) in [#20272](https://github.com/PrefectHQ/prefect/pull/20272)
+* Add GitHub Actions workflow to trigger Devin.ai on test failures by [@desertaxle](https://github.com/desertaxle) in [#20255](https://github.com/PrefectHQ/prefect/pull/20255)
+
+**Documentation 📓**
+
+* Add release notes for integration packages by [@desertaxle](https://github.com/desertaxle) in [#20266](https://github.com/PrefectHQ/prefect/pull/20266)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.11...3.6.12
+
+
+---
+
+## 3.6.11 - It's my generation, baby
+
+*Released on January 15, 2026*
+
+This release introduces `prefect sdk generate` a new CLI command that generates fully-typed, custom Python SDKs from the deployments in your workspace or self-hosted server, making it easy to trigger your deployments from other workflows with confidence.
+
+To see how it works, check out the [Prefect docs](/v3/advanced/generate-custom-sdk). This functionality is currently in beta, so try it out and [open a GitHub issue](https://github.com/PrefectHQ/prefect/issues) if you have feedback!
+
+**New Features 🎉**
+
+* Add `prefect sdk generate` CLI command for generating custom deployment SDKs from existing deployments by [@desertaxle](https://github.com/desertaxle) in [#20150](https://github.com/PrefectHQ/prefect/pull/20150), [#20158](https://github.com/PrefectHQ/prefect/pull/20158), [#20167](https://github.com/PrefectHQ/prefect/pull/20167), [#20172](https://github.com/PrefectHQ/prefect/pull/20172), [#20173](https://github.com/PrefectHQ/prefect/pull/20173)
+
+**Enhancements ➕➕**
+
+* Add JSON output to `prefect variable ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20192](https://github.com/PrefectHQ/prefect/pull/20192)
+* Add JSON output to `prefect global-concurrency-limit ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20194](https://github.com/PrefectHQ/prefect/pull/20194)
+* Add JSON output to `prefect artifact` CLI commands by [@xeniumcode](https://github.com/xeniumcode) in [#20193](https://github.com/PrefectHQ/prefect/pull/20193)
+* Add JSON output to `prefect block ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20195](https://github.com/PrefectHQ/prefect/pull/20195)
+* Add JSON output to `prefect block type ls` CLI command by [@xeniumcode](https://github.com/xeniumcode) in [#20196](https://github.com/PrefectHQ/prefect/pull/20196)
+* Add JSON output to `prefect deployment schedule` CLI commands by [@xeniumcode](https://github.com/xeniumcode) in [#20197](https://github.com/PrefectHQ/prefect/pull/20197)
+* Add JSON output to `prefect deployment` CLI commands by [@xeniumcode](https://github.com/xeniumcode) in [#20198](https://github.com/PrefectHQ/prefect/pull/20198)
+* Migrate `pause`, `suspend`, `resume`, and `run_input` from `@sync_compatible` to `@async_dispatch` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20178](https://github.com/PrefectHQ/prefect/pull/20178)
+* Add `force` parameter to `ChangeFlowRunState` and `flow_run_id` Jinja filter by [@zzstoatzz](https://github.com/zzstoatzz) in [#20112](https://github.com/PrefectHQ/prefect/pull/20112)
+* Link `automation.action.*` events to `automation.triggered` event by [@chrisguidry](https://github.com/chrisguidry) in [#20227](https://github.com/PrefectHQ/prefect/pull/20227)
+* Add `DISABLED` to client `DeploymentStatus` enum for Cloud compatibility by [@chrisguidry](https://github.com/chrisguidry) in [#20244](https://github.com/PrefectHQ/prefect/pull/20244)
+
+**Bug Fixes 🐞**
+
+* Fix flow run cancellation handling bugs by [@joshuastagner](https://github.com/joshuastagner) in [#20143](https://github.com/PrefectHQ/prefect/pull/20143)
+* Fix race condition in filesystem lease storage with atomic writes by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20153](https://github.com/PrefectHQ/prefect/pull/20153)
+* Add task keys to docket calls in API handlers to prevent duplicate execution by [@desertaxle](https://github.com/desertaxle) in [#20210](https://github.com/PrefectHQ/prefect/pull/20210)
+* Support ISO 8601 duration strings for interval schedules in `prefect.yaml` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20238](https://github.com/PrefectHQ/prefect/pull/20238)
+* Disable Docket result storage to prevent memory bloat by [@desertaxle](https://github.com/desertaxle) in [#20253](https://github.com/PrefectHQ/prefect/pull/20253)
+* Preserve the `updated` column value of deployments when marking them as ready by [@vkrot-innio](https://github.com/vkrot-innio) in [#19936](https://github.com/PrefectHQ/prefect/pull/19936)
+
+**Development & Tidiness 🧹**
+
+* Add `arun_deployment` and replace `@sync_compatible` with `@async_dispatch` by [@desertaxle](https://github.com/desertaxle) in [#20160](https://github.com/PrefectHQ/prefect/pull/20160)
+* Patch correct method in `test_concurrency_respects_timeout` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20185](https://github.com/PrefectHQ/prefect/pull/20185)
+* Fix flaky test by reducing `slot_decay_per_second` to prevent race condition by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20208](https://github.com/PrefectHQ/prefect/pull/20208)
+* Remove incorrect docstrings from CLI ls commands by [@zzstoatzz](https://github.com/zzstoatzz) in [#20206](https://github.com/PrefectHQ/prefect/pull/20206)
+* Add Claude command frontmatter by [@zzstoatzz](https://github.com/zzstoatzz) in [#20224](https://github.com/PrefectHQ/prefect/pull/20224)
+* Enable multi-checker type safety tests with mypy, pyright, and ty by [@zzstoatzz](https://github.com/zzstoatzz) in [#20159](https://github.com/PrefectHQ/prefect/pull/20159)
+* Migrate `concurrency/v1` from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20225](https://github.com/PrefectHQ/prefect/pull/20225)
+* Migrate `blocks/core.py` from `@sync_compatible` to `@async_dispatch` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20226](https://github.com/PrefectHQ/prefect/pull/20226)
+* Stale item cleanup enhancements by [@bdalpe](https://github.com/bdalpe) in [#20145](https://github.com/PrefectHQ/prefect/pull/20145)
+* Add plan label to exclude from release notes by [@zzstoatzz](https://github.com/zzstoatzz) in [#20182](https://github.com/PrefectHQ/prefect/pull/20182)
+* Auto-label PRs that touch `plans/` directory by [@zzstoatzz](https://github.com/zzstoatzz) in [#20183](https://github.com/PrefectHQ/prefect/pull/20183)
+* Disable migrations and block registration for multi-worker test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20179](https://github.com/PrefectHQ/prefect/pull/20179)
+* Fix plan label to only apply when all changed files are in `plans/` by [@desertaxle](https://github.com/desertaxle) in [#20207](https://github.com/PrefectHQ/prefect/pull/20207)
+
+**Documentation 📓**
+
+* Add ECS base job template customization guide by [@zzstoatzz](https://github.com/zzstoatzz) in [#20249](https://github.com/PrefectHQ/prefect/pull/20249)
+* Fix MDX parsing error in events CLI documentation by [@desertaxle](https://github.com/desertaxle) in [#20252](https://github.com/PrefectHQ/prefect/pull/20252)
+* Add documentation for `prefect sdk generate` CLI by [@desertaxle](https://github.com/desertaxle) in [#20241](https://github.com/PrefectHQ/prefect/pull/20241)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.10...3.6.11
+
+
+---
+
 ## 3.6.10 - Five Bugs Walked Into A Bar And None Of Them Left
 
 *Released on January 08, 2026*

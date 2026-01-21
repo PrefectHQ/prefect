@@ -93,6 +93,7 @@ from pydantic import Field, SecretStr
 from slugify import slugify
 
 from prefect.client.orchestration import get_client
+from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -1006,3 +1007,59 @@ class AzureContainerWorker(
         Writes a line of output to stderr.
         """
         print(line, file=sys.stderr)
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: AzureContainerJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill an Azure Container Instance by stopping or deleting its container group.
+
+        If `configuration.keep_container_group` is True, the container group will be
+        stopped but not deleted. Otherwise, the container group will be deleted.
+
+        Args:
+            infrastructure_pid: The infrastructure identifier in format
+                "flow_run_id:container_group_name".
+            configuration: The job configuration used to connect to Azure.
+            grace_seconds: Not directly used for ACI (Azure handles graceful shutdown).
+
+        Raises:
+            InfrastructureNotFound: If the container group doesn't exist.
+        """
+        # Parse infrastructure_pid (format: "flow_run_id:container_group_name")
+        parts = infrastructure_pid.split(":")
+        if len(parts) != 2:
+            raise ValueError(
+                f"Invalid infrastructure_pid format: {infrastructure_pid!r}. "
+                "Expected format: 'flow_run_id:container_group_name'"
+            )
+        _, container_group_name = parts
+
+        aci_client = configuration.aci_credentials.get_container_client(
+            configuration.subscription_id.get_secret_value()
+        )
+
+        try:
+            if configuration.keep_container_group:
+                self._logger.info(
+                    f"{self._log_prefix}: Stopping container group {container_group_name}..."
+                )
+                aci_client.container_groups.stop(
+                    resource_group_name=configuration.resource_group_name,
+                    container_group_name=container_group_name,
+                )
+                self._logger.info(
+                    f"{self._log_prefix}: Stopped container group {container_group_name}"
+                )
+            else:
+                await self._wait_for_container_group_deletion(
+                    aci_client, configuration, container_group_name
+                )
+        except ResourceNotFoundError:
+            raise InfrastructureNotFound(
+                f"Container group {container_group_name!r} not found in resource group "
+                f"{configuration.resource_group_name!r}"
+            )

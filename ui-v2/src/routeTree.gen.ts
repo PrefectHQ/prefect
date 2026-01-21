@@ -9,12 +9,12 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VariablesRouteImport } from './routes/variables'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkPoolsIndexRouteImport } from './routes/work-pools/index'
+import { Route as VariablesIndexRouteImport } from './routes/variables/index'
 import { Route as RunsIndexRouteImport } from './routes/runs/index'
 import { Route as FlowsIndexRouteImport } from './routes/flows/index'
 import { Route as EventsIndexRouteImport } from './routes/events/index'
@@ -49,11 +49,6 @@ import { Route as BlocksBlockIdEditRouteImport } from './routes/blocks/block_.$i
 import { Route as AutomationsAutomationIdEditRouteImport } from './routes/automations/automation_.$id.edit'
 import { Route as WorkPoolsWorkPoolWorkPoolNameQueueWorkQueueNameRouteImport } from './routes/work-pools/work-pool_.$workPoolName.queue.$workQueueName'
 
-const VariablesRoute = VariablesRouteImport.update({
-  id: '/variables',
-  path: '/variables',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -77,6 +72,11 @@ const IndexRoute = IndexRouteImport.update({
 const WorkPoolsIndexRoute = WorkPoolsIndexRouteImport.update({
   id: '/work-pools/',
   path: '/work-pools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VariablesIndexRoute = VariablesIndexRouteImport.update({
+  id: '/variables/',
+  path: '/variables/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RunsIndexRoute = RunsIndexRouteImport.update({
@@ -259,19 +259,19 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
-  '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
   '/blocks/catalog': typeof BlocksCatalogRoute
   '/work-pools/create': typeof WorkPoolsCreateRoute
-  '/artifacts': typeof ArtifactsIndexRoute
-  '/automations': typeof AutomationsIndexRoute
-  '/blocks': typeof BlocksIndexRoute
-  '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
-  '/deployments': typeof DeploymentsIndexRoute
-  '/events': typeof EventsIndexRoute
-  '/flows': typeof FlowsIndexRoute
-  '/runs': typeof RunsIndexRoute
-  '/work-pools': typeof WorkPoolsIndexRoute
+  '/artifacts/': typeof ArtifactsIndexRoute
+  '/automations/': typeof AutomationsIndexRoute
+  '/blocks/': typeof BlocksIndexRoute
+  '/concurrency-limits/': typeof ConcurrencyLimitsIndexRoute
+  '/deployments/': typeof DeploymentsIndexRoute
+  '/events/': typeof EventsIndexRoute
+  '/flows/': typeof FlowsIndexRoute
+  '/runs/': typeof RunsIndexRoute
+  '/variables/': typeof VariablesIndexRoute
+  '/work-pools/': typeof WorkPoolsIndexRoute
   '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRoute
@@ -300,7 +300,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
-  '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
   '/blocks/catalog': typeof BlocksCatalogRoute
   '/work-pools/create': typeof WorkPoolsCreateRoute
@@ -312,6 +311,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsIndexRoute
   '/flows': typeof FlowsIndexRoute
   '/runs': typeof RunsIndexRoute
+  '/variables': typeof VariablesIndexRoute
   '/work-pools': typeof WorkPoolsIndexRoute
   '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
@@ -342,7 +342,6 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/settings': typeof SettingsRoute
-  '/variables': typeof VariablesRoute
   '/automations/create': typeof AutomationsCreateRoute
   '/blocks/catalog': typeof BlocksCatalogRoute
   '/work-pools/create': typeof WorkPoolsCreateRoute
@@ -354,6 +353,7 @@ export interface FileRoutesById {
   '/events/': typeof EventsIndexRoute
   '/flows/': typeof FlowsIndexRoute
   '/runs/': typeof RunsIndexRoute
+  '/variables/': typeof VariablesIndexRoute
   '/work-pools/': typeof WorkPoolsIndexRoute
   '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
@@ -385,19 +385,19 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/settings'
-    | '/variables'
     | '/automations/create'
     | '/blocks/catalog'
     | '/work-pools/create'
-    | '/artifacts'
-    | '/automations'
-    | '/blocks'
-    | '/concurrency-limits'
-    | '/deployments'
-    | '/events'
-    | '/flows'
-    | '/runs'
-    | '/work-pools'
+    | '/artifacts/'
+    | '/automations/'
+    | '/blocks/'
+    | '/concurrency-limits/'
+    | '/deployments/'
+    | '/events/'
+    | '/flows/'
+    | '/runs/'
+    | '/variables/'
+    | '/work-pools/'
     | '/artifacts/artifact/$id'
     | '/artifacts/key/$key'
     | '/automations/automation/$id'
@@ -426,7 +426,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/settings'
-    | '/variables'
     | '/automations/create'
     | '/blocks/catalog'
     | '/work-pools/create'
@@ -438,6 +437,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/flows'
     | '/runs'
+    | '/variables'
     | '/work-pools'
     | '/artifacts/artifact/$id'
     | '/artifacts/key/$key'
@@ -467,7 +467,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/settings'
-    | '/variables'
     | '/automations/create'
     | '/blocks/catalog'
     | '/work-pools/create'
@@ -479,6 +478,7 @@ export interface FileRouteTypes {
     | '/events/'
     | '/flows/'
     | '/runs/'
+    | '/variables/'
     | '/work-pools/'
     | '/artifacts/artifact/$id'
     | '/artifacts/key/$key'
@@ -509,7 +509,6 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   SettingsRoute: typeof SettingsRoute
-  VariablesRoute: typeof VariablesRoute
   AutomationsCreateRoute: typeof AutomationsCreateRoute
   BlocksCatalogRoute: typeof BlocksCatalogRoute
   WorkPoolsCreateRoute: typeof WorkPoolsCreateRoute
@@ -521,6 +520,7 @@ export interface RootRouteChildren {
   EventsIndexRoute: typeof EventsIndexRoute
   FlowsIndexRoute: typeof FlowsIndexRoute
   RunsIndexRoute: typeof RunsIndexRoute
+  VariablesIndexRoute: typeof VariablesIndexRoute
   WorkPoolsIndexRoute: typeof WorkPoolsIndexRoute
   ArtifactsArtifactIdRoute: typeof ArtifactsArtifactIdRoute
   ArtifactsKeyKeyRoute: typeof ArtifactsKeyKeyRoute
@@ -548,13 +548,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/variables': {
-      id: '/variables'
-      path: '/variables'
-      fullPath: '/variables'
-      preLoaderRoute: typeof VariablesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -586,63 +579,70 @@ declare module '@tanstack/react-router' {
     '/work-pools/': {
       id: '/work-pools/'
       path: '/work-pools'
-      fullPath: '/work-pools'
+      fullPath: '/work-pools/'
       preLoaderRoute: typeof WorkPoolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/variables/': {
+      id: '/variables/'
+      path: '/variables'
+      fullPath: '/variables/'
+      preLoaderRoute: typeof VariablesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/runs/': {
       id: '/runs/'
       path: '/runs'
-      fullPath: '/runs'
+      fullPath: '/runs/'
       preLoaderRoute: typeof RunsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/flows/': {
       id: '/flows/'
       path: '/flows'
-      fullPath: '/flows'
+      fullPath: '/flows/'
       preLoaderRoute: typeof FlowsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events/': {
       id: '/events/'
       path: '/events'
-      fullPath: '/events'
+      fullPath: '/events/'
       preLoaderRoute: typeof EventsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deployments/': {
       id: '/deployments/'
       path: '/deployments'
-      fullPath: '/deployments'
+      fullPath: '/deployments/'
       preLoaderRoute: typeof DeploymentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/concurrency-limits/': {
       id: '/concurrency-limits/'
       path: '/concurrency-limits'
-      fullPath: '/concurrency-limits'
+      fullPath: '/concurrency-limits/'
       preLoaderRoute: typeof ConcurrencyLimitsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/blocks/': {
       id: '/blocks/'
       path: '/blocks'
-      fullPath: '/blocks'
+      fullPath: '/blocks/'
       preLoaderRoute: typeof BlocksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/automations/': {
       id: '/automations/'
       path: '/automations'
-      fullPath: '/automations'
+      fullPath: '/automations/'
       preLoaderRoute: typeof AutomationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/artifacts/': {
       id: '/artifacts/'
       path: '/artifacts'
-      fullPath: '/artifacts'
+      fullPath: '/artifacts/'
       preLoaderRoute: typeof ArtifactsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -829,7 +829,6 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   SettingsRoute: SettingsRoute,
-  VariablesRoute: VariablesRoute,
   AutomationsCreateRoute: AutomationsCreateRoute,
   BlocksCatalogRoute: BlocksCatalogRoute,
   WorkPoolsCreateRoute: WorkPoolsCreateRoute,
@@ -841,6 +840,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsIndexRoute: EventsIndexRoute,
   FlowsIndexRoute: FlowsIndexRoute,
   RunsIndexRoute: RunsIndexRoute,
+  VariablesIndexRoute: VariablesIndexRoute,
   WorkPoolsIndexRoute: WorkPoolsIndexRoute,
   ArtifactsArtifactIdRoute: ArtifactsArtifactIdRoute,
   ArtifactsKeyKeyRoute: ArtifactsKeyKeyRoute,

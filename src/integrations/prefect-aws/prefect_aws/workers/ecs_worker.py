@@ -73,6 +73,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 from prefect.client.schemas.objects import FlowRun
+from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
@@ -1627,6 +1628,68 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
                     logger.debug(f" Retrieved: {taskdef_2[key]}")
 
         return taskdef_1 == taskdef_2
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: ECSJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Stop an ECS task.
+
+        Args:
+            infrastructure_pid: The infrastructure identifier in format
+                "cluster::task_arn".
+            configuration: The job configuration used to connect to AWS.
+            grace_seconds: Not used for ECS (ECS handles graceful shutdown internally).
+
+        Raises:
+            InfrastructureNotFound: If the task doesn't exist.
+        """
+        cluster, task_arn = parse_identifier(infrastructure_pid)
+
+        await run_sync_in_worker_thread(
+            self._stop_task, cluster, task_arn, configuration
+        )
+
+    def _stop_task(
+        self, cluster: str, task_arn: str, configuration: ECSJobConfiguration
+    ) -> None:
+        """
+        Stop an ECS task.
+
+        Args:
+            cluster: The ECS cluster name or ARN.
+            task_arn: The ARN of the task to stop.
+            configuration: The job configuration used to connect to AWS.
+
+        Raises:
+            InfrastructureNotFound: If the task doesn't exist.
+        """
+        ecs_client: "ECSClient" = configuration.aws_credentials.get_client("ecs")
+
+        try:
+            ecs_client.stop_task(
+                cluster=cluster,
+                task=task_arn,
+                reason="Stopped by Prefect worker",
+            )
+            self._logger.info(f"Stopped ECS task {task_arn!r} in cluster {cluster!r}")
+        except ecs_client.exceptions.InvalidParameterException as exc:
+            # Task not found or already stopped
+            if "task was not found" in str(exc).lower():
+                raise InfrastructureNotFound(
+                    f"ECS task {task_arn!r} not found in cluster {cluster!r}"
+                )
+            raise
+        except Exception as exc:
+            # Handle other AWS exceptions
+            if "InvalidParameterException" in str(type(exc).__name__):
+                raise InfrastructureNotFound(
+                    f"ECS task {task_arn!r} not found in cluster {cluster!r}"
+                )
+            raise
 
     async def __aenter__(self) -> Self:
         await start_observer()
