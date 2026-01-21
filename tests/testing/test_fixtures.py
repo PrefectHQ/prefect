@@ -62,10 +62,6 @@ class TestHostedApiServerWindowsProcessHandling:
         assert "creationflags" not in captured_kwargs
 
     @pytest.mark.windows
-    @pytest.mark.skipif(
-        sys.platform != "win32",
-        reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
-    )
     async def test_windows_hosted_api_server_sets_process_group_creation_flag(
         self, monkeypatch: pytest.MonkeyPatch
     ):
