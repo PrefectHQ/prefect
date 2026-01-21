@@ -153,9 +153,7 @@ class GitHubRepository(ReadableDeploymentStorage):
             if process.returncode != 0:
                 err_stream.seek(0)
                 sanitized_error = _sanitize_git_error(err_stream.read())
-                raise RuntimeError(
-                    f"Failed to pull from remote:\n {sanitized_error}"
-                )
+                raise RuntimeError(f"Failed to pull from remote:\n {sanitized_error}")
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_path_str, sub_directory=from_path
