@@ -3,7 +3,11 @@ import { Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
-import { buildFilterFlowRunsQuery, type FlowRun } from "@/api/flow-runs";
+import {
+	buildFilterFlowRunsQuery,
+	type FlowRun,
+	useSetFlowRunState,
+} from "@/api/flow-runs";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +21,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
+	ChangeStateDialog,
+	useChangeStateDialog,
+} from "@/components/ui/change-state-dialog";
+import {
 	DeleteConfirmationDialog,
 	useDeleteConfirmationDialog,
 } from "@/components/ui/delete-confirmation-dialog";
@@ -28,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
+import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { formatDate, secondsToApproximateString } from "@/utils";
 
 type FlowRunHeaderProps = {
@@ -37,6 +46,45 @@ type FlowRunHeaderProps = {
 
 export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
+	const {
+		open: isChangeStateOpen,
+		onOpenChange: setChangeStateOpen,
+		openDialog: openChangeState,
+	} = useChangeStateDialog();
+	const { setFlowRunState, isPending: isChangingState } = useSetFlowRunState();
+
+	const canChangeState =
+		flowRun.state_type &&
+		["COMPLETED", "FAILED", "CANCELLED", "CRASHED"].includes(
+			flowRun.state_type,
+		);
+
+	const handleChangeState = (newState: { type: string; message?: string }) => {
+		setFlowRunState(
+			{
+				id: flowRun.id,
+				state: {
+					type: newState.type as
+						| "COMPLETED"
+						| "FAILED"
+						| "CANCELLED"
+						| "CRASHED",
+					name: newState.type.charAt(0) + newState.type.slice(1).toLowerCase(),
+					message: newState.message,
+				},
+				force: true,
+			},
+			{
+				onSuccess: () => {
+					toast.success("Flow run state changed");
+					setChangeStateOpen(false);
+				},
+				onError: (error) => {
+					toast.error(error.message || "Failed to change state");
+				},
+			},
+		);
+	};
 
 	const { data: deployment } = useQuery({
 		...buildDeploymentDetailsQuery(flowRun.deployment_id ?? ""),
@@ -92,6 +140,11 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 								<Badge variant="outline" className="ml-2">
 									{flowRun.work_pool_name}
 								</Badge>
+							)}
+							{flowRun.tags && flowRun.tags.length > 0 && (
+								<div className="ml-2">
+									<TagBadgeGroup tags={flowRun.tags} maxTagsDisplayed={3} />
+								</div>
 							)}
 						</BreadcrumbItem>
 					</BreadcrumbList>
@@ -180,6 +233,11 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent>
+					{canChangeState && (
+						<DropdownMenuItem onClick={openChangeState}>
+							Change state
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(flowRun.id);
@@ -202,6 +260,24 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 				</DropdownMenuContent>
 			</DropdownMenu>
 			<DeleteConfirmationDialog {...dialogState} />
+			<ChangeStateDialog
+				open={isChangeStateOpen}
+				onOpenChange={setChangeStateOpen}
+				currentState={
+					flowRun.state
+						? {
+								type: flowRun.state.type,
+								name:
+									flowRun.state.name ??
+									flowRun.state.type.charAt(0) +
+										flowRun.state.type.slice(1).toLowerCase(),
+							}
+						: null
+				}
+				label="Flow Run"
+				onConfirm={handleChangeState}
+				isLoading={isChangingState}
+			/>
 		</div>
 	);
 }
