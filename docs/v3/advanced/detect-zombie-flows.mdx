@@ -14,10 +14,6 @@ To mitigate this, flow runs triggered by deployments can emit heartbeats to driv
 You will need to ensure you're running Prefect version 3.1.8 or greater and set `PREFECT_FLOWS_HEARTBEAT_FREQUENCY`
 to an integer greater than 30 to emit flow run heartbeat events.
 
-<Note>
-The legacy environment variable `PREFECT_RUNNER_HEARTBEAT_FREQUENCY` is still supported for backwards compatibility.
-</Note>
-
 
 ### Create the automation
 To create an automation that marks zombie flow runs as crashed, run this script:
