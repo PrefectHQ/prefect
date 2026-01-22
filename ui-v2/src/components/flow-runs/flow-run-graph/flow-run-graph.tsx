@@ -160,11 +160,14 @@ export function FlowRunGraph({
 		};
 	}, [onSelectedChange, onViewportChange]);
 
+	const heightClass = fullscreen
+		? "fixed h-screen w-screen z-20"
+		: hasNodes
+			? "relative h-96 w-full"
+			: "relative h-40 w-full";
+
 	return (
-		<div
-			className={`${fullscreen ? "fixed h-screen w-screen z-20" : "relative h-[500px] w-full "} ${className ?? ""}`}
-			style={style}
-		>
+		<div className={`${heightClass} ${className ?? ""}`} style={style}>
 			<div ref={stageRef} className="size-full [&>canvas]:size-full" />
 			{!hasNodes && (
 				<div className="absolute inset-0 flex items-center justify-center bg-background/50">
