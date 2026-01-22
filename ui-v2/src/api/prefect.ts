@@ -7246,6 +7246,38 @@ export interface components {
             parent_task_run_id?: components["schemas"]["FlowRunFilterParentTaskRunId"] | null;
             /** @description Filter criteria for `FlowRun.idempotency_key` */
             idempotency_key?: components["schemas"]["FlowRunFilterIdempotencyKey"] | null;
+            /** @description Filter criteria for `FlowRun.created_by` */
+            created_by?: components["schemas"]["FlowRunFilterCreatedBy"] | null;
+        };
+        /**
+         * FlowRunFilterCreatedBy
+         * @description Filter by `FlowRun.created_by`.
+         */
+        FlowRunFilterCreatedBy: {
+            /**
+             * @description Operator for combining filter criteria. Defaults to 'and_'.
+             * @default and_
+             */
+            operator: components["schemas"]["Operator"];
+            /**
+             * Id
+             * @description A list of creator IDs to include
+             */
+            id_?: string[] | null;
+            /**
+             * Type
+             * @description A list of creator types to include. For example, 'DEPLOYMENT' for scheduled runs or 'AUTOMATION' for runs triggered by automations.
+             * @example [
+             *       "DEPLOYMENT",
+             *       "AUTOMATION"
+             *     ]
+             */
+            type_?: string[] | null;
+            /**
+             * Is Null
+             * @description If true, only include flow runs without a creator
+             */
+            is_null_?: boolean | null;
         };
         /**
          * FlowRunFilterDeploymentId

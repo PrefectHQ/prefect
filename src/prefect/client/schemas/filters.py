@@ -281,6 +281,27 @@ class FlowRunFilterIdempotencyKey(PrefectBaseModel):
     )
 
 
+class FlowRunFilterCreatedBy(PrefectBaseModel, OperatorMixin):
+    """Filter by `FlowRun.created_by`."""
+
+    id_: Optional[List[UUID]] = Field(
+        default=None,
+        description="A list of creator IDs to include",
+    )
+    type_: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "A list of creator types to include. For example, 'DEPLOYMENT' for "
+            "scheduled runs or 'AUTOMATION' for runs triggered by automations."
+        ),
+        examples=[["DEPLOYMENT", "AUTOMATION"]],
+    )
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include flow runs without a creator",
+    )
+
+
 class FlowRunFilter(PrefectBaseModel, OperatorMixin):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
@@ -323,6 +344,9 @@ class FlowRunFilter(PrefectBaseModel, OperatorMixin):
     )
     idempotency_key: Optional[FlowRunFilterIdempotencyKey] = Field(
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
+    )
+    created_by: Optional[FlowRunFilterCreatedBy] = Field(
+        default=None, description="Filter criteria for `FlowRun.created_by`"
     )
 
 
