@@ -101,6 +101,21 @@ describe("FlowRunDetailsPage", () => {
 			http.post(buildApiUrl("/logs/filter"), () => {
 				return HttpResponse.json([]);
 			}),
+			http.get(buildApiUrl("/flows/:id"), () => {
+				return HttpResponse.json({ id: "test-flow-id", name: "Test Flow" });
+			}),
+			http.get(buildApiUrl("/deployments/:id"), () => {
+				return HttpResponse.json({
+					id: "test-deployment-id",
+					name: "Test Deployment",
+				});
+			}),
+			http.post(buildApiUrl("/task_runs/count"), () => {
+				return HttpResponse.json(5);
+			}),
+			http.post(buildApiUrl("/flow_runs/filter"), () => {
+				return HttpResponse.json([]);
+			}),
 		);
 	});
 
