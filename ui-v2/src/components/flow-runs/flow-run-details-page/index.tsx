@@ -1,6 +1,5 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
-import { MoreVertical } from "lucide-react";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { queryKeyFactory as artifactsQueryKeyFactory } from "@/api/artifacts";
@@ -9,44 +8,21 @@ import {
 	type FlowRun,
 	queryKeyFactory as flowRunsQueryKeyFactory,
 	useDeleteFlowRun,
-	useSetFlowRunState,
 } from "@/api/flow-runs";
 import { queryKeyFactory as logsQueryKeyFactory } from "@/api/logs";
 import { queryKeyFactory as taskRunsQueryKeyFactory } from "@/api/task-runs";
 import { FlowRunGraph } from "@/components/flow-runs/flow-run-graph";
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-	BreadcrumbPage,
-	BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-	ChangeStateDialog,
-	useChangeStateDialog,
-} from "@/components/ui/change-state-dialog";
-import {
-	DeleteConfirmationDialog,
-	useDeleteConfirmationDialog,
-} from "@/components/ui/delete-confirmation-dialog";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Icon } from "@/components/ui/icons";
 import { LazyJsonInput } from "@/components/ui/json-input-lazy";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StateBadge } from "@/components/ui/state-badge";
 import { TabErrorState } from "@/components/ui/tab-error-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlowRunArtifacts } from "./flow-run-artifacts";
 import { FlowRunDetails } from "./flow-run-details";
+import { FlowRunHeader } from "./flow-run-header";
 import { FlowRunLogs } from "./flow-run-logs";
 import { FlowRunSubflows } from "./flow-run-subflows";
 import { FlowRunTaskRuns } from "./flow-run-task-runs";
@@ -132,7 +108,7 @@ export const FlowRunDetailsPage = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-col gap-2">
-				<Header flowRun={flowRun} onDeleteRunClicked={onDeleteRunClicked} />
+				<FlowRunHeader flowRun={flowRun} onDeleteClick={onDeleteRunClicked} />
 			</div>
 			{!isPending && (
 				<Card>
@@ -284,134 +260,6 @@ export const FlowRunDetailsPage = ({
 					<FlowRunDetails flowRun={flowRun} />
 				</div>
 			</div>
-		</div>
-	);
-};
-
-const Header = ({
-	flowRun,
-	onDeleteRunClicked,
-}: {
-	flowRun: FlowRun;
-	onDeleteRunClicked: () => void;
-}) => {
-	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
-	const {
-		open: isChangeStateOpen,
-		onOpenChange: setChangeStateOpen,
-		openDialog: openChangeState,
-	} = useChangeStateDialog();
-	const { setFlowRunState, isPending: isChangingState } = useSetFlowRunState();
-
-	const canChangeState =
-		flowRun.state_type &&
-		["COMPLETED", "FAILED", "CANCELLED", "CRASHED"].includes(
-			flowRun.state_type,
-		);
-
-	const handleChangeState = (newState: { type: string; message?: string }) => {
-		setFlowRunState(
-			{
-				id: flowRun.id,
-				state: {
-					type: newState.type as
-						| "COMPLETED"
-						| "FAILED"
-						| "CANCELLED"
-						| "CRASHED",
-					name: newState.type.charAt(0) + newState.type.slice(1).toLowerCase(),
-					message: newState.message,
-				},
-				force: true,
-			},
-			{
-				onSuccess: () => {
-					toast.success("Flow run state changed");
-					setChangeStateOpen(false);
-				},
-				onError: (error) => {
-					toast.error(error.message || "Failed to change state");
-				},
-			},
-		);
-	};
-
-	return (
-		<div className="flex flex-row justify-between">
-			<Breadcrumb>
-				<BreadcrumbList>
-					<BreadcrumbItem>
-						<BreadcrumbLink to="/runs" className="text-xl font-semibold">
-							Runs
-						</BreadcrumbLink>
-					</BreadcrumbItem>
-					<BreadcrumbSeparator />
-					<BreadcrumbItem className="text-xl">
-						<BreadcrumbPage className="font-semibold">
-							{flowRun.name}
-						</BreadcrumbPage>
-						{flowRun.state && (
-							<StateBadge
-								type={flowRun.state.type}
-								name={flowRun.state.name}
-								className="ml-2"
-							/>
-						)}
-					</BreadcrumbItem>
-				</BreadcrumbList>
-			</Breadcrumb>
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="outline" className="p-2">
-						<MoreVertical className="w-4 h-4" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent>
-					{canChangeState && (
-						<DropdownMenuItem onClick={openChangeState}>
-							Change state
-						</DropdownMenuItem>
-					)}
-					<DropdownMenuItem
-						onClick={() => {
-							toast.success("Copied flow run ID to clipboard");
-							void navigator.clipboard.writeText(flowRun.id);
-						}}
-					>
-						Copy ID
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						onClick={() =>
-							confirmDelete({
-								title: "Delete Flow Run",
-								description: `Are you sure you want to delete flow run ${flowRun.name}?`,
-								onConfirm: onDeleteRunClicked,
-							})
-						}
-					>
-						Delete
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-			<DeleteConfirmationDialog {...dialogState} />
-			<ChangeStateDialog
-				open={isChangeStateOpen}
-				onOpenChange={setChangeStateOpen}
-				currentState={
-					flowRun.state
-						? {
-								type: flowRun.state.type,
-								name:
-									flowRun.state.name ??
-									flowRun.state.type.charAt(0) +
-										flowRun.state.type.slice(1).toLowerCase(),
-							}
-						: null
-				}
-				label="Flow Run"
-				onConfirm={handleChangeState}
-				isLoading={isChangingState}
-			/>
 		</div>
 	);
 };
