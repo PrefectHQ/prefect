@@ -27,6 +27,12 @@ const meta = {
 				http.post(buildApiUrl("/events/filter"), () => {
 					return HttpResponse.json(DemoEvents);
 				}),
+				http.post(buildApiUrl("/task_runs/count"), () => {
+					return HttpResponse.json(5);
+				}),
+				http.post(buildApiUrl("/flow_runs/count"), () => {
+					return HttpResponse.json(0);
+				}),
 			],
 		},
 	},
@@ -39,5 +45,55 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
 	args: {
 		flowRunId: "foo",
+	},
+};
+
+export const EmptyStateTerminal: Story = {
+	args: {
+		flowRunId: "foo",
+		stateType: "COMPLETED",
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.get(buildApiUrl("/flow_runs/foo/graph-v2"), () => {
+					return HttpResponse.json(DemoData);
+				}),
+				http.post(buildApiUrl("/events/filter"), () => {
+					return HttpResponse.json(DemoEvents);
+				}),
+				http.post(buildApiUrl("/task_runs/count"), () => {
+					return HttpResponse.json(0);
+				}),
+				http.post(buildApiUrl("/flow_runs/count"), () => {
+					return HttpResponse.json(0);
+				}),
+			],
+		},
+	},
+};
+
+export const EmptyStateNonTerminal: Story = {
+	args: {
+		flowRunId: "foo",
+		stateType: "RUNNING",
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.get(buildApiUrl("/flow_runs/foo/graph-v2"), () => {
+					return HttpResponse.json(DemoData);
+				}),
+				http.post(buildApiUrl("/events/filter"), () => {
+					return HttpResponse.json(DemoEvents);
+				}),
+				http.post(buildApiUrl("/task_runs/count"), () => {
+					return HttpResponse.json(0);
+				}),
+				http.post(buildApiUrl("/flow_runs/count"), () => {
+					return HttpResponse.json(0);
+				}),
+			],
+		},
 	},
 };
