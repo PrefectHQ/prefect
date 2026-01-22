@@ -645,6 +645,45 @@ class FlowRunFilterIdempotencyKey(PrefectFilterBaseModel):
         return filters
 
 
+class FlowRunFilterCreatedBy(PrefectOperatorFilterBaseModel):
+    """Filter by `FlowRun.created_by`."""
+
+    id_: Optional[list[UUID]] = Field(
+        default=None,
+        description="A list of creator IDs to include",
+    )
+    type_: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "A list of creator types to include. For example, 'DEPLOYMENT' for "
+            "scheduled runs or 'AUTOMATION' for runs triggered by automations."
+        ),
+        examples=[["DEPLOYMENT", "AUTOMATION"]],
+    )
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include flow runs without a creator",
+    )
+
+    def _get_filter_list(
+        self, db: "PrefectDBInterface"
+    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
+        filters: list[sa.ColumnExpressionArgument[bool]] = []
+        if self.id_ is not None:
+            # JSON stores UUIDs as strings, use astext for text extraction
+            id_strings = [str(id_val) for id_val in self.id_]
+            filters.append(db.FlowRun.created_by["id"].astext.in_(id_strings))
+        if self.type_ is not None:
+            filters.append(db.FlowRun.created_by["type"].astext.in_(self.type_))
+        if self.is_null_ is not None:
+            filters.append(
+                db.FlowRun.created_by.is_(None)
+                if self.is_null_
+                else db.FlowRun.created_by.is_not(None)
+            )
+        return filters
+
+
 class FlowRunFilter(PrefectOperatorFilterBaseModel):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
@@ -691,6 +730,9 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
     idempotency_key: Optional[FlowRunFilterIdempotencyKey] = Field(
         default=None, description="Filter criteria for `FlowRun.idempotency_key`"
     )
+    created_by: Optional[FlowRunFilterCreatedBy] = Field(
+        default=None, description="Filter criteria for `FlowRun.created_by`"
+    )
 
     def only_filters_on_id(self) -> bool:
         return bool(
@@ -709,6 +751,7 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             and self.parent_flow_run_id is None
             and self.parent_task_run_id is None
             and self.idempotency_key is None
+            and self.created_by is None
         )
 
     def _get_filter_list(
@@ -744,6 +787,8 @@ class FlowRunFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.parent_task_run_id.as_sql_filter())
         if self.idempotency_key is not None:
             filters.append(self.idempotency_key.as_sql_filter())
+        if self.created_by is not None:
+            filters.append(self.created_by.as_sql_filter())
 
         return filters
 
