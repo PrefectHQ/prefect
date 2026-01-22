@@ -22,6 +22,7 @@ from websockets.asyncio.server import (
 )
 from websockets.exceptions import ConnectionClosed
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.events import Event
 from prefect.events.clients import (
     AssertingEventsClient,
@@ -39,7 +40,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types._datetime import DateTime, now
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.processutils import open_process
 
 
@@ -440,8 +441,7 @@ async def events_pipeline(
     asserting_events_worker: EventsWorker,
 ) -> AsyncGenerator[EventsPipeline, None]:
     class AssertingEventsPipeline(EventsPipeline):
-        @sync_compatible
-        async def process_events(
+        async def aprocess_events(
             self,
             dequeue_events: bool = True,
             min_events: int = 0,
@@ -469,6 +469,21 @@ async def events_pipeline(
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
 
+        @async_dispatch(aprocess_events)
+        def process_events(
+            self,
+            dequeue_events: bool = True,
+            min_events: int = 0,
+            timeout: int = 10,
+        ):
+            return run_coro_as_sync(
+                self.aprocess_events(
+                    dequeue_events=dequeue_events,
+                    min_events=min_events,
+                    timeout=timeout,
+                )
+            )
+
     yield AssertingEventsPipeline()
 
 
@@ -477,13 +492,16 @@ async def emitting_events_pipeline(
     asserting_and_emitting_events_worker: EventsWorker,
 ) -> AsyncGenerator[EventsPipeline, None]:
     class AssertingAndEmittingEventsPipeline(EventsPipeline):
-        @sync_compatible
-        async def process_events(self):
+        async def aprocess_events(self):
             asserting_and_emitting_events_worker.wait_until_empty()
             events = asserting_and_emitting_events_worker._client.pop_events()
 
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
+
+        @async_dispatch(aprocess_events)
+        def process_events(self):
+            return run_coro_as_sync(self.aprocess_events())
 
     yield AssertingAndEmittingEventsPipeline()
 
