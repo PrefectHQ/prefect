@@ -1,22 +1,11 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createWrapper } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { createFakeFlowRun } from "@/mocks";
 import { FlowRunLogsDownloadButton } from "./flow-run-logs-download-button";
-
-vi.mock("@/api/service", () => ({
-	getQueryService: vi.fn(() =>
-		Promise.resolve({
-			GET: vi.fn(() =>
-				Promise.resolve({
-					data: new Blob(["test,data"], { type: "text/csv" }),
-				}),
-			),
-		}),
-	),
-}));
 
 const mockCreateObjectURL = vi.fn(() => "blob:mock-url");
 const mockRevokeObjectURL = vi.fn();
@@ -38,6 +27,18 @@ const renderButton = (flowRunOverrides = {}) => {
 describe("FlowRunLogsDownloadButton", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		server.use(
+			http.get(buildApiUrl("/flow_runs/:id/logs/download"), () => {
+				return new HttpResponse(
+					new Blob(["timestamp,level,message\n2024-01-01,INFO,Test log"], {
+						type: "text/csv",
+					}),
+					{
+						headers: { "Content-Type": "text/csv" },
+					},
+				);
+			}),
+		);
 	});
 
 	it("renders download button", () => {
