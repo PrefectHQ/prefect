@@ -235,6 +235,37 @@ class TestGitRepository:
         ):
             await repo.pull_code()
 
+    async def test_pull_code_existing_repo_with_embedded_credentials(self, monkeypatch):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/pull/20330
+
+        When a URL with embedded credentials is passed directly (without a
+        separate credentials object), pulling from an existing repo should
+        still work. The git config stores the URL with credentials, which
+        must be compared correctly to the configured URL.
+        """
+
+        # Git config returns URL with credentials (as stored during clone)
+        async def mock_run_process(*args, **kwargs):
+            class Result:
+                stdout = (
+                    "https://x-access-token:ghp_secret@github.com/org/repo.git".encode()
+                )
+
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        # URL passed with embedded credentials (no separate credentials object)
+        repo = GitRepository(
+            url="https://x-access-token:ghp_secret@github.com/org/repo.git"
+        )
+
+        # Should NOT raise - the URLs match (same repo, same credentials)
+        # Before fix: raises ValueError because stripped URL != URL with creds
+        await repo.pull_code()
+
     async def test_pull_code_clone_repo(self, mock_run_process: AsyncMock, monkeypatch):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
 
