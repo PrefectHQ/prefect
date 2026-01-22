@@ -346,11 +346,12 @@ class GitRepository:
             )
             existing_repo_url = None
             existing_repo_url = strip_auth_from_url(result.stdout.decode().strip())
+            configured_repo_url = strip_auth_from_url(self._url)
 
-            if existing_repo_url != self._url:
+            if existing_repo_url != configured_repo_url:
                 raise ValueError(
                     f"The existing repository at {str(self.destination)} "
-                    f"does not match the configured repository {self._url}"
+                    f"does not match the configured repository {configured_repo_url}"
                 )
 
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
