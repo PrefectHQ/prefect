@@ -1,6 +1,7 @@
 import {
 	emitter,
 	type GraphItemSelection,
+	isNodeSelection,
 	type RunGraphConfig,
 	type RunGraphNode,
 	type RunGraphStateEvent,
@@ -27,6 +28,7 @@ import { getStateColor } from "@/utils/state-colors";
 import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
 import { stateTypeShades } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
+import { FlowRunGraphSelectionPanel } from "./flow-run-graph-selection-panel";
 
 const TERMINAL_STATES = ["COMPLETED", "FAILED", "CANCELLED", "CRASHED"];
 
@@ -184,6 +186,12 @@ export function FlowRunGraph({
 					onFullscreenChange={updateFullscreen}
 				/>
 			</div>
+			{selected && isNodeSelection(selected) && (
+				<FlowRunGraphSelectionPanel
+					selection={selected}
+					onClose={() => onSelectedChange?.(undefined)}
+				/>
+			)}
 		</div>
 	);
 }
