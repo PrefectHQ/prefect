@@ -1818,6 +1818,15 @@ class TestPrepareForFlowRun:
         assert job_config.name == "my-job-name"
         assert job_config.command == "prefect flow-run execute"
 
+    def test_prepare_for_flow_run_renders_name_template(self, flow_run, flow):
+        job_config = BaseJobConfiguration(
+            name="worker-1/{{ flow.name }}/{{ flow_run.name }}"
+        )
+
+        job_config.prepare_for_flow_run(flow_run, flow=flow)
+
+        assert job_config.name == f"worker-1/{flow.name}/{flow_run.name}"
+
 
 async def test_get_flow_run_logger_without_worker_id_set(
     prefect_client: PrefectClient, worker_deployment_wq1, work_pool

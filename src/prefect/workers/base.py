@@ -89,6 +89,7 @@ from prefect.utilities.services import (
     stop_client_metrics_server,
 )
 from prefect.utilities.slugify import slugify
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
     apply_values,
     resolve_block_document_references,
@@ -301,6 +302,19 @@ class BaseJobConfiguration(BaseModel):
             **self._base_deployment_labels(deployment),
             **self.labels,
         }
+        if self.name:
+            template_values = {
+                "flow": flow.model_dump(mode="json") if flow is not None else {},
+                "flow_run": flow_run.model_dump(mode="json") if flow_run else {},
+            }
+            rendered_name = apply_values(
+                template=self.name,
+                values=template_values,
+                remove_notset=True,
+            )
+            if rendered_name is not NotSet:
+                self.name = rendered_name
+
         self.name = self.name or flow_run.name
         self.command = self.command or self._base_flow_run_command()
 
