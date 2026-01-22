@@ -236,3 +236,69 @@ export const MinimalRelationships: Story = {
 		}),
 	},
 };
+
+export const WithTags: Story = {
+	name: "With Tags",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-with-tags",
+			name: "my-tagged-flow-run",
+			tags: ["production", "daily", "critical"],
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const WithManyTags: Story = {
+	name: "With Many Tags (Overflow)",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-many-tags",
+			name: "my-flow-run-many-tags",
+			tags: ["tag1", "tag2", "tag3", "tag4", "tag5"],
+			state_type: "RUNNING",
+			state_name: "Running",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		}),
+	},
+};
+
+export const TerminalStateCanChange: Story = {
+	name: "Terminal State (Can Change State)",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-terminal",
+			name: "my-completed-flow-run",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const NonTerminalStateCannotChange: Story = {
+	name: "Non-Terminal State (Cannot Change State)",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-running",
+			name: "my-running-flow-run",
+			state_type: "RUNNING",
+			state_name: "Running",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		}),
+	},
+};
