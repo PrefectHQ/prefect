@@ -338,6 +338,7 @@ const LogsSkeleton = () => {
 			<div className="flex flex-row gap-2 justify-end">
 				<Skeleton className="h-8 w-25" />
 				<Skeleton className="h-8 w-32" />
+				<Skeleton className="h-8 w-8" /> {/* Download button placeholder */}
 			</div>
 			<Skeleton className="h-32" />
 		</div>

@@ -10,6 +10,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { FlowRunLogsDownloadButton } from "./flow-run-logs-download-button";
 
 type FlowRunLogsProps = {
 	flowRun: components["schemas"]["FlowRunResponse"];
@@ -72,6 +73,7 @@ export const FlowRunLogs = ({
 					setLevelFilter={setLevelFilter}
 				/>
 				<LogSortOrder sortOrder={sortOrder} setSortOrder={setSortOrder} />
+				<FlowRunLogsDownloadButton flowRun={flowRun} />
 			</div>
 			{noLogs ? (
 				<div className="flex flex-col gap-2 text-center bg-muted p-2 rounded-md">
