@@ -30,15 +30,24 @@ const ICONS = STATE_ICONS;
 const stateBadgeVariants = cva("gap-1", {
 	variants: {
 		state: {
-			COMPLETED: "bg-green-50 text-green-600 hover:bg-green-50",
-			FAILED: "bg-red-50 text-red-600 hover:bg-red-50",
-			RUNNING: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-			CANCELLED: "bg-gray-300 text-gray-800 hover:bg-gray-300",
-			CANCELLING: "bg-gray-300 text-gray-800 hover:bg-gray-300",
-			CRASHED: "bg-orange-50 text-orange-600 hover:bg-orange-50",
-			PAUSED: "bg-gray-300 text-gray-800 hover:bg-gray-300",
-			PENDING: "bg-gray-300 text-gray-800 hover:bg-gray-300",
-			SCHEDULED: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
+			COMPLETED:
+				"bg-state-completed-50 text-state-completed-600 hover:bg-state-completed-100",
+			FAILED:
+				"bg-state-failed-50 text-state-failed-700 hover:bg-state-failed-100",
+			RUNNING:
+				"bg-state-running-50 text-state-running-700 hover:bg-state-running-100",
+			CANCELLED:
+				"bg-state-cancelled-50 text-state-cancelled-600 hover:bg-state-cancelled-100",
+			CANCELLING:
+				"bg-state-cancelling-50 text-state-cancelling-600 hover:bg-state-cancelling-100",
+			CRASHED:
+				"bg-state-crashed-50 text-state-crashed-600 hover:bg-state-crashed-100",
+			PAUSED:
+				"bg-state-paused-100 text-state-paused-700 hover:bg-state-paused-200",
+			PENDING:
+				"bg-state-pending-100 text-state-pending-700 hover:bg-state-pending-200",
+			SCHEDULED:
+				"bg-state-scheduled-50 text-state-scheduled-700 hover:bg-state-scheduled-100",
 		} satisfies Record<components["schemas"]["StateType"], string>,
 	},
 });
@@ -62,15 +71,15 @@ export const StateBadge = ({ type, name, className }: StateBadgeProps) => {
 };
 
 const STATE_ICON_COLORS = {
-	COMPLETED: "text-green-600",
-	FAILED: "text-red-600",
-	RUNNING: "text-blue-700",
-	CANCELLED: "text-gray-600",
-	CANCELLING: "text-gray-600",
-	CRASHED: "text-orange-600",
-	PAUSED: "text-gray-600",
-	PENDING: "text-gray-500",
-	SCHEDULED: "text-yellow-600",
+	COMPLETED: "text-state-completed-600",
+	FAILED: "text-state-failed-700",
+	RUNNING: "text-state-running-700",
+	CANCELLED: "text-state-cancelled-600",
+	CANCELLING: "text-state-cancelling-600",
+	CRASHED: "text-state-crashed-600",
+	PAUSED: "text-state-paused-700",
+	PENDING: "text-state-pending-600",
+	SCHEDULED: "text-state-scheduled-700",
 } as const satisfies Record<components["schemas"]["StateType"], string>;
 
 export type StateIconProps = {

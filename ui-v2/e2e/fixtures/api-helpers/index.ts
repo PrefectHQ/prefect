@@ -5,6 +5,18 @@ export {
 	listAutomations,
 } from "./automations";
 export {
+	type BlockDocument,
+	type BlockSchema,
+	type BlockType,
+	cleanupBlockDocuments,
+	createBlockDocument,
+	deleteBlockDocument,
+	getBlockTypeBySlug,
+	listBlockDocuments,
+	listBlockSchemas,
+	listBlockTypes,
+} from "./blocks";
+export {
 	cleanupGlobalConcurrencyLimits,
 	cleanupTaskRunConcurrencyLimits,
 	createGlobalConcurrencyLimit,

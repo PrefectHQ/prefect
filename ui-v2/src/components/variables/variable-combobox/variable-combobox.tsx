@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useDeferredValue, useMemo, useState } from "react";
+import { buildFilterVariablesQuery } from "@/api/variables";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -10,7 +11,6 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-import { buildFilterVariablesQuery } from "@/hooks/variables";
 
 type VariableComboboxProps = {
 	selectedVariableName: string | undefined;

@@ -1,0 +1,67 @@
+name: Fix Flaky Tests with Devin
+
+on:
+  workflow_run:
+    workflows:
+      - "Unit tests"
+      - "Integration tests"
+    branches:
+      - main
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  trigger-devin:
+    name: Trigger Devin to fix flaky tests
+    runs-on: ubuntu-latest
+    # Only run when a test workflow fails on main branch
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main'
+
+    steps:
+      - name: Get failed workflow details
+        id: workflow-info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+          echo "workflow_run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+          echo "workflow_url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+          echo "head_sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+
+      - name: Trigger Devin session to fix flaky tests
+        env:
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+        run: |
+          prompt="The ${{ steps.workflow-info.outputs.workflow_name }} workflow failed on main. Workflow: ${{ steps.workflow-info.outputs.workflow_url }}, Commit: ${{ steps.workflow-info.outputs.head_sha }}. Investigate and fix the flaky test."
+
+          response=$(curl -s -w "\n%{http_code}" -X POST "https://api.devin.ai/v1/sessions" \
+            -H "Authorization: Bearer $DEVIN_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"prompt\": \"$prompt\",
+              \"playbook_id\": \"playbook-8967ef2920e24b9cbd076184b53e170e\",
+              \"idempotent\": true
+            }")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Successfully triggered Devin session"
+            session_url=$(echo "$body" | jq -r '.url // empty')
+            if [ -n "$session_url" ]; then
+              echo "📎 Session URL: $session_url"
+              echo "### Devin Session" >> "$GITHUB_STEP_SUMMARY"
+              echo "[$session_url]($session_url)" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "❌ Failed to trigger session (HTTP $http_code)"
+            echo "Response: $body"
+            exit 1
+          fi

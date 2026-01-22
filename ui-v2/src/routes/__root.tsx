@@ -5,6 +5,7 @@ import {
 	Navigate,
 	Outlet,
 	redirect,
+	useRouter,
 	useRouterState,
 } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback } from "react";
@@ -32,6 +33,7 @@ interface MyRouterContext {
 }
 
 function RootErrorComponent({ error, reset }: ErrorComponentProps) {
+	const router = useRouter();
 	const serverError = categorizeError(
 		error,
 		"Failed to initialize application",
@@ -42,7 +44,9 @@ function RootErrorComponent({ error, reset }: ErrorComponentProps) {
 		uiSettings.reset();
 		// Reset the router error boundary to trigger re-render
 		reset();
-	}, [reset]);
+		// Invalidate the router to force loaders to re-run
+		void router.invalidate();
+	}, [reset, router]);
 
 	return <ServerErrorDisplay error={serverError} onRetry={handleRetry} />;
 }

@@ -4,6 +4,7 @@ Tests for the PrefectDbtRunner class and related functionality.
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -133,6 +134,11 @@ def mock_settings_context_manager():
     with patch.object(PrefectDbtSettings, "resolve_profiles_yml") as mock_cm:
         mock_cm.return_value.__enter__.return_value = "/profiles/dir"
         yield mock_cm
+
+
+def two_consecutive_items_in_list(item1: Any, item2: Any, list_to_check: list) -> bool:
+    """Helper function to check if a mock was called with a param name and its value"""
+    return (item1, item2) in zip(list_to_check, list_to_check[1:])
 
 
 class TestPrefectDbtRunnerInitialization:
@@ -478,7 +484,7 @@ class TestPrefectDbtRunnerInvoke:
         # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_with_force_nodes_as_tasks(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -497,7 +503,7 @@ class TestPrefectDbtRunnerInvoke:
         # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_sets_log_level_none_in_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -518,7 +524,8 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to "none"
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--log-level", "none" in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list("--log-level", "none", args_list)
 
     def test_invoke_uses_original_log_level_outside_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -535,7 +542,10 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to the original value
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--log-level", str(runner.log_level.value) in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list(
+            "--log-level", str(runner.log_level.value), args_list
+        )
 
     def test_invoke_handles_dbt_exceptions(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -609,8 +619,11 @@ class TestPrefectDbtRunnerInvoke:
         assert result.success is True
         # Verify the CLI flags take precedence (processed after kwargs)
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--target-path", "/cli/path" in call_args[0]
-        assert "--target-path", "/kwargs/path" not in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list("--target-path", "/cli/path", args_list)
+        assert not two_consecutive_items_in_list(
+            "--target-path", "/kwargs/path", args_list
+        )
 
     def test_invoke_uses_resolve_profiles_yml_context_manager(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -653,7 +666,7 @@ class TestPrefectDbtRunnerInvoke:
         )
 
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        args_list = call_args[0][0]
+        args_list = call_args.args[0]
         assert "--target-path" not in args_list, (
             f"--target-path should not be passed to 'deps' command, got: {args_list}"
         )
@@ -673,7 +686,7 @@ class TestPrefectDbtRunnerInvoke:
         mock_dbt_runner_class.assert_called_once()
 
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        args_list = call_args[0][0]
+        args_list = call_args.args[0]
         assert "--profiles-dir" in args_list
         # --project-dir is accepted by `source freshness`, but not by `source`
         assert "--project-dir" in args_list
@@ -1141,7 +1154,7 @@ class TestPrefectDbtRunnerBuildCommands:
         # Verify callbacks were created with add_test_edges=True (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_retry_build_command_sets_add_test_edges_true(
         self, mock_dbt_runner_class, mock_settings_context_manager, tmp_path: Path
