@@ -9,6 +9,7 @@ const FlowRunGraphLazy = lazy(() =>
 
 type FlowRunGraphProps = {
 	flowRunId: string;
+	stateType?: string;
 	viewport?: ViewportDateRange;
 	onViewportChange?: (viewport: ViewportDateRange) => void;
 	selected?: GraphItemSelection;
