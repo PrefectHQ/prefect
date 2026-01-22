@@ -264,7 +264,11 @@ async def send_heartbeats_async(
                 except Exception:
                     engine.logger.debug("Failed to emit heartbeat", exc_info=True)
 
-                await asyncio.sleep(heartbeat_seconds)
+                # Sleep in increments to allow quick shutdown (parity with sync version)
+                for _ in range(heartbeat_seconds):
+                    if stop_flag:
+                        return
+                    await asyncio.sleep(1)
         except asyncio.CancelledError:
             engine.logger.debug("Heartbeat loop cancelled")
 
@@ -339,19 +343,20 @@ class BaseFlowRunEngine(Generic[P, R]):
         related: list[RelatedResource] = []
         tags: list[str] = list(self.flow_run.tags or [])
 
-        # Add flow as related resource
-        if self.flow:
+        # Add flow as related resource using flow_id for consistency with other events
+        if self.flow_run.flow_id:
             related.append(
                 RelatedResource.model_validate(
                     {
-                        "prefect.resource.id": f"prefect.flow.{self.flow.name}",
+                        "prefect.resource.id": f"prefect.flow.{self.flow_run.flow_id}",
                         "prefect.resource.role": "flow",
-                        "prefect.resource.name": self.flow.name,
+                        "prefect.resource.name": self.flow.name if self.flow else "",
                     }
                 )
             )
 
         # Add deployment as related resource if available
+        # Note: deployment name is not available on flow_run without an API call
         if self.flow_run.deployment_id:
             related.append(
                 RelatedResource.model_validate(

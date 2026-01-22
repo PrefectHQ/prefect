@@ -152,10 +152,10 @@ class Runner:
         name: Optional[str] = None,
         query_seconds: Optional[float] = None,
         prefetch_seconds: float = 10,
+        heartbeat_seconds: Optional[float] = None,
         limit: int | type[NotSet] | None = NotSet,
         pause_on_shutdown: bool = True,
         webserver: bool = False,
-        heartbeat_seconds: Optional[float] = None,
     ):
         """
         Responsible for managing the execution of remotely initiated flow runs.
@@ -166,15 +166,15 @@ class Runner:
             query_seconds: The number of seconds to wait between querying for
                 scheduled flow runs; defaults to `PREFECT_RUNNER_POLL_FREQUENCY`
             prefetch_seconds: The number of seconds to prefetch flow runs for.
+            heartbeat_seconds: The number of seconds between heartbeat events emitted
+                by flow runs managed by this runner. If not provided, the value of
+                `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` will be used. Heartbeats are used
+                to detect crashed flow runs.
             limit: The maximum number of flow runs this runner should be running at. Provide `None` for no limit.
                 If not provided, the runner will use the value of `PREFECT_RUNNER_PROCESS_LIMIT`.
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
             webserver: a boolean flag for whether to start a webserver for this runner
-            heartbeat_seconds: The number of seconds between heartbeat events emitted
-                by flow runs managed by this runner. If not provided, the value of
-                `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` will be used. Heartbeats are used
-                to detect crashed flow runs.
 
         Examples:
             Set up a Runner to manage the execute of scheduled flow runs for two flows:
