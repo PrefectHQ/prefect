@@ -119,6 +119,10 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             allowing the container to use as much swap as memory. For example, if
             `mem_limit` is 300m and `memswap_limit` is not set, containers can use
             600m in total of memory and swap.
+        ipc_mode: IPC namespace mode for the container (e.g. host).
+        shm_size: Size of /dev/shm for the container. Accepts a value with a unit
+            identifier (e.g. 64m, 1g). If a value is given without a unit, bytes
+            are assumed.
         privileged: Give extended privileges to created containers.
         container_create_kwargs: Extra args for docker py when creating container.
     """
@@ -184,6 +188,24 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             "`mem_limit` is 300m and `memswap_limit` is not set, containers can use "
             "600m in total of memory and swap."
         ),
+    )
+    ipc_mode: Optional[str] = Field(
+        default=None,
+        description=(
+            "IPC namespace mode for the container (e.g. host). Defaults to Docker's"
+            " default if not set."
+        ),
+        examples=["host"],
+    )
+    shm_size: Optional[str] = Field(
+        default=None,
+        title="Shared Memory Size",
+        description=(
+            "Size of /dev/shm for the container. Accepts a value with a unit "
+            "identifier (e.g. 64m, 1g). If a value is given without a unit, bytes "
+            "are assumed."
+        ),
+        examples=["64m", "1g"],
     )
     privileged: bool = Field(
         default=False,
@@ -723,6 +745,8 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             volumes=configuration.volumes,
             mem_limit=configuration.mem_limit,
             memswap_limit=configuration.memswap_limit,
+            ipc_mode=configuration.ipc_mode,
+            shm_size=configuration.shm_size,
             privileged=configuration.privileged,
             **container_create_kwargs,
         )

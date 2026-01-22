@@ -453,6 +453,32 @@ async def test_uses_mem_limit_setting(
     assert mock_docker_client.containers.create.call_args[1].get("mem_limit") == "1g"
 
 
+async def test_uses_ipc_mode_setting(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.ipc_mode = "host"
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    mock_docker_client.containers.create.assert_called_once()
+    assert mock_docker_client.containers.create.call_args[1].get("ipc_mode") == "host"
+
+
+async def test_uses_shm_size_setting(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    default_docker_worker_job_configuration.shm_size = "1g"
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    mock_docker_client.containers.create.assert_called_once()
+    assert mock_docker_client.containers.create.call_args[1].get("shm_size") == "1g"
+
+
 @pytest.mark.parametrize("networks", [[], ["a"], ["a", "b"]])
 async def test_uses_network_setting(
     mock_docker_client, networks, flow_run, default_docker_worker_job_configuration
