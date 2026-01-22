@@ -145,6 +145,9 @@ describe("FlowRunHeader", () => {
 			http.post(buildApiUrl("/flow_runs/filter"), () => {
 				return HttpResponse.json([MOCK_PARENT_FLOW_RUN]);
 			}),
+			http.post(buildApiUrl("/flow_runs/:id/set_state"), () => {
+				return HttpResponse.json({ status: "ACCEPT" });
+			}),
 		);
 	});
 
