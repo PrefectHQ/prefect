@@ -216,6 +216,49 @@ class BaseFlowRunEngine(Generic[P, R]):
         if hasattr(self.flow.task_runner, "cancel_all"):
             self.flow.task_runner.cancel_all()  # type: ignore
 
+    def _emit_flow_run_heartbeat(self) -> None:
+        """Emit a heartbeat event for the current flow run."""
+        if not self.flow_run:
+            return
+
+        related: list[RelatedResource] = []
+        tags: list[str] = list(self.flow_run.tags or [])
+
+        # Add flow as related resource
+        if self.flow:
+            related.append(
+                RelatedResource.model_validate(
+                    {
+                        "prefect.resource.id": f"prefect.flow.{self.flow.name}",
+                        "prefect.resource.role": "flow",
+                        "prefect.resource.name": self.flow.name,
+                    }
+                )
+            )
+
+        # Add deployment as related resource if available
+        if self.flow_run.deployment_id:
+            related.append(
+                RelatedResource.model_validate(
+                    {
+                        "prefect.resource.id": f"prefect.deployment.{self.flow_run.deployment_id}",
+                        "prefect.resource.role": "deployment",
+                    }
+                )
+            )
+
+        related += tags_as_related_resources(set(tags))
+
+        emit_event(
+            event="prefect.flow-run.heartbeat",
+            resource={
+                "prefect.resource.id": f"prefect.flow-run.{self.flow_run.id}",
+                "prefect.resource.name": self.flow_run.name or "",
+                "prefect.version": __version__,
+            },
+            related=related,
+        )
+
     def _update_otel_labels(
         self, span: trace.Span, client: Union[SyncPrefectClient, PrefectClient]
     ):
@@ -346,6 +389,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        # Stop heartbeat loop BEFORE proposing final state to avoid race condition
+        if state.is_final():
+            self._stop_heartbeat_loop()
+
         state = propose_state_sync(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -359,54 +406,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         # Start heartbeat loop when entering RUNNING state
         if state.is_running() and self.heartbeat_seconds is not None:
             self._start_heartbeat_loop()
-        # Stop heartbeat loop when entering a terminal state
-        elif state.is_final():
-            self._stop_heartbeat_loop()
 
         return state
-
-    def _emit_flow_run_heartbeat(self) -> None:
-        """Emit a heartbeat event for the current flow run."""
-        if not self.flow_run:
-            return
-
-        related: list[RelatedResource] = []
-        tags: list[str] = list(self.flow_run.tags or [])
-
-        # Add flow as related resource
-        if self.flow:
-            related.append(
-                RelatedResource.model_validate(
-                    {
-                        "prefect.resource.id": f"prefect.flow.{self.flow.name}",
-                        "prefect.resource.role": "flow",
-                        "prefect.resource.name": self.flow.name,
-                    }
-                )
-            )
-
-        # Add deployment as related resource if available
-        if self.flow_run.deployment_id:
-            related.append(
-                RelatedResource.model_validate(
-                    {
-                        "prefect.resource.id": f"prefect.deployment.{self.flow_run.deployment_id}",
-                        "prefect.resource.role": "deployment",
-                    }
-                )
-            )
-
-        related += tags_as_related_resources(set(tags))
-
-        emit_event(
-            event="prefect.flow-run.heartbeat",
-            resource={
-                "prefect.resource.id": f"prefect.flow-run.{self.flow_run.id}",
-                "prefect.resource.name": self.flow_run.name or "",
-                "prefect.version": __version__,
-            },
-            related=related,
-        )
 
     def _heartbeat_loop(self) -> None:
         """Background loop that emits heartbeats at regular intervals (sync version)."""
@@ -1019,6 +1020,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        # Stop heartbeat loop BEFORE proposing final state to avoid race condition
+        if state.is_final():
+            self._stop_heartbeat_loop()
+
         state = await propose_state(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -1032,66 +1037,23 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         # Start heartbeat loop when entering RUNNING state
         if state.is_running() and self.heartbeat_seconds is not None:
             self._start_heartbeat_loop()
-        # Stop heartbeat loop when entering a terminal state
-        elif state.is_final():
-            self._stop_heartbeat_loop()
 
         return state
 
-    def _emit_flow_run_heartbeat(self) -> None:
-        """Emit a heartbeat event for the current flow run."""
-        if not self.flow_run:
-            return
-
-        related: list[RelatedResource] = []
-        tags: list[str] = list(self.flow_run.tags or [])
-
-        # Add flow as related resource
-        if self.flow:
-            related.append(
-                RelatedResource.model_validate(
-                    {
-                        "prefect.resource.id": f"prefect.flow.{self.flow.name}",
-                        "prefect.resource.role": "flow",
-                        "prefect.resource.name": self.flow.name,
-                    }
-                )
-            )
-
-        # Add deployment as related resource if available
-        if self.flow_run.deployment_id:
-            related.append(
-                RelatedResource.model_validate(
-                    {
-                        "prefect.resource.id": f"prefect.deployment.{self.flow_run.deployment_id}",
-                        "prefect.resource.role": "deployment",
-                    }
-                )
-            )
-
-        related += tags_as_related_resources(set(tags))
-
-        emit_event(
-            event="prefect.flow-run.heartbeat",
-            resource={
-                "prefect.resource.id": f"prefect.flow-run.{self.flow_run.id}",
-                "prefect.resource.name": self.flow_run.name or "",
-                "prefect.version": __version__,
-            },
-            related=related,
-        )
-
     async def _heartbeat_loop(self) -> None:
         """Background loop that emits heartbeats at regular intervals."""
-        while not self._stop_heartbeat:
-            try:
-                self._emit_flow_run_heartbeat()
-            except Exception:
-                self.logger.debug("Failed to emit heartbeat", exc_info=True)
+        try:
+            while not self._stop_heartbeat:
+                try:
+                    self._emit_flow_run_heartbeat()
+                except Exception:
+                    self.logger.debug("Failed to emit heartbeat", exc_info=True)
 
-            # Sleep for the heartbeat interval
-            if self.heartbeat_seconds:
-                await asyncio.sleep(self.heartbeat_seconds)
+                # Sleep for the heartbeat interval
+                if self.heartbeat_seconds:
+                    await asyncio.sleep(self.heartbeat_seconds)
+        except asyncio.CancelledError:
+            self.logger.debug("Heartbeat loop cancelled")
 
     def _start_heartbeat_loop(self) -> None:
         """Start the background heartbeat loop."""
@@ -1792,6 +1754,7 @@ def run_flow_in_subprocess(
     parameters: dict[str, Any] | None = None,
     wait_for: Iterable[PrefectFuture[Any]] | None = None,
     context: dict[str, Any] | None = None,
+    env: dict[str, str] | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
     Run a flow in a subprocess.
@@ -1808,6 +1771,7 @@ def run_flow_in_subprocess(
             the current context will be used. A serialized context should be provided if
             this function is called in a separate memory space from the parent run (e.g.
             in a subprocess or on another machine).
+        env: Additional environment variables to set in the subprocess.
 
     Returns:
         A multiprocessing.context.SpawnProcess representing the process that is running the flow.
@@ -1850,7 +1814,8 @@ def run_flow_in_subprocess(
             | {
                 # TODO: make this a thing we can pass into the engine
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
-            },
+            }
+            | (env or {}),
             flow=flow,
             flow_run=flow_run,
             parameters=parameters,

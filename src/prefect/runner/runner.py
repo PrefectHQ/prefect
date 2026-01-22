@@ -155,6 +155,7 @@ class Runner:
         limit: int | type[NotSet] | None = NotSet,
         pause_on_shutdown: bool = True,
         webserver: bool = False,
+        heartbeat_seconds: Optional[float] = None,
     ):
         """
         Responsible for managing the execution of remotely initiated flow runs.
@@ -170,6 +171,10 @@ class Runner:
             pause_on_shutdown: A boolean for whether or not to automatically pause
                 deployment schedules on shutdown; defaults to `True`
             webserver: a boolean flag for whether to start a webserver for this runner
+            heartbeat_seconds: The number of seconds between heartbeat events emitted
+                by flow runs managed by this runner. If not provided, the value of
+                `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` will be used. Heartbeats are used
+                to detect crashed flow runs.
 
         Examples:
             Set up a Runner to manage the execute of scheduled flow runs for two flows:
@@ -197,6 +202,8 @@ class Runner:
                     asyncio.run(runner.start())
                 ```
         """
+        self._heartbeat_seconds = heartbeat_seconds
+
         settings = get_current_settings()
 
         if name and ("/" in name or "%" in name):
@@ -668,6 +675,11 @@ class Runner:
 
         flow_run = FlowRun.model_validate(bundle["flow_run"])
 
+        # Add heartbeat_seconds to env if configured
+        if self._heartbeat_seconds is not None:
+            env = env or {}
+            env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(int(self._heartbeat_seconds))
+
         async with context:
             if not self._acquire_limit_slot(flow_run.id):
                 return
@@ -779,7 +791,14 @@ class Runner:
         if flow_run.deployment_id is not None:
             flow = self._deployment_flow_map.get(flow_run.deployment_id)
             if flow:
-                process = run_flow_in_subprocess(flow, flow_run=flow_run)
+                subprocess_env: dict[str, str] = {}
+                if self._heartbeat_seconds is not None:
+                    subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
+                        int(self._heartbeat_seconds)
+                    )
+                process = run_flow_in_subprocess(
+                    flow, flow_run=flow_run, env=subprocess_env or None
+                )
                 task_status.started(process)
                 await anyio.to_thread.run_sync(process.join)
                 return process.exitcode
@@ -812,6 +831,15 @@ class Runner:
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                 },
                 **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
+                **(
+                    {
+                        "PREFECT_FLOWS_HEARTBEAT_FREQUENCY": str(
+                            int(self._heartbeat_seconds)
+                        )
+                    }
+                    if self._heartbeat_seconds is not None
+                    else {}
+                ),
             }
         )
         env.update(**os.environ)  # is this really necessary??

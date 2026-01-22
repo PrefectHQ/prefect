@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, ClassVar, Optional
+from typing import ClassVar, Optional
 
 from pydantic import Field
 from pydantic_settings import SettingsConfigDict
@@ -67,22 +67,15 @@ class RunnerSettings(PrefectBaseSettings):
 
     # handle deprecated fields
 
-    def __getattribute__(self, name: str) -> Any:
-        if name == "heartbeat_frequency":
-            from prefect.settings.context import get_current_settings
-
-            warnings.warn(
-                "`runner.heartbeat_frequency` has been moved to `flows.heartbeat_frequency`. "
-                "Use `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` instead of `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return get_current_settings().flows.heartbeat_frequency
-        return super().__getattribute__(name)
-
     @property
     def heartbeat_frequency(self) -> Optional[int]:
         """Deprecated: Use flows.heartbeat_frequency instead."""
-        # This property exists for type checking purposes.
-        # Actual access is handled by __getattribute__ above.
-        raise NotImplementedError("This should never be called")
+        from prefect.settings.context import get_current_settings
+
+        warnings.warn(
+            "`runner.heartbeat_frequency` has been moved to `flows.heartbeat_frequency`. "
+            "Use `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` instead of `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return get_current_settings().flows.heartbeat_frequency
