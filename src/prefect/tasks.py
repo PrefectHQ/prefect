@@ -919,7 +919,7 @@ class Task(Generic[P, R]):
 
                 store = await ResultStore(
                     result_storage=await get_or_create_default_task_scheduling_storage()
-                ).update_for_task(self)
+                ).aupdate_for_task(self)
                 context = serialize_context()
                 data: dict[str, Any] = {"context": context}
                 if parameters:
@@ -1024,7 +1024,7 @@ class Task(Generic[P, R]):
 
                 store = await ResultStore(
                     result_storage=await get_or_create_default_task_scheduling_storage()
-                ).update_for_task(self)
+                ).aupdate_for_task(self)
                 context = serialize_context()
                 data: dict[str, Any] = {"context": context}
                 if parameters:
