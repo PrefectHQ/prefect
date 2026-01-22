@@ -587,7 +587,6 @@ class ResultStore(BaseModel):
             exists = True
         return exists
 
-    @async_dispatch(_aexists)
     def _exists(self, key: str) -> bool:
         """
         Check if a result record exists in storage.
@@ -641,7 +640,7 @@ class ResultStore(BaseModel):
         Returns:
             bool: True if the result record exists, False otherwise.
         """
-        return self._exists(key=key, _sync=True)
+        return self._exists(key=key)
 
     async def aexists(self, key: str) -> bool:
         """
@@ -729,7 +728,6 @@ class ResultStore(BaseModel):
             self.cache[resolved_key_path] = result_record
         return result_record
 
-    @async_dispatch(_aread)
     def _read(self, key: str, holder: str) -> "ResultRecord[Any]":
         """
         Read a result record from storage.
@@ -809,7 +807,7 @@ class ResultStore(BaseModel):
             A result record.
         """
         holder = holder or self.generate_default_holder()
-        return self._read(key=key, holder=holder, _sync=True)
+        return self._read(key=key, holder=holder)
 
     async def aread(
         self,
@@ -980,7 +978,6 @@ class ResultStore(BaseModel):
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 
-    @async_dispatch(_apersist_result_record)
     def _persist_result_record(
         self, result_record: "ResultRecord[Any]", holder: str
     ) -> None:
@@ -1054,9 +1051,7 @@ class ResultStore(BaseModel):
             result_record: The result record to persist.
         """
         holder = holder or self.generate_default_holder()
-        return self._persist_result_record(
-            result_record=result_record, holder=holder, _sync=True
-        )
+        return self._persist_result_record(result_record=result_record, holder=holder)
 
     async def apersist_result_record(
         self, result_record: "ResultRecord[Any]", holder: str | None = None
