@@ -1056,16 +1056,16 @@ class TestGetRunsInWorkQueue:
 
     async def test_get_runs_in_queue_paused(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}", json=dict(is_paused=True)
         )
 
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs"
         )
         assert response1.json() == []
