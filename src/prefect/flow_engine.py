@@ -164,6 +164,125 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
     return flow_run, flow
 
 
+@contextmanager
+def send_heartbeats_sync(
+    engine: "FlowRunEngine[Any, Any]",
+) -> Generator[None, None, None]:
+    """Context manager that maintains heartbeats for a sync flow run.
+
+    Heartbeats are emitted at regular intervals while the flow is running.
+    The loop checks the flow run state before each heartbeat and stops
+    if the run reaches a terminal state.
+
+    Args:
+        engine: The FlowRunEngine instance to emit heartbeats for.
+
+    Yields:
+        None
+    """
+    heartbeat_seconds = engine.heartbeat_seconds
+    if heartbeat_seconds is None:
+        yield
+        return
+
+    stop_event = threading.Event()
+
+    def heartbeat_loop() -> None:
+        while not stop_event.is_set():
+            # Check state before emitting - don't emit if final
+            if (
+                engine.flow_run
+                and engine.flow_run.state
+                and engine.flow_run.state.is_final()
+            ):
+                engine.logger.debug("Flow run in terminal state, stopping heartbeat")
+                return
+
+            try:
+                engine._emit_flow_run_heartbeat()
+            except Exception:
+                engine.logger.debug("Failed to emit heartbeat", exc_info=True)
+
+            # Sleep in increments to allow quick shutdown
+            for _ in range(heartbeat_seconds):
+                if stop_event.is_set():
+                    return
+                time.sleep(1)
+
+    thread = threading.Thread(target=heartbeat_loop, daemon=True)
+    thread.start()
+    engine.logger.debug("Started flow run heartbeat context")
+
+    try:
+        yield
+    finally:
+        stop_event.set()
+        thread.join(timeout=2)
+        engine.logger.debug("Stopped flow run heartbeat context")
+
+
+@asynccontextmanager
+async def send_heartbeats_async(
+    engine: "AsyncFlowRunEngine[Any, Any]",
+) -> AsyncGenerator[None, None]:
+    """Async context manager that maintains heartbeats for an async flow run.
+
+    Heartbeats are emitted at regular intervals while the flow is running.
+    The loop checks the flow run state before each heartbeat and stops
+    if the run reaches a terminal state.
+
+    Args:
+        engine: The AsyncFlowRunEngine instance to emit heartbeats for.
+
+    Yields:
+        None
+    """
+    heartbeat_seconds = engine.heartbeat_seconds
+    if heartbeat_seconds is None:
+        yield
+        return
+
+    stop_flag = False
+
+    async def heartbeat_loop() -> None:
+        nonlocal stop_flag
+        try:
+            while not stop_flag:
+                # Check state before emitting - don't emit if final
+                if (
+                    engine.flow_run
+                    and engine.flow_run.state
+                    and engine.flow_run.state.is_final()
+                ):
+                    engine.logger.debug(
+                        "Flow run in terminal state, stopping heartbeat"
+                    )
+                    return
+
+                try:
+                    engine._emit_flow_run_heartbeat()
+                except Exception:
+                    engine.logger.debug("Failed to emit heartbeat", exc_info=True)
+
+                await asyncio.sleep(heartbeat_seconds)
+        except asyncio.CancelledError:
+            engine.logger.debug("Heartbeat loop cancelled")
+
+    task = asyncio.create_task(heartbeat_loop())
+    engine.logger.debug("Started flow run heartbeat context")
+
+    try:
+        yield
+    finally:
+        stop_flag = True
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        engine.logger.debug("Stopped flow run heartbeat context")
+
+
 @dataclass
 class BaseFlowRunEngine(Generic[P, R]):
     flow: Union[Flow[P, R], Flow[P, Coroutine[Any, Any, R]]]
@@ -181,10 +300,6 @@ class BaseFlowRunEngine(Generic[P, R]):
     short_circuit: bool = False
     _flow_run_name_set: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
-    # Heartbeat control
-    _heartbeat_task: Optional[asyncio.Task[None]] = None
-    _heartbeat_thread: Optional[threading.Thread] = None
-    _stop_heartbeat: bool = False
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -389,10 +504,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
-        # Stop heartbeat loop BEFORE proposing final state to avoid race condition
-        if state.is_final():
-            self._stop_heartbeat_loop()
-
         state = propose_state_sync(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -403,44 +514,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.update_state(state)
         self.call_hooks(state)
 
-        # Start heartbeat loop when entering RUNNING state
-        if state.is_running() and self.heartbeat_seconds is not None:
-            self._start_heartbeat_loop()
-
         return state
-
-    def _heartbeat_loop(self) -> None:
-        """Background loop that emits heartbeats at regular intervals (sync version)."""
-        while not self._stop_heartbeat:
-            try:
-                self._emit_flow_run_heartbeat()
-            except Exception:
-                self.logger.debug("Failed to emit heartbeat", exc_info=True)
-
-            # Sleep for the heartbeat interval, checking stop flag periodically
-            if self.heartbeat_seconds:
-                for _ in range(self.heartbeat_seconds):
-                    if self._stop_heartbeat:
-                        return
-                    time.sleep(1)
-
-    def _start_heartbeat_loop(self) -> None:
-        """Start the background heartbeat thread."""
-        if self._heartbeat_thread is None or not self._heartbeat_thread.is_alive():
-            self._stop_heartbeat = False
-            self._heartbeat_thread = threading.Thread(
-                target=self._heartbeat_loop, daemon=True
-            )
-            self._heartbeat_thread.start()
-            self.logger.debug("Started flow run heartbeat thread")
-
-    def _stop_heartbeat_loop(self) -> None:
-        """Stop the background heartbeat thread."""
-        self._stop_heartbeat = True
-        if self._heartbeat_thread and self._heartbeat_thread.is_alive():
-            self._heartbeat_thread.join(timeout=2)
-            self.logger.debug("Stopped flow run heartbeat thread")
-        self._heartbeat_thread = None
 
     def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet and not isinstance(
@@ -848,8 +922,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                             exc_info=exc,
                         )
                 finally:
-                    # Stop heartbeat loop if still running
-                    self._stop_heartbeat_loop()
                     # If debugging, use the more complete `repr` than the usual `str` description
                     display_state = (
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
@@ -890,10 +962,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    self.logger.debug(
-                        f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
-                    )
-                    yield self
+                    with send_heartbeats_sync(self):
+                        self.logger.debug(
+                            f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
+                        )
+                        yield self
             except TimeoutError as exc:
                 self.handle_timeout(exc)
             except Exception as exc:
@@ -1020,10 +1093,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
-        # Stop heartbeat loop BEFORE proposing final state to avoid race condition
-        if state.is_final():
-            self._stop_heartbeat_loop()
-
         state = await propose_state(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -1034,41 +1103,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.update_state(state)
         await self.call_hooks(state)
 
-        # Start heartbeat loop when entering RUNNING state
-        if state.is_running() and self.heartbeat_seconds is not None:
-            self._start_heartbeat_loop()
-
         return state
-
-    async def _heartbeat_loop(self) -> None:
-        """Background loop that emits heartbeats at regular intervals."""
-        try:
-            while not self._stop_heartbeat:
-                try:
-                    self._emit_flow_run_heartbeat()
-                except Exception:
-                    self.logger.debug("Failed to emit heartbeat", exc_info=True)
-
-                # Sleep for the heartbeat interval
-                if self.heartbeat_seconds:
-                    await asyncio.sleep(self.heartbeat_seconds)
-        except asyncio.CancelledError:
-            self.logger.debug("Heartbeat loop cancelled")
-
-    def _start_heartbeat_loop(self) -> None:
-        """Start the background heartbeat loop."""
-        if self._heartbeat_task is None or self._heartbeat_task.done():
-            self._stop_heartbeat = False
-            self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-            self.logger.debug("Started flow run heartbeat loop")
-
-    def _stop_heartbeat_loop(self) -> None:
-        """Stop the background heartbeat loop."""
-        self._stop_heartbeat = True
-        if self._heartbeat_task and not self._heartbeat_task.done():
-            self._heartbeat_task.cancel()
-            self.logger.debug("Stopped flow run heartbeat loop")
-        self._heartbeat_task = None
 
     async def result(self, raise_on_failure: bool = True) -> "Union[R, State, None]":
         if self._return_value is not NotSet and not isinstance(
@@ -1477,8 +1512,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                             exc_info=exc,
                         )
                 finally:
-                    # Stop heartbeat loop if still running
-                    self._stop_heartbeat_loop()
                     # If debugging, use the more complete `repr` than the usual `str` description
                     display_state = (
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
@@ -1521,10 +1554,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    self.logger.debug(
-                        f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
-                    )
-                    yield self
+                    async with send_heartbeats_async(self):
+                        self.logger.debug(
+                            f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
+                        )
+                        yield self
             except TimeoutError as exc:
                 await self.handle_timeout(exc)
             except Exception as exc:

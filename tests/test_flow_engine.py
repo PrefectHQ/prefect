@@ -3,6 +3,7 @@ import logging
 import signal
 import time
 import uuid
+from contextlib import asynccontextmanager, contextmanager
 from textwrap import dedent
 from typing import Literal, Optional
 from unittest import mock
@@ -41,6 +42,8 @@ from prefect.flow_engine import (
     run_flow_async,
     run_flow_in_subprocess,
     run_flow_sync,
+    send_heartbeats_async,
+    send_heartbeats_sync,
 )
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
@@ -2542,30 +2545,29 @@ class TestLeaseRenewal:
 class TestFlowRunEngineHeartbeat:
     """Tests for heartbeat integration in the flow run engine."""
 
-    def test_heartbeat_loop_starts_when_entering_running_state_sync(
+    def test_heartbeat_context_manager_used_during_flow_execution_sync(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that heartbeat loop starts when sync flow enters RUNNING state."""
-        start_heartbeat_calls = []
-        stop_heartbeat_calls = []
+        """Test that heartbeat context manager is used during sync flow execution."""
+        context_entered = []
+        context_exited = []
 
-        def mock_start(self):
-            start_heartbeat_calls.append(True)
-            # Don't actually start the thread to avoid test flakiness
-            self._stop_heartbeat = False
+        @contextmanager
+        def mock_send_heartbeats_sync(engine):
+            context_entered.append(engine)
+            try:
+                yield
+            finally:
+                context_exited.append(engine)
 
-        def mock_stop(self):
-            stop_heartbeat_calls.append(True)
-            self._stop_heartbeat = True
-            self._heartbeat_thread = None
-
-        monkeypatch.setattr(FlowRunEngine, "_start_heartbeat_loop", mock_start)
-        monkeypatch.setattr(FlowRunEngine, "_stop_heartbeat_loop", mock_stop)
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_sync", mock_send_heartbeats_sync
+        )
 
         # Set heartbeat_frequency to enable heartbeats
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(runner=MagicMock(heartbeat_frequency=30)),
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
         )
 
         @flow
@@ -2575,33 +2577,33 @@ class TestFlowRunEngineHeartbeat:
         result = my_flow()
         assert result == 42
 
-        # Heartbeat should have been started when entering RUNNING
-        assert len(start_heartbeat_calls) == 1
-        # Heartbeat should have been stopped when entering COMPLETED (and in finally)
-        assert len(stop_heartbeat_calls) >= 1
+        # Heartbeat context manager should have been entered and exited
+        assert len(context_entered) == 1
+        assert len(context_exited) == 1
+        assert isinstance(context_entered[0], FlowRunEngine)
 
-    async def test_heartbeat_loop_starts_when_entering_running_state_async(
+    async def test_heartbeat_context_manager_used_during_flow_execution_async(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that heartbeat loop starts when async flow enters RUNNING state."""
-        start_heartbeat_calls = []
-        stop_heartbeat_calls = []
+        """Test that heartbeat context manager is used during async flow execution."""
+        context_entered = []
+        context_exited = []
 
-        def mock_start(self):
-            start_heartbeat_calls.append(True)
-            self._stop_heartbeat = False
+        @asynccontextmanager
+        async def mock_send_heartbeats_async(engine):
+            context_entered.append(engine)
+            try:
+                yield
+            finally:
+                context_exited.append(engine)
 
-        def mock_stop(self):
-            stop_heartbeat_calls.append(True)
-            self._stop_heartbeat = True
-            self._heartbeat_task = None
-
-        monkeypatch.setattr(AsyncFlowRunEngine, "_start_heartbeat_loop", mock_start)
-        monkeypatch.setattr(AsyncFlowRunEngine, "_stop_heartbeat_loop", mock_stop)
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_async", mock_send_heartbeats_async
+        )
 
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(runner=MagicMock(heartbeat_frequency=30)),
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
         )
 
         @flow
@@ -2611,21 +2613,23 @@ class TestFlowRunEngineHeartbeat:
         result = await my_flow()
         assert result == 42
 
-        assert len(start_heartbeat_calls) == 1
-        assert len(stop_heartbeat_calls) >= 1
+        assert len(context_entered) == 1
+        assert len(context_exited) == 1
+        assert isinstance(context_entered[0], AsyncFlowRunEngine)
 
-    def test_heartbeat_not_started_when_frequency_is_none_sync(
+    def test_heartbeat_not_emitted_when_frequency_is_none_sync(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that heartbeat is not started when frequency is None."""
-        start_heartbeat_calls = []
+        """Test that heartbeats are not emitted when frequency is None."""
+        emitted_events = []
 
-        def mock_start(self):
-            start_heartbeat_calls.append(True)
+        def mock_emit_event(**kwargs):
+            if kwargs.get("event") == "prefect.flow-run.heartbeat":
+                emitted_events.append(kwargs)
 
-        monkeypatch.setattr(FlowRunEngine, "_start_heartbeat_loop", mock_start)
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
 
-        # Set heartbeat_frequency to None (now in flows settings)
+        # Set heartbeat_frequency to None (disabled)
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
             lambda: MagicMock(flows=MagicMock(heartbeat_frequency=None)),
@@ -2638,21 +2642,22 @@ class TestFlowRunEngineHeartbeat:
         result = my_flow()
         assert result == 42
 
-        # Heartbeat should not have been started
-        assert len(start_heartbeat_calls) == 0
+        # No heartbeat events should have been emitted
+        assert len(emitted_events) == 0
 
-    async def test_heartbeat_not_started_when_frequency_is_none_async(
+    async def test_heartbeat_not_emitted_when_frequency_is_none_async(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that heartbeat is not started when frequency is None."""
-        start_heartbeat_calls = []
+        """Test that heartbeats are not emitted when frequency is None."""
+        emitted_events = []
 
-        def mock_start(self):
-            start_heartbeat_calls.append(True)
+        def mock_emit_event(**kwargs):
+            if kwargs.get("event") == "prefect.flow-run.heartbeat":
+                emitted_events.append(kwargs)
 
-        monkeypatch.setattr(AsyncFlowRunEngine, "_start_heartbeat_loop", mock_start)
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
 
-        # Set heartbeat_frequency to None (now in flows settings)
+        # Set heartbeat_frequency to None (disabled)
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
             lambda: MagicMock(flows=MagicMock(heartbeat_frequency=None)),
@@ -2665,7 +2670,7 @@ class TestFlowRunEngineHeartbeat:
         result = await my_flow()
         assert result == 42
 
-        assert len(start_heartbeat_calls) == 0
+        assert len(emitted_events) == 0
 
     def test_heartbeat_emits_event_sync(self, monkeypatch: pytest.MonkeyPatch):
         """Test that heartbeat actually emits events for sync flows."""
@@ -2717,20 +2722,25 @@ class TestFlowRunEngineHeartbeat:
         )
 
     def test_heartbeat_cleanup_on_exception_sync(self, monkeypatch: pytest.MonkeyPatch):
-        """Test that heartbeat is cleaned up even when an exception occurs."""
-        stop_heartbeat_calls = []
+        """Test that heartbeat context manager cleans up even when an exception occurs."""
+        context_entered = []
+        context_exited = []
 
-        original_stop = FlowRunEngine._stop_heartbeat_loop
+        @contextmanager
+        def mock_send_heartbeats_sync(engine):
+            context_entered.append(engine)
+            try:
+                yield
+            finally:
+                context_exited.append(engine)
 
-        def mock_stop(self):
-            stop_heartbeat_calls.append(True)
-            original_stop(self)
-
-        monkeypatch.setattr(FlowRunEngine, "_stop_heartbeat_loop", mock_stop)
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_sync", mock_send_heartbeats_sync
+        )
 
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(runner=MagicMock(heartbeat_frequency=30)),
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
         )
 
         @flow
@@ -2740,26 +2750,32 @@ class TestFlowRunEngineHeartbeat:
         with pytest.raises(ValueError, match="test error"):
             my_flow()
 
-        # Heartbeat should have been stopped in the finally block
-        assert len(stop_heartbeat_calls) >= 1
+        # Heartbeat context manager should have been entered and exited (cleanup)
+        assert len(context_entered) == 1
+        assert len(context_exited) == 1
 
     async def test_heartbeat_cleanup_on_exception_async(
         self, monkeypatch: pytest.MonkeyPatch
     ):
-        """Test that heartbeat is cleaned up even when an exception occurs."""
-        stop_heartbeat_calls = []
+        """Test that heartbeat context manager cleans up even when an exception occurs."""
+        context_entered = []
+        context_exited = []
 
-        original_stop = AsyncFlowRunEngine._stop_heartbeat_loop
+        @asynccontextmanager
+        async def mock_send_heartbeats_async(engine):
+            context_entered.append(engine)
+            try:
+                yield
+            finally:
+                context_exited.append(engine)
 
-        def mock_stop(self):
-            stop_heartbeat_calls.append(True)
-            original_stop(self)
-
-        monkeypatch.setattr(AsyncFlowRunEngine, "_stop_heartbeat_loop", mock_stop)
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_async", mock_send_heartbeats_async
+        )
 
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(runner=MagicMock(heartbeat_frequency=30)),
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
         )
 
         @flow
@@ -2769,7 +2785,8 @@ class TestFlowRunEngineHeartbeat:
         with pytest.raises(ValueError, match="test error"):
             await my_flow()
 
-        assert len(stop_heartbeat_calls) >= 1
+        assert len(context_entered) == 1
+        assert len(context_exited) == 1
 
     def test_heartbeat_includes_flow_related_resource(
         self, monkeypatch: pytest.MonkeyPatch
@@ -2842,29 +2859,36 @@ class TestFlowRunEngineHeartbeat:
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/19598
 
-        Verifies that heartbeats stop being emitted after the flow run enters
-        a terminal state. This prevents the race condition where heartbeats
-        could be emitted after a flow run completes, incorrectly triggering
-        zombie flow detection automations.
+        Verifies that the heartbeat context manager checks flow state before
+        emitting heartbeats and stops if the state is terminal. This prevents
+        the race condition where heartbeats could be emitted after a flow run
+        completes, incorrectly triggering zombie flow detection automations.
         """
-        heartbeat_starts = []
-        heartbeat_stops = []
+        heartbeat_state_checks = []
 
-        def mock_start(self):
-            heartbeat_starts.append(self.state.type if self.state else None)
-            self._stop_heartbeat = False
+        # Track the original send_heartbeats_sync to wrap it
+        original_send_heartbeats = send_heartbeats_sync
 
-        def mock_stop(self):
-            heartbeat_stops.append(self.state.type if self.state else None)
-            self._stop_heartbeat = True
-            self._heartbeat_thread = None
+        @contextmanager
+        def tracking_send_heartbeats_sync(engine):
+            # Record state when entering context
+            heartbeat_state_checks.append(
+                ("enter", engine.flow_run.state.type if engine.flow_run else None)
+            )
+            with original_send_heartbeats(engine):
+                yield
+            # Record state when exiting context
+            heartbeat_state_checks.append(
+                ("exit", engine.flow_run.state.type if engine.flow_run else None)
+            )
 
-        monkeypatch.setattr(FlowRunEngine, "_start_heartbeat_loop", mock_start)
-        monkeypatch.setattr(FlowRunEngine, "_stop_heartbeat_loop", mock_stop)
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_sync", tracking_send_heartbeats_sync
+        )
 
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(runner=MagicMock(heartbeat_frequency=30)),
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
         )
 
         @flow
@@ -2874,18 +2898,13 @@ class TestFlowRunEngineHeartbeat:
         result = my_flow()
         assert result == 42
 
-        # Heartbeat should have been started when entering RUNNING
-        assert len(heartbeat_starts) == 1
-        assert heartbeat_starts[0] == StateType.RUNNING
-
-        # Heartbeat should have been stopped when entering COMPLETED
-        # The stop is called both in set_state (when entering terminal state)
-        # and in the finally block of initialize_run
-        assert len(heartbeat_stops) >= 1
-        # At least one stop should be when we're in a terminal state
+        # Context manager should have been entered and exited
+        assert len(heartbeat_state_checks) >= 2
+        # The context manager should exit when the flow completes
+        exit_states = [s for action, s in heartbeat_state_checks if action == "exit"]
         assert any(
             state_type in (StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED)
-            for state_type in heartbeat_stops
+            for state_type in exit_states
             if state_type is not None
         )
 
@@ -2895,27 +2914,34 @@ class TestFlowRunEngineHeartbeat:
         """
         Regression test for https://github.com/PrefectHQ/prefect/issues/19598
 
-        Async version: Verifies that heartbeats stop being emitted after the
-        flow run enters a terminal state.
+        Async version: Verifies that the heartbeat context manager checks flow
+        state before emitting heartbeats and stops if the state is terminal.
         """
-        heartbeat_starts = []
-        heartbeat_stops = []
+        heartbeat_state_checks = []
 
-        def mock_start(self):
-            heartbeat_starts.append(self.state.type if self.state else None)
-            self._stop_heartbeat = False
+        # Track the original send_heartbeats_async to wrap it
+        original_send_heartbeats = send_heartbeats_async
 
-        def mock_stop(self):
-            heartbeat_stops.append(self.state.type if self.state else None)
-            self._stop_heartbeat = True
-            self._heartbeat_task = None
+        @asynccontextmanager
+        async def tracking_send_heartbeats_async(engine):
+            # Record state when entering context
+            heartbeat_state_checks.append(
+                ("enter", engine.flow_run.state.type if engine.flow_run else None)
+            )
+            async with original_send_heartbeats(engine):
+                yield
+            # Record state when exiting context
+            heartbeat_state_checks.append(
+                ("exit", engine.flow_run.state.type if engine.flow_run else None)
+            )
 
-        monkeypatch.setattr(AsyncFlowRunEngine, "_start_heartbeat_loop", mock_start)
-        monkeypatch.setattr(AsyncFlowRunEngine, "_stop_heartbeat_loop", mock_stop)
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_async", tracking_send_heartbeats_async
+        )
 
         monkeypatch.setattr(
             "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(runner=MagicMock(heartbeat_frequency=30)),
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
         )
 
         @flow
@@ -2925,12 +2951,10 @@ class TestFlowRunEngineHeartbeat:
         result = await my_flow()
         assert result == 42
 
-        assert len(heartbeat_starts) == 1
-        assert heartbeat_starts[0] == StateType.RUNNING
-
-        assert len(heartbeat_stops) >= 1
+        assert len(heartbeat_state_checks) >= 2
+        exit_states = [s for action, s in heartbeat_state_checks if action == "exit"]
         assert any(
             state_type in (StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED)
-            for state_type in heartbeat_stops
+            for state_type in exit_states
             if state_type is not None
         )
