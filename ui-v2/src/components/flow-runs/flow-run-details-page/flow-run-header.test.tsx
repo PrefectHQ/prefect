@@ -528,4 +528,115 @@ describe("FlowRunHeader", () => {
 			expect(screen.getByText("parent-flow-run")).toBeInTheDocument();
 		});
 	});
+
+	it("displays tags when flow run has tags", async () => {
+		renderFlowRunHeader({
+			tags: ["tag1", "tag2"],
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("tag1")).toBeInTheDocument();
+			expect(screen.getByText("tag2")).toBeInTheDocument();
+		});
+	});
+
+	it("does not display tags section when tags is empty", async () => {
+		renderFlowRunHeader({
+			tags: [],
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		expect(screen.queryByText("tag1")).not.toBeInTheDocument();
+	});
+
+	it("shows 'Change state' option for terminal states", async () => {
+		server.use(
+			http.post(buildApiUrl("/flow_runs/:id/set_state"), () => {
+				return HttpResponse.json({ status: "ACCEPT" });
+			}),
+		);
+
+		renderFlowRunHeader({
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		});
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Change state")).toBeInTheDocument();
+		});
+	});
+
+	it("does not show 'Change state' option for non-terminal states", async () => {
+		renderFlowRunHeader({
+			state_type: "RUNNING",
+			state_name: "Running",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		});
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Copy ID")).toBeInTheDocument();
+		});
+
+		expect(screen.queryByText("Change state")).not.toBeInTheDocument();
+	});
+
+	it("opens change state dialog when 'Change state' is clicked", async () => {
+		server.use(
+			http.post(buildApiUrl("/flow_runs/:id/set_state"), () => {
+				return HttpResponse.json({ status: "ACCEPT" });
+			}),
+		);
+
+		renderFlowRunHeader({
+			state_type: "FAILED",
+			state_name: "Failed",
+			state: createFakeState({
+				type: "FAILED",
+				name: "Failed",
+			}),
+		});
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Change state")).toBeInTheDocument();
+		});
+		await user.click(screen.getByText("Change state"));
+
+		await waitFor(() => {
+			expect(screen.getByText("Change Flow Run State")).toBeInTheDocument();
+		});
+	});
 });

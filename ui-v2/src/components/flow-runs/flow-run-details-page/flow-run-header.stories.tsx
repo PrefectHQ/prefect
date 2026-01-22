@@ -236,3 +236,73 @@ export const MinimalRelationships: Story = {
 		}),
 	},
 };
+
+export const WithTags: Story = {
+	name: "With Tags",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-with-tags",
+			name: "my-flow-run-with-tags",
+			flow_id: "test-flow-id",
+			tags: ["production", "critical"],
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const WithManyTags: Story = {
+	name: "With Many Tags",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-with-many-tags",
+			name: "my-flow-run-with-many-tags",
+			flow_id: "test-flow-id",
+			tags: ["production", "critical", "etl", "daily", "data-pipeline"],
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const TerminalStateCanChange: Story = {
+	name: "Terminal State (Can Change State)",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-terminal",
+			name: "my-completed-flow-run",
+			flow_id: "test-flow-id",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const NonTerminalStateCannotChange: Story = {
+	name: "Non-Terminal State (Cannot Change State)",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-non-terminal",
+			name: "my-running-flow-run",
+			flow_id: "test-flow-id",
+			state_type: "RUNNING",
+			state_name: "Running",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		}),
+	},
+};
