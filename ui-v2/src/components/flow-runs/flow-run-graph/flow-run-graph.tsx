@@ -11,6 +11,7 @@ import {
 	updateViewportFromDateRange,
 	type ViewportDateRange,
 } from "@prefecthq/graphs";
+import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
 import {
 	type CSSProperties,
@@ -20,13 +21,18 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { buildCountFlowRunsQuery } from "@/api/flow-runs";
+import { buildCountTaskRunsQuery } from "@/api/task-runs";
 import { getStateColor } from "@/utils/state-colors";
 import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
 import { stateTypeShades } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
 
+const TERMINAL_STATES = ["COMPLETED", "FAILED", "CANCELLED", "CRASHED"];
+
 type FlowRunGraphProps = {
 	flowRunId: string;
+	stateType?: string;
 	viewport?: ViewportDateRange;
 	onViewportChange?: (viewport: ViewportDateRange) => void;
 	selected?: GraphItemSelection;
@@ -39,6 +45,7 @@ type FlowRunGraphProps = {
 
 export function FlowRunGraph({
 	flowRunId,
+	stateType,
 	viewport,
 	onViewportChange,
 	selected,
@@ -53,6 +60,34 @@ export function FlowRunGraph({
 	const { resolvedTheme } = useTheme();
 
 	const fullscreen = controlledFullscreen ?? internalFullscreen;
+	const isTerminal = stateType && TERMINAL_STATES.includes(stateType);
+
+	const { data: taskRunCount } = useQuery(
+		buildCountTaskRunsQuery({
+			task_runs: {
+				operator: "and_",
+				flow_run_id: { operator: "and_", any_: [flowRunId], is_null_: false },
+			},
+		}),
+	);
+
+	const { data: subflowRunCount } = useQuery(
+		buildCountFlowRunsQuery({
+			flow_runs: {
+				operator: "and_",
+				parent_flow_run_id: {
+					operator: "and_",
+					any_: [flowRunId],
+				},
+			},
+		}),
+	);
+
+	const hasNodes =
+		taskRunCount === undefined ||
+		subflowRunCount === undefined ||
+		taskRunCount > 0 ||
+		subflowRunCount > 0;
 
 	const updateFullscreen = useCallback(
 		(value: boolean) => {
@@ -131,6 +166,15 @@ export function FlowRunGraph({
 			style={style}
 		>
 			<div ref={stageRef} className="size-full [&>canvas]:size-full" />
+			{!hasNodes && (
+				<div className="absolute inset-0 flex items-center justify-center bg-background/50">
+					<p className="text-muted-foreground">
+						{isTerminal
+							? "This flow run did not generate any task or subflow runs"
+							: "This flow run has not yet generated any task or subflow runs"}
+					</p>
+				</div>
+			)}
 			<div className="absolute bottom-0 right-0">
 				<FlowRunGraphActions
 					fullscreen={fullscreen}
