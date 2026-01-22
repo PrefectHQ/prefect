@@ -50,7 +50,7 @@ export function FlowRunGraph({
 	stateType,
 	viewport,
 	onViewportChange,
-	selected,
+	selected: controlledSelected,
 	onSelectedChange,
 	className,
 	style,
@@ -59,9 +59,13 @@ export function FlowRunGraph({
 }: FlowRunGraphProps) {
 	const stageRef = useRef<HTMLDivElement>(null);
 	const [internalFullscreen, setInternalFullscreen] = useState(false);
+	const [internalSelected, setInternalSelected] = useState<
+		GraphItemSelection | undefined
+	>(undefined);
 	const { resolvedTheme } = useTheme();
 
 	const fullscreen = controlledFullscreen ?? internalFullscreen;
+	const selected = controlledSelected ?? internalSelected;
 	const isTerminal = stateType && TERMINAL_STATES.includes(stateType);
 
 	const { data: taskRunCount } = useQuery(
@@ -148,9 +152,11 @@ export function FlowRunGraph({
 	}, [viewport]);
 
 	useEffect(() => {
-		const offItemSelected = emitter.on("itemSelected", (nodeId) =>
-			onSelectedChange?.(nodeId ?? undefined),
-		);
+		const offItemSelected = emitter.on("itemSelected", (nodeId) => {
+			const selection = nodeId ?? undefined;
+			setInternalSelected(selection);
+			onSelectedChange?.(selection);
+		});
 		const offViewportDateRangeUpdated = emitter.on(
 			"viewportDateRangeUpdated",
 			(range) => onViewportChange?.(range),
@@ -189,7 +195,10 @@ export function FlowRunGraph({
 			{selected && isNodeSelection(selected) && (
 				<FlowRunGraphSelectionPanel
 					selection={selected}
-					onClose={() => onSelectedChange?.(undefined)}
+					onClose={() => {
+						setInternalSelected(undefined);
+						onSelectedChange?.(undefined);
+					}}
 				/>
 			)}
 		</div>
