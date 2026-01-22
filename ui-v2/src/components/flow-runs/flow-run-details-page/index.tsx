@@ -115,6 +115,7 @@ export const FlowRunDetailsPage = ({
 					<CardContent className="p-0">
 						<FlowRunGraph
 							flowRunId={flowRun.id}
+							stateType={flowRun.state_type ?? undefined}
 							fullscreen={fullscreen}
 							onFullscreenChange={setFullscreen}
 						/>
