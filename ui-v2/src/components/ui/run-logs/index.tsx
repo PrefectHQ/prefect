@@ -44,7 +44,7 @@ export const RunLogs = ({
 	const virtualizer = useVirtualizer({
 		count: logs.length,
 		getScrollElement: () => parentRef.current,
-		estimateSize: () => 75,
+		estimateSize: () => 90,
 		overscan: 5,
 		getItemKey,
 	});
@@ -63,8 +63,8 @@ export const RunLogs = ({
 		? virtualizer.getVirtualItems()
 		: Array.from({ length: logs.length }, (_, i) => ({
 				index: i,
-				size: 75,
-				start: i * 75,
+				size: 90,
+				start: i * 90,
 			}));
 
 	// Get the last visible item index for stable effect dependency
@@ -155,7 +155,7 @@ type RunLogRowProps = {
 
 const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 	return (
-		<div className="grid grid-cols-[84px_minmax(0,1fr)_150px] gap-2 text-sm">
+		<div className="grid grid-cols-[84px_minmax(0,1fr)_150px] gap-2 text-sm py-2">
 			<div>
 				<LogLevelBadge level={log.level} />
 			</div>
