@@ -708,13 +708,16 @@ class TestReadFlowRuns:
         assert {res.id for res in result} == {flow_run_3.id}
 
         # is_null_
+        # Note: flow_run_4 now has start_time set because it was created with a
+        # terminal state (COMPLETED), and SetEndTime sets start_time for runs
+        # entering a terminal state without a start_time.
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 start_time=schemas.filters.FlowRunFilterStartTime(is_null_=True)
             ),
         )
-        assert {res.id for res in result} == {flow_run_4.id}
+        assert {res.id for res in result} == set()
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
@@ -725,6 +728,7 @@ class TestReadFlowRuns:
             flow_run_1.id,
             flow_run_2.id,
             flow_run_3.id,
+            flow_run_4.id,
         }
 
     async def test_read_flow_runs_filters_by_next_scheduled_start_time(
