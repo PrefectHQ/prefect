@@ -17,7 +17,7 @@ import readchar
 from anyio.abc import Process
 from typer import Exit
 
-from prefect.cli.server import SERVER_PID_FILE_NAME
+from prefect.cli.server import SERVER_PID_FILE_NAME, _format_host_for_url
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -575,3 +575,26 @@ class TestPrestartCheck:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind(sockaddr)
         # if we get here without socket.gaierror, the host was accepted
+
+
+class TestFormatHostForUrl:
+    """Tests for _format_host_for_url helper function."""
+
+    @pytest.mark.parametrize(
+        "host,expected",
+        [
+            ("127.0.0.1", "127.0.0.1"),
+            ("0.0.0.0", "0.0.0.0"),
+            ("::", "[::]"),
+            ("::1", "[::1]"),
+            ("2001:db8::1", "[2001:db8::1]"),
+            ("localhost", "localhost"),
+            ("example.com", "example.com"),
+        ],
+    )
+    def test_format_host_for_url(self, host: str, expected: str):
+        """Test that IPv6 addresses are wrapped in brackets for URL use.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        """
+        assert _format_host_for_url(host) == expected

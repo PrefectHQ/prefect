@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import ipaddress
 import os
 import shlex
 import signal
@@ -73,6 +74,17 @@ logger: "logging.Logger" = get_logger(__name__)
 
 SERVER_PID_FILE_NAME = "server.pid"
 SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
+
+
+def _format_host_for_url(host: str) -> str:
+    """Format a host for use in a URL, adding brackets for IPv6 addresses."""
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.version == 6:
+            return f"[{host}]"
+    except ValueError:
+        pass  # not an IP address (e.g., hostname)
+    return host
 
 
 def generate_welcome_blurb(base_url: str, ui_enabled: bool) -> str:
@@ -328,7 +340,7 @@ def start(
     """
     Start a Prefect server instance
     """
-    base_url = f"http://{host}:{port}"
+    base_url = f"http://{_format_host_for_url(host)}:{port}"
     if is_interactive():
         try:
             prestart_check(base_url)
