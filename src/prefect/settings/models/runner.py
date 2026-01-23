@@ -60,6 +60,17 @@ class RunnerSettings(PrefectBaseSettings):
         description="Number of seconds a runner should wait between queries for scheduled work.",
     )
 
+    crash_on_cancellation_failure: bool = Field(
+        default=False,
+        description=(
+            "Whether to crash flow runs and shut down the runner when cancellation "
+            "observing fails. When enabled, if both websocket and polling mechanisms "
+            "for detecting cancellation events fail, all in-flight flow runs will be "
+            "marked as crashed and the runner will shut down. When disabled (default), "
+            "the runner will log an error but continue executing flow runs."
+        ),
+    )
+
     server: RunnerServerSettings = Field(
         default_factory=RunnerServerSettings,
         description="Settings for controlling runner server behavior",

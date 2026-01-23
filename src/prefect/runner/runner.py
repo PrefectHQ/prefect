@@ -1448,6 +1448,51 @@ class Runner:
                 )
         return state
 
+    async def _handle_cancellation_observer_failure(self) -> None:
+        """Handle failure of the cancellation observer.
+
+        This is called when both the websocket and polling mechanisms for detecting
+        cancellation events have failed. Without cancellation observing, flow runs
+        cannot be cancelled and may run indefinitely.
+
+        Behavior depends on the `PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE` setting:
+        - When enabled: kills all in-flight flow run processes, which triggers crash
+          handling when the processes terminate, and stops the runner
+        - When disabled (default): logs an error but allows execution to continue
+        """
+        will_crash = get_current_settings().runner.crash_on_cancellation_failure
+        crash_message = (
+            "Cancellation observing failed - both websocket and polling mechanisms "
+            "are unavailable. Killing flow run process to prevent indefinite execution."
+        )
+        continue_message = (
+            "Cancellation observing failed - both websocket and polling mechanisms "
+            "are unavailable. Flow run will continue executing but cannot be "
+            "cancelled. Set PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE=true to "
+            "crash flow runs and shut down the runner when this occurs."
+        )
+
+        if will_crash:
+            self.stopping = True
+
+        # Copy to list to avoid dictionary size changing during iteration
+        process_entries = list(self._flow_run_process_map.items())
+        for flow_run_id, process_entry in process_entries:
+            flow_run = process_entry["flow_run"]
+            run_logger = self._get_flow_run_logger(flow_run)
+            if will_crash:
+                run_logger.error(crash_message)
+                pid = process_entry.get("pid")
+                if pid:
+                    try:
+                        await self._kill_process(pid)
+                    except Exception:
+                        run_logger.exception(
+                            f"Failed to kill process {pid} for flow run '{flow_run.id}'"
+                        )
+            else:
+                run_logger.warning(continue_message)
+
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
     ) -> None:
@@ -1560,6 +1605,9 @@ class Runner:
             FlowRunCancellingObserver(
                 on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
                     self._cancel_run, flow_run_id
+                ),
+                on_failure=lambda _: self._runs_task_group.start_soon(
+                    self._handle_cancellation_observer_failure
                 ),
                 polling_interval=self.query_seconds,
             )
