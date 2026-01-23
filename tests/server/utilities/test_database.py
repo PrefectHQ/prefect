@@ -613,8 +613,10 @@ class TestDateFunctions:
             sa.select(sa.func.date_diff_seconds(value))
         )
         assert result is not None
-        # database rounnd-trips can be sloooow
-        assert 17 <= result <= 17.1
+        # Use pytest.approx with tolerance to account for clock precision differences
+        # between Python's datetime.now() and the database's "now", as well as
+        # database round-trip time
+        assert result == pytest.approx(17, abs=0.2)
 
     async def test_date_diff_seconds_from_now_column(self, session: AsyncSession):
         value = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
@@ -630,8 +632,10 @@ class TestDateFunctions:
             )
         )
         assert result is not None
-        # database rounnd-trips can be sloooow
-        assert 17 <= result <= 17.1
+        # Use pytest.approx with tolerance to account for clock precision differences
+        # between Python's datetime.now() and the database's "now", as well as
+        # database round-trip time
+        assert result == pytest.approx(17, abs=0.2)
 
 
 async def test_error_thrown_if_sqlite_version_is_below_minimum():

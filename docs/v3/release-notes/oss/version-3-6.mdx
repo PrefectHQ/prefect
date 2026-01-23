@@ -2,6 +2,50 @@
 title: 3.6
 ---
 
+## 3.6.13 - The heartbeat is coming from *inside* the engine
+
+*Released on January 23, 2026*
+
+**Enhancements ➕➕**
+
+* Add `FlowRunFilterCreatedBy` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20256](https://github.com/PrefectHQ/prefect/pull/20256)
+* Add retry logic for `PrefectEventsClient.__aenter__()` initial connection by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20328](https://github.com/PrefectHQ/prefect/pull/20328)
+
+**Bug Fixes 🐞**
+
+* Move flow run heartbeat event emission to flow run engine by [@zzstoatzz](https://github.com/zzstoatzz) in [#19641](https://github.com/PrefectHQ/prefect/pull/19641)
+* Fix websocket cleanup `AttributeError` in event clients by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20323](https://github.com/PrefectHQ/prefect/pull/20323)
+* Add warning when sync task with timeout runs in worker thread by [@desertaxle](https://github.com/desertaxle) in [#20315](https://github.com/PrefectHQ/prefect/pull/20315)
+* Prevent GitHub token leakage in git error messages by [@Rodrigorm33](https://github.com/Rodrigorm33) in [#20330](https://github.com/PrefectHQ/prefect/pull/20330)
+* Consolidate `strip_auth_from_url` into `prefect._internal.urls` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20331](https://github.com/PrefectHQ/prefect/pull/20331)
+* Fix git URL comparison when credentials are embedded in URL by [@zzstoatzz](https://github.com/zzstoatzz) in [#20346](https://github.com/PrefectHQ/prefect/pull/20346)
+* Fix `slot_decay_per_second` `None` value causing 422 error in `upsert_global_concurrency_limit_by_name` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20320](https://github.com/PrefectHQ/prefect/pull/20320)
+* Fix Windows-specific process termination bug in `hosted_api_server` fixture by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20322](https://github.com/PrefectHQ/prefect/pull/20322)
+
+**Development & Tidiness 🧹**
+
+* Fix flaky docket task keys tests: include running tasks in key assertions by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20293](https://github.com/PrefectHQ/prefect/pull/20293)
+* Pin miniconda3 image to fix conda Docker build failure by [@desertaxle](https://github.com/desertaxle) in [#20309](https://github.com/PrefectHQ/prefect/pull/20309)
+* Bump dependencies in lockfile by [@zzstoatzz](https://github.com/zzstoatzz) in [#20205](https://github.com/PrefectHQ/prefect/pull/20205)
+* Push dev images to main repository with dev tags by [@mitchnielsen](https://github.com/mitchnielsen) in [#20311](https://github.com/PrefectHQ/prefect/pull/20311)
+* Fix flaky test cleanup: use `ignore_errors` in `rmtree` for SQLite race condition by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20326](https://github.com/PrefectHQ/prefect/pull/20326)
+* Fix release workflows not triggering on prereleases by [@mitchnielsen](https://github.com/mitchnielsen) in [#20332](https://github.com/PrefectHQ/prefect/pull/20332)
+* Fix conda Docker build by installing git from Trixie on Bookworm by [@desertaxle](https://github.com/desertaxle) in [#20345](https://github.com/PrefectHQ/prefect/pull/20345)
+* Fix flaky test: add `sys.path` isolation fixture for importtools tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20347](https://github.com/PrefectHQ/prefect/pull/20347)
+* Migrate `task_worker.py` from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20259](https://github.com/PrefectHQ/prefect/pull/20259)
+* Migrate testing fixtures from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20313](https://github.com/PrefectHQ/prefect/pull/20313)
+* Migrate `ResultStore` from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20314](https://github.com/PrefectHQ/prefect/pull/20314)
+* Migrate `Flow.visualize` from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20353](https://github.com/PrefectHQ/prefect/pull/20353)
+
+**Documentation 📓**
+
+* Update job variables page title to cover flow runs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20351](https://github.com/PrefectHQ/prefect/pull/20351)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.12...3.6.13
+
+
+---
+
 ## 3.6.12 - It's not a feature, it's a bug!
 
 *Released on January 20, 2026*

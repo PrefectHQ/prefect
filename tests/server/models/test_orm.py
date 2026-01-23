@@ -697,15 +697,18 @@ class TestExpectedStartTimeDelta:
             ),
         )
 
-        # final states remove lateness even if the run never started
-        assert fr.estimated_start_time_delta == datetime.timedelta(seconds=0)
+        # When a flow transitions directly to a terminal state without running,
+        # start_time is now set to the terminal state timestamp. This means
+        # lateness is calculated as (start_time - expected_start_time).
+        # In this case: (dt + 5s) - dt = 5 seconds
+        assert fr.estimated_start_time_delta == datetime.timedelta(seconds=5)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
             sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
-        assert result.scalar() == datetime.timedelta(seconds=0)
+        assert result.scalar() == datetime.timedelta(seconds=5)
 
     async def test_flow_run_lateness_is_zero_when_early(self, session, flow, db):
         dt = now("UTC") - datetime.timedelta(minutes=1)

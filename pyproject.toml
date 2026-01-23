@@ -161,7 +161,7 @@ dev = [
     "watchfiles>=1.0.4",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.14.13",
+    "ruff==0.14.14",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -260,6 +260,7 @@ markers = [
     "enable_api_log_handler: by default, sending logs to the API is disabled. Tests marked with this use the handler.",
     "clear_db: marker to clear the database after test completion",
     "windows: tests that specifically test Windows-only behavior",
+    "unix: tests that specifically test Unix-only behavior",
 ]
 env = [
     "PREFECT_TESTING_TEST_MODE=1",
@@ -356,6 +357,7 @@ ignore-words-list = [
     "afterall",
     "medias",
     "falso",
+    "aapply",
 ]
 
 check-hidden = true

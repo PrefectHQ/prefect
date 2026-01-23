@@ -29,7 +29,7 @@ A no-op implementation of the Prefect Events client for testing
 
 **Methods:**
 
-#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str
@@ -41,7 +41,7 @@ client_name(self) -> str
 emit(self, event: Event) -> None
 ```
 
-#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> None
@@ -83,7 +83,7 @@ Assert that an event was emitted containing the given properties.
 assert_no_emitted_event_with(cls, event: Optional[str] = None, resource: Optional[Dict[str, LabelValue]] = None, related: Optional[List[Dict[str, LabelValue]]] = None, payload: Optional[Dict[str, Any]] = None) -> None
 ```
 
-#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str
@@ -95,7 +95,7 @@ client_name(self) -> str
 emit(self, event: Event) -> Event
 ```
 
-#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> None
@@ -123,7 +123,7 @@ Reset all captured instances and their events.  For use this between tests
 
 **Methods:**
 
-#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str
@@ -135,7 +135,7 @@ client_name(self) -> str
 emit(self, event: Event) -> ReceivedEvent
 ```
 
-#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/clients.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit(self, event: Event) -> None

@@ -664,9 +664,11 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
+                # Use PENDING state (non-terminal) to test start_time is_null_ filter
+                # Terminal states now get start_time set automatically
                 state=schemas.states.State(
-                    type="COMPLETED",
-                    name="My Completed State 4",
+                    type="PENDING",
+                    name="My Pending State 4",
                 ),
             ),
         )
@@ -689,6 +691,8 @@ class TestReadFlowRuns:
                 start_time=schemas.filters.FlowRunFilterStartTime(after_=now_dt)
             ),
         )
+        # flow_run_4 has no start_time but expected_start_time is set,
+        # and the filter uses coalesce(start_time, expected_start_time)
         assert {res.id for res in result} == {
             flow_run_2.id,
             flow_run_3.id,
