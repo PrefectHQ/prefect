@@ -3824,3 +3824,83 @@ class TestDockerImage:
     def test_no_default_registry_url_by_default(self):
         image = DockerImage(name="my-org/test-image")
         assert image.name == "my-org/test-image"
+
+
+class TestAsyncDispatch:
+    """Tests for async_dispatch behavior of RunnerDeployment.apply and deploy."""
+
+    async def test_apply_in_async_context(self, prefect_client: PrefectClient):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
+        )
+
+        deployment_id = await deployment.apply()
+
+        result = await prefect_client.read_deployment(deployment_id)
+        assert result.name == "test_runner"
+
+    def test_apply_in_sync_context(self, sync_prefect_client: SyncPrefectClient):
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
+        )
+
+        deployment_id = deployment.apply()
+
+        result = sync_prefect_client.read_deployment(deployment_id)
+        assert result.name == "test_runner"
+
+    async def test_deploy_in_async_context(
+        self,
+        prefect_client: PrefectClient,
+        work_pool_with_image_variable,
+        monkeypatch,
+    ):
+        monkeypatch.setattr("prefect.docker.docker_image.build_image", MagicMock())
+        mock_docker = MagicMock()
+        mock_docker.return_value.__enter__.return_value = mock_docker
+        mock_docker.api.push.return_value = []
+        monkeypatch.setattr("prefect.docker.docker_image.docker_client", mock_docker)
+        monkeypatch.setattr(
+            "prefect.docker.docker_image.generate_default_dockerfile", MagicMock()
+        )
+
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
+        )
+
+        deployment_ids = await deploy(
+            deployment,
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-image",
+        )
+
+        result = await prefect_client.read_deployment(deployment_ids[0])
+        assert result.name == "test_runner"
+
+    def test_deploy_in_sync_context(
+        self,
+        sync_prefect_client: SyncPrefectClient,
+        work_pool_with_image_variable,
+        monkeypatch,
+    ):
+        monkeypatch.setattr("prefect.docker.docker_image.build_image", MagicMock())
+        mock_docker = MagicMock()
+        mock_docker.return_value.__enter__.return_value = mock_docker
+        mock_docker.api.push.return_value = []
+        monkeypatch.setattr("prefect.docker.docker_image.docker_client", mock_docker)
+        monkeypatch.setattr(
+            "prefect.docker.docker_image.generate_default_dockerfile", MagicMock()
+        )
+
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
+        )
+
+        deployment_ids = deploy(
+            deployment,
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-image",
+        )
+
+        result = sync_prefect_client.read_deployment(deployment_ids[0])
+        assert result.name == "test_runner"

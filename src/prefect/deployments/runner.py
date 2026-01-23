@@ -68,7 +68,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect._versioning import VersionType, get_inferred_version_info
 from prefect.client.base import ServerType
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.actions import (
     DeploymentScheduleCreate,
     DeploymentScheduleUpdate,
@@ -102,7 +102,7 @@ from prefect.settings import (
 from prefect.types import ListOfNonEmptyStrings
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import freeze
-from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.collections import get_from_dict, isiterable
 from prefect.utilities.dockerutils import (
@@ -443,6 +443,93 @@ class RunnerDeployment(BaseModel):
 
             return deployment_id
 
+    def _create_sync(
+        self,
+        work_pool_name: Optional[str] = None,
+        image: Optional[str] = None,
+        version_info: VersionInfo | None = None,
+    ) -> UUID:
+        work_pool_name = work_pool_name or self.work_pool_name
+
+        if image and not work_pool_name:
+            raise ValueError(
+                "An image can only be provided when registering a deployment with a"
+                " work pool."
+            )
+
+        if self.work_queue_name and not work_pool_name:
+            raise ValueError(
+                "A work queue can only be provided when registering a deployment with"
+                " a work pool."
+            )
+
+        if self.job_variables and not work_pool_name:
+            raise ValueError(
+                "Job variables can only be provided when registering a deployment"
+                " with a work pool."
+            )
+
+        with get_client(sync_client=True) as client:
+            flow_id = client.create_flow_from_name(self.flow_name)
+
+            create_payload: dict[str, Any] = dict(
+                flow_id=flow_id,
+                name=self.name,
+                work_queue_name=self.work_queue_name,
+                work_pool_name=work_pool_name,
+                version=self.version,
+                version_info=version_info,
+                paused=self.paused,
+                schedules=self.schedules,
+                concurrency_limit=self.concurrency_limit,
+                concurrency_options=self.concurrency_options,
+                parameters=self.parameters,
+                description=self.description,
+                tags=self.tags,
+                path=self._path,
+                entrypoint=self.entrypoint,
+                storage_document_id=None,
+                infrastructure_document_id=None,
+                parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+                    exclude_unset=True
+                ),
+                enforce_parameter_schema=self.enforce_parameter_schema,
+            )
+
+            if work_pool_name:
+                create_payload["job_variables"] = self.job_variables
+                if image:
+                    create_payload["job_variables"]["image"] = image
+                create_payload["path"] = None if self.storage else self._path
+                if self.storage:
+                    pull_steps = self.storage.to_pull_step()
+                    if isinstance(pull_steps, list):
+                        create_payload["pull_steps"] = pull_steps
+                    elif pull_steps:
+                        create_payload["pull_steps"] = [pull_steps]
+                    else:
+                        create_payload["pull_steps"] = []
+                else:
+                    create_payload["pull_steps"] = []
+
+            try:
+                deployment_id = client.create_deployment(**create_payload)
+            except Exception as exc:
+                if isinstance(exc, PrefectHTTPStatusError):
+                    detail = exc.response.json().get("detail")
+                    if detail:
+                        raise DeploymentApplyError(detail) from exc
+                raise DeploymentApplyError(
+                    f"Error while applying deployment: {str(exc)}"
+                ) from exc
+
+            self._create_triggers_sync(deployment_id, client)
+
+            if self._sla or self._sla == []:
+                self._create_slas_sync(deployment_id, client)
+
+            return deployment_id
+
     async def _update(
         self,
         deployment_id: UUID,
@@ -495,6 +582,52 @@ class RunnerDeployment(BaseModel):
 
         return deployment_id
 
+    def _update_sync(
+        self,
+        deployment_id: UUID,
+        client: SyncPrefectClient,
+        version_info: VersionInfo | None,
+    ):
+        parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
+            exclude_unset=True
+        )
+
+        update_payload = self.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
+        )
+
+        if self.storage:
+            pull_steps = self.storage.to_pull_step()
+            if pull_steps and not isinstance(pull_steps, list):
+                pull_steps = [pull_steps]
+            update_payload["pull_steps"] = pull_steps
+        else:
+            update_payload["pull_steps"] = None
+
+        if self.schedules:
+            update_payload["schedules"] = [
+                schedule.model_dump(mode="json", exclude_unset=True)
+                for schedule in self.schedules
+            ]
+
+        client.update_deployment(
+            deployment_id,
+            deployment=DeploymentUpdate(
+                **update_payload,
+                version_info=version_info,
+                parameter_openapi_schema=parameter_openapi_schema,
+            ),
+        )
+
+        self._create_triggers_sync(deployment_id, client)
+
+        if self._sla or self._sla == []:
+            self._create_slas_sync(deployment_id, client)
+
+        return deployment_id
+
     async def _create_triggers(self, deployment_id: UUID, client: PrefectClient):
         try:
             # The triggers defined in the deployment spec are, essentially,
@@ -516,8 +649,21 @@ class RunnerDeployment(BaseModel):
             trigger.set_deployment_id(deployment_id)
             await client.create_automation(trigger.as_automation())
 
-    @sync_compatible
-    async def apply(
+    def _create_triggers_sync(self, deployment_id: UUID, client: SyncPrefectClient):
+        try:
+            client.delete_resource_owned_automations(
+                f"prefect.deployment.{deployment_id}"
+            )
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                return deployment_id
+            raise e
+
+        for trigger in self.triggers:
+            trigger.set_deployment_id(deployment_id)
+            client.create_automation(trigger.as_automation())
+
+    async def aapply(
         self,
         schedules: Optional[List[dict[str, Any]]] = None,
         work_pool_name: Optional[str] = None,
@@ -562,12 +708,68 @@ class RunnerDeployment(BaseModel):
                     ]
                 return await self._update(deployment.id, client, version_info)
 
+    @async_dispatch(aapply)
+    def apply(
+        self,
+        schedules: Optional[List[dict[str, Any]]] = None,
+        work_pool_name: Optional[str] = None,
+        image: Optional[str] = None,
+        version_info: Optional[VersionInfo] = None,
+    ) -> UUID:
+        """
+        Registers this deployment with the API and returns the deployment's ID.
+
+        Args:
+            work_pool_name: The name of the work pool to use for this
+                deployment.
+            image: The registry, name, and tag of the Docker image to
+                use for this deployment. Only used when the deployment is
+                deployed to a work pool.
+            version_info: The version information to use for the deployment.
+        Returns:
+            The ID of the created deployment.
+        """
+        version_info = version_info or self._get_deployment_version_info(
+            self.version_type
+        )
+
+        with get_client(sync_client=True) as client:
+            try:
+                deployment = client.read_deployment_by_name(self.full_name)
+            except ObjectNotFound:
+                if schedules:
+                    self.schedules = [
+                        DeploymentScheduleCreate(**schedule) for schedule in schedules
+                    ]
+                return self._create_sync(work_pool_name, image, version_info)
+            else:
+                if image:
+                    self.job_variables["image"] = image
+                if work_pool_name:
+                    self.work_pool_name = work_pool_name
+                if schedules:
+                    self.schedules = [
+                        DeploymentScheduleUpdate(**schedule) for schedule in schedules
+                    ]
+                return self._update_sync(deployment.id, client, version_info)
+
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):
             self._sla = [self._sla]
 
         if client.server_type == ServerType.CLOUD:
             await client.apply_slas_for_deployment(deployment_id, self._sla)
+        else:
+            raise ValueError(
+                "SLA configuration is currently only supported on Prefect Cloud."
+            )
+
+    def _create_slas_sync(self, deployment_id: UUID, client: SyncPrefectClient):
+        if not isinstance(self._sla, list):
+            self._sla = [self._sla]
+
+        if client.server_type == ServerType.CLOUD:
+            client.apply_slas_for_deployment(deployment_id, self._sla)
         else:
             raise ValueError(
                 "SLA configuration is currently only supported on Prefect Cloud."
@@ -1146,8 +1348,7 @@ class RunnerDeployment(BaseModel):
         return deployment
 
 
-@sync_compatible
-async def deploy(
+async def adeploy(
     *deployments: RunnerDeployment,
     work_pool_name: Optional[str] = None,
     image: Optional[Union[str, DockerImage]] = None,
@@ -1194,7 +1395,7 @@ async def deploy(
             print("I'm a locally defined flow!")
 
         if __name__ == "__main__":
-            deploy(
+            await adeploy(
                 local_flow.to_deployment(name="example-deploy-local-flow"),
                 flow.from_source(
                     source="https://github.com/org/repo.git",
@@ -1316,7 +1517,246 @@ async def deploy(
     ):
         try:
             deployment_ids.append(
-                await deployment.apply(image=image_ref, work_pool_name=work_pool_name)
+                await deployment.aapply(image=image_ref, work_pool_name=work_pool_name)
+            )
+        except Exception as exc:
+            if len(deployments) == 1:
+                raise
+            deployment_exceptions.append({"deployment": deployment, "exc": exc})
+
+    if deployment_exceptions:
+        console.print(
+            "Encountered errors while creating/updating deployments:\n",
+            style="orange_red1",
+        )
+    else:
+        console.print("Successfully created/updated all deployments!\n", style="green")
+
+    complete_failure = len(deployment_exceptions) == len(deployments)
+
+    table = Table(
+        title="Deployments",
+        show_lines=True,
+    )
+
+    table.add_column(header="Name", style="blue", no_wrap=True)
+    table.add_column(header="Status", style="blue", no_wrap=True)
+    table.add_column(header="Details", style="blue")
+
+    for deployment in deployments:
+        errored_deployment = next(
+            (d for d in deployment_exceptions if d["deployment"] == deployment),
+            None,
+        )
+        if errored_deployment:
+            table.add_row(
+                f"{deployment.flow_name}/{deployment.name}",
+                "failed",
+                str(errored_deployment["exc"]),
+                style="red",
+            )
+        else:
+            table.add_row(f"{deployment.flow_name}/{deployment.name}", "applied")
+    console.print(table)
+
+    if print_next_steps_message and not complete_failure:
+        if (
+            not work_pool.is_push_pool
+            and not work_pool.is_managed_pool
+            and not active_workers
+        ):
+            console.print(
+                "\nTo execute flow runs from these deployments, start a worker in a"
+                " separate terminal that pulls work from the"
+                f" {work_pool_name!r} work pool:"
+                f"\n\t[blue]$ prefect worker start --pool {work_pool_name!r}[/]",
+            )
+        console.print(
+            "\nTo trigger any of these deployments, use the"
+            " following command:\n[blue]\n\t$ prefect deployment run"
+            " [DEPLOYMENT_NAME]\n[/]"
+        )
+
+        if PREFECT_UI_URL:
+            console.print(
+                "\nYou can also trigger your deployments via the Prefect UI:"
+                f" [blue]{PREFECT_UI_URL.value()}/deployments[/]\n"
+            )
+
+    return deployment_ids
+
+
+@async_dispatch(adeploy)
+def deploy(
+    *deployments: RunnerDeployment,
+    work_pool_name: Optional[str] = None,
+    image: Optional[Union[str, DockerImage]] = None,
+    build: bool = True,
+    push: bool = True,
+    print_next_steps_message: bool = True,
+    ignore_warnings: bool = False,
+) -> List[UUID]:
+    """
+    Deploy the provided list of deployments to dynamic infrastructure via a
+    work pool.
+
+    By default, calling this function will build a Docker image for the deployments, push it to a
+    registry, and create each deployment via the Prefect API that will run the corresponding
+    flow on the given schedule.
+
+    If you want to use an existing image, you can pass `build=False` to skip building and pushing
+    an image.
+
+    Args:
+        *deployments: A list of deployments to deploy.
+        work_pool_name: The name of the work pool to use for these deployments. Defaults to
+            the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+        image: The name of the Docker image to build, including the registry and
+            repository. Pass a DockerImage instance to customize the Dockerfile used
+            and build arguments.
+        build: Whether or not to build a new image for the flow. If False, the provided
+            image will be used as-is and pulled at runtime.
+        push: Whether or not to skip pushing the built image to a registry.
+        print_next_steps_message: Whether or not to print a message with next steps
+            after deploying the deployments.
+
+    Returns:
+        A list of deployment IDs for the created/updated deployments.
+
+    Examples:
+        Deploy a group of flows to a work pool:
+
+        ```python
+        from prefect import deploy, flow
+
+        @flow(log_prints=True)
+        def local_flow():
+            print("I'm a locally defined flow!")
+
+        if __name__ == "__main__":
+            deploy(
+                local_flow.to_deployment(name="example-deploy-local-flow"),
+                flow.from_source(
+                    source="https://github.com/org/repo.git",
+                    entrypoint="flows.py:my_flow",
+                ).to_deployment(
+                    name="example-deploy-remote-flow",
+                ),
+                work_pool_name="my-work-pool",
+                image="my-registry/my-image:dev",
+            )
+        ```
+    """
+    work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+
+    if not image and not all(
+        d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
+        for d in deployments
+    ):
+        raise ValueError(
+            "Either an image or remote storage location must be provided when deploying"
+            " a deployment."
+        )
+
+    if not work_pool_name:
+        raise ValueError(
+            "A work pool name must be provided when deploying a deployment. Either"
+            " provide a work pool name when calling `deploy` or set"
+            " `PREFECT_DEFAULT_WORK_POOL_NAME` in your profile."
+        )
+
+    if image and isinstance(image, str):
+        image_name, image_tag = parse_image_tag(image)
+        image = DockerImage(name=image_name, tag=image_tag)
+
+    try:
+        with get_client(sync_client=True) as client:
+            work_pool = client.read_work_pool(work_pool_name)
+            active_workers = client.read_workers_for_work_pool(
+                work_pool_name,
+                worker_filter=WorkerFilter(status=WorkerFilterStatus(any_=["ONLINE"])),
+            )
+    except ObjectNotFound as exc:
+        raise ValueError(
+            f"Could not find work pool {work_pool_name!r}. Please create it before"
+            " deploying this flow."
+        ) from exc
+
+    is_docker_based_work_pool = get_from_dict(
+        work_pool.base_job_template, "variables.properties.image", False
+    )
+    is_block_based_work_pool = get_from_dict(
+        work_pool.base_job_template, "variables.properties.block", False
+    )
+    # carve out an exception for block based work pools that only have a block in their base job template
+    console = Console()
+    if not is_docker_based_work_pool and not is_block_based_work_pool:
+        if image:
+            raise ValueError(
+                f"Work pool {work_pool_name!r} does not support custom Docker images."
+                " Please use a work pool with an `image` variable in its base job template"
+                " or specify a remote storage location for the flow with `.from_source`."
+                " If you are attempting to deploy a flow to a local process work pool,"
+                " consider using `flow.serve` instead. See the documentation for more"
+                " information: https://docs.prefect.io/latest/how-to-guides/deployments/run-flows-in-local-processes"
+            )
+        elif work_pool.type == "process" and not ignore_warnings:
+            console.print(
+                "Looks like you're deploying to a process work pool. If you're creating a"
+                " deployment for local development, calling `.serve` on your flow is a great"
+                " way to get started. See the documentation for more information:"
+                " https://docs.prefect.io/latest/how-to-guides/deployments/run-flows-in-local-processes "
+                " Set `ignore_warnings=True` to suppress this message.",
+                style="yellow",
+            )
+
+    is_managed_pool = work_pool.is_managed_pool
+    if is_managed_pool:
+        build = False
+        push = False
+
+    if image and build:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn(f"Building image {image.reference}..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_build_task = progress.add_task("docker_build", total=1)
+            image.build()
+
+            progress.update(docker_build_task, completed=1)
+            console.print(
+                f"Successfully built image {image.reference!r}", style="green"
+            )
+
+    if image and build and push:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("Pushing image..."),
+            transient=True,
+            console=console,
+        ) as progress:
+            docker_push_task = progress.add_task("docker_push", total=1)
+
+            image.push()
+
+            progress.update(docker_push_task, completed=1)
+
+        console.print(f"Successfully pushed image {image.reference!r}", style="green")
+
+    deployment_exceptions: list[dict[str, Any]] = []
+    deployment_ids: list[UUID] = []
+    image_ref = image.reference if image else None
+    for deployment in track(
+        deployments,
+        description="Creating/updating deployments...",
+        console=console,
+        transient=True,
+    ):
+        try:
+            deployment_ids.append(
+                deployment.apply(image=image_ref, work_pool_name=work_pool_name)
             )
         except Exception as exc:
             if len(deployments) == 1:
