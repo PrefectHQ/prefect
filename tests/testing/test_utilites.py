@@ -1,5 +1,4 @@
 import gc
-import sys
 import uuid
 import warnings
 from unittest.mock import MagicMock
@@ -119,7 +118,7 @@ def test_prefect_test_harness_timeout(monkeypatch):
         )
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="fork() not available on Windows")
+@pytest.mark.unix
 def test_multiprocessing_after_test_harness():
     """
     Test that multiprocessing works after using prefect_test_harness.

@@ -260,6 +260,7 @@ markers = [
     "enable_api_log_handler: by default, sending logs to the API is disabled. Tests marked with this use the handler.",
     "clear_db: marker to clear the database after test completion",
     "windows: tests that specifically test Windows-only behavior",
+    "unix: tests that specifically test Unix-only behavior",
 ]
 env = [
     "PREFECT_TESTING_TEST_MODE=1",
