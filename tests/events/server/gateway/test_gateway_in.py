@@ -4,11 +4,14 @@ from unittest import mock
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
+from starlette.status import WS_1002_PROTOCOL_ERROR, WS_1008_POLICY_VIOLATION
 from starlette.testclient import WebSocketTestSession
+from starlette.websockets import WebSocketDisconnect
 
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import Event
 from prefect.server.events.storage import database
+from prefect.settings import PREFECT_SERVER_API_AUTH_STRING, temporary_settings
 from prefect.types._datetime import DateTime
 
 
@@ -44,6 +47,68 @@ async def write_events(monkeypatch: pytest.MonkeyPatch):
     return mock_write_events
 
 
+def test_streaming_requires_prefect_subprotocol(
+    test_client: TestClient,
+):
+    with pytest.raises(WebSocketDisconnect) as exception:
+        with test_client.websocket_connect("/api/events/in", subprotocols=[]):
+            pass
+
+    assert exception.value.code == WS_1002_PROTOCOL_ERROR
+
+
+def test_streaming_requires_authentication(
+    test_client: TestClient,
+    event1: Event,
+):
+    with pytest.raises(WebSocketDisconnect) as exception:
+        with test_client.websocket_connect(
+            "/api/events/in", subprotocols=["prefect"]
+        ) as websocket:
+            websocket.send_text(event1.model_dump_json())
+            websocket.receive_text()
+
+    assert exception.value.code == WS_1008_POLICY_VIOLATION
+    assert exception.value.reason == "Expected 'auth' message"
+
+
+def test_streaming_rejects_invalid_token(
+    test_client: TestClient,
+):
+    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "valid-token"}):
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with test_client.websocket_connect(
+                "/api/events/in", subprotocols=["prefect"]
+            ) as websocket:
+                auth_message = {
+                    "type": "auth",
+                    "token": "invalid-token",
+                }
+                websocket.send_json(auth_message)
+                websocket.receive_json()
+
+        assert exception.value.code == WS_1008_POLICY_VIOLATION
+        assert exception.value.reason == "Invalid token"
+
+
+def test_streaming_rejects_missing_token(
+    test_client: TestClient,
+):
+    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "valid-token"}):
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with test_client.websocket_connect(
+                "/api/events/in", subprotocols=["prefect"]
+            ) as websocket:
+                auth_message = {
+                    "type": "auth",
+                }
+                websocket.send_json(auth_message)
+                websocket.receive_json()
+
+        assert exception.value.code == WS_1008_POLICY_VIOLATION
+        assert exception.value.reason == "Auth required but no token provided"
+
+
 def test_stream_events_in(
     test_client: TestClient,
     frozen_time: DateTime,
@@ -52,7 +117,17 @@ def test_stream_events_in(
     stream_publish: mock.AsyncMock,
 ):
     websocket: WebSocketTestSession
-    with test_client.websocket_connect("/api/events/in") as websocket:
+    with test_client.websocket_connect(
+        "/api/events/in", subprotocols=["prefect"]
+    ) as websocket:
+        auth_message = {
+            "type": "auth",
+            "token": "my-token",
+        }
+        websocket.send_json(auth_message)
+        message = websocket.receive_json()
+        assert message["type"] == "auth_success"
+
         websocket.send_text(event1.model_dump_json())
         websocket.send_text(event2.model_dump_json())
 
@@ -61,6 +136,36 @@ def test_stream_events_in(
         event2.receive(received=frozen_time),
     ]
     stream_publish.assert_has_awaits([mock.call(event) for event in server_events])
+
+
+def test_stream_events_in_with_auth_string(
+    test_client: TestClient,
+    frozen_time: DateTime,
+    event1: Event,
+    event2: Event,
+    stream_publish: mock.AsyncMock,
+):
+    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "valid-token"}):
+        websocket: WebSocketTestSession
+        with test_client.websocket_connect(
+            "/api/events/in", subprotocols=["prefect"]
+        ) as websocket:
+            auth_message = {
+                "type": "auth",
+                "token": "valid-token",
+            }
+            websocket.send_json(auth_message)
+            message = websocket.receive_json()
+            assert message["type"] == "auth_success"
+
+            websocket.send_text(event1.model_dump_json())
+            websocket.send_text(event2.model_dump_json())
+
+        server_events = [
+            event1.receive(received=frozen_time),
+            event2.receive(received=frozen_time),
+        ]
+        stream_publish.assert_has_awaits([mock.call(event) for event in server_events])
 
 
 def test_post_events(
