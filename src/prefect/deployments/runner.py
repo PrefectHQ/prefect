@@ -68,7 +68,7 @@ from prefect._internal.schemas.validators import (
 )
 from prefect._versioning import VersionType, get_inferred_version_info
 from prefect.client.base import ServerType
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.actions import (
     DeploymentScheduleCreate,
     DeploymentScheduleUpdate,
@@ -443,6 +443,93 @@ class RunnerDeployment(BaseModel):
 
             return deployment_id
 
+    def _create_sync(
+        self,
+        work_pool_name: Optional[str] = None,
+        image: Optional[str] = None,
+        version_info: VersionInfo | None = None,
+    ) -> UUID:
+        work_pool_name = work_pool_name or self.work_pool_name
+
+        if image and not work_pool_name:
+            raise ValueError(
+                "An image can only be provided when registering a deployment with a"
+                " work pool."
+            )
+
+        if self.work_queue_name and not work_pool_name:
+            raise ValueError(
+                "A work queue can only be provided when registering a deployment with"
+                " a work pool."
+            )
+
+        if self.job_variables and not work_pool_name:
+            raise ValueError(
+                "Job variables can only be provided when registering a deployment"
+                " with a work pool."
+            )
+
+        with get_client(sync_client=True) as client:
+            flow_id = client.create_flow_from_name(self.flow_name)
+
+            create_payload: dict[str, Any] = dict(
+                flow_id=flow_id,
+                name=self.name,
+                work_queue_name=self.work_queue_name,
+                work_pool_name=work_pool_name,
+                version=self.version,
+                version_info=version_info,
+                paused=self.paused,
+                schedules=self.schedules,
+                concurrency_limit=self.concurrency_limit,
+                concurrency_options=self.concurrency_options,
+                parameters=self.parameters,
+                description=self.description,
+                tags=self.tags,
+                path=self._path,
+                entrypoint=self.entrypoint,
+                storage_document_id=None,
+                infrastructure_document_id=None,
+                parameter_openapi_schema=self._parameter_openapi_schema.model_dump(
+                    exclude_unset=True
+                ),
+                enforce_parameter_schema=self.enforce_parameter_schema,
+            )
+
+            if work_pool_name:
+                create_payload["job_variables"] = self.job_variables
+                if image:
+                    create_payload["job_variables"]["image"] = image
+                create_payload["path"] = None if self.storage else self._path
+                if self.storage:
+                    pull_steps = self.storage.to_pull_step()
+                    if isinstance(pull_steps, list):
+                        create_payload["pull_steps"] = pull_steps
+                    elif pull_steps:
+                        create_payload["pull_steps"] = [pull_steps]
+                    else:
+                        create_payload["pull_steps"] = []
+                else:
+                    create_payload["pull_steps"] = []
+
+            try:
+                deployment_id = client.create_deployment(**create_payload)
+            except Exception as exc:
+                if isinstance(exc, PrefectHTTPStatusError):
+                    detail = exc.response.json().get("detail")
+                    if detail:
+                        raise DeploymentApplyError(detail) from exc
+                raise DeploymentApplyError(
+                    f"Error while applying deployment: {str(exc)}"
+                ) from exc
+
+            self._create_triggers_sync(deployment_id, client)
+
+            if self._sla or self._sla == []:
+                self._create_slas_sync(deployment_id, client)
+
+            return deployment_id
+
     async def _update(
         self,
         deployment_id: UUID,
@@ -495,6 +582,52 @@ class RunnerDeployment(BaseModel):
 
         return deployment_id
 
+    def _update_sync(
+        self,
+        deployment_id: UUID,
+        client: SyncPrefectClient,
+        version_info: VersionInfo | None,
+    ):
+        parameter_openapi_schema = self._parameter_openapi_schema.model_dump(
+            exclude_unset=True
+        )
+
+        update_payload = self.model_dump(
+            mode="json",
+            exclude_unset=True,
+            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
+        )
+
+        if self.storage:
+            pull_steps = self.storage.to_pull_step()
+            if pull_steps and not isinstance(pull_steps, list):
+                pull_steps = [pull_steps]
+            update_payload["pull_steps"] = pull_steps
+        else:
+            update_payload["pull_steps"] = None
+
+        if self.schedules:
+            update_payload["schedules"] = [
+                schedule.model_dump(mode="json", exclude_unset=True)
+                for schedule in self.schedules
+            ]
+
+        client.update_deployment(
+            deployment_id,
+            deployment=DeploymentUpdate(
+                **update_payload,
+                version_info=version_info,
+                parameter_openapi_schema=parameter_openapi_schema,
+            ),
+        )
+
+        self._create_triggers_sync(deployment_id, client)
+
+        if self._sla or self._sla == []:
+            self._create_slas_sync(deployment_id, client)
+
+        return deployment_id
+
     async def _create_triggers(self, deployment_id: UUID, client: PrefectClient):
         try:
             # The triggers defined in the deployment spec are, essentially,
@@ -515,6 +648,20 @@ class RunnerDeployment(BaseModel):
         for trigger in self.triggers:
             trigger.set_deployment_id(deployment_id)
             await client.create_automation(trigger.as_automation())
+
+    def _create_triggers_sync(self, deployment_id: UUID, client: SyncPrefectClient):
+        try:
+            client.delete_resource_owned_automations(
+                f"prefect.deployment.{deployment_id}"
+            )
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                return deployment_id
+            raise e
+
+        for trigger in self.triggers:
+            trigger.set_deployment_id(deployment_id)
+            client.create_automation(trigger.as_automation())
 
     async def aapply(
         self,
@@ -582,14 +729,29 @@ class RunnerDeployment(BaseModel):
         Returns:
             The ID of the created deployment.
         """
-        return run_coro_as_sync(
-            self.aapply(
-                schedules=schedules,
-                work_pool_name=work_pool_name,
-                image=image,
-                version_info=version_info,
-            )
+        version_info = version_info or self._get_deployment_version_info(
+            self.version_type
         )
+
+        with get_client(sync_client=True) as client:
+            try:
+                deployment = client.read_deployment_by_name(self.full_name)
+            except ObjectNotFound:
+                if schedules:
+                    self.schedules = [
+                        DeploymentScheduleCreate(**schedule) for schedule in schedules
+                    ]
+                return self._create_sync(work_pool_name, image, version_info)
+            else:
+                if image:
+                    self.job_variables["image"] = image
+                if work_pool_name:
+                    self.work_pool_name = work_pool_name
+                if schedules:
+                    self.schedules = [
+                        DeploymentScheduleUpdate(**schedule) for schedule in schedules
+                    ]
+                return self._update_sync(deployment.id, client, version_info)
 
     async def _create_slas(self, deployment_id: UUID, client: PrefectClient):
         if not isinstance(self._sla, list):
@@ -597,6 +759,17 @@ class RunnerDeployment(BaseModel):
 
         if client.server_type == ServerType.CLOUD:
             await client.apply_slas_for_deployment(deployment_id, self._sla)
+        else:
+            raise ValueError(
+                "SLA configuration is currently only supported on Prefect Cloud."
+            )
+
+    def _create_slas_sync(self, deployment_id: UUID, client: SyncPrefectClient):
+        if not isinstance(self._sla, list):
+            self._sla = [self._sla]
+
+        if client.server_type == ServerType.CLOUD:
+            client.apply_slas_for_deployment(deployment_id, self._sla)
         else:
             raise ValueError(
                 "SLA configuration is currently only supported on Prefect Cloud."
