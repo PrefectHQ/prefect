@@ -216,6 +216,22 @@ class TestFlowRunsAsync:
         ):
             await state.result()
 
+    async def test_param_validation_failure_sets_start_and_end_time(
+        self, sync_prefect_client
+    ):
+        @flow
+        async def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
+        state = await run_flow(bar, parameters=parameters, return_type="state")
+
+        assert state.is_failed()
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.start_time is not None
+        assert flow_run.end_time is not None
+        assert flow_run.start_time == flow_run.end_time
+
     async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")
         async def foo(x):
@@ -399,6 +415,22 @@ class TestFlowRunsSync:
             ParameterTypeError, match="Flow run received invalid parameters"
         ):
             await state.result()
+
+    async def test_param_validation_failure_sets_start_and_end_time(
+        self, sync_prefect_client
+    ):
+        @flow
+        def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
+        state = run_flow_sync(bar, parameters=parameters, return_type="state")
+
+        assert state.is_failed()
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.start_time is not None
+        assert flow_run.end_time is not None
+        assert flow_run.start_time == flow_run.end_time
 
     async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")

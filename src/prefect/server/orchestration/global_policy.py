@@ -225,8 +225,10 @@ class SetEndTime(
 
             # if entering a final state...
             if context.proposed_state.is_final():
-                # if the run has a start time and no end time, give it one
-                if context.run.start_time and not context.run.end_time:
+                if not context.run.end_time:
+                    # Set start_time if not set (for flows that fail before execution)
+                    if not context.run.start_time:
+                        context.run.start_time = context.proposed_state.timestamp
                     context.run.end_time = context.proposed_state.timestamp
 
 
