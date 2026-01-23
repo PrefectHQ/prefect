@@ -525,7 +525,8 @@ async def test_initial_connection_retries_and_succeeds(
             pass
 
         async def recv(self):
-            pass
+            # Return auth_success response for the auth handshake
+            return '{"type": "auth_success"}'
 
     class MockConnect:
         def __init__(self):
@@ -639,6 +640,10 @@ async def test_initial_connection_retries_on_timeout_error(
 
         async def send(self, data):
             pass
+
+        async def recv(self):
+            # Return auth_success response for the auth handshake
+            return '{"type": "auth_success"}'
 
     class MockConnect:
         def __init__(self):
