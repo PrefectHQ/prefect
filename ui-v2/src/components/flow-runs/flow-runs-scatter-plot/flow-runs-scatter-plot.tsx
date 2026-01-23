@@ -19,6 +19,7 @@ import {
 import { buildFLowDetailsQuery } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { StateBadge } from "@/components/ui/state-badge";
+import { getStateColor, STATE_COLORS } from "@/utils/state-colors";
 
 type FlowRunsScatterPlotProps = {
 	history: SimpleFlowRun[];
@@ -36,18 +37,6 @@ type ChartDataPoint = {
 	timestamp: string;
 };
 
-const STATE_COLORS: Record<components["schemas"]["StateType"], string> = {
-	COMPLETED: "#16a34a", // green-600
-	FAILED: "#dc2626", // red-600
-	RUNNING: "#1d4ed8", // blue-700
-	CANCELLED: "#6b7280", // gray-500
-	CANCELLING: "#4b5563", // gray-600
-	CRASHED: "#ea580c", // orange-600
-	PAUSED: "#6b7280", // gray-500
-	PENDING: "#9ca3af", // gray-400
-	SCHEDULED: "#facc15", // yellow-400
-};
-
 type CustomDotProps = {
 	cx?: number;
 	cy?: number;
@@ -59,7 +48,11 @@ const CustomDot = ({ cx, cy, payload }: CustomDotProps) => {
 		return null;
 	}
 
-	const color = STATE_COLORS[payload.stateType] || "#6b7280";
+	// Use getStateColor for dynamic color mode support
+	const color =
+		getStateColor(payload.stateType) ||
+		STATE_COLORS[payload.stateType] ||
+		"#6b7280";
 
 	return (
 		<circle

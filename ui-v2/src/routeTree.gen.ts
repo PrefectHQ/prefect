@@ -262,16 +262,16 @@ export interface FileRoutesByFullPath {
   '/automations/create': typeof AutomationsCreateRoute
   '/blocks/catalog': typeof BlocksCatalogRoute
   '/work-pools/create': typeof WorkPoolsCreateRoute
-  '/artifacts': typeof ArtifactsIndexRoute
-  '/automations': typeof AutomationsIndexRoute
-  '/blocks': typeof BlocksIndexRoute
-  '/concurrency-limits': typeof ConcurrencyLimitsIndexRoute
-  '/deployments': typeof DeploymentsIndexRoute
-  '/events': typeof EventsIndexRoute
-  '/flows': typeof FlowsIndexRoute
-  '/runs': typeof RunsIndexRoute
-  '/variables': typeof VariablesIndexRoute
-  '/work-pools': typeof WorkPoolsIndexRoute
+  '/artifacts/': typeof ArtifactsIndexRoute
+  '/automations/': typeof AutomationsIndexRoute
+  '/blocks/': typeof BlocksIndexRoute
+  '/concurrency-limits/': typeof ConcurrencyLimitsIndexRoute
+  '/deployments/': typeof DeploymentsIndexRoute
+  '/events/': typeof EventsIndexRoute
+  '/flows/': typeof FlowsIndexRoute
+  '/runs/': typeof RunsIndexRoute
+  '/variables/': typeof VariablesIndexRoute
+  '/work-pools/': typeof WorkPoolsIndexRoute
   '/artifacts/artifact/$id': typeof ArtifactsArtifactIdRoute
   '/artifacts/key/$key': typeof ArtifactsKeyKeyRoute
   '/automations/automation/$id': typeof AutomationsAutomationIdRoute
@@ -388,16 +388,16 @@ export interface FileRouteTypes {
     | '/automations/create'
     | '/blocks/catalog'
     | '/work-pools/create'
-    | '/artifacts'
-    | '/automations'
-    | '/blocks'
-    | '/concurrency-limits'
-    | '/deployments'
-    | '/events'
-    | '/flows'
-    | '/runs'
-    | '/variables'
-    | '/work-pools'
+    | '/artifacts/'
+    | '/automations/'
+    | '/blocks/'
+    | '/concurrency-limits/'
+    | '/deployments/'
+    | '/events/'
+    | '/flows/'
+    | '/runs/'
+    | '/variables/'
+    | '/work-pools/'
     | '/artifacts/artifact/$id'
     | '/artifacts/key/$key'
     | '/automations/automation/$id'
@@ -579,70 +579,70 @@ declare module '@tanstack/react-router' {
     '/work-pools/': {
       id: '/work-pools/'
       path: '/work-pools'
-      fullPath: '/work-pools'
+      fullPath: '/work-pools/'
       preLoaderRoute: typeof WorkPoolsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/variables/': {
       id: '/variables/'
       path: '/variables'
-      fullPath: '/variables'
+      fullPath: '/variables/'
       preLoaderRoute: typeof VariablesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/runs/': {
       id: '/runs/'
       path: '/runs'
-      fullPath: '/runs'
+      fullPath: '/runs/'
       preLoaderRoute: typeof RunsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/flows/': {
       id: '/flows/'
       path: '/flows'
-      fullPath: '/flows'
+      fullPath: '/flows/'
       preLoaderRoute: typeof FlowsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/events/': {
       id: '/events/'
       path: '/events'
-      fullPath: '/events'
+      fullPath: '/events/'
       preLoaderRoute: typeof EventsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deployments/': {
       id: '/deployments/'
       path: '/deployments'
-      fullPath: '/deployments'
+      fullPath: '/deployments/'
       preLoaderRoute: typeof DeploymentsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/concurrency-limits/': {
       id: '/concurrency-limits/'
       path: '/concurrency-limits'
-      fullPath: '/concurrency-limits'
+      fullPath: '/concurrency-limits/'
       preLoaderRoute: typeof ConcurrencyLimitsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/blocks/': {
       id: '/blocks/'
       path: '/blocks'
-      fullPath: '/blocks'
+      fullPath: '/blocks/'
       preLoaderRoute: typeof BlocksIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/automations/': {
       id: '/automations/'
       path: '/automations'
-      fullPath: '/automations'
+      fullPath: '/automations/'
       preLoaderRoute: typeof AutomationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/artifacts/': {
       id: '/artifacts/'
       path: '/artifacts'
-      fullPath: '/artifacts'
+      fullPath: '/artifacts/'
       preLoaderRoute: typeof ArtifactsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }

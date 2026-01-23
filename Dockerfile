@@ -113,7 +113,7 @@ RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
-FROM continuumio/miniconda3 AS prefect-conda
+FROM continuumio/miniconda3:25.3.1-1 AS prefect-conda
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
@@ -156,11 +156,27 @@ LABEL maintainer="help@prefect.io" \
 WORKDIR /opt/prefect
 
 # Install system requirements
+# For Debian Bookworm (used by conda base), we need to add Trixie sources to get git >= 2.47.3
+# This is because miniconda3 images are still based on Bookworm which only has git ~2.39
+# We install tini and build-essential first (from the base distro), then handle git separately
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
     tini=0.19.* \
     build-essential \
-    git=1:2.* \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install git - for Bookworm, we need to use Trixie sources since git >= 2.47.3 is required
+# and Bookworm only provides ~2.39. We allow apt to pull git's dependencies from Trixie as needed.
+RUN DEBIAN_VERSION=$(. /etc/os-release && echo $VERSION_CODENAME) && \
+    if [ "$DEBIAN_VERSION" = "bookworm" ]; then \
+        echo "deb http://deb.debian.org/debian trixie main" > /etc/apt/sources.list.d/trixie.list; \
+        apt-get update; \
+        apt-get install --no-install-recommends -y -t trixie git; \
+        rm -f /etc/apt/sources.list.d/trixie.list; \
+    else \
+        apt-get update; \
+        apt-get install --no-install-recommends -y git; \
+    fi \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' git)" ge '1:2.47.3' || \
     (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)

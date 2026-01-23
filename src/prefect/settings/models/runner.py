@@ -1,3 +1,4 @@
+import warnings
 from typing import ClassVar, Optional
 
 from pydantic import Field
@@ -59,12 +60,6 @@ class RunnerSettings(PrefectBaseSettings):
         description="Number of seconds a runner should wait between queries for scheduled work.",
     )
 
-    heartbeat_frequency: Optional[int] = Field(
-        default=None,
-        description="Number of seconds a runner should wait between heartbeats for flow runs.",
-        ge=30,
-    )
-
     crash_on_cancellation_failure: bool = Field(
         default=False,
         description=(
@@ -80,3 +75,18 @@ class RunnerSettings(PrefectBaseSettings):
         default_factory=RunnerServerSettings,
         description="Settings for controlling runner server behavior",
     )
+
+    # handle deprecated fields
+
+    @property
+    def heartbeat_frequency(self) -> Optional[int]:
+        """Deprecated: Use flows.heartbeat_frequency instead."""
+        from prefect.settings.context import get_current_settings
+
+        warnings.warn(
+            "`runner.heartbeat_frequency` has been moved to `flows.heartbeat_frequency`. "
+            "Use `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` instead of `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return get_current_settings().flows.heartbeat_frequency

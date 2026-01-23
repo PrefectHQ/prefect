@@ -20,6 +20,7 @@ from anyio import run_process
 from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
+from prefect._internal.urls import strip_auth_from_url
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
@@ -344,12 +345,13 @@ class GitRepository:
                 cwd=str(self.destination),
             )
             existing_repo_url = None
-            existing_repo_url = _strip_auth_from_url(result.stdout.decode().strip())
+            existing_repo_url = strip_auth_from_url(result.stdout.decode().strip())
+            configured_repo_url = strip_auth_from_url(self._url)
 
-            if existing_repo_url != self._url:
+            if existing_repo_url != configured_repo_url:
                 raise ValueError(
                     f"The existing repository at {str(self.destination)} "
-                    f"does not match the configured repository {self._url}"
+                    f"does not match the configured repository {configured_repo_url}"
                 )
 
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
@@ -458,7 +460,7 @@ class GitRepository:
                 else exc
             )
             raise RuntimeError(
-                f"Failed to clone repository {_strip_auth_from_url(self._url)!r} with exit code"
+                f"Failed to clone repository {strip_auth_from_url(self._url)!r} with exit code"
                 f" {exc.returncode}."
             ) from exc_chain
 
@@ -966,24 +968,3 @@ def _format_token_from_credentials(
 
     # GitHub and other providers: plain token
     return user_provided_token
-
-
-def _strip_auth_from_url(url: str) -> str:
-    parsed = urlparse(url)
-
-    # Construct a new netloc without the auth info
-    netloc = parsed.hostname
-    if parsed.port and netloc:
-        netloc += f":{parsed.port}"
-
-    # Build the sanitized URL
-    return urlunparse(
-        (
-            parsed.scheme,
-            netloc,
-            parsed.path,
-            parsed.params,
-            parsed.query,
-            parsed.fragment,
-        )
-    )

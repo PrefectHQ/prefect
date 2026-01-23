@@ -12,6 +12,7 @@ on:
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
       - pyproject.toml
+      - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
   push:
@@ -22,6 +23,7 @@ on:
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
       - pyproject.toml
+      - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
 permissions:
@@ -155,6 +157,7 @@ jobs:
       - name: Run tests
         run: |
           uv run pytest ${{ matrix.test-type.modules }} \
+          -m "not windows" \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
@@ -301,6 +304,7 @@ jobs:
       - name: Run tests
         run: |
           uv run pytest tests --ignore=tests/typesafety \
+          -m "not windows" \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
