@@ -4980,7 +4980,7 @@ class TestFlowDeploy:
     @pytest.fixture
     def mock_deploy(self, monkeypatch):
         mock = AsyncMock()
-        monkeypatch.setattr("prefect.deployments.runner.deploy", mock)
+        monkeypatch.setattr("prefect.deployments.runner.adeploy", mock)
         return mock
 
     @pytest.fixture
@@ -5293,6 +5293,82 @@ class TestFlowDeploy:
             type="prefect:simple",
             version=local_flow.version,
         )
+
+
+class TestFlowDeployAsyncDispatch:
+    """Tests for async_dispatch behavior of Flow.deploy."""
+
+    def test_aio_attribute_exists(self):
+        """Test that Flow.deploy has .aio attribute for backward compatibility."""
+
+        @flow
+        def my_flow():
+            pass
+
+        assert hasattr(my_flow.deploy, "aio")
+
+    async def test_adeploy_works_in_async_context(
+        self, work_pool_with_image_variable, monkeypatch
+    ):
+        """Test that Flow.adeploy works when awaited directly."""
+        mock_deploy = AsyncMock(return_value=["test-deployment-id"])
+        monkeypatch.setattr("prefect.deployments.runner.adeploy", mock_deploy)
+
+        @flow
+        def my_flow():
+            pass
+
+        await my_flow.adeploy(
+            name="test-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+            print_next_steps=False,
+        )
+
+        mock_deploy.assert_awaited_once()
+
+    async def test_deploy_dispatches_to_adeploy_in_async_context(
+        self, work_pool_with_image_variable, monkeypatch
+    ):
+        """Test that Flow.deploy dispatches to adeploy in async context."""
+        mock_deploy = AsyncMock(return_value=["test-deployment-id"])
+        monkeypatch.setattr("prefect.deployments.runner.adeploy", mock_deploy)
+
+        @flow
+        def my_flow():
+            pass
+
+        await my_flow.deploy(
+            name="test-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+            print_next_steps=False,
+        )
+
+        mock_deploy.assert_awaited_once()
+
+    def test_deploy_works_in_sync_context(
+        self, work_pool_with_image_variable, monkeypatch
+    ):
+        """Test that Flow.deploy works in sync context."""
+        mock_deploy = AsyncMock(return_value=["test-deployment-id"])
+        monkeypatch.setattr("prefect.deployments.runner.adeploy", mock_deploy)
+
+        @flow
+        def my_flow():
+            pass
+
+        my_flow.deploy(
+            name="test-deployment",
+            work_pool_name=work_pool_with_image_variable.name,
+            image="my-repo/my-image",
+            build=False,
+            print_next_steps=False,
+        )
+
+        mock_deploy.assert_awaited_once()
 
 
 class TestLoadFlowFromFlowRun:
