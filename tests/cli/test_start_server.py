@@ -17,7 +17,7 @@ import readchar
 from anyio.abc import Process
 from typer import Exit
 
-from prefect.cli.server import SERVER_PID_FILE_NAME
+from prefect.cli.server import SERVER_PID_FILE_NAME, _format_host_for_url
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -69,10 +69,16 @@ async def wait_for_server(api_url: str, timeout: float | None = None) -> None:
 
 
 @contextlib.asynccontextmanager
-async def start_server_process() -> AsyncIterator[Process]:
+async def start_server_process(
+    host: str = "127.0.0.1",
+) -> AsyncIterator[Process]:
     """
     Runs an instance of the server. Requires a port from 2222-2229 to be available.
     Uses the same database as the rest of the tests.
+
+    Args:
+        host: The host address to bind the server to. Defaults to 127.0.0.1.
+
     Yields:
         The anyio Process.
     """
@@ -97,7 +103,7 @@ async def start_server_process() -> AsyncIterator[Process]:
             "server",
             "start",
             "--host",
-            "127.0.0.1",
+            host,
             "--port",
             str(port),
             "--log-level",
@@ -108,7 +114,9 @@ async def start_server_process() -> AsyncIterator[Process]:
         env={**os.environ, **get_current_settings().to_environment_variables()},
     ) as process:
         process.out = out
-        api_url = f"http://localhost:{port}/api"
+        # format IPv6 addresses with brackets for URL
+        url_host = f"[{host}]" if ":" in host else host
+        api_url = f"http://{url_host}:{port}/api"
         await wait_for_server(api_url)
         yield process
 
@@ -443,6 +451,35 @@ class TestUvicornSignalForwarding:
             )
 
 
+@pytest.mark.service("process")
+class TestIPv6Support:
+    """Tests for IPv6 address support in server start."""
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="SIGTERM is only used in non-Windows environments",
+    )
+    async def test_server_starts_with_ipv6_host(self):
+        """Test that the server can start and respond on an IPv6 address.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        """
+        async with start_server_process(host="::1") as server_process:
+            server_process.send_signal(signal.SIGTERM)
+            with anyio.fail_after(SHUTDOWN_TIMEOUT):
+                await server_process.wait()
+
+            server_process.out.seek(0)
+            out = server_process.out.read().decode()
+
+            assert "Uvicorn running on" in out, (
+                f"Server should have started successfully. Output:\n{out}"
+            )
+            assert "Invalid host" not in out, (
+                f"Server should not reject IPv6 address. Output:\n{out}"
+            )
+
+
 class TestPrestartCheck:
     @pytest.fixture(autouse=True)
     def interactive_console(self, monkeypatch: pytest.MonkeyPatch):
@@ -545,3 +582,56 @@ class TestPrestartCheck:
             expected_output_contains="Invalid host 'foo'. Please specify a valid hostname or IP address.",
             expected_code=1,
         )
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "127.0.0.1",
+            "0.0.0.0",
+            "::",
+            "::1",
+        ],
+    )
+    def test_host_validation_accepts_valid_addresses(
+        self, host: str, unused_tcp_port: int
+    ):
+        """Test that both IPv4 and IPv6 addresses are accepted as valid hosts.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        which reported that IPv6 addresses like '::' were rejected.
+
+        This test verifies the socket binding check works for both address families
+        without starting the full server (to avoid unrelated startup issues).
+        """
+        # this mimics the socket check in src/prefect/cli/server.py
+        info = socket.getaddrinfo(
+            host, unused_tcp_port, socket.AF_UNSPEC, socket.SOCK_STREAM
+        )
+        family, socktype, proto, canonname, sockaddr = info[0]
+        with socket.socket(family, socktype, proto) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(sockaddr)
+        # if we get here without socket.gaierror, the host was accepted
+
+
+class TestFormatHostForUrl:
+    """Tests for _format_host_for_url helper function."""
+
+    @pytest.mark.parametrize(
+        "host,expected",
+        [
+            ("127.0.0.1", "127.0.0.1"),
+            ("0.0.0.0", "0.0.0.0"),
+            ("::", "[::]"),
+            ("::1", "[::1]"),
+            ("2001:db8::1", "[2001:db8::1]"),
+            ("localhost", "localhost"),
+            ("example.com", "example.com"),
+        ],
+    )
+    def test_format_host_for_url(self, host: str, expected: str):
+        """Test that IPv6 addresses are wrapped in brackets for URL use.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        """
+        assert _format_host_for_url(host) == expected
