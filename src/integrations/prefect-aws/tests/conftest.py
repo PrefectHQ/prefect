@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 from botocore import UNSIGNED
 from botocore.client import Config
@@ -12,6 +14,19 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "is_public: mark test as using public S3 bucket or not"
     )
+    config.addinivalue_line(
+        "markers", "windows: tests that specifically test Windows-only behavior"
+    )
+
+
+def pytest_collection_modifyitems(
+    session: pytest.Session, config: pytest.Config, items: list[pytest.Item]
+):
+    """Skip tests marked with @pytest.mark.windows on non-Windows platforms."""
+    if sys.platform != "win32":
+        for item in items:
+            if item.get_closest_marker("windows"):
+                item.add_marker(pytest.mark.skip(reason="Test only runs on Windows"))
 
 
 @pytest.fixture(scope="session", autouse=True)
