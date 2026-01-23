@@ -1,6 +1,7 @@
 import {
 	emitter,
 	type GraphItemSelection,
+	isArtifactsSelection,
 	isEventSelection,
 	isNodeSelection,
 	isStateSelection,
@@ -30,6 +31,8 @@ import { getStateColor } from "@/utils/state-colors";
 import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
 import { stateTypeShades } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
+import { FlowRunGraphArtifactDrawer } from "./flow-run-graph-artifact-drawer";
+import { FlowRunGraphArtifactsPopover } from "./flow-run-graph-artifacts-popover";
 import { FlowRunGraphEventPopover } from "./flow-run-graph-event-popover";
 import { FlowRunGraphSelectionPanel } from "./flow-run-graph-selection-panel";
 import { FlowRunGraphStatePopover } from "./flow-run-graph-state-popover";
@@ -66,6 +69,9 @@ export function FlowRunGraph({
 	const [internalSelected, setInternalSelected] = useState<
 		GraphItemSelection | undefined
 	>(undefined);
+	const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(
+		null,
+	);
 	const { resolvedTheme } = useTheme();
 
 	const fullscreen = controlledFullscreen ?? internalFullscreen;
@@ -223,6 +229,24 @@ export function FlowRunGraph({
 					}}
 				/>
 			)}
+			{selected && isArtifactsSelection(selected) && (
+				<FlowRunGraphArtifactsPopover
+					selection={selected}
+					onClose={() => {
+						setInternalSelected(undefined);
+						onSelectedChange?.(undefined);
+					}}
+					onViewArtifact={(artifactId) => {
+						setSelectedArtifactId(artifactId);
+						setInternalSelected(undefined);
+						onSelectedChange?.(undefined);
+					}}
+				/>
+			)}
+			<FlowRunGraphArtifactDrawer
+				artifactId={selectedArtifactId}
+				onClose={() => setSelectedArtifactId(null)}
+			/>
 		</div>
 	);
 }
