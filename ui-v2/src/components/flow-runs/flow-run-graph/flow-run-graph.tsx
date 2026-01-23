@@ -1,6 +1,7 @@
 import {
 	emitter,
 	type GraphItemSelection,
+	isEventSelection,
 	isNodeSelection,
 	isStateSelection,
 	type RunGraphConfig,
@@ -29,6 +30,7 @@ import { getStateColor } from "@/utils/state-colors";
 import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
 import { stateTypeShades } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
+import { FlowRunGraphEventPopover } from "./flow-run-graph-event-popover";
 import { FlowRunGraphSelectionPanel } from "./flow-run-graph-selection-panel";
 import { FlowRunGraphStatePopover } from "./flow-run-graph-state-popover";
 
@@ -205,6 +207,15 @@ export function FlowRunGraph({
 			)}
 			{selected && isStateSelection(selected) && (
 				<FlowRunGraphStatePopover
+					selection={selected}
+					onClose={() => {
+						setInternalSelected(undefined);
+						onSelectedChange?.(undefined);
+					}}
+				/>
+			)}
+			{selected && isEventSelection(selected) && (
+				<FlowRunGraphEventPopover
 					selection={selected}
 					onClose={() => {
 						setInternalSelected(undefined);
