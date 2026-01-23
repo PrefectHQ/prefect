@@ -419,7 +419,21 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `FlowRunFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunFilterCreatedBy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Filter by `FlowRun.created_by`.
+
+
+**Methods:**
+
+#### `as_sql_filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L79" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+as_sql_filter(self) -> sa.ColumnElement[bool]
+```
+
+### `FlowRunFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter flow runs. Only flow runs matching all criteria will be returned
@@ -433,13 +447,13 @@ Filter flow runs. Only flow runs matching all criteria will be returned
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-#### `only_filters_on_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L695" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `only_filters_on_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L737" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 only_filters_on_id(self) -> bool
 ```
 
-### `TaskRunFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L751" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L796" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.flow_run_id`.
@@ -453,7 +467,7 @@ Filter by `TaskRun.flow_run_id`.
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `TaskRunFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L776" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.id`.
@@ -470,7 +484,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `TaskRunFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L792" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L837" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.name`.
@@ -487,7 +501,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `TaskRunFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L822" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L867" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.tags`.
@@ -501,7 +515,7 @@ Filter by `TaskRun.tags`.
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `TaskRunFilterStateType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L850" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterStateType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.state_type`.
@@ -518,7 +532,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `TaskRunFilterStateName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L866" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterStateName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L911" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.state_name`.
@@ -535,7 +549,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `TaskRunFilterState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L882" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.type` and `TaskRun.name`.
@@ -549,7 +563,7 @@ Filter by `TaskRun.type` and `TaskRun.name`.
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `TaskRunFilterSubFlowRuns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterSubFlowRuns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L952" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.subflow_run`.
@@ -566,7 +580,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `TaskRunFilterStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L929" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L974" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.start_time`.
@@ -583,7 +597,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `TaskRunFilterExpectedStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L961" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterExpectedStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1006" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.expected_start_time`.
@@ -600,7 +614,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `TaskRunFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L984" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1029" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter task runs. Only task runs matching all criteria will be returned
@@ -614,7 +628,7 @@ Filter task runs. Only task runs matching all criteria will be returned
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `DeploymentFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1037" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1082" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.id`.
@@ -631,7 +645,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `DeploymentFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1058" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.name`.
@@ -648,7 +662,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `DeploymentOrFlowNameFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1088" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentOrFlowNameFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.name` or `Flow.name` with a single input string for ilike filtering.
@@ -665,7 +679,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `DeploymentFilterPaused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterPaused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.paused`.
@@ -682,7 +696,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `DeploymentFilterWorkQueueName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterWorkQueueName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.work_queue_name`.
@@ -699,7 +713,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `DeploymentFilterConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1193" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`.
@@ -716,7 +730,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `DeploymentFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1173" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.tags`.
@@ -730,7 +744,7 @@ Filter by `Deployment.tags`.
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `DeploymentFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter for deployments. Only deployments matching all criteria will be returned.
@@ -744,7 +758,7 @@ Filter for deployments. Only deployments matching all criteria will be returned.
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `DeploymentScheduleFilterActive` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentScheduleFilterActive` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `DeploymentSchedule.active`.
@@ -761,7 +775,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `DeploymentScheduleFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentScheduleFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter for deployments. Only deployments matching all criteria will be returned.
@@ -775,7 +789,7 @@ Filter for deployments. Only deployments matching all criteria will be returned.
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `LogFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.name`.
@@ -792,7 +806,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `LogFilterLevel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterLevel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.level`.
@@ -809,7 +823,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `LogFilterTimestamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1337" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterTimestamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.timestamp`.
@@ -826,7 +840,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `LogFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1360" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1405" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.flow_run_id`.
@@ -843,7 +857,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `LogFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.task_run_id`.
@@ -860,7 +874,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `LogFilterTextSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterTextSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by text search across log content.
@@ -877,7 +891,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `includes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 includes(self, log: 'Log') -> bool
@@ -886,7 +900,7 @@ includes(self, log: 'Log') -> bool
 Check if this text filter includes the given log.
 
 
-### `LogFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1506" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1551" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter logs. Only logs matching all criteria will be returned
@@ -900,7 +914,7 @@ Filter logs. Only logs matching all criteria will be returned
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `FilterSet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1544" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FilterSet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A collection of filters for common objects
@@ -926,7 +940,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockTypeFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1562" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockTypeFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1607" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockType.name`
@@ -943,7 +957,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockTypeFilterSlug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1584" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockTypeFilterSlug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockType.slug`
@@ -960,7 +974,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockTypeFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1601" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockTypeFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1646" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter BlockTypes
@@ -977,7 +991,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockSchemaFilterBlockTypeId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1625" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilterBlockTypeId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1670" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockSchema.block_type_id`.
@@ -994,7 +1008,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockSchemaFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1641" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1686" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by BlockSchema.id
@@ -1011,7 +1025,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockSchemaFilterCapabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1657" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilterCapabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockSchema.capabilities`
@@ -1028,7 +1042,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockSchemaFilterVersion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1678" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilterVersion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1723" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockSchema.capabilities`
@@ -1045,7 +1059,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockSchemaFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1696" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1741" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter BlockSchemas
@@ -1059,7 +1073,7 @@ Filter BlockSchemas
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `BlockDocumentFilterIsAnonymous` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1729" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilterIsAnonymous` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1774" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockDocument.is_anonymous`.
@@ -1076,7 +1090,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockDocumentFilterBlockTypeId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1748" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilterBlockTypeId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1793" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockDocument.block_type_id`.
@@ -1093,7 +1107,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockDocumentFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1764" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1809" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockDocument.id`.
@@ -1110,7 +1124,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockDocumentFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1780" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1825" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockDocument.name`.
@@ -1127,7 +1141,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `BlockDocumentFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1806" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1851" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned
@@ -1141,7 +1155,7 @@ Filter BlockDocuments. Only BlockDocuments matching all criteria will be returne
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `WorkQueueFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1842" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkQueue.id`.
@@ -1158,7 +1172,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `WorkQueueFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1904" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkQueue.name`.
@@ -1175,7 +1189,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `WorkQueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1893" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1938" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter work queues. Only work queues matching all criteria will be
@@ -1190,7 +1204,7 @@ returned
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `WorkPoolFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1918" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1963" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkPool.id`.
@@ -1207,7 +1221,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `WorkPoolFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1934" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1979" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkPool.name`.
@@ -1224,7 +1238,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `WorkPoolFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkPool.type`.
@@ -1241,7 +1255,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `WorkPoolFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1966" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2011" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter work pools. Only work pools matching all criteria will be returned
@@ -1255,7 +1269,7 @@ Filter work pools. Only work pools matching all criteria will be returned
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `WorkerFilterWorkPoolId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L1994" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerFilterWorkPoolId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2039" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Worker.worker_config_id`.
@@ -1272,7 +1286,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `WorkerFilterStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2010" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerFilterStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2055" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Worker.status`.
@@ -1289,7 +1303,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `WorkerFilterLastHeartbeatTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2031" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerFilterLastHeartbeatTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2076" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Worker.last_heartbeat_time`.
@@ -1306,7 +1320,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `WorkerFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2058" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Worker.last_heartbeat_time`.
@@ -1320,7 +1334,7 @@ Filter by `Worker.last_heartbeat_time`.
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `ArtifactFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2088" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.id`.
@@ -1337,7 +1351,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactFilterKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.key`.
@@ -1354,7 +1368,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.flow_run_id`.
@@ -1371,7 +1385,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.task_run_id`.
@@ -1388,7 +1402,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.type`.
@@ -1405,7 +1419,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter artifacts. Only artifacts matching all criteria will be returned
@@ -1419,7 +1433,7 @@ Filter artifacts. Only artifacts matching all criteria will be returned
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `ArtifactCollectionFilterLatestId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterLatestId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.latest_id`.
@@ -1436,7 +1450,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactCollectionFilterKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2252" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.key`.
@@ -1453,7 +1467,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactCollectionFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.flow_run_id`.
@@ -1470,7 +1484,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactCollectionFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2310" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2355" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.task_run_id`.
@@ -1487,7 +1501,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactCollectionFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.type`.
@@ -1504,7 +1518,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `ArtifactCollectionFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2347" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter artifact collections. Only artifact collections matching all criteria will be returned
@@ -1518,7 +1532,7 @@ Filter artifact collections. Only artifact collections matching all criteria wil
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `VariableFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2430" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Variable.id`.
@@ -1535,7 +1549,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `VariableFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2401" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2446" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Variable.name`.
@@ -1552,7 +1566,7 @@ as_sql_filter(self) -> sa.ColumnElement[bool]
 Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
 
 
-### `VariableFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2427" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2472" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Variable.tags`.
@@ -1566,7 +1580,7 @@ Filter by `Variable.tags`.
 as_sql_filter(self) -> sa.ColumnElement[bool]
 ```
 
-### `VariableFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2455" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/schemas/filters.py#L2500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter variables. Only variables matching all criteria will be returned
