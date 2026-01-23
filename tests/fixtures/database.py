@@ -1258,7 +1258,7 @@ async def concurrency_limit_v2(session: AsyncSession) -> ConcurrencyLimitV2:
     concurrency_limit = await create_concurrency_limit(
         session=session,
         concurrency_limit=ConcurrencyLimitV2(
-            name="my-limit",
+            name=f"my-limit-{uuid.uuid4()}",
             limit=42,
         ),
     )
