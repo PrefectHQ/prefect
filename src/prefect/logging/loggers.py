@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import sys
 from builtins import print
 from contextlib import contextmanager
@@ -154,6 +155,26 @@ def get_run_logger(
     return logger
 
 
+def _get_deployment_name() -> Optional[str]:
+    """
+    Get the deployment name from the runtime context.
+
+    This function checks the environment variable first to avoid API calls
+    in test environments, then falls back to the runtime deployment context.
+    """
+    # Check environment variable first to avoid API calls in tests
+    env_deployment_name = os.environ.get("PREFECT__RUNTIME__DEPLOYMENT__NAME")
+    if env_deployment_name is not None:
+        return env_deployment_name
+
+    from prefect.runtime import deployment
+
+    try:
+        return deployment.name
+    except Exception:
+        return None
+
+
 def flow_run_logger(
     flow_run: "FlowRun",
     flow: Optional["Flow[Any, Any]"] = None,
@@ -167,12 +188,7 @@ def flow_run_logger(
 
     If the flow run context is available, see `get_run_logger` instead.
     """
-    from prefect.runtime import deployment
-
-    try:
-        deployment_name = deployment.name
-    except Exception:
-        deployment_name = None
+    deployment_name = _get_deployment_name()
 
     return PrefectLogAdapter(
         get_logger("prefect.flow_runs"),
@@ -207,7 +223,6 @@ def task_run_logger(
     of `flow_run` and `flow`.
     """
     from prefect.context import FlowRunContext
-    from prefect.runtime import deployment
 
     if not flow_run or not flow:
         flow_run_context = FlowRunContext.get()
@@ -215,10 +230,7 @@ def task_run_logger(
             flow_run = flow_run or flow_run_context.flow_run
             flow = flow or flow_run_context.flow
 
-    try:
-        deployment_name = deployment.name
-    except Exception:
-        deployment_name = None
+    deployment_name = _get_deployment_name()
 
     return PrefectLogAdapter(
         get_logger("prefect.task_runs"),
