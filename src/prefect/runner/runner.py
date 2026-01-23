@@ -634,7 +634,7 @@ class Runner:
                         exc_info=True,
                     )
 
-    async def astop(self):
+    async def astop(self) -> None:
         """Stops the runner's polling cycle. Async version."""
         if not self.started:
             raise RuntimeError(
