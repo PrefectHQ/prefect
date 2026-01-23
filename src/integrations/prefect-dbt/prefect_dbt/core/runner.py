@@ -150,6 +150,7 @@ class PrefectDbtRunner:
         self._config: Optional[RuntimeConfig] = None
         self._graph: Optional[Graph] = None
         self._skipped_nodes: set[str] = set()
+        self._started_nodes: set[str] = set()
 
         self._event_queue: Optional[queue.PriorityQueue] = None
         self._callback_thread: Optional[threading.Thread] = None
@@ -465,8 +466,8 @@ class PrefectDbtRunner:
     def _start_callback_processor(self) -> None:
         """Start the background thread for processing callbacks."""
         if self._event_queue is None:
-            # Use PriorityQueue to ensure NodeCompiling events are processed first
-            # Priority: 0 = NodeCompiling (highest), 1 = NodeFinished, 2 = everything else (lowest)
+            # Use PriorityQueue to ensure NodeStart events are processed first
+            # Priority: 0 = NodeStart (highest), 1 = NodeFinished, 2 = everything else (lowest)
             self._event_queue = queue.PriorityQueue(maxsize=0)
             self._shutdown_event = threading.Event()
             self._callback_thread = threading.Thread(
@@ -498,6 +499,7 @@ class PrefectDbtRunner:
         self._shutdown_event = None
         self._queue_counter = 0
         self._skipped_nodes = set()
+        self._started_nodes = set()
 
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
@@ -527,12 +529,12 @@ class PrefectDbtRunner:
         """Get priority for an event. Lower number = higher priority.
 
         Priority levels:
-        - 0: NodeCompiling (highest - must create tasks before other events)
+        - 0: NodeStart (highest - must create tasks before other events)
         - 1: NodeFinished (medium - update task status)
         - 2: Everything else (lowest - logging, etc.)
         """
         event_name = event.info.name
-        if event_name == "NodeCompiling":
+        if event_name == "NodeStart":
             return 0
         elif event_name == "NodeFinished":
             return 1
@@ -600,7 +602,7 @@ class PrefectDbtRunner:
         self._start_callback_processor()
 
         # Pre-compute event name constants (for use in dispatch table)
-        _NODE_COMPILING = "NodeCompiling"
+        _NODE_START = "NodeStart"
         _NODE_FINISHED = "NodeFinished"
 
         def _process_logging_sync(event: EventMsg) -> None:
@@ -646,9 +648,9 @@ class PrefectDbtRunner:
                 elif event.info.level == EventLevel.ERROR:
                     logger.error(self.get_dbt_event_msg(event))
 
-        def _process_node_compiling_sync(event: EventMsg) -> None:
+        def _process_node_started_sync(event: EventMsg) -> None:
             """
-            Actual node compiling logic - runs in background thread.
+            Actual node started logic - runs in background thread.
             Skips nodes that are ephemeral.
             """
             node_id = self._get_dbt_event_node_id(event)
@@ -667,12 +669,13 @@ class PrefectDbtRunner:
             enable_assets = (
                 prefect_config.get("enable_assets", True) and not self.disable_assets
             )
+            self._started_nodes.add(node_id)
             self._call_task(task_state, manifest_node, context, enable_assets)
 
         def _process_node_finished_sync(event: EventMsg) -> None:
             """Actual node finished logic - runs in background thread."""
             node_id = self._get_dbt_event_node_id(event)
-            if node_id in self._skipped_nodes:
+            if node_id in self._skipped_nodes and node_id not in self._started_nodes:
                 return
 
             manifest_node, _ = self._get_manifest_node_and_config(node_id)
@@ -699,7 +702,7 @@ class PrefectDbtRunner:
         # Using a tuple of (handler, priority) for efficient dispatch
         # None value means use default logging handler
         _EVENT_DISPATCH = {
-            _NODE_COMPILING: (_process_node_compiling_sync, 0),
+            _NODE_START: (_process_node_started_sync, 0),
             _NODE_FINISHED: (_process_node_finished_sync, 1),
         }
 
@@ -723,7 +726,7 @@ class PrefectDbtRunner:
             """Ultra-efficient callback that minimizes work per event.
 
             Optimization strategy:
-            1. Route critical events (NodeCompiling/NodeFinished) immediately
+            1. Route critical events (NodeStart/NodeFinished) immediately
             2. For logging events, apply early filtering BEFORE queuing:
                - Filter by log level (don't queue events below threshold)
                - Filter out events without messages
@@ -747,7 +750,7 @@ class PrefectDbtRunner:
             dispatch_result = _EVENT_DISPATCH.get(event_name)
 
             if dispatch_result is not None:
-                # Critical event (NodeCompiling/NodeFinished) - always process
+                # Critical event (NodeStart/NodeFinished) - always process
                 handler, priority = dispatch_result
                 self._queue_callback(handler, event, priority=priority)
             else:
