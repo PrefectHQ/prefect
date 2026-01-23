@@ -353,9 +353,12 @@ def start(
     pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
     # check if port is already in use
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        # use getaddrinfo to support both IPv4 and IPv6 addresses
+        info = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        family, socktype, proto, canonname, sockaddr = info[0]
+        with socket.socket(family, socktype, proto) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind((host, port))
+            s.bind(sockaddr)
     except socket.gaierror:
         exit_with_error(
             f"Invalid host '{host}'. Please specify a valid hostname or IP address."

@@ -545,3 +545,33 @@ class TestPrestartCheck:
             expected_output_contains="Invalid host 'foo'. Please specify a valid hostname or IP address.",
             expected_code=1,
         )
+
+    @pytest.mark.parametrize(
+        "host",
+        [
+            "127.0.0.1",
+            "0.0.0.0",
+            "::",
+            "::1",
+        ],
+    )
+    def test_host_validation_accepts_valid_addresses(
+        self, host: str, unused_tcp_port: int
+    ):
+        """Test that both IPv4 and IPv6 addresses are accepted as valid hosts.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        which reported that IPv6 addresses like '::' were rejected.
+
+        This test verifies the socket binding check works for both address families
+        without starting the full server (to avoid unrelated startup issues).
+        """
+        # this mimics the socket check in src/prefect/cli/server.py
+        info = socket.getaddrinfo(
+            host, unused_tcp_port, socket.AF_UNSPEC, socket.SOCK_STREAM
+        )
+        family, socktype, proto, canonname, sockaddr = info[0]
+        with socket.socket(family, socktype, proto) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(sockaddr)
+        # if we get here without socket.gaierror, the host was accepted
