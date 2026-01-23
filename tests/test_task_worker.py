@@ -1017,3 +1017,21 @@ class TestAsyncDispatchMigration:
         """Test that serve dispatches to aserve in async context."""
         await serve(foo_task)
         mock_task_worker_start.assert_called_once()
+
+    def test_task_serve_aio_attribute_exists(self, foo_task):
+        """Test that Task.serve has .aio attribute for backward compatibility."""
+        assert hasattr(foo_task.serve, "aio")
+
+    async def test_task_aserve_works_in_async_context(
+        self, foo_task, mock_task_worker_start
+    ):
+        """Test that Task.aserve works when awaited directly."""
+        await foo_task.aserve()
+        mock_task_worker_start.assert_called_once()
+
+    async def test_task_serve_dispatches_to_aserve_in_async_context(
+        self, foo_task, mock_task_worker_start
+    ):
+        """Test that Task.serve dispatches to aserve in async context."""
+        await foo_task.serve()
+        mock_task_worker_start.assert_called_once()
