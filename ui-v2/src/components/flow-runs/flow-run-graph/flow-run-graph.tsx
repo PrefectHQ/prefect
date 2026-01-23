@@ -2,6 +2,7 @@ import {
 	emitter,
 	type GraphItemSelection,
 	isNodeSelection,
+	isStateSelection,
 	type RunGraphConfig,
 	type RunGraphNode,
 	type RunGraphStateEvent,
@@ -29,6 +30,7 @@ import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
 import { stateTypeShades } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
 import { FlowRunGraphSelectionPanel } from "./flow-run-graph-selection-panel";
+import { FlowRunGraphStatePopover } from "./flow-run-graph-state-popover";
 
 const TERMINAL_STATES = ["COMPLETED", "FAILED", "CANCELLED", "CRASHED"];
 
@@ -194,6 +196,15 @@ export function FlowRunGraph({
 			</div>
 			{selected && isNodeSelection(selected) && (
 				<FlowRunGraphSelectionPanel
+					selection={selected}
+					onClose={() => {
+						setInternalSelected(undefined);
+						onSelectedChange?.(undefined);
+					}}
+				/>
+			)}
+			{selected && isStateSelection(selected) && (
+				<FlowRunGraphStatePopover
 					selection={selected}
 					onClose={() => {
 						setInternalSelected(undefined);
