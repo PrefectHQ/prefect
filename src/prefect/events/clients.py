@@ -284,10 +284,14 @@ class PrefectEventsClient(EventsClient):
 
         self._auth_token = PREFECT_API_AUTH_STRING.value()
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._connect = websocket_connect(
-            self._events_socket_url,
-            subprotocols=[Subprotocol("prefect")],
-        )
+        # Only use the prefect subprotocol when auth is configured
+        if self._auth_token:
+            self._connect = websocket_connect(
+                self._events_socket_url,
+                subprotocols=[Subprotocol("prefect")],
+            )
+        else:
+            self._connect = websocket_connect(self._events_socket_url)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
@@ -379,28 +383,31 @@ class PrefectEventsClient(EventsClient):
             )
             raise
 
-        # Authenticate with the server
-        logger.debug("Authenticating...")
-        await self._websocket.send(
-            orjson.dumps({"type": "auth", "token": self._auth_token}).decode()
-        )
-
-        try:
-            message: Dict[str, Any] = orjson.loads(await self._websocket.recv())
-            logger.debug("Auth result: %s", message)
-            assert message["type"] == "auth_success", message.get("reason", "")
-        except AssertionError as e:
-            raise Exception(
-                "Unable to authenticate to the event stream. Please ensure the "
-                "provided auth_token you are using is valid for this environment. "
-                f"Reason: {e.args[0]}"
+        # Authenticate with the server only when auth is configured
+        if self._auth_token:
+            logger.debug("Authenticating...")
+            await self._websocket.send(
+                orjson.dumps({"type": "auth", "token": self._auth_token}).decode()
             )
-        except ConnectionClosedError as e:
-            reason = getattr(e.rcvd, "reason", None)
-            msg = "Unable to authenticate to the event stream. Please ensure the "
-            msg += "provided auth_token you are using is valid for this environment. "
-            msg += f"Reason: {reason}" if reason else ""
-            raise Exception(msg) from e
+
+            try:
+                message: Dict[str, Any] = orjson.loads(await self._websocket.recv())
+                logger.debug("Auth result: %s", message)
+                assert message["type"] == "auth_success", message.get("reason", "")
+            except AssertionError as e:
+                raise Exception(
+                    "Unable to authenticate to the event stream. Please ensure the "
+                    "provided auth_token you are using is valid for this environment. "
+                    f"Reason: {e.args[0]}"
+                )
+            except ConnectionClosedError as e:
+                reason = getattr(e.rcvd, "reason", None)
+                msg = "Unable to authenticate to the event stream. Please ensure the "
+                msg += (
+                    "provided auth_token you are using is valid for this environment. "
+                )
+                msg += f"Reason: {reason}" if reason else ""
+                raise Exception(msg) from e
 
         events_to_resend = self._unconfirmed_events
         logger.debug("Resending %s unconfirmed events.", len(events_to_resend))

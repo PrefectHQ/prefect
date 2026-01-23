@@ -524,10 +524,6 @@ async def test_initial_connection_retries_and_succeeds(
         async def send(self, data):
             pass
 
-        async def recv(self):
-            # Return auth_success response for the auth handshake
-            return '{"type": "auth_success"}'
-
     class MockConnect:
         def __init__(self):
             self.connection = None
@@ -547,7 +543,7 @@ async def test_initial_connection_retries_and_succeeds(
 
     monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
 
-    # Should succeed after retrying
+    # Should succeed after retrying (no auth required when PREFECT_API_AUTH_STRING is not set)
     async with PrefectEventsClient("ws://localhost") as client:
         assert client._websocket is not None
 
@@ -641,10 +637,6 @@ async def test_initial_connection_retries_on_timeout_error(
         async def send(self, data):
             pass
 
-        async def recv(self):
-            # Return auth_success response for the auth handshake
-            return '{"type": "auth_success"}'
-
     class MockConnect:
         def __init__(self):
             self.connection = None
@@ -664,6 +656,7 @@ async def test_initial_connection_retries_on_timeout_error(
 
     monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
 
+    # No auth required when PREFECT_API_AUTH_STRING is not set
     async with PrefectEventsClient("ws://localhost") as client:
         assert client._websocket is not None
 
