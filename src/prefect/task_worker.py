@@ -334,7 +334,7 @@ class TaskWorker:
             task.persist_result = True
             store = await ResultStore(
                 result_storage=await get_or_create_default_task_scheduling_storage()
-            ).update_for_task(task)
+            ).aupdate_for_task(task)
             try:
                 run_data: dict[str, Any] = await read_parameters(store, parameters_id)
                 parameters = run_data.get("parameters", {})

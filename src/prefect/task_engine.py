@@ -1395,9 +1395,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=await get_result_store().update_for_task(
-                        self.task, _sync=False
-                    ),
+                    result_store=await get_result_store().aupdate_for_task(self.task),
                     client=client,
                     persist_result=persist_result,
                 )

@@ -881,3 +881,65 @@ async def test_supports_isolation_level():
     assert not store_without_lock_manager.supports_isolation_level(
         IsolationLevel.SERIALIZABLE
     )
+
+
+class TestAsyncDispatch:
+    """Tests for async_dispatch behavior of ResultStore methods."""
+
+    async def test_update_for_flow_dispatches_to_async_in_async_context(self):
+        """Test that update_for_flow dispatches to aupdate_for_flow in async context."""
+
+        @flow
+        async def my_flow():
+            pass
+
+        store = ResultStore()
+        # In async context, calling update_for_flow should return a coroutine
+        result = store.update_for_flow(my_flow)
+        # Should be a coroutine that we can await
+        assert hasattr(result, "__await__")
+        updated_store = await result
+        assert isinstance(updated_store, ResultStore)
+
+    async def test_update_for_task_dispatches_to_async_in_async_context(self):
+        """Test that update_for_task dispatches to aupdate_for_task in async context."""
+
+        @task
+        async def my_task():
+            pass
+
+        store = ResultStore()
+        # In async context, calling update_for_task should return a coroutine
+        result = store.update_for_task(my_task)
+        # Should be a coroutine that we can await
+        assert hasattr(result, "__await__")
+        updated_store = await result
+        assert isinstance(updated_store, ResultStore)
+
+    def test_update_for_flow_returns_sync_in_sync_context(self):
+        """Test that update_for_flow returns directly in sync context."""
+
+        @flow
+        def my_flow():
+            pass
+
+        store = ResultStore()
+        # In sync context, calling update_for_flow should return directly
+        result = store.update_for_flow(my_flow)
+        # Should not be a coroutine
+        assert not hasattr(result, "__await__")
+        assert isinstance(result, ResultStore)
+
+    def test_update_for_task_returns_sync_in_sync_context(self):
+        """Test that update_for_task returns directly in sync context."""
+
+        @task
+        def my_task():
+            pass
+
+        store = ResultStore()
+        # In sync context, calling update_for_task should return directly
+        result = store.update_for_task(my_task)
+        # Should not be a coroutine
+        assert not hasattr(result, "__await__")
+        assert isinstance(result, ResultStore)
