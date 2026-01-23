@@ -521,7 +521,33 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `FlowRunFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunFilterCreatedBy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Filter by `FlowRun.created_by`.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `FlowRunFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter flow runs. Only flow runs matching all criteria will be returned
@@ -547,7 +573,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.flow_run_id`.
@@ -573,7 +599,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.id`.
@@ -599,7 +625,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.name`.
@@ -625,7 +651,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L370" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L394" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.tags`.
@@ -651,7 +677,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterStateType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L386" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterStateType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.state_type`.
@@ -677,7 +703,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterStateName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L394" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterStateName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -699,7 +725,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -721,7 +747,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterSubFlowRuns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L405" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterSubFlowRuns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.subflow_run`.
@@ -747,7 +773,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilterStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilterStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L441" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `TaskRun.start_time`.
@@ -773,7 +799,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `TaskRunFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter task runs. Only task runs matching all criteria will be returned
@@ -799,7 +825,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `DeploymentFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L459" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L483" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.id`.
@@ -825,7 +851,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `DeploymentFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L494" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.name`.
@@ -851,7 +877,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `DeploymentFilterWorkQueueName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L490" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterWorkQueueName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.work_queue_name`.
@@ -877,7 +903,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `DeploymentFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L524" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Deployment.tags`.
@@ -903,7 +929,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `DeploymentFilterConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilterConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L545" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 DEPRECATED: Prefer `Deployment.concurrency_limit_id` over `Deployment.concurrency_limit`.
@@ -929,7 +955,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `DeploymentFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L538" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeploymentFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L562" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter for deployments. Only deployments matching all criteria will be returned.
@@ -955,7 +981,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `LogFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L584" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.name`.
@@ -981,7 +1007,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `LogFilterLevel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L570" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterLevel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L594" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.level`.
@@ -1007,7 +1033,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `LogFilterTimestamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L586" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterTimestamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.timestamp`.
@@ -1033,7 +1059,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `LogFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L599" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L623" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.flow_run_id`.
@@ -1059,7 +1085,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `LogFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L607" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L631" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Log.task_run_id`.
@@ -1085,7 +1111,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `LogFilterTextSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L615" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilterTextSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L639" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by text search across log content.
@@ -1111,7 +1137,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `LogFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L630" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LogFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L654" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter logs. Only logs matching all criteria will be returned
@@ -1137,7 +1163,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `FilterSet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L650" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FilterSet` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L674" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A collection of filters for common objects
@@ -1163,7 +1189,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockTypeFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L668" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockTypeFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L692" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockType.name`
@@ -1189,7 +1215,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockTypeFilterSlug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockTypeFilterSlug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L706" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockType.slug`
@@ -1215,7 +1241,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockTypeFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L690" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockTypeFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L714" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter BlockTypes
@@ -1241,7 +1267,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockSchemaFilterBlockTypeId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilterBlockTypeId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L726" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockSchema.block_type_id`.
@@ -1267,7 +1293,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockSchemaFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L734" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by BlockSchema.id
@@ -1293,7 +1319,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockSchemaFilterCapabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L718" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilterCapabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockSchema.capabilities`
@@ -1319,7 +1345,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockSchemaFilterVersion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L731" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilterVersion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L755" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockSchema.capabilities`
@@ -1345,7 +1371,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockSchemaFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L741" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L765" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter BlockSchemas
@@ -1371,7 +1397,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockDocumentFilterIsAnonymous` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilterIsAnonymous` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L782" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockDocument.is_anonymous`.
@@ -1397,7 +1423,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockDocumentFilterBlockTypeId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L769" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilterBlockTypeId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L793" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockDocument.block_type_id`.
@@ -1423,7 +1449,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockDocumentFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L777" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L801" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockDocument.id`.
@@ -1449,7 +1475,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockDocumentFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L785" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L809" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `BlockDocument.name`.
@@ -1475,7 +1501,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `BlockDocumentFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L801" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L825" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned
@@ -1501,7 +1527,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkQueueFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L823" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L847" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkQueue.id`.
@@ -1527,7 +1553,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkQueueFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L832" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L856" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkQueue.name`.
@@ -1553,7 +1579,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkQueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L852" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L876" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter work queues. Only work queues matching all criteria will be
@@ -1580,7 +1606,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkPoolFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L865" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L889" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkPool.id`.
@@ -1606,7 +1632,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkPoolFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L873" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L897" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkPool.name`.
@@ -1632,7 +1658,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkPoolFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L881" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L905" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `WorkPool.type`.
@@ -1658,7 +1684,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkPoolFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L889" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -1680,7 +1706,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkerFilterWorkPoolId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L901" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerFilterWorkPoolId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L925" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Worker.worker_config_id`.
@@ -1706,7 +1732,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkerFilterLastHeartbeatTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L909" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerFilterLastHeartbeatTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L933" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Worker.last_heartbeat_time`.
@@ -1732,7 +1758,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkerFilterStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L926" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerFilterStatus` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Worker.status`.
@@ -1758,7 +1784,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkerFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L937" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L961" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -1780,7 +1806,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L951" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L975" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.id`.
@@ -1806,7 +1832,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactFilterKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L959" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L983" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.key`.
@@ -1832,7 +1858,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L984" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1008" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.flow_run_id`.
@@ -1858,7 +1884,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1016" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.task_run_id`.
@@ -1884,7 +1910,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1000" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Artifact.type`.
@@ -1910,7 +1936,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1011" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1035" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter artifacts. Only artifacts matching all criteria will be returned
@@ -1936,7 +1962,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactCollectionFilterLatestId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1031" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterLatestId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1055" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.latest_id`.
@@ -1962,7 +1988,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactCollectionFilterKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1039" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterKey` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1063" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.key`.
@@ -1988,7 +2014,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactCollectionFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1065" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterFlowRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1089" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.flow_run_id`.
@@ -2014,7 +2040,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactCollectionFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterTaskRunId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1097" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.task_run_id`.
@@ -2040,7 +2066,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactCollectionFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilterType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `ArtifactCollection.type`.
@@ -2066,7 +2092,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `ArtifactCollectionFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1092" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ArtifactCollectionFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter artifact collections. Only artifact collections matching all criteria will be returned
@@ -2092,7 +2118,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `VariableFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableFilterId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Variable.id`.
@@ -2118,7 +2144,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `VariableFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableFilterName` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Variable.name`.
@@ -2144,7 +2170,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `VariableFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableFilterTags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter by `Variable.tags`.
@@ -2170,7 +2196,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `VariableFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `VariableFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/filters.py#L1176" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Filter variables. Only variables matching all criteria will be returned
