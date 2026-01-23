@@ -56,7 +56,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Coroutine,
     Dict,
     Iterable,
     List,
@@ -167,9 +166,10 @@ class Runner:
             query_seconds: The number of seconds to wait between querying for
                 scheduled flow runs; defaults to `PREFECT_RUNNER_POLL_FREQUENCY`
             prefetch_seconds: The number of seconds to prefetch flow runs for.
-            heartbeat_seconds: The number of seconds to wait between emitting
-                flow run heartbeats. The runner will not emit heartbeats if the value is None.
-                Defaults to `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.
+            heartbeat_seconds: The number of seconds between heartbeat events emitted
+                by flow runs managed by this runner. If not provided, the value of
+                `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` will be used. Heartbeats are used
+                to detect crashed flow runs.
             limit: The maximum number of flow runs this runner should be running at. Provide `None` for no limit.
                 If not provided, the runner will use the value of `PREFECT_RUNNER_PROCESS_LIMIT`.
             pause_on_shutdown: A boolean for whether or not to automatically pause
@@ -202,6 +202,8 @@ class Runner:
                     asyncio.run(runner.start())
                 ```
         """
+        self._heartbeat_seconds = heartbeat_seconds
+
         settings = get_current_settings()
 
         if name and ("/" in name or "%" in name):
@@ -221,12 +223,6 @@ class Runner:
 
         self.query_seconds: float = query_seconds or settings.runner.poll_frequency
         self._prefetch_seconds: float = prefetch_seconds
-        self.heartbeat_seconds: float | None = (
-            heartbeat_seconds or settings.runner.heartbeat_frequency
-        )
-        if self.heartbeat_seconds is not None and self.heartbeat_seconds < 30:
-            raise ValueError("Heartbeat must be 30 seconds or greater.")
-        self._heartbeat_task: asyncio.Task[None] | None = None
         self._events_client: EventsClient = get_events_client(checkpoint_every=1)
 
         self._exit_stack = AsyncExitStack()
@@ -644,9 +640,6 @@ class Runner:
 
             task_status.started(process.pid)
 
-            if self.heartbeat_seconds is not None:
-                await self._emit_flow_run_heartbeat(flow_run)
-
             # Only add the process to the map if it is still running
             # The process may be a multiprocessing.context.SpawnProcess, in which case it will have an `exitcode`` attribute
             # but no `returncode` attribute
@@ -682,6 +675,11 @@ class Runner:
 
         flow_run = FlowRun.model_validate(bundle["flow_run"])
 
+        # Add heartbeat_seconds to env if configured
+        if self._heartbeat_seconds is not None:
+            env = env or {}
+            env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(int(self._heartbeat_seconds))
+
         async with context:
             if not self._acquire_limit_slot(flow_run.id):
                 return
@@ -694,9 +692,6 @@ class Runner:
                 msg = "Failed to start process for flow execution. No PID returned."
                 await self._propose_crashed_state(flow_run, msg)
                 raise RuntimeError(msg)
-
-            if self.heartbeat_seconds is not None:
-                await self._emit_flow_run_heartbeat(flow_run)
 
             await self._add_flow_run_process_map_entry(
                 flow_run.id, ProcessMapEntry(pid=process.pid, flow_run=flow_run)
@@ -796,7 +791,14 @@ class Runner:
         if flow_run.deployment_id is not None:
             flow = self._deployment_flow_map.get(flow_run.deployment_id)
             if flow:
-                process = run_flow_in_subprocess(flow, flow_run=flow_run)
+                subprocess_env: dict[str, str] = {}
+                if self._heartbeat_seconds is not None:
+                    subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
+                        int(self._heartbeat_seconds)
+                    )
+                process = run_flow_in_subprocess(
+                    flow, flow_run=flow_run, env=subprocess_env or None
+                )
                 task_status.started(process)
                 await anyio.to_thread.run_sync(process.join)
                 return process.exitcode
@@ -829,6 +831,15 @@ class Runner:
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                 },
                 **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
+                **(
+                    {
+                        "PREFECT_FLOWS_HEARTBEAT_FREQUENCY": str(
+                            int(self._heartbeat_seconds)
+                        )
+                    }
+                    if self._heartbeat_seconds is not None
+                    else {}
+                ),
             }
         )
         env.update(**os.environ)  # is this really necessary??
@@ -1049,51 +1060,6 @@ class Runner:
                 flow = None
         return flow, deployment
 
-    async def _emit_flow_run_heartbeats(self):
-        coros: list[Coroutine[Any, Any, Any]] = []
-        for entry in self._flow_run_process_map.values():
-            coros.append(self._emit_flow_run_heartbeat(entry["flow_run"]))
-        await asyncio.gather(*coros)
-
-    async def _emit_flow_run_heartbeat(self, flow_run: "FlowRun"):
-        from prefect import __version__
-
-        related: list[RelatedResource] = []
-        tags: list[str] = []
-
-        flow, deployment = await self._get_flow_and_deployment(flow_run)
-        if deployment:
-            related.append(deployment.as_related_resource())
-            tags.extend(deployment.tags)
-        if flow:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.flow.{flow.id}",
-                        "prefect.resource.role": "flow",
-                        "prefect.resource.name": flow.name,
-                    }
-                )
-            )
-        tags.extend(flow_run.tags)
-
-        related = [RelatedResource.model_validate(r) for r in related]
-        related += tags_as_related_resources(set(tags))
-
-        await self._events_client.emit(
-            Event(
-                event="prefect.flow-run.heartbeat",
-                resource=Resource(
-                    {
-                        "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
-                        "prefect.resource.name": flow_run.name,
-                        "prefect.version": __version__,
-                    }
-                ),
-                related=related,
-            )
-        )
-
     def _event_resource(self):
         from prefect import __version__
 
@@ -1145,7 +1111,7 @@ class Runner:
                 related=related,
             )
         )
-        self._logger.debug(f"Emitted flow run heartbeat event for {flow_run.id}")
+        self._logger.debug(f"Emitted cancelled-flow-run event for {flow_run.id}")
 
     async def _get_scheduled_flow_runs(
         self,
@@ -1289,9 +1255,6 @@ class Runner:
                     flow_run.id,
                     ProcessMapEntry(pid=readiness_result.pid, flow_run=flow_run),
                 )
-            # Heartbeats are opt-in and only emitted if a heartbeat frequency is set
-            if self.heartbeat_seconds is not None:
-                await self._emit_flow_run_heartbeat(flow_run)
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
         else:
@@ -1605,15 +1568,6 @@ class Runner:
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
 
-        if self.heartbeat_seconds is not None:
-            self._heartbeat_task = asyncio.create_task(
-                critical_service_loop(
-                    workload=self._emit_flow_run_heartbeats,
-                    interval=self.heartbeat_seconds,
-                    jitter_range=0.3,
-                )
-            )
-
         self.started = True
         return self
 
@@ -1631,13 +1585,6 @@ class Runner:
         # Be tolerant to already-removed temp directories
         shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
         del self._runs_task_group, self._loops_task_group
-
-        if self._heartbeat_task:
-            self._heartbeat_task.cancel()
-            try:
-                await self._heartbeat_task
-            except asyncio.CancelledError:
-                pass
 
     def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"
