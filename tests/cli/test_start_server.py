@@ -69,10 +69,16 @@ async def wait_for_server(api_url: str, timeout: float | None = None) -> None:
 
 
 @contextlib.asynccontextmanager
-async def start_server_process() -> AsyncIterator[Process]:
+async def start_server_process(
+    host: str = "127.0.0.1",
+) -> AsyncIterator[Process]:
     """
     Runs an instance of the server. Requires a port from 2222-2229 to be available.
     Uses the same database as the rest of the tests.
+
+    Args:
+        host: The host address to bind the server to. Defaults to 127.0.0.1.
+
     Yields:
         The anyio Process.
     """
@@ -97,7 +103,7 @@ async def start_server_process() -> AsyncIterator[Process]:
             "server",
             "start",
             "--host",
-            "127.0.0.1",
+            host,
             "--port",
             str(port),
             "--log-level",
@@ -108,7 +114,9 @@ async def start_server_process() -> AsyncIterator[Process]:
         env={**os.environ, **get_current_settings().to_environment_variables()},
     ) as process:
         process.out = out
-        api_url = f"http://localhost:{port}/api"
+        # format IPv6 addresses with brackets for URL
+        url_host = f"[{host}]" if ":" in host else host
+        api_url = f"http://{url_host}:{port}/api"
         await wait_for_server(api_url)
         yield process
 
@@ -440,6 +448,35 @@ class TestUvicornSignalForwarding:
             assert "Sending CTRL_BREAK_EVENT" in out, (
                 "When sending a SIGINT, the main process should send a"
                 f" CTRL_BREAK_EVENT to the uvicorn subprocess. Output:\n{out}"
+            )
+
+
+@pytest.mark.service("process")
+class TestIPv6Support:
+    """Tests for IPv6 address support in server start."""
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="SIGTERM is only used in non-Windows environments",
+    )
+    async def test_server_starts_with_ipv6_host(self):
+        """Test that the server can start and respond on an IPv6 address.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20343
+        """
+        async with start_server_process(host="::1") as server_process:
+            server_process.send_signal(signal.SIGTERM)
+            with anyio.fail_after(SHUTDOWN_TIMEOUT):
+                await server_process.wait()
+
+            server_process.out.seek(0)
+            out = server_process.out.read().decode()
+
+            assert "Uvicorn running on" in out, (
+                f"Server should have started successfully. Output:\n{out}"
+            )
+            assert "Invalid host" not in out, (
+                f"Server should not reject IPv6 address. Output:\n{out}"
             )
 
 
