@@ -356,6 +356,7 @@ ignore-words-list = [
     "afterall",
     "medias",
     "falso",
+    "aapply",
 ]
 
 check-hidden = true
