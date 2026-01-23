@@ -46,7 +46,6 @@ from prefect.deployments.runner import (
     DeploymentApplyError,
     EntrypointType,
     RunnerDeployment,
-    adeploy,
     deploy,
 )
 from prefect.docker.docker_image import DockerImage
@@ -4128,38 +4127,78 @@ class TestDockerImage:
 class TestAsyncDispatch:
     """Tests for async_dispatch behavior of RunnerDeployment.apply and deploy."""
 
-    async def test_apply_dispatches_to_async_in_async_context(self):
+    async def test_apply_in_async_context(self, prefect_client: PrefectClient):
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
         )
 
-        result = deployment.apply()
-        assert hasattr(result, "__await__")
-        # Don't actually await - would require server
+        deployment_id = await deployment.apply()
 
-    def test_apply_returns_sync_in_sync_context(self):
+        result = await prefect_client.read_deployment(deployment_id)
+        assert result.name == "test_runner"
+
+    def test_apply_in_sync_context(self, sync_prefect_client: SyncPrefectClient):
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
         )
 
-        # In sync context, apply() should not return an awaitable
-        # We can't fully test this without a server, but we can check
-        # that the function exists and is callable
-        assert callable(deployment.apply)
-        assert callable(deployment.aapply)
+        deployment_id = deployment.apply()
 
-    async def test_deploy_dispatches_to_async_in_async_context(self):
+        result = sync_prefect_client.read_deployment(deployment_id)
+        assert result.name == "test_runner"
+
+    async def test_deploy_in_async_context(
+        self,
+        prefect_client: PrefectClient,
+        work_pool_with_image_variable,
+        monkeypatch,
+    ):
+        monkeypatch.setattr("prefect.docker.docker_image.build_image", MagicMock())
+        mock_docker = MagicMock()
+        mock_docker.return_value.__enter__.return_value = mock_docker
+        mock_docker.api.push.return_value = []
+        monkeypatch.setattr("prefect.docker.docker_image.docker_client", mock_docker)
+        monkeypatch.setattr(
+            "prefect.docker.docker_image.generate_default_dockerfile", MagicMock()
+        )
+
         deployment = RunnerDeployment.from_flow(
             dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
         )
 
-        # deploy() validates inputs before making async calls, so we can test
-        # that it returns an awaitable in async context by providing an image
-        result = deploy(deployment, work_pool_name="test-pool", image="test-image")
-        assert hasattr(result, "__await__")
-        # Don't actually await - would require server
+        deployment_ids = await deploy(
+            deployment,
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-image",
+        )
 
-    def test_deploy_sync_callable(self):
-        # Verify deploy and adeploy are both callable
-        assert callable(deploy)
-        assert callable(adeploy)
+        result = await prefect_client.read_deployment(deployment_ids[0])
+        assert result.name == "test_runner"
+
+    def test_deploy_in_sync_context(
+        self,
+        sync_prefect_client: SyncPrefectClient,
+        work_pool_with_image_variable,
+        monkeypatch,
+    ):
+        monkeypatch.setattr("prefect.docker.docker_image.build_image", MagicMock())
+        mock_docker = MagicMock()
+        mock_docker.return_value.__enter__.return_value = mock_docker
+        mock_docker.api.push.return_value = []
+        monkeypatch.setattr("prefect.docker.docker_image.docker_client", mock_docker)
+        monkeypatch.setattr(
+            "prefect.docker.docker_image.generate_default_dockerfile", MagicMock()
+        )
+
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, __file__, interval=3600, version_type=VersionType.SIMPLE
+        )
+
+        deployment_ids = deploy(
+            deployment,
+            work_pool_name=work_pool_with_image_variable.name,
+            image="test-image",
+        )
+
+        result = sync_prefect_client.read_deployment(deployment_ids[0])
+        assert result.name == "test_runner"
