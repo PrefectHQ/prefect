@@ -122,7 +122,7 @@ export const FlowRunDetailsPage = ({
 					</CardContent>
 				</Card>
 			)}
-			<div className="grid lg:grid-cols-[1fr_250px] grid-cols-[1fr] gap-4">
+			<div className="flex flex-col gap-4">
 				<TabsLayout
 					currentTab={tab}
 					onTabChange={onTabChange}
@@ -257,9 +257,6 @@ export const FlowRunDetailsPage = ({
 						</div>
 					}
 				/>
-				<div className="hidden lg:block">
-					<FlowRunDetails flowRun={flowRun} />
-				</div>
 			</div>
 		</div>
 	);
@@ -288,29 +285,13 @@ const TabsLayout = ({
 	parametersContent: React.ReactNode;
 	jobVariablesContent: React.ReactNode;
 }) => {
-	useEffect(() => {
-		const bp = getComputedStyle(document.documentElement)
-			.getPropertyValue("--breakpoint-lg")
-			.trim();
-		const mql = window.matchMedia(`(max-width: ${bp})`);
-		const onChange = () => {
-			if (currentTab === "Details") {
-				onTabChange("Logs");
-			}
-		};
-		mql.addEventListener("change", onChange);
-		return () => mql.removeEventListener("change", onChange);
-	}, [currentTab, onTabChange]);
-
 	return (
 		<Tabs
 			value={currentTab}
 			onValueChange={(value) => onTabChange(value as FlowRunDetailsTabOptions)}
 		>
 			<TabsList>
-				<TabsTrigger value="Details" className="lg:hidden">
-					Details
-				</TabsTrigger>
+				<TabsTrigger value="Details">Details</TabsTrigger>
 				<TabsTrigger value="Logs">Logs</TabsTrigger>
 				{flowRun.state_type !== "PENDING" && (
 					<TabsTrigger value="TaskRuns">Task Runs</TabsTrigger>
