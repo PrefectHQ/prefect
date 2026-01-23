@@ -403,15 +403,22 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
                 "Waiting for completed event for flow run %s...",
                 self.flow_run_id,
             )
+            start_time = time.monotonic()
             await FlowRunWaiter.wait_for_flow_run(self._flow_run_id, timeout=timeout)
 
             # Poll for the final state in case the event was missed due to race
-            # conditions or connection issues with the event subscriber
+            # conditions or connection issues with the event subscriber. Only poll
+            # indefinitely when no timeout is specified; otherwise respect the timeout.
             while True:
                 flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
                 if flow_run.state and flow_run.state.is_final():
                     self._final_state = flow_run.state
                     return
+                # If a timeout was specified and we've exceeded it, stop polling
+                if timeout is not None:
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= timeout:
+                        return
                 # Brief sleep before polling again to avoid hammering the API
                 await asyncio.sleep(0.1)
 
