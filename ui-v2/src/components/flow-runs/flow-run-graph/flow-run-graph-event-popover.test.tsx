@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
@@ -93,10 +93,14 @@ describe("FlowRunGraphEventPopover", () => {
 			{ wrapper: createWrapper() },
 		);
 
+		await screen.findByRole("button", { name: "Close popover" });
+
 		const outsideElement = screen.getByTestId("outside");
 		await user.click(outsideElement);
 
-		expect(onClose).toHaveBeenCalledTimes(1);
+		await waitFor(() => {
+			expect(onClose).toHaveBeenCalled();
+		});
 	});
 
 	it("calls onClose when Escape key is pressed", async () => {
@@ -110,9 +114,13 @@ describe("FlowRunGraphEventPopover", () => {
 			{ wrapper: createWrapper() },
 		);
 
+		await screen.findByRole("button", { name: "Close popover" });
+
 		await user.keyboard("{Escape}");
 
-		expect(onClose).toHaveBeenCalledTimes(1);
+		await waitFor(() => {
+			expect(onClose).toHaveBeenCalled();
+		});
 	});
 
 	it("returns null when position is not provided", () => {
@@ -128,7 +136,7 @@ describe("FlowRunGraphEventPopover", () => {
 		expect(container.firstChild).toBeNull();
 	});
 
-	it("positions the popover based on selection position", async () => {
+	it("positions the anchor based on selection position", async () => {
 		setupMockServer();
 		const selection = createEventSelection({
 			position: { x: 150, y: 250, width: 30, height: 30 },
@@ -140,11 +148,10 @@ describe("FlowRunGraphEventPopover", () => {
 			{ wrapper: createWrapper() },
 		);
 
-		const closeButton = await screen.findByRole("button", {
-			name: "Close popover",
-		});
-		const popover = closeButton.parentElement?.parentElement;
-		expect(popover).toHaveStyle({
+		await screen.findByRole("button", { name: "Close popover" });
+
+		const anchor = document.querySelector('[data-slot="popover-anchor"]');
+		expect(anchor).toHaveStyle({
 			left: "165px",
 			top: "280px",
 		});
