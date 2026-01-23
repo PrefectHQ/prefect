@@ -1,4 +1,4 @@
-from typing import ClassVar, Union
+from typing import ClassVar, Optional, Union
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
@@ -12,6 +12,19 @@ class FlowsSettings(PrefectBaseSettings):
     """
 
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(("flows",))
+
+    heartbeat_frequency: Optional[int] = Field(
+        default=None,
+        description="Number of seconds between flow run heartbeats. "
+        "Heartbeats are used to detect crashed flow runs.",
+        ge=30,
+        validation_alias=AliasChoices(
+            AliasPath("heartbeat_frequency"),
+            "prefect_flows_heartbeat_frequency",
+            # Legacy alias for backwards compatibility
+            "prefect_runner_heartbeat_frequency",
+        ),
+    )
 
     default_retries: int = Field(
         default=0,
