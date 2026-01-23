@@ -24,12 +24,17 @@ class OnCancellingCallback(Protocol):
     def __call__(self, flow_run_id: uuid.UUID) -> None: ...
 
 
+class OnFailureCallback(Protocol):
+    def __call__(self, flow_run_ids: set[uuid.UUID]) -> None: ...
+
+
 class FlowRunCancellingObserver:
     def __init__(
         self,
         on_cancelling: OnCancellingCallback,
         polling_interval: float = 10,
         event_filter: EventFilter | None = None,
+        on_failure: OnFailureCallback | None = None,
     ):
         """
         Observer that cancels flow runs when they are marked as cancelling.
@@ -42,9 +47,12 @@ class FlowRunCancellingObserver:
             polling_interval: Interval in seconds to poll for cancelling flow runs when websocket connection is lost.
             event_filter: Optional event filter to use for the websocket subscription.
                 If not provided, defaults to filtering for "prefect.flow-run.Cancelling" events.
+            on_failure: Optional callback to call when both websocket and polling mechanisms fail.
+                Called with the set of in-flight flow run IDs that can no longer be monitored for cancellation.
         """
         self.logger = get_logger("FlowRunCancellingObserver")
         self.on_cancelling = on_cancelling
+        self.on_failure = on_failure
         self.polling_interval = polling_interval
 
         if event_filter is not None:
@@ -104,7 +112,7 @@ class FlowRunCancellingObserver:
             # and we don't need to start the polling task
             return
         if exc := task.exception():
-            self.logger.debug(
+            self.logger.warning(
                 "The FlowRunCancellingObserver websocket failed with an exception. Switching to polling mode.",
                 exc_info=exc,
             )
@@ -115,14 +123,18 @@ class FlowRunCancellingObserver:
                     jitter_range=0.3,
                 )
             )
-            self._polling_task.add_done_callback(
-                lambda task: self.logger.error(
-                    "Cancellation polling task failed. Execution will continue, but flow run cancellation will fail.",
-                    exc_info=task.exception(),
-                )
-                if task.exception()
-                else self.logger.debug("Polling task completed")
+            self._polling_task.add_done_callback(self._handle_polling_task_done)
+
+    def _handle_polling_task_done(self, task: asyncio.Task[None]):
+        if task.exception():
+            self.logger.error(
+                "Cancellation polling task failed. Execution will continue, but flow run cancellation will fail.",
+                exc_info=task.exception(),
             )
+            if self.on_failure is not None:
+                self.on_failure(self._in_flight_flow_run_ids.copy())
+        else:
+            self.logger.debug("Polling task completed")
 
     async def _check_for_cancelled_flow_runs(self):
         if self._is_shutting_down:

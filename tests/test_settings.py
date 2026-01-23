@@ -306,6 +306,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK": {"test_value": "block"},
     "PREFECT_RESULTS_LOCAL_STORAGE_PATH": {"test_value": Path("/path/to/storage")},
     "PREFECT_RESULTS_PERSIST_BY_DEFAULT": {"test_value": True},
+    "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE": {"test_value": True},
     "PREFECT_FLOWS_HEARTBEAT_FREQUENCY": {"test_value": 30},
     "PREFECT_RUNNER_HEARTBEAT_FREQUENCY": {"test_value": 30, "legacy": True},
     "PREFECT_RUNNER_POLL_FREQUENCY": {"test_value": 10},
