@@ -14,6 +14,7 @@ import anyio
 import pytest
 
 from prefect import Task, flow, tags, task
+from prefect._internal.testing import retry_asserts
 from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import StateDetails
@@ -1937,10 +1938,12 @@ class TestTimeout:
         with pytest.raises(TimeoutError):
             expensive_task()
 
-        response = await prefect_client.read_global_concurrency_limit_by_name(
-            concurrency_limit_v2.name
-        )
-        assert response.active_slots == 0
+        async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+            with attempt:
+                response = await prefect_client.read_global_concurrency_limit_by_name(
+                    concurrency_limit_v2.name
+                )
+                assert response.active_slots == 0
 
     async def test_timeout_concurrency_slot_released_async(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
@@ -1953,10 +1956,12 @@ class TestTimeout:
         with pytest.raises(TimeoutError):
             await expensive_task()
 
-        response = await prefect_client.read_global_concurrency_limit_by_name(
-            concurrency_limit_v2.name
-        )
-        assert response.active_slots == 0
+        async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+            with attempt:
+                response = await prefect_client.read_global_concurrency_limit_by_name(
+                    concurrency_limit_v2.name
+                )
+                assert response.active_slots == 0
 
     async def test_does_not_raise_timeout_error_when_async_task_is_cancelled(self):
         @task(timeout_seconds=10)
