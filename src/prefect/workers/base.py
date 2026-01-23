@@ -131,7 +131,8 @@ class BaseJobConfiguration(BaseModel):
         default=None,
         description=(
             "Name given to infrastructure created by the worker using this "
-            "job configuration."
+            "job configuration. Supports templates using {{ flow.* }} and "
+            "{{ flow_run.* }} when prepared for a flow run."
         ),
     )
 
