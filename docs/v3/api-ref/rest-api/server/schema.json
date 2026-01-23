@@ -19226,12 +19226,85 @@
                             }
                         ],
                         "description": "Filter criteria for `FlowRun.idempotency_key`"
+                    },
+                    "created_by": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilterCreatedBy"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `FlowRun.created_by`"
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "FlowRunFilter",
                 "description": "Filter flow runs. Only flow runs matching all criteria will be returned"
+            },
+            "FlowRunFilterCreatedBy": {
+                "properties": {
+                    "operator": {
+                        "$ref": "#/components/schemas/Operator",
+                        "description": "Operator for combining filter criteria. Defaults to 'and_'.",
+                        "default": "and_"
+                    },
+                    "id_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id",
+                        "description": "A list of creator IDs to include"
+                    },
+                    "type_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Type",
+                        "description": "A list of creator types to include. For example, 'DEPLOYMENT' for scheduled runs or 'AUTOMATION' for runs triggered by automations.",
+                        "examples": [
+                            [
+                                "DEPLOYMENT",
+                                "AUTOMATION"
+                            ]
+                        ]
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null",
+                        "description": "If true, only include flow runs without a creator"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "FlowRunFilterCreatedBy",
+                "description": "Filter by `FlowRun.created_by`."
             },
             "FlowRunFilterDeploymentId": {
                 "properties": {
