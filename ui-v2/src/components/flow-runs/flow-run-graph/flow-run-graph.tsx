@@ -179,7 +179,7 @@ export function FlowRunGraph({
 	}, [onSelectedChange, onViewportChange]);
 
 	const heightClass = fullscreen
-		? "fixed h-screen w-screen z-20"
+		? "fixed inset-0 z-50 bg-background"
 		: hasNodes
 			? "relative h-96 w-full"
 			: "relative h-40 w-full";
