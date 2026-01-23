@@ -216,6 +216,34 @@ class TestFlowRunsAsync:
         ):
             await state.result()
 
+    async def test_param_validation_failure_sets_start_and_end_time(
+        self, sync_prefect_client
+    ):
+        """
+        Test that flow runs which fail during parameter validation have both
+        start_time and end_time set.
+
+        Previously, end_time was only set if start_time was already set. Since
+        parameter validation failures occur before the flow enters the Running
+        state, start_time was never set, so end_time was never set either.
+        This caused these flows to appear as "forever running" in the UI.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20367
+        """
+
+        @flow
+        async def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
+        state = await run_flow(bar, parameters=parameters, return_type="state")
+
+        assert state.is_failed()
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.start_time is not None
+        assert flow_run.end_time is not None
+        assert flow_run.start_time == flow_run.end_time
+
     async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")
         async def foo(x):
@@ -399,6 +427,34 @@ class TestFlowRunsSync:
             ParameterTypeError, match="Flow run received invalid parameters"
         ):
             await state.result()
+
+    async def test_param_validation_failure_sets_start_and_end_time(
+        self, sync_prefect_client
+    ):
+        """
+        Test that flow runs which fail during parameter validation have both
+        start_time and end_time set.
+
+        Previously, end_time was only set if start_time was already set. Since
+        parameter validation failures occur before the flow enters the Running
+        state, start_time was never set, so end_time was never set either.
+        This caused these flows to appear as "forever running" in the UI.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20367
+        """
+
+        @flow
+        def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
+        state = run_flow_sync(bar, parameters=parameters, return_type="state")
+
+        assert state.is_failed()
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.start_time is not None
+        assert flow_run.end_time is not None
+        assert flow_run.start_time == flow_run.end_time
 
     async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")

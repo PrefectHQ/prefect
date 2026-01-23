@@ -19,7 +19,7 @@ from prefect.server.orchestration.rules import (
     BaseOrchestrationRule,
     OrchestrationContext,
 )
-from prefect.server.schemas.states import Pending, Running, Scheduled, StateType
+from prefect.server.schemas.states import Failed, Pending, Running, Scheduled, StateType
 from prefect.types._datetime import now
 
 
@@ -192,6 +192,43 @@ class TestCreateFlowRunState:
         assert flow_run.run_count == 2
         assert flow_run.total_run_time == (dt2 - dt)
         assert flow_run.estimated_run_time > (dt2 - dt)
+
+    async def test_run_times_are_set_when_entering_final_state_without_running(
+        self, flow_run, session
+    ):
+        """
+        Test that start_time and end_time are set when a flow run transitions
+        directly to a final state without ever entering the Running state.
+
+        This can happen when parameter validation fails before execution starts.
+        Previously, end_time was only set if start_time was already set, which
+        caused flows that failed before running to appear as "forever running"
+        in the UI.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20367
+        """
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+        )
+
+        await session.refresh(flow_run)
+        assert flow_run.start_time is None
+        assert flow_run.end_time is None
+
+        dt = now("UTC")
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Failed(timestamp=dt),
+            force=True,
+        )
+        await session.refresh(flow_run)
+
+        # Both start_time and end_time should be set to the failure timestamp
+        assert flow_run.start_time == dt
+        assert flow_run.end_time == dt
 
     async def test_database_is_not_updated_when_no_transition_takes_place(
         self, flow_run, session
