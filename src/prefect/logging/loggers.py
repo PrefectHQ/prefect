@@ -167,6 +167,13 @@ def flow_run_logger(
 
     If the flow run context is available, see `get_run_logger` instead.
     """
+    from prefect.runtime import deployment
+
+    try:
+        deployment_name = deployment.name
+    except Exception:
+        deployment_name = None
+
     return PrefectLogAdapter(
         get_logger("prefect.flow_runs"),
         extra={
@@ -174,6 +181,7 @@ def flow_run_logger(
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
                 "flow_run_id": str(flow_run.id) if flow_run else "<unknown>",
                 "flow_name": flow.name if flow else "<unknown>",
+                "deployment_name": deployment_name,
             },
             **kwargs,
         },
@@ -199,12 +207,18 @@ def task_run_logger(
     of `flow_run` and `flow`.
     """
     from prefect.context import FlowRunContext
+    from prefect.runtime import deployment
 
     if not flow_run or not flow:
         flow_run_context = FlowRunContext.get()
         if flow_run_context:
             flow_run = flow_run or flow_run_context.flow_run
             flow = flow or flow_run_context.flow
+
+    try:
+        deployment_name = deployment.name
+    except Exception:
+        deployment_name = None
 
     return PrefectLogAdapter(
         get_logger("prefect.task_runs"),
@@ -216,6 +230,7 @@ def task_run_logger(
                 "task_name": task.name if task else "<unknown>",
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
                 "flow_name": flow.name if flow else "<unknown>",
+                "deployment_name": deployment_name,
             },
             **kwargs,
         },

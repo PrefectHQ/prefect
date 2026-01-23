@@ -1226,6 +1226,7 @@ def test_flow_run_logger(flow_run: "FlowRun"):
         "flow_run_name": flow_run.name,
         "flow_run_id": str(flow_run.id),
         "flow_name": "<unknown>",
+        "deployment_name": None,
     }
 
 
@@ -1254,6 +1255,7 @@ def test_task_run_logger(task_run: "TaskRun"):
         "flow_run_name": "<unknown>",
         "flow_name": "<unknown>",
         "task_name": "<unknown>",
+        "deployment_name": None,
     }
 
 
@@ -1346,6 +1348,36 @@ def test_task_run_logger_with_kwargs(task_run: "TaskRun"):
     logger = task_run_logger(task_run, foo="test", task_run_name="bar")
     assert logger.extra["foo"] == "test"
     assert logger.extra["task_run_name"] == "bar"
+
+
+def test_flow_run_logger_includes_deployment_name_when_in_deployment_context(
+    flow_run: "FlowRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__RUNTIME__DEPLOYMENT__NAME", "test-deployment")
+    logger = flow_run_logger(flow_run)
+    assert logger.extra["deployment_name"] == "test-deployment"
+
+
+def test_flow_run_logger_deployment_name_is_none_outside_deployment_context(
+    flow_run: "FlowRun",
+):
+    logger = flow_run_logger(flow_run)
+    assert logger.extra["deployment_name"] is None
+
+
+def test_task_run_logger_includes_deployment_name_when_in_deployment_context(
+    task_run: "TaskRun", monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv("PREFECT__RUNTIME__DEPLOYMENT__NAME", "test-deployment")
+    logger = task_run_logger(task_run)
+    assert logger.extra["deployment_name"] == "test-deployment"
+
+
+def test_task_run_logger_deployment_name_is_none_outside_deployment_context(
+    task_run: "TaskRun",
+):
+    logger = task_run_logger(task_run)
+    assert logger.extra["deployment_name"] is None
 
 
 def test_run_logger_fails_outside_context():
