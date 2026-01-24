@@ -358,6 +358,37 @@ The dictionary key "EXTRA_PIP_PACKAGES" denotes a special environment variable t
 Python packages at runtime.
 This approach is an alternative to building an image with a custom `requirements.txt` copied into it.
 
+### Advanced container settings (ipc_mode, shm_size, etc.)
+
+For Docker options that are not first-class fields in the job configuration, use
+`container_create_kwargs`. These values are passed through to Docker (via docker-py)
+when the container is created, using the same argument names as `containers.create`.
+
+Step 1: set options per-deployment with `job_variables`:
+
+```python job_var_container_create_kwargs.py
+if __name__ == "__main__":
+    get_repo_info.deploy(
+        name="my-deployment",
+        work_pool_name="my-docker-pool",
+        image="my-registry/my-image:dev",
+        job_variables={
+            "container_create_kwargs": {
+                "ipc_mode": "host",
+                "shm_size": "1g",
+            }
+        },
+    )
+```
+
+Step 2: set defaults for the entire work pool by updating the base job template and
+adding the same `container_create_kwargs` under `job_configuration`.
+
+<Note>
+If you need volume mounts, use `job_variables["volumes"]` instead of
+`container_create_kwargs["volumes"]`.
+</Note>
+
 See [Override work pool job variables](/v3/deploy/infrastructure-concepts/customize) for more information about how to customize these variables.
 
 ### Work with multiple deployments with `deploy`
