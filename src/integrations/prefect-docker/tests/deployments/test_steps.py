@@ -297,7 +297,7 @@ def test_real_auto_dockerfile_build(docker_client_with_cleanup: MagicMock):
             labels=["prefect-docker-test"],
             remove=True,
         )
-        assert "2" in output.decode()
+        assert "3" in output.decode()
 
     finally:
         docker_client_with_cleanup.containers.prune(
