@@ -19,6 +19,7 @@ from prefect_docker.deployments.steps import (
 import prefect
 import prefect.utilities.dockerutils
 from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE, temporary_settings
+from prefect.utilities.dockerutils import BuildError
 
 FAKE_CONTAINER_ID = "fake-id"
 FAKE_BASE_URL = "my-url"
@@ -238,6 +239,26 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
         Path("Dockerfile").unlink()
 
 
+def test_build_docker_image_rejects_invalid_image_name(
+    mock_docker_client: MagicMock,
+):
+    with pytest.raises(ValueError, match="Invalid Docker image name"):
+        build_docker_image(image_name="201_ docker", ignore_cache=True)
+
+    mock_docker_client.api.build.assert_not_called()
+
+
+def test_build_docker_image_denied_message_is_enhanced(
+    mock_docker_client: MagicMock,
+):
+    mock_docker_client.api.build.return_value = [
+        {"error": "denied: requested access to the resource is denied"}
+    ]
+
+    with pytest.raises(BuildError, match="access denied"):
+        build_docker_image(image_name="registry/repo", ignore_cache=True)
+
+
 def test_real_auto_dockerfile_build(docker_client_with_cleanup: MagicMock):
     os.chdir(str(Path(__file__).parent.parent / "test-project"))
     image_name = "local/repo"
@@ -412,6 +433,15 @@ def test_push_docker_image_raises_on_event_error(mock_docker_client: MagicMock):
             credentials=FAKE_CREDENTIALS,
             ignore_cache=True,
         )
+
+
+def test_push_docker_image_rejects_invalid_image_name(
+    mock_docker_client: MagicMock,
+):
+    with pytest.raises(ValueError, match="Invalid Docker image name"):
+        push_docker_image(image_name="bad name", tag=FAKE_TAG, ignore_cache=True)
+
+    mock_docker_client.api.push.assert_not_called()
 
 
 class TestCachedSteps:
