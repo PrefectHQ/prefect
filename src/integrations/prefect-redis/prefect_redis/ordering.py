@@ -65,9 +65,13 @@ local seen_ttl = tonumber(ARGV[1])
 -- 1. SET seen with TTL
 redis.call('SET', seen_key, '1', 'EX', seen_ttl)
 
--- 2. SMEMBERS followers (must happen before DEL processing so new arrivals
---    will see processing=true and wait, rather than parking)
+-- 2. SMEMBERS followers and DEL to "claim" them atomically.
+-- This prevents a race where a follower could unpark after seeing seen=true
+-- but before the leader finishes iterating followers. By deleting the
+-- followers set, any follower doing a double-check will see it's been
+-- claimed and should NOT self-process.
 local followers = redis.call('SMEMBERS', followers_key)
+redis.call('DEL', followers_key)
 
 -- 3. DEL processing
 redis.call('DEL', processing_key)
@@ -270,15 +274,29 @@ class CausalOrdering(_CausalOrdering):
         # Double-check: the leader may have completed between our checks and parking.
         # This prevents a race where:
         # 1. Follower checks seen -> False
-        # 2. Leader completes (SET seen, SMEMBERS empty, DEL processing)
+        # 2. Leader completes (SET seen, SMEMBERS+DEL followers, DEL processing)
         # 3. Follower checks processing -> False
         # 4. Follower parks itself
         # 5. Orphan! (leader already checked followers before we parked)
         #
-        # By checking seen again after parking, we can detect this race and unpark.
+        # By checking seen again after parking, we detect this race.
+        # However, if the leader claimed us (deleted from followers set), we should
+        # NOT self-process - the leader will process us. Only unpark if we're still
+        # in the followers set (meaning leader hasn't claimed us).
         if await self.event_has_been_seen(event.follows):
-            await self.forget_follower(event)
-            return
+            # Check if leader claimed us by checking if we're still in followers set
+            still_in_followers = await self.redis.sismember(
+                self._key(f"followers:{event.follows}"), str(event.id)
+            )
+            if still_in_followers:
+                # Leader didn't claim us (or hasn't run yet), safe to unpark
+                await self.forget_follower(event)
+                return
+            # Leader claimed us - don't self-process, let leader handle it
+            # Note: We don't forget_follower here because leader already deleted
+            # the followers set. We just need to remove from waitlist.
+            await self.redis.zrem(self._key("waitlist"), str(event.id))
+            await self.redis.delete(self._key(f"event:{event.id}"))
 
         raise EventArrivedEarly(event)
 
@@ -332,10 +350,13 @@ class CausalOrdering(_CausalOrdering):
         # If the handler wants recursive chain resolution (e.g., A→B→C), it should call
         # preceding_event_confirmed itself. This matches the original design where handlers
         # like the test's "evaluate" function handle their own causal ordering.
+        #
+        # IMPORTANT: forget_follower is called AFTER handler succeeds. If handler fails,
+        # the follower remains in waitlist and can be recovered by get_lost_followers().
         try:
             for waiter in completion.followers:
-                await self.forget_follower(waiter)
                 await handler(waiter, depth=depth + 1)
+                await self.forget_follower(waiter)
         except MaxDepthExceeded:
             # We'll only process followers up to the MAX_DEPTH_OF_PRECEDING_EVENT.
             # If we hit this limit, we'll just log and move on.
