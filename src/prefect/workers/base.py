@@ -80,6 +80,7 @@ from prefect.states import (
 )
 from prefect.tasks import Task
 from prefect.types import KeyValueLabels
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
@@ -89,7 +90,6 @@ from prefect.utilities.services import (
     stop_client_metrics_server,
 )
 from prefect.utilities.slugify import slugify
-from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
     apply_values,
     resolve_block_document_references,

@@ -707,7 +707,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     "title": "Name",
                     "description": (
                         "Name given to infrastructure created by the worker using this "
-                        "job configuration."
+                        "job configuration. Supports templates using {{ flow.* }} and "
+                        "{{ flow_run.* }} when prepared for a flow run."
                     ),
                 },
                 "other": {
@@ -1600,7 +1601,8 @@ class TestWorkerProperties:
                         "default": None,
                         "description": (
                             "Name given to infrastructure created by the worker using "
-                            "this job configuration."
+                            "this job configuration. Supports templates using {{ flow.* }} "
+                            "and {{ flow_run.* }} when prepared for a flow run."
                         ),
                     },
                 },
@@ -1724,7 +1726,9 @@ class TestWorkerProperties:
                             "anyOf": [{"type": "string"}, {"type": "null"}],
                             "default": None,
                             "description": (
-                                "Name given to infrastructure created by a worker."
+                                "Name given to infrastructure created by the worker using "
+                                "this job configuration. Supports templates using {{ flow.* }} "
+                                "and {{ flow_run.* }} when prepared for a flow run."
                             ),
                         },
                         "var1": {"title": "Var1", "type": "string"},
