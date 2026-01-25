@@ -16,6 +16,7 @@ from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
 
+from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -703,27 +704,54 @@ class CloudRunWorkerV2(
     ):
         """
         Creates the Cloud Run job and waits for it to register.
+        Includes retry logic for transient errors (HTTP 500, 503, 429).
 
         Args:
             configuration: The configuration for the job.
             cr_client: The Cloud Run client.
             logger: The logger to use.
         """
-        try:
-            logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+        max_attempts = 3
+        retry_statuses = {500, 503, 429}
 
-            JobV2.create(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_id=configuration.job_name,
-                body=configuration.job_body,
-            )
-        except HttpError as exc:
-            self._create_job_error(
-                exc=exc,
-                configuration=configuration,
-            )
+        for attempt in range(max_attempts):
+            try:
+                logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+
+                JobV2.create(
+                    cr_client=cr_client,
+                    project=configuration.project,
+                    location=configuration.region,
+                    job_id=configuration.job_name,
+                    body=configuration.job_body,
+                )
+                break
+            except HttpError as exc:
+                is_transient = exc.status_code in retry_statuses
+                is_last_attempt = attempt == max_attempts - 1
+
+                if is_transient and not is_last_attempt:
+                    delay = exponential_backoff_with_jitter(
+                        attempt=attempt,
+                        base_delay=1.0,
+                        max_delay=10.0,
+                    )
+                    logger.warning(
+                        "Transient error (HTTP %s) when creating Cloud Run job. "
+                        "Retrying in %.2fs... (Attempt %s/%s)",
+                        exc.status_code,
+                        delay,
+                        attempt + 1,
+                        max_attempts,
+                    )
+                    time.sleep(delay)
+                    continue
+
+                self._create_job_error(
+                    exc=exc,
+                    configuration=configuration,
+                )
+                raise
 
         try:
             self._wait_for_job_creation(
