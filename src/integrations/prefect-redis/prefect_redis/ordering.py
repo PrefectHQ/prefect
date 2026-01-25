@@ -292,11 +292,9 @@ class CausalOrdering(_CausalOrdering):
                 # Leader didn't claim us (or hasn't run yet), safe to unpark
                 await self.forget_follower(event)
                 return
-            # Leader claimed us - don't self-process, let leader handle it
-            # Note: We don't forget_follower here because leader already deleted
-            # the followers set. We just need to remove from waitlist.
-            await self.redis.zrem(self._key("waitlist"), str(event.id))
-            await self.redis.delete(self._key(f"event:{event.id}"))
+            # Leader claimed us - don't self-process or clean up anything.
+            # Leader will call forget_follower() after successful processing.
+            # If we deleted event:{id} here, followers_by_id() would miss us.
 
         raise EventArrivedEarly(event)
 
