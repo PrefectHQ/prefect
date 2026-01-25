@@ -266,6 +266,20 @@ class CausalOrdering(_CausalOrdering):
         self._log(event, "arrived before the event it follows %s", event.follows)
 
         await self.record_follower(event)
+
+        # Double-check: the leader may have completed between our checks and parking.
+        # This prevents a race where:
+        # 1. Follower checks seen -> False
+        # 2. Leader completes (SET seen, SMEMBERS empty, DEL processing)
+        # 3. Follower checks processing -> False
+        # 4. Follower parks itself
+        # 5. Orphan! (leader already checked followers before we parked)
+        #
+        # By checking seen again after parking, we can detect this race and unpark.
+        if await self.event_has_been_seen(event.follows):
+            await self.forget_follower(event)
+            return
+
         raise EventArrivedEarly(event)
 
     @asynccontextmanager
@@ -313,11 +327,17 @@ class CausalOrdering(_CausalOrdering):
         # on, so let's react to them now in the order they occurred.
         # The followers were retrieved atomically during completion to prevent
         # a race condition where followers could be orphaned.
+        #
+        # Note: We call handler(waiter) directly without wrapping in preceding_event_confirmed.
+        # If the handler wants recursive chain resolution (e.g., A→B→C), it should call
+        # preceding_event_confirmed itself. This matches the original design where handlers
+        # like the test's "evaluate" function handle their own causal ordering.
         try:
             for waiter in completion.followers:
+                await self.forget_follower(waiter)
                 await handler(waiter, depth=depth + 1)
         except MaxDepthExceeded:
-            # We'll only process the first MAX_DEPTH_OF_PRECEDING_EVENT followers.
+            # We'll only process followers up to the MAX_DEPTH_OF_PRECEDING_EVENT.
             # If we hit this limit, we'll just log and move on.
             self._log(
                 event,
