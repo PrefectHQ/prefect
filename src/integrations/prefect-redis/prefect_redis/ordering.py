@@ -31,9 +31,49 @@ from prefect_redis.client import get_async_redis_client
 logger = get_logger(__name__)
 
 
+class EventProcessingCompletion:
+    """Holds the result of completing event processing, including any followers."""
+
+    def __init__(self):
+        self.followers: list[ReceivedEvent] = []
+
+
 # How long we'll wait for an in-flight event to be processed for follower handling,
 # which crucially needs to be lower than the stream ack deadline
 IN_FLIGHT_EVENT_TIMEOUT = timedelta(seconds=8)
+
+# Lua script to atomically complete event processing and get followers.
+# This prevents a race condition where a follower parks itself between
+# DEL processing and SMEMBERS followers.
+#
+# The race without this script:
+# 1. Leader: SET seen
+# 2. Leader: DEL processing
+# 3. Follower: CHECK seen (might miss due to timing/replica lag)
+# 4. Follower: CHECK processing (nil - already deleted)
+# 5. Follower: SADD followers (parks itself)
+# 6. Leader: SMEMBERS followers (empty - already executed before step 5)
+#
+# With this script, steps 1, 2, and 6 happen atomically, so there's no window
+# for the follower to slip in between.
+COMPLETE_PROCESSING_SCRIPT = """
+local seen_key = KEYS[1]
+local followers_key = KEYS[2]
+local processing_key = KEYS[3]
+local seen_ttl = tonumber(ARGV[1])
+
+-- 1. SET seen with TTL
+redis.call('SET', seen_key, '1', 'EX', seen_ttl)
+
+-- 2. SMEMBERS followers (must happen before DEL processing so new arrivals
+--    will see processing=true and wait, rather than parking)
+local followers = redis.call('SMEMBERS', followers_key)
+
+-- 3. DEL processing
+redis.call('DEL', processing_key)
+
+return followers
+"""
 
 
 class CausalOrdering(_CausalOrdering):
@@ -141,19 +181,53 @@ class CausalOrdering(_CausalOrdering):
         follower_ids = [UUID(i) for i in follower_ids]
         return await self.followers_by_id(follower_ids)
 
+    async def complete_event_and_get_followers(
+        self, event: ReceivedEvent
+    ) -> list[ReceivedEvent]:
+        """
+        Atomically marks the event as seen, retrieves any waiting followers,
+        and releases the processing lock.
+
+        This operation is atomic to prevent a race condition where a follower
+        could park itself between the lock release and the followers check.
+        """
+        follower_ids = await self.redis.eval(
+            COMPLETE_PROCESSING_SCRIPT,
+            3,  # number of keys
+            self._key(f"seen:{event.id}"),
+            self._key(f"followers:{event.id}"),
+            self._key(f"processing:{event.id}"),
+            int(SEEN_EXPIRATION.total_seconds()),  # seen TTL
+        )
+        follower_ids = [UUID(i) for i in follower_ids]
+        return await self.followers_by_id(follower_ids)
+
     @asynccontextmanager
-    async def event_is_processing(self, event: ReceivedEvent):
+    async def event_is_processing(
+        self, event: ReceivedEvent
+    ) -> AsyncGenerator[EventProcessingCompletion, None]:
         """Mark an event as being processed for the duration of its lifespan through
-        the ordering system"""
+        the ordering system.
+
+        Yields an EventProcessingCompletion object that will be populated with
+        any followers after successful processing.
+        """
         if not await self.record_event_as_processing(event):
             self._log(event, "is already being processed")
             raise EventBeingProcessed(event)
 
+        completion = EventProcessingCompletion()
+        success = False
         try:
-            yield
-            await self.record_event_as_seen(event)
+            yield completion
+            # On success, atomically: SET seen, SMEMBERS followers, DEL processing
+            # This prevents a race condition where followers could be orphaned
+            completion.followers = await self.complete_event_and_get_followers(event)
+            success = True
         finally:
-            await self.forget_event_is_processing(event)
+            if not success:
+                # On failure, just release the processing lock
+                await self.forget_event_is_processing(event)
 
     async def wait_for_leader(self, event: ReceivedEvent):
         """Given an event, wait for its leader to be processed before proceeding, or
@@ -231,14 +305,16 @@ class CausalOrdering(_CausalOrdering):
             )
             raise MaxDepthExceeded(event)
 
-        async with self.event_is_processing(event):
+        async with self.event_is_processing(event) as completion:
             await self.wait_for_leader(event)
             yield
 
         # we have just processed an event that other events may have been waiting
-        # on, so let's react to them now in the order they occurred
+        # on, so let's react to them now in the order they occurred.
+        # The followers were retrieved atomically during completion to prevent
+        # a race condition where followers could be orphaned.
         try:
-            for waiter in await self.get_followers(event):
+            for waiter in completion.followers:
                 await handler(waiter, depth=depth + 1)
         except MaxDepthExceeded:
             # We'll only process the first MAX_DEPTH_OF_PRECEDING_EVENT followers.

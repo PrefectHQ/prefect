@@ -284,3 +284,33 @@ async def test_two_instances_do_not_interfere(
     await ordering_two.forget_follower(event_two)
     assert await ordering_one.get_followers(event_one) == []
     assert await ordering_two.get_followers(event_one) == []
+
+
+async def test_atomic_completion_finds_parked_followers(
+    causal_ordering: CausalOrdering,
+    event_one: ReceivedEvent,
+    event_two: ReceivedEvent,
+):
+    """Test that the atomic completion finds followers that parked before completion.
+
+    This tests the fix for the race condition where followers could be orphaned
+    if they parked between the leader's DEL processing and SMEMBERS followers.
+    With the Lua script fix, SET seen + SMEMBERS followers + DEL processing
+    happen atomically, preventing this race.
+    """
+    # First, have the follower park itself (simulating it arriving before leader finished)
+    await causal_ordering.record_follower(event_two)
+
+    # Verify the follower is parked
+    followers = await causal_ordering.get_followers(event_one)
+    assert event_two in followers
+
+    # Now have the leader complete using the atomic completion
+    # This uses complete_event_and_get_followers internally via the context manager
+    async with causal_ordering.event_is_processing(event_one) as completion:
+        # The completion object will be populated with followers after the context exits
+        pass
+
+    # The completion should have found the parked follower
+    assert len(completion.followers) == 1
+    assert completion.followers[0].id == event_two.id
