@@ -1725,11 +1725,11 @@ class TestWorkerProperties:
                             "title": "Name",
                             "anyOf": [{"type": "string"}, {"type": "null"}],
                             "default": None,
-                        "description": (
-                            "Name given to infrastructure created by a worker. "
-                            "Supports templates using {{ flow.* }} and {{ flow_run.* }} "
-                            "when prepared for a flow run."
-                        ),
+                            "description": (
+                                "Name given to infrastructure created by a worker. "
+                                "Supports templates using {{ flow.* }} and {{ flow_run.* }} "
+                                "when prepared for a flow run."
+                            ),
                         },
                         "var1": {"title": "Var1", "type": "string"},
                         "var2": {"title": "Var2", "type": "integer", "default": 1},

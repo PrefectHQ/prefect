@@ -1,5 +1,6 @@
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
@@ -538,9 +539,12 @@ class TestGitRepository:
         assert mock_run_process.await_args_list == expected_calls
 
     async def test_git_clone_errors_obscure_access_token(
-        self, monkeypatch, capsys, tmp_path: Path
+        self, monkeypatch, capsys, tmp_path: Path, mock_run_process: AsyncMock
     ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        mock_run_process.side_effect = subprocess.CalledProcessError(
+            1, ["git", "clone"]
+        )
 
         with tmpchdir(str(tmp_path)):
             with pytest.raises(RuntimeError) as exc:
@@ -560,8 +564,12 @@ class TestGitRepository:
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
         tmp_path: Path,
+        mock_run_process: AsyncMock,
     ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        mock_run_process.side_effect = subprocess.CalledProcessError(
+            1, ["git", "clone"]
+        )
 
         with tmpchdir(str(tmp_path)):
             with pytest.raises(RuntimeError) as exc:
