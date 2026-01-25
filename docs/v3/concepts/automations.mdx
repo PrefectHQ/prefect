@@ -115,59 +115,7 @@ to send a message, including:
 
 ![Configuring notifications for an automation in Prefect Cloud.](/v3/img/ui/automations-notifications.png)
 
-### Telegram via Custom Webhook
-
-If you want Telegram notifications, you can use the **Custom Webhook** notification block. This avoids
-adding a dedicated Telegram block and works with the standard Telegram Bot API.
-
-Example Custom Webhook configuration:
-
-```json
-{
-  "name": "telegram",
-  "url": "https://api.telegram.org/bot{{telegram_bot_token}}/sendMessage",
-  "method": "POST",
-  "json_data": {
-    "chat_id": "{{telegram_chat_id}}",
-    "text": "{{subject}}\n\n{{body}}",
-    "parse_mode": "Markdown"
-  },
-  "secrets": {
-    "telegram_bot_token": "<your-bot-token>",
-    "telegram_chat_id": "<your-chat-id>"
-  }
-}
-```
-
-Notes:
-- Use the **secrets** field to store your bot token and chat ID, then reference them in the URL and payload.
-- `parse_mode` is optional; remove it if you don’t want Markdown formatting.
-
-Alternatively, you can create the block in Python:
-
-```python
-from prefect.blocks.notifications import CustomWebhookNotificationBlock
-
-# Replace with your actual bot token and chat ID
-bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-chat_id = "987654321"
-
-telegram_block = CustomWebhookNotificationBlock(
-    name="telegram",
-    url=f"https://api.telegram.org/bot{bot_token}/sendMessage",
-    method="POST",
-    json_data={
-        "chat_id": chat_id,
-        "text": "{{ subject }}\n\n{{ body }}",
-        "parse_mode": "Markdown",
-    },
-)
-
-telegram_block.save("telegram-alert", overwrite=True)
-```
-
-Once saved, this block will appear in the UI notification options. When the automation
-fires, Prefect will populate `{{ subject }}` and `{{ body }}` with the notification details.
+For custom notification payloads, see the [custom notifications guide](/v3/how-to-guides/automations/custom-notifications).
 
 ## Templating with Jinja
 
