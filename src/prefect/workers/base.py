@@ -130,7 +130,7 @@ class BaseJobConfiguration(BaseModel):
         default=None,
         description=(
             "Name given to infrastructure created by the worker using this "
-            "job configuration."
+            "job configuration. Supports templates like {{ flow.name }}."
         ),
     )
 
@@ -404,7 +404,10 @@ class BaseJobConfiguration(BaseModel):
 class BaseVariables(BaseModel):
     name: Optional[str] = Field(
         default=None,
-        description="Name given to infrastructure created by a worker.",
+        description=(
+            "Name given to infrastructure created by a worker. Supports templates "
+            "like {{ flow.name }}."
+        ),
     )
     env: dict[str, Optional[str]] = Field(
         default_factory=dict,
