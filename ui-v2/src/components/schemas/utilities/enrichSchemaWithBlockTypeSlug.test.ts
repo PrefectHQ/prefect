@@ -12,7 +12,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
 		expect(result.blockTypeSlug).toBe("aws-credentials");
-		expect((result as Record<string, unknown>).block_type_slug).toBe(
+		expect((result as unknown as Record<string, unknown>).block_type_slug).toBe(
 			"aws-credentials",
 		);
 	});
@@ -120,8 +120,11 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
 		expect(
-			((result as Record<string, unknown>).items as { blockTypeSlug?: string })
-				?.blockTypeSlug,
+			(
+				(result as unknown as Record<string, unknown>).items as {
+					blockTypeSlug?: string;
+				}
+			)?.blockTypeSlug,
 		).toBe("aws-credentials");
 	});
 
@@ -136,7 +139,8 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
-		const items = (result as Record<string, unknown>).items as Array<{
+		const items = (result as unknown as Record<string, unknown>)
+			.items as Array<{
 			blockTypeSlug?: string;
 		}>;
 		expect(items[0]?.blockTypeSlug).toBe("aws-credentials");
