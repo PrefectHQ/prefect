@@ -1,5 +1,8 @@
 import type { PrefectSchemaObject } from "../types/schemas";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySchema = Record<string, any>;
+
 /**
  * Recursively enriches a schema by converting `block_type_slug` to `blockTypeSlug`.
  * This is needed because the API returns snake_case but the UI expects camelCase.
@@ -10,12 +13,15 @@ import type { PrefectSchemaObject } from "../types/schemas";
 export function enrichSchemaWithBlockTypeSlug(
 	schema: PrefectSchemaObject,
 ): PrefectSchemaObject {
+	return enrichSchemaRecursive(schema) as PrefectSchemaObject;
+}
+
+function enrichSchemaRecursive(schema: AnySchema): AnySchema {
 	if (!schema || typeof schema !== "object") {
 		return schema;
 	}
 
-	// Use a generic record type for mutation, then cast back
-	const result: Record<string, unknown> = { ...schema };
+	const result: AnySchema = { ...schema };
 
 	if (
 		"block_type_slug" in result &&
@@ -26,49 +32,49 @@ export function enrichSchemaWithBlockTypeSlug(
 
 	if (result.definitions && typeof result.definitions === "object") {
 		result.definitions = Object.fromEntries(
-			Object.entries(
-				result.definitions as Record<string, PrefectSchemaObject>,
-			).map(([key, value]) => [key, enrichSchemaWithBlockTypeSlug(value)]),
+			Object.entries(result.definitions as AnySchema).map(([key, value]) => [
+				key,
+				enrichSchemaRecursive(value as AnySchema),
+			]),
 		);
 	}
 
 	if (result.properties && typeof result.properties === "object") {
 		result.properties = Object.fromEntries(
-			Object.entries(
-				result.properties as Record<string, PrefectSchemaObject>,
-			).map(([key, value]) => [key, enrichSchemaWithBlockTypeSlug(value)]),
+			Object.entries(result.properties as AnySchema).map(([key, value]) => [
+				key,
+				enrichSchemaRecursive(value as AnySchema),
+			]),
 		);
 	}
 
 	if (Array.isArray(result.anyOf)) {
-		result.anyOf = result.anyOf.map((item: PrefectSchemaObject) =>
-			enrichSchemaWithBlockTypeSlug(item),
+		result.anyOf = result.anyOf.map((item: AnySchema) =>
+			enrichSchemaRecursive(item),
 		);
 	}
 
 	if (Array.isArray(result.allOf)) {
-		result.allOf = result.allOf.map((item: PrefectSchemaObject) =>
-			enrichSchemaWithBlockTypeSlug(item),
+		result.allOf = result.allOf.map((item: AnySchema) =>
+			enrichSchemaRecursive(item),
 		);
 	}
 
 	if (Array.isArray(result.oneOf)) {
-		result.oneOf = result.oneOf.map((item: PrefectSchemaObject) =>
-			enrichSchemaWithBlockTypeSlug(item),
+		result.oneOf = result.oneOf.map((item: AnySchema) =>
+			enrichSchemaRecursive(item),
 		);
 	}
 
 	if (result.items) {
 		if (Array.isArray(result.items)) {
-			result.items = result.items.map((item: PrefectSchemaObject) =>
-				enrichSchemaWithBlockTypeSlug(item),
+			result.items = result.items.map((item: AnySchema) =>
+				enrichSchemaRecursive(item),
 			);
 		} else {
-			result.items = enrichSchemaWithBlockTypeSlug(
-				result.items as PrefectSchemaObject,
-			);
+			result.items = enrichSchemaRecursive(result.items as AnySchema);
 		}
 	}
 
-	return result as PrefectSchemaObject;
+	return result;
 }

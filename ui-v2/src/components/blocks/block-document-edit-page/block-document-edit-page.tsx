@@ -30,7 +30,8 @@ export const BlockDocumentEditPage = ({
 	const enrichedSchema = useMemo(
 		() =>
 			enrichSchemaWithBlockTypeSlug(
-				(blockDocument?.block_schema?.fields ?? {}) as PrefectSchemaObject,
+				(blockDocument?.block_schema?.fields ??
+					{}) as unknown as PrefectSchemaObject,
 			),
 		[blockDocument?.block_schema?.fields],
 	);

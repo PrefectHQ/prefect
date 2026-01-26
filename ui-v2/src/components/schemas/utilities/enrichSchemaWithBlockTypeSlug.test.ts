@@ -7,7 +7,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 		const schema = {
 			type: "object",
 			block_type_slug: "aws-credentials",
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -30,7 +30,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 					block_type_slug: "minio-credentials",
 				},
 			},
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -53,7 +53,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 					block_type_slug: "aws-credentials",
 				},
 			},
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -70,7 +70,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 				{ type: "object", block_type_slug: "aws-credentials" },
 				{ type: "object", block_type_slug: "minio-credentials" },
 			],
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -86,7 +86,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 		const schema = {
 			type: "object",
 			allOf: [{ type: "object", block_type_slug: "aws-credentials" }],
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -99,7 +99,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 		const schema = {
 			type: "object",
 			oneOf: [{ type: "object", block_type_slug: "aws-credentials" }],
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -115,13 +115,14 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 				type: "object",
 				block_type_slug: "aws-credentials",
 			},
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
-		expect((result.items as { blockTypeSlug?: string })?.blockTypeSlug).toBe(
-			"aws-credentials",
-		);
+		expect(
+			((result as Record<string, unknown>).items as { blockTypeSlug?: string })
+				?.blockTypeSlug,
+		).toBe("aws-credentials");
 	});
 
 	it("converts block_type_slug in items (array)", () => {
@@ -131,11 +132,13 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 				{ type: "object", block_type_slug: "aws-credentials" },
 				{ type: "object", block_type_slug: "minio-credentials" },
 			],
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
-		const items = result.items as Array<{ blockTypeSlug?: string }>;
+		const items = (result as Record<string, unknown>).items as Array<{
+			blockTypeSlug?: string;
+		}>;
 		expect(items[0]?.blockTypeSlug).toBe("aws-credentials");
 		expect(items[1]?.blockTypeSlug).toBe("minio-credentials");
 	});
@@ -164,7 +167,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 					},
 				},
 			},
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		type DefinitionWithBlockTypeSlug = {
 			blockTypeSlug?: string;
@@ -187,7 +190,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 			properties: {
 				name: { type: "string" },
 			},
-		} as PrefectSchemaObject;
+		} as unknown as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
