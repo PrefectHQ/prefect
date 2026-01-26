@@ -41,7 +41,7 @@ export function FlowRunGraphCenterButton() {
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<Button variant="outline" size="icon" onClick={center}>
+				<Button variant="ghost" size="icon" onClick={center}>
 					<Icon id="Crosshair" className="size-4" />
 				</Button>
 			</TooltipTrigger>

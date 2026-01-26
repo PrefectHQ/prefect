@@ -111,7 +111,7 @@ export const FlowRunDetailsPage = ({
 				<FlowRunHeader flowRun={flowRun} onDeleteClick={onDeleteRunClicked} />
 			</div>
 			{!isPending && (
-				<Card>
+				<Card className="py-0">
 					<CardContent className="p-0">
 						<FlowRunGraph
 							flowRunId={flowRun.id}
