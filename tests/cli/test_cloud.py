@@ -50,13 +50,11 @@ def interactive_console(monkeypatch):
     # a version that does not require a fd to be attached
     def readchar():
         sys.stdin.flush()
-        position = sys.stdin.tell()
-        if not sys.stdin.read():
+        char = sys.stdin.read(1)
+        if not char:
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
             raise Exit(-2)
-        else:
-            sys.stdin.seek(position)
-        return sys.stdin.read(1)
+        return char
 
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
@@ -731,15 +729,13 @@ def test_login_already_logged_in_to_current_profile_yes_reauth():
                 ["cloud", "login"],
                 expected_code=0,
                 user_input=(
-                    # Yes, reauth
-                    "y"
-                    + readchar.key.ENTER
-                    # Enter key manually
+                    # Yes, reauth (use \n for typer.confirm)
+                    "y\n"
+                    # Enter key manually (use readchar keys for prompt_select_from_list)
                     + readchar.key.DOWN
                     + readchar.key.ENTER
-                    # Enter new key
-                    + "bar"
-                    + readchar.key.ENTER
+                    # Enter new key (use \n for typer.prompt)
+                    + "bar\n"
                 ),
                 expected_output_contains=[
                     "Would you like to reauthenticate? [y/N]",
@@ -798,15 +794,14 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change()
                 ["cloud", "login"],
                 expected_code=0,
                 user_input=(
-                    # Yes, reauth
-                    "y"
-                    + readchar.key.ENTER
-                    # Enter a key
+                    # Yes, reauth (use \n for typer.confirm)
+                    "y\n"
+                    # Enter a key (use readchar keys for prompt_select_from_list)
                     + readchar.key.DOWN
                     + readchar.key.ENTER
-                    + "bar"
-                    + readchar.key.ENTER
-                    # Select the first workspace
+                    # Enter new key (use \n for typer.prompt)
+                    + "bar\n"
+                    # Select the first workspace (use readchar keys for prompt_select_from_list)
                     + readchar.key.ENTER
                 ),
                 expected_output_contains=[
@@ -860,10 +855,9 @@ def test_login_already_logged_in_to_another_profile():
             ["cloud", "login"],
             expected_code=0,
             user_input=(
-                # Yes, switch profiles
-                "y"
-                + readchar.key.ENTER
-                # Use the first profile
+                # Yes, switch profiles (use \n for typer.confirm)
+                "y\n"
+                # Use the first profile (use readchar keys for prompt_select_from_list)
                 + readchar.key.ENTER
             ),
             expected_output_contains=[
@@ -921,10 +915,9 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select():
             ["cloud", "login"],
             expected_code=130,  # assumes typer > 0.13.0
             user_input=(
-                # Yes, switch profiles
-                "y"
-                + readchar.key.ENTER
-                # Abort!
+                # Yes, switch profiles (use \n for typer.confirm)
+                "y\n"
+                # Abort! (use readchar keys for prompt_select_from_list)
                 + readchar.key.CTRL_C
             ),
             expected_output_contains=[

@@ -272,6 +272,16 @@ def lazy_import(
         if error_on_import:
             raise ModuleNotFoundError(f"No module named '{name}'.\n{help_message}")
         else:
+            # Collect caller frame info for better error messages.
+            # This is best-effort - if it fails, use default metadata.
+            frame_data = {
+                "spec": name,
+                "filename": "<unknown>",
+                "lineno": 0,
+                "function": "<unknown>",
+                "code_context": None,
+            }
+            parent = None
             try:
                 parent = inspect.stack()[1]
                 frame_data = {
@@ -281,11 +291,17 @@ def lazy_import(
                     "function": parent.function,
                     "code_context": parent.code_context,
                 }
-                return DelayedImportErrorModule(
-                    frame_data, help_message, "DelayedImportErrorModule"
-                )
+            except Exception:
+                # Frame introspection can fail in various edge cases;
+                # fall back to default metadata
+                pass
             finally:
-                del parent
+                # Clean up frame reference to avoid reference cycles
+                if parent is not None:
+                    del parent
+            return DelayedImportErrorModule(
+                frame_data, help_message, "DelayedImportErrorModule"
+            )
 
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module

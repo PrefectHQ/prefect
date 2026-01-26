@@ -4,6 +4,7 @@ Command line interface for working with flows.
 
 from typing import List, Optional
 
+import click
 import typer
 from rich.table import Table
 
@@ -124,6 +125,10 @@ async def serve(
     """
     Serve a flow via an entrypoint.
     """
+    if entrypoint is None:
+        raise click.UsageError("Missing argument 'ENTRYPOINT'.")
+    if name is None:
+        raise click.UsageError("Missing option '--name' / '-n'.")
     runner = Runner(name=name, pause_on_shutdown=pause_on_shutdown)
     try:
         schedules = []

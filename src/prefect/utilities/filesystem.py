@@ -42,7 +42,10 @@ def filter_files(
     """
     if ignore_patterns is None:
         ignore_patterns = []
-    spec = pathspec.PathSpec.from_lines("gitwildmatch", ignore_patterns)
+    # Use GitIgnoreSpec directly to avoid deprecation warnings across pathspec versions.
+    # String pattern types ("gitwildmatch"/"gitignore") have conflicting deprecation
+    # warnings between pathspec 0.12.x and 1.0.x, but GitIgnoreSpec works in both.
+    spec = pathspec.GitIgnoreSpec.from_lines(ignore_patterns)
     ignored_files = {p.path for p in spec.match_tree_entries(root)}
     if include_dirs:
         all_files = {p.path for p in pathspec.util.iter_tree_entries(root)}

@@ -1723,6 +1723,11 @@ def load_flow_from_entrypoint(
         FlowScriptError: If an exception is encountered while running the script
         MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
+    if entrypoint is None:
+        raise MissingFlowError(
+            "An entrypoint must be provided. Expected format: '<path_to_script>:<flow_func_name>' "
+            "or a module path to a flow function."
+        )
     with PrefectObjectRegistry(
         block_code_execution=True,
         capture_failures=True,

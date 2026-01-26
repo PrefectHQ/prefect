@@ -18,7 +18,7 @@ def check_contains(cli_result: Result, content: str, should_contain: bool):
         should_contain: if True, checks that content is in cli_result,
             if False, checks that content is not in cli_result
     """
-    output = cli_result.stdout.strip()
+    output = cli_result.output.strip()
     content = textwrap.dedent(content).strip()
 
     if should_contain:
@@ -113,19 +113,19 @@ def invoke_and_assert(
 
     if echo:
         print("\n------ CLI output ------")
-        print(result.stdout)
+        print(result.output)
 
     if expected_code is not None:
         assertion_error_message = (
             f"Expected code {expected_code} but got {result.exit_code}\n"
             "Output from CLI command:\n"
             "-----------------------\n"
-            f"{result.stdout}"
+            f"{result.output}"
         )
         assert result.exit_code == expected_code, assertion_error_message
 
     if expected_output is not None:
-        output = result.stdout.strip()
+        output = result.output.strip()
         expected_output = textwrap.dedent(expected_output).strip()
 
         compare_string = (
@@ -138,7 +138,7 @@ def invoke_and_assert(
         assert output == expected_output, compare_string
 
     if prompts_and_responses:
-        output = result.stdout.strip()
+        output = result.output.strip()
         cursor = 0
 
         for item in prompts_and_responses:
@@ -182,7 +182,7 @@ def invoke_and_assert(
                 check_contains(result, contents, should_contain=False)
 
     if expected_line_count is not None:
-        line_count = len(result.stdout.splitlines())
+        line_count = len(result.output.splitlines())
         assert expected_line_count == line_count, (
             f"Expected {expected_line_count} lines of CLI output, only"
             f" {line_count} lines present"
