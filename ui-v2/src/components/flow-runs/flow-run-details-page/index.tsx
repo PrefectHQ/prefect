@@ -20,6 +20,7 @@ import { LazyJsonInput } from "@/components/ui/json-input-lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TabErrorState } from "@/components/ui/tab-error-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useStateFavicon } from "@/hooks/use-state-favicon";
 import { FlowRunArtifacts } from "./flow-run-artifacts";
 import { FlowRunDetails } from "./flow-run-details";
 import { FlowRunHeader } from "./flow-run-header";
@@ -57,6 +58,9 @@ export const FlowRunDetailsPage = ({
 	const { deleteFlowRun } = useDeleteFlowRun();
 	const { navigate } = useRouter();
 	const isPending = flowRun.state_type === "PENDING";
+
+	// Set favicon based on flow run state
+	useStateFavicon(flowRun?.state_type);
 
 	useEffect(() => {
 		if (flowRun.state_type === "RUNNING" || flowRun.state_type === "PENDING") {
