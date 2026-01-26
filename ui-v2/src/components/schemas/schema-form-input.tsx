@@ -74,8 +74,8 @@ export function SchemaFormInput({
 		throw new Error(`Prefect kind not implemented: ${value.__prefect_kind}`);
 	}
 
-	if ("blockTypeSlug" in property) {
-		const blockTypeSlug = property.blockTypeSlug;
+	if ("block_type_slug" in property) {
+		const blockTypeSlug = property.block_type_slug;
 		if (typeof blockTypeSlug === "string") {
 			return (
 				<SchemaFormInputBlockDocument

@@ -15,7 +15,7 @@ export type PrefectObjectSubtype = {
 };
 
 export type WithBlockDocumentSlug = {
-	blockTypeSlug?: string;
+	block_type_slug?: string;
 };
 
 export type WithDefinitions = {
