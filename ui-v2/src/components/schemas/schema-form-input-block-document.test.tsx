@@ -4,26 +4,40 @@ import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { createFakeBlockDocument } from "@/mocks";
+import { createFakeBlockDocument, createFakeBlockType } from "@/mocks";
 import { SchemaFormInputBlockDocument } from "./schema-form-input-block-document";
 
 describe("SchemaFormInputBlockDocument", () => {
 	beforeAll(mockPointerEvents);
+
+	const mockBlockType = createFakeBlockType({
+		slug: "aws-credentials",
+		name: "AWS Credentials",
+		logo_url: "https://example.com/aws-logo.png",
+	});
 
 	const mockBlockDocuments = [
 		createFakeBlockDocument({ id: "block-1", name: "my_block_0" }),
 		createFakeBlockDocument({ id: "block-2", name: "my_block_1" }),
 	];
 
-	const setupMocks = () => {
+	const setupMocks = (options?: { blockDocumentCount?: number }) => {
+		const { blockDocumentCount = mockBlockDocuments.length } = options ?? {};
+
 		server.use(
+			http.get(buildApiUrl("/block_types/slug/:slug"), () => {
+				return HttpResponse.json(mockBlockType);
+			}),
+			http.post(buildApiUrl("/block_documents/count"), () => {
+				return HttpResponse.json(blockDocumentCount);
+			}),
 			http.post(buildApiUrl("/block_documents/filter"), () => {
 				return HttpResponse.json(mockBlockDocuments);
 			}),
 		);
 	};
 
-	it("renders the combobox", async () => {
+	it("renders the combobox when block documents exist", async () => {
 		setupMocks();
 
 		render(
@@ -39,6 +53,43 @@ describe("SchemaFormInputBlockDocument", () => {
 		await waitFor(() =>
 			expect(screen.getByLabelText(/select a block/i)).toBeVisible(),
 		);
+	});
+
+	it("renders the block type logo", async () => {
+		setupMocks();
+
+		render(
+			<SchemaFormInputBlockDocument
+				value={undefined}
+				onValueChange={vi.fn()}
+				blockTypeSlug="aws-credentials"
+				id="test-id"
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() =>
+			expect(screen.getByAltText("AWS Credentials")).toBeVisible(),
+		);
+	});
+
+	it("shows Add button instead of combobox when no block documents exist", async () => {
+		setupMocks({ blockDocumentCount: 0 });
+
+		render(
+			<SchemaFormInputBlockDocument
+				value={undefined}
+				onValueChange={vi.fn()}
+				blockTypeSlug="aws-credentials"
+				id="test-id"
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() =>
+			expect(screen.getByRole("button", { name: /add/i })).toBeVisible(),
+		);
+		expect(screen.queryByLabelText(/select a block/i)).not.toBeInTheDocument();
 	});
 
 	it("calls onValueChange with $ref when a block is selected", async () => {
