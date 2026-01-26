@@ -18,7 +18,7 @@ export function FlowRunGraphSettingsButton() {
 			<PopoverTrigger>
 				<Tooltip>
 					<TooltipTrigger asChild>
-						<Button variant="outline" size="icon">
+						<Button variant="ghost" size="icon">
 							<Icon id="Cog" className="size-4" />
 						</Button>
 					</TooltipTrigger>
