@@ -95,6 +95,7 @@ def _initialize_plugins() -> None:
 
         from prefect._experimental.plugins import run_startup_hooks
         from prefect._experimental.plugins.spec import HookContext
+        from prefect.context import refresh_global_settings_context
         from prefect.logging import get_logger
         from prefect.settings import get_current_settings
 
@@ -106,6 +107,9 @@ def _initialize_plugins() -> None:
 
         # Run plugin hooks synchronously during import
         anyio.run(run_startup_hooks, ctx)
+
+        # Refresh global settings context to pick up any env vars set by plugins
+        refresh_global_settings_context()
     except SystemExit:
         # Re-raise SystemExit from strict mode
         raise

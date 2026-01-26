@@ -540,6 +540,58 @@ class TestStartupHooks:
                     assert summaries[0].error is None
                     assert summaries[0].env_preview == {}
 
+    async def test_plugin_env_vars_reflected_in_settings(self, clean_env, mock_ctx):
+        """Test that env vars set by plugins are reflected in get_current_settings()."""
+        from prefect.context import refresh_global_settings_context
+
+        # Save original env var value for cleanup
+        original_api_url = os.environ.get("PREFECT_API_URL")
+
+        class SettingsPlugin:
+            @register_hook
+            def setup_environment(self, *, ctx: HookContext):
+                # Set an env var that maps to a Prefect setting
+                return SetupResult(
+                    env={"PREFECT_API_URL": "http://plugin-set-url:4200/api"}
+                )
+
+        pm = build_manager(HookSpec)
+        pm.register(SettingsPlugin(), name="settings-plugin")
+
+        try:
+            with temporary_settings(
+                updates={PREFECT_EXPERIMENTS_PLUGINS_ENABLED: True}
+            ):
+                with patch(
+                    "prefect._experimental.plugins.build_manager", return_value=pm
+                ):
+                    with patch(
+                        "prefect._experimental.plugins.manager.load_entry_point_plugins"
+                    ):
+                        await run_startup_hooks(mock_ctx)
+
+                        refresh_global_settings_context()
+
+                        # Verify the global settings context was updated
+                        # We check GLOBAL_SETTINGS_CONTEXT directly because
+                        # get_current_settings() respects the context stack
+                        # (temporary_settings is still active)
+                        from prefect.context import (
+                            GLOBAL_SETTINGS_CONTEXT as refreshed_ctx,
+                        )
+
+                        assert (
+                            str(refreshed_ctx.settings.api.url)
+                            == "http://plugin-set-url:4200/api"
+                        )
+        finally:
+            # Clean up: restore original PREFECT_API_URL and refresh settings
+            if original_api_url is None:
+                os.environ.pop("PREFECT_API_URL", None)
+            else:
+                os.environ["PREFECT_API_URL"] = original_api_url
+            refresh_global_settings_context()
+
 
 class TestSetupSummary:
     """Tests for SetupSummary data structure."""
