@@ -8,6 +8,8 @@ preventing duplicate task execution when multiple API servers process the same r
 See: https://github.com/PrefectHQ/prefect/pull/19936#issuecomment-3744457809
 """
 
+from contextlib import asynccontextmanager
+from datetime import timedelta
 from typing import Any, AsyncGenerator
 from uuid import UUID, uuid4
 
@@ -19,17 +21,52 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.compatibility.starlette import status
-from prefect.client.base import app_lifespan_context
 from prefect.server import models, schemas
 from prefect.server.schemas.statuses import DeploymentStatus
+from prefect.settings import get_current_settings
+
+
+@asynccontextmanager
+async def docket_without_worker_lifespan(
+    app: FastAPI,
+) -> AsyncGenerator[None, None]:
+    """
+    Custom lifespan context that starts Docket and registers task functions,
+    but does NOT start the background worker. This allows tasks to accumulate
+    in the queue for proper deduplication testing.
+
+    Uses a unique Docket name per test to avoid Redis key collisions when
+    using the shared fakeredis server.
+    """
+    settings = get_current_settings()
+    unique_name = f"test-docket-{uuid4().hex[:8]}"
+    async with Docket(
+        name=unique_name,
+        url=settings.server.docket.url,
+        execution_ttl=timedelta(0),
+    ) as docket:
+        docket.register_collection(
+            "prefect.server.api.background_workers:task_functions"
+        )
+        app.api_app.state.docket = docket
+        yield
 
 
 @pytest.fixture
 async def client_with_real_docket(
     app: FastAPI,
 ) -> AsyncGenerator[AsyncClient, Any]:
-    """Yield a test client with a real Docket instance via lifespan context."""
-    async with app_lifespan_context(app):
+    """
+    Yield a test client with a real Docket instance but NO background worker.
+
+    This ensures tasks stay in the queue and are not processed, allowing us to
+    properly verify that duplicate task keys are deduplicated.
+
+    Note: We intentionally do NOT use LifespanManager(app) here because that
+    would trigger the app's lifespan which starts the background worker.
+    The database session fixture handles DB setup separately.
+    """
+    async with docket_without_worker_lifespan(app):
         async with httpx.AsyncClient(
             transport=ASGITransport(app=app), base_url="https://test/api"
         ) as async_client:
