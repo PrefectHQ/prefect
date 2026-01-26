@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -12,6 +13,7 @@ import {
 	type PrefectSchemaObject,
 	useSchemaForm,
 } from "@/components/schemas";
+import { enrichSchemaWithBlockTypeSlug } from "@/components/schemas/utilities/enrichSchemaWithBlockTypeSlug";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -51,6 +53,14 @@ export const BlockDocumentCreatePage = ({
 	const navigate = useNavigate();
 	const { values, setValues, errors, validateForm } = useSchemaForm();
 	const { createBlockDocument, isPending } = useCreateBlockDocument();
+
+	const enrichedSchema = useMemo(
+		() =>
+			enrichSchemaWithBlockTypeSlug(
+				blockSchema.fields as unknown as PrefectSchemaObject,
+			),
+		[blockSchema.fields],
+	);
 
 	const form = useForm({
 		resolver: zodResolver(BlockNameFormSchema),
@@ -122,7 +132,7 @@ export const BlockDocumentCreatePage = ({
 							onValuesChange={setValues}
 							errors={errors}
 							kinds={["json"]}
-							schema={blockSchema.fields as unknown as PrefectSchemaObject}
+							schema={enrichedSchema}
 						/>
 						<div className="flex gap-3 justify-end">
 							<Button variant="secondary">
