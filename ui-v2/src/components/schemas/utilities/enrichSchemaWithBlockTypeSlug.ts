@@ -1,14 +1,17 @@
-import type { SchemaObject } from "openapi-typescript";
-
-type SchemaWithBlockTypeSlug = SchemaObject & {
+/**
+ * Type for schema objects that may contain block_type_slug from the API.
+ * This is a loose type to handle the dynamic nature of JSON schemas.
+ */
+type SchemaLike = {
+	[key: string]: unknown;
 	block_type_slug?: string;
 	blockTypeSlug?: string;
-	definitions?: Record<string, SchemaWithBlockTypeSlug>;
-	properties?: Record<string, SchemaWithBlockTypeSlug>;
-	anyOf?: SchemaWithBlockTypeSlug[];
-	allOf?: SchemaWithBlockTypeSlug[];
-	oneOf?: SchemaWithBlockTypeSlug[];
-	items?: SchemaWithBlockTypeSlug | SchemaWithBlockTypeSlug[];
+	definitions?: Record<string, SchemaLike>;
+	properties?: Record<string, SchemaLike>;
+	anyOf?: SchemaLike[];
+	allOf?: SchemaLike[];
+	oneOf?: SchemaLike[];
+	items?: SchemaLike | SchemaLike[];
 };
 
 /**
@@ -18,14 +21,14 @@ type SchemaWithBlockTypeSlug = SchemaObject & {
  * When a property has `block_type_slug`, the schema form will render a block document
  * selector (dropdown + "Add" button) instead of showing all the fields inline.
  */
-export function enrichSchemaWithBlockTypeSlug<T extends SchemaObject>(
+export function enrichSchemaWithBlockTypeSlug<T extends SchemaLike>(
 	schema: T,
-): T {
+): T & { blockTypeSlug?: string } {
 	if (!schema || typeof schema !== "object") {
-		return schema;
+		return schema as T & { blockTypeSlug?: string };
 	}
 
-	const result = { ...schema } as SchemaWithBlockTypeSlug;
+	const result = { ...schema } as T & { blockTypeSlug?: string };
 
 	if (
 		"block_type_slug" in result &&
@@ -40,7 +43,7 @@ export function enrichSchemaWithBlockTypeSlug<T extends SchemaObject>(
 				key,
 				enrichSchemaWithBlockTypeSlug(value),
 			]),
-		);
+		) as T["definitions"];
 	}
 
 	if (result.properties) {
@@ -49,36 +52,36 @@ export function enrichSchemaWithBlockTypeSlug<T extends SchemaObject>(
 				key,
 				enrichSchemaWithBlockTypeSlug(value),
 			]),
-		);
+		) as T["properties"];
 	}
 
 	if (result.anyOf) {
 		result.anyOf = result.anyOf.map((item) =>
 			enrichSchemaWithBlockTypeSlug(item),
-		);
+		) as T["anyOf"];
 	}
 
 	if (result.allOf) {
 		result.allOf = result.allOf.map((item) =>
 			enrichSchemaWithBlockTypeSlug(item),
-		);
+		) as T["allOf"];
 	}
 
 	if (result.oneOf) {
 		result.oneOf = result.oneOf.map((item) =>
 			enrichSchemaWithBlockTypeSlug(item),
-		);
+		) as T["oneOf"];
 	}
 
 	if (result.items) {
 		if (Array.isArray(result.items)) {
 			result.items = result.items.map((item) =>
 				enrichSchemaWithBlockTypeSlug(item),
-			);
+			) as T["items"];
 		} else {
-			result.items = enrichSchemaWithBlockTypeSlug(result.items);
+			result.items = enrichSchemaWithBlockTypeSlug(result.items) as T["items"];
 		}
 	}
 
-	return result as T;
+	return result;
 }
