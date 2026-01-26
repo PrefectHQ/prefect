@@ -59,7 +59,7 @@ export async function fetchFlowRunEvents({
 				},
 				order: "ASC",
 			},
-			limit: 200,
+			limit: 50,
 		},
 	});
 
