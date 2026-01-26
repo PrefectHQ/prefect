@@ -355,6 +355,67 @@ When you serve and trigger this flow, Prefect and `pydantic-ai` work together to
 * **Zero Boilerplate** – Just wrap your pydantic-ai agent with `PrefectAgent`
 * **Customizable Policies** – Fine-tune retries, timeouts, and error handling per operation type
 
+<Accordion title="Logging Tool Calls to Prefect Logs">
+
+If you want tool call arguments and results to appear in Prefect's native flow logs, you can use an `event_stream_handler` to capture tool events and log them with Prefect's logger:
+
+```python
+from collections.abc import AsyncIterable
+
+from prefect import flow, get_run_logger
+
+from pydantic_ai import Agent
+from pydantic_ai.messages import (
+    AgentStreamEvent,
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
+)
+from pydantic_ai.tools import RunContext
+
+
+async def log_tool_calls(
+    ctx: RunContext, events: AsyncIterable[AgentStreamEvent]
+) -> None:
+    """Event stream handler that logs tool calls to Prefect."""
+    logger = get_run_logger()
+
+    async for event in events:
+        if isinstance(event, FunctionToolCallEvent):
+            logger.info(
+                f"Calling tool: {event.part.tool_name} "
+                f"with args: {event.part.args_as_json_str()}"
+            )
+        elif isinstance(event, FunctionToolResultEvent):
+            result_str = str(event.result.content)
+            if len(result_str) > 500:
+                result_str = result_str[:497] + "..."
+            logger.info(f"Tool {event.result.tool_name} returned: {result_str}")
+
+
+@flow
+async def my_flow():
+    agent = Agent("openai:gpt-4o", name="my-agent", tools=[...])
+    result = await agent.run(
+        "Analyze this data",
+        event_stream_handler=log_tool_calls,
+    )
+    return result.output
+```
+
+This produces Prefect logs like:
+
+```text
+15:05:44.149 | INFO | Flow run 'crouching-walrus' - Calling tool: get_weather with args: {"city":"Seattle"}
+15:05:44.152 | INFO | Flow run 'crouching-walrus' - Tool get_weather returned: Weather in Seattle: 72°F, sunny
+```
+
+The relevant event types are:
+
+- `FunctionToolCallEvent`: Fired when a tool is about to be called. Access `event.part.tool_name` and `event.part.args_as_json_str()` for tool details.
+- `FunctionToolResultEvent`: Fired when a tool returns. Access `event.result.tool_name` and `event.result.content` for the result.
+
+</Accordion>
+
 **Try it yourself:**
 1. Set your OpenAI API key: `export OPENAI_API_KEY='your-key'`
 2. Start the Prefect server: `prefect server start`
