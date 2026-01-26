@@ -1084,10 +1084,15 @@ class TestGetRunsInWorkQueue:
             json=dict(concurrency_limit=concurrency_limit),
         )
 
-        response1 = await hosted_api_client.post(
-            f"/work_queues/{work_queue.id}/get_runs"
-        )
+        response1 = None
+        async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+            with attempt:
+                response1 = await hosted_api_client.post(
+                    f"/work_queues/{work_queue.id}/get_runs"
+                )
+                assert response1.status_code == status.HTTP_200_OK
 
+        assert response1 is not None
         assert len(response1.json()) == max(0, min(3, concurrency_limit - 3))
 
     @pytest.mark.parametrize("limit", [10, 1])

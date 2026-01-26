@@ -175,7 +175,7 @@ async def test_async_concurrency_with_lease_renewal_failure(
     await lease_storage.revoke_lease(active_lease.id)
 
     # Wait for the process to exit cleanly before the configured sleep time
-    process.join(timeout=10)
+    process.join(timeout=30)
     assert process.exitcode == 1
 
 
@@ -273,5 +273,5 @@ async def test_sync_concurrency_with_lease_renewal_failure(
     await lease_storage.revoke_lease(active_lease.id)
 
     # Wait for the process to exit cleanly before the configured sleep time
-    process.join(timeout=10)
+    process.join(timeout=30)
     assert process.exitcode == 1

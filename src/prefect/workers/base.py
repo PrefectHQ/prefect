@@ -80,6 +80,7 @@ from prefect.states import (
 )
 from prefect.tasks import Task
 from prefect.types import KeyValueLabels
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
@@ -130,7 +131,8 @@ class BaseJobConfiguration(BaseModel):
         default=None,
         description=(
             "Name given to infrastructure created by the worker using this "
-            "job configuration."
+            "job configuration. Supports templates using {{ flow.* }} and "
+            "{{ flow_run.* }} when prepared for a flow run."
         ),
     )
 
@@ -301,6 +303,19 @@ class BaseJobConfiguration(BaseModel):
             **self._base_deployment_labels(deployment),
             **self.labels,
         }
+        if self.name:
+            template_values = {
+                "flow": flow.model_dump(mode="json") if flow is not None else {},
+                "flow_run": flow_run.model_dump(mode="json") if flow_run else {},
+            }
+            rendered_name = apply_values(
+                template=self.name,
+                values=template_values,
+                remove_notset=True,
+            )
+            if rendered_name is not NotSet:
+                self.name = rendered_name
+
         self.name = self.name or flow_run.name
         self.command = self.command or self._base_flow_run_command()
 
@@ -404,7 +419,10 @@ class BaseJobConfiguration(BaseModel):
 class BaseVariables(BaseModel):
     name: Optional[str] = Field(
         default=None,
-        description="Name given to infrastructure created by a worker.",
+        description=(
+            "Name given to infrastructure created by a worker. Supports templates "
+            "using {{ flow.* }} and {{ flow_run.* }} when prepared for a flow run."
+        ),
     )
     env: dict[str, Optional[str]] = Field(
         default_factory=dict,
