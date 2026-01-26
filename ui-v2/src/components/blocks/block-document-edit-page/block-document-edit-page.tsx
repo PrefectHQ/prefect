@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useEffect, useMemo } from "react";
+import { type FormEvent, useEffect } from "react";
 import { toast } from "sonner";
 import {
 	type BlockDocument,
@@ -11,7 +11,6 @@ import {
 	type PrefectSchemaObject,
 	useSchemaForm,
 } from "@/components/schemas";
-import { enrichSchemaWithBlockTypeSlug } from "@/components/schemas/utilities/enrichSchemaWithBlockTypeSlug";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BlockDocumentEditPageHeader } from "./block-document-edit-page-header";
@@ -26,15 +25,6 @@ export const BlockDocumentEditPage = ({
 	const navigate = useNavigate();
 	const { values, setValues, errors, validateForm } = useSchemaForm();
 	const { updateBlockDocument, isPending } = useUpdateBlockDocument();
-
-	const enrichedSchema = useMemo(
-		() =>
-			enrichSchemaWithBlockTypeSlug(
-				(blockDocument?.block_schema?.fields ??
-					{}) as unknown as PrefectSchemaObject,
-			),
-		[blockDocument?.block_schema?.fields],
-	);
 
 	// sync up values with block document values
 	useEffect(() => {
@@ -88,7 +78,10 @@ export const BlockDocumentEditPage = ({
 						onValuesChange={setValues}
 						errors={errors}
 						kinds={["json"]}
-						schema={enrichedSchema}
+						schema={
+							(blockDocument?.block_schema?.fields ??
+								{}) as unknown as PrefectSchemaObject
+						}
 					/>
 					<div className="flex gap-3 justify-end">
 						<Button variant="secondary">
