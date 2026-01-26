@@ -362,9 +362,10 @@ If you want tool call arguments and results to appear in Prefect's native flow l
 ```python
 from collections.abc import AsyncIterable
 
-from prefect import flow, get_run_logger
+from prefect import get_run_logger
 
 from pydantic_ai import Agent
+from pydantic_ai.durable_exec.prefect import PrefectAgent
 from pydantic_ai.messages import (
     AgentStreamEvent,
     FunctionToolCallEvent,
@@ -392,10 +393,12 @@ async def log_tool_calls(
             logger.info(f"Tool {event.result.tool_name} returned: {result_str}")
 
 
-@flow
-async def my_flow():
-    agent = Agent("openai:gpt-4o", name="my-agent", tools=[...])
-    result = await agent.run(
+agent = Agent("openai:gpt-4o", name="my-agent", tools=[...])
+prefect_agent = PrefectAgent(agent)
+
+
+async def main():
+    result = await prefect_agent.run(
         "Analyze this data",
         event_stream_handler=log_tool_calls,
     )
