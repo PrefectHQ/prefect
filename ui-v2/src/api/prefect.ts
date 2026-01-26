@@ -8990,6 +8990,12 @@ export interface components {
              * @default 10
              */
             poll_frequency: number;
+            /**
+             * Crash On Cancellation Failure
+             * @description Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.
+             * @default false
+             */
+            crash_on_cancellation_failure: boolean;
             server?: components["schemas"]["RunnerServerSettings"];
         };
         /**
