@@ -14,9 +14,25 @@ from sgqlc.operation import Operation, Selection
 
 from prefect import task
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect_github import GitHubCredentials
 from prefect_github.utils import camel_to_snake_case
+
+
+def _execute_graphql_op_sync(
+    op: Union[Operation, str],
+    github_credentials: GitHubCredentials,
+    error_key: str = "errors",
+    **vars,
+) -> Dict[str, Any]:
+    """
+    Sync helper function for executing GraphQL operations.
+    """
+    endpoint = github_credentials.get_client()
+    result = endpoint(op, vars)
+    if error_key in result:
+        errors = pformat(result[error_key])
+        raise RuntimeError(f"Error encountered:\n{errors}")
+    return result["data"]
 
 
 async def _execute_graphql_op(
@@ -26,7 +42,7 @@ async def _execute_graphql_op(
     **vars,
 ) -> Dict[str, Any]:
     """
-    Helper function for executing GraphQL operations.
+    Async helper function for executing GraphQL operations.
     """
     endpoint = github_credentials.get_client()
     partial_endpoint = partial(endpoint, op, vars)
@@ -158,8 +174,4 @@ def execute_graphql(
         example_execute_graphql_flow()
         ```
     """
-    return from_sync.call_soon_in_loop_thread(
-        create_call(
-            aexecute_graphql, op, github_credentials, error_key=error_key, **vars
-        )
-    ).result()
+    return _execute_graphql_op_sync(op, github_credentials, error_key=error_key, **vars)

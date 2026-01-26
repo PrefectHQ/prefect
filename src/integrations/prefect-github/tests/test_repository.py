@@ -277,12 +277,13 @@ class TestGitHubRepositoryAsyncDispatch:
 
         This is the critical regression test for issues #14712 and #14625.
         """
+        import subprocess
+        from unittest.mock import MagicMock
 
-        class p:
-            returncode = 0
-
-        mock = AsyncMock(return_value=p())
-        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        monkeypatch.setattr(subprocess, "run", MagicMock(return_value=mock_result))
 
         g = GitHubRepository(repository_url="prefect")
         result = g.get_directory()

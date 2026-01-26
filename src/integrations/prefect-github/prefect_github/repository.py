@@ -11,6 +11,7 @@ import io
 import re
 import shlex
 import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -22,7 +23,6 @@ from sgqlc.operation import Operation
 
 from prefect import task
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.urls import strip_auth_from_url
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.processutils import run_process
@@ -169,9 +169,32 @@ class GitHubRepository(ReadableDeploymentStorage):
                 repository that will be copied to the provided local path.
             local_path: A local path to clone to; defaults to present working directory.
         """
-        return from_sync.call_soon_in_loop_thread(
-            create_call(self.aget_directory, from_path=from_path, local_path=local_path)
-        ).result()
+        cmd = f"git clone {self._create_repo_url()}"
+        if self.reference:
+            cmd += f" -b {self.reference}"
+
+        cmd += " --depth 1"
+
+        with TemporaryDirectory(suffix="prefect") as tmp_dir:
+            tmp_path_str = tmp_dir
+            cmd += f' "{tmp_path_str}"'
+            cmd = shlex.split(cmd)
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                sanitized_error = _sanitize_git_error(result.stderr)
+                raise RuntimeError(f"Failed to pull from remote:\n {sanitized_error}")
+
+            content_source, content_destination = self._get_paths(
+                dst_dir=local_path, src_dir=tmp_path_str, sub_directory=from_path
+            )
+
+            shutil.copytree(
+                src=content_source,
+                dst=content_destination,
+                dirs_exist_ok=True,
+                symlinks=True,
+            )
 
 
 @task

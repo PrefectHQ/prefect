@@ -36,6 +36,7 @@ private_bitbucket_block.save(name="my-private-bitbucket-block")
 """
 
 import io
+import subprocess
 from pathlib import Path
 from shutil import copytree
 from tempfile import TemporaryDirectory
@@ -46,7 +47,6 @@ from pydantic import Field, model_validator
 from typing_extensions import Self
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.processutils import run_process
@@ -210,6 +210,21 @@ class BitBucketRepository(ReadableDeploymentStorage):
                 repository that will be copied to the provided local path.
             local_path: A local path to clone to; defaults to present working directory.
         """
-        return from_sync.call_soon_in_loop_thread(
-            create_call(self.aget_directory, from_path=from_path, local_path=local_path)
-        ).result()
+        cmd = ["git", "clone", self._create_repo_url()]
+        if self.reference:
+            cmd += ["-b", self.reference]
+
+        cmd += ["--depth", "1"]
+
+        with TemporaryDirectory(suffix="prefect") as tmp_dir:
+            cmd.append(tmp_dir)
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                raise OSError(f"Failed to pull from remote:\n {result.stderr}")
+
+            content_source, content_destination = self._get_paths(
+                dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
+            )
+
+            copytree(src=content_source, dst=content_destination, dirs_exist_ok=True)
