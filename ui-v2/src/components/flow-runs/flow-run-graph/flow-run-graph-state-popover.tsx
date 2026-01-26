@@ -60,7 +60,7 @@ export function FlowRunGraphStatePopover({
 			className="z-50 w-64 rounded-lg border bg-card p-4 shadow-md"
 			style={popoverStyle}
 		>
-			<div className="flex justify-end mb-2">
+			<div className="flex justify-end absolute top-2 right-2">
 				<Button
 					variant="ghost"
 					size="icon"
@@ -77,7 +77,9 @@ export function FlowRunGraphStatePopover({
 				/>
 				<KeyValue
 					label="Occurred"
-					value={<FormattedDate date={selection.timestamp} />}
+					value={
+						<FormattedDate date={selection.timestamp} format="timestamp" />
+					}
 				/>
 			</div>
 		</div>
