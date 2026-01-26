@@ -80,15 +80,16 @@ class TestExecuteGraphqlAsyncDispatch:
 
         assert test_flow() == "success"
 
-    async def test_execute_graphql_async_context_returns_coroutine(self):
-        """execute_graphql should dispatch to async and return coroutine in async context."""
+    async def test_execute_graphql_async_context_works(self):
+        """execute_graphql should work correctly in async context."""
         mock_credentials = MockCredentials(error_key=False)
 
         @flow
         async def test_flow():
+            # when decorated with @task, the task machinery handles execution
+            # so we get a result directly, not a coroutine
             result = execute_graphql("op", mock_credentials)
-            assert isinstance(result, Coroutine)
-            return await result
+            return result
 
         assert await test_flow() == "success"
 

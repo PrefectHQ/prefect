@@ -94,6 +94,7 @@ async def aexecute_graphql(
     return result
 
 
+@task
 @async_dispatch(aexecute_graphql)
 def execute_graphql(
     op: Union[Operation, str],
