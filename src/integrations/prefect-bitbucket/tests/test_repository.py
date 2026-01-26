@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Set, Tuple
+from typing import Coroutine, Set, Tuple
 from unittest.mock import AsyncMock
 
 import pytest
@@ -319,3 +319,45 @@ class TestBitBucketRepository:
         assert "/" not in credentials_part.split(":")[1], (
             "token should not contain unencoded slashes"
         )
+
+
+class TestBitBucketRepositoryAsyncDispatch:
+    """Tests for BitBucketRepository.get_directory migrated from @sync_compatible to @async_dispatch.
+
+    These tests verify the critical behavior from issue #15008 where
+    @sync_compatible would incorrectly return coroutines in sync context.
+    """
+
+    def test_get_directory_sync_context_returns_none_not_coroutine(self, monkeypatch):
+        """get_directory must return None (not coroutine) in sync context.
+
+        This is the critical regression test for issues #14712 and #14625.
+        """
+        import subprocess
+        from unittest.mock import MagicMock
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        monkeypatch.setattr(subprocess, "run", MagicMock(return_value=mock_result))
+
+        b = BitBucketRepository(repository="prefect")
+        result = b.get_directory()
+
+        assert not isinstance(result, Coroutine), "sync context returned coroutine"
+        assert result is None
+
+    async def test_get_directory_async_context_returns_coroutine(self, monkeypatch):
+        """get_directory should dispatch to async and return coroutine in async context."""
+
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect_bitbucket.repository, "run_process", mock)
+
+        b = BitBucketRepository(repository="prefect")
+        result = b.get_directory()
+
+        assert isinstance(result, Coroutine)
+        await result  # should complete without error
