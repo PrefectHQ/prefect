@@ -196,7 +196,7 @@ export function FlowRunGraph({
 					</p>
 				</div>
 			)}
-			<div className="absolute bottom-0 right-0">
+			<div className="absolute bottom-2 right-2">
 				<FlowRunGraphActions
 					fullscreen={fullscreen}
 					onFullscreenChange={updateFullscreen}
