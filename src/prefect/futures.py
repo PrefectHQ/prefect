@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import concurrent.futures
 import threading
 import time
@@ -403,10 +404,16 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
                 self.flow_run_id,
             )
             await FlowRunWaiter.wait_for_flow_run(self._flow_run_id, timeout=timeout)
-            flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
-            if flow_run.state and flow_run.state.is_final():
-                self._final_state = flow_run.state
-            return
+
+            # Poll for the final state in case the event was missed due to race
+            # conditions or connection issues with the event subscriber
+            while True:
+                flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
+                if flow_run.state and flow_run.state.is_final():
+                    self._final_state = flow_run.state
+                    return
+                # Brief sleep before polling again to avoid hammering the API
+                await asyncio.sleep(0.1)
 
     def result(
         self,
