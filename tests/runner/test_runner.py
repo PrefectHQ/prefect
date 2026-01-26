@@ -4096,3 +4096,84 @@ class TestAsyncDispatch:
 
         result = sync_prefect_client.read_deployment(deployment_ids[0])
         assert result.name == "test_runner"
+
+
+class TestRunnerAsyncDispatch:
+    """Tests for Runner methods migrated from @sync_compatible to @async_dispatch.
+
+    These tests verify the critical behavior from issue #15008 where
+    @sync_compatible would incorrectly return coroutines in sync context
+    (see issues #14712 and #14625).
+    """
+
+    def test_add_flow_in_sync_context(self, sync_prefect_client: SyncPrefectClient):
+        """add_flow must return UUID (not coroutine) in sync context.
+
+        This is the critical regression test for issues #14712 and #14625.
+        """
+        runner = Runner(name="test-sync-add-flow")
+
+        result = runner.add_flow(dummy_flow_1)
+
+        assert not isinstance(result, Coroutine), "sync context returned coroutine"
+        assert isinstance(result, uuid.UUID)
+
+        deployment = sync_prefect_client.read_deployment(result)
+        assert deployment.name == "test-sync-add-flow"
+
+    async def test_add_flow_in_async_context(self, prefect_client: PrefectClient):
+        """add_flow should dispatch to async and return coroutine in async context."""
+        runner = Runner(name="test-async-add-flow")
+
+        result = runner.add_flow(dummy_flow_1)
+
+        assert isinstance(result, Coroutine)
+        deployment_id = await result
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+        assert deployment.name == "test-async-add-flow"
+
+    def test_add_deployment_in_sync_context(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """add_deployment must return UUID (not coroutine) in sync context."""
+        runner = Runner(name="test-sync-add-deployment")
+        deployment = dummy_flow_1.to_deployment(name="sync-deployment-test", _sync=True)
+
+        result = runner.add_deployment(deployment)
+
+        assert not isinstance(result, Coroutine), "sync context returned coroutine"
+        assert isinstance(result, uuid.UUID)
+
+        fetched = sync_prefect_client.read_deployment(result)
+        assert fetched.name == "sync-deployment-test"
+
+    async def test_add_deployment_in_async_context(self, prefect_client: PrefectClient):
+        """add_deployment should dispatch to async in async context."""
+        runner = Runner(name="test-async-add-deployment")
+        deployment = await dummy_flow_1.ato_deployment(name="async-deployment-test")
+
+        result = runner.add_deployment(deployment)
+
+        assert isinstance(result, Coroutine)
+        deployment_id = await result
+
+        fetched = await prefect_client.read_deployment(deployment_id)
+        assert fetched.name == "async-deployment-test"
+
+    def test_stop_not_started_raises_error(self):
+        """stop raises RuntimeError when runner not started."""
+        runner = Runner(name="test-stop-not-started")
+
+        with pytest.raises(RuntimeError, match="not yet started"):
+            runner.stop()
+
+    async def test_stop_dispatches_to_async_in_async_context(self):
+        """stop should dispatch to astop in async context."""
+        runner = Runner(name="test-stop-dispatch")
+
+        result = runner.stop()
+
+        assert isinstance(result, Coroutine)
+        with pytest.raises(RuntimeError, match="not yet started"):
+            await result

@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import inspect
 import logging
 import multiprocessing.context
 import os
@@ -76,6 +75,7 @@ from prefect._experimental.bundles import (
     execute_bundle_in_subprocess,
     extract_flow_from_bundle,
 )
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.concurrency.api import (
     create_call,
     from_async,
@@ -117,7 +117,6 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
-    sync_compatible,
 )
 from prefect.utilities.engine import propose_state, propose_state_sync
 from prefect.utilities.processutils import (
@@ -280,8 +279,28 @@ class Runner:
                 assert self._cancelling_observer is not None
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
 
-    @sync_compatible
-    async def add_deployment(
+    async def aadd_deployment(
+        self,
+        deployment: "RunnerDeployment",
+    ) -> UUID:
+        """
+        Registers the deployment with the Prefect API and will monitor for work once
+        the runner is started. Async version.
+
+        Args:
+            deployment: A deployment for the runner to register.
+        """
+        deployment_id = await deployment.aapply()
+        storage = deployment.storage
+        if storage is not None:
+            storage = self._add_storage(storage)
+            self._deployment_storage_map[deployment_id] = storage
+        self._deployment_ids.add(deployment_id)
+
+        return deployment_id
+
+    @async_dispatch(aadd_deployment)
+    def add_deployment(
         self,
         deployment: "RunnerDeployment",
     ) -> UUID:
@@ -292,23 +311,103 @@ class Runner:
         Args:
             deployment: A deployment for the runner to register.
         """
-        apply_coro = deployment.apply()
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(apply_coro)
-        deployment_id = await apply_coro
-        storage = deployment.storage
-        if storage is not None:
-            add_storage_coro = self._add_storage(storage)
-            if TYPE_CHECKING:
-                assert inspect.isawaitable(add_storage_coro)
-            storage = await add_storage_coro
-            self._deployment_storage_map[deployment_id] = storage
-        self._deployment_ids.add(deployment_id)
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aadd_deployment, deployment)
+        ).result()
 
+    async def aadd_flow(
+        self,
+        flow: Flow[Any, Any],
+        name: Optional[str] = None,
+        interval: Optional[
+            Union[
+                Iterable[Union[int, float, datetime.timedelta]],
+                int,
+                float,
+                datetime.timedelta,
+            ]
+        ] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
+        paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = True,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+    ) -> UUID:
+        """
+        Provides a flow to the runner to be run based on the provided configuration.
+        Async version.
+
+        Will create a deployment for the provided flow and register the deployment
+        with the runner.
+
+        Args:
+            flow: A flow for the runner to run.
+            name: The name to give the created deployment. Will default to the name
+                of the runner.
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not to set the created deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
+            schedules: A list of schedule objects defining when to execute runs of this flow.
+                Used to define multiple schedules or additional scheduling options like `timezone`.
+            concurrency_limit: The maximum number of concurrent runs of this flow to allow.
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
+        """
+        api = PREFECT_API_URL.value()
+        if any([interval, cron, rrule, schedule, schedules]) and not api:
+            self._logger.warning(
+                "Cannot schedule flows on an ephemeral server; run `prefect server"
+                " start` to start the scheduler."
+            )
+        name = self.name if name is None else name
+
+        deployment = await flow.ato_deployment(
+            name=name,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedule=schedule,
+            schedules=schedules,
+            paused=paused,
+            triggers=triggers,
+            parameters=parameters,
+            description=description,
+            tags=tags,
+            version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
+            entrypoint_type=entrypoint_type,
+            concurrency_limit=concurrency_limit,
+        )
+
+        deployment_id = await self.aadd_deployment(deployment)
+
+        # Only add the flow to the map if it is not loaded from storage
+        # Further work is needed to support directly running flows created using `flow.from_source`
+        if not getattr(flow, "_storage", None):
+            self._deployment_flow_map[deployment_id] = flow
         return deployment_id
 
-    @sync_compatible
-    async def add_flow(
+    @async_dispatch(aadd_flow)
+    def add_flow(
         self,
         flow: Flow[Any, Any],
         name: Optional[str] = None,
@@ -364,48 +463,29 @@ class Runner:
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
         """
-        api = PREFECT_API_URL.value()
-        if any([interval, cron, rrule, schedule, schedules]) and not api:
-            self._logger.warning(
-                "Cannot schedule flows on an ephemeral server; run `prefect server"
-                " start` to start the scheduler."
+        return from_sync.call_soon_in_loop_thread(
+            create_call(
+                self.aadd_flow,
+                flow,
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                paused=paused,
+                schedule=schedule,
+                schedules=schedules,
+                concurrency_limit=concurrency_limit,
+                parameters=parameters,
+                triggers=triggers,
+                description=description,
+                tags=tags,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+                entrypoint_type=entrypoint_type,
             )
-        name = self.name if name is None else name
+        ).result()
 
-        to_deployment_coro = flow.to_deployment(
-            name=name,
-            interval=interval,
-            cron=cron,
-            rrule=rrule,
-            schedule=schedule,
-            schedules=schedules,
-            paused=paused,
-            triggers=triggers,
-            parameters=parameters,
-            description=description,
-            tags=tags,
-            version=version,
-            enforce_parameter_schema=enforce_parameter_schema,
-            entrypoint_type=entrypoint_type,
-            concurrency_limit=concurrency_limit,
-        )
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(to_deployment_coro)
-        deployment = await to_deployment_coro
-
-        add_deployment_coro = self.add_deployment(deployment)
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(add_deployment_coro)
-        deployment_id = await add_deployment_coro
-
-        # Only add the flow to the map if it is not loaded from storage
-        # Further work is needed to support directly running flows created using `flow.from_source`
-        if not getattr(flow, "_storage", None):
-            self._deployment_flow_map[deployment_id] = flow
-        return deployment_id
-
-    @sync_compatible
-    async def _add_storage(self, storage: RunnerStorage) -> RunnerStorage:
+    def _add_storage(self, storage: RunnerStorage) -> RunnerStorage:
         """
         Adds a storage object to the runner. The storage object will be used to pull
         code to the runner's working directory before the runner starts.
@@ -434,7 +514,7 @@ class Runner:
         Gracefully shuts down the runner when a SIGTERM is received.
         """
         self._logger.info("SIGTERM received, initiating graceful shutdown...")
-        from_sync.call_in_loop_thread(create_call(self.stop))
+        self.stop()
 
         sys.exit(0)
 
@@ -554,9 +634,8 @@ class Runner:
                         exc_info=True,
                     )
 
-    @sync_compatible
-    async def stop(self):
-        """Stops the runner's polling cycle."""
+    async def astop(self) -> None:
+        """Stops the runner's polling cycle. Async version."""
         if not self.started:
             raise RuntimeError(
                 "Runner has not yet started. Please start the runner by calling"
@@ -572,6 +651,11 @@ class Runner:
             self._logger.exception(
                 "Exception encountered while shutting down", exc_info=True
             )
+
+    @async_dispatch(astop)
+    def stop(self):
+        """Stops the runner's polling cycle."""
+        from_sync.call_soon_in_loop_thread(create_call(self.astop)).result()
 
     async def execute_flow_run(
         self,
