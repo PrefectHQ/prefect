@@ -51,8 +51,9 @@ from typing import Optional, Tuple, Union
 from pydantic import Field
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.filesystems import ReadableDeploymentStorage
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
 from prefect_gitlab.credentials import GitLabCredentials
 
@@ -135,7 +136,6 @@ class GitLabRepository(ReadableDeploymentStorage):
 
         return str(content_source), str(content_destination)
 
-    @sync_compatible
     @retry(
         stop=stop_after_attempt(MAX_CLONE_ATTEMPTS),
         wait=wait_fixed(CLONE_RETRY_MIN_DELAY_SECONDS)
@@ -145,13 +145,14 @@ class GitLabRepository(ReadableDeploymentStorage):
         ),
         reraise=True,
     )
-    async def get_directory(
+    async def aget_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
         Clones a GitLab project specified in `from_path` to the provided `local_path`;
         defaults to cloning the repository reference configured on the Block to the
-        present working directory.
+        present working directory. Async version.
+
         Args:
             from_path: If provided, interpreted as a subdirectory of the underlying
                 repository that will be copied to the provided local path.
@@ -184,3 +185,21 @@ class GitLabRepository(ReadableDeploymentStorage):
             shutil.copytree(
                 src=content_source, dst=content_destination, dirs_exist_ok=True
             )
+
+    @async_dispatch(aget_directory)
+    def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """
+        Clones a GitLab project specified in `from_path` to the provided `local_path`;
+        defaults to cloning the repository reference configured on the Block to the
+        present working directory.
+
+        Args:
+            from_path: If provided, interpreted as a subdirectory of the underlying
+                repository that will be copied to the provided local path.
+            local_path: A local path to clone to; defaults to present working directory.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aget_directory, from_path=from_path, local_path=local_path)
+        ).result()

@@ -13,7 +13,8 @@ from anyio import to_thread
 from sgqlc.operation import Operation, Selection
 
 from prefect import task
-from prefect.utilities.asyncutils import sync_compatible
+from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect_github import GitHubCredentials
 from prefect_github.utils import camel_to_snake_case
 
@@ -62,8 +63,23 @@ def _subset_return_fields(
 
 
 @task
-@sync_compatible
-async def execute_graphql(
+async def aexecute_graphql(
+    op: Union[Operation, str],
+    github_credentials: GitHubCredentials,
+    error_key: str = "errors",
+    **vars,
+) -> Dict[str, Any]:
+    """
+    Async version of execute_graphql. See execute_graphql for full documentation.
+    """
+    result = await _execute_graphql_op(
+        op, github_credentials, error_key=error_key, **vars
+    )
+    return result
+
+
+@async_dispatch(aexecute_graphql)
+def execute_graphql(
     op: Union[Operation, str],
     github_credentials: GitHubCredentials,
     error_key: str = "errors",
@@ -142,7 +158,8 @@ async def execute_graphql(
         example_execute_graphql_flow()
         ```
     """
-    result = await _execute_graphql_op(
-        op, github_credentials, error_key=error_key, **vars
-    )
-    return result
+    return from_sync.call_soon_in_loop_thread(
+        create_call(
+            aexecute_graphql, op, github_credentials, error_key=error_key, **vars
+        )
+    ).result()

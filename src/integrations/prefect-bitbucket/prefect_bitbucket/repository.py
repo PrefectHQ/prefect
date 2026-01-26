@@ -45,9 +45,10 @@ from urllib.parse import urlparse, urlunparse
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import ReadableDeploymentStorage
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
 from prefect_bitbucket.credentials import BitBucketCredentials, _quote_credential
 
@@ -157,20 +158,18 @@ class BitBucketRepository(ReadableDeploymentStorage):
 
         return str(content_source), str(content_destination)
 
-    @sync_compatible
-    async def get_directory(
+    async def aget_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """Clones a BitBucket project within `from_path` to the provided `local_path`.
 
         This defaults to cloning the repository reference configured on the
-        Block to the present working directory.
+        Block to the present working directory. Async version.
 
         Args:
             from_path: If provided, interpreted as a subdirectory of the underlying
                 repository that will be copied to the provided local path.
             local_path: A local path to clone to; defaults to present working directory.
-
         """
         # Construct command
         cmd = ["git", "clone", self._create_repo_url()]
@@ -196,3 +195,21 @@ class BitBucketRepository(ReadableDeploymentStorage):
             )
 
             copytree(src=content_source, dst=content_destination, dirs_exist_ok=True)
+
+    @async_dispatch(aget_directory)
+    def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """Clones a BitBucket project within `from_path` to the provided `local_path`.
+
+        This defaults to cloning the repository reference configured on the
+        Block to the present working directory.
+
+        Args:
+            from_path: If provided, interpreted as a subdirectory of the underlying
+                repository that will be copied to the provided local path.
+            local_path: A local path to clone to; defaults to present working directory.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aget_directory, from_path=from_path, local_path=local_path)
+        ).result()
