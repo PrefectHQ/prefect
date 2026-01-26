@@ -33,7 +33,6 @@ from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL,
     PREFECT_EVENTS_WEBSOCKET_BACKFILL_PAGE_SIZE,
-    get_current_settings,
 )
 
 if TYPE_CHECKING:
@@ -65,23 +64,9 @@ async def create_events(
 @router.websocket("/in")
 async def stream_events_in(websocket: WebSocket) -> None:
     """Open a WebSocket to stream incoming Events"""
-
-    # Check if authentication is configured
-    auth_setting = (
-        auth_setting_secret.get_secret_value()
-        if (auth_setting_secret := get_current_settings().server.api.auth_string)
-        else None
-    )
-
-    if auth_setting:
-        # When auth is configured, require the prefect subprotocol and auth handshake
-        websocket = await subscriptions.accept_prefect_socket(websocket)
-        if not websocket:
-            return
-    else:
-        # When auth is not configured, accept connections without requiring
-        # the prefect subprotocol or auth handshake for backward compatibility
-        await websocket.accept()
+    websocket = await subscriptions.accept_prefect_socket(websocket)
+    if not websocket:
+        return
 
     try:
         async with messaging.create_event_publisher() as publisher:

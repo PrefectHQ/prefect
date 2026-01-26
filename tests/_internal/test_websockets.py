@@ -1,8 +1,10 @@
+import json
 import ssl
 import warnings
 from unittest.mock import patch
 
 from websockets.asyncio.client import connect
+from websockets.protocol import Subprotocol
 
 from prefect._internal.websockets import (
     create_ssl_context_for_websocket,
@@ -164,11 +166,18 @@ async def test_websocket_custom_headers_with_websocket_connect(hosted_api_server
     custom_headers = {"X-Custom-Header": "test-value"}
 
     with temporary_settings({PREFECT_CLIENT_CUSTOM_HEADERS: custom_headers}):
-        connector = websocket_connect(events_in_socket_from_api_url(hosted_api_server))
+        connector = websocket_connect(
+            events_in_socket_from_api_url(hosted_api_server),
+            subprotocols=[Subprotocol("prefect")],
+        )
         # Make sure we can connect to the websocket successfully with the custom headers
-        # Note: When PREFECT_SERVER_API_AUTH_STRING is not set, the /events/in endpoint
-        # accepts connections without requiring the "prefect" subprotocol or auth handshake
+        # The /events/in endpoint requires the "prefect" subprotocol and auth handshake
         async with connector as websocket:
             pong = await websocket.ping()
             await pong
+
+            # Send auth message (required by the server)
+            await websocket.send(json.dumps({"type": "auth", "token": None}))
+            auth_response = json.loads(await websocket.recv())
+            assert auth_response["type"] == "auth_success"
             # If we get here, the connection worked with custom headers

@@ -47,35 +47,6 @@ async def write_events(monkeypatch: pytest.MonkeyPatch):
     return mock_write_events
 
 
-def test_streaming_requires_prefect_subprotocol_when_auth_configured(
-    test_client: TestClient,
-):
-    """When PREFECT_SERVER_API_AUTH_STRING is set, the prefect subprotocol is required."""
-    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "valid-token"}):
-        with pytest.raises(WebSocketDisconnect) as exception:
-            with test_client.websocket_connect("/api/events/in", subprotocols=[]):
-                pass
-
-        assert exception.value.code == WS_1002_PROTOCOL_ERROR
-
-
-def test_streaming_requires_authentication_when_auth_configured(
-    test_client: TestClient,
-    event1: Event,
-):
-    """When PREFECT_SERVER_API_AUTH_STRING is set, an auth message is required."""
-    with temporary_settings(updates={PREFECT_SERVER_API_AUTH_STRING: "valid-token"}):
-        with pytest.raises(WebSocketDisconnect) as exception:
-            with test_client.websocket_connect(
-                "/api/events/in", subprotocols=["prefect"]
-            ) as websocket:
-                websocket.send_text(event1.model_dump_json())
-                websocket.receive_text()
-
-        assert exception.value.code == WS_1008_POLICY_VIOLATION
-        assert exception.value.reason == "Expected 'auth' message"
-
-
 def test_streaming_rejects_invalid_token(
     test_client: TestClient,
 ):
@@ -113,17 +84,53 @@ def test_streaming_rejects_missing_token(
         assert exception.value.reason == "Auth required but no token provided"
 
 
-def test_stream_events_in_without_auth(
+def test_streaming_requires_prefect_subprotocol(
+    test_client: TestClient,
+):
+    """The prefect subprotocol is always required."""
+    with pytest.raises(WebSocketDisconnect) as exception:
+        with test_client.websocket_connect("/api/events/in", subprotocols=[]):
+            pass
+
+    assert exception.value.code == WS_1002_PROTOCOL_ERROR
+
+
+def test_streaming_requires_authentication(
+    test_client: TestClient,
+    event1: Event,
+):
+    """An auth message is always required as the first message."""
+    with pytest.raises(WebSocketDisconnect) as exception:
+        with test_client.websocket_connect(
+            "/api/events/in", subprotocols=["prefect"]
+        ) as websocket:
+            websocket.send_text(event1.model_dump_json())
+            websocket.receive_text()
+
+    assert exception.value.code == WS_1008_POLICY_VIOLATION
+    assert exception.value.reason == "Expected 'auth' message"
+
+
+def test_stream_events_in_without_auth_configured(
     test_client: TestClient,
     frozen_time: DateTime,
     event1: Event,
     event2: Event,
     stream_publish: mock.AsyncMock,
 ):
-    """When PREFECT_SERVER_API_AUTH_STRING is not set, connections work without auth."""
+    """When PREFECT_SERVER_API_AUTH_STRING is not set, any token is accepted."""
     websocket: WebSocketTestSession
-    # When auth is not configured, no subprotocol or auth handshake is required
-    with test_client.websocket_connect("/api/events/in") as websocket:
+    with test_client.websocket_connect(
+        "/api/events/in", subprotocols=["prefect"]
+    ) as websocket:
+        auth_message = {
+            "type": "auth",
+            "token": None,
+        }
+        websocket.send_json(auth_message)
+        message = websocket.receive_json()
+        assert message["type"] == "auth_success"
+
         websocket.send_text(event1.model_dump_json())
         websocket.send_text(event2.model_dump_json())
 
