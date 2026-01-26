@@ -689,8 +689,8 @@ export const blockTypeSlugEmpty: Story = {
 			properties: {
 				credentials: {
 					title: "AWS Credentials",
-					// @ts-expect-error blockTypeSlug is a custom property not in the schema types
-					blockTypeSlug: "aws-credentials",
+					// @ts-expect-error block_type_slug is a custom property not in the schema types
+					block_type_slug: "aws-credentials",
 				},
 			},
 		},
@@ -705,7 +705,7 @@ export const blockTypeSlugEmpty: Story = {
 		},
 	},
 };
-blockTypeSlugEmpty.storyName = "blockTypeSlug (empty)";
+blockTypeSlugEmpty.storyName = "block_type_slug (empty)";
 
 export const blockTypeSlugWithValue: Story = {
 	args: {
@@ -714,8 +714,8 @@ export const blockTypeSlugWithValue: Story = {
 			properties: {
 				credentials: {
 					title: "AWS Credentials",
-					// @ts-expect-error blockTypeSlug is a custom property not in the schema types
-					blockTypeSlug: "aws-credentials",
+					// @ts-expect-error block_type_slug is a custom property not in the schema types
+					block_type_slug: "aws-credentials",
 				},
 			},
 		},
@@ -735,4 +735,4 @@ export const blockTypeSlugWithValue: Story = {
 		},
 	},
 };
-blockTypeSlugWithValue.storyName = "blockTypeSlug (with value)";
+blockTypeSlugWithValue.storyName = "block_type_slug (with value)";
