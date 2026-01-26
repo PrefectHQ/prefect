@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10, <3.15"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -4213,7 +4213,7 @@ requires-dist = [
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
     { name = "pydantic-settings", specifier = ">2.2.1,!=2.9.0,<3.0.0" },
-    { name = "pydocket", specifier = ">=0.16.2" },
+    { name = "pydocket", specifier = ">=0.17.2" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
     { name = "pytz", specifier = ">=2021.1,<2026" },
@@ -5031,26 +5031,25 @@ wheels = [
 
 [[package]]
 name = "pydocket"
-version = "0.16.6"
+version = "0.17.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cloudpickle" },
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
     { name = "fakeredis", extra = ["lua"] },
     { name = "opentelemetry-api" },
-    { name = "opentelemetry-exporter-prometheus" },
-    { name = "opentelemetry-instrumentation" },
     { name = "prometheus-client" },
     { name = "py-key-value-aio", extra = ["memory", "redis"] },
     { name = "python-json-logger" },
     { name = "redis" },
     { name = "rich" },
+    { name = "taskgroup", marker = "python_full_version < '3.11'" },
     { name = "typer" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/00/26befe5f58df7cd1aeda4a8d10bc7d1908ffd86b80fd995e57a2a7b3f7bd/pydocket-0.16.6.tar.gz", hash = "sha256:b96c96ad7692827214ed4ff25fcf941ec38371314db5dcc1ae792b3e9d3a0294", size = 299054, upload-time = "2026-01-09T22:09:15.405Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/17/1fb6309e40bbee999c5d881b8213a1078968412d855e064a9a94cfb9eeef/pydocket-0.17.2.tar.gz", hash = "sha256:8f02c68952701eb1b3a70d439b76392d15f1eb9568d0bde6a69997ea5c79c89f", size = 329829, upload-time = "2026-01-26T16:07:56.217Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/3f/7483e5a6dc6326b6e0c640619b5c5bd1d6e3c20e54d58f5fb86267cef00e/pydocket-0.16.6-py3-none-any.whl", hash = "sha256:683d21e2e846aa5106274e7d59210331b242d7fb0dce5b08d3b82065663ed183", size = 67697, upload-time = "2026-01-09T22:09:13.436Z" },
+    { url = "https://files.pythonhosted.org/packages/53/74/4c9b70753d5721165047e6428ac239ca083118474794deaca5a27d0ab212/pydocket-0.17.2-py3-none-any.whl", hash = "sha256:f43743b84b4e3d614d99b0cad2deebab028104c217745406ecf9e1efb8926e04", size = 91628, upload-time = "2026-01-26T16:07:55.018Z" },
 ]
 
 [[package]]
@@ -6383,6 +6382,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ec/fe/802052aecb21e3797b8f7902564ab6ea0d60ff8ca23952079064155d1ae1/tabulate-0.9.0.tar.gz", hash = "sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c", size = 81090, upload-time = "2022-10-06T17:21:48.54Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/40/44/4a5f08c96eb108af5cb50b41f76142f0afa346dfa99d5296fe7202a11854/tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f", size = 35252, upload-time = "2022-10-06T17:21:44.262Z" },
+]
+
+[[package]]
+name = "taskgroup"
+version = "0.2.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f0/8d/e218e0160cc1b692e6e0e5ba34e8865dbb171efeb5fc9a704544b3020605/taskgroup-0.2.2.tar.gz", hash = "sha256:078483ac3e78f2e3f973e2edbf6941374fbea81b9c5d0a96f51d297717f4752d", size = 11504, upload-time = "2025-01-03T09:24:13.761Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/b1/74babcc824a57904e919f3af16d86c08b524c0691504baf038ef2d7f655c/taskgroup-0.2.2-py2.py3-none-any.whl", hash = "sha256:e2c53121609f4ae97303e9ea1524304b4de6faf9eb2c9280c7f87976479a52fb", size = 14237, upload-time = "2025-01-03T09:24:11.41Z" },
 ]
 
 [[package]]
