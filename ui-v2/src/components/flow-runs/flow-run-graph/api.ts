@@ -6,6 +6,7 @@ import type {
 	RunGraphEventResource,
 	RunGraphFetchEventsContext,
 	RunGraphNode,
+	RunGraphStateEvent,
 } from "@prefecthq/graphs";
 import { parseISO } from "date-fns";
 import type { components } from "@/api/prefect";
@@ -72,6 +73,7 @@ export async function fetchFlowRunEvents({
 type GraphResponse = components["schemas"]["Graph"];
 type GraphResponseNode = GraphResponse["nodes"][number];
 type GraphResponseArtifact = GraphResponse["artifacts"][number];
+type GraphResponseState = NonNullable<GraphResponse["states"]>[number];
 type EventsResponse = components["schemas"]["EventPage"];
 
 function mapApiResponseToRunGraphData(response: GraphResponse): RunGraphData {
@@ -84,6 +86,7 @@ function mapApiResponseToRunGraphData(response: GraphResponse): RunGraphData {
 		start_time: parseISO(response.start_time),
 		end_time: response.end_time ? parseISO(response.end_time) : null,
 		nodes: new Map(response.nodes.map((node) => mapNode(node))),
+		states: response.states?.map(mapState) ?? [],
 	};
 }
 
@@ -128,6 +131,15 @@ function mapNode([id, node]: GraphResponseNode): [string, RunGraphNode] {
 			artifacts: node.artifacts.map(mapArtifact),
 		},
 	];
+}
+
+function mapState(state: GraphResponseState): RunGraphStateEvent {
+	return {
+		id: state.id,
+		timestamp: parseISO(state.timestamp),
+		type: state.type,
+		name: state.name,
+	};
 }
 
 function mapArtifact(artifact: GraphResponseArtifact): RunGraphArtifact {
