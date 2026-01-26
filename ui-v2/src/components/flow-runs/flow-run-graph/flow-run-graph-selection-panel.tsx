@@ -28,32 +28,37 @@ export function FlowRunGraphSelectionPanel({
 
 	return (
 		<div className="absolute top-4 right-4 z-10 w-72 rounded-lg border bg-card p-4 shadow-md">
-			<div className="flex justify-end mb-2">
-				<Button
-					variant="ghost"
-					size="icon"
-					onClick={onClose}
-					aria-label="Close panel"
-				>
-					<Icon id="X" className="size-4" />
-				</Button>
-			</div>
-			<Suspense fallback={<SelectionPanelSkeleton />}>
+			<Suspense fallback={<SelectionPanelSkeleton onClose={onClose} />}>
 				{selection.kind === "task-run" && (
-					<TaskRunDetails taskRunId={selection.id} />
+					<TaskRunDetails taskRunId={selection.id} onClose={onClose} />
 				)}
 				{selection.kind === "flow-run" && (
-					<FlowRunDetails flowRunId={selection.id} />
+					<FlowRunDetails flowRunId={selection.id} onClose={onClose} />
 				)}
 			</Suspense>
 		</div>
 	);
 }
 
-function SelectionPanelSkeleton() {
+type SelectionPanelSkeletonProps = {
+	onClose: () => void;
+};
+
+function SelectionPanelSkeleton({ onClose }: SelectionPanelSkeletonProps) {
 	return (
-		<div className="space-y-4">
-			<Skeleton className="h-6 w-3/4" />
+		<div className="space-y-3">
+			<div className="flex items-start justify-between gap-2">
+				<Skeleton className="h-6 w-3/4" />
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onClose}
+					aria-label="Close panel"
+					className="shrink-0 -mt-1 -mr-2"
+				>
+					<Icon id="X" className="size-4" />
+				</Button>
+			</div>
 			<Skeleton className="h-5 w-1/2" />
 			<Skeleton className="h-5 w-full" />
 			<Skeleton className="h-5 w-2/3" />
@@ -64,9 +69,10 @@ function SelectionPanelSkeleton() {
 
 type TaskRunDetailsProps = {
 	taskRunId: string;
+	onClose: () => void;
 };
 
-function TaskRunDetails({ taskRunId }: TaskRunDetailsProps) {
+function TaskRunDetails({ taskRunId, onClose }: TaskRunDetailsProps) {
 	const { data: taskRun } = useSuspenseQuery(buildGetTaskRunQuery(taskRunId));
 
 	const duration =
@@ -76,15 +82,26 @@ function TaskRunDetails({ taskRunId }: TaskRunDetailsProps) {
 
 	return (
 		<div className="space-y-3">
-			<h3 className="font-semibold text-base">
-				<Link
-					to="/runs/task-run/$id"
-					params={{ id: taskRunId }}
-					className="hover:underline text-foreground"
+			<div className="flex items-start justify-between gap-2">
+				<h3 className="font-semibold text-base">
+					<Link
+						to="/runs/task-run/$id"
+						params={{ id: taskRunId }}
+						className="hover:underline text-foreground"
+					>
+						{taskRun.name}
+					</Link>
+				</h3>
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onClose}
+					aria-label="Close panel"
+					className="shrink-0 -mt-1 -mr-2"
 				>
-					{taskRun.name}
-				</Link>
-			</h3>
+					<Icon id="X" className="size-4" />
+				</Button>
+			</div>
 			<div className="space-y-3">
 				{taskRun.state && (
 					<KeyValue
@@ -116,9 +133,10 @@ function TaskRunDetails({ taskRunId }: TaskRunDetailsProps) {
 
 type FlowRunDetailsProps = {
 	flowRunId: string;
+	onClose: () => void;
 };
 
-function FlowRunDetails({ flowRunId }: FlowRunDetailsProps) {
+function FlowRunDetails({ flowRunId, onClose }: FlowRunDetailsProps) {
 	const { data: flowRun } = useSuspenseQuery(
 		buildGetFlowRunDetailsQuery(flowRunId),
 	);
@@ -127,15 +145,26 @@ function FlowRunDetails({ flowRunId }: FlowRunDetailsProps) {
 
 	return (
 		<div className="space-y-3">
-			<h3 className="font-semibold text-base">
-				<Link
-					to="/runs/flow-run/$id"
-					params={{ id: flowRunId }}
-					className="hover:underline text-foreground"
+			<div className="flex items-start justify-between gap-2">
+				<h3 className="font-semibold text-base">
+					<Link
+						to="/runs/flow-run/$id"
+						params={{ id: flowRunId }}
+						className="hover:underline text-foreground"
+					>
+						{flowRun.name}
+					</Link>
+				</h3>
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={onClose}
+					aria-label="Close panel"
+					className="shrink-0 -mt-1 -mr-2"
 				>
-					{flowRun.name}
-				</Link>
-			</h3>
+					<Icon id="X" className="size-4" />
+				</Button>
+			</div>
 			<div className="space-y-3">
 				{flowRun.state && (
 					<KeyValue
