@@ -514,7 +514,7 @@ class Runner:
         Gracefully shuts down the runner when a SIGTERM is received.
         """
         self._logger.info("SIGTERM received, initiating graceful shutdown...")
-        from_sync.call_in_loop_thread(create_call(self.astop))
+        self.stop()
 
         sys.exit(0)
 
