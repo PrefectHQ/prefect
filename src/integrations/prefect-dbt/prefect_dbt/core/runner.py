@@ -150,6 +150,7 @@ class PrefectDbtRunner:
         self._config: Optional[RuntimeConfig] = None
         self._graph: Optional[Graph] = None
         self._skipped_nodes: set[str] = set()
+        self._started_nodes: set[str] = set()
 
         self._event_queue: Optional[queue.PriorityQueue] = None
         self._callback_thread: Optional[threading.Thread] = None
@@ -498,6 +499,7 @@ class PrefectDbtRunner:
         self._shutdown_event = None
         self._queue_counter = 0
         self._skipped_nodes = set()
+        self._started_nodes = set()
 
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
@@ -667,12 +669,13 @@ class PrefectDbtRunner:
             enable_assets = (
                 prefect_config.get("enable_assets", True) and not self.disable_assets
             )
+            self._started_nodes.add(node_id)
             self._call_task(task_state, manifest_node, context, enable_assets)
 
         def _process_node_finished_sync(event: EventMsg) -> None:
             """Actual node finished logic - runs in background thread."""
             node_id = self._get_dbt_event_node_id(event)
-            if node_id in self._skipped_nodes:
+            if node_id in self._skipped_nodes and node_id not in self._started_nodes:
                 return
 
             manifest_node, _ = self._get_manifest_node_and_config(node_id)
