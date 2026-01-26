@@ -71,6 +71,9 @@ function SchemaFormInputBlockDocumentContent({
 				operator: "and_",
 				is_anonymous: { eq_: false },
 			},
+			include_secrets: false,
+			sort: "BLOCK_TYPE_AND_NAME_ASC",
+			offset: 0,
 		}),
 	);
 
