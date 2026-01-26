@@ -10,16 +10,11 @@ export function initAmplitude(): boolean {
 
 	amplitude.init(AMPLITUDE_API_KEY, {
 		trackingOptions: {
-			city: false,
-			country: false,
-			region: false,
 			ipAddress: false,
-			deviceModel: false,
-			osName: false,
-			osVersion: false,
+			language: false,
 			platform: false,
 		},
-		attribution: { disabled: true },
+		autocapture: false,
 	});
 
 	return true;
