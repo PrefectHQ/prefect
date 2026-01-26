@@ -1,18 +1,4 @@
-/**
- * Type for schema objects that may contain block_type_slug from the API.
- * This is a loose type to handle the dynamic nature of JSON schemas.
- */
-type SchemaLike = {
-	[key: string]: unknown;
-	block_type_slug?: string;
-	blockTypeSlug?: string;
-	definitions?: Record<string, SchemaLike>;
-	properties?: Record<string, SchemaLike>;
-	anyOf?: SchemaLike[];
-	allOf?: SchemaLike[];
-	oneOf?: SchemaLike[];
-	items?: SchemaLike | SchemaLike[];
-};
+import type { PrefectSchemaObject } from "../types/schemas";
 
 /**
  * Recursively enriches a schema by converting `block_type_slug` to `blockTypeSlug`.
@@ -21,14 +7,15 @@ type SchemaLike = {
  * When a property has `block_type_slug`, the schema form will render a block document
  * selector (dropdown + "Add" button) instead of showing all the fields inline.
  */
-export function enrichSchemaWithBlockTypeSlug<T extends SchemaLike>(
-	schema: T,
-): T & { blockTypeSlug?: string } {
+export function enrichSchemaWithBlockTypeSlug(
+	schema: PrefectSchemaObject,
+): PrefectSchemaObject {
 	if (!schema || typeof schema !== "object") {
-		return schema as T & { blockTypeSlug?: string };
+		return schema;
 	}
 
-	const result = { ...schema } as T & { blockTypeSlug?: string };
+	// Use a generic record type for mutation, then cast back
+	const result: Record<string, unknown> = { ...schema };
 
 	if (
 		"block_type_slug" in result &&
@@ -37,51 +24,51 @@ export function enrichSchemaWithBlockTypeSlug<T extends SchemaLike>(
 		result.blockTypeSlug = result.block_type_slug;
 	}
 
-	if (result.definitions) {
+	if (result.definitions && typeof result.definitions === "object") {
 		result.definitions = Object.fromEntries(
-			Object.entries(result.definitions).map(([key, value]) => [
-				key,
-				enrichSchemaWithBlockTypeSlug(value),
-			]),
-		) as T["definitions"];
+			Object.entries(
+				result.definitions as Record<string, PrefectSchemaObject>,
+			).map(([key, value]) => [key, enrichSchemaWithBlockTypeSlug(value)]),
+		);
 	}
 
-	if (result.properties) {
+	if (result.properties && typeof result.properties === "object") {
 		result.properties = Object.fromEntries(
-			Object.entries(result.properties).map(([key, value]) => [
-				key,
-				enrichSchemaWithBlockTypeSlug(value),
-			]),
-		) as T["properties"];
+			Object.entries(
+				result.properties as Record<string, PrefectSchemaObject>,
+			).map(([key, value]) => [key, enrichSchemaWithBlockTypeSlug(value)]),
+		);
 	}
 
-	if (result.anyOf) {
-		result.anyOf = result.anyOf.map((item) =>
+	if (Array.isArray(result.anyOf)) {
+		result.anyOf = result.anyOf.map((item: PrefectSchemaObject) =>
 			enrichSchemaWithBlockTypeSlug(item),
-		) as T["anyOf"];
+		);
 	}
 
-	if (result.allOf) {
-		result.allOf = result.allOf.map((item) =>
+	if (Array.isArray(result.allOf)) {
+		result.allOf = result.allOf.map((item: PrefectSchemaObject) =>
 			enrichSchemaWithBlockTypeSlug(item),
-		) as T["allOf"];
+		);
 	}
 
-	if (result.oneOf) {
-		result.oneOf = result.oneOf.map((item) =>
+	if (Array.isArray(result.oneOf)) {
+		result.oneOf = result.oneOf.map((item: PrefectSchemaObject) =>
 			enrichSchemaWithBlockTypeSlug(item),
-		) as T["oneOf"];
+		);
 	}
 
 	if (result.items) {
 		if (Array.isArray(result.items)) {
-			result.items = result.items.map((item) =>
+			result.items = result.items.map((item: PrefectSchemaObject) =>
 				enrichSchemaWithBlockTypeSlug(item),
-			) as T["items"];
+			);
 		} else {
-			result.items = enrichSchemaWithBlockTypeSlug(result.items) as T["items"];
+			result.items = enrichSchemaWithBlockTypeSlug(
+				result.items as PrefectSchemaObject,
+			);
 		}
 	}
 
-	return result;
+	return result as PrefectSchemaObject;
 }

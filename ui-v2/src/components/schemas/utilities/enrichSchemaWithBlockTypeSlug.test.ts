@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PrefectSchemaObject } from "../types/schemas";
 import { enrichSchemaWithBlockTypeSlug } from "./enrichSchemaWithBlockTypeSlug";
 
 describe("enrichSchemaWithBlockTypeSlug", () => {
@@ -6,12 +7,14 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 		const schema = {
 			type: "object",
 			block_type_slug: "aws-credentials",
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
 		expect(result.blockTypeSlug).toBe("aws-credentials");
-		expect(result.block_type_slug).toBe("aws-credentials");
+		expect((result as Record<string, unknown>).block_type_slug).toBe(
+			"aws-credentials",
+		);
 	});
 
 	it("converts block_type_slug in definitions", () => {
@@ -27,7 +30,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 					block_type_slug: "minio-credentials",
 				},
 			},
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -50,7 +53,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 					block_type_slug: "aws-credentials",
 				},
 			},
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -67,7 +70,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 				{ type: "object", block_type_slug: "aws-credentials" },
 				{ type: "object", block_type_slug: "minio-credentials" },
 			],
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -83,7 +86,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 		const schema = {
 			type: "object",
 			allOf: [{ type: "object", block_type_slug: "aws-credentials" }],
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -96,7 +99,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 		const schema = {
 			type: "object",
 			oneOf: [{ type: "object", block_type_slug: "aws-credentials" }],
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -112,7 +115,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 				type: "object",
 				block_type_slug: "aws-credentials",
 			},
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -128,7 +131,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 				{ type: "object", block_type_slug: "aws-credentials" },
 				{ type: "object", block_type_slug: "minio-credentials" },
 			],
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -161,7 +164,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 					},
 				},
 			},
-		};
+		} as PrefectSchemaObject;
 
 		type DefinitionWithBlockTypeSlug = {
 			blockTypeSlug?: string;
@@ -170,11 +173,10 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
-		const awsCredentials = result.definitions?.[
-			"AwsCredentials"
-		] as DefinitionWithBlockTypeSlug;
+		const awsCredentials = result.definitions
+			?.AwsCredentials as DefinitionWithBlockTypeSlug;
 		expect(awsCredentials?.blockTypeSlug).toBe("aws-credentials");
-		expect(awsCredentials?.properties?.["nested_creds"]?.blockTypeSlug).toBe(
+		expect(awsCredentials?.properties?.nested_creds?.blockTypeSlug).toBe(
 			"nested-credentials",
 		);
 	});
@@ -185,7 +187,7 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 			properties: {
 				name: { type: "string" },
 			},
-		};
+		} as PrefectSchemaObject;
 
 		const result = enrichSchemaWithBlockTypeSlug(schema);
 
@@ -194,7 +196,13 @@ describe("enrichSchemaWithBlockTypeSlug", () => {
 	});
 
 	it("handles null and undefined gracefully", () => {
-		expect(enrichSchemaWithBlockTypeSlug(null as never)).toBeNull();
-		expect(enrichSchemaWithBlockTypeSlug(undefined as never)).toBeUndefined();
+		expect(
+			enrichSchemaWithBlockTypeSlug(null as unknown as PrefectSchemaObject),
+		).toBeNull();
+		expect(
+			enrichSchemaWithBlockTypeSlug(
+				undefined as unknown as PrefectSchemaObject,
+			),
+		).toBeUndefined();
 	});
 });
