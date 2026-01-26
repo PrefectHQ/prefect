@@ -1,6 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
+import { AnalyticsProvider } from "@/analytics/analytics-provider";
 import { AuthProvider, useAuth } from "@/auth";
 import { queryClient, router } from "./router";
 
@@ -14,9 +15,11 @@ function InnerApp() {
 export const App = () => {
 	return (
 		<QueryClientProvider client={queryClient}>
-			<AuthProvider>
-				<InnerApp />
-			</AuthProvider>
+			<AnalyticsProvider>
+				<AuthProvider>
+					<InnerApp />
+				</AuthProvider>
+			</AnalyticsProvider>
 			{showDevtools && <ReactQueryDevtools />}
 		</QueryClientProvider>
 	);

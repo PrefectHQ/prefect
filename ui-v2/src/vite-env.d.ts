@@ -12,6 +12,11 @@ interface ImportMetaEnv {
 	 * Used during Playwright E2E tests to prevent devtools from interfering with tests.
 	 */
 	readonly VITE_DISABLE_DEVTOOLS?: string;
+	/**
+	 * Amplitude API key for analytics.
+	 * Set at build time via environment variable.
+	 */
+	readonly VITE_AMPLITUDE_API_KEY?: string;
 }
 
 interface ImportMeta {

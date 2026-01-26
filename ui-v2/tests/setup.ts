@@ -73,6 +73,23 @@ const localStorageMock: Storage = {
 };
 vi.stubGlobal("localStorage", localStorageMock);
 
+// Mock sessionStorage
+const sessionStorageMock: Storage = {
+	key: vi.fn(),
+	length: 0,
+	getItem: vi.fn(),
+	setItem: vi.fn(),
+	removeItem: vi.fn(),
+	clear: vi.fn(),
+};
+vi.stubGlobal("sessionStorage", sessionStorageMock);
+
+// Mock Amplitude analytics
+vi.mock("@amplitude/analytics-browser", () => ({
+	init: vi.fn(),
+	track: vi.fn(),
+}));
+
 Element.prototype.getBoundingClientRect = vi.fn(() => ({
 	width: 500,
 	height: 300,
