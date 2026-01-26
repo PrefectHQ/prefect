@@ -235,8 +235,12 @@ const globalConcurrencyLimitsHandlers = [
 ];
 
 const settingsHandlers = [
-	http.post(buildApiUrl("/admin/settings"), () => {
-		return HttpResponse.json({});
+	http.get(buildApiUrl("/admin/settings"), () => {
+		return HttpResponse.json({
+			server: {
+				analytics_enabled: true,
+			},
+		});
 	}),
 ];
 
