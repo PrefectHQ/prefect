@@ -2,6 +2,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+import click
 import orjson
 import pendulum
 import typer
@@ -361,6 +362,9 @@ async def create_global_concurrency_limit(
 
         $ prefect gcl create my-gcl --limit 5 --inactive
     """
+    if limit is None:
+        raise click.UsageError("Missing option '--limit' / '-l'.")
+
     async with get_client() as client:
         try:
             await client.read_global_concurrency_limit_by_name(name=name)
