@@ -540,6 +540,44 @@ class TestStartupHooks:
                     assert summaries[0].error is None
                     assert summaries[0].env_preview == {}
 
+    async def test_plugin_env_vars_reflected_in_settings(self, clean_env, mock_ctx):
+        """Test that env vars set by plugins are reflected in get_current_settings()."""
+
+        class SettingsPlugin:
+            @register_hook
+            def setup_environment(self, *, ctx: HookContext):
+                # Set an env var that maps to a Prefect setting
+                return SetupResult(
+                    env={"PREFECT_API_URL": "http://plugin-set-url:4200/api"}
+                )
+
+        pm = build_manager(HookSpec)
+        pm.register(SettingsPlugin(), name="settings-plugin")
+
+        with temporary_settings(updates={PREFECT_EXPERIMENTS_PLUGINS_ENABLED: True}):
+            with patch("prefect._experimental.plugins.build_manager", return_value=pm):
+                with patch(
+                    "prefect._experimental.plugins.manager.load_entry_point_plugins"
+                ):
+                    await run_startup_hooks(mock_ctx)
+
+                    # Import here to get fresh context
+                    from prefect.context import (
+                        refresh_global_settings_context,
+                    )
+
+                    refresh_global_settings_context()
+
+                    # Verify the global settings context was updated
+                    # We check GLOBAL_SETTINGS_CONTEXT directly because get_current_settings()
+                    # respects the context stack (temporary_settings is still active)
+                    from prefect.context import GLOBAL_SETTINGS_CONTEXT as refreshed_ctx
+
+                    assert (
+                        str(refreshed_ctx.settings.api.url)
+                        == "http://plugin-set-url:4200/api"
+                    )
+
 
 class TestSetupSummary:
     """Tests for SetupSummary data structure."""
