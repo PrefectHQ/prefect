@@ -97,3 +97,21 @@ class TestExecuteGraphqlAsyncDispatch:
         """aexecute_graphql should be available for direct async usage."""
         # just verify it's importable and is a task
         assert callable(aexecute_graphql)
+
+    def test_task_identity_preserved(self):
+        """Both execute_graphql and aexecute_graphql should have Task identity.
+
+        This verifies decorator order is correct (@task must be outermost).
+        See PR #20300 for the dbt decorator ordering fix.
+        """
+        # .with_options() is only available on proper Task objects
+        assert hasattr(execute_graphql, "with_options"), (
+            "execute_graphql missing .with_options() - check decorator order"
+        )
+        assert hasattr(aexecute_graphql, "with_options"), (
+            "aexecute_graphql missing .with_options() - check decorator order"
+        )
+
+        # verify we can actually call with_options
+        configured = execute_graphql.with_options(retries=3)
+        assert configured is not None
