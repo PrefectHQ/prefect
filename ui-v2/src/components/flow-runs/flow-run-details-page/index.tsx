@@ -228,7 +228,6 @@ export const FlowRunDetailsPage = ({
 							<LazyJsonInput
 								value={JSON.stringify(flowRun.parameters ?? {}, null, 2)}
 								disabled
-								className="min-h-[200px]"
 							/>
 						</div>
 					}
@@ -252,7 +251,6 @@ export const FlowRunDetailsPage = ({
 							<LazyJsonInput
 								value={JSON.stringify(flowRun.job_variables ?? {}, null, 2)}
 								disabled
-								className="min-h-[200px]"
 							/>
 						</div>
 					}
