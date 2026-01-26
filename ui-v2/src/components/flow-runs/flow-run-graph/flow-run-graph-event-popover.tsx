@@ -251,12 +251,14 @@ export function FlowRunGraphEventPopover({
 		<Popover open onOpenChange={(open) => !open && onClose()}>
 			<PopoverAnchor style={anchorStyle} />
 			<PopoverContent align="center" side="bottom" className="w-80">
-				<div className="flex justify-end mb-2">
+				<div className="flex justify-between items-start mb-3">
+					<span className="text-sm text-muted-foreground">Event</span>
 					<Button
 						variant="ghost"
 						size="icon"
 						onClick={onClose}
 						aria-label="Close popover"
+						className="-mt-1 -mr-2"
 					>
 						<Icon id="X" className="size-4" />
 					</Button>
@@ -267,23 +269,16 @@ export function FlowRunGraphEventPopover({
 					</div>
 				) : (
 					<div className="space-y-3">
-						<KeyValue
-							label="Event"
-							value={
-								<div className="flex flex-col gap-0.5">
-									<Link
-										to="/events"
-										search={{ event: [eventName] }}
-										className="text-sm text-primary hover:underline font-medium"
-									>
-										{eventLabel}
-									</Link>
-									<span className="text-xs text-muted-foreground">
-										{eventName}
-									</span>
-								</div>
-							}
-						/>
+						<div className="flex flex-col gap-0.5">
+							<Link
+								to="/events"
+								search={{ event: [eventName] }}
+								className="text-sm text-primary hover:underline font-medium"
+							>
+								{eventLabel}
+							</Link>
+							<span className="text-xs text-muted-foreground">{eventName}</span>
+						</div>
 						<KeyValue
 							label="Occurred"
 							value={
