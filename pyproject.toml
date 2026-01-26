@@ -346,6 +346,7 @@ ignore-regex = ".*lazy=\"selectin\"|.*e import Bloc$|America/Nome"
 
 ignore-words-list = [
     "selectin",
+    "bloc",
     "aci",
     "wqs",
     "aks",
