@@ -149,6 +149,32 @@ For Redis instances that require an encrypted connection, you can enable SSL/TLS
 export PREFECT_REDIS_MESSAGING_SSL="true"
 ```
 
+#### Docket URL for background services
+
+Prefect uses [Docket](https://github.com/PrefectHQ/docket) to coordinate background services like the scheduler, late run detection, and automation triggers. By default, Docket uses in-memory storage (`memory://`), which only works for single-server deployments.
+
+For high-availability deployments, configure Docket to use Redis:
+
+```bash
+export PREFECT_SERVER_DOCKET_URL="redis://redis-host:6379/0"
+```
+
+If your Redis instance requires authentication:
+
+```bash
+export PREFECT_SERVER_DOCKET_URL="redis://username:password@redis-host:6379/0"
+```
+
+For Redis instances that require SSL/TLS:
+
+```bash
+export PREFECT_SERVER_DOCKET_URL="rediss://redis-host:6379/0"
+```
+
+<Note>
+The Docket URL can use the same Redis instance as the messaging configuration above, but you may use a different database number (e.g., `/1` instead of `/0`) to keep the data separate.
+</Note>
+
 ### Service separation
 
 For optimal performance, run API servers and background services separately:
@@ -351,6 +377,7 @@ services:
       PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
+      PREFECT_SERVER_DOCKET_URL: redis://redis:6379/1
     ports:
       - "4200-4202:4200"  # Maps to different ports for each replica
 
@@ -373,6 +400,7 @@ services:
       PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
+      PREFECT_SERVER_DOCKET_URL: redis://redis:6379/1
 
 volumes:
   postgres_data:
