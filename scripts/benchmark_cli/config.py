@@ -35,6 +35,8 @@ class TimingResult:
     min_ms: float
     max_ms: float
     runs: int
+    # Raw times for statistical analysis (Welch's t-test, percentiles, etc.)
+    times_ms: list[float] = field(default_factory=list)
 
 
 @dataclass

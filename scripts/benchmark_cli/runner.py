@@ -207,12 +207,15 @@ class BenchmarkRunner:
             result = data["results"][0]
             # Handle None values (e.g., stddev is null with only 1 run)
             stddev = result.get("stddev")
+            # Preserve raw times for statistical analysis
+            raw_times_ms = [t * 1000 for t in result["times"]]
             return TimingResult(
                 mean_ms=result["mean"] * 1000,
                 stddev_ms=stddev * 1000 if stddev is not None else 0.0,
                 min_ms=result["min"] * 1000,
                 max_ms=result["max"] * 1000,
-                runs=len(result["times"]),
+                runs=len(raw_times_ms),
+                times_ms=raw_times_ms,
             )
 
         finally:

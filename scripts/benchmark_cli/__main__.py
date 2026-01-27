@@ -2,17 +2,21 @@
 """
 CLI benchmark harness for Prefect.
 
-Measures performance of CLI commands using multiple analysis methods:
-- Wall time benchmarking via hyperfine
-- Call profiling via pyinstrument
-- Import time analysis via python -X importtime
+Three analysis modes:
+  just benchmark-cli              # hyperfine wall-time benchmarks
+  just benchmark-cli --profile    # pyinstrument call tree (where is time spent?)
+  just benchmark-cli --imports    # import time breakdown (which imports are slow?)
 
-Usage:
-    just benchmark-cli                    # quick benchmark
-    just benchmark-cli --profile          # pyinstrument call tree
-    just benchmark-cli --imports          # import time breakdown
-    just benchmark-cli --compare old.json # compare against baseline
-    just benchmark-cli --plot             # visual charts
+Comparison mode:
+  just benchmark-cli --output baseline.json   # save baseline
+  just benchmark-cli --compare baseline.json  # compare with Welch's t-test
+
+Options:
+  --runs N        Number of runs per command (default: 5)
+  --plot          Show terminal visualization
+  --json          Output raw JSON to stdout
+  --skip-memory   Skip memory profiling
+  --category X    Only benchmark category: startup, local, api, all
 """
 
 from __future__ import annotations
@@ -59,92 +63,93 @@ def parse_args() -> argparse.Namespace:
         epilog=__doc__,
     )
 
-    # Mode selection
-    mode_group = parser.add_argument_group("analysis modes")
-    mode_group.add_argument(
+    # Analysis modes (mutually exclusive)
+    mode = parser.add_argument_group("analysis mode")
+    mode.add_argument(
         "--profile",
         action="store_true",
-        help="Run pyinstrument profiling to see where time is spent",
+        help="Run pyinstrument profiling (shows call tree)",
     )
-    mode_group.add_argument(
+    mode.add_argument(
         "--imports",
         action="store_true",
-        help="Show import time breakdown (slowest modules)",
+        help="Show import time breakdown",
     )
 
     # Benchmark options
-    bench_group = parser.add_argument_group("benchmark options")
-    bench_group.add_argument(
+    bench = parser.add_argument_group("benchmark options")
+    bench.add_argument(
         "--runs",
         type=int,
         default=5,
-        help="Number of benchmark runs per command (default: 5)",
+        help="Runs per command (default: 5)",
     )
-    bench_group.add_argument(
+    bench.add_argument(
         "--category",
         choices=["startup", "local", "api", "all"],
         default="all",
-        help="Category of commands to benchmark (default: all)",
+        help="Command category (default: all)",
     )
-    bench_group.add_argument(
+    bench.add_argument(
         "--skip-memory",
         action="store_true",
         help="Skip memory profiling",
     )
-    bench_group.add_argument(
-        "--skip-cold",
-        action="store_true",
-        help="Skip cold start tests",
-    )
 
     # Output options
-    output_group = parser.add_argument_group("output options")
-    output_group.add_argument(
+    out = parser.add_argument_group("output")
+    out.add_argument(
         "--output",
+        "-o",
         type=Path,
         help="Save results to JSON file",
     )
-    output_group.add_argument(
+    out.add_argument(
         "--compare",
+        "-c",
         type=Path,
-        help="Compare against baseline JSON file",
+        help="Compare against baseline JSON (uses Welch's t-test)",
     )
-    output_group.add_argument(
+    out.add_argument(
         "--plot",
         action="store_true",
-        help="Show visual charts",
+        help="Show terminal visualization",
     )
-    output_group.add_argument(
+    out.add_argument(
         "--json",
         action="store_true",
         help="Output raw JSON to stdout",
     )
-
-    # Advanced options
-    parser.add_argument(
-        "--server-url",
-        type=str,
-        default=os.environ.get("PREFECT_API_URL"),
-        help="Prefect API URL for API commands (default: $PREFECT_API_URL)",
-    )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=10.0,
-        help="Regression threshold %% (default: 10.0)",
-    )
-    parser.add_argument(
+    out.add_argument(
         "-v",
         "--verbose",
         action="store_true",
         help="Verbose output",
     )
 
+    # Advanced
+    parser.add_argument(
+        "--server-url",
+        default=os.environ.get("PREFECT_API_URL"),
+        help="API URL for API commands (default: $PREFECT_API_URL)",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=10.0,
+        help="Regression threshold %% (default: 10)",
+    )
+
     return parser.parse_args()
 
 
-def run_profile_analysis() -> int:
-    """Run pyinstrument profiling on CLI import."""
+# =============================================================================
+# Profile mode: pyinstrument call tree
+# =============================================================================
+
+
+def run_profile() -> int:
+    """Profile CLI import with pyinstrument to see where time is spent."""
     console.print(
         "\n[bold cyan]Profiling CLI import with pyinstrument...[/bold cyan]\n"
     )
@@ -168,8 +173,13 @@ print(profiler.output_text(unicode=True, color=True, show_all=False))
     return result.returncode
 
 
-def run_import_analysis(top_n: int = 25) -> int:
-    """Run import time analysis and show slowest modules."""
+# =============================================================================
+# Import mode: python -X importtime analysis
+# =============================================================================
+
+
+def run_imports(top_n: int = 25) -> int:
+    """Analyze import times and show slowest modules."""
     console.print("\n[bold cyan]Analyzing import times...[/bold cyan]\n")
 
     result = subprocess.run(
@@ -182,12 +192,9 @@ def run_import_analysis(top_n: int = 25) -> int:
         print_error(f"Import failed: {result.stderr}")
         return 1
 
-    # Parse importtime output
-    # Format: "import time: self | cumulative | module"
-    lines = result.stderr.strip().split("\n")
+    # Parse importtime output: "import time: self | cumulative | module"
     imports = []
-
-    for line in lines:
+    for line in result.stderr.strip().split("\n"):
         match = re.match(r"import time:\s+(\d+)\s+\|\s+(\d+)\s+\|\s+(.+)", line)
         if match:
             self_time = int(match.group(1))
@@ -195,29 +202,26 @@ def run_import_analysis(top_n: int = 25) -> int:
             module = match.group(3).strip()
             imports.append((cumulative, self_time, module))
 
-    # Sort by cumulative time
     imports.sort(reverse=True)
 
-    # Print as table
+    # Print table
     from rich.table import Table
 
     table = Table(title=f"Top {top_n} Slowest Imports", show_header=True)
     table.add_column("Module", style="cyan")
     table.add_column("Cumulative (ms)", justify="right")
     table.add_column("Self (ms)", justify="right")
-    table.add_column("", width=30)  # visual bar
+    table.add_column("", width=30)
 
-    max_cumulative = imports[0][0] if imports else 1
+    max_cum = imports[0][0] if imports else 1
 
     for cumulative, self_time, module in imports[:top_n]:
-        # Visual bar
-        bar_len = int((cumulative / max_cumulative) * 30)
-        bar = "█" * bar_len
+        bar_len = int((cumulative / max_cum) * 30)
+        bar = "\u2588" * bar_len
 
-        # Color based on time
-        if cumulative > 100000:  # > 100ms
+        if cumulative > 100000:
             bar = f"[red]{bar}[/red]"
-        elif cumulative > 50000:  # > 50ms
+        elif cumulative > 50000:
             bar = f"[yellow]{bar}[/yellow]"
         else:
             bar = f"[green]{bar}[/green]"
@@ -235,24 +239,28 @@ def run_import_analysis(top_n: int = 25) -> int:
     total_ms = imports[0][0] / 1000 if imports else 0
     console.print(f"\n[bold]Total import time:[/bold] {total_ms:.0f}ms")
 
-    # Highlight prefect modules
+    # Prefect breakdown
     console.print("\n[bold]Prefect module breakdown:[/bold]")
     prefect_imports = [(c, s, m) for c, s, m in imports if "prefect" in m][:10]
-    for cumulative, self_time, module in prefect_imports:
+    for cumulative, _, module in prefect_imports:
         console.print(f"  {module}: [yellow]{cumulative / 1000:.0f}ms[/yellow]")
 
     return 0
 
 
+# =============================================================================
+# Benchmark mode: hyperfine wall-time measurement
+# =============================================================================
+
+
 def run_benchmarks(args: argparse.Namespace) -> int:
-    """Run hyperfine benchmarks."""
+    """Run hyperfine benchmarks with statistical analysis."""
     # Check hyperfine
     hyperfine_version = check_hyperfine()
     if hyperfine_version is None:
-        print_error("hyperfine is not installed")
-        console.print()
-        console.print("Install hyperfine:")
-        console.print(get_hyperfine_install_instructions())
+        print_error("hyperfine is required for benchmarks")
+        console.print(f"\nInstall: {get_hyperfine_install_instructions()}")
+        console.print("\nOr use --profile or --imports for dependency-free analysis")
         return 1
 
     # Build config
@@ -264,7 +272,7 @@ def run_benchmarks(args: argparse.Namespace) -> int:
         json_output=args.json,
         output_file=args.output,
         skip_memory=args.skip_memory,
-        skip_cold=args.skip_cold,
+        skip_cold=True,  # Focus on warm cache for consistency
         skip_warm=False,
         categories=[args.category] if args.category != "all" else None,
         server_url=args.server_url,
@@ -273,10 +281,9 @@ def run_benchmarks(args: argparse.Namespace) -> int:
     )
 
     # Get commands
-    include_api = config.server_url is not None
     commands = get_commands(
         categories=config.categories,
-        include_api=include_api,
+        include_api=config.server_url is not None,
     )
 
     if not commands:
@@ -284,13 +291,13 @@ def run_benchmarks(args: argparse.Namespace) -> int:
         return 1
 
     # Filter API commands if no server
-    api_commands = [c for c in commands if c.requires_server]
-    if api_commands and not config.server_url:
-        print_warning(f"Skipping {len(api_commands)} API commands (no --server-url)")
+    api_cmds = [c for c in commands if c.requires_server]
+    if api_cmds and not config.server_url:
+        print_warning(f"Skipping {len(api_cmds)} API commands (no --server-url)")
         commands = [c for c in commands if not c.requires_server]
 
     if not commands:
-        print_error("No commands to benchmark after filtering")
+        print_error("No commands left after filtering")
         return 1
 
     print_info(f"Benchmarking {len(commands)} commands ({config.runs} runs each)")
@@ -344,38 +351,48 @@ def run_benchmarks(args: argparse.Namespace) -> int:
 
     # Plot
     if args.plot:
-        if not output_path:
-            with tempfile.NamedTemporaryFile(
-                mode="w", suffix=".json", delete=False
-            ) as f:
-                json.dump(suite_to_dict(suite), f)
-                output_path = Path(f.name)
-
-        script_dir = Path(__file__).parent.parent
-        plot_script = script_dir / "benchmark_cli_plot.py"
-
-        if plot_script.exists():
-            plot_args = ["uv", "run", str(plot_script), str(output_path)]
-            if config.compare_baseline:
-                plot_args.extend(["--compare", str(config.compare_baseline)])
-            subprocess.run(plot_args)
+        _run_plot(suite, output_path, config.compare_baseline)
 
     # Return code
     errors = sum(1 for r in results if r.error)
     return 1 if errors > 0 else 0
 
 
+def _run_plot(
+    suite: BenchmarkSuite,
+    output_path: Path | None,
+    compare_baseline: Path | None,
+) -> None:
+    """Run the visualization script."""
+    if not output_path:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(suite_to_dict(suite), f)
+            output_path = Path(f.name)
+
+    script_dir = Path(__file__).parent.parent
+    plot_script = script_dir / "benchmark_cli_plot.py"
+
+    if plot_script.exists():
+        plot_args = ["uv", "run", str(plot_script), str(output_path)]
+        if compare_baseline:
+            plot_args.extend(["--compare", str(compare_baseline)])
+        subprocess.run(plot_args)
+
+
+# =============================================================================
+# Main entry point
+# =============================================================================
+
+
 def main() -> int:
     args = parse_args()
 
-    # Dispatch based on mode
     if args.profile:
-        return run_profile_analysis()
+        return run_profile()
 
     if args.imports:
-        return run_import_analysis()
+        return run_imports()
 
-    # Default: run benchmarks
     return run_benchmarks(args)
 
 

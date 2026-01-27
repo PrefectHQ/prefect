@@ -97,74 +97,96 @@ def print_results(suite: BenchmarkSuite) -> None:
     print_summary(suite)
 
 
+def format_diff_with_significance(
+    diff_percent: float | None,
+    p_value: float,
+    significant: bool,
+    threshold: float,
+) -> tuple[str, str]:
+    """Format a diff percentage with significance indicator.
+
+    Returns:
+        Tuple of (formatted string, style).
+    """
+    if diff_percent is None:
+        return "", ""
+
+    sign = "+" if diff_percent > 0 else ""
+    base = f"{sign}{diff_percent:.0f}%"
+
+    # Add significance indicator
+    if not significant:
+        base += " ?"  # ? means not statistically significant
+
+    # Determine style
+    if diff_percent > threshold:
+        style = "red" if significant else "yellow"
+    elif diff_percent < -threshold:
+        style = "green" if significant else "dim"
+    else:
+        style = "dim"
+
+    return base, style
+
+
 def print_comparison(
     suite: BenchmarkSuite,
     comparisons: list[ComparisonResult],
     baseline_path: str,
 ) -> None:
-    """Print comparison results as a table."""
+    """Print comparison results as a table with statistical significance."""
     print_header(suite)
     console.print(f"Comparing against: [dim]{baseline_path}[/dim]")
+    console.print(
+        "[dim]Note: '?' indicates difference is not statistically significant (p≥0.05)[/dim]"
+    )
     console.print()
 
     table = Table(show_header=True, header_style="bold")
     table.add_column("Command", style="cyan", no_wrap=True)
-    table.add_column("Category", style="dim")
-    table.add_column("Cold (ms)", justify="right")
-    table.add_column("vs baseline", justify="right")
     table.add_column("Warm (ms)", justify="right")
-    table.add_column("vs baseline", justify="right")
+    table.add_column("Δ", justify="right")
+    table.add_column("p-value", justify="right")
     table.add_column("Memory (MB)", justify="right")
-    table.add_column("Status", justify="center")
 
     for comp in comparisons:
         result = comp.current
-        status = comp.status
-        status_style = get_status_style(status)
 
-        cold = format_timing(
-            result.cold_start.mean_ms if result.cold_start else None,
-            result.cold_start.stddev_ms if result.cold_start else None,
-        )
         warm = format_timing(
             result.warm_cache.mean_ms if result.warm_cache else None,
             result.warm_cache.stddev_ms if result.warm_cache else None,
         )
         memory = format_memory(result.peak_memory_mb)
 
-        # Format diff percentages
-        cold_diff = ""
-        warm_diff = ""
-        if comp.cold_diff_percent is not None:
-            sign = "+" if comp.cold_diff_percent > 0 else ""
-            cold_diff = f"{sign}{comp.cold_diff_percent:.0f}%"
-        if comp.warm_diff_percent is not None:
-            sign = "+" if comp.warm_diff_percent > 0 else ""
-            warm_diff = f"{sign}{comp.warm_diff_percent:.0f}%"
+        # Format diff with significance
+        warm_diff, warm_style = format_diff_with_significance(
+            comp.warm_diff_percent,
+            comp.warm_p_value,
+            comp.warm_significant,
+            comp.threshold,
+        )
 
-        # Style diffs
-        cold_diff_style = ""
-        warm_diff_style = ""
-        if comp.cold_diff_percent is not None:
-            if comp.cold_diff_percent > comp.threshold:
-                cold_diff_style = "red"
-            elif comp.cold_diff_percent < -comp.threshold:
-                cold_diff_style = "green"
-        if comp.warm_diff_percent is not None:
-            if comp.warm_diff_percent > comp.threshold:
-                warm_diff_style = "red"
-            elif comp.warm_diff_percent < -comp.threshold:
-                warm_diff_style = "green"
+        # Format p-value
+        p_str = ""
+        p_style = "dim"
+        if comp.baseline is not None and comp.warm_diff_percent is not None:
+            p = comp.warm_p_value
+            if p < 0.001:
+                p_str = "<0.001"
+                p_style = "green" if comp.warm_diff_percent < 0 else "red"
+            elif p < 0.05:
+                p_str = f"{p:.3f}"
+                p_style = "green" if comp.warm_diff_percent < 0 else "yellow"
+            else:
+                p_str = f"{p:.2f}"
+                p_style = "dim"
 
         table.add_row(
             result.command,
-            result.category,
-            cold,
-            Text(cold_diff, style=cold_diff_style),
             warm,
-            Text(warm_diff, style=warm_diff_style),
+            Text(warm_diff, style=warm_style),
+            Text(p_str, style=p_style),
             memory,
-            Text(status, style=status_style),
         )
 
     console.print(table)
@@ -188,34 +210,37 @@ def print_summary(suite: BenchmarkSuite) -> None:
 
 
 def print_comparison_summary(comparisons: list[ComparisonResult]) -> None:
-    """Print comparison summary."""
+    """Print comparison summary with significance info."""
     total = len(comparisons)
+    # Significant regressions (exceed threshold AND p < 0.05)
     regressions = sum(1 for c in comparisons if c.is_regression)
+    # Significant improvements
     improvements = sum(
         1
         for c in comparisons
         if not c.is_regression
-        and (
-            (c.cold_diff_percent is not None and c.cold_diff_percent < -c.threshold)
-            or (c.warm_diff_percent is not None and c.warm_diff_percent < -c.threshold)
-        )
+        and c.warm_significant
+        and c.warm_diff_percent is not None
+        and c.warm_diff_percent < -c.threshold
     )
     new = sum(1 for c in comparisons if c.baseline is None)
     errors = sum(1 for c in comparisons if c.current.error)
 
     console.print()
-    console.print("[bold]Summary:[/bold]")
+    console.print("[bold]Summary:[/bold] (using Welch's t-test, α=0.05)")
 
     if regressions > 0:
-        console.print(f"  [red]Regressions: {regressions}[/red]")
+        console.print(f"  [red]Significant regressions: {regressions}[/red]")
     if improvements > 0:
-        console.print(f"  [green]Improvements: {improvements}[/green]")
+        console.print(f"  [green]Significant improvements: {improvements}[/green]")
     if new > 0:
         console.print(f"  [blue]New commands: {new}[/blue]")
     if errors > 0:
         console.print(f"  [red]Errors: {errors}[/red]")
     if regressions == 0 and errors == 0:
-        console.print(f"  [green]All {total} commands within threshold[/green]")
+        console.print(
+            f"  [green]No significant regressions in {total} commands[/green]"
+        )
 
 
 def print_error(message: str) -> None:
