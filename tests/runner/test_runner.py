@@ -4177,3 +4177,59 @@ class TestRunnerAsyncDispatch:
         assert isinstance(result, Coroutine)
         with pytest.raises(RuntimeError, match="not yet started"):
             await result
+
+
+class TestRunnerConcurrentEntry:
+    """Tests for concurrent __aenter__ race condition fix.
+
+    See: https://github.com/PrefectHQ/prefect/issues/20117
+    """
+
+    async def test_concurrent_aenter_does_not_raise_cancel_scope_error(self):
+        """Multiple concurrent __aenter__ calls should not raise CancelScope error.
+
+        This test verifies the fix for the race condition where multiple tasks
+        calling __aenter__ concurrently could fail with:
+        RuntimeError("Each CancelScope may only be used for a single 'with' block")
+        """
+        runner = Runner(name="test-concurrent-aenter")
+        errors: list[Exception] = []
+        entered_count = 0
+
+        async def enter_runner():
+            nonlocal entered_count
+            try:
+                result = await runner.__aenter__()
+                entered_count += 1
+                return result
+            except Exception as e:
+                errors.append(e)
+                raise
+
+        # Enter from main task first so it owns the CancelScope for cleanup.
+        # Then spawn concurrent tasks that will also try to enter.
+        await runner.__aenter__()
+
+        try:
+            # Simulate additional concurrent entry attempts (like ProcessWorker does)
+            tasks = [enter_runner() for _ in range(5)]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Check for CancelScope errors specifically
+            cancel_scope_errors = [
+                e
+                for e in results
+                if isinstance(e, RuntimeError) and "CancelScope" in str(e)
+            ]
+            assert not cancel_scope_errors, (
+                f"CancelScope race condition detected: {cancel_scope_errors}"
+            )
+
+            # All calls should succeed and return the same runner instance
+            successful_results = [r for r in results if r is runner]
+            assert len(successful_results) == 5, (
+                f"Expected 5 successful entries, got {len(successful_results)}"
+            )
+        finally:
+            # Clean up - main task owns the CancelScope so this is safe
+            await runner.__aexit__(None, None, None)
