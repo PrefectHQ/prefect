@@ -59,7 +59,14 @@ async def database_engine(db: PrefectDBInterface):
     ENGINES.clear()
 
     for engine in engines:
-        await engine.dispose()
+        try:
+            await engine.dispose()
+        except RuntimeError as e:
+            # On Python 3.8/3.9, the event loop may be closed before we can
+            # dispose engines. This is safe to ignore since the connections
+            # will be cleaned up when the process exits.
+            if "Event loop is closed" not in str(e):
+                raise
 
     # Now confirm that after disposing all engines, all connections are closed
     #
