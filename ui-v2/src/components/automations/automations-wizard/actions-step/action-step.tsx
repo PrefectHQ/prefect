@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Typography } from "@/components/ui/typography";
 import { ActionTypeSelect } from "./action-type-select";
+import { CallWebhookFields } from "./call-webhook-fields";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
 import { FlowRunActionDescription } from "./flow-run-action-description";
 import { SelectAutomationsFields } from "./select-automations-fields";
@@ -73,6 +74,8 @@ const ActionTypeAdditionalFields = ({
 			return <SelectAutomationsFields action="Resume" index={index} />;
 		case "send-notification":
 			return <SendNotificationFields index={index} />;
+		case "call-webhook":
+			return <CallWebhookFields index={index} />;
 		case "cancel-flow-run":
 			return <FlowRunActionDescription action="Cancel" />;
 		case "suspend-flow-run":

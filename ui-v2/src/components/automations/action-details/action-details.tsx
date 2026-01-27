@@ -34,7 +34,7 @@ const ACTION_TYPE_TO_STRING = {
 	"resume-work-pool": "Resume work pool",
 	"pause-automation": "Pause automation",
 	"resume-automation": "Resume automation",
-	"call-webhook": "Call a custom webhook notification",
+	"call-webhook": "Call webhook using",
 	/** Default string if `block_type_name` is not found. */
 	"send-notification": "Send a notification using",
 	"do-nothing": "Do nothing",
@@ -86,8 +86,7 @@ const ActionDetailsType = ({
 		case "cancel-flow-run":
 		case "suspend-flow-run":
 		case "resume-flow-run":
-		case "call-webhook": // Not used
-		case "do-nothing": // not used
+		case "do-nothing":
 			return <NoninferredAction label={label} />;
 		// Inferable actions
 		case "run-deployment":
@@ -161,6 +160,15 @@ const ActionDetailsType = ({
 					label={label}
 					blockDocument={blockDocument}
 				/>
+			);
+		}
+		case "call-webhook": {
+			const blockDocument = blockDocumentsMap.get(action.block_document_id);
+			if (!blockDocument) {
+				return <Typography>Block document not found</Typography>;
+			}
+			return (
+				<CallWebhookActionDetails label={label} blockDocument={blockDocument} />
 			);
 		}
 		case "change-flow-run-state":
@@ -324,6 +332,32 @@ export const BlockDocumentActionDetails = ({
 	return (
 		<ActionResource>
 			<label htmlFor={`${label}-${blockDocument.id}`}>{_label}</label>
+			<Link
+				to="/blocks/block/$id"
+				params={{ id: blockDocument.id }}
+				aria-label={blockDocument.name}
+			>
+				<ActionResourceName iconId="Box" name={blockDocument.name} />
+			</Link>
+		</ActionResource>
+	);
+};
+
+type CallWebhookActionDetailsProps = {
+	label: ActionLabel;
+	blockDocument: BlockDocument;
+};
+export const CallWebhookActionDetails = ({
+	label,
+	blockDocument,
+}: CallWebhookActionDetailsProps) => {
+	if (!blockDocument.name) {
+		return <Typography>Block not found</Typography>;
+	}
+
+	return (
+		<ActionResource>
+			<label htmlFor={`${label}-${blockDocument.id}`}>{label}</label>
 			<Link
 				to="/blocks/block/$id"
 				params={{ id: blockDocument.id }}
