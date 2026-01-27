@@ -117,6 +117,17 @@ async def hosted_api_server(unused_tcp_port_factory):
 
         except ProcessLookupError:
             pass
+        except RuntimeError as e:
+            # On Python 3.8/3.9, the event loop may be closed before we can
+            # properly shut down the server. In this case, forcefully kill
+            # the process to avoid leaving orphan processes.
+            if "Event loop is closed" in str(e):
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+            else:
+                raise
 
 
 @pytest.fixture
@@ -206,6 +217,17 @@ async def hosted_api_server_with_cors(unused_tcp_port_factory):
 
         except ProcessLookupError:
             pass
+        except RuntimeError as e:
+            # On Python 3.8/3.9, the event loop may be closed before we can
+            # properly shut down the server. In this case, forcefully kill
+            # the process to avoid leaving orphan processes.
+            if "Event loop is closed" in str(e):
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+            else:
+                raise
 
 
 @pytest.fixture
