@@ -211,7 +211,9 @@ def task_run_logger(
         extra={
             **{
                 "task_run_id": str(task_run.id),
-                "flow_run_id": str(task_run.flow_run_id) if task_run.flow_run_id is not None else None,
+                "flow_run_id": str(task_run.flow_run_id)
+                if task_run.flow_run_id is not None
+                else None,
                 "task_run_name": task_run.name,
                 "task_name": task.name if task else "<unknown>",
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
