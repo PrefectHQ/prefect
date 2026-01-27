@@ -79,7 +79,14 @@ async def database_engine(db: PrefectDBInterface):
         else:
             continue
 
-        await driver_connection.close()
+        try:
+            await driver_connection.close()
+        except RuntimeError as e:
+            # On Python 3.8/3.9, the event loop may be closed before we can
+            # close connections. This is safe to ignore since the connections
+            # will be cleaned up when the process exits.
+            if "Event loop is closed" not in str(e):
+                raise
 
     # Finally, free up all references to connections and clean up proactively so that
     # we don't have any lingering connections after this.  This should prevent
