@@ -138,6 +138,9 @@ from prefect.types._datetime import now
 if TYPE_CHECKING:
     from prefect.tasks import Task as TaskObject
 
+from contextvars import ContextVar
+from contextlib import contextmanager
+
 from prefect.client.base import (
     ASGIApp,
     PrefectHttpxAsyncClient,
@@ -152,6 +155,48 @@ T = TypeVar("T")
 
 # Cache for TypeAdapter instances to avoid repeated instantiation
 _TYPE_ADAPTER_CACHE: dict[type, pydantic.TypeAdapter[Any]] = {}
+
+# ContextVar for in-process ASGI app (used by prefect_test_harness with in_process=True)
+# When set, get_client() will use this app with ASGI transport instead of HTTP connections.
+# This bypasses httpcore connection pooling, which helps avoid issues with HTTP mocking
+# libraries like VCR that interfere with connection management.
+_in_process_asgi_app: ContextVar[Optional[ASGIApp]] = ContextVar(
+    "_in_process_asgi_app", default=None
+)
+
+
+@contextmanager
+def enable_in_process_client(app: ASGIApp):
+    """
+    Context manager that configures clients to use an in-process ASGI app.
+
+    When active, get_client() will use ASGI transport instead of HTTP connections.
+    This is useful for testing scenarios where HTTP mocking libraries (like VCR)
+    interfere with connection pooling.
+
+    Note: This mode does not support WebSockets, so features that rely on
+    WebSockets (like events) will not work.
+
+    Args:
+        app: The ASGI application to use for handling requests.
+
+    Example:
+        ```python
+        from prefect.server.api.server import create_app
+        from prefect.client.orchestration import enable_in_process_client
+
+        app = create_app()
+        with enable_in_process_client(app):
+            # Clients created here will use ASGI transport
+            with get_client() as client:
+                client.hello()
+        ```
+    """
+    token = _in_process_asgi_app.set(app)
+    try:
+        yield
+    finally:
+        _in_process_asgi_app.reset(token)
 
 
 def _get_type_adapter(type_: type) -> pydantic.TypeAdapter[Any]:
@@ -231,8 +276,14 @@ def get_client(
             ):
                 return client_ctx.client
 
-    api: str = PREFECT_API_URL.value()
-    server_type = None
+    # Check for in-process ASGI app first (set by enable_in_process_client)
+    in_process_app = _in_process_asgi_app.get()
+    if in_process_app is not None:
+        api: Union[str, ASGIApp] = in_process_app
+        server_type: Optional[ServerType] = ServerType.EPHEMERAL
+    else:
+        api = PREFECT_API_URL.value()
+        server_type = None
 
     if not api and PREFECT_SERVER_ALLOW_EPHEMERAL_MODE:
         # create an ephemeral API if none was provided
