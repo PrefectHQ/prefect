@@ -148,7 +148,10 @@ async def read_work_queue(
         db.WorkQueue: the WorkQueue
     """
 
-    return await session.get(db.WorkQueue, work_queue_id)
+    result = await session.get(db.WorkQueue, work_queue_id)
+    if result is not None:
+        await session.refresh(result)
+    return result
 
 
 @db_injector
