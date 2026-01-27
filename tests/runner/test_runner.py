@@ -3826,6 +3826,198 @@ class TestDockerImage:
         assert image.name == "my-org/test-image"
 
 
+class TestCancellationObserverFailureHandling:
+    """Tests for the _handle_cancellation_observer_failure method."""
+
+    @pytest.fixture
+    def runner(self):
+        return Runner(name="test-runner")
+
+    @pytest.fixture
+    def mock_flow_run(self):
+        """Create a mock flow run for testing."""
+        flow_run = MagicMock(spec=FlowRun)
+        flow_run.id = uuid.uuid4()
+        flow_run.name = "test-flow-run"
+        return flow_run
+
+    async def test_logs_warning_to_flow_run_logger_when_crash_on_cancellation_failure_disabled(
+        self, runner, mock_flow_run
+    ):
+        """When crash_on_cancellation_failure is False (default), should log warning to flow run logger but not raise."""
+        # Add the flow run to the process map
+        runner._flow_run_process_map[mock_flow_run.id] = {
+            "flow_run": mock_flow_run,
+            "pid": 12345,
+        }
+
+        mock_logger = MagicMock()
+        # Should not raise when setting is disabled (default)
+        with patch.object(
+            runner, "_kill_process", new_callable=AsyncMock
+        ) as mock_kill_process:
+            with patch.object(
+                runner, "_get_flow_run_logger", return_value=mock_logger
+            ) as mock_get_logger:
+                await runner._handle_cancellation_observer_failure()
+
+                # Flow run logger should have been retrieved and warning logged
+                mock_get_logger.assert_called_once_with(mock_flow_run)
+                mock_logger.warning.assert_called_once()
+                assert (
+                    "Cancellation observing failed"
+                    in mock_logger.warning.call_args[0][0]
+                )
+
+                # Flow run process should NOT have been killed
+                mock_kill_process.assert_not_called()
+
+    async def test_logs_warning_to_each_flow_run_logger_when_disabled(self, runner):
+        """When disabled, should log warning to each flow run's logger."""
+        # Create multiple mock flow runs
+        for i in range(3):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.id = uuid.uuid4()
+            flow_run.name = f"test-flow-run-{i}"
+            runner._flow_run_process_map[flow_run.id] = {
+                "flow_run": flow_run,
+                "pid": 12345,
+            }
+
+        mock_logger = MagicMock()
+        with patch.object(
+            runner, "_get_flow_run_logger", return_value=mock_logger
+        ) as mock_get_logger:
+            await runner._handle_cancellation_observer_failure()
+
+            # Logger should have been retrieved for each flow run
+            assert mock_get_logger.call_count == 3
+            # Warning should have been logged for each flow run
+            assert mock_logger.warning.call_count == 3
+
+    async def test_kills_flow_run_processes_when_crash_on_cancellation_failure_enabled(
+        self, runner, mock_flow_run
+    ):
+        """When crash_on_cancellation_failure is True, should kill flow run processes."""
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        # Add the flow run to the process map
+        runner._flow_run_process_map[mock_flow_run.id] = {
+            "flow_run": mock_flow_run,
+            "pid": 12345,
+        }
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(
+                runner, "_kill_process", new_callable=AsyncMock
+            ) as mock_kill_process:
+                await runner._handle_cancellation_observer_failure()
+
+                # Flow run process should have been killed
+                mock_kill_process.assert_called_once_with(12345)
+
+    async def test_kills_multiple_flow_run_processes_when_enabled(self, runner):
+        """When enabled, should kill all in-flight flow run processes."""
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        # Create multiple mock flow runs with different PIDs
+        pids = [12345, 12346, 12347]
+        for i in range(3):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.id = uuid.uuid4()
+            flow_run.name = f"test-flow-run-{flow_run.id}"
+            runner._flow_run_process_map[flow_run.id] = {
+                "flow_run": flow_run,
+                "pid": pids[i],
+            }
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(
+                runner, "_kill_process", new_callable=AsyncMock
+            ) as mock_kill_process:
+                await runner._handle_cancellation_observer_failure()
+
+                # All flow run processes should have been killed
+                assert mock_kill_process.call_count == 3
+
+    async def test_does_nothing_when_process_map_is_empty(self, runner):
+        """Should do nothing when there are no flow runs in the process map."""
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        # Process map is empty
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(
+                runner, "_kill_process", new_callable=AsyncMock
+            ) as mock_kill_process:
+                await runner._handle_cancellation_observer_failure()
+
+                # Should not have tried to kill any process since map is empty
+                mock_kill_process.assert_not_called()
+
+    async def test_continues_killing_processes_after_exception(self, runner):
+        """Should continue killing other processes even if one fails."""
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        # Create multiple mock flow runs with different PIDs
+        pids = [12345, 12346, 12347]
+        for i in range(3):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.id = uuid.uuid4()
+            flow_run.name = f"test-flow-run-{flow_run.id}"
+            runner._flow_run_process_map[flow_run.id] = {
+                "flow_run": flow_run,
+                "pid": pids[i],
+            }
+
+        # Make _kill_process fail on first call, succeed on others
+        call_count = 0
+
+        async def mock_kill(pid):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("Process not found")
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(runner, "_kill_process", side_effect=mock_kill):
+                await runner._handle_cancellation_observer_failure()
+
+                # All 3 processes should have been attempted to be killed
+                assert call_count == 3
+
+    async def test_sets_stopping_flag_when_crash_enabled(self, runner, mock_flow_run):
+        """Should set stopping=True when crash_on_cancellation_failure is enabled."""
+        from prefect.settings import PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE
+
+        runner._flow_run_process_map[mock_flow_run.id] = {
+            "flow_run": mock_flow_run,
+            "pid": 12345,
+        }
+
+        assert runner.stopping is False
+
+        with temporary_settings({PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE: True}):
+            with patch.object(runner, "_kill_process", new_callable=AsyncMock):
+                await runner._handle_cancellation_observer_failure()
+
+        assert runner.stopping is True
+
+    async def test_does_not_set_stopping_flag_when_crash_disabled(
+        self, runner, mock_flow_run
+    ):
+        """Should not set stopping flag when crash_on_cancellation_failure is disabled."""
+        runner._flow_run_process_map[mock_flow_run.id] = {
+            "flow_run": mock_flow_run,
+            "pid": 12345,
+        }
+
+        assert runner.stopping is False
+
+        await runner._handle_cancellation_observer_failure()
+
+        assert runner.stopping is False
+
+
 class TestAsyncDispatch:
     """Tests for async_dispatch behavior of RunnerDeployment.apply and deploy."""
 
@@ -3904,3 +4096,84 @@ class TestAsyncDispatch:
 
         result = sync_prefect_client.read_deployment(deployment_ids[0])
         assert result.name == "test_runner"
+
+
+class TestRunnerAsyncDispatch:
+    """Tests for Runner methods migrated from @sync_compatible to @async_dispatch.
+
+    These tests verify the critical behavior from issue #15008 where
+    @sync_compatible would incorrectly return coroutines in sync context
+    (see issues #14712 and #14625).
+    """
+
+    def test_add_flow_in_sync_context(self, sync_prefect_client: SyncPrefectClient):
+        """add_flow must return UUID (not coroutine) in sync context.
+
+        This is the critical regression test for issues #14712 and #14625.
+        """
+        runner = Runner(name="test-sync-add-flow")
+
+        result = runner.add_flow(dummy_flow_1)
+
+        assert not isinstance(result, Coroutine), "sync context returned coroutine"
+        assert isinstance(result, uuid.UUID)
+
+        deployment = sync_prefect_client.read_deployment(result)
+        assert deployment.name == "test-sync-add-flow"
+
+    async def test_add_flow_in_async_context(self, prefect_client: PrefectClient):
+        """add_flow should dispatch to async and return coroutine in async context."""
+        runner = Runner(name="test-async-add-flow")
+
+        result = runner.add_flow(dummy_flow_1)
+
+        assert isinstance(result, Coroutine)
+        deployment_id = await result
+
+        deployment = await prefect_client.read_deployment(deployment_id)
+        assert deployment.name == "test-async-add-flow"
+
+    def test_add_deployment_in_sync_context(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """add_deployment must return UUID (not coroutine) in sync context."""
+        runner = Runner(name="test-sync-add-deployment")
+        deployment = dummy_flow_1.to_deployment(name="sync-deployment-test", _sync=True)
+
+        result = runner.add_deployment(deployment)
+
+        assert not isinstance(result, Coroutine), "sync context returned coroutine"
+        assert isinstance(result, uuid.UUID)
+
+        fetched = sync_prefect_client.read_deployment(result)
+        assert fetched.name == "sync-deployment-test"
+
+    async def test_add_deployment_in_async_context(self, prefect_client: PrefectClient):
+        """add_deployment should dispatch to async in async context."""
+        runner = Runner(name="test-async-add-deployment")
+        deployment = await dummy_flow_1.ato_deployment(name="async-deployment-test")
+
+        result = runner.add_deployment(deployment)
+
+        assert isinstance(result, Coroutine)
+        deployment_id = await result
+
+        fetched = await prefect_client.read_deployment(deployment_id)
+        assert fetched.name == "async-deployment-test"
+
+    def test_stop_not_started_raises_error(self):
+        """stop raises RuntimeError when runner not started."""
+        runner = Runner(name="test-stop-not-started")
+
+        with pytest.raises(RuntimeError, match="not yet started"):
+            runner.stop()
+
+    async def test_stop_dispatches_to_async_in_async_context(self):
+        """stop should dispatch to astop in async context."""
+        runner = Runner(name="test-stop-dispatch")
+
+        result = runner.stop()
+
+        assert isinstance(result, Coroutine)
+        with pytest.raises(RuntimeError, match="not yet started"):
+            await result

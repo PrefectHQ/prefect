@@ -20,6 +20,7 @@ import { LazyJsonInput } from "@/components/ui/json-input-lazy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TabErrorState } from "@/components/ui/tab-error-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useStateFavicon } from "@/hooks/use-state-favicon";
 import { FlowRunArtifacts } from "./flow-run-artifacts";
 import { FlowRunDetails } from "./flow-run-details";
 import { FlowRunHeader } from "./flow-run-header";
@@ -57,6 +58,9 @@ export const FlowRunDetailsPage = ({
 	const { deleteFlowRun } = useDeleteFlowRun();
 	const { navigate } = useRouter();
 	const isPending = flowRun.state_type === "PENDING";
+
+	// Set favicon based on flow run state
+	useStateFavicon(flowRun?.state_type);
 
 	useEffect(() => {
 		if (flowRun.state_type === "RUNNING" || flowRun.state_type === "PENDING") {
@@ -111,7 +115,7 @@ export const FlowRunDetailsPage = ({
 				<FlowRunHeader flowRun={flowRun} onDeleteClick={onDeleteRunClicked} />
 			</div>
 			{!isPending && (
-				<Card>
+				<Card className="py-0">
 					<CardContent className="p-0">
 						<FlowRunGraph
 							flowRunId={flowRun.id}
@@ -122,7 +126,7 @@ export const FlowRunDetailsPage = ({
 					</CardContent>
 				</Card>
 			)}
-			<div className="grid lg:grid-cols-[1fr_250px] grid-cols-[1fr] gap-4">
+			<div className="flex flex-col gap-4">
 				<TabsLayout
 					currentTab={tab}
 					onTabChange={onTabChange}
@@ -228,7 +232,6 @@ export const FlowRunDetailsPage = ({
 							<LazyJsonInput
 								value={JSON.stringify(flowRun.parameters ?? {}, null, 2)}
 								disabled
-								className="min-h-[200px]"
 							/>
 						</div>
 					}
@@ -252,14 +255,10 @@ export const FlowRunDetailsPage = ({
 							<LazyJsonInput
 								value={JSON.stringify(flowRun.job_variables ?? {}, null, 2)}
 								disabled
-								className="min-h-[200px]"
 							/>
 						</div>
 					}
 				/>
-				<div className="hidden lg:block">
-					<FlowRunDetails flowRun={flowRun} />
-				</div>
 			</div>
 		</div>
 	);
@@ -288,29 +287,13 @@ const TabsLayout = ({
 	parametersContent: React.ReactNode;
 	jobVariablesContent: React.ReactNode;
 }) => {
-	useEffect(() => {
-		const bp = getComputedStyle(document.documentElement)
-			.getPropertyValue("--breakpoint-lg")
-			.trim();
-		const mql = window.matchMedia(`(max-width: ${bp})`);
-		const onChange = () => {
-			if (currentTab === "Details") {
-				onTabChange("Logs");
-			}
-		};
-		mql.addEventListener("change", onChange);
-		return () => mql.removeEventListener("change", onChange);
-	}, [currentTab, onTabChange]);
-
 	return (
 		<Tabs
 			value={currentTab}
 			onValueChange={(value) => onTabChange(value as FlowRunDetailsTabOptions)}
 		>
 			<TabsList>
-				<TabsTrigger value="Details" className="lg:hidden">
-					Details
-				</TabsTrigger>
+				<TabsTrigger value="Details">Details</TabsTrigger>
 				<TabsTrigger value="Logs">Logs</TabsTrigger>
 				{flowRun.state_type !== "PENDING" && (
 					<TabsTrigger value="TaskRuns">Task Runs</TabsTrigger>
