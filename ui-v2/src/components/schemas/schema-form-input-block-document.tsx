@@ -95,6 +95,14 @@ function SchemaFormInputBlockDocumentContent({
 	return (
 		<div id={id} className="flex items-center gap-2">
 			<BlockTypeLogo logoUrl={blockType.logo_url} alt={blockType.name} />
+			<Button
+				type="button"
+				variant="outline"
+				onClick={() => setCreateDialogOpen(true)}
+			>
+				<Icon id="Plus" className="mr-2 size-4" />
+				Add
+			</Button>
 			{hasBlockDocuments && (
 				<div className="flex-1">
 					<BlockDocumentCombobox
@@ -105,14 +113,6 @@ function SchemaFormInputBlockDocumentContent({
 					/>
 				</div>
 			)}
-			<Button
-				type="button"
-				variant="outline"
-				onClick={() => setCreateDialogOpen(true)}
-			>
-				<Icon id="Plus" className="mr-2 size-4" />
-				Add
-			</Button>
 			<BlockDocumentCreateDialog
 				open={createDialogOpen}
 				onOpenChange={setCreateDialogOpen}
