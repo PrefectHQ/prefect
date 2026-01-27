@@ -626,6 +626,8 @@ async def update_work_queue(
     if updated:
         if "priority" in update_values or "status" in update_values:
             updated_work_queue = await session.get(db.WorkQueue, work_queue_id)
+            if updated_work_queue is not None:
+                await session.refresh(updated_work_queue)
 
             if "priority" in update_values:
                 await bulk_update_work_queue_priorities(

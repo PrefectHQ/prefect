@@ -64,7 +64,7 @@ jobs:
 
       fail-fast: false
 
-    timeout-minutes: 45
+    timeout-minutes: ${{ matrix.database == 'sqlite' && 15 || 45 }}
 
     steps:
       - name: Display current test matrix
@@ -291,7 +291,7 @@ jobs:
 
       fail-fast: false
 
-    timeout-minutes: 45
+    timeout-minutes: ${{ matrix.database == 'sqlite' && 15 || 45 }}
 
     steps:
       - name: Display current test matrix
