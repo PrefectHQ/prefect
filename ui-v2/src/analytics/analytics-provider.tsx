@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { buildGetSettingsQuery, buildGetVersionQuery } from "@/api/admin";
 import { initAmplitude, trackWebAppLoaded } from "./index";
@@ -19,14 +19,11 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
 		}
 	}, [amplitudeInitialized]);
 
-	const { data: settings } = useQuery({
-		...buildGetSettingsQuery(),
-		enabled: amplitudeInitialized,
-	});
-
-	const { data: version } = useQuery({
-		...buildGetVersionQuery(),
-		enabled: amplitudeInitialized,
+	const [{ data: settings }, { data: version }] = useQueries({
+		queries: [
+			{ ...buildGetSettingsQuery(), enabled: amplitudeInitialized },
+			{ ...buildGetVersionQuery(), enabled: amplitudeInitialized },
+		],
 	});
 
 	useEffect(() => {
