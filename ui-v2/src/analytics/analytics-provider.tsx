@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { buildGetSettingsQuery } from "@/api/admin";
 import { initAmplitude, trackV2UIUsed } from "./index";
 
@@ -10,22 +10,22 @@ type ServerSettings = {
 };
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
-	const amplitudeInitialized = useRef(false);
+	const [amplitudeInitialized, setAmplitudeInitialized] = useState(false);
 	const trackingAttempted = useRef(false);
 
 	useEffect(() => {
-		if (!amplitudeInitialized.current) {
-			amplitudeInitialized.current = initAmplitude();
+		if (!amplitudeInitialized) {
+			setAmplitudeInitialized(initAmplitude());
 		}
-	}, []);
+	}, [amplitudeInitialized]);
 
 	const { data: settings } = useQuery({
 		...buildGetSettingsQuery(),
-		enabled: amplitudeInitialized.current,
+		enabled: amplitudeInitialized,
 	});
 
 	useEffect(() => {
-		if (!amplitudeInitialized.current || trackingAttempted.current) {
+		if (!amplitudeInitialized || trackingAttempted.current) {
 			return;
 		}
 
@@ -35,7 +35,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
 			const analyticsEnabled = serverSettings.server?.analytics_enabled ?? true;
 			trackV2UIUsed(analyticsEnabled);
 		}
-	}, [settings]);
+	}, [amplitudeInitialized, settings]);
 
 	return <>{children}</>;
 }
