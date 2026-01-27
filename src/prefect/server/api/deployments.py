@@ -8,7 +8,7 @@ from uuid import UUID
 
 import jsonschema.exceptions
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, Response
+from fastapi import Body, Depends, HTTPException, Path, Request, Response
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
@@ -21,10 +21,14 @@ from prefect.server.api.validation import (
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
-from prefect.server.models.deployments import mark_deployments_ready
+from prefect.server.models.deployments import (
+    acquire_slots_for_running_flows,
+    mark_deployments_ready,
+)
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas.responses import DeploymentPaginationResponse
 from prefect.server.utilities.server import PrefectRouter
+from prefect.settings import get_current_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now
 from prefect.utilities.schema_tools.hydration import (
@@ -203,6 +207,7 @@ async def create_deployment(
 
 @router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_deployment(
+    request: Request,
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
@@ -336,6 +341,19 @@ async def update_deployment(
                     detail="Concurrency limit not found",
                 )
 
+        # IMPLEMENTATION FOR ISSUE 19404
+        # Capture previous limit value BEFORE update_deployment modifies it
+        update_dict = deployment.model_dump(exclude_unset=True)
+        concurrency_limit_was_provided = "concurrency_limit" in update_dict
+
+        previous_limit_value = None
+        if concurrency_limit_was_provided:
+            # Get the previous limit value BEFORE update_deployment modifies it
+            if existing_deployment.global_concurrency_limit:
+                previous_limit_value = (
+                    existing_deployment.global_concurrency_limit.limit
+                )
+
         result = await models.deployments.update_deployment(
             session=session,
             deployment_id=deployment_id,
@@ -363,6 +381,66 @@ async def update_deployment(
                     for schedule in schedules_to_create
                 ],
             )
+
+        # Continue with retroactive lease acquisition (Issue #19404)
+        if concurrency_limit_was_provided:
+            new_limit_value = deployment.concurrency_limit
+            limitation_added = (
+                previous_limit_value is None and new_limit_value is not None
+            )
+            limitation_decreased = (
+                previous_limit_value is not None
+                and new_limit_value is not None
+                and previous_limit_value > new_limit_value
+            )
+
+            # Only care about cases where we need to retroactively apply limits
+            if limitation_added or limitation_decreased:
+                # Flush session to ensure concurrency_limit_id is set after update_deployment
+                await session.flush()
+
+                # Refresh deployment to get updated concurrency_limit_id
+                await session.refresh(existing_deployment)
+                updated_deployment = existing_deployment
+
+                # Get concurrency_limit_id
+                concurrency_limit_id = None
+                if updated_deployment:
+                    if updated_deployment.concurrency_limit_id:
+                        concurrency_limit_id = updated_deployment.concurrency_limit_id
+                    elif updated_deployment.global_concurrency_limit:
+                        concurrency_limit_id = (
+                            updated_deployment.global_concurrency_limit.id
+                        )
+
+                if updated_deployment and concurrency_limit_id:
+                    # Get grace period from deployment options or settings
+                    concurrency_options = updated_deployment.concurrency_options
+                    grace_period = None
+                    if concurrency_options is not None:
+                        if isinstance(concurrency_options, dict):
+                            concurrency_options = (
+                                schemas.core.ConcurrencyOptions.model_validate(
+                                    concurrency_options
+                                )
+                            )
+                        grace_period = concurrency_options.grace_period_seconds
+
+                    if grace_period is None:
+                        settings = get_current_settings()
+                        grace_period = settings.server.concurrency.initial_deployment_lease_duration
+
+                    # Schedule background task to acquire slots for running flows
+                    docket = getattr(request.app.state, "docket", None)
+                    if docket:
+                        await docket.add(acquire_slots_for_running_flows)(
+                            deployment_id=deployment_id,
+                            concurrency_limit_id=concurrency_limit_id,
+                            new_limit=new_limit_value,
+                            grace_period_seconds=grace_period,
+                            limitation_decreased=limitation_decreased,
+                        )
+
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found.")
 
