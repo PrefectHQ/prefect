@@ -64,8 +64,9 @@ async def create_events(
 @router.websocket("/in")
 async def stream_events_in(websocket: WebSocket) -> None:
     """Open a WebSocket to stream incoming Events"""
-
-    await websocket.accept()
+    websocket = await subscriptions.accept_prefect_socket(websocket)
+    if not websocket:
+        return
 
     try:
         async with messaging.create_event_publisher() as publisher:
