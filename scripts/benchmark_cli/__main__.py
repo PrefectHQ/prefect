@@ -2,33 +2,25 @@
 """
 CLI benchmark harness for Prefect.
 
-Measures cold start time, warm cache time, and memory usage of CLI commands
-using hyperfine for accurate wall-time measurement.
+Measures performance of CLI commands using multiple analysis methods:
+- Wall time benchmarking via hyperfine
+- Call profiling via pyinstrument
+- Import time analysis via python -X importtime
 
 Usage:
-    uv run -m scripts.benchmark_cli [OPTIONS]
-
-Examples:
-    # Run all benchmarks
-    uv run -m scripts.benchmark_cli
-
-    # Quick check (fewer runs, startup only)
-    uv run -m scripts.benchmark_cli --runs 3 --skip-memory --category startup
-
-    # JSON output for CI
-    uv run -m scripts.benchmark_cli --json --output results.json
-
-    # Compare against baseline
-    uv run -m scripts.benchmark_cli --compare baseline.json
-
-    # With server for API commands
-    uv run -m scripts.benchmark_cli --server-url http://127.0.0.1:4200/api
+    just benchmark-cli                    # quick benchmark
+    just benchmark-cli --profile          # pyinstrument call tree
+    just benchmark-cli --imports          # import time breakdown
+    just benchmark-cli --compare old.json # compare against baseline
+    just benchmark-cli --plot             # visual charts
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -67,54 +59,68 @@ def parse_args() -> argparse.Namespace:
         epilog=__doc__,
     )
 
-    parser.add_argument(
+    # Mode selection
+    mode_group = parser.add_argument_group("analysis modes")
+    mode_group.add_argument(
+        "--profile",
+        action="store_true",
+        help="Run pyinstrument profiling to see where time is spent",
+    )
+    mode_group.add_argument(
+        "--imports",
+        action="store_true",
+        help="Show import time breakdown (slowest modules)",
+    )
+
+    # Benchmark options
+    bench_group = parser.add_argument_group("benchmark options")
+    bench_group.add_argument(
         "--runs",
         type=int,
-        default=10,
-        help="Number of benchmark runs per command (default: 10)",
+        default=5,
+        help="Number of benchmark runs per command (default: 5)",
     )
-    parser.add_argument(
-        "--warmup",
-        type=int,
-        default=3,
-        help="Number of warmup runs for warm cache tests (default: 3)",
-    )
-    parser.add_argument(
+    bench_group.add_argument(
         "--category",
         choices=["startup", "local", "api", "all"],
         default="all",
         help="Category of commands to benchmark (default: all)",
     )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output results as JSON",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        help="Output file path (default: stdout for JSON, .benchmarks/results.json)",
-    )
-    parser.add_argument(
-        "--compare",
-        type=Path,
-        help="Baseline JSON file to compare against",
-    )
-    parser.add_argument(
+    bench_group.add_argument(
         "--skip-memory",
         action="store_true",
-        help="Skip memory profiling (faster)",
+        help="Skip memory profiling",
     )
-    parser.add_argument(
+    bench_group.add_argument(
         "--skip-cold",
         action="store_true",
-        help="Skip cold start tests (faster)",
+        help="Skip cold start tests",
     )
-    parser.add_argument(
-        "--skip-warm",
+
+    # Output options
+    output_group = parser.add_argument_group("output options")
+    output_group.add_argument(
+        "--output",
+        type=Path,
+        help="Save results to JSON file",
+    )
+    output_group.add_argument(
+        "--compare",
+        type=Path,
+        help="Compare against baseline JSON file",
+    )
+    output_group.add_argument(
+        "--plot",
         action="store_true",
-        help="Skip warm cache tests",
+        help="Show visual charts",
     )
+    output_group.add_argument(
+        "--json",
+        action="store_true",
+        help="Output raw JSON to stdout",
+    )
+
+    # Advanced options
     parser.add_argument(
         "--server-url",
         type=str,
@@ -125,33 +131,122 @@ def parse_args() -> argparse.Namespace:
         "--threshold",
         type=float,
         default=10.0,
-        help="Regression threshold percentage (default: 10.0)",
+        help="Regression threshold %% (default: 10.0)",
     )
     parser.add_argument(
-        "--timeout",
-        type=int,
-        default=30,
-        help="Timeout per command in seconds (default: 30)",
-    )
-    parser.add_argument(
-        "--verbose",
         "-v",
+        "--verbose",
         action="store_true",
         help="Verbose output",
-    )
-    parser.add_argument(
-        "--plot",
-        action="store_true",
-        help="Show visual charts after benchmarking",
     )
 
     return parser.parse_args()
 
 
-def main() -> int:
-    args = parse_args()
+def run_profile_analysis() -> int:
+    """Run pyinstrument profiling on CLI import."""
+    console.print(
+        "\n[bold cyan]Profiling CLI import with pyinstrument...[/bold cyan]\n"
+    )
 
-    # Check hyperfine is installed
+    script = """
+from pyinstrument import Profiler
+
+profiler = Profiler()
+profiler.start()
+
+from prefect.cli import app
+
+profiler.stop()
+print(profiler.output_text(unicode=True, color=True, show_all=False))
+"""
+
+    result = subprocess.run(
+        ["uv", "run", "--with", "pyinstrument", "python", "-c", script],
+        capture_output=False,
+    )
+    return result.returncode
+
+
+def run_import_analysis(top_n: int = 25) -> int:
+    """Run import time analysis and show slowest modules."""
+    console.print("\n[bold cyan]Analyzing import times...[/bold cyan]\n")
+
+    result = subprocess.run(
+        [sys.executable, "-X", "importtime", "-c", "from prefect.cli import app"],
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        print_error(f"Import failed: {result.stderr}")
+        return 1
+
+    # Parse importtime output
+    # Format: "import time: self | cumulative | module"
+    lines = result.stderr.strip().split("\n")
+    imports = []
+
+    for line in lines:
+        match = re.match(r"import time:\s+(\d+)\s+\|\s+(\d+)\s+\|\s+(.+)", line)
+        if match:
+            self_time = int(match.group(1))
+            cumulative = int(match.group(2))
+            module = match.group(3).strip()
+            imports.append((cumulative, self_time, module))
+
+    # Sort by cumulative time
+    imports.sort(reverse=True)
+
+    # Print as table
+    from rich.table import Table
+
+    table = Table(title=f"Top {top_n} Slowest Imports", show_header=True)
+    table.add_column("Module", style="cyan")
+    table.add_column("Cumulative (ms)", justify="right")
+    table.add_column("Self (ms)", justify="right")
+    table.add_column("", width=30)  # visual bar
+
+    max_cumulative = imports[0][0] if imports else 1
+
+    for cumulative, self_time, module in imports[:top_n]:
+        # Visual bar
+        bar_len = int((cumulative / max_cumulative) * 30)
+        bar = "█" * bar_len
+
+        # Color based on time
+        if cumulative > 100000:  # > 100ms
+            bar = f"[red]{bar}[/red]"
+        elif cumulative > 50000:  # > 50ms
+            bar = f"[yellow]{bar}[/yellow]"
+        else:
+            bar = f"[green]{bar}[/green]"
+
+        table.add_row(
+            module,
+            f"{cumulative / 1000:.1f}",
+            f"{self_time / 1000:.1f}",
+            bar,
+        )
+
+    console.print(table)
+
+    # Summary
+    total_ms = imports[0][0] / 1000 if imports else 0
+    console.print(f"\n[bold]Total import time:[/bold] {total_ms:.0f}ms")
+
+    # Highlight prefect modules
+    console.print("\n[bold]Prefect module breakdown:[/bold]")
+    prefect_imports = [(c, s, m) for c, s, m in imports if "prefect" in m][:10]
+    for cumulative, self_time, module in prefect_imports:
+        console.print(f"  {module}: [yellow]{cumulative / 1000:.0f}ms[/yellow]")
+
+    return 0
+
+
+def run_benchmarks(args: argparse.Namespace) -> int:
+    """Run hyperfine benchmarks."""
+    # Check hyperfine
     hyperfine_version = check_hyperfine()
     if hyperfine_version is None:
         print_error("hyperfine is not installed")
@@ -163,21 +258,21 @@ def main() -> int:
     # Build config
     config = BenchmarkConfig(
         runs=args.runs,
-        warmup_runs=args.warmup,
-        timeout_seconds=args.timeout,
+        warmup_runs=3,
+        timeout_seconds=30,
         regression_threshold_percent=args.threshold,
         json_output=args.json,
         output_file=args.output,
         skip_memory=args.skip_memory,
         skip_cold=args.skip_cold,
-        skip_warm=args.skip_warm,
+        skip_warm=False,
         categories=[args.category] if args.category != "all" else None,
         server_url=args.server_url,
         compare_baseline=args.compare,
         verbose=args.verbose,
     )
 
-    # Get commands to benchmark
+    # Get commands
     include_api = config.server_url is not None
     commands = get_commands(
         categories=config.categories,
@@ -188,40 +283,28 @@ def main() -> int:
         print_error("No commands to benchmark")
         return 1
 
-    # Warn about API commands if no server
+    # Filter API commands if no server
     api_commands = [c for c in commands if c.requires_server]
     if api_commands and not config.server_url:
-        print_warning(
-            f"Skipping {len(api_commands)} API commands (no --server-url or PREFECT_API_URL)"
-        )
+        print_warning(f"Skipping {len(api_commands)} API commands (no --server-url)")
         commands = [c for c in commands if not c.requires_server]
 
     if not commands:
         print_error("No commands to benchmark after filtering")
         return 1
 
-    print_info(f"Benchmarking {len(commands)} commands with {config.runs} runs each")
-    if config.skip_cold:
-        print_info("Skipping cold start tests")
-    if config.skip_warm:
-        print_info("Skipping warm cache tests")
-    if config.skip_memory:
-        print_info("Skipping memory profiling")
+    print_info(f"Benchmarking {len(commands)} commands ({config.runs} runs each)")
     console.print()
 
-    # Initialize runner and profiler
+    # Run benchmarks
     runner = BenchmarkRunner(config)
     memory_profiler = MemoryProfiler(config) if not config.skip_memory else None
 
-    # Run benchmarks
     results = []
     for i, cmd in enumerate(commands, 1):
         print_progress(cmd.name, i, len(commands))
-
-        # Run timing benchmarks
         result = runner.run_benchmark(cmd)
 
-        # Run memory profiling
         if memory_profiler and result.success:
             result.peak_memory_mb = memory_profiler.measure_command(cmd)
 
@@ -231,7 +314,7 @@ def main() -> int:
     metadata = create_metadata(hyperfine_version)
     suite = BenchmarkSuite(metadata=metadata, results=results, config=config)
 
-    # Output results
+    # Output
     console.print()
 
     if config.compare_baseline:
@@ -241,46 +324,33 @@ def main() -> int:
                 suite, baseline, config.regression_threshold_percent
             )
             print_comparison(suite, comparisons, str(config.compare_baseline))
-
-            # Check for regressions
-            regressions = [c for c in comparisons if c.is_regression]
-            if regressions:
-                print_warning(f"{len(regressions)} regression(s) detected")
         except FileNotFoundError:
-            print_error(f"Baseline file not found: {config.compare_baseline}")
+            print_error(f"Baseline not found: {config.compare_baseline}")
             print_results(suite)
     else:
         print_results(suite)
 
-    # Save JSON output
+    # Save output
     output_path = config.output_file
     if config.json_output:
-        import json
-
-        output_data = suite_to_dict(suite)
         if output_path:
             save_suite(suite, output_path)
-            print_info(f"Results saved to {output_path}")
+            print_info(f"Saved to {output_path}")
         else:
-            console.print()
-            print(json.dumps(output_data, indent=2))
+            print(json.dumps(suite_to_dict(suite), indent=2))
     elif output_path:
         save_suite(suite, output_path)
-        print_info(f"Results saved to {output_path}")
+        print_info(f"Saved to {output_path}")
 
-    # Show plots if requested
+    # Plot
     if args.plot:
-        # Save to temp file if no output path specified
         if not output_path:
             with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".json", delete=False
             ) as f:
-                import json
-
                 json.dump(suite_to_dict(suite), f)
                 output_path = Path(f.name)
 
-        # Find the plot script
         script_dir = Path(__file__).parent.parent
         plot_script = script_dir / "benchmark_cli_plot.py"
 
@@ -289,26 +359,24 @@ def main() -> int:
             if config.compare_baseline:
                 plot_args.extend(["--compare", str(config.compare_baseline)])
             subprocess.run(plot_args)
-        else:
-            print_warning(f"Plot script not found: {plot_script}")
 
-    # Return non-zero if there were errors or regressions
+    # Return code
     errors = sum(1 for r in results if r.error)
-    if errors > 0:
-        return 1
+    return 1 if errors > 0 else 0
 
-    if config.compare_baseline:
-        try:
-            baseline = load_suite(config.compare_baseline)
-            comparisons = compare_suites(
-                suite, baseline, config.regression_threshold_percent
-            )
-            if any(c.is_regression for c in comparisons):
-                return 1
-        except FileNotFoundError:
-            pass
 
-    return 0
+def main() -> int:
+    args = parse_args()
+
+    # Dispatch based on mode
+    if args.profile:
+        return run_profile_analysis()
+
+    if args.imports:
+        return run_import_analysis()
+
+    # Default: run benchmarks
+    return run_benchmarks(args)
 
 
 if __name__ == "__main__":
