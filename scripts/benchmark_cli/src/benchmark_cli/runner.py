@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import platform
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -12,6 +11,13 @@ from pathlib import Path
 
 from .commands import BenchmarkCommand
 from .config import BenchmarkConfig, BenchmarkResult, TimingResult
+
+
+def _get_project_root() -> Path:
+    """Get the prefect project root directory."""
+    # benchmark tool is at scripts/benchmark_cli/src/benchmark_cli/
+    # project root is 4 levels up
+    return Path(__file__).parent.parent.parent.parent.parent
 
 
 def check_hyperfine() -> str | None:
@@ -176,9 +182,10 @@ class BenchmarkRunner:
             if prepare:
                 hyperfine_args.extend(["--prepare", prepare])
 
-            # Add the actual command
-            command_str = shutil.which(cmd.args[0]) or cmd.args[0]
-            full_command = " ".join([command_str] + cmd.args[1:])
+            # Build the command to run in the prefect project context
+            project_root = _get_project_root()
+            # Use uv run to execute in the project's venv
+            full_command = f"uv run --directory {project_root} {' '.join(cmd.args)}"
             hyperfine_args.append(full_command)
 
             # Set up environment for API commands

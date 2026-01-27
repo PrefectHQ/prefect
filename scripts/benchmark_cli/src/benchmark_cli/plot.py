@@ -1,24 +1,10 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.10"
-# dependencies = ["plotext", "rich"]
-# ///
-"""visualize CLI benchmark results in the terminal
-
-usage:
-    uv run scripts/benchmark_cli_plot.py results.json
-    uv run scripts/benchmark_cli_plot.py current.json --compare baseline.json
-    uv run scripts/benchmark_cli_plot.py results.json --metric memory
-"""
+"""terminal visualization for benchmark results using plotext."""
 
 from __future__ import annotations
 
-import argparse
 import json
-import sys
 from pathlib import Path
 
-import plotext as plt
 from rich.console import Console
 from rich.table import Table
 
@@ -26,7 +12,7 @@ console = Console()
 
 
 def load_results(path: Path) -> dict:
-    """load benchmark results from JSON"""
+    """load benchmark results from JSON."""
     with open(path) as f:
         return json.load(f)
 
@@ -34,7 +20,14 @@ def load_results(path: Path) -> dict:
 def plot_timing_simple(
     results: dict, compare: dict | None = None, cold: bool = False
 ) -> None:
-    """plot timing results using simple_bar for cleaner look"""
+    """plot timing results using simple_bar for cleaner look."""
+    try:
+        import plotext as plt
+    except ImportError:
+        console.print("[red]error:[/red] plotext not installed")
+        console.print("install with: uv pip install plotext")
+        return
+
     metric = "cold_start" if cold else "warm_cache"
     title = "Cold Start (ms)" if cold else "Warm Cache (ms)"
 
@@ -58,7 +51,14 @@ def plot_timing_simple(
 
 
 def plot_memory_simple(results: dict) -> None:
-    """plot memory usage using simple_bar"""
+    """plot memory usage using simple_bar."""
+    try:
+        import plotext as plt
+    except ImportError:
+        console.print("[red]error:[/red] plotext not installed")
+        console.print("install with: uv pip install plotext")
+        return
+
     commands = []
     values = []
 
@@ -81,7 +81,7 @@ def plot_memory_simple(results: dict) -> None:
 
 
 def plot_comparison_table(results: dict, compare: dict) -> None:
-    """show comparison as a rich table with visual bars"""
+    """show comparison as a rich table with visual bars."""
     table = Table(title="Comparison vs Baseline", show_header=True, header_style="bold")
     table.add_column("Command", style="cyan")
     table.add_column("Current", justify="right")
@@ -135,7 +135,7 @@ def plot_comparison_table(results: dict, compare: dict) -> None:
 
 
 def print_header(results: dict) -> None:
-    """print metadata header"""
+    """print metadata header."""
     m = results.get("metadata", {})
     console.print()
     console.print("[bold cyan]CLI Benchmark Results[/bold cyan]")
@@ -147,42 +147,31 @@ def print_header(results: dict) -> None:
     console.print()
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="visualize CLI benchmark results")
-    parser.add_argument("results", type=Path, help="benchmark results JSON file")
-    parser.add_argument("--compare", type=Path, help="baseline JSON to compare against")
-    parser.add_argument(
-        "--metric",
-        choices=["all", "warm", "cold", "memory"],
-        default="all",
-        help="which metric to plot (default: all)",
-    )
-
-    args = parser.parse_args()
-
-    if not args.results.exists():
-        console.print(f"[red]error:[/red] {args.results} not found")
+def run_plot(
+    results_path: Path,
+    compare_path: Path | None = None,
+    metric: str = "all",
+) -> int:
+    """main entry point for plot subcommand."""
+    if not results_path.exists():
+        console.print(f"[red]error:[/red] {results_path} not found")
         return 1
 
-    results = load_results(args.results)
-    compare = load_results(args.compare) if args.compare else None
+    results = load_results(results_path)
+    compare = load_results(compare_path) if compare_path else None
 
     print_header(results)
 
-    if args.metric in ("all", "warm"):
+    if metric in ("all", "warm"):
         plot_timing_simple(results, compare, cold=False)
 
-    if args.metric in ("all", "cold"):
+    if metric in ("all", "cold"):
         plot_timing_simple(results, compare, cold=True)
 
-    if args.metric in ("all", "memory"):
+    if metric in ("all", "memory"):
         plot_memory_simple(results)
 
     if compare:
         plot_comparison_table(results, compare)
 
     return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

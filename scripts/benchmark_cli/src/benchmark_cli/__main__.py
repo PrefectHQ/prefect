@@ -2,21 +2,16 @@
 """
 CLI benchmark harness for Prefect.
 
-Three analysis modes:
-  just benchmark-cli              # hyperfine wall-time benchmarks
-  just benchmark-cli --profile    # pyinstrument call tree (where is time spent?)
-  just benchmark-cli --imports    # import time breakdown (which imports are slow?)
+Subcommands:
+  prefect-cli-bench run              # hyperfine wall-time benchmarks
+  prefect-cli-bench profile          # pyinstrument call tree
+  prefect-cli-bench imports          # import time breakdown
+  prefect-cli-bench plot FILE        # visualize results
 
-Comparison mode:
-  just benchmark-cli --output baseline.json   # save baseline
-  just benchmark-cli --compare baseline.json  # compare with Welch's t-test
-
-Options:
-  --runs N        Number of runs per command (default: 5)
-  --plot          Show terminal visualization
-  --json          Output raw JSON to stdout
-  --skip-memory   Skip memory profiling
-  --category X    Only benchmark category: startup, local, api, all
+Examples:
+  prefect-cli-bench run --output baseline.json
+  prefect-cli-bench run --compare baseline.json
+  prefect-cli-bench plot results.json --compare baseline.json
 """
 
 from __future__ import annotations
@@ -56,78 +51,92 @@ from .runner import (
 )
 
 
-def parse_args() -> argparse.Namespace:
+def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Benchmark Prefect CLI performance",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    subparsers = parser.add_subparsers(dest="command", help="subcommands")
 
-    # Analysis modes (mutually exclusive)
-    mode = parser.add_argument_group("analysis mode")
-    mode.add_argument(
-        "--profile",
-        action="store_true",
-        help="Run pyinstrument profiling (shows call tree)",
+    # run subcommand (default behavior)
+    run_parser = subparsers.add_parser("run", help="run hyperfine benchmarks (default)")
+    _add_run_args(run_parser)
+
+    # profile subcommand
+    subparsers.add_parser("profile", help="profile CLI import with pyinstrument")
+
+    # imports subcommand
+    imports_parser = subparsers.add_parser(
+        "imports", help="analyze import time breakdown"
     )
-    mode.add_argument(
-        "--imports",
-        action="store_true",
-        help="Show import time breakdown",
+    imports_parser.add_argument(
+        "--top", "-n", type=int, default=25, help="number of modules to show"
     )
 
-    # Benchmark options
-    bench = parser.add_argument_group("benchmark options")
-    bench.add_argument(
+    # plot subcommand
+    plot_parser = subparsers.add_parser("plot", help="visualize benchmark results")
+    plot_parser.add_argument("results", type=Path, help="benchmark results JSON")
+    plot_parser.add_argument(
+        "--compare", "-c", type=Path, help="baseline JSON to compare against"
+    )
+    plot_parser.add_argument(
+        "--metric",
+        choices=["all", "warm", "cold", "memory"],
+        default="all",
+        help="which metric to plot",
+    )
+
+    return parser
+
+
+def _add_run_args(parser: argparse.ArgumentParser) -> None:
+    """Add arguments for the run subcommand."""
+    parser.add_argument(
         "--runs",
         type=int,
         default=5,
-        help="Runs per command (default: 5)",
+        help="runs per command (default: 5)",
     )
-    bench.add_argument(
+    parser.add_argument(
         "--category",
         choices=["startup", "local", "api", "all"],
         default="all",
-        help="Command category (default: all)",
+        help="command category (default: all)",
     )
-    bench.add_argument(
+    parser.add_argument(
         "--skip-memory",
         action="store_true",
-        help="Skip memory profiling",
+        help="skip memory profiling",
     )
-
-    # Output options
-    out = parser.add_argument_group("output")
-    out.add_argument(
+    parser.add_argument(
         "--output",
         "-o",
         type=Path,
-        help="Save results to JSON file",
+        help="save results to JSON file",
     )
-    out.add_argument(
+    parser.add_argument(
         "--compare",
         "-c",
         type=Path,
-        help="Compare against baseline JSON (uses Welch's t-test)",
+        help="compare against baseline JSON (uses Welch's t-test)",
     )
-    out.add_argument(
+    parser.add_argument(
         "--plot",
         action="store_true",
-        help="Show terminal visualization",
+        help="show terminal visualization",
     )
-    out.add_argument(
+    parser.add_argument(
         "--json",
         action="store_true",
-        help="Output raw JSON to stdout",
+        help="output raw JSON to stdout",
     )
-    out.add_argument(
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="Verbose output",
+        help="verbose output",
     )
-
-    # Advanced
     parser.add_argument(
         "--server-url",
         default=os.environ.get("PREFECT_API_URL"),
@@ -137,15 +146,20 @@ def parse_args() -> argparse.Namespace:
         "--threshold",
         type=float,
         default=10.0,
-        help="Regression threshold %% (default: 10)",
+        help="regression threshold %% (default: 10)",
     )
-
-    return parser.parse_args()
 
 
 # =============================================================================
 # Profile mode: pyinstrument call tree
 # =============================================================================
+
+
+def _get_project_root() -> Path:
+    """Get the prefect project root directory."""
+    # benchmark tool is at scripts/benchmark_cli/src/benchmark_cli/
+    # project root is 4 levels up
+    return Path(__file__).parent.parent.parent.parent.parent
 
 
 def run_profile() -> int:
@@ -166,8 +180,19 @@ profiler.stop()
 print(profiler.output_text(unicode=True, color=True, show_all=False))
 """
 
+    project_root = _get_project_root()
     result = subprocess.run(
-        ["uv", "run", "--with", "pyinstrument", "python", "-c", script],
+        [
+            "uv",
+            "run",
+            "--directory",
+            str(project_root),
+            "--with",
+            "pyinstrument",
+            "python",
+            "-c",
+            script,
+        ],
         capture_output=False,
     )
     return result.returncode
@@ -182,8 +207,19 @@ def run_imports(top_n: int = 25) -> int:
     """Analyze import times and show slowest modules."""
     console.print("\n[bold cyan]Analyzing import times...[/bold cyan]\n")
 
+    project_root = _get_project_root()
     result = subprocess.run(
-        [sys.executable, "-X", "importtime", "-c", "from prefect.cli import app"],
+        [
+            "uv",
+            "run",
+            "--directory",
+            str(project_root),
+            "python",
+            "-X",
+            "importtime",
+            "-c",
+            "from prefect.cli import app",
+        ],
         capture_output=True,
         text=True,
     )
@@ -260,7 +296,10 @@ def run_benchmarks(args: argparse.Namespace) -> int:
     if hyperfine_version is None:
         print_error("hyperfine is required for benchmarks")
         console.print(f"\nInstall: {get_hyperfine_install_instructions()}")
-        console.print("\nOr use --profile or --imports for dependency-free analysis")
+        console.print(
+            "\nOr use 'prefect-cli-bench profile' or 'prefect-cli-bench imports' "
+            "for dependency-free analysis"
+        )
         return 1
 
     # Build config
@@ -351,32 +390,20 @@ def run_benchmarks(args: argparse.Namespace) -> int:
 
     # Plot
     if args.plot:
-        _run_plot(suite, output_path, config.compare_baseline)
+        from .plot import run_plot
+
+        temp_path = output_path
+        if not temp_path:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(suite_to_dict(suite), f)
+                temp_path = Path(f.name)
+        run_plot(temp_path, config.compare_baseline)
 
     # Return code
     errors = sum(1 for r in results if r.error)
     return 1 if errors > 0 else 0
-
-
-def _run_plot(
-    suite: BenchmarkSuite,
-    output_path: Path | None,
-    compare_baseline: Path | None,
-) -> None:
-    """Run the visualization script."""
-    if not output_path:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump(suite_to_dict(suite), f)
-            output_path = Path(f.name)
-
-    script_dir = Path(__file__).parent.parent
-    plot_script = script_dir / "benchmark_cli_plot.py"
-
-    if plot_script.exists():
-        plot_args = ["uv", "run", str(plot_script), str(output_path)]
-        if compare_baseline:
-            plot_args.extend(["--compare", str(compare_baseline)])
-        subprocess.run(plot_args)
 
 
 # =============================================================================
@@ -385,15 +412,30 @@ def _run_plot(
 
 
 def main() -> int:
-    args = parse_args()
+    parser = create_parser()
+    args = parser.parse_args()
 
-    if args.profile:
+    # Default to 'run' if no subcommand
+    if args.command is None:
+        # Re-parse with 'run' as default
+        args = parser.parse_args(["run"] + sys.argv[1:])
+
+    if args.command == "profile":
         return run_profile()
 
-    if args.imports:
-        return run_imports()
+    if args.command == "imports":
+        return run_imports(args.top)
 
-    return run_benchmarks(args)
+    if args.command == "plot":
+        from .plot import run_plot
+
+        return run_plot(args.results, args.compare, args.metric)
+
+    if args.command == "run":
+        return run_benchmarks(args)
+
+    parser.print_help()
+    return 0
 
 
 if __name__ == "__main__":

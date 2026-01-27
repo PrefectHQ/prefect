@@ -32,8 +32,12 @@ clean: check-uv
     rm -rf .venv
 
 # Run CLI benchmarks (requires hyperfine: brew install hyperfine)
+# Usage: just benchmark-cli run [--output FILE] [--compare FILE] [--runs N]
+#        just benchmark-cli profile    # pyinstrument call tree
+#        just benchmark-cli imports    # import time breakdown
+#        just benchmark-cli plot FILE  # visualize results
 benchmark-cli *ARGS: check-uv
-    uv run -m scripts.benchmark_cli {{ARGS}}
+    uv run --directory scripts/benchmark_cli prefect-cli-bench {{ARGS}}
 
 # Symlink all AGENTS.md files to CLAUDE.md
 symlink-agents-to-claude:
