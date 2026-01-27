@@ -64,6 +64,10 @@ RUN npm run build
 # Build the V2 UI distributable.
 FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bullseye-slim AS ui-v2-builder
 
+# Optional Amplitude API key for analytics (build still works without it)
+ARG VITE_AMPLITUDE_API_KEY=""
+ENV VITE_AMPLITUDE_API_KEY=$VITE_AMPLITUDE_API_KEY
+
 WORKDIR /opt/ui-v2
 
 RUN apt-get update && \

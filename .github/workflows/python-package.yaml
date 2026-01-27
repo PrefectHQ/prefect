@@ -45,6 +45,8 @@ jobs:
 
       - name: Build UI v2
         working-directory: ui-v2
+        env:
+          VITE_AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
         run: |
           npm ci
           npm run build
