@@ -55,7 +55,6 @@ from prefect.settings import (
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_ENABLE_CANCELLATION,
-    PREFECT_WORKER_PREFETCH_SECONDS,
     get_current_settings,
     temporary_settings,
 )
@@ -84,13 +83,8 @@ class WorkerTestImpl(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
     type: str = "test"
     job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
 
-    async def run(
-        self,
-        flow_run: FlowRun,
-        configuration: BaseJobConfiguration,
-        task_status: anyio.abc.TaskStatus[int] | None = None,
-    ):
-        return BaseWorkerResult(identifier="test", status_code=0)
+    async def run(self):
+        pass
 
 
 class FakeResultStorageBlock(WritableFileSystem):
@@ -279,11 +273,8 @@ async def test_worker_with_work_pool(
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
-    with temporary_settings(updates={PREFECT_WORKER_PREFETCH_SECONDS: 10}):
-        async with WorkerTestImpl(
-            work_pool_name=work_pool.name, prefetch_seconds=10
-        ) as worker:
-            submitted_flow_runs = await worker.get_and_submit_flow_runs()
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     # Should only include scheduled runs in the past or next prefetch seconds
     # Should not include runs without deployments
@@ -331,13 +322,10 @@ async def test_worker_with_work_pool_and_work_queue(
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
-    with temporary_settings(updates={PREFECT_WORKER_PREFETCH_SECONDS: 10}):
-        async with WorkerTestImpl(
-            work_pool_name=work_pool.name,
-            work_queues=[work_queue_1.name],
-            prefetch_seconds=10,
-        ) as worker:
-            submitted_flow_runs = await worker.get_and_submit_flow_runs()
+    async with WorkerTestImpl(
+        work_pool_name=work_pool.name, work_queues=[work_queue_1.name]
+    ) as worker:
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
 
@@ -603,13 +591,10 @@ async def test_worker_calls_run_with_expected_arguments(
         await prefect_client.create_flow_run(test_flow, state=Scheduled()),
     ]
 
-    with temporary_settings(updates={PREFECT_WORKER_PREFETCH_SECONDS: 10}):
-        async with WorkerTestImpl(
-            work_pool_name=work_pool.name, prefetch_seconds=10
-        ) as worker:
-            worker._work_pool = work_pool
-            worker.run = run_mock  # don't run anything
-            await worker.get_and_submit_flow_runs()
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
+        worker.run = run_mock  # don't run anything
+        await worker.get_and_submit_flow_runs()
 
     assert run_mock.call_count == 3
     assert {call.kwargs["flow_run"].id for call in run_mock.call_args_list} == {
@@ -722,7 +707,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     "title": "Name",
                     "description": (
                         "Name given to infrastructure created by the worker using this "
-                        "job configuration. Supports templates like {{ flow.name }}."
+                        "job configuration."
                     ),
                 },
                 "other": {
@@ -1615,7 +1600,7 @@ class TestWorkerProperties:
                         "default": None,
                         "description": (
                             "Name given to infrastructure created by the worker using "
-                            "this job configuration. Supports templates like {{ flow.name }}."
+                            "this job configuration."
                         ),
                     },
                 },
@@ -1739,8 +1724,7 @@ class TestWorkerProperties:
                             "anyOf": [{"type": "string"}, {"type": "null"}],
                             "default": None,
                             "description": (
-                                "Name given to infrastructure created by a worker. "
-                                "Supports templates like {{ flow.name }}."
+                                "Name given to infrastructure created by a worker."
                             ),
                         },
                         "var1": {"title": "Var1", "type": "string"},
@@ -3234,5 +3218,5 @@ class TestWorkerCancellationHandling:
 
                 # Flow run should be registered
                 # Note: it may be removed quickly after submission completes
-        # so we just verify the observer exists and is functioning
-        assert observer._in_flight_flow_run_ids is not None
+                # so we just verify the observer exists and is functioning
+                assert observer._in_flight_flow_run_ids is not None
