@@ -31,6 +31,10 @@ clean: check-uv
     deactivate || true
     rm -rf .venv
 
+# Run CLI benchmarks (requires hyperfine: brew install hyperfine)
+benchmark-cli *ARGS: check-uv
+    uv run -m scripts.benchmark_cli {{ARGS}}
+
 # Symlink all AGENTS.md files to CLAUDE.md
 symlink-agents-to-claude:
     ./scripts/symlink_agents_to_claude.py
