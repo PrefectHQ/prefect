@@ -29,7 +29,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from .commands import get_commands
@@ -136,6 +138,11 @@ def parse_args() -> argparse.Namespace:
         "-v",
         action="store_true",
         help="Verbose output",
+    )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        help="Show visual charts after benchmarking",
     )
 
     return parser.parse_args()
@@ -246,19 +253,44 @@ def main() -> int:
         print_results(suite)
 
     # Save JSON output
+    output_path = config.output_file
     if config.json_output:
         import json
 
         output_data = suite_to_dict(suite)
-        if config.output_file:
-            save_suite(suite, config.output_file)
-            print_info(f"Results saved to {config.output_file}")
+        if output_path:
+            save_suite(suite, output_path)
+            print_info(f"Results saved to {output_path}")
         else:
             console.print()
             print(json.dumps(output_data, indent=2))
-    elif config.output_file:
-        save_suite(suite, config.output_file)
-        print_info(f"Results saved to {config.output_file}")
+    elif output_path:
+        save_suite(suite, output_path)
+        print_info(f"Results saved to {output_path}")
+
+    # Show plots if requested
+    if args.plot:
+        # Save to temp file if no output path specified
+        if not output_path:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                import json
+
+                json.dump(suite_to_dict(suite), f)
+                output_path = Path(f.name)
+
+        # Find the plot script
+        script_dir = Path(__file__).parent.parent
+        plot_script = script_dir / "benchmark_cli_plot.py"
+
+        if plot_script.exists():
+            plot_args = ["uv", "run", str(plot_script), str(output_path)]
+            if config.compare_baseline:
+                plot_args.extend(["--compare", str(config.compare_baseline)])
+            subprocess.run(plot_args)
+        else:
+            print_warning(f"Plot script not found: {plot_script}")
 
     # Return non-zero if there were errors or regressions
     errors = sum(1 for r in results if r.error)
