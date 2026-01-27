@@ -186,10 +186,6 @@ export const CallWebhookFields = ({ index }: CallWebhookFieldsProps) => {
 					<code className="rounded bg-blue-100 px-1 py-0.5 font-mono text-xs dark:bg-blue-900">
 						work_queue
 					</code>
-					, and{" "}
-					<code className="rounded bg-blue-100 px-1 py-0.5 font-mono text-xs dark:bg-blue-900">
-						metric
-					</code>
 					.
 				</p>
 			</div>

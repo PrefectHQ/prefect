@@ -135,7 +135,6 @@ describe("CallWebhookFields", () => {
 		expect(screen.getByText("flow_run")).toBeInTheDocument();
 		expect(screen.getByText("work_pool")).toBeInTheDocument();
 		expect(screen.getByText("work_queue")).toBeInTheDocument();
-		expect(screen.getByText("metric")).toBeInTheDocument();
 	});
 
 	it("allows entering payload text", async () => {
