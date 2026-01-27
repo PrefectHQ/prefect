@@ -73,7 +73,7 @@ describe("SchemaFormInputBlockDocument", () => {
 		);
 	});
 
-	it("shows Add button instead of combobox when no block documents exist", async () => {
+	it("hides combobox when no block documents exist but still shows Add button", async () => {
 		setupMocks({ blockDocumentCount: 0 });
 
 		render(
@@ -90,6 +90,25 @@ describe("SchemaFormInputBlockDocument", () => {
 			expect(screen.getByRole("button", { name: /add/i })).toBeVisible(),
 		);
 		expect(screen.queryByLabelText(/select a block/i)).not.toBeInTheDocument();
+	});
+
+	it("shows Add button alongside combobox when block documents exist", async () => {
+		setupMocks();
+
+		render(
+			<SchemaFormInputBlockDocument
+				value={undefined}
+				onValueChange={vi.fn()}
+				blockTypeSlug="aws-credentials"
+				id="test-id"
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() =>
+			expect(screen.getByLabelText(/select a block/i)).toBeVisible(),
+		);
+		expect(screen.getByRole("button", { name: /add/i })).toBeVisible();
 	});
 
 	it("calls onValueChange with $ref when a block is selected", async () => {

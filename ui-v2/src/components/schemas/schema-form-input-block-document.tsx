@@ -105,16 +105,14 @@ function SchemaFormInputBlockDocumentContent({
 					/>
 				</div>
 			)}
-			{!hasBlockDocuments && (
-				<Button
-					type="button"
-					variant="outline"
-					onClick={() => setCreateDialogOpen(true)}
-				>
-					<Icon id="Plus" className="mr-2 size-4" />
-					Add
-				</Button>
-			)}
+			<Button
+				type="button"
+				variant="outline"
+				onClick={() => setCreateDialogOpen(true)}
+			>
+				<Icon id="Plus" className="mr-2 size-4" />
+				Add
+			</Button>
 			<BlockDocumentCreateDialog
 				open={createDialogOpen}
 				onOpenChange={setCreateDialogOpen}
