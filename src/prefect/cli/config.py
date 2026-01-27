@@ -8,13 +8,13 @@ import os
 from pathlib import Path
 from typing import Any, Union, cast
 
-import toml
 import typer
 from dotenv import dotenv_values
 from typing_extensions import Literal
 
 import prefect.context
 import prefect.settings
+from prefect._internal.compatibility.backports import tomllib
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
@@ -273,12 +273,14 @@ def view(
 
     # Process settings from prefect.toml
     if Path("prefect.toml").exists():
-        toml_settings = toml.load(Path("prefect.toml"))
+        toml_settings = tomllib.loads(Path("prefect.toml").read_text(encoding="utf-8"))
         _process_toml_settings(toml_settings, base_path=[], source="prefect.toml")
 
     # Process settings from pyproject.toml
     if Path("pyproject.toml").exists():
-        pyproject_settings = toml.load(Path("pyproject.toml"))
+        pyproject_settings = tomllib.loads(
+            Path("pyproject.toml").read_text(encoding="utf-8")
+        )
         pyproject_settings = pyproject_settings.get("tool", {}).get("prefect", {})
         _process_toml_settings(
             pyproject_settings, base_path=[], source="pyproject.toml"
