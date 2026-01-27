@@ -14,16 +14,20 @@ import { createFakeBlockDocument } from "@/mocks";
 
 import { CallWebhookActionDetails } from "./action-details";
 
-type CallWebhookActionDetailsProps = {
-	label: string;
+type CallWebhookActionDetailsRouterProps = {
 	blockDocument: BlockDocument;
 };
 
-const CallWebhookActionDetailsRouter = (
-	props: CallWebhookActionDetailsProps,
-) => {
+const CallWebhookActionDetailsRouter = ({
+	blockDocument,
+}: CallWebhookActionDetailsRouterProps) => {
 	const rootRoute = createRootRoute({
-		component: () => <CallWebhookActionDetails {...props} />,
+		component: () => (
+			<CallWebhookActionDetails
+				label="Call webhook using"
+				blockDocument={blockDocument}
+			/>
+		),
 	});
 
 	const router = createRouter({
@@ -44,13 +48,9 @@ describe("CallWebhookActionDetails", () => {
 		});
 
 		await waitFor(() =>
-			render(
-				<CallWebhookActionDetailsRouter
-					label="Call webhook using"
-					blockDocument={blockDocument}
-				/>,
-				{ wrapper: createWrapper() },
-			),
+			render(<CallWebhookActionDetailsRouter blockDocument={blockDocument} />, {
+				wrapper: createWrapper(),
+			}),
 		);
 
 		expect(screen.getByText("Call webhook using")).toBeInTheDocument();
@@ -68,13 +68,9 @@ describe("CallWebhookActionDetails", () => {
 		});
 
 		await waitFor(() =>
-			render(
-				<CallWebhookActionDetailsRouter
-					label="Call webhook using"
-					blockDocument={blockDocument}
-				/>,
-				{ wrapper: createWrapper() },
-			),
+			render(<CallWebhookActionDetailsRouter blockDocument={blockDocument} />, {
+				wrapper: createWrapper(),
+			}),
 		);
 
 		expect(screen.getByText("Block not found")).toBeInTheDocument();
