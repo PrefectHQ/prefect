@@ -65,6 +65,14 @@ class MemoryProfiler:
             # Parse the JSON output
             try:
                 data = json.loads(result.stdout.strip())
+                # Check if the CLI command itself failed
+                if data.get("exit_code", 0) != 0:
+                    if self.config.verbose:
+                        print(
+                            f"  CLI command failed with exit code {data.get('exit_code')}",
+                            file=sys.stderr,
+                        )
+                    return None
                 return data["peak_mb"]
             except (json.JSONDecodeError, KeyError):
                 if self.config.verbose:

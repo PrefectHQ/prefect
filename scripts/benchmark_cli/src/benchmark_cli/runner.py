@@ -63,19 +63,31 @@ def get_cache_clear_command() -> str:
     This clears Python's __pycache__ directories. OS-level cache clearing
     requires elevated privileges and is optional.
     """
-    # Find the prefect package location
-    prefect_path = '$(python -c "import prefect; print(prefect.__path__[0])" 2>/dev/null || echo .)'
+    project_root = _get_project_root()
+
+    # Find the prefect package location using uv run to ensure correct env
+    # Quote the path to handle spaces
+    prefect_path = (
+        f'"$(uv run --directory {project_root} python -c '
+        f"'import prefect; print(prefect.__path__[0])' 2>/dev/null || echo .)\""
+    )
 
     # Clear __pycache__ directories
-    pycache_clear = f"find {prefect_path} -type d -name __pycache__ -exec rm -rf {{}} + 2>/dev/null || true"
+    pycache_clear = (
+        f"find {prefect_path} -type d -name __pycache__ "
+        f"-exec rm -rf {{}} + 2>/dev/null || true"
+    )
 
     system = platform.system()
     if system == "Darwin":
         # macOS: sync helps, purge requires sudo
         return f"{pycache_clear}; sync"
     elif system == "Linux":
-        # Linux: drop_caches requires sudo, try it but don't fail
-        return f"{pycache_clear}; sync; {{ echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null 2>&1 || true; }}"
+        # Linux: drop_caches requires sudo -n (non-interactive) to avoid blocking
+        return (
+            f"{pycache_clear}; sync; "
+            f"{{ echo 3 | sudo -n tee /proc/sys/vm/drop_caches >/dev/null 2>&1 || true; }}"
+        )
     else:
         return pycache_clear
 
