@@ -10,8 +10,9 @@ from pydantic import Field
 from typing_extensions import Self, TypeAlias
 
 from prefect import task
+from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.blocks.abstract import JobBlock, JobRun
-from prefect.utilities.asyncutils import sync_compatible
 from prefect_kubernetes.credentials import KubernetesCredentials
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
@@ -388,9 +389,8 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
         )
         self.logger.info(f"Job {job_name} deleted with {deleted_v1_job.status!r}.")
 
-    @sync_compatible
-    async def wait_for_completion(self, print_func: Optional[Callable] = None):
-        """Waits for the job to complete.
+    async def await_for_completion(self, print_func: Optional[Callable] = None):
+        """Async implementation: waits for the job to complete.
 
         If the job has `delete_after_completion` set to `True`,
         the job will be deleted if it is observed by this method
@@ -399,7 +399,6 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
         Raises:
             RuntimeError: If the Kubernetes job fails.
             KubernetesJobTimeoutError: If the Kubernetes job times out.
-            ValueError: If `wait_for_completion` is never called.
         """
         self.pod_logs = {}
 
@@ -478,8 +477,42 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
         if self._kubernetes_job.delete_after_completion:
             await self._cleanup()
 
-    @sync_compatible
-    async def fetch_result(self) -> Dict[str, Any]:
+    @async_dispatch(await_for_completion)
+    def wait_for_completion(self, print_func: Optional[Callable] = None):
+        """Waits for the job to complete.
+
+        If the job has `delete_after_completion` set to `True`,
+        the job will be deleted if it is observed by this method
+        to enter a completed state.
+
+        Raises:
+            RuntimeError: If the Kubernetes job fails.
+            KubernetesJobTimeoutError: If the Kubernetes job times out.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.await_for_completion, print_func)
+        ).result()
+
+    async def afetch_result(self) -> Dict[str, Any]:
+        """Async implementation: fetch the results of the job.
+
+        Returns:
+            The logs from each of the pods in the job.
+
+        Raises:
+            ValueError: If this method is called when the job has
+                a non-terminal state.
+        """
+        if not self._completed:
+            raise ValueError(
+                "The Kubernetes Job run is not in a completed state - "
+                "be sure to call `wait_for_completion` before attempting "
+                "to fetch the result."
+            )
+        return self.pod_logs
+
+    @async_dispatch(afetch_result)
+    def fetch_result(self) -> Dict[str, Any]:
         """Fetch the results of the job.
 
         Returns:
@@ -489,14 +522,9 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
             ValueError: If this method is called when the job has
                 a non-terminal state.
         """
-
-        if not self._completed:
-            raise ValueError(
-                "The Kubernetes Job run is not in a completed state - "
-                "be sure to call `wait_for_completion` before attempting "
-                "to fetch the result."
-            )
-        return self.pod_logs
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.afetch_result)
+        ).result()
 
 
 class KubernetesJob(JobBlock):
@@ -542,10 +570,10 @@ class KubernetesJob(JobBlock):
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/2d0b896006ad463b49c28aaac14f31e00e32cfab-250x250.png"  # noqa: E501
     _documentation_url = "https://docs.prefect.io/integrations/prefect-kubernetes"  # noqa
 
-    @sync_compatible
-    async def trigger(self):
-        """Create a Kubernetes job and return a `KubernetesJobRun` object."""
-
+    async def atrigger(self):
+        """Async implementation: create a Kubernetes job and return a
+        `KubernetesJobRun` object.
+        """
         await create_namespaced_job.fn(
             kubernetes_credentials=self.credentials,
             new_job=self.v1_job,
@@ -554,6 +582,11 @@ class KubernetesJob(JobBlock):
         )
 
         return KubernetesJobRun(kubernetes_job=self, v1_job_model=self.v1_job)
+
+    @async_dispatch(atrigger)
+    def trigger(self):
+        """Create a Kubernetes job and return a `KubernetesJobRun` object."""
+        return from_sync.call_soon_in_loop_thread(create_call(self.atrigger)).result()
 
     @classmethod
     def from_yaml_file(
