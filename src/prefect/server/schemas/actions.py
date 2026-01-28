@@ -209,6 +209,10 @@ class DeploymentCreate(ActionBaseModel):
     )
     storage_document_id: Optional[UUID] = Field(None)
     infrastructure_document_id: Optional[UUID] = Field(None)
+    code_repository_url: Optional[str] = Field(
+        default=None,
+        description="URL to the code repository for this deployment.",
+    )
     description: Optional[str] = Field(None)
     path: Optional[str] = Field(None)
     version: Optional[str] = Field(None)
@@ -333,6 +337,10 @@ class DeploymentUpdate(ActionBaseModel):
     entrypoint: Optional[str] = Field(default=None)
     storage_document_id: Optional[UUID] = Field(default=None)
     infrastructure_document_id: Optional[UUID] = Field(default=None)
+    code_repository_url: Optional[str] = Field(
+        default=None,
+        description="URL to the code repository for this deployment.",
+    )
     enforce_parameter_schema: Optional[bool] = Field(
         default=None,
         description=(

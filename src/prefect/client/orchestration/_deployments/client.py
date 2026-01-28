@@ -64,6 +64,7 @@ class DeploymentClient(BaseClient):
         path: str | None = None,
         entrypoint: str | None = None,
         infrastructure_document_id: UUID | None = None,
+        code_repository_url: str | None = None,
         parameter_openapi_schema: dict[str, Any] | None = None,
         paused: bool | None = None,
         pull_steps: list[dict[str, Any]] | None = None,
@@ -112,6 +113,7 @@ class DeploymentClient(BaseClient):
             path=path,
             entrypoint=entrypoint,
             infrastructure_document_id=infrastructure_document_id,
+            code_repository_url=code_repository_url,
             job_variables=dict(job_variables or {}),
             parameter_openapi_schema=parameter_openapi_schema or {},
             paused=paused,
@@ -146,6 +148,7 @@ class DeploymentClient(BaseClient):
             "branch",
             "base",
             "root",
+            "code_repository_url",
         ]
 
         for field in exclude_if_none:
@@ -736,6 +739,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         path: str | None = None,
         entrypoint: str | None = None,
         infrastructure_document_id: UUID | None = None,
+        code_repository_url: str | None = None,
         parameter_openapi_schema: dict[str, Any] | None = None,
         paused: bool | None = None,
         pull_steps: list[dict[str, Any]] | None = None,
@@ -784,6 +788,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             path=path,
             entrypoint=entrypoint,
             infrastructure_document_id=infrastructure_document_id,
+            code_repository_url=code_repository_url,
             job_variables=dict(job_variables or {}),
             parameter_openapi_schema=parameter_openapi_schema or {},
             paused=paused,
@@ -818,6 +823,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             "branch",
             "base",
             "root",
+            "code_repository_url",
         ]
 
         for field in exclude_if_none:

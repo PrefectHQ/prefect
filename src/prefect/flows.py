@@ -728,6 +728,7 @@ class Flow(Generic[P, R]):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        code_repository_url: Optional[str] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
@@ -763,6 +764,7 @@ class Flow(Generic[P, R]):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
+            code_repository_url: URL to the code repository for this deployment.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
         Examples:
@@ -813,6 +815,7 @@ class Flow(Generic[P, R]):
                 work_pool_name=work_pool_name,
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
+                code_repository_url=code_repository_url,
                 _sla=_sla,
             )
         else:
@@ -837,6 +840,7 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
+                code_repository_url=code_repository_url,
                 _sla=_sla,
             )
 
@@ -869,6 +873,7 @@ class Flow(Generic[P, R]):
         work_queue_name: Optional[str] = None,
         job_variables: Optional[dict[str, Any]] = None,
         entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+        code_repository_url: Optional[str] = None,
         _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None,  # experimental
     ) -> "RunnerDeployment":
         """
@@ -904,6 +909,7 @@ class Flow(Generic[P, R]):
                 of the chosen work pool. Refer to the base job template of the chosen work pool for
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
+            code_repository_url: URL to the code repository for this deployment.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
         Examples:
@@ -956,6 +962,7 @@ class Flow(Generic[P, R]):
                     work_pool_name=work_pool_name,
                     work_queue_name=work_queue_name,
                     job_variables=job_variables,
+                    code_repository_url=code_repository_url,
                     _sla=_sla,
                     _sync=True,  # pyright: ignore[reportCallIssue] _sync is valid because .from_storage is decorated with async_dispatch
                 ),
@@ -982,6 +989,7 @@ class Flow(Generic[P, R]):
                 work_queue_name=work_queue_name,
                 job_variables=job_variables,
                 entrypoint_type=entrypoint_type,
+                code_repository_url=code_repository_url,
                 _sla=_sla,
             )
 

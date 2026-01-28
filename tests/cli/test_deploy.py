@@ -317,6 +317,23 @@ class TestProjectDeploy:
         assert deployment.job_variables == {}
         assert not deployment.enforce_parameter_schema
 
+    async def test_deploy_with_repo_url(
+        self, project_dir: Path, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        repo_url = "https://github.com/PrefectHQ/prefect"
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name} --repo-url {repo_url}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.code_repository_url == repo_url
+
     async def test_deploy_warns_on_notset_value_for_placeholder(
         self,
         project_dir: Path,

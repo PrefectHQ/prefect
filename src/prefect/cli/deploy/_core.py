@@ -360,6 +360,7 @@ async def _run_single_deploy(
         paused=deploy_config.get("paused"),
         storage=_PullStepStorage(pull_steps),
         job_variables=get_from_dict(deploy_config, "work_pool.job_variables"),
+        code_repository_url=deploy_config.get("code_repository_url"),
     )
 
     deployment._set_defaults_from_flow(flow)

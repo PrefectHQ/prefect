@@ -1,3 +1,4 @@
+import { ExternalLink } from "lucide-react";
 import type { Deployment } from "@/api/deployments";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
@@ -76,6 +77,25 @@ export const DeploymentMetadata = ({ deployment }: DeploymentMetadataProps) => {
 	] as const;
 
 	const BOTTOM_FIELDS = [
+		{
+			field: "Repository",
+			ComponentValue: () =>
+				deployment.code_repository_url ? (
+					<FieldValue>
+						<a
+							href={deployment.code_repository_url}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="inline-flex items-center gap-1 text-blue-500 hover:underline break-all"
+						>
+							{deployment.code_repository_url}
+							<ExternalLink className="h-3 w-3 flex-shrink-0" />
+						</a>
+					</FieldValue>
+				) : (
+					<None />
+				),
+		},
 		{
 			field: "Flow ID",
 			ComponentValue: () => <FieldValue>{deployment.flow_id}</FieldValue>,

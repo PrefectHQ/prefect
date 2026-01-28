@@ -227,6 +227,7 @@ def _apply_cli_options_to_deploy_config(
                 "concurrency_limit",
                 "flow_name",
                 "enforce_parameter_schema",
+                "code_repository_url",
             ]
             and cli_value is not None
         ):

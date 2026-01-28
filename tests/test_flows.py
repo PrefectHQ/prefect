@@ -4213,6 +4213,23 @@ class TestFlowToDeployment:
                 )
             ]
 
+        def test_to_deployment_accepts_code_repository_url(self):
+            repo_url = "https://github.com/PrefectHQ/prefect"
+            deployment = self.flow.to_deployment(
+                name="test",
+                code_repository_url=repo_url,
+            )
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.name == "test"
+            assert deployment.code_repository_url == repo_url
+
+        def test_to_deployment_without_code_repository_url(self):
+            deployment = self.flow.to_deployment(name="test")
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.code_repository_url is None
+
         def test_to_deployment_accepts_interval(self):
             deployment = self.flow.to_deployment(name="test", interval=3600)
 
@@ -4379,6 +4396,23 @@ class TestFlowToDeployment:
                     },
                 )
             ]
+
+        async def test_to_deployment_accepts_code_repository_url(self):
+            repo_url = "https://github.com/PrefectHQ/prefect"
+            deployment = await self.flow.ato_deployment(
+                name="test",
+                code_repository_url=repo_url,
+            )
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.name == "test"
+            assert deployment.code_repository_url == repo_url
+
+        async def test_to_deployment_without_code_repository_url(self):
+            deployment = await self.flow.ato_deployment(name="test")
+
+            assert isinstance(deployment, RunnerDeployment)
+            assert deployment.code_repository_url is None
 
         async def test_to_deployment_can_produce_a_module_path_entrypoint(self):
             deployment = await self.flow.ato_deployment(

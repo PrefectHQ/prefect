@@ -891,6 +891,8 @@ class Deployment(Base):
         index=False,
     )
 
+    code_repository_url: Mapped[Optional[str]] = mapped_column(sa.Text())
+
     flow: Mapped["Flow"] = relationship(
         "Flow", back_populates="deployments", lazy="raise"
     )

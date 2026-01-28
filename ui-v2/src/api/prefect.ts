@@ -5773,6 +5773,11 @@ export interface components {
             storage_document_id?: string | null;
             /** Infrastructure Document Id */
             infrastructure_document_id?: string | null;
+            /**
+             * Code Repository Url
+             * @description URL to the code repository for this deployment.
+             */
+            code_repository_url?: string | null;
             /** Description */
             description?: string | null;
             /** Path */
@@ -6165,6 +6170,11 @@ export interface components {
              * @description The block document defining infrastructure to use for flow runs.
              */
             infrastructure_document_id?: string | null;
+            /**
+             * Code Repository Url
+             * @description URL to the code repository for this deployment.
+             */
+            code_repository_url?: string | null;
             /** @description Optional information about the creator of this deployment. */
             created_by?: components["schemas"]["CreatedBy"] | null;
             /** @description Optional information about the updater of this deployment. */
@@ -6386,6 +6396,11 @@ export interface components {
             storage_document_id?: string | null;
             /** Infrastructure Document Id */
             infrastructure_document_id?: string | null;
+            /**
+             * Code Repository Url
+             * @description URL to the code repository for this deployment.
+             */
+            code_repository_url?: string | null;
             /**
              * Enforce Parameter Schema
              * @description Whether or not the deployment should enforce the parameter schema.

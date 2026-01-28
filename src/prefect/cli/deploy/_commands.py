@@ -275,6 +275,11 @@ async def deploy(
         "--sla",
         help="Experimental: One or more SLA configurations for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.",
     ),
+    repo_url: str = typer.Option(
+        None,
+        "--repo-url",
+        help="URL to the code repository for this deployment.",
+    ),
 ):
     if job_variables is None:
         job_variables = list()
@@ -311,6 +316,7 @@ async def deploy(
         "param": param,
         "params": params,
         "sla": sla,
+        "code_repository_url": repo_url,
     }
 
     try:
