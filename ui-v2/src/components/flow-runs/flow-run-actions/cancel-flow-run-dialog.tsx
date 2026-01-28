@@ -37,8 +37,10 @@ export const CancelFlowRunDialog = ({
 	const { data: subFlowRuns = [] } = useQuery({
 		...buildFilterFlowRunsQuery({
 			flow_runs: {
+				operator: "and_",
 				parent_flow_run_id: { any_: [flowRun.id] },
 				state: {
+					operator: "and_",
 					type: { any_: ["RUNNING", "SCHEDULED", "PENDING", "PAUSED"] },
 				},
 			},
