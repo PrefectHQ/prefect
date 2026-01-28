@@ -388,7 +388,7 @@ export const Route = createFileRoute("/dashboard")({
 
 		// Fetch flow runs and work pools in parallel - they're independent
 		const [allFlowRuns, workPools] = await Promise.all([
-			queryClient.ensureQueryData(buildFilterFlowRunsQuery(baseFilter, 30_000)),
+			queryClient.ensureQueryData(buildFilterFlowRunsQuery(baseFilter)),
 			queryClient.ensureQueryData(buildFilterWorkPoolsQuery({ offset: 0 })),
 		]);
 
