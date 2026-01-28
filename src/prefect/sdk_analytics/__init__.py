@@ -5,18 +5,22 @@ This module provides anonymous usage telemetry to help improve Prefect.
 All data collection is:
 - Anonymous (no user-identifiable information)
 - Opt-out (can be disabled via environment variable)
-- Transparent (see https://docs.prefect.io/develop/telemetry)
+- Transparent (see https://docs.prefect.io/concepts/telemetry)
 
 To opt out:
+    # On the server:
     export PREFECT_SERVER_ANALYTICS_ENABLED=false
-    # or
+    # Or on the client:
     export DO_NOT_TRACK=1
 """
 
 import logging
 import os
 import sys
+from functools import lru_cache
 from typing import Any
+
+import httpx
 
 from prefect.sdk_analytics._ci_detection import is_ci_environment
 from prefect.sdk_analytics.events import SDKEvent
@@ -36,26 +40,43 @@ def _is_interactive_terminal() -> bool:
 _telemetry_initialized = False
 
 
+@lru_cache(maxsize=1)
+def _get_server_analytics_enabled() -> bool:
+    """
+    Check if the server has analytics enabled.
+
+    Caches the result to avoid multiple API calls per session.
+    Returns False if the server is unreachable.
+    """
+    from prefect.settings import PREFECT_API_URL
+
+    api_url = PREFECT_API_URL.value()
+    if not api_url:
+        return False
+
+    try:
+        response = httpx.get(f"{api_url}/admin/settings", timeout=5.0)
+        response.raise_for_status()
+        settings = response.json()
+        return settings.get("server", {}).get("analytics_enabled", False)
+    except Exception:
+        return False
+
+
 def is_telemetry_enabled() -> bool:
     """
     Check if telemetry is enabled.
 
     Telemetry is disabled if:
-    - PREFECT_SERVER_ANALYTICS_ENABLED is set to false
-    - DO_NOT_TRACK environment variable is set
+    - DO_NOT_TRACK environment variable is set (client-side)
     - Running in a CI environment
+    - Server has PREFECT_SERVER_ANALYTICS_ENABLED=false
+    - Server is unreachable
 
     Returns:
         True if telemetry is enabled, False otherwise
     """
-    # Check explicit opt-out via Prefect setting (reuse server analytics setting)
-    from prefect.settings import get_current_settings
-
-    settings = get_current_settings()
-    if not settings.server.analytics_enabled:
-        return False
-
-    # Check DO_NOT_TRACK standard
+    # Check DO_NOT_TRACK standard (client-side setting)
     do_not_track = os.environ.get("DO_NOT_TRACK", "").lower()
     if do_not_track in ("1", "true", "yes"):
         return False
@@ -64,7 +85,8 @@ def is_telemetry_enabled() -> bool:
     if is_ci_environment():
         return False
 
-    return True
+    # Check server's analytics setting
+    return _get_server_analytics_enabled()
 
 
 def emit_sdk_event(
