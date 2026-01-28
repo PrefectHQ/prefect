@@ -113,6 +113,8 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.history(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	input: (id: string, key: string) =>
+		[...queryKeyFactory.detail(id), "input", key] as const,
 };
 
 /**
@@ -211,6 +213,33 @@ export const buildGetFlowRunDetailsQuery = (id: string) => {
 					`Received empty response from server for flow run ${id}`,
 				);
 			}
+			return res.data;
+		},
+	});
+};
+
+/**
+ * Builds a query configuration for fetching flow run input by key
+ *
+ * @param id - The flow run id
+ * @param key - The input key (e.g., "schema", "description")
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data: schema } = useQuery(buildGetFlowRunInputQuery(flowRunId, "schema"));
+ * ```
+ */
+export const buildGetFlowRunInputQuery = (id: string, key: string) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.input(id, key),
+		queryFn: async () => {
+			const res = await (await getQueryService()).GET(
+				"/flow_runs/{id}/input/{key}",
+				{
+					params: { path: { id, key } },
+				},
+			);
 			return res.data;
 		},
 	});
@@ -498,3 +527,73 @@ export const useSetFlowRunState = () => {
 		...rest,
 	};
 };
+
+/**
+ * Parameters for resuming a flow run
+ */
+type ResumeFlowRunParams = {
+	id: string;
+	runInput?: Record<string, unknown>;
+};
+
+/**
+ * Hook for resuming a paused flow run
+ *
+ * @returns Mutation object for resuming a flow run with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { resumeFlowRun, isPending } = useResumeFlowRun();
+ *
+ * resumeFlowRun({ id: "flow-run-id" }, {
+ *   onSuccess: () => toast.success("Flow run resumed"),
+ *   onError: (error) => toast.error(error.message)
+ * });
+ * ```
+ */
+export const useResumeFlowRun = () => {
+	const queryClient = useQueryClient();
+	const {
+		mutate: resumeFlowRun,
+		mutateAsync: resumeFlowRunAsync,
+		...rest
+	} = useMutation({
+		mutationFn: async ({ id, runInput }: ResumeFlowRunParams) => {
+			const res = await (await getQueryService()).POST(
+				"/flow_runs/{id}/resume",
+				{
+					params: { path: { id } },
+					body: runInput ? { run_input: runInput } : undefined,
+				},
+			);
+
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+
+			// Check orchestration result status
+			if (res.data.status !== "ACCEPT") {
+				const reason =
+					res.data.details && "reason" in res.data.details
+						? res.data.details.reason
+						: "Resume request was not accepted";
+				throw new Error(reason ?? "Resume request was not accepted");
+			}
+
+			return res.data;
+		},
+		onSettled: (_data, _error, { id }) => {
+			void Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.detail(id) }),
+			]);
+		},
+	});
+	return {
+		resumeFlowRun,
+		resumeFlowRunAsync,
+		...rest,
+	};
+};
+
+export * from "./state-utilities";
