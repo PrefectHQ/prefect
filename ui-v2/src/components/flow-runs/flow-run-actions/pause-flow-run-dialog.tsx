@@ -41,6 +41,8 @@ export const PauseFlowRunDialog = ({
 					state_details: {
 						pause_timeout: pauseTimeout,
 						pause_reschedule: true,
+						deferred: false,
+						untrackable_result: false,
 					},
 				},
 				force: true,

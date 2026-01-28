@@ -169,6 +169,9 @@ describe("ResumeFlowRunDialog", () => {
 						schema: "schema-key",
 						description: "description-key",
 					},
+					deferred: false,
+					untrackable_result: false,
+					pause_reschedule: false,
 				},
 			},
 		});
