@@ -7246,6 +7246,38 @@ export interface components {
             parent_task_run_id?: components["schemas"]["FlowRunFilterParentTaskRunId"] | null;
             /** @description Filter criteria for `FlowRun.idempotency_key` */
             idempotency_key?: components["schemas"]["FlowRunFilterIdempotencyKey"] | null;
+            /** @description Filter criteria for `FlowRun.created_by` */
+            created_by?: components["schemas"]["FlowRunFilterCreatedBy"] | null;
+        };
+        /**
+         * FlowRunFilterCreatedBy
+         * @description Filter by `FlowRun.created_by`.
+         */
+        FlowRunFilterCreatedBy: {
+            /**
+             * @description Operator for combining filter criteria. Defaults to 'and_'.
+             * @default and_
+             */
+            operator: components["schemas"]["Operator"];
+            /**
+             * Id
+             * @description A list of creator IDs to include
+             */
+            id_?: string[] | null;
+            /**
+             * Type
+             * @description A list of creator types to include. For example, 'DEPLOYMENT' for scheduled runs or 'AUTOMATION' for runs triggered by automations.
+             * @example [
+             *       "DEPLOYMENT",
+             *       "AUTOMATION"
+             *     ]
+             */
+            type_?: string[] | null;
+            /**
+             * Is Null
+             * @description If true, only include flow runs without a creator
+             */
+            is_null_?: boolean | null;
         };
         /**
          * FlowRunFilterDeploymentId
@@ -7903,6 +7935,11 @@ export interface components {
          * @description Settings for controlling flow behavior
          */
         FlowsSettings: {
+            /**
+             * Heartbeat Frequency
+             * @description Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+             */
+            heartbeat_frequency?: number | null;
             /**
              * Default Retries
              * @description This value sets the default number of retries for all flows.
@@ -8954,10 +8991,11 @@ export interface components {
              */
             poll_frequency: number;
             /**
-             * Heartbeat Frequency
-             * @description Number of seconds a runner should wait between heartbeats for flow runs.
+             * Crash On Cancellation Failure
+             * @description Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.
+             * @default false
              */
-            heartbeat_frequency?: number | null;
+            crash_on_cancellation_failure: boolean;
             server?: components["schemas"]["RunnerServerSettings"];
         };
         /**

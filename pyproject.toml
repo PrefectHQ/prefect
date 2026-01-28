@@ -38,7 +38,7 @@ dependencies = [
     "pytz>=2021.1,<2026",
     "readchar>=4.0.0,<5.0.0",
     "sqlalchemy[asyncio]>=2.0,<3.0.0",
-    "typer>=0.16.0,<0.21.0",
+    "typer>=0.16.0,<0.22.0",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
     "anyio>=4.4.0,<5.0.0",
@@ -81,7 +81,7 @@ dependencies = [
     "whenever>=0.7.3,<0.10.0; python_version>='3.13'",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
-    "pydocket>=0.16.2",
+    "pydocket>=0.17.2",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
@@ -161,7 +161,7 @@ dev = [
     "watchfiles>=1.0.4",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.14.11",
+    "ruff==0.14.14",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -259,6 +259,8 @@ markers = [
     "service(arg): a service integration test. For example 'docker'",
     "enable_api_log_handler: by default, sending logs to the API is disabled. Tests marked with this use the handler.",
     "clear_db: marker to clear the database after test completion",
+    "windows: tests that specifically test Windows-only behavior",
+    "unix: tests that specifically test Unix-only behavior",
 ]
 env = [
     "PREFECT_TESTING_TEST_MODE=1",
@@ -355,6 +357,7 @@ ignore-words-list = [
     "afterall",
     "medias",
     "falso",
+    "aapply",
 ]
 
 check-hidden = true

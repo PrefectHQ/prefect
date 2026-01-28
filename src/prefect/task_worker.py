@@ -22,6 +22,7 @@ from websockets.exceptions import InvalidStatus
 
 import prefect.types._datetime
 from prefect import Task
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.blocks import call_explicitly_async_block_method
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.cache_policies import DEFAULT, NO_CACHE
@@ -40,7 +41,7 @@ from prefect.states import Pending
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.types import DateTime
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
+from prefect.utilities.asyncutils import asyncnullcontext
 from prefect.utilities.engine import emit_task_run_state_change_event
 from prefect.utilities.processutils import (
     _register_signal,  # pyright: ignore[reportPrivateUsage]
@@ -169,12 +170,11 @@ class TaskWorker:
         Shuts down the task worker when a SIGTERM is received.
         """
         logger.info("SIGTERM received, initiating graceful shutdown...")
-        from_sync.call_in_loop_thread(create_call(self.stop))
+        from_sync.call_in_loop_thread(create_call(self.astop))
 
         sys.exit(0)
 
-    @sync_compatible
-    async def start(self, timeout: Optional[float] = None) -> None:
+    async def astart(self, timeout: Optional[float] = None) -> None:
         """
         Starts a task worker, which runs the tasks provided in the constructor.
 
@@ -203,8 +203,20 @@ class TaskWorker:
                 else:
                     raise
 
-    @sync_compatible
-    async def stop(self):
+    @async_dispatch(astart)
+    def start(self, timeout: Optional[float] = None) -> None:
+        """
+        Starts a task worker, which runs the tasks provided in the constructor.
+
+        Args:
+            timeout: If provided, the task worker will exit after the given number of
+                seconds. Defaults to None, meaning the task worker will run indefinitely.
+        """
+        from_sync.call_soon_in_loop_thread(
+            create_call(self.astart, timeout=timeout)
+        ).result()
+
+    async def astop(self) -> None:
         """Stops the task worker's polling cycle."""
         if not self.started:
             raise RuntimeError(
@@ -216,6 +228,11 @@ class TaskWorker:
         self.stopping = True
 
         raise StopTaskWorker
+
+    @async_dispatch(astop)
+    def stop(self) -> None:
+        """Stops the task worker's polling cycle."""
+        from_sync.call_soon_in_loop_thread(create_call(self.astop)).result()
 
     async def _acquire_token(self, task_run_id: UUID) -> bool:
         try:
@@ -317,7 +334,7 @@ class TaskWorker:
             task.persist_result = True
             store = await ResultStore(
                 result_storage=await get_or_create_default_task_scheduling_storage()
-            ).update_for_task(task)
+            ).aupdate_for_task(task)
             try:
                 run_data: dict[str, Any] = await read_parameters(store, parameters_id)
                 parameters = run_data.get("parameters", {})
@@ -432,13 +449,115 @@ def create_status_server(task_worker: TaskWorker) -> FastAPI:
     return status_app
 
 
-@sync_compatible
-async def serve(
+async def aserve(
     *tasks: Task[P, R],
     limit: Optional[int] = 10,
     status_server_port: Optional[int] = None,
     timeout: Optional[float] = None,
-):
+) -> None:
+    """Serve the provided tasks so that their runs may be submitted to
+    and executed in the engine. Tasks do not need to be within a flow run context to be
+    submitted. You must `.submit` the same task object that you pass to `serve`.
+
+    Args:
+        - tasks: A list of tasks to serve. When a scheduled task run is found for a
+            given task, the task run will be submitted to the engine for execution.
+        - limit: The maximum number of tasks that can be run concurrently. Defaults to 10.
+            Pass `None` to remove the limit.
+        - status_server_port: An optional port on which to start an HTTP server
+            exposing status information about the task worker. If not provided, no
+            status server will run.
+        - timeout: If provided, the task worker will exit after the given number of
+            seconds. Defaults to None, meaning the task worker will run indefinitely.
+
+    Example:
+        ```python
+        from prefect import task
+        from prefect.task_worker import serve
+
+        @task(log_prints=True)
+        def say(message: str):
+            print(message)
+
+        @task(log_prints=True)
+        def yell(message: str):
+            print(message.upper())
+
+        # starts a long-lived process that listens for scheduled runs of these tasks
+        await aserve(say, yell)
+        ```
+    """
+    task_worker = TaskWorker(*tasks, limit=limit)
+
+    status_server_task = None
+    if status_server_port is not None:
+        server = uvicorn.Server(
+            uvicorn.Config(
+                app=create_status_server(task_worker),
+                host="127.0.0.1",
+                port=status_server_port,
+                access_log=False,
+                log_level="warning",
+            )
+        )
+        loop = asyncio.get_event_loop()
+        status_server_task = loop.create_task(server.serve())
+
+    try:
+        await task_worker.astart(timeout=timeout)
+
+    except TimeoutError:
+        if timeout is not None:
+            logger.info(f"Task worker timed out after {timeout} seconds. Exiting...")
+        else:
+            raise
+
+    except BaseExceptionGroup as exc:  # novermin
+        # Unwrap exception groups to handle inner exceptions appropriately
+        # split() returns (matching, rest) - we want to separate expected from unexpected
+        expected, unexpected = exc.split(
+            (StopTaskWorker, asyncio.CancelledError, KeyboardInterrupt, TimeoutError)
+        )
+
+        if expected:
+            # Handle expected shutdown exceptions
+            for e in expected.exceptions:
+                if isinstance(e, StopTaskWorker):
+                    logger.info("Task worker stopped.")
+                elif isinstance(e, TimeoutError):
+                    if timeout is not None:
+                        logger.info(
+                            f"Task worker timed out after {timeout} seconds. Exiting..."
+                        )
+                elif isinstance(e, (asyncio.CancelledError, KeyboardInterrupt)):
+                    logger.info("Task worker interrupted, stopping...")
+
+        if unexpected:
+            # Re-raise unexpected exceptions so they're not silently swallowed
+            raise unexpected
+
+    except StopTaskWorker:
+        logger.info("Task worker stopped.")
+
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        logger.info("Task worker interrupted, stopping...")
+
+    finally:
+        if status_server_task:
+            status_server_task.cancel()
+            try:
+                await status_server_task
+            except asyncio.CancelledError:
+                pass
+
+
+@async_dispatch(aserve)
+def serve(
+    *tasks: Task[P, R],
+    limit: Optional[int] = 10,
+    status_server_port: Optional[int] = None,
+    timeout: Optional[float] = None,
+) -> None:
     """Serve the provided tasks so that their runs may be submitted to
     and executed in the engine. Tasks do not need to be within a flow run context to be
     submitted. You must `.submit` the same task object that you pass to `serve`.
@@ -471,52 +590,15 @@ async def serve(
         serve(say, yell)
         ```
     """
-    task_worker = TaskWorker(*tasks, limit=limit)
-
-    status_server_task = None
-    if status_server_port is not None:
-        server = uvicorn.Server(
-            uvicorn.Config(
-                app=create_status_server(task_worker),
-                host="127.0.0.1",
-                port=status_server_port,
-                access_log=False,
-                log_level="warning",
-            )
+    from_sync.call_soon_in_loop_thread(
+        create_call(
+            aserve,
+            *tasks,
+            limit=limit,
+            status_server_port=status_server_port,
+            timeout=timeout,
         )
-        loop = asyncio.get_event_loop()
-        status_server_task = loop.create_task(server.serve())
-
-    try:
-        await task_worker.start(timeout=timeout)
-
-    except TimeoutError:
-        if timeout is not None:
-            logger.info(f"Task worker timed out after {timeout} seconds. Exiting...")
-        else:
-            raise
-
-    except BaseExceptionGroup as exc:  # novermin
-        exceptions = exc.exceptions
-        n_exceptions = len(exceptions)
-        logger.error(
-            f"Task worker stopped with {n_exceptions} exception{'s' if n_exceptions != 1 else ''}:"
-            f"\n" + "\n".join(str(e) for e in exceptions)
-        )
-
-    except StopTaskWorker:
-        logger.info("Task worker stopped.")
-
-    except (asyncio.CancelledError, KeyboardInterrupt):
-        logger.info("Task worker interrupted, stopping...")
-
-    finally:
-        if status_server_task:
-            status_server_task.cancel()
-            try:
-                await status_server_task
-            except asyncio.CancelledError:
-                pass
+    ).result()
 
 
 async def store_parameters(

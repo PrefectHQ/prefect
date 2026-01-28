@@ -977,6 +977,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # reenter the run context to ensure it is up to date for every run
         with self.setup_run_context():
             try:
+                # Warn if timeout is set but we're not on the main thread
+                if (
+                    self.task.timeout_seconds is not None
+                    and threading.current_thread() is not threading.main_thread()
+                ):
+                    self.logger.warning(
+                        "Timeout of %s seconds configured for this task, but the task is "
+                        "running in a worker thread. Timeouts in worker threads cannot "
+                        "interrupt blocking operations like `time.sleep()`, network "
+                        "requests, or file I/O. The timeout will only take effect after "
+                        "the blocking operation completes. Consider using an async task "
+                        "with `await` statements for reliable timeout behavior. "
+                        "See https://docs.prefect.io/v3/how-to-guides/workflows/"
+                        "write-and-run#task-timeout-behavior for more information.",
+                        self.task.timeout_seconds,
+                    )
                 with timeout(
                     seconds=self.task.timeout_seconds,
                     timeout_exc_type=TaskRunTimeoutError,
@@ -1379,9 +1395,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=await get_result_store().update_for_task(
-                        self.task, _sync=False
-                    ),
+                    result_store=await get_result_store().aupdate_for_task(self.task),
                     client=client,
                     persist_result=persist_result,
                 )

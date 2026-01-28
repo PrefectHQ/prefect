@@ -156,6 +156,18 @@ def pytest_collection_modifyitems(
     for async_test in pytest_asyncio_tests:
         async_test.add_marker(session_scope_marker, append=False)
 
+    # Skip tests marked with @pytest.mark.windows on non-Windows platforms
+    if sys.platform != "win32":
+        for item in items:
+            if item.get_closest_marker("windows"):
+                item.add_marker(pytest.mark.skip(reason="Test only runs on Windows"))
+
+    # Skip tests marked with @pytest.mark.unix on Windows
+    if sys.platform == "win32":
+        for item in items:
+            if item.get_closest_marker("unix"):
+                item.add_marker(pytest.mark.skip(reason="Test only runs on Unix"))
+
     exclude_all_services = config.getoption("--exclude-services")
     if exclude_all_services:
         for item in items:
@@ -379,8 +391,10 @@ def cleanup(drain_log_workers: None, drain_events_workers: None):
     yield
 
     # delete the temporary directory
+    # Use ignore_errors=True to handle race conditions where SQLite auxiliary
+    # files (.db-shm, .db-wal) may be deleted by SQLite before rmtree runs
     if TEST_PREFECT_HOME is not None:
-        shutil.rmtree(TEST_PREFECT_HOME)
+        shutil.rmtree(TEST_PREFECT_HOME, ignore_errors=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
