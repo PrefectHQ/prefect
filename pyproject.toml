@@ -181,6 +181,8 @@ dev = [
 
 perf = ["logfire[fastapi,sqlalchemy]>=3.14.0", "pyinstrument>=5.0.0"]
 
+cli-bench = ["python-cli-bench @ git+https://github.com/zzstoatzz/python-cli-bench.git"]
+
 markdown-docs = [
     "pytest-markdown-docs>=0.6.0",
     "prefect[aws]",
