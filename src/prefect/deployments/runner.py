@@ -441,6 +441,16 @@ class RunnerDeployment(BaseModel):
             if self._sla or self._sla == []:
                 await self._create_slas(deployment_id, client)
 
+            # Track deployment milestones for analytics
+            try:
+                from prefect.sdk_analytics._milestones import try_mark_milestone
+
+                try_mark_milestone("first_deployment_created")
+                if self.schedules:
+                    try_mark_milestone("first_schedule_created")
+            except Exception:
+                pass
+
             return deployment_id
 
     def _create_sync(
@@ -527,6 +537,16 @@ class RunnerDeployment(BaseModel):
 
             if self._sla or self._sla == []:
                 self._create_slas_sync(deployment_id, client)
+
+            # Track deployment milestones for analytics
+            try:
+                from prefect.sdk_analytics._milestones import try_mark_milestone
+
+                try_mark_milestone("first_deployment_created")
+                if self.schedules:
+                    try_mark_milestone("first_schedule_created")
+            except Exception:
+                pass
 
             return deployment_id
 

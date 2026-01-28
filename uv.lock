@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <3.15"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -231,6 +231,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/70/a5/57f989c26c078567a08f1d88c337acfcb69c8c9cac6876a34054f35b8112/alembic-1.18.0.tar.gz", hash = "sha256:0c4c03c927dc54d4c56821bdcc988652f4f63bf7b9017fd9d78d63f09fd22b48", size = 2043788, upload-time = "2026-01-09T21:22:23.683Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/fd/68773667babd452fb48f974c4c1f6e6852c6e41bcf622c745faca1b06605/alembic-1.18.0-py3-none-any.whl", hash = "sha256:3993fcfbc371aa80cdcf13f928b7da21b1c9f783c914f03c3c6375f58efd9250", size = 260967, upload-time = "2026-01-09T21:22:25.333Z" },
+]
+
+[[package]]
+name = "amplitude-analytics"
+version = "1.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/fc/a13b8e2ef83b1ad2be606d5d01a16d43d26cb5d3ef71d7c35e4f3bee2e1f/amplitude_analytics-1.2.1.tar.gz", hash = "sha256:909e271f48ebee5e58d0e9b8d675e09cad6304a50fbb5b57c910313beaf744ed", size = 22237, upload-time = "2025-11-19T18:38:45.845Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/c0/09f3038554d902379c4a887e567a70765a30c41d7a724827351a183ef774/amplitude_analytics-1.2.1-py3-none-any.whl", hash = "sha256:8d35823e99432e8e91276f1f7542b267c2c8e4e4297d41e2914a585fd73ca96c", size = 24641, upload-time = "2025-11-19T18:38:44.634Z" },
 ]
 
 [[package]]
@@ -3966,6 +3975,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
     { name = "alembic" },
+    { name = "amplitude-analytics" },
     { name = "anyio" },
     { name = "apprise" },
     { name = "asgi-lifespan" },
@@ -4156,6 +4166,7 @@ type-checking = [
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.17.0,<1.0.0" },
     { name = "alembic", specifier = ">=1.7.5,<2.0.0" },
+    { name = "amplitude-analytics", specifier = ">=1.2.1,<2.0.0" },
     { name = "anyio", specifier = ">=4.4.0,<5.0.0" },
     { name = "apprise", specifier = ">=1.1.0,<2.0.0" },
     { name = "asgi-lifespan", specifier = ">=1.0,<3.0" },

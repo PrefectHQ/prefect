@@ -1,0 +1,67 @@
+"""
+First-run telemetry notice for SDK telemetry.
+
+Displays a notice to users the first time telemetry is enabled,
+but only in interactive terminal sessions.
+"""
+
+import sys
+from pathlib import Path
+
+NOTICE_TEXT = """
+Prefect collects anonymous usage data to improve the product.
+To opt out: PREFECT_SERVER_ANALYTICS_ENABLED=false or DO_NOT_TRACK=1
+Learn more: https://docs.prefect.io/develop/telemetry
+"""
+
+
+def _get_notice_marker_path() -> Path:
+    """Get the path to the notice marker file."""
+    from prefect.settings import get_current_settings
+
+    settings = get_current_settings()
+    return settings.home / ".sdk_telemetry" / "notice_shown"
+
+
+def _has_shown_notice() -> bool:
+    """Check if the notice has been shown before."""
+    return _get_notice_marker_path().exists()
+
+
+def _mark_notice_shown() -> None:
+    """Mark that the notice has been shown."""
+    marker_path = _get_notice_marker_path()
+    try:
+        marker_path.parent.mkdir(parents=True, exist_ok=True)
+        marker_path.touch()
+    except Exception:
+        pass
+
+
+def _is_interactive_terminal() -> bool:
+    """Check if we're running in an interactive terminal."""
+    try:
+        return sys.stdout.isatty()
+    except Exception:
+        return False
+
+
+def maybe_show_telemetry_notice() -> None:
+    """
+    Show the telemetry notice if appropriate.
+
+    The notice is shown only:
+    - The first time telemetry is enabled
+    - In an interactive terminal (TTY)
+    """
+    # Only show in interactive terminals
+    if not _is_interactive_terminal():
+        return
+
+    # Only show once
+    if _has_shown_notice():
+        return
+
+    # Show notice and mark as shown
+    print(NOTICE_TEXT, file=sys.stderr)
+    _mark_notice_shown()

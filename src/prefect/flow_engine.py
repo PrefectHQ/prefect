@@ -565,6 +565,14 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
 
+        # Track first flow run milestone for analytics
+        try:
+            from prefect.sdk_analytics._milestones import try_mark_milestone
+
+            try_mark_milestone("first_flow_run")
+        except Exception:
+            pass
+
         return result
 
     def handle_exception(
@@ -1149,6 +1157,14 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self._return_value = resolved_result
 
         self._telemetry.end_span_on_success()
+
+        # Track first flow run milestone for analytics
+        try:
+            from prefect.sdk_analytics._milestones import try_mark_milestone
+
+            try_mark_milestone("first_flow_run")
+        except Exception:
+            pass
 
         return result
 

@@ -130,6 +130,26 @@ def _initialize_plugins() -> None:
 # Initialize plugins on import if enabled
 _initialize_plugins()
 
+
+def _initialize_sdk_analytics() -> None:
+    """
+    Initialize SDK analytics for telemetry.
+
+    This runs automatically when Prefect is imported. Errors are silently
+    ignored to ensure analytics never impacts normal Prefect operation.
+    """
+    try:
+        from prefect.sdk_analytics import initialize_analytics
+
+        initialize_analytics()
+    except Exception:
+        # Never let analytics initialization impact Prefect
+        pass
+
+
+# Initialize SDK analytics on import
+_initialize_sdk_analytics()
+
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
     "apause_flow_run": (__spec__.parent, ".main"),
