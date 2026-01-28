@@ -51,7 +51,7 @@ class TestMilestones:
     ):
         """try_mark_milestone should return True the first time."""
         with patch(
-            "prefect._internal.analytics._is_interactive_terminal",
+            "prefect._internal.analytics.emit._is_interactive_terminal",
             return_value=True,
         ):
             from prefect._internal.analytics.milestones import try_mark_milestone
@@ -65,7 +65,7 @@ class TestMilestones:
     ):
         """try_mark_milestone should return False if already marked."""
         with patch(
-            "prefect._internal.analytics._is_interactive_terminal",
+            "prefect._internal.analytics.emit._is_interactive_terminal",
             return_value=True,
         ):
             from prefect._internal.analytics.milestones import try_mark_milestone
@@ -81,10 +81,10 @@ class TestMilestones:
         """try_mark_milestone should emit an event."""
         with (
             patch(
-                "prefect._internal.analytics._is_interactive_terminal",
+                "prefect._internal.analytics.emit._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
         ):
             from prefect._internal.analytics.milestones import try_mark_milestone
 
@@ -110,10 +110,10 @@ class TestMilestones:
         """try_mark_milestone should skip in non-interactive terminals."""
         with (
             patch(
-                "prefect._internal.analytics._is_interactive_terminal",
+                "prefect._internal.analytics.emit._is_interactive_terminal",
                 return_value=False,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
         ):
             from prefect._internal.analytics.milestones import try_mark_milestone
 

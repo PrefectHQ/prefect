@@ -8,16 +8,12 @@ For existing users (detected by presence of Prefect artifacts), all milestones
 are pre-marked as reached to avoid emitting onboarding events on upgrade.
 """
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
+from prefect._internal.analytics.emit import _is_interactive_terminal, emit_sdk_event
 from prefect.settings import get_current_settings
-
-if TYPE_CHECKING:
-    pass
 
 MilestoneName = Literal[
     "first_flow_defined",
@@ -166,9 +162,6 @@ def try_mark_milestone(milestone: MilestoneName) -> bool:
     Returns:
         True if this was the first time reaching the milestone
     """
-    # Import here to avoid circular import (milestones is imported by __init__)
-    from prefect._internal.analytics import _is_interactive_terminal, emit_sdk_event
-
     # Only emit events in interactive terminals
     # This prevents deployed flow runs from being counted as new users
     if not _is_interactive_terminal():

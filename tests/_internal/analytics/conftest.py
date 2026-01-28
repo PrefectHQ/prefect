@@ -90,4 +90,9 @@ def clean_telemetry_state(
         prefect._internal.analytics.client._amplitude_client = None
         prefect._internal.analytics.client._initialized = False
 
+        # Clear the server analytics cache
+        import prefect._internal.analytics.enabled
+
+        prefect._internal.analytics.enabled._get_server_analytics_enabled.cache_clear()
+
         yield prefect_home / ".sdk_telemetry"

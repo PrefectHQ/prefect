@@ -25,7 +25,7 @@ class TestEventEmission:
         self, clean_telemetry_state: Path, telemetry_enabled
     ):
         """emit_sdk_event should call track_event when enabled."""
-        with patch("prefect._internal.analytics.client.track_event") as mock_track:
+        with patch("prefect._internal.analytics.emit.track_event") as mock_track:
             mock_track.return_value = True
 
             from prefect._internal.analytics import emit_sdk_event
@@ -40,7 +40,7 @@ class TestEventEmission:
         self, clean_telemetry_state: Path, telemetry_enabled
     ):
         """emit_sdk_event should pass extra properties."""
-        with patch("prefect._internal.analytics.client.track_event") as mock_track:
+        with patch("prefect._internal.analytics.emit.track_event") as mock_track:
             mock_track.return_value = True
 
             from prefect._internal.analytics import emit_sdk_event
@@ -55,7 +55,7 @@ class TestEventEmission:
     ):
         """emit_sdk_event should handle exceptions without raising."""
         with patch(
-            "prefect._internal.analytics.device_id.get_or_create_device_id",
+            "prefect._internal.analytics.emit.get_or_create_device_id",
             side_effect=Exception("Test error"),
         ):
             from prefect._internal.analytics import emit_sdk_event
@@ -75,18 +75,19 @@ class TestAnalyticsInitialization:
         """initialize_analytics should skip onboarding events in non-interactive terminals."""
         with (
             patch(
-                "prefect._internal.analytics._is_interactive_terminal",
+                "prefect._internal.analytics.emit._is_interactive_terminal",
                 return_value=False,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
             patch(
                 "prefect._internal.analytics.notice.maybe_show_telemetry_notice"
             ) as mock_notice,
         ):
             import prefect._internal.analytics
-            from prefect._internal.analytics import initialize_analytics
 
             prefect._internal.analytics._telemetry_initialized = False
+
+            from prefect._internal.analytics import initialize_analytics
 
             initialize_analytics()
 
@@ -114,16 +115,17 @@ class TestAnalyticsInitialization:
                 return_value=fresh_settings,
             ),
             patch("prefect.settings.get_current_settings", return_value=fresh_settings),
+            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
         ):
-            with patch("prefect._internal.analytics.emit_sdk_event") as mock_emit:
-                import prefect._internal.analytics
-                from prefect._internal.analytics import initialize_analytics
+            import prefect._internal.analytics
 
-                prefect._internal.analytics._telemetry_initialized = False
+            prefect._internal.analytics._telemetry_initialized = False
 
-                initialize_analytics()
+            from prefect._internal.analytics import initialize_analytics
 
-                mock_emit.assert_not_called()
+            initialize_analytics()
+
+            mock_emit.assert_not_called()
 
     def test_initialize_analytics_enabled(
         self, clean_telemetry_state: Path, telemetry_enabled
@@ -131,16 +133,17 @@ class TestAnalyticsInitialization:
         """initialize_analytics should emit sdk_imported when enabled."""
         with (
             patch(
-                "prefect._internal.analytics._is_interactive_terminal",
+                "prefect._internal.analytics.emit._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
             patch("prefect._internal.analytics.notice.maybe_show_telemetry_notice"),
         ):
             import prefect._internal.analytics
-            from prefect._internal.analytics import initialize_analytics
 
             prefect._internal.analytics._telemetry_initialized = False
+
+            from prefect._internal.analytics import initialize_analytics
 
             initialize_analytics()
 
@@ -152,16 +155,17 @@ class TestAnalyticsInitialization:
         """initialize_analytics should only run once."""
         with (
             patch(
-                "prefect._internal.analytics._is_interactive_terminal",
+                "prefect._internal.analytics.emit._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
             patch("prefect._internal.analytics.notice.maybe_show_telemetry_notice"),
         ):
             import prefect._internal.analytics
-            from prefect._internal.analytics import initialize_analytics
 
             prefect._internal.analytics._telemetry_initialized = False
+
+            from prefect._internal.analytics import initialize_analytics
 
             initialize_analytics()
             initialize_analytics()  # Second call
@@ -175,18 +179,19 @@ class TestAnalyticsInitialization:
         """initialize_analytics should show telemetry notice."""
         with (
             patch(
-                "prefect._internal.analytics._is_interactive_terminal",
+                "prefect._internal.analytics.emit._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event"),
+            patch("prefect._internal.analytics.emit.emit_sdk_event"),
             patch(
                 "prefect._internal.analytics.notice.maybe_show_telemetry_notice"
             ) as mock_notice,
         ):
             import prefect._internal.analytics
-            from prefect._internal.analytics import initialize_analytics
 
             prefect._internal.analytics._telemetry_initialized = False
+
+            from prefect._internal.analytics import initialize_analytics
 
             initialize_analytics()
 
@@ -202,18 +207,19 @@ class TestAnalyticsInitialization:
 
         with (
             patch(
-                "prefect._internal.analytics._is_interactive_terminal",
+                "prefect._internal.analytics.emit._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
             patch(
                 "prefect._internal.analytics.notice.maybe_show_telemetry_notice"
             ) as mock_notice,
         ):
             import prefect._internal.analytics
-            from prefect._internal.analytics import initialize_analytics
 
             prefect._internal.analytics._telemetry_initialized = False
+
+            from prefect._internal.analytics import initialize_analytics
 
             initialize_analytics()
 
@@ -230,18 +236,19 @@ class TestAnalyticsInitialization:
 
         with (
             patch(
-                "prefect._internal.analytics._is_interactive_terminal",
+                "prefect._internal.analytics.emit._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
             patch(
                 "prefect._internal.analytics.notice.maybe_show_telemetry_notice"
             ) as mock_notice,
         ):
             import prefect._internal.analytics
-            from prefect._internal.analytics import initialize_analytics
 
             prefect._internal.analytics._telemetry_initialized = False
+
+            from prefect._internal.analytics import initialize_analytics
 
             initialize_analytics()
 

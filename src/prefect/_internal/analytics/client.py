@@ -9,6 +9,8 @@ import logging
 import platform
 from typing import Any
 
+from amplitude import Amplitude, BaseEvent, Config
+
 import prefect
 
 logger = logging.getLogger("prefect.sdk_analytics")
@@ -18,7 +20,7 @@ logger = logging.getLogger("prefect.sdk_analytics")
 AMPLITUDE_API_KEY = "YOUR_AMPLITUDE_API_KEY_HERE"  # TODO: Replace with actual key
 
 # Module-level client instance
-_amplitude_client: Any = None
+_amplitude_client: Amplitude | None = None
 _initialized = False
 
 
@@ -51,9 +53,6 @@ def _initialize_client() -> bool:
         return False
 
     try:
-        # amplitude is an optional dependency, so we import it here
-        from amplitude import Amplitude, Config
-
         config = Config(
             # Flush events after a short delay to avoid blocking
             flush_interval_millis=10000,  # 10 seconds
@@ -109,9 +108,6 @@ def track_event(
         return False
 
     try:
-        # amplitude is an optional dependency, so we import it here
-        from amplitude import BaseEvent
-
         event = BaseEvent(
             event_type=event_name,
             device_id=device_id,
