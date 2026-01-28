@@ -163,7 +163,7 @@ def try_mark_milestone(milestone: MilestoneName) -> bool:
     Returns:
         True if this was the first time reaching the milestone
     """
-    from prefect.sdk_analytics import _is_interactive_terminal, emit_sdk_event
+    from prefect.sdk_analytics._internal import _is_interactive_terminal, emit_sdk_event
 
     # Only emit events in interactive terminals
     # This prevents deployed flow runs from being counted as new users

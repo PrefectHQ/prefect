@@ -9,8 +9,6 @@ import logging
 import platform
 from typing import Any
 
-from prefect.sdk_analytics.events import SDKEvent
-
 logger = logging.getLogger("prefect.sdk_analytics")
 
 # Amplitude API key for SDK telemetry
@@ -87,7 +85,7 @@ def _shutdown_client() -> None:
 
 
 def track_event(
-    event_name: SDKEvent,
+    event_name: str,
     device_id: str,
     extra_properties: dict[str, Any] | None = None,
 ) -> bool:
