@@ -75,7 +75,7 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 			flowRun.state_type,
 		);
 
-	const canCancel = isStuckState(flowRun.state_type);
+	const canCancel = isStuckState(flowRun.state_type) && flowRun.deployment_id;
 	const canPause = isRunningState(flowRun.state_type) && flowRun.deployment_id;
 	const canResume = isPausedState(flowRun.state_type);
 	const canRetry = isTerminalState(flowRun.state_type) && flowRun.deployment_id;
