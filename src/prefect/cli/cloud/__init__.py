@@ -20,14 +20,14 @@ from typing import (
     overload,
 )
 
+if TYPE_CHECKING:
+    from fastapi import FastAPI
+
 import anyio
 import anyio.abc
 import httpx
 import readchar
 import typer
-import uvicorn
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from rich.console import Console
 from rich.live import Live
@@ -67,32 +67,6 @@ cloud_app.add_typer(workspace_app, aliases=["workspaces"])
 app.add_typer(cloud_app)
 
 
-def set_login_api_ready_event() -> None:
-    login_api.extra["ready-event"].set()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    try:
-        set_login_api_ready_event()
-        yield
-    finally:
-        pass
-
-
-login_api: FastAPI = FastAPI(lifespan=lifespan)
-"""
-This small API server is used for data transmission for browser-based log in.
-"""
-
-login_api.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 class LoginSuccess(BaseModel):
     api_key: str
 
@@ -110,21 +84,58 @@ class ServerExit(Exception):
     pass
 
 
-@login_api.post("/success")
-def receive_login(payload: LoginSuccess) -> None:
-    login_api.extra["result"] = LoginResult(type="success", content=payload)
-    login_api.extra["result-event"].set()
+# Lazily created FastAPI app for browser-based login
+_login_api: Optional["FastAPI"] = None
 
 
-@login_api.post("/failure")
-def receive_failure(payload: LoginFailed) -> None:
-    login_api.extra["result"] = LoginResult(type="failure", content=payload)
-    login_api.extra["result-event"].set()
+def _get_login_api() -> "FastAPI":
+    """Lazily create the FastAPI app for browser-based login.
+
+    This defers the import of fastapi/uvicorn until actually needed,
+    saving ~65ms on CLI startup for commands that don't use browser login.
+    """
+    global _login_api
+    if _login_api is not None:
+        return _login_api
+
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        try:
+            app.extra["ready-event"].set()
+            yield
+        finally:
+            pass
+
+    _login_api = FastAPI(lifespan=lifespan)
+    _login_api.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @_login_api.post("/success")
+    def receive_login(payload: LoginSuccess) -> None:
+        _login_api.extra["result"] = LoginResult(type="success", content=payload)
+        _login_api.extra["result-event"].set()
+
+    @_login_api.post("/failure")
+    def receive_failure(payload: LoginFailed) -> None:
+        _login_api.extra["result"] = LoginResult(type="failure", content=payload)
+        _login_api.extra["result-event"].set()
+
+    return _login_api
 
 
 async def serve_login_api(
-    cancel_scope: anyio.CancelScope, task_status: anyio.abc.TaskStatus[uvicorn.Server]
+    cancel_scope: anyio.CancelScope, task_status: anyio.abc.TaskStatus
 ) -> None:
+    import uvicorn
+
+    login_api = _get_login_api()
     config = uvicorn.Config(login_api, port=0, log_level="critical")
     server = uvicorn.Server(config)
 
@@ -272,6 +283,7 @@ async def login_with_browser() -> str:
     On failure, this function will exit the process.
     On success, it will return an API key.
     """
+    login_api = _get_login_api()
 
     # Set up an event that the login API will toggle on startup
     ready_event = login_api.extra["ready-event"] = anyio.Event()
