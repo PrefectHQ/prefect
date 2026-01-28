@@ -14,29 +14,179 @@ if TYPE_CHECKING:
     from prefect.tasks import MaterializingTask, TaskOptions
 
 
+class _MaterializeCallable:
+    """
+    A callable that supports both decorator and direct materialization usage.
+    """
+
+    def __init__(
+        self,
+        assets: tuple[Union[str, Asset], ...],
+        by: str | None = None,
+        **task_kwargs: Unpack[TaskOptions],
+    ):
+        """
+        Initialize the materialize callable.
+
+        Args:
+            assets: Assets to materialize
+            by: Optional tool that materialized the asset
+            **task_kwargs: Additional task configuration (only used when used as decorator)
+        """
+        self.assets = assets
+        self.by = by
+        self.task_kwargs = task_kwargs
+        self._materialized = False
+
+    def __call__(
+        self, fn: Callable[P, R] | None = None
+    ) -> MaterializingTask[P, R] | None:
+        """
+        If called with a function, acts as a decorator.
+        If called without arguments, attempts direct materialization.
+        """
+        if fn is not None:
+            # Decorator usage: @materialize(asset) def fn(): ...
+            from prefect.tasks import MaterializingTask
+
+            return MaterializingTask(
+                fn=fn, assets=self.assets, materialized_by=self.by, **self.task_kwargs
+            )
+        else:
+            # Direct materialization: materialize(asset)() or materialize(asset) when called directly
+            # This will raise an error if not in a context
+            if not self._materialized:
+                self._materialize_directly()
+                self._materialized = True
+            return None
+
+    def _materialize_directly(self) -> None:
+        """
+        Materialize assets directly in the current context.
+        """
+        from prefect.context import AssetContext, EngineContext, TaskRunContext
+
+        # Normalize assets to Asset objects
+        asset_objects = [Asset(key=a) if isinstance(a, str) else a for a in self.assets]
+        asset_set = set(asset_objects)
+
+        task_run_ctx = TaskRunContext.get()
+        flow_run_ctx = EngineContext.get()
+
+        if task_run_ctx is not None:
+            # We're in a task context - the task engine should have already
+            # set up an AssetContext via its asset_context() context manager
+            asset_ctx = AssetContext.get()
+            if asset_ctx is None:
+                raise RuntimeError(
+                    "No AssetContext found in task context. "
+                    "This is unexpected - the task engine should have created one."
+                )
+
+            # Add assets to the existing context - the task engine will
+            # emit events for all downstream_assets when the task completes
+            asset_ctx.downstream_assets.update(asset_set)
+            if self.by is not None:
+                asset_ctx.materialized_by = self.by
+            asset_ctx.update_tracked_assets()
+
+        elif flow_run_ctx is not None and flow_run_ctx.flow_run is not None:
+            # We're in a flow context but not in a task
+            # For flow-level direct materialization, emit events immediately for just this call's assets
+            # Collect upstream assets from all task runs in this flow
+            upstream_assets: set[Asset] = set()
+            if flow_run_ctx.task_run_assets:
+                for task_assets in flow_run_ctx.task_run_assets.values():
+                    upstream_assets.update(task_assets)
+
+            # Create a context just for this materialization call
+            asset_ctx = AssetContext(
+                downstream_assets=asset_set,
+                upstream_assets=upstream_assets,
+                direct_asset_dependencies=set(),
+                materialized_by=self.by,
+                task_run_id=None,
+                materialization_metadata={},
+            )
+
+            # Emit events immediately for this call's assets
+            from prefect.states import Completed
+
+            completed_state = Completed()
+            asset_ctx.emit_events(completed_state)
+        else:
+            raise RuntimeError(
+                "Cannot materialize assets outside of a flow or task context. "
+                "Use @materialize as a decorator or call materialize() from within a flow or task."
+            )
+
+
 def materialize(
     *assets: Union[str, Asset],
     by: str | None = None,
     **task_kwargs: Unpack[TaskOptions],
-) -> Callable[[Callable[P, R]], MaterializingTask[P, R]]:
+) -> Union[
+    _MaterializeCallable,
+    Callable[[Callable[P, R]], MaterializingTask[P, R]],
+    None,
+]:
     """
-    Decorator for materializing assets.
+    Materialize assets. Can be used as a decorator or called directly.
+
+    When used as a decorator:
+        @materialize("s3://bucket/data.csv")
+        def my_task():
+            ...
+
+    When called directly (from within a flow or task):
+        @flow
+        def my_flow():
+            materialize("s3://bucket/data.csv")
+
+        @task
+        def my_task():
+            materialize("s3://bucket/data.csv")
 
     Args:
         *assets: Assets to materialize
         by: An optional tool that is ultimately responsible for materializing the asset e.g. "dbt" or "spark"
-        **task_kwargs: Additional task configuration
+        **task_kwargs: Additional task configuration (only used when used as decorator)
+
+    Returns:
+        When used as decorator: A MaterializingTask (via the returned callable)
+        When called directly in execution context: None (assets are materialized immediately)
+        When called outside execution context: A callable for decorator use
     """
     if not assets:
         raise TypeError(
             "materialize requires at least one asset argument, e.g. `@materialize(asset)`"
         )
 
-    from prefect.tasks import MaterializingTask
+    materialize_obj = _MaterializeCallable(assets, by, **task_kwargs)
 
-    def decorator(fn: Callable[P, R]) -> MaterializingTask[P, R]:
-        return MaterializingTask(
-            fn=fn, assets=assets, materialized_by=by, **task_kwargs
-        )
+    # Check if we're in an execution context where we can materialize directly
+    try:
+        from prefect.context import EngineContext, TaskRunContext
 
-    return decorator
+        task_ctx = TaskRunContext.get()
+        flow_ctx = EngineContext.get()
+
+        # This distinguishes between definition time (decorator) and execution time (direct call)
+        if task_ctx is not None or (
+            flow_ctx is not None and flow_ctx.flow_run is not None
+        ):
+            # We're in an execution context - materialize immediately
+            materialize_obj._materialize_directly()
+            materialize_obj._materialized = True
+            return None
+        else:
+            # Return callable - it will handle both decorator and direct call cases
+            # When used as decorator: __call__(fn) returns MaterializingTask (works)
+            # When called directly: __call__(None) tries to materialize and fails (raises error)
+            return materialize_obj
+    except Exception:
+        # If context access fails, assume decorator usage and return callable
+        return materialize_obj
+
+    # Return the callable for decorator use (fallback)
+    return materialize_obj
