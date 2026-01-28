@@ -1,14 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import {
 	buildFilterFlowRunsQuery,
 	type FlowRun,
+	isStuckState,
 	useSetFlowRunState,
 } from "@/api/flow-runs";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
+import { CancelFlowRunDialog } from "@/components/flow-runs/flow-run-actions";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -51,6 +54,7 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 		onOpenChange: setChangeStateOpen,
 		openDialog: openChangeState,
 	} = useChangeStateDialog();
+	const [isCancelOpen, setIsCancelOpen] = useState(false);
 	const { setFlowRunState, isPending: isChangingState } = useSetFlowRunState();
 
 	const canChangeState =
@@ -58,6 +62,8 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 		["COMPLETED", "FAILED", "CANCELLED", "CRASHED"].includes(
 			flowRun.state_type,
 		);
+
+	const canCancel = isStuckState(flowRun.state_type);
 
 	const handleChangeState = (newState: { type: string; message?: string }) => {
 		setFlowRunState(
@@ -238,6 +244,11 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 							Change state
 						</DropdownMenuItem>
 					)}
+					{canCancel && (
+						<DropdownMenuItem onClick={() => setIsCancelOpen(true)}>
+							Cancel
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(flowRun.id);
@@ -277,6 +288,11 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 				label="Flow Run"
 				onConfirm={handleChangeState}
 				isLoading={isChangingState}
+			/>
+			<CancelFlowRunDialog
+				flowRun={flowRun}
+				open={isCancelOpen}
+				onOpenChange={setIsCancelOpen}
 			/>
 		</div>
 	);
