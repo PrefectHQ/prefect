@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 from sqlalchemy.sql import text
 from typing_extensions import Literal
 
-from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.blocks.abstract import CredentialsBlock, DatabaseBlock
 from prefect.utilities.hashing import hash_objects
 from prefect_sqlalchemy.credentials import (
@@ -459,7 +458,6 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         await self._exit_stack.aclose()
         self.logger.info("Reset opened connections and their results.")
 
-    @async_dispatch(reset_async_connections)
     def reset_connections(self) -> None:
         """
         Tries to close all opened connections and their results (sync version for sync drivers).
@@ -551,7 +549,6 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         row = result_set.fetchone()
         return row
 
-    @async_dispatch(afetch_one)
     def fetch_one(
         self,
         operation: str,
@@ -674,7 +671,6 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         rows = result_set.fetchmany(size=size)
         return rows
 
-    @async_dispatch(afetch_many)
     def fetch_many(
         self,
         operation: str,
@@ -797,7 +793,6 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         rows = result_set.fetchall()
         return rows
 
-    @async_dispatch(afetch_all)
     def fetch_all(
         self,
         operation: str,
@@ -904,7 +899,6 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self.logger.info(f"Executed the operation, {operation!r}")
         return result
 
-    @async_dispatch(aexecute)
     def execute(
         self,
         operation: str,
@@ -1011,7 +1005,6 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         )
         return result
 
-    @async_dispatch(aexecute_many)
     def execute_many(
         self,
         operation: str,

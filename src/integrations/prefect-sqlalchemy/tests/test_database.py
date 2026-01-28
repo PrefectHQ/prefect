@@ -187,12 +187,10 @@ class TestSqlAlchemyConnector:
         else:
             create_result = credentials.execute(
                 "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);",
-                _sync=True,
             )
             insert_result = credentials.execute(
                 "INSERT INTO customers (name, address) VALUES (:name, :address);",
                 parameters={"name": "Marvin", "address": "Highway 42"},
-                _sync=True,
             )
             many_result = credentials.execute_many(
                 "INSERT INTO customers (name, address) VALUES (:name, :address);",
@@ -201,7 +199,6 @@ class TestSqlAlchemyConnector:
                     {"name": "Unknown", "address": "Space"},
                     {"name": "Me", "address": "Myway 88"},
                 ],
-                _sync=True,
             )
         assert isinstance(many_result, CursorResult)
         assert isinstance(insert_result, CursorResult)
@@ -289,7 +286,7 @@ class TestSqlAlchemyConnector:
     ):
         if managed_connector_with_data._driver_is_async:
             with pytest.raises(RuntimeError, match="synchronous connections"):
-                managed_connector_with_data.reset_connections(_sync=True)
+                managed_connector_with_data.reset_connections()
         else:
             with pytest.raises(RuntimeError, match="asynchronous connections"):
                 await managed_connector_with_data.reset_async_connections()
@@ -324,32 +321,25 @@ class TestSqlAlchemyConnector:
             assert results == ("Marvin", "Highway 42")
             assert len(managed_connector_with_data._unique_results) == 1
         else:
-            results = managed_connector_with_data.fetch_one(
-                "SELECT * FROM customers", _sync=True
-            )
+            results = managed_connector_with_data.fetch_one("SELECT * FROM customers")
             assert results == ("Marvin", "Highway 42")
-            results = managed_connector_with_data.fetch_one(
-                "SELECT * FROM customers", _sync=True
-            )
+            results = managed_connector_with_data.fetch_one("SELECT * FROM customers")
             assert results == ("Ford", "Highway 42")
 
             # test with parameters
             results = managed_connector_with_data.fetch_one(
                 "SELECT * FROM customers WHERE address = :address",
                 parameters={"address": "Myway 88"},
-                _sync=True,
             )
             assert results == ("Me", "Myway 88")
             assert len(managed_connector_with_data._unique_results) == 2
 
             # now reset so fetch starts at the first value again
-            managed_connector_with_data.reset_connections(_sync=True)
+            managed_connector_with_data.reset_connections()
             assert len(managed_connector_with_data._unique_results) == 0
 
             # ensure it's really reset
-            results = managed_connector_with_data.fetch_one(
-                "SELECT * FROM customers", _sync=True
-            )
+            results = managed_connector_with_data.fetch_one("SELECT * FROM customers")
             assert results == ("Marvin", "Highway 42")
             assert len(managed_connector_with_data._unique_results) == 1
 
@@ -388,7 +378,7 @@ class TestSqlAlchemyConnector:
             assert len(managed_connector_with_data._unique_results) == 1
         else:
             results = managed_connector_with_data.fetch_many(
-                "SELECT * FROM customers", size=size, _sync=True
+                "SELECT * FROM customers", size=size
             )
             expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")][
                 : (size or managed_connector_with_data.fetch_size)
@@ -399,18 +389,17 @@ class TestSqlAlchemyConnector:
             results = managed_connector_with_data.fetch_many(
                 "SELECT * FROM customers WHERE address = :address",
                 parameters={"address": "Myway 88"},
-                _sync=True,
             )
             assert results == [("Me", "Myway 88")]
             assert len(managed_connector_with_data._unique_results) == 2
 
             # now reset so fetch starts at the first value again
-            managed_connector_with_data.reset_connections(_sync=True)
+            managed_connector_with_data.reset_connections()
             assert len(managed_connector_with_data._unique_results) == 0
 
             # ensure it's really reset
             results = managed_connector_with_data.fetch_many(
-                "SELECT * FROM customers", size=3, _sync=True
+                "SELECT * FROM customers", size=3
             )
             assert results == [
                 ("Marvin", "Highway 42"),
@@ -454,7 +443,6 @@ class TestSqlAlchemyConnector:
             results = managed_connector_with_data.fetch_all(
                 "SELECT * FROM customers WHERE address = :address",
                 parameters={"address": "Highway 42"},
-                _sync=True,
             )
             expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")]
             assert results == expected
@@ -463,20 +451,18 @@ class TestSqlAlchemyConnector:
             results = managed_connector_with_data.fetch_all(
                 "SELECT * FROM customers WHERE address = :address",
                 parameters={"address": "Highway 42"},
-                _sync=True,
             )
             assert results == []
             assert len(managed_connector_with_data._unique_results) == 1
 
             # now reset so fetch one starts at the first value again
-            managed_connector_with_data.reset_connections(_sync=True)
+            managed_connector_with_data.reset_connections()
             assert len(managed_connector_with_data._unique_results) == 0
 
             # ensure it's really reset
             results = managed_connector_with_data.fetch_all(
                 "SELECT * FROM customers WHERE address = :address",
                 parameters={"address": "Highway 42"},
-                _sync=True,
             )
             expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")]
             assert results == expected
