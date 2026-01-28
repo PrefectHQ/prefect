@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import { categorizeError } from "@/api/error-utils";
@@ -103,9 +103,10 @@ export function FlowRunsCard({
 		return baseFilter;
 	}, [filter?.startDate, filter?.endDate, filter?.tags, filter?.hideSubflows]);
 
-	const flowRunsQuery = useQuery(
-		buildFilterFlowRunsQuery(flowRunsFilter, 30000),
-	);
+	const flowRunsQuery = useQuery({
+		...buildFilterFlowRunsQuery(flowRunsFilter, 30000),
+		placeholderData: keepPreviousData,
+	});
 
 	// Convert the filter to a count filter (without sort/limit/offset)
 	const countFilter = useMemo(
@@ -114,11 +115,14 @@ export function FlowRunsCard({
 	);
 
 	// Fetch total count using the count API (not limited by default API limit)
-	const totalCountQuery = useQuery(buildCountFlowRunsQuery(countFilter, 30000));
+	const totalCountQuery = useQuery({
+		...buildCountFlowRunsQuery(countFilter, 30000),
+		placeholderData: keepPreviousData,
+	});
 
 	// Fetch counts for each state type group using the count API
-	const failedCrashedQuery = useQuery(
-		buildCountFlowRunsQuery(
+	const failedCrashedQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -129,10 +133,11 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
-	const runningPendingCancellingQuery = useQuery(
-		buildCountFlowRunsQuery(
+	const runningPendingCancellingQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -146,10 +151,11 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
-	const completedQuery = useQuery(
-		buildCountFlowRunsQuery(
+	const completedQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -160,10 +166,11 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
-	const scheduledPausedQuery = useQuery(
-		buildCountFlowRunsQuery(
+	const scheduledPausedQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -174,10 +181,11 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
-	const cancelledQuery = useQuery(
-		buildCountFlowRunsQuery(
+	const cancelledQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -188,7 +196,8 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
 	// Extract data from queries with defaults
 	const allFlowRuns = flowRunsQuery.data ?? [];
@@ -237,28 +246,26 @@ export function FlowRunsCard({
 	}, [allFlowRuns]);
 
 	// Fetch flows for enrichment
-	const { data: flows, isLoading: isLoadingFlows } = useQuery(
-		buildListFlowsQuery(
-			{
-				flows: { operator: "and_", id: { any_: flowIds } },
-				offset: 0,
-				sort: "CREATED_DESC",
-			},
-			{ enabled: flowIds.length > 0 },
-		),
-	);
+	const { data: flows, isLoading: isLoadingFlows } = useQuery({
+		...buildListFlowsQuery({
+			flows: { operator: "and_", id: { any_: flowIds } },
+			offset: 0,
+			sort: "CREATED_DESC",
+		}),
+		enabled: flowIds.length > 0,
+		placeholderData: keepPreviousData,
+	});
 
 	// Fetch deployments for enrichment
-	const { data: deployments, isLoading: isLoadingDeployments } = useQuery(
-		buildFilterDeploymentsQuery(
-			{
-				deployments: { operator: "and_", id: { any_: deploymentIds } },
-				offset: 0,
-				sort: "CREATED_DESC",
-			},
-			{ enabled: deploymentIds.length > 0 },
-		),
-	);
+	const { data: deployments, isLoading: isLoadingDeployments } = useQuery({
+		...buildFilterDeploymentsQuery({
+			deployments: { operator: "and_", id: { any_: deploymentIds } },
+			offset: 0,
+			sort: "CREATED_DESC",
+		}),
+		enabled: deploymentIds.length > 0,
+		placeholderData: keepPreviousData,
+	});
 
 	// Enrich flow runs with flow and deployment data
 	const enrichedFlowRuns = useMemo(() => {
@@ -319,9 +326,11 @@ export function FlowRunsCard({
 		);
 	}
 
-	// Show loading state while critical data is loading
-	const isCriticalLoading = criticalQueries.some((q) => q.isLoading);
-	if (isCriticalLoading) {
+	// Only show skeleton on initial load (no data yet), not on refetch
+	const isInitialLoading = criticalQueries.some(
+		(q) => q.isLoading && q.data === undefined,
+	);
+	if (isInitialLoading) {
 		return <FlowRunsCardSkeleton />;
 	}
 
