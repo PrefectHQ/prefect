@@ -633,10 +633,16 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
 
 async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
     """
-    Removes consumer groups that have no active consumers.
+    Removes consumer groups that have no active consumers and have consumed at least
+    one message.
 
-    Consumer groups with no consumers are considered abandoned and can safely be
-    deleted to prevent them from blocking stream trimming operations.
+    Consumer groups with no consumers that have previously consumed messages are
+    considered abandoned and can safely be deleted to prevent them from blocking
+    stream trimming operations.
+
+    Groups with last-delivered-id of "0-0" are skipped because they haven't consumed
+    any messages yet - they may be newly created and waiting for consumers to be added.
+    This prevents a race condition where a group is deleted before consumers can join.
 
     Args:
         stream_name: The name of the Redis stream to clean up groups for
@@ -651,9 +657,14 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
 
     for group in groups:
         try:
+            # Skip groups that haven't consumed anything yet - they may be newly
+            # created and waiting for consumers to be added
+            if group["last-delivered-id"] == "0-0":
+                continue
+
             consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
             if not consumers and group["name"].startswith("ephemeral"):
-                # No consumers in this group - it's abandoned
+                # No consumers in this group and it has consumed messages - it's abandoned
                 logger.debug(f"Deleting empty consumer group '{group['name']}'")
                 await redis_client.xgroup_destroy(stream_name, group["name"])
         except Exception as e:

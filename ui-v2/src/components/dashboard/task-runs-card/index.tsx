@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, useMemo } from "react";
+import { useMemo } from "react";
 import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountTaskRunsQuery,
@@ -237,9 +237,7 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 							</div>
 						)}
 					</div>
-					<Suspense fallback={null}>
-						<TaskRunsTrends filter={filter} />
-					</Suspense>
+					<TaskRunsTrends filter={filter} />
 				</div>
 			</CardContent>
 		</Card>

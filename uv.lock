@@ -3945,6 +3945,15 @@ wheels = [
 ]
 
 [[package]]
+name = "plotext"
+version = "5.3.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/d7/f75f397af966fe252d0d34ffd3cae765317fce2134f925f95e7d6725d1ce/plotext-5.3.2.tar.gz", hash = "sha256:52d1e932e67c177bf357a3f0fe6ce14d1a96f7f7d5679d7b455b929df517068e", size = 61967, upload-time = "2024-09-24T15:13:37.728Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f6/1e/12fe7c40cd2099a1f454518754ed229b01beaf3bbb343127f0cc13ce6c22/plotext-5.3.2-py3-none-any.whl", hash = "sha256:394362349c1ddbf319548cfac17ca65e6d5dfc03200c40dfdc0503b3e95a2283", size = 64047, upload-time = "2024-09-24T15:13:36.296Z" },
+]
+
+[[package]]
 name = "pluggy"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4102,6 +4111,9 @@ benchmark = [
     { name = "pytest-benchmark" },
     { name = "pytest-codspeed" },
 ]
+cli-bench = [
+    { name = "python-cli-bench" },
+]
 dev = [
     { name = "cairosvg", marker = "python_full_version < '3.14'" },
     { name = "codespell" },
@@ -4252,6 +4264,7 @@ benchmark = [
     { name = "pytest-benchmark", specifier = ">=5.1.0" },
     { name = "pytest-codspeed", specifier = ">=2.2.1" },
 ]
+cli-bench = [{ name = "python-cli-bench", git = "https://github.com/zzstoatzz/python-cli-bench.git" }]
 dev = [
     { name = "cairosvg", marker = "python_full_version < '3.14'", specifier = ">=2.7.1" },
     { name = "codespell", specifier = "==2.4.1" },
@@ -5368,6 +5381,16 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/78/b4/439b179d1ff526791eb921115fca8e44e596a13efeda518b9d845a619450/pytest_xdist-3.8.0.tar.gz", hash = "sha256:7e578125ec9bc6050861aa93f2d59f1d8d085595d6551c2c90b6f4fad8d3a9f1", size = 88069, upload-time = "2025-07-01T13:30:59.346Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ca/31/d4e37e9e550c2b92a9cbc2e4d0b7420a27224968580b5a447f420847c975/pytest_xdist-3.8.0-py3-none-any.whl", hash = "sha256:202ca578cfeb7370784a8c33d6d05bc6e13b4f25b5053c30a152269fd10f0b88", size = 46396, upload-time = "2025-07-01T13:30:56.632Z" },
+]
+
+[[package]]
+name = "python-cli-bench"
+version = "0.1.0"
+source = { git = "https://github.com/zzstoatzz/python-cli-bench.git#c47b4171e007f2e6a51556a786a53c5384552434" }
+dependencies = [
+    { name = "plotext" },
+    { name = "rich" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 
 [[package]]
