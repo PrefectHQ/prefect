@@ -10,6 +10,7 @@ import {
 	isPausedState,
 	isRunningState,
 	isStuckState,
+	isTerminalState,
 	useSetFlowRunState,
 } from "@/api/flow-runs";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
@@ -17,6 +18,7 @@ import {
 	CancelFlowRunDialog,
 	PauseFlowRunDialog,
 	ResumeFlowRunDialog,
+	RetryFlowRunDialog,
 } from "@/components/flow-runs/flow-run-actions";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +43,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
@@ -63,6 +66,7 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 	const [isCancelOpen, setIsCancelOpen] = useState(false);
 	const [isPauseOpen, setIsPauseOpen] = useState(false);
 	const [isResumeOpen, setIsResumeOpen] = useState(false);
+	const [isRetryOpen, setIsRetryOpen] = useState(false);
 	const { setFlowRunState, isPending: isChangingState } = useSetFlowRunState();
 
 	const canChangeState =
@@ -74,6 +78,7 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 	const canCancel = isStuckState(flowRun.state_type);
 	const canPause = isRunningState(flowRun.state_type) && flowRun.deployment_id;
 	const canResume = isPausedState(flowRun.state_type);
+	const canRetry = isTerminalState(flowRun.state_type) && flowRun.deployment_id;
 
 	const handleChangeState = (newState: { type: string; message?: string }) => {
 		setFlowRunState(
@@ -249,11 +254,6 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent>
-					{canChangeState && (
-						<DropdownMenuItem onClick={openChangeState}>
-							Change state
-						</DropdownMenuItem>
-					)}
 					{canCancel && (
 						<DropdownMenuItem onClick={() => setIsCancelOpen(true)}>
 							Cancel
@@ -269,6 +269,21 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 							Resume
 						</DropdownMenuItem>
 					)}
+					{canRetry && (
+						<DropdownMenuItem onClick={() => setIsRetryOpen(true)}>
+							Retry
+						</DropdownMenuItem>
+					)}
+					{canChangeState && (
+						<DropdownMenuItem onClick={openChangeState}>
+							Change state
+						</DropdownMenuItem>
+					)}
+					{(canCancel ||
+						canPause ||
+						canResume ||
+						canRetry ||
+						canChangeState) && <DropdownMenuSeparator />}
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(flowRun.id);
@@ -323,6 +338,11 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 				flowRun={flowRun}
 				open={isResumeOpen}
 				onOpenChange={setIsResumeOpen}
+			/>
+			<RetryFlowRunDialog
+				flowRun={flowRun}
+				open={isRetryOpen}
+				onOpenChange={setIsRetryOpen}
 			/>
 		</div>
 	);
