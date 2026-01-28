@@ -43,6 +43,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y hyperfine
 
+      - name: Extract cli-bench config from head
+        if: github.event.pull_request
+        run: |
+          git show ${{ github.event.pull_request.head.sha }}:benches/cli-bench.toml > "$RUNNER_TEMP/cli-bench.toml"
+          echo "Using benches/cli-bench.toml from ${{ github.event.pull_request.head.sha }}"
+          cat "$RUNNER_TEMP/cli-bench.toml"
+
       - name: Checkout base branch
         if: github.base_ref
         uses: actions/checkout@v6
@@ -59,7 +66,7 @@ jobs:
         if: github.base_ref
         run: |
           uv run --group cli-bench cli-bench \
-            --config benches/cli-bench.toml run \
+            --config "$RUNNER_TEMP/cli-bench.toml" --project-root "$GITHUB_WORKSPACE" run \
             --runs 10 \
             --category startup \
             --output baseline.json
@@ -78,7 +85,7 @@ jobs:
       - name: Run comparison benchmarks (head)
         run: |
           uv run --group cli-bench cli-bench \
-            --config benches/cli-bench.toml run \
+            --config "$RUNNER_TEMP/cli-bench.toml" --project-root "$GITHUB_WORKSPACE" run \
             --runs 10 \
             --category startup \
             --compare baseline.json \
