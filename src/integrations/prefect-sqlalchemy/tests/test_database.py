@@ -168,21 +168,41 @@ class TestSqlAlchemyConnector:
             ),
             fetch_size=2,
         )
-        create_result = await credentials.execute(
-            "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-        )
-        insert_result = await credentials.execute(
-            "INSERT INTO customers (name, address) VALUES (:name, :address);",
-            parameters={"name": "Marvin", "address": "Highway 42"},
-        )
-        many_result = await credentials.execute_many(
-            "INSERT INTO customers (name, address) VALUES (:name, :address);",
-            seq_of_parameters=[
-                {"name": "Ford", "address": "Highway 42"},
-                {"name": "Unknown", "address": "Space"},
-                {"name": "Me", "address": "Myway 88"},
-            ],
-        )
+        if credentials._driver_is_async:
+            create_result = await credentials.aexecute(
+                "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+            )
+            insert_result = await credentials.aexecute(
+                "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                parameters={"name": "Marvin", "address": "Highway 42"},
+            )
+            many_result = await credentials.aexecute_many(
+                "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                seq_of_parameters=[
+                    {"name": "Ford", "address": "Highway 42"},
+                    {"name": "Unknown", "address": "Space"},
+                    {"name": "Me", "address": "Myway 88"},
+                ],
+            )
+        else:
+            create_result = credentials.execute(
+                "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);",
+                _sync=True,
+            )
+            insert_result = credentials.execute(
+                "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                parameters={"name": "Marvin", "address": "Highway 42"},
+                _sync=True,
+            )
+            many_result = credentials.execute_many(
+                "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                seq_of_parameters=[
+                    {"name": "Ford", "address": "Highway 42"},
+                    {"name": "Unknown", "address": "Space"},
+                    {"name": "Me", "address": "Myway 88"},
+                ],
+                _sync=True,
+            )
         assert isinstance(many_result, CursorResult)
         assert isinstance(insert_result, CursorResult)
         assert isinstance(create_result, CursorResult)
@@ -267,106 +287,200 @@ class TestSqlAlchemyConnector:
     async def test_reset_connections_sync_async_error(
         self, managed_connector_with_data
     ):
-        with pytest.raises(RuntimeError, match="synchronous connections"):
-            if managed_connector_with_data._driver_is_async:
-                await managed_connector_with_data.reset_connections()
-            else:
+        if managed_connector_with_data._driver_is_async:
+            with pytest.raises(RuntimeError, match="synchronous connections"):
+                managed_connector_with_data.reset_connections(_sync=True)
+        else:
+            with pytest.raises(RuntimeError, match="asynchronous connections"):
                 await managed_connector_with_data.reset_async_connections()
 
     async def test_fetch_one(self, managed_connector_with_data):
-        results = await managed_connector_with_data.fetch_one("SELECT * FROM customers")
-        assert results == ("Marvin", "Highway 42")
-        results = await managed_connector_with_data.fetch_one("SELECT * FROM customers")
-        assert results == ("Ford", "Highway 42")
-
-        # test with parameters
-        results = await managed_connector_with_data.fetch_one(
-            "SELECT * FROM customers WHERE address = :address",
-            parameters={"address": "Myway 88"},
-        )
-        assert results == ("Me", "Myway 88")
-        assert len(managed_connector_with_data._unique_results) == 2
-
-        # now reset so fetch starts at the first value again
         if managed_connector_with_data._driver_is_async:
-            await managed_connector_with_data.reset_async_connections()
-        else:
-            await managed_connector_with_data.reset_connections()
-        assert len(managed_connector_with_data._unique_results) == 0
+            results = await managed_connector_with_data.afetch_one(
+                "SELECT * FROM customers"
+            )
+            assert results == ("Marvin", "Highway 42")
+            results = await managed_connector_with_data.afetch_one(
+                "SELECT * FROM customers"
+            )
+            assert results == ("Ford", "Highway 42")
 
-        # ensure it's really reset
-        results = await managed_connector_with_data.fetch_one("SELECT * FROM customers")
-        assert results == ("Marvin", "Highway 42")
-        assert len(managed_connector_with_data._unique_results) == 1
+            # test with parameters
+            results = await managed_connector_with_data.afetch_one(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Myway 88"},
+            )
+            assert results == ("Me", "Myway 88")
+            assert len(managed_connector_with_data._unique_results) == 2
+
+            # now reset so fetch starts at the first value again
+            await managed_connector_with_data.reset_async_connections()
+            assert len(managed_connector_with_data._unique_results) == 0
+
+            # ensure it's really reset
+            results = await managed_connector_with_data.afetch_one(
+                "SELECT * FROM customers"
+            )
+            assert results == ("Marvin", "Highway 42")
+            assert len(managed_connector_with_data._unique_results) == 1
+        else:
+            results = managed_connector_with_data.fetch_one(
+                "SELECT * FROM customers", _sync=True
+            )
+            assert results == ("Marvin", "Highway 42")
+            results = managed_connector_with_data.fetch_one(
+                "SELECT * FROM customers", _sync=True
+            )
+            assert results == ("Ford", "Highway 42")
+
+            # test with parameters
+            results = managed_connector_with_data.fetch_one(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Myway 88"},
+                _sync=True,
+            )
+            assert results == ("Me", "Myway 88")
+            assert len(managed_connector_with_data._unique_results) == 2
+
+            # now reset so fetch starts at the first value again
+            managed_connector_with_data.reset_connections(_sync=True)
+            assert len(managed_connector_with_data._unique_results) == 0
+
+            # ensure it's really reset
+            results = managed_connector_with_data.fetch_one(
+                "SELECT * FROM customers", _sync=True
+            )
+            assert results == ("Marvin", "Highway 42")
+            assert len(managed_connector_with_data._unique_results) == 1
 
     @pytest.mark.parametrize("size", [None, 1, 2])
     async def test_fetch_many(self, managed_connector_with_data, size):
-        results = await managed_connector_with_data.fetch_many(
-            "SELECT * FROM customers", size=size
-        )
-        expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")][
-            : (size or managed_connector_with_data.fetch_size)
-        ]
-        assert results == expected
-
-        # test with parameters
-        results = await managed_connector_with_data.fetch_many(
-            "SELECT * FROM customers WHERE address = :address",
-            parameters={"address": "Myway 88"},
-        )
-        assert results == [("Me", "Myway 88")]
-        assert len(managed_connector_with_data._unique_results) == 2
-
-        # now reset so fetch starts at the first value again
         if managed_connector_with_data._driver_is_async:
-            await managed_connector_with_data.reset_async_connections()
-        else:
-            await managed_connector_with_data.reset_connections()
-        assert len(managed_connector_with_data._unique_results) == 0
+            results = await managed_connector_with_data.afetch_many(
+                "SELECT * FROM customers", size=size
+            )
+            expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")][
+                : (size or managed_connector_with_data.fetch_size)
+            ]
+            assert results == expected
 
-        # ensure it's really reset
-        results = await managed_connector_with_data.fetch_many(
-            "SELECT * FROM customers", size=3
-        )
-        assert results == [
-            ("Marvin", "Highway 42"),
-            ("Ford", "Highway 42"),
-            ("Unknown", "Space"),
-        ]
-        assert len(managed_connector_with_data._unique_results) == 1
+            # test with parameters
+            results = await managed_connector_with_data.afetch_many(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Myway 88"},
+            )
+            assert results == [("Me", "Myway 88")]
+            assert len(managed_connector_with_data._unique_results) == 2
+
+            # now reset so fetch starts at the first value again
+            await managed_connector_with_data.reset_async_connections()
+            assert len(managed_connector_with_data._unique_results) == 0
+
+            # ensure it's really reset
+            results = await managed_connector_with_data.afetch_many(
+                "SELECT * FROM customers", size=3
+            )
+            assert results == [
+                ("Marvin", "Highway 42"),
+                ("Ford", "Highway 42"),
+                ("Unknown", "Space"),
+            ]
+            assert len(managed_connector_with_data._unique_results) == 1
+        else:
+            results = managed_connector_with_data.fetch_many(
+                "SELECT * FROM customers", size=size, _sync=True
+            )
+            expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")][
+                : (size or managed_connector_with_data.fetch_size)
+            ]
+            assert results == expected
+
+            # test with parameters
+            results = managed_connector_with_data.fetch_many(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Myway 88"},
+                _sync=True,
+            )
+            assert results == [("Me", "Myway 88")]
+            assert len(managed_connector_with_data._unique_results) == 2
+
+            # now reset so fetch starts at the first value again
+            managed_connector_with_data.reset_connections(_sync=True)
+            assert len(managed_connector_with_data._unique_results) == 0
+
+            # ensure it's really reset
+            results = managed_connector_with_data.fetch_many(
+                "SELECT * FROM customers", size=3, _sync=True
+            )
+            assert results == [
+                ("Marvin", "Highway 42"),
+                ("Ford", "Highway 42"),
+                ("Unknown", "Space"),
+            ]
+            assert len(managed_connector_with_data._unique_results) == 1
 
     async def test_fetch_all(self, managed_connector_with_data):
-        # test with parameters
-        results = await managed_connector_with_data.fetch_all(
-            "SELECT * FROM customers WHERE address = :address",
-            parameters={"address": "Highway 42"},
-        )
-        expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")]
-        assert results == expected
-
-        # there should be no more results
-        results = await managed_connector_with_data.fetch_all(
-            "SELECT * FROM customers WHERE address = :address",
-            parameters={"address": "Highway 42"},
-        )
-        assert results == []
-        assert len(managed_connector_with_data._unique_results) == 1
-
-        # now reset so fetch one starts at the first value again
         if managed_connector_with_data._driver_is_async:
-            await managed_connector_with_data.reset_async_connections()
-        else:
-            await managed_connector_with_data.reset_connections()
-        assert len(managed_connector_with_data._unique_results) == 0
+            # test with parameters
+            results = await managed_connector_with_data.afetch_all(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Highway 42"},
+            )
+            expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")]
+            assert results == expected
 
-        # ensure it's really reset
-        results = await managed_connector_with_data.fetch_all(
-            "SELECT * FROM customers WHERE address = :address",
-            parameters={"address": "Highway 42"},
-        )
-        expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")]
-        assert results == expected
-        assert len(managed_connector_with_data._unique_results) == 1
+            # there should be no more results
+            results = await managed_connector_with_data.afetch_all(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Highway 42"},
+            )
+            assert results == []
+            assert len(managed_connector_with_data._unique_results) == 1
+
+            # now reset so fetch one starts at the first value again
+            await managed_connector_with_data.reset_async_connections()
+            assert len(managed_connector_with_data._unique_results) == 0
+
+            # ensure it's really reset
+            results = await managed_connector_with_data.afetch_all(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Highway 42"},
+            )
+            expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")]
+            assert results == expected
+            assert len(managed_connector_with_data._unique_results) == 1
+        else:
+            # test with parameters
+            results = managed_connector_with_data.fetch_all(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Highway 42"},
+                _sync=True,
+            )
+            expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")]
+            assert results == expected
+
+            # there should be no more results
+            results = managed_connector_with_data.fetch_all(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Highway 42"},
+                _sync=True,
+            )
+            assert results == []
+            assert len(managed_connector_with_data._unique_results) == 1
+
+            # now reset so fetch one starts at the first value again
+            managed_connector_with_data.reset_connections(_sync=True)
+            assert len(managed_connector_with_data._unique_results) == 0
+
+            # ensure it's really reset
+            results = managed_connector_with_data.fetch_all(
+                "SELECT * FROM customers WHERE address = :address",
+                parameters={"address": "Highway 42"},
+                _sync=True,
+            )
+            expected = [("Marvin", "Highway 42"), ("Ford", "Highway 42")]
+            assert results == expected
+            assert len(managed_connector_with_data._unique_results) == 1
 
     def test_close(self, managed_connector_with_data):
         if managed_connector_with_data._driver_is_async:
