@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import { categorizeError } from "@/api/error-utils";
 import {
@@ -368,12 +368,10 @@ export function FlowRunsCard({
 							selectedStates={selectedStates}
 							onStateChange={handleStateChange}
 						/>
-						<Suspense fallback={<Skeleton className="h-32 w-full" />}>
-							<FlowRunsAccordion
-								filter={flowRunsFilter}
-								stateTypes={selectedStates}
-							/>
-						</Suspense>
+						<FlowRunsAccordion
+							filter={flowRunsFilter}
+							stateTypes={selectedStates}
+						/>
 					</>
 				)}
 			</CardContent>

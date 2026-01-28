@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Area, AreaChart } from "recharts";
 import {
@@ -73,14 +73,20 @@ export function TaskRunsTrends({ filter }: TaskRunsTrendsProps) {
 		[filter],
 	);
 
-	const { data: history } = useSuspenseQuery(
-		buildTaskRunsHistoryQuery(historyFilter, 30000),
-	);
+	const { data: history, isLoading } = useQuery({
+		...buildTaskRunsHistoryQuery(historyFilter, 30000),
+		placeholderData: keepPreviousData,
+	});
 
 	const chartData = useMemo(
-		() => transformHistoryToChartData(history),
+		() => (history ? transformHistoryToChartData(history) : []),
 		[history],
 	);
+
+	// Handle initial load (no previous data)
+	if (isLoading && !history) {
+		return null;
+	}
 
 	const hasFailedData = chartData.some((point) => point.failed > 0);
 
