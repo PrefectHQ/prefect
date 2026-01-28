@@ -386,11 +386,11 @@ export const Route = createFileRoute("/dashboard")({
 		const baseFilter = buildFlowRunsFilterFromSearch(deps);
 		const { from, to } = getDateRangeFromSearch(deps);
 
-		// Prefetch all flow runs and extract IDs for enrichment queries
-		// FlowRunsCard uses useSuspenseQuery for this, so we need to ensure it's prefetched
-		const allFlowRuns = await queryClient.ensureQueryData(
-			buildFilterFlowRunsQuery(baseFilter, 30_000),
-		);
+		// Fetch flow runs and work pools in parallel - they're independent
+		const [allFlowRuns, workPools] = await Promise.all([
+			queryClient.ensureQueryData(buildFilterFlowRunsQuery(baseFilter)),
+			queryClient.ensureQueryData(buildFilterWorkPoolsQuery({ offset: 0 })),
+		]);
 
 		// Prefetch flows and deployments enrichment data (used by FlowRunsCard)
 		// Extract unique flow IDs and deployment IDs from flow runs
@@ -564,11 +564,6 @@ export const Route = createFileRoute("/dashboard")({
 		);
 		void queryClient.prefetchQuery(
 			buildCountTaskRunsQuery(taskRunsCountFilters.running, 30_000),
-		);
-
-		// Prefetch work pools data for the dashboard
-		const workPools = await queryClient.ensureQueryData(
-			buildFilterWorkPoolsQuery({ offset: 0 }),
 		);
 
 		// Prefetch nested queries for each active work pool to minimize loading states
