@@ -67,12 +67,12 @@ jobs:
             type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python${{ matrix.python-version }}-prefect${{ env.PREFECT_VERSION }}
             # Version with Python: prefect-aws-version-python-version
             type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python${{ matrix.python-version }}
-            # Minor version with Python (only for stable releases, not rc)
-            type=pep440,pattern={{major}}.{{minor}}-python${{ matrix.python-version }},value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') }}
-            # Latest with Python version (only for stable releases, not rc)
-            type=raw,value=latest-python${{ matrix.python-version }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') }}
-            # Latest tag (only for Python 3.12 and stable releases, not rc)
-            type=raw,value=latest,enable=${{ matrix.python-version == '3.12' && !contains(env.PREFECT_AWS_VERSION, 'rc') }}
+            # Minor version with Python (only for stable releases, not rc or dev)
+            type=pep440,pattern={{major}}.{{minor}}-python${{ matrix.python-version }},value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Latest with Python version (only for stable releases, not rc or dev)
+            type=raw,value=latest-python${{ matrix.python-version }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Latest tag (only for Python 3.12 and stable releases, not rc or dev)
+            type=raw,value=latest,enable=${{ matrix.python-version == '3.12' && !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
           flavor: |
             latest=false
 
