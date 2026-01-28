@@ -243,6 +243,11 @@ class LazyTyperGroup(TyperGroup):
         commands.update(self._lazy_commands.keys())
         return sorted(commands)
 
+    def format_commands(self, ctx: typer.Context, formatter) -> None:  # type: ignore[override]
+        # Help output should show full command metadata, so load everything once.
+        self._load_all_lazy_commands()
+        super().format_commands(ctx, formatter)
+
     def get_command(self, ctx: typer.Context, cmd_name: str):  # type: ignore[override]
         if cmd_name in self._lazy_commands:
             self._load_lazy_command(cmd_name)
@@ -262,6 +267,28 @@ class LazyTyperGroup(TyperGroup):
         refreshed_group = typer.main.get_group(self._typer_instance)
         self.commands.update(refreshed_group.commands)
         self._prune_loaded_commands()
+
+    def _load_all_lazy_commands(self) -> None:
+        if not self._lazy_commands:
+            return
+
+        modules: set[str] = set()
+        for command_modules in self._lazy_commands.values():
+            modules.update(command_modules)
+
+        for module in modules:
+            if module in self._loaded_modules:
+                continue
+            importlib.import_module(module)
+            self._loaded_modules.add(module)
+
+        if self._typer_instance is None:
+            self._lazy_commands.clear()
+            return
+
+        refreshed_group = typer.main.get_group(self._typer_instance)
+        self.commands.update(refreshed_group.commands)
+        self._lazy_commands.clear()
 
     def _prune_loaded_commands(self) -> None:
         if not self._lazy_commands:
