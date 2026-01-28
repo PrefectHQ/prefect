@@ -465,90 +465,89 @@ export const Route = createFileRoute("/dashboard")({
 			);
 		});
 
-		// Prefetch flow runs for each state type group to minimize loading when switching tabs
-		// Also prefetch task run counts for the first 3 runs of each state type (used by FlowRunCard)
-		STATE_TYPE_GROUPS.forEach((stateTypes) => {
-			const filterWithState: FlowRunsFilter = {
-				...baseFilter,
-				flow_runs: {
-					...baseFilter.flow_runs,
+		// Only prefetch the default state type group (Failed/Crashed) to minimize initial load
+		// Other tabs will load on-demand when user clicks them
+		const defaultStateGroup = STATE_TYPE_GROUPS[0]; // ["FAILED", "CRASHED"]
+		const filterWithState: FlowRunsFilter = {
+			...baseFilter,
+			flow_runs: {
+				...baseFilter.flow_runs,
+				operator: "and_",
+				state: {
 					operator: "and_",
-					state: {
-						operator: "and_",
-						type: {
-							any_: [...stateTypes],
-						},
+					type: {
+						any_: [...defaultStateGroup],
 					},
 				},
-			};
-			void queryClient
-				.fetchQuery(buildFilterFlowRunsQuery(filterWithState, 30_000))
-				.then((flowRuns) => {
-					if (!flowRuns || flowRuns.length === 0) return;
-					// Prefetch task run counts for the first 3 flow runs (matches ITEMS_PER_PAGE in accordion)
-					// Each flow run needs its own prefetch to match the query key used by FlowRunTaskRuns component
-					const flowRunIds = flowRuns
-						.slice(0, 3)
-						.map((run) => run.id)
-						.filter(Boolean);
-					flowRunIds.forEach((flowRunId) => {
+			},
+		};
+		void queryClient
+			.fetchQuery(buildFilterFlowRunsQuery(filterWithState, 30_000))
+			.then((flowRuns) => {
+				if (!flowRuns || flowRuns.length === 0) return;
+				// Prefetch task run counts for the first 3 flow runs (matches ITEMS_PER_PAGE in accordion)
+				// Each flow run needs its own prefetch to match the query key used by FlowRunTaskRuns component
+				const flowRunIds = flowRuns
+					.slice(0, 3)
+					.map((run) => run.id)
+					.filter(Boolean);
+				flowRunIds.forEach((flowRunId) => {
+					void queryClient.prefetchQuery(
+						buildGetFlowRunsTaskRunsCountQuery([flowRunId]),
+					);
+				});
+
+				// Prefetch flows for accordion (used by FlowRunsAccordion)
+				const accordionFlowIds = [
+					...new Set(
+						flowRuns
+							.map((run) => run.flow_id)
+							.filter((id): id is string => Boolean(id)),
+					),
+				];
+				if (accordionFlowIds.length > 0) {
+					void queryClient.prefetchQuery(
+						buildListFlowsQuery({
+							flows: { operator: "and_", id: { any_: accordionFlowIds } },
+							offset: 0,
+							sort: "UPDATED_DESC",
+						}),
+					);
+
+					// Prefetch per-flow count and last run queries (used by FlowRunsAccordionHeader)
+					// This matches the exact filter construction in FlowRunsAccordionHeader component
+					accordionFlowIds.forEach((flowId) => {
+						// Build filter for this specific flow (matches FlowRunsAccordionHeader.flowFilter)
+						const flowFilter: FlowRunsFilter = {
+							...filterWithState,
+							flows: {
+								...(filterWithState.flows ?? {}),
+								operator: "and_",
+								id: { any_: [flowId] },
+							},
+						};
+
+						// Prefetch count of flow runs for this flow
 						void queryClient.prefetchQuery(
-							buildGetFlowRunsTaskRunsCountQuery([flowRunId]),
+							buildCountFlowRunsQuery(flowFilter, 30_000),
+						);
+
+						// Prefetch last flow run for this flow (matches FlowRunsAccordionHeader.lastFlowRunFilter)
+						const lastFlowRunFilter: FlowRunsFilter = {
+							...flowFilter,
+							sort: "START_TIME_DESC",
+							limit: 1,
+							offset: 0,
+						};
+						void queryClient.prefetchQuery(
+							buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
 						);
 					});
-
-					// Prefetch flows for accordion (used by FlowRunsAccordion)
-					const accordionFlowIds = [
-						...new Set(
-							flowRuns
-								.map((run) => run.flow_id)
-								.filter((id): id is string => Boolean(id)),
-						),
-					];
-					if (accordionFlowIds.length > 0) {
-						void queryClient.prefetchQuery(
-							buildListFlowsQuery({
-								flows: { operator: "and_", id: { any_: accordionFlowIds } },
-								offset: 0,
-								sort: "UPDATED_DESC",
-							}),
-						);
-
-						// Prefetch per-flow count and last run queries (used by FlowRunsAccordionHeader)
-						// This matches the exact filter construction in FlowRunsAccordionHeader component
-						accordionFlowIds.forEach((flowId) => {
-							// Build filter for this specific flow (matches FlowRunsAccordionHeader.flowFilter)
-							const flowFilter: FlowRunsFilter = {
-								...filterWithState,
-								flows: {
-									...(filterWithState.flows ?? {}),
-									operator: "and_",
-									id: { any_: [flowId] },
-								},
-							};
-
-							// Prefetch count of flow runs for this flow
-							void queryClient.prefetchQuery(
-								buildCountFlowRunsQuery(flowFilter, 30_000),
-							);
-
-							// Prefetch last flow run for this flow (matches FlowRunsAccordionHeader.lastFlowRunFilter)
-							const lastFlowRunFilter: FlowRunsFilter = {
-								...flowFilter,
-								sort: "START_TIME_DESC",
-								limit: 1,
-								offset: 0,
-							};
-							void queryClient.prefetchQuery(
-								buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
-							);
-						});
-					}
-				})
-				.catch(() => {
-					// Swallow errors so a failed prefetch doesn't break the loader
-				});
-		});
+				}
+			})
+			.catch(() => {
+				// Swallow errors so a failed prefetch doesn't break the loader
+			});
 
 		// Prefetch task run count queries (used by TaskRunsCard)
 		// This matches the 4 count queries made by TaskRunsCard component
