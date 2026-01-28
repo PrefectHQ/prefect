@@ -2,7 +2,7 @@
 Internal implementation for SDK Analytics.
 
 This module contains internal functions that should not be used directly.
-Use the public API from prefect.sdk_analytics instead.
+Use the public API from prefect.analytics instead.
 """
 
 import logging
@@ -13,8 +13,8 @@ from typing import Any
 
 import httpx
 
-from prefect.sdk_analytics._internal.ci_detection import is_ci_environment
-from prefect.sdk_analytics._internal.events import SDKEvent
+from prefect._internal.analytics.ci_detection import is_ci_environment
+from prefect._internal.analytics.events import SDKEvent
 
 logger: logging.Logger = logging.getLogger("prefect.sdk_analytics")
 
@@ -101,8 +101,8 @@ def emit_sdk_event(
         return False
 
     try:
-        from prefect.sdk_analytics._internal.client import track_event
-        from prefect.sdk_analytics._internal.device_id import get_or_create_device_id
+        from prefect._internal.analytics.client import track_event
+        from prefect._internal.analytics.device_id import get_or_create_device_id
 
         device_id = get_or_create_device_id()
         return track_event(
@@ -112,6 +112,55 @@ def emit_sdk_event(
         )
     except Exception as exc:
         logger.debug(f"Failed to emit SDK event {event_name}: {exc}")
+        return False
+
+
+def emit_integration_event(
+    integration: str,
+    event_name: str,
+    extra_properties: dict[str, Any] | None = None,
+) -> bool:
+    """
+    Emit a telemetry event from an integration library.
+
+    This is exposed via the public API in prefect.analytics for integration
+    libraries (e.g., prefect-aws, prefect-gcp) to emit telemetry events.
+    Events are automatically namespaced with the integration name.
+
+    Args:
+        integration: The integration name (e.g., "prefect-aws", "prefect-gcp")
+        event_name: The event name (e.g., "s3_block_created")
+        extra_properties: Additional event properties
+
+    Returns:
+        True if the event was tracked, False otherwise
+    """
+    if not is_telemetry_enabled():
+        return False
+
+    try:
+        from prefect._internal.analytics.client import track_event
+        from prefect._internal.analytics.device_id import get_or_create_device_id
+
+        # Namespace the event with the integration name
+        namespaced_event = f"{integration}:{event_name}"
+
+        device_id = get_or_create_device_id()
+
+        # Add integration name to properties
+        properties = {"integration": integration}
+        if extra_properties:
+            properties.update(extra_properties)
+
+        return track_event(
+            event_name=namespaced_event,
+            device_id=device_id,
+            extra_properties=properties,
+        )
+    except Exception as exc:
+        logger.debug(
+            f"Failed to emit integration event {integration}:{event_name}: {exc}"
+        )
         return False
 
 
@@ -148,7 +197,7 @@ def initialize_analytics() -> None:
     try:
         # Check for existing users and pre-mark their milestones
         # This must happen BEFORE any events are emitted
-        from prefect.sdk_analytics._internal.milestones import (
+        from prefect._internal.analytics.milestones import (
             _mark_existing_user_milestones,
         )
 
@@ -160,7 +209,7 @@ def initialize_analytics() -> None:
             return
 
         # Show first-run notice (only in interactive terminals)
-        from prefect.sdk_analytics._internal.notice import maybe_show_telemetry_notice
+        from prefect._internal.analytics.notice import maybe_show_telemetry_notice
 
         maybe_show_telemetry_notice()
 
@@ -168,3 +217,16 @@ def initialize_analytics() -> None:
         emit_sdk_event("sdk_imported")
     except Exception as exc:
         logger.debug(f"Failed to initialize SDK analytics: {exc}")
+
+
+# Re-export milestone function for internal use
+from prefect._internal.analytics.milestones import try_mark_milestone
+
+__all__ = [
+    "initialize_analytics",
+    "is_telemetry_enabled",
+    "emit_sdk_event",
+    "emit_integration_event",
+    "try_mark_milestone",
+    "_is_interactive_terminal",
+]

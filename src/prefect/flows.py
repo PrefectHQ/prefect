@@ -404,7 +404,7 @@ class Flow(Generic[P, R]):
 
         # Track first flow defined milestone for analytics
         try:
-            from prefect.sdk_analytics import try_mark_milestone
+            from prefect._internal.analytics import try_mark_milestone
 
             try_mark_milestone("first_flow_defined")
         except Exception:

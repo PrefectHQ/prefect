@@ -139,7 +139,7 @@ def _initialize_sdk_analytics() -> None:
     ignored to ensure analytics never impacts normal Prefect operation.
     """
     try:
-        from prefect.sdk_analytics import initialize_analytics
+        from prefect._internal.analytics import initialize_analytics
 
         initialize_analytics()
     except Exception:

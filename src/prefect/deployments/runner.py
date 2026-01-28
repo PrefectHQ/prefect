@@ -443,7 +443,7 @@ class RunnerDeployment(BaseModel):
 
             # Track deployment milestones for analytics
             try:
-                from prefect.sdk_analytics import try_mark_milestone
+                from prefect._internal.analytics import try_mark_milestone
 
                 try_mark_milestone("first_deployment_created")
                 if self.schedules:
@@ -540,7 +540,7 @@ class RunnerDeployment(BaseModel):
 
             # Track deployment milestones for analytics
             try:
-                from prefect.sdk_analytics import try_mark_milestone
+                from prefect._internal.analytics import try_mark_milestone
 
                 try_mark_milestone("first_deployment_created")
                 if self.schedules:
