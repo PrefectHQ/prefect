@@ -264,8 +264,7 @@ class LazyTyperGroup(TyperGroup):
         if self._typer_instance is None:
             return
 
-        refreshed_group = typer.main.get_group(self._typer_instance)
-        self.commands.update(refreshed_group.commands)
+        self._sync_commands_from_typer()
         self._prune_loaded_commands()
 
     def _load_all_lazy_commands(self) -> None:
@@ -286,8 +285,7 @@ class LazyTyperGroup(TyperGroup):
             self._lazy_commands.clear()
             return
 
-        refreshed_group = typer.main.get_group(self._typer_instance)
-        self.commands.update(refreshed_group.commands)
+        self._sync_commands_from_typer()
         self._lazy_commands.clear()
 
     def _prune_loaded_commands(self) -> None:
@@ -301,3 +299,37 @@ class LazyTyperGroup(TyperGroup):
         ]
         for name in ready:
             self._lazy_commands.pop(name, None)
+
+    def _sync_commands_from_typer(self) -> None:
+        if self._typer_instance is None:
+            return
+
+        typer_instance = self._typer_instance
+        existing = set(self.commands)
+
+        for command_info in typer_instance.registered_commands:
+            command = typer.main.get_command_from_info(
+                command_info=command_info,
+                pretty_exceptions_short=typer_instance.pretty_exceptions_short,
+                rich_markup_mode=typer_instance.rich_markup_mode,
+            )
+            if command.name and command.name not in existing:
+                self.commands[command.name] = command
+                existing.add(command.name)
+
+        for group_info in typer_instance.registered_groups:
+            group = typer.main.get_group_from_info(
+                group_info,
+                pretty_exceptions_short=typer_instance.pretty_exceptions_short,
+                suggest_commands=typer_instance.suggest_commands,
+                rich_markup_mode=typer_instance.rich_markup_mode,
+            )
+            if group.name:
+                if group.name not in existing:
+                    self.commands[group.name] = group
+                    existing.add(group.name)
+            else:
+                for sub_command_name, sub_command in group.commands.items():
+                    if sub_command_name not in existing:
+                        self.commands[sub_command_name] = sub_command
+                        existing.add(sub_command_name)
