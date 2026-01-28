@@ -18,7 +18,11 @@ def test_app_generates_correct_api_openapi_schema():
     schema = create_app(ephemeral=True).openapi()
 
     assert len(schema["paths"].keys()) > 1
-    assert all([p.startswith("/api/") for p in schema["paths"].keys()])
+    # Paths should be relative to the API base URL (PREFECT_API_URL),
+    # not absolute from server root. This avoids the /api/api/ duplication
+    # issue when users combine PREFECT_API_URL with documented endpoints.
+    assert all([p.startswith("/") for p in schema["paths"].keys()])
+    assert not any([p.startswith("/api/") for p in schema["paths"].keys()])
 
 
 def test_app_exposes_ui_settings():
