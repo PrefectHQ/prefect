@@ -9,11 +9,11 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
+from prefect.settings import get_current_settings
+
 
 def _get_device_id_path() -> Path:
     """Get the path to the device ID file."""
-    from prefect.settings import get_current_settings
-
     settings = get_current_settings()
     return settings.home / ".sdk_telemetry" / "device_id"
 

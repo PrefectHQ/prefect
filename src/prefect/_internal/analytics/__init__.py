@@ -14,7 +14,15 @@ from typing import Any
 import httpx
 
 from prefect._internal.analytics.ci_detection import is_ci_environment
+from prefect._internal.analytics.client import track_event
+from prefect._internal.analytics.device_id import get_or_create_device_id
 from prefect._internal.analytics.events import SDKEvent
+from prefect._internal.analytics.milestones import (
+    _mark_existing_user_milestones,
+    try_mark_milestone,
+)
+from prefect._internal.analytics.notice import maybe_show_telemetry_notice
+from prefect.settings import PREFECT_API_URL
 
 logger: logging.Logger = logging.getLogger("prefect.sdk_analytics")
 
@@ -39,8 +47,6 @@ def _get_server_analytics_enabled() -> bool:
     Caches the result to avoid multiple API calls per session.
     Returns False if the server is unreachable.
     """
-    from prefect.settings import PREFECT_API_URL
-
     api_url = PREFECT_API_URL.value()
     if not api_url:
         return False
@@ -101,9 +107,6 @@ def emit_sdk_event(
         return False
 
     try:
-        from prefect._internal.analytics.client import track_event
-        from prefect._internal.analytics.device_id import get_or_create_device_id
-
         device_id = get_or_create_device_id()
         return track_event(
             event_name=event_name,
@@ -139,9 +142,6 @@ def emit_integration_event(
         return False
 
     try:
-        from prefect._internal.analytics.client import track_event
-        from prefect._internal.analytics.device_id import get_or_create_device_id
-
         # Namespace the event with the integration name
         namespaced_event = f"{integration}:{event_name}"
 
@@ -197,10 +197,6 @@ def initialize_analytics() -> None:
     try:
         # Check for existing users and pre-mark their milestones
         # This must happen BEFORE any events are emitted
-        from prefect._internal.analytics.milestones import (
-            _mark_existing_user_milestones,
-        )
-
         is_existing_user = _mark_existing_user_milestones()
 
         # Don't emit onboarding events for existing users
@@ -209,8 +205,6 @@ def initialize_analytics() -> None:
             return
 
         # Show first-run notice (only in interactive terminals)
-        from prefect._internal.analytics.notice import maybe_show_telemetry_notice
-
         maybe_show_telemetry_notice()
 
         # Emit sdk_imported event for new users only
@@ -218,9 +212,6 @@ def initialize_analytics() -> None:
     except Exception as exc:
         logger.debug(f"Failed to initialize SDK analytics: {exc}")
 
-
-# Re-export milestone function for internal use
-from prefect._internal.analytics.milestones import try_mark_milestone
 
 __all__ = [
     "initialize_analytics",

@@ -8,6 +8,8 @@ but only in interactive terminal sessions.
 import sys
 from pathlib import Path
 
+from prefect.settings import get_current_settings
+
 NOTICE_TEXT = """
 Prefect collects anonymous usage data to improve the product.
 To opt out: set PREFECT_SERVER_ANALYTICS_ENABLED=false on the server, or DO_NOT_TRACK=1 in the client.
@@ -17,8 +19,6 @@ Learn more: https://docs.prefect.io/concepts/telemetry
 
 def _get_notice_marker_path() -> Path:
     """Get the path to the notice marker file."""
-    from prefect.settings import get_current_settings
-
     settings = get_current_settings()
     return settings.home / ".sdk_telemetry" / "notice_shown"
 

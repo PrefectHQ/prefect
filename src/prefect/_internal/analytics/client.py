@@ -9,6 +9,8 @@ import logging
 import platform
 from typing import Any
 
+import prefect
+
 logger = logging.getLogger("prefect.sdk_analytics")
 
 # Amplitude API key for SDK telemetry
@@ -22,8 +24,6 @@ _initialized = False
 
 def _get_event_properties() -> dict[str, str]:
     """Get common event properties included with all events."""
-    import prefect
-
     return {
         "prefect_version": prefect.__version__,
         "python_version": platform.python_version(),
@@ -51,6 +51,7 @@ def _initialize_client() -> bool:
         return False
 
     try:
+        # amplitude is an optional dependency, so we import it here
         from amplitude import Amplitude, Config
 
         config = Config(
@@ -108,6 +109,7 @@ def track_event(
         return False
 
     try:
+        # amplitude is an optional dependency, so we import it here
         from amplitude import BaseEvent
 
         event = BaseEvent(
