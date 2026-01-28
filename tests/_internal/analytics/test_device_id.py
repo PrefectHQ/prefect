@@ -13,7 +13,7 @@ class TestDeviceID:
 
     def test_generates_uuid(self, clean_telemetry_state: Path):
         """Should generate a valid UUID."""
-        from prefect.sdk_analytics._device_id import get_or_create_device_id
+        from prefect._internal.analytics.device_id import get_or_create_device_id
 
         device_id = get_or_create_device_id()
 
@@ -22,7 +22,7 @@ class TestDeviceID:
 
     def test_persists_device_id(self, clean_telemetry_state: Path):
         """Should persist device ID across calls."""
-        from prefect.sdk_analytics._device_id import get_or_create_device_id
+        from prefect._internal.analytics.device_id import get_or_create_device_id
 
         device_id_1 = get_or_create_device_id()
         device_id_2 = get_or_create_device_id()
@@ -31,7 +31,7 @@ class TestDeviceID:
 
     def test_stores_in_expected_location(self, clean_telemetry_state: Path):
         """Should store device ID in .sdk_telemetry directory."""
-        from prefect.sdk_analytics._device_id import get_or_create_device_id
+        from prefect._internal.analytics.device_id import get_or_create_device_id
 
         device_id = get_or_create_device_id()
 
@@ -41,7 +41,7 @@ class TestDeviceID:
 
     def test_creates_directory_if_missing(self, clean_telemetry_state: Path):
         """Should create the .sdk_telemetry directory if it doesn't exist."""
-        from prefect.sdk_analytics._device_id import get_or_create_device_id
+        from prefect._internal.analytics.device_id import get_or_create_device_id
 
         # Ensure directory doesn't exist
         assert not clean_telemetry_state.exists()
@@ -55,7 +55,7 @@ class TestDeviceID:
         self, clean_telemetry_state: Path, monkeypatch: pytest.MonkeyPatch
     ):
         """Should regenerate device ID if file is empty."""
-        from prefect.sdk_analytics._device_id import get_or_create_device_id
+        from prefect._internal.analytics.device_id import get_or_create_device_id
 
         # Create empty device ID file
         clean_telemetry_state.mkdir(parents=True, exist_ok=True)

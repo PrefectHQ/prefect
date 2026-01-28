@@ -11,12 +11,12 @@ class TestCIDetection:
     def test_not_ci_by_default(self, monkeypatch: pytest.MonkeyPatch):
         """Should not detect CI when no CI variables are set."""
         # Clear all known CI variables
-        from prefect.sdk_analytics._ci_detection import CI_ENV_VARS
+        from prefect._internal.analytics.ci_detection import CI_ENV_VARS
 
         for var in CI_ENV_VARS:
             monkeypatch.delenv(var, raising=False)
 
-        from prefect.sdk_analytics._ci_detection import is_ci_environment
+        from prefect._internal.analytics.ci_detection import is_ci_environment
 
         assert is_ci_environment() is False
 
@@ -46,7 +46,7 @@ class TestCIDetection:
     ):
         """Should detect various CI environments."""
         # Clear all CI variables first
-        from prefect.sdk_analytics._ci_detection import CI_ENV_VARS
+        from prefect._internal.analytics.ci_detection import CI_ENV_VARS
 
         for var in CI_ENV_VARS:
             monkeypatch.delenv(var, raising=False)
@@ -54,20 +54,20 @@ class TestCIDetection:
         # Set the specific CI variable
         monkeypatch.setenv(env_var, "true")
 
-        from prefect.sdk_analytics._ci_detection import is_ci_environment
+        from prefect._internal.analytics.ci_detection import is_ci_environment
 
         assert is_ci_environment() is True
 
     def test_ci_variable_with_any_value(self, monkeypatch: pytest.MonkeyPatch):
         """CI should be detected regardless of variable value."""
         # Clear all CI variables first
-        from prefect.sdk_analytics._ci_detection import CI_ENV_VARS
+        from prefect._internal.analytics.ci_detection import CI_ENV_VARS
 
         for var in CI_ENV_VARS:
             monkeypatch.delenv(var, raising=False)
 
         monkeypatch.setenv("CI", "1")
 
-        from prefect.sdk_analytics._ci_detection import is_ci_environment
+        from prefect._internal.analytics.ci_detection import is_ci_environment
 
         assert is_ci_environment() is True

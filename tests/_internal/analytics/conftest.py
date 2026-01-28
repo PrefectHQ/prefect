@@ -21,7 +21,7 @@ def telemetry_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PREFECT_SERVER_ANALYTICS_ENABLED", "true")
     monkeypatch.delenv("DO_NOT_TRACK", raising=False)
     # Clear CI variables
-    from prefect.sdk_analytics._ci_detection import CI_ENV_VARS
+    from prefect._internal.analytics.ci_detection import CI_ENV_VARS
 
     for var in CI_ENV_VARS:
         monkeypatch.delenv(var, raising=False)
@@ -42,7 +42,7 @@ def ci_environment(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def mock_amplitude() -> Generator[MagicMock, None, None]:
     """Mock the Amplitude client."""
-    with patch("prefect.sdk_analytics._client.Amplitude") as mock:
+    with patch("prefect._internal.analytics.client.Amplitude") as mock:
         mock_instance = MagicMock()
         mock.return_value = mock_instance
         yield mock_instance
@@ -80,14 +80,14 @@ def clean_telemetry_state(
         patch("prefect.settings.get_current_settings", return_value=fresh_settings),
     ):
         # Clear any existing telemetry initialization state
-        import prefect.sdk_analytics
+        import prefect._internal.analytics
 
-        prefect.sdk_analytics._telemetry_initialized = False
+        prefect._internal.analytics._telemetry_initialized = False
 
         # Reset the Amplitude client
-        import prefect.sdk_analytics._client
+        import prefect._internal.analytics.client
 
-        prefect.sdk_analytics._client._amplitude_client = None
-        prefect.sdk_analytics._client._initialized = False
+        prefect._internal.analytics.client._amplitude_client = None
+        prefect._internal.analytics.client._initialized = False
 
         yield prefect_home / ".sdk_telemetry"

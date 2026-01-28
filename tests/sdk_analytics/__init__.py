@@ -1,1 +1,0 @@
-# SDK Analytics tests

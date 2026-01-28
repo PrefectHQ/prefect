@@ -12,7 +12,7 @@ class TestAmplitudeClient:
     def test_event_properties_include_version(self, clean_telemetry_state: Path):
         """Event properties should include Prefect version."""
         import prefect
-        from prefect.sdk_analytics._client import _get_event_properties
+        from prefect._internal.analytics.client import _get_event_properties
 
         props = _get_event_properties()
 
@@ -22,7 +22,7 @@ class TestAmplitudeClient:
         """Event properties should include Python version."""
         import platform
 
-        from prefect.sdk_analytics._client import _get_event_properties
+        from prefect._internal.analytics.client import _get_event_properties
 
         props = _get_event_properties()
 
@@ -32,7 +32,7 @@ class TestAmplitudeClient:
         """Event properties should include platform."""
         import platform
 
-        from prefect.sdk_analytics._client import _get_event_properties
+        from prefect._internal.analytics.client import _get_event_properties
 
         props = _get_event_properties()
 
@@ -42,7 +42,7 @@ class TestAmplitudeClient:
         """Event properties should include architecture."""
         import platform
 
-        from prefect.sdk_analytics._client import _get_event_properties
+        from prefect._internal.analytics.client import _get_event_properties
 
         props = _get_event_properties()
 
@@ -50,7 +50,7 @@ class TestAmplitudeClient:
 
     def test_track_event_no_api_key(self, clean_telemetry_state: Path):
         """track_event should return False when API key is not configured."""
-        from prefect.sdk_analytics._client import track_event
+        from prefect._internal.analytics.client import track_event
 
         # The default API key is a placeholder, so initialization should fail
         result = track_event(
@@ -65,7 +65,9 @@ class TestAmplitudeClient:
         mock_instance = MagicMock()
 
         with (
-            patch("prefect.sdk_analytics._client.AMPLITUDE_API_KEY", "test-api-key"),
+            patch(
+                "prefect._internal.analytics.client.AMPLITUDE_API_KEY", "test-api-key"
+            ),
             patch.dict(
                 "sys.modules",
                 {
@@ -78,12 +80,12 @@ class TestAmplitudeClient:
             ),
         ):
             # Reset initialization state
-            import prefect.sdk_analytics._client
+            import prefect._internal.analytics.client
 
-            prefect.sdk_analytics._client._initialized = False
-            prefect.sdk_analytics._client._amplitude_client = None
+            prefect._internal.analytics.client._initialized = False
+            prefect._internal.analytics.client._amplitude_client = None
 
-            from prefect.sdk_analytics._client import track_event
+            from prefect._internal.analytics.client import track_event
 
             result = track_event(
                 event_name="sdk_imported",
@@ -99,7 +101,9 @@ class TestAmplitudeClient:
         mock_event_class = MagicMock()
 
         with (
-            patch("prefect.sdk_analytics._client.AMPLITUDE_API_KEY", "test-api-key"),
+            patch(
+                "prefect._internal.analytics.client.AMPLITUDE_API_KEY", "test-api-key"
+            ),
             patch.dict(
                 "sys.modules",
                 {
@@ -112,12 +116,12 @@ class TestAmplitudeClient:
             ),
         ):
             # Reset initialization state
-            import prefect.sdk_analytics._client
+            import prefect._internal.analytics.client
 
-            prefect.sdk_analytics._client._initialized = False
-            prefect.sdk_analytics._client._amplitude_client = None
+            prefect._internal.analytics.client._initialized = False
+            prefect._internal.analytics.client._amplitude_client = None
 
-            from prefect.sdk_analytics._client import track_event
+            from prefect._internal.analytics.client import track_event
 
             track_event(
                 event_name="sdk_imported",
@@ -132,7 +136,9 @@ class TestAmplitudeClient:
     def test_track_event_handles_exceptions_silently(self, clean_telemetry_state: Path):
         """track_event should handle exceptions without raising."""
         with (
-            patch("prefect.sdk_analytics._client.AMPLITUDE_API_KEY", "test-api-key"),
+            patch(
+                "prefect._internal.analytics.client.AMPLITUDE_API_KEY", "test-api-key"
+            ),
             patch.dict(
                 "sys.modules",
                 {
@@ -144,12 +150,12 @@ class TestAmplitudeClient:
             ),
         ):
             # Reset initialization state
-            import prefect.sdk_analytics._client
+            import prefect._internal.analytics.client
 
-            prefect.sdk_analytics._client._initialized = False
-            prefect.sdk_analytics._client._amplitude_client = None
+            prefect._internal.analytics.client._initialized = False
+            prefect._internal.analytics.client._amplitude_client = None
 
-            from prefect.sdk_analytics._client import track_event
+            from prefect._internal.analytics.client import track_event
 
             # Should not raise
             result = track_event(
