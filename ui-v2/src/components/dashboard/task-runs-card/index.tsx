@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { categorizeError } from "@/api/error-utils";
 import {
@@ -155,12 +155,22 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 	);
 
 	// Fetch counts using the count endpoint (matching Vue's useTaskRunsCount)
-	const totalQuery = useQuery(buildCountTaskRunsQuery(totalFilter, 30_000));
-	const completedQuery = useQuery(
-		buildCountTaskRunsQuery(completedFilter, 30_000),
-	);
-	const failedQuery = useQuery(buildCountTaskRunsQuery(failedFilter, 30_000));
-	const runningQuery = useQuery(buildCountTaskRunsQuery(runningFilter, 30_000));
+	const totalQuery = useQuery({
+		...buildCountTaskRunsQuery(totalFilter, 30_000),
+		placeholderData: keepPreviousData,
+	});
+	const completedQuery = useQuery({
+		...buildCountTaskRunsQuery(completedFilter, 30_000),
+		placeholderData: keepPreviousData,
+	});
+	const failedQuery = useQuery({
+		...buildCountTaskRunsQuery(failedFilter, 30_000),
+		placeholderData: keepPreviousData,
+	});
+	const runningQuery = useQuery({
+		...buildCountTaskRunsQuery(runningFilter, 30_000),
+		placeholderData: keepPreviousData,
+	});
 
 	// Combine all query errors - if any critical query fails, show error
 	const criticalQueries = [
@@ -188,9 +198,11 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 		);
 	}
 
-	// Show loading state while critical data is loading
-	const isCriticalLoading = criticalQueries.some((q) => q.isLoading);
-	if (isCriticalLoading) {
+	// Only show skeleton on initial load (no data yet), not on refetch
+	const isInitialLoading = criticalQueries.some(
+		(q) => q.isLoading && q.data === undefined,
+	);
+	if (isInitialLoading) {
 		return <TaskRunsCardSkeleton />;
 	}
 
