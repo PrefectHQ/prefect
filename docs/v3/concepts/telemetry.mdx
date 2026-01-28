@@ -31,6 +31,22 @@ The SDK tracks milestone events in the "Quick Start Funnel":
 
 Each milestone event is only sent once per installation.
 
+## Server Telemetry
+
+When running a Prefect server, anonymous heartbeat data is sent every 10 minutes to help us understand server deployment patterns. This data includes:
+
+| Data | Example | Purpose |
+|------|---------|---------|
+| Platform | `Darwin`, `Linux`, `Windows` | Server environment distribution |
+| Architecture | `arm64`, `x86_64` | Build optimization |
+| Python version | `3.12.1` | Compatibility planning |
+| Prefect version | `3.2.0` | Version distribution |
+| API version | `0.8.4` | API compatibility tracking |
+| Anonymous session ID | `uuid4()` | Session correlation (not user-identifiable) |
+| Session start timestamp | ISO-8601 datetime | Uptime tracking |
+
+Server telemetry is disabled automatically when `PREFECT_SERVER_ANALYTICS_ENABLED=false`.
+
 ## What We Do NOT Collect
 
 We respect your privacy. Prefect telemetry **never** collects:
@@ -86,14 +102,14 @@ The first time you import Prefect with telemetry enabled in an interactive termi
 ```
 Prefect collects anonymous usage data to improve the product.
 To opt out: PREFECT_SERVER_ANALYTICS_ENABLED=false or DO_NOT_TRACK=1
-Learn more: https://docs.prefect.io/develop/telemetry
+Learn more: https://docs.prefect.io/concepts/telemetry
 ```
 
 This notice only appears once and only in interactive terminal sessions (not in scripts, CI, or non-TTY environments).
 
-## Data Storage
+## Local State
 
-Telemetry data is stored locally in your Prefect home directory:
+Prefect stores telemetry state files locally to track which events have been sent:
 
 ```
 ~/.prefect/.sdk_telemetry/
@@ -101,12 +117,6 @@ Telemetry data is stored locally in your Prefect home directory:
 ├── milestones.json # Tracks which milestone events have been sent
 └── notice_shown    # Marker that the first-run notice was displayed
 ```
-
-## Existing User Detection
-
-Onboarding events (`sdk_imported`, `first_flow_defined`, etc.) are only emitted for new Prefect users. If you already have Prefect artifacts in your `~/.prefect` directory (such as `profiles.toml`, `.prefect.db`, or `storage/`), you are considered an existing user and these onboarding events will not be emitted.
-
-This ensures that users upgrading to a version with telemetry don't trigger onboarding events that are meant to track new user adoption.
 
 ## Questions?
 
