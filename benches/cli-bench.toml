@@ -1,0 +1,26 @@
+# cli-bench configuration
+# see https://github.com/zzstoatzz/python-cli-bench
+
+[project]
+name = "prefect"
+import_path = "prefect.cli"
+version_module = "prefect"
+version_command = ["prefect", "--version"]
+
+[[commands]]
+name = "prefect --help"
+args = ["prefect", "--help"]
+category = "startup"
+description = "full CLI help output"
+
+[[commands]]
+name = "prefect --version"
+args = ["prefect", "--version"]
+category = "startup"
+description = "version flag"
+
+[[commands]]
+name = "prefect version"
+args = ["prefect", "version"]
+category = "startup"
+description = "version command"
