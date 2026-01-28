@@ -159,9 +159,6 @@ jobs:
         run: |
           echo "## CLI Benchmark Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          uv run --group cli-bench cli-bench plot comparison.json \
-            --compare baseline.json >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           python - <<'PY' >> $GITHUB_STEP_SUMMARY
           import json
           from pathlib import Path
