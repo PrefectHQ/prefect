@@ -594,7 +594,7 @@ async def test_trimming_skips_idle_consumer_groups(
 
 
 async def test_cleanup_empty_consumer_groups(redis: Redis):
-    """Test that empty consumer groups are cleaned up."""
+    """Test that empty consumer groups that have consumed messages are cleaned up."""
 
     stream_name = "test-cleanup-stream"
 
@@ -603,10 +603,9 @@ async def test_cleanup_empty_consumer_groups(redis: Redis):
 
     # Create multiple consumer groups
     await redis.xgroup_create(stream_name, "ephemeral-active-group", id="0")
-    await redis.xgroup_create(stream_name, "ephemeral-empty-group-1", id="0")
-    await redis.xgroup_create(stream_name, "ephemeral-empty-group-2", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-abandoned-group", id="0")
 
-    # Add a consumer to the active group
+    # Add a consumer to the active group and consume a message
     await redis.xreadgroup(
         groupname="ephemeral-active-group",
         consumername="consumer-1",
@@ -614,23 +613,78 @@ async def test_cleanup_empty_consumer_groups(redis: Redis):
         count=1,
     )
 
-    # Verify all groups exist
+    # Add a consumer to the abandoned group, consume a message, then remove the consumer
+    # This simulates a group that was used but is now abandoned
+    await redis.xreadgroup(
+        groupname="ephemeral-abandoned-group",
+        consumername="temp-consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+    # Remove the consumer from the abandoned group (simulating it leaving)
+    await redis.xgroup_delconsumer(
+        stream_name, "ephemeral-abandoned-group", "temp-consumer"
+    )
+
+    # Verify both groups exist
     groups_before = await redis.xinfo_groups(stream_name)
-    assert len(groups_before) == 3
+    assert len(groups_before) == 2
     group_names_before = {g["name"] for g in groups_before}
     assert group_names_before == {
         "ephemeral-active-group",
-        "ephemeral-empty-group-1",
-        "ephemeral-empty-group-2",
+        "ephemeral-abandoned-group",
     }
 
     # Run cleanup
     await _cleanup_empty_consumer_groups(stream_name)
 
-    # Verify only the active group remains
+    # Verify only the active group remains (abandoned group was deleted)
     groups_after = await redis.xinfo_groups(stream_name)
     assert len(groups_after) == 1
     assert groups_after[0]["name"] == "ephemeral-active-group"
+
+
+async def test_cleanup_preserves_newly_created_empty_groups(redis: Redis):
+    """Test that newly created empty consumer groups are NOT deleted.
+
+    This is a regression test for the issue where empty ephemeral groups were
+    deleted before users had a chance to add consumers to them. Groups with
+    last-delivered-id of "0-0" (haven't consumed any messages yet) should be
+    preserved to allow time for consumers to be added.
+    """
+
+    stream_name = "test-preserve-new-groups-stream"
+
+    # Create a stream with a message
+    await redis.xadd(stream_name, {"data": "test"})
+
+    # Create empty ephemeral groups (simulating deployment scenario where groups
+    # are created but consumers haven't been added yet)
+    await redis.xgroup_create(stream_name, "ephemeral-new-group-1", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-new-group-2", id="0")
+
+    # Also create a non-ephemeral group to verify it's not affected
+    await redis.xgroup_create(stream_name, "permanent-group", id="0")
+
+    # Verify all groups exist and have last-delivered-id of "0-0"
+    groups_before = await redis.xinfo_groups(stream_name)
+    assert len(groups_before) == 3
+    for group in groups_before:
+        assert group["last-delivered-id"] == "0-0"
+
+    # Run cleanup
+    await _cleanup_empty_consumer_groups(stream_name)
+
+    # Verify ALL groups still exist - none should be deleted because they
+    # haven't consumed any messages yet (last-delivered-id == "0-0")
+    groups_after = await redis.xinfo_groups(stream_name)
+    assert len(groups_after) == 3
+    group_names_after = {g["name"] for g in groups_after}
+    assert group_names_after == {
+        "ephemeral-new-group-1",
+        "ephemeral-new-group-2",
+        "permanent-group",
+    }
 
 
 async def test_consumer_recovers_from_redis_connection_error(
