@@ -4,13 +4,15 @@ Custom Prefect CLI types
 
 import asyncio
 import functools
+import importlib
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Optional
 
 import typer
 from rich.console import Console
 from rich.theme import Theme
+from typer.core import TyperGroup
 
 from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
@@ -209,3 +211,66 @@ class PrefectTyper(typer.Typer):
             soft_wrap=not soft_wrap,
             force_interactive=prompt,
         )
+
+
+class LazyTyperGroup(TyperGroup):
+    """Typer group that lazy-loads CLI modules on first access."""
+
+    _lazy_commands: dict[str, tuple[str, ...]] = {}
+    _loaded_modules: set[str] = set()
+    _typer_instance: Optional[typer.Typer] = None
+
+    @classmethod
+    def register_lazy_commands(
+        cls,
+        commands: dict[str, Iterable[str] | str],
+        *,
+        typer_instance: Optional[typer.Typer] = None,
+    ) -> None:
+        normalized: dict[str, tuple[str, ...]] = {}
+        for name, modules in commands.items():
+            if isinstance(modules, str):
+                normalized[name] = (modules,)
+            else:
+                normalized[name] = tuple(modules)
+
+        cls._lazy_commands.update(normalized)
+        if typer_instance is not None:
+            cls._typer_instance = typer_instance
+
+    def list_commands(self, ctx: typer.Context) -> list[str]:  # type: ignore[override]
+        commands = set(super().list_commands(ctx))
+        commands.update(self._lazy_commands.keys())
+        return sorted(commands)
+
+    def get_command(self, ctx: typer.Context, cmd_name: str):  # type: ignore[override]
+        if cmd_name in self._lazy_commands:
+            self._load_lazy_command(cmd_name)
+        return super().get_command(ctx, cmd_name)
+
+    def _load_lazy_command(self, cmd_name: str) -> None:
+        modules = self._lazy_commands.get(cmd_name, ())
+        for module in modules:
+            if module in self._loaded_modules:
+                continue
+            importlib.import_module(module)
+            self._loaded_modules.add(module)
+
+        if self._typer_instance is None:
+            return
+
+        refreshed_group = typer.main.get_group(self._typer_instance)
+        self.commands.update(refreshed_group.commands)
+        self._prune_loaded_commands()
+
+    def _prune_loaded_commands(self) -> None:
+        if not self._lazy_commands:
+            return
+        loaded = self._loaded_modules
+        ready = [
+            name
+            for name, modules in self._lazy_commands.items()
+            if all(module in loaded for module in modules)
+        ]
+        for name in ready:
+            self._lazy_commands.pop(name, None)
