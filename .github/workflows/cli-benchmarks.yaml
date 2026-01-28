@@ -1,0 +1,100 @@
+name: CLI Benchmarks
+
+env:
+  PY_COLORS: 1
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cli-benchmarks.yaml
+      - bench.toml
+      - "src/prefect/cli/**"
+      - "src/prefect/events/cli/**"
+      - pyproject.toml
+      - uv.lock
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  cli-benchmarks:
+    name: CLI startup benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install hyperfine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y hyperfine
+
+      - name: Checkout base branch
+        if: github.base_ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.base_ref }}
+          clean: true
+          fetch-depth: 0
+
+      - name: Install dependencies (base)
+        if: github.base_ref
+        run: uv sync --group cli-bench --locked
+
+      - name: Run baseline benchmarks (base)
+        if: github.base_ref
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config bench.toml run \
+            --runs 10 \
+            --category startup \
+            --output baseline.json
+
+      - name: Checkout PR branch
+        if: github.base_ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref }}
+          clean: true
+          fetch-depth: 0
+
+      - name: Install dependencies (head)
+        run: uv sync --group cli-bench --locked
+
+      - name: Run comparison benchmarks (head)
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config bench.toml run \
+            --runs 10 \
+            --category startup \
+            --compare baseline.json \
+            --output comparison.json
+
+      - name: Summarize benchmark results
+        run: |
+          echo "## CLI Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          uv run --group cli-bench cli-bench plot comparison.json \
+            --compare baseline.json >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-benchmark-results
+          path: |
+            baseline.json
+            comparison.json
