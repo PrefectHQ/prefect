@@ -38,7 +38,7 @@ export const CancelFlowRunDialog = ({
 		...buildFilterFlowRunsQuery({
 			flow_runs: {
 				operator: "and_",
-				parent_flow_run_id: { any_: [flowRun.id] },
+				parent_flow_run_id: { operator: "and_", any_: [flowRun.id] },
 				state: {
 					operator: "and_",
 					type: { any_: ["RUNNING", "SCHEDULED", "PENDING", "PAUSED"] },
