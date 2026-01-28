@@ -642,4 +642,80 @@ describe("FlowRunHeader", () => {
 			expect(screen.getByText("Change Flow Run State")).toBeInTheDocument();
 		});
 	});
+
+	it("shows 'Cancel' option for stuck states with deployment_id", async () => {
+		renderFlowRunHeader({
+			state_type: "RUNNING",
+			state_name: "Running",
+			deployment_id: "test-deployment-id",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		});
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Cancel")).toBeInTheDocument();
+		});
+	});
+
+	it("does not show 'Cancel' option for stuck states without deployment_id", async () => {
+		renderFlowRunHeader({
+			state_type: "RUNNING",
+			state_name: "Running",
+			deployment_id: null,
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		});
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Copy ID")).toBeInTheDocument();
+		});
+
+		expect(screen.queryByText("Cancel")).not.toBeInTheDocument();
+	});
+
+	it("does not show 'Cancel' option for non-stuck states even with deployment_id", async () => {
+		renderFlowRunHeader({
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			deployment_id: "test-deployment-id",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		});
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Copy ID")).toBeInTheDocument();
+		});
+
+		expect(screen.queryByText("Cancel")).not.toBeInTheDocument();
+	});
 });
