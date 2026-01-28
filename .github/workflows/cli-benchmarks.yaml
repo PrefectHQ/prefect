@@ -66,7 +66,7 @@ jobs:
         if: github.base_ref
         run: |
           uv run --group cli-bench cli-bench \
-            --config "$RUNNER_TEMP/cli-bench.toml" --project-root "$GITHUB_WORKSPACE" run \
+            --config "$RUNNER_TEMP/cli-bench.toml" run \
             --runs 10 \
             --category startup \
             --output baseline.json
@@ -85,7 +85,7 @@ jobs:
       - name: Run comparison benchmarks (head)
         run: |
           uv run --group cli-bench cli-bench \
-            --config "$RUNNER_TEMP/cli-bench.toml" --project-root "$GITHUB_WORKSPACE" run \
+            --config "$RUNNER_TEMP/cli-bench.toml" run \
             --runs 10 \
             --category startup \
             --compare baseline.json \
