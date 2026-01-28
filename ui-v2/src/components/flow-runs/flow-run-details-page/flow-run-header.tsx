@@ -7,11 +7,17 @@ import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import {
 	buildFilterFlowRunsQuery,
 	type FlowRun,
+	isPausedState,
+	isRunningState,
 	isStuckState,
 	useSetFlowRunState,
 } from "@/api/flow-runs";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
-import { CancelFlowRunDialog } from "@/components/flow-runs/flow-run-actions";
+import {
+	CancelFlowRunDialog,
+	PauseFlowRunDialog,
+	ResumeFlowRunDialog,
+} from "@/components/flow-runs/flow-run-actions";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -55,6 +61,8 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 		openDialog: openChangeState,
 	} = useChangeStateDialog();
 	const [isCancelOpen, setIsCancelOpen] = useState(false);
+	const [isPauseOpen, setIsPauseOpen] = useState(false);
+	const [isResumeOpen, setIsResumeOpen] = useState(false);
 	const { setFlowRunState, isPending: isChangingState } = useSetFlowRunState();
 
 	const canChangeState =
@@ -64,6 +72,8 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 		);
 
 	const canCancel = isStuckState(flowRun.state_type);
+	const canPause = isRunningState(flowRun.state_type) && flowRun.deployment_id;
+	const canResume = isPausedState(flowRun.state_type);
 
 	const handleChangeState = (newState: { type: string; message?: string }) => {
 		setFlowRunState(
@@ -249,6 +259,16 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 							Cancel
 						</DropdownMenuItem>
 					)}
+					{canPause && (
+						<DropdownMenuItem onClick={() => setIsPauseOpen(true)}>
+							Pause
+						</DropdownMenuItem>
+					)}
+					{canResume && (
+						<DropdownMenuItem onClick={() => setIsResumeOpen(true)}>
+							Resume
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(flowRun.id);
@@ -293,6 +313,16 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 				flowRun={flowRun}
 				open={isCancelOpen}
 				onOpenChange={setIsCancelOpen}
+			/>
+			<PauseFlowRunDialog
+				flowRun={flowRun}
+				open={isPauseOpen}
+				onOpenChange={setIsPauseOpen}
+			/>
+			<ResumeFlowRunDialog
+				flowRun={flowRun}
+				open={isResumeOpen}
+				onOpenChange={setIsResumeOpen}
 			/>
 		</div>
 	);
