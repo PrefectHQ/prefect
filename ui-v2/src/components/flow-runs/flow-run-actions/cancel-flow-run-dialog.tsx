@@ -44,6 +44,7 @@ export const CancelFlowRunDialog = ({
 					type: { any_: ["RUNNING", "SCHEDULED", "PENDING", "PAUSED"] },
 				},
 			},
+			sort: "START_TIME_DESC",
 			limit: 100,
 			offset: 0,
 		}),
