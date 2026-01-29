@@ -611,15 +611,11 @@ class TestCloudRunWorkerV2CreateJobRetries:
                 with mock.patch(
                     "prefect_gcp.workers.cloud_run_v2.time.sleep"
                 ) as mock_sleep:
-                    with mock.patch(
-                        "prefect_gcp.workers.cloud_run_v2.exponential_backoff_with_jitter",
-                        return_value=0.5,
-                    ):
-                        worker._create_job_and_wait_for_registration(
-                            configuration=cloud_run_worker_v2_job_config,
-                            cr_client=mock_client,
-                            logger=mock_logger,
-                        )
+                    worker._create_job_and_wait_for_registration(
+                        configuration=cloud_run_worker_v2_job_config,
+                        cr_client=mock_client,
+                        logger=mock_logger,
+                    )
 
         assert mock_create.call_count == 2
         mock_sleep.assert_called_once()
@@ -673,16 +669,12 @@ class TestCloudRunWorkerV2CreateJobRetries:
                 with mock.patch(
                     "prefect_gcp.workers.cloud_run_v2.time.sleep"
                 ) as mock_sleep:
-                    with mock.patch(
-                        "prefect_gcp.workers.cloud_run_v2.exponential_backoff_with_jitter",
-                        return_value=0.5,
-                    ):
-                        with pytest.raises(HttpError):
-                            worker._create_job_and_wait_for_registration(
-                                configuration=cloud_run_worker_v2_job_config,
-                                cr_client=mock_client,
-                                logger=mock_logger,
-                            )
+                    with pytest.raises(HttpError):
+                        worker._create_job_and_wait_for_registration(
+                            configuration=cloud_run_worker_v2_job_config,
+                            cr_client=mock_client,
+                            logger=mock_logger,
+                        )
 
         assert mock_create.call_count == 3
         assert mock_sleep.call_count == 2
