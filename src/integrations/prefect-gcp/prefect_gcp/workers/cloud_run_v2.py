@@ -16,7 +16,12 @@ from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
 
-from tenacity import Retrying, retry_if_exception, stop_after_attempt, wait_exponential_jitter
+from tenacity import (
+    Retrying,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
