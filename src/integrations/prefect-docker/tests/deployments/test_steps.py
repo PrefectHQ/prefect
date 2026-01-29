@@ -255,7 +255,7 @@ def test_build_docker_image_denied_message_is_enhanced(
         {"error": "denied: requested access to the resource is denied"}
     ]
 
-    with pytest.raises(BuildError, match="access denied"):
+    with pytest.raises(BuildError, match="Docker reported access denied"):
         build_docker_image(image_name="registry/repo", ignore_cache=True)
 
 

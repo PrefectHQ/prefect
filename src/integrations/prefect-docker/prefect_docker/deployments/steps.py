@@ -304,7 +304,10 @@ def build_docker_image(
             if not isinstance(image_id, str):
                 raise BuildError("Docker did not return an image ID for built image.")
         except BuildError as exc:
-            raise _build_error_with_guidance(exc) from exc
+            guided_error = _build_error_with_guidance(exc)
+            if guided_error is exc:
+                raise
+            raise guided_error from exc
         finally:
             if auto_build:
                 os.unlink(dockerfile)
