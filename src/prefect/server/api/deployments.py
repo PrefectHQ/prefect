@@ -23,7 +23,12 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
-from prefect.server.schemas.responses import DeploymentPaginationResponse
+from prefect.server.schemas.responses import (
+    DeploymentBulkDeleteResponse,
+    DeploymentPaginationResponse,
+    FlowRunBulkCreateResponse,
+    FlowRunCreateResult,
+)
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import now
@@ -605,6 +610,48 @@ async def delete_deployment(
         )
 
 
+BULK_OPERATION_LIMIT = 50
+
+
+@router.post("/bulk_delete")
+async def bulk_delete_deployments(
+    deployments: Optional[schemas.filters.DeploymentFilter] = Body(
+        None, description="Filter criteria for deployments to delete"
+    ),
+    limit: int = Body(
+        BULK_OPERATION_LIMIT,
+        le=BULK_OPERATION_LIMIT,
+        description=f"Maximum number of deployments to delete. Defaults to {BULK_OPERATION_LIMIT}.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> DeploymentBulkDeleteResponse:
+    """
+    Bulk delete deployments matching the specified filter criteria.
+
+    Returns the IDs of deployments that were deleted.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        # Query matching deployments
+        db_deployments = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=deployments,
+            limit=limit,
+        )
+
+        if not db_deployments:
+            return DeploymentBulkDeleteResponse(deleted=[])
+
+        deployment_ids = [d.id for d in db_deployments]
+
+        # Delete deployments
+        deleted_ids = await models.deployments.delete_deployments(
+            session=session,
+            deployment_ids=deployment_ids,
+        )
+
+    return DeploymentBulkDeleteResponse(deleted=deleted_ids)
+
+
 @router.post("/{id:uuid}/schedule")
 async def schedule_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
@@ -840,6 +887,222 @@ async def create_flow_run_from_deployment(
         return schemas.responses.FlowRunResponse.model_validate(
             model, from_attributes=True
         )
+
+
+BULK_CREATE_LIMIT = 100
+
+
+@router.post("/{id:uuid}/create_flow_run/bulk")
+async def bulk_create_flow_runs_from_deployment(
+    flow_runs: List[schemas.actions.DeploymentFlowRunCreate] = Body(
+        ..., description="List of flow run configurations to create"
+    ),
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
+) -> FlowRunBulkCreateResponse:
+    """
+    Create multiple flow runs from a deployment.
+
+    Any parameters not provided will be inferred from the deployment's parameters.
+    If tags are not provided, the deployment's tags will be used.
+
+    If no state is provided, the flow runs will be created in a SCHEDULED state.
+    """
+    if len(flow_runs) > BULK_CREATE_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot create more than {BULK_CREATE_LIMIT} flow runs at once.",
+        )
+
+    if not flow_runs:
+        return FlowRunBulkCreateResponse(results=[])
+
+    results: List[FlowRunCreateResult] = []
+
+    async with db.session_context(begin_transaction=True) as session:
+        # Get the deployment once
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+
+        # Pre-create unique work queues to avoid race conditions
+        # Collect unique work queue names that differ from the deployment's default
+        unique_work_queue_names = {
+            fr.work_queue_name
+            for fr in flow_runs
+            if fr.work_queue_name and fr.work_queue_name != deployment.work_queue_name
+        }
+
+        # Pre-create work queues if needed
+        if (
+            unique_work_queue_names
+            and deployment.work_queue
+            and deployment.work_queue.work_pool
+        ):
+            work_pool_name = deployment.work_queue.work_pool.name
+            for work_queue_name in unique_work_queue_names:
+                await worker_lookups._get_work_queue_id_from_name(
+                    session=session,
+                    work_pool_name=work_pool_name,
+                    work_queue_name=work_queue_name,
+                    create_queue_if_not_found=True,
+                )
+
+        # Build hydration context once
+        try:
+            ctx = await HydrationContext.build(
+                session=session,
+                raise_on_error=True,
+                render_jinja=True,
+                render_workspace_variables=True,
+            )
+        except HydrationError as exc:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"Error building hydration context: {exc}",
+            )
+
+        # Process flow runs sequentially within the transaction
+        # (SQLAlchemy sessions are not safe for concurrent operations)
+        for flow_run_request in flow_runs:
+            try:
+                # Hydrate parameters
+                dehydrated_params = deployment.parameters.copy()
+                dehydrated_params.update(flow_run_request.parameters or {})
+                parameters = hydrate(dehydrated_params, ctx)
+
+                # Default and override for enforce_parameter_schema
+                enforce_parameter_schema = deployment.enforce_parameter_schema
+                if flow_run_request.enforce_parameter_schema is not None:
+                    enforce_parameter_schema = flow_run_request.enforce_parameter_schema
+
+                # Validate parameters if schema enforcement is enabled
+                if enforce_parameter_schema:
+                    if not isinstance(deployment.parameter_openapi_schema, dict):
+                        results.append(
+                            FlowRunCreateResult(
+                                status="FAILED",
+                                error="Parameter schema enforcement is enabled but deployment has no valid schema.",
+                            )
+                        )
+                        continue
+                    try:
+                        validate(
+                            parameters,
+                            deployment.parameter_openapi_schema,
+                            raise_on_error=True,
+                        )
+                    except ValidationError as exc:
+                        results.append(
+                            FlowRunCreateResult(
+                                status="FAILED",
+                                error=f"Parameter validation failed: {exc}",
+                            )
+                        )
+                        continue
+                    except CircularSchemaRefError:
+                        results.append(
+                            FlowRunCreateResult(
+                                status="FAILED",
+                                error="Invalid schema: circular references detected.",
+                            )
+                        )
+                        continue
+
+                # Validate job variables
+                try:
+                    await validate_job_variables_for_deployment_flow_run(
+                        session, deployment, flow_run_request
+                    )
+                except HTTPException as exc:
+                    results.append(
+                        FlowRunCreateResult(
+                            status="FAILED",
+                            error=str(exc.detail),
+                        )
+                    )
+                    continue
+
+                # Determine work queue
+                work_queue_name = deployment.work_queue_name
+                work_queue_id = deployment.work_queue_id
+
+                if flow_run_request.work_queue_name:
+                    if (
+                        deployment.work_queue is None
+                        or deployment.work_queue.work_pool is None
+                    ):
+                        results.append(
+                            FlowRunCreateResult(
+                                status="FAILED",
+                                error=f"Cannot create flow run in work queue {flow_run_request.work_queue_name} because deployment is not associated with a work pool.",
+                            )
+                        )
+                        continue
+
+                    work_queue_id = await worker_lookups._get_work_queue_id_from_name(
+                        session=session,
+                        work_pool_name=deployment.work_queue.work_pool.name,
+                        work_queue_name=flow_run_request.work_queue_name,
+                        create_queue_if_not_found=True,
+                    )
+                    work_queue_name = flow_run_request.work_queue_name
+
+                # Create the flow run model
+                flow_run_model = schemas.core.FlowRun(
+                    **flow_run_request.model_dump(
+                        exclude={
+                            "parameters",
+                            "tags",
+                            "infrastructure_document_id",
+                            "work_queue_name",
+                            "enforce_parameter_schema",
+                        }
+                    ),
+                    flow_id=deployment.flow_id,
+                    deployment_id=deployment.id,
+                    deployment_version=deployment.version,
+                    parameters=parameters,
+                    tags=set(deployment.tags).union(flow_run_request.tags),
+                    infrastructure_document_id=(
+                        flow_run_request.infrastructure_document_id
+                        or deployment.infrastructure_document_id
+                    ),
+                    work_queue_name=work_queue_name,
+                    work_queue_id=work_queue_id,
+                    created_by=created_by,
+                )
+
+                if not flow_run_model.state:
+                    flow_run_model.state = schemas.states.Scheduled()
+
+                model = await models.flow_runs.create_flow_run(
+                    session=session, flow_run=flow_run_model
+                )
+
+                results.append(
+                    FlowRunCreateResult(
+                        flow_run_id=model.id,
+                        status="CREATED",
+                    )
+                )
+
+            except Exception as exc:
+                results.append(
+                    FlowRunCreateResult(
+                        status="FAILED",
+                        error=str(exc),
+                    )
+                )
+
+    return FlowRunBulkCreateResponse(results=results)
 
 
 # DEPRECATED
