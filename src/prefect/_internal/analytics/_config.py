@@ -1,0 +1,2 @@
+# Generated at build time - DO NOT EDIT
+AMPLITUDE_API_KEY = "YOUR_AMPLITUDE_API_KEY_HERE"

@@ -57,6 +57,8 @@ jobs:
           git diff --exit-code
 
       - name: Build a binary wheel and a source tarball
+        env:
+          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
         run: |
           uv build --sdist --wheel --out-dir dist
 

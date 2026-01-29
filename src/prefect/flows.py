@@ -402,6 +402,14 @@ class Flow(Generic[P, R]):
 
         self._entrypoint = f"{module}:{getattr(fn, '__qualname__', fn.__name__)}"
 
+        # Track first flow defined milestone for analytics
+        try:
+            from prefect._internal.analytics import try_mark_milestone
+
+            try_mark_milestone("first_flow_defined")
+        except Exception:
+            pass
+
     @property
     def ismethod(self) -> bool:
         return hasattr(self.fn, "__prefect_self__")
