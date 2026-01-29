@@ -2,7 +2,7 @@
 title: 3.6
 ---
 
-## 3.6.14
+## 3.6.14 - A Prefect Server for Every ::1
 
 *Released on January 29, 2026*
 
@@ -11,13 +11,12 @@ title: 3.6
 * Support parsing TOML 1.0 on Python 3.11+ by [@zed](https://github.com/zed) in [#20398](https://github.com/PrefectHQ/prefect/pull/20398)
 * Make runner cancellation observing critical to runner health by [@joshuastagner](https://github.com/joshuastagner) in [#20219](https://github.com/PrefectHQ/prefect/pull/20219)
 * Reload root settings after running plugins to enable environment variable updates to take effect by [@desertaxle](https://github.com/desertaxle) in [#20393](https://github.com/PrefectHQ/prefect/pull/20393)
-* Add polling fallback in `PrefectFlowRunFuture.wait_async` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20406](https://github.com/PrefectHQ/prefect/pull/20406)
-* Add build-time configuration support for UI v2 by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20411](https://github.com/PrefectHQ/prefect/pull/20411)
+* Support IPv6 addresses in `prefect server start` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20361](https://github.com/PrefectHQ/prefect/pull/20361)
 * Add authentication to `/api/events/in` WebSocket endpoint by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20372](https://github.com/PrefectHQ/prefect/pull/20372)
 
 **Bug Fixes 🐞**
 
-* Support IPv6 addresses in `prefect server start` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20361](https://github.com/PrefectHQ/prefect/pull/20361)
+* Add polling fallback in `PrefectFlowRunFuture.wait_async` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20406](https://github.com/PrefectHQ/prefect/pull/20406)
 * Fix race condition in ephemeral consumer group cleanup by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20435](https://github.com/PrefectHQ/prefect/pull/20435)
 * Fix flow runs with parameter validation failures missing `end_time` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20369](https://github.com/PrefectHQ/prefect/pull/20369)
 * Fix `flow_run.id` returning string `"None"` instead of `None` by [@bnaul](https://github.com/bnaul) in [#20425](https://github.com/PrefectHQ/prefect/pull/20425)
@@ -25,7 +24,6 @@ title: 3.6
 **Integrations & Dependencies 🤝**
 
 * Bump `pydocket` minimum version to 0.17.2 by [@chrisguidry](https://github.com/chrisguidry) in [#20405](https://github.com/PrefectHQ/prefect/pull/20405)
-* Migrate git integrations from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20407](https://github.com/PrefectHQ/prefect/pull/20407)
 
 **Development & Tidiness 🧹**
 
@@ -37,7 +35,6 @@ title: 3.6
 * Migrate `Flow.deploy()` from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20380](https://github.com/PrefectHQ/prefect/pull/20380)
 * Migrate `Runner` methods from `@sync_compatible` to `@async_dispatch` by [@zzstoatzz](https://github.com/zzstoatzz) in [#20382](https://github.com/PrefectHQ/prefect/pull/20382)
 * Fix flaky docket task keys tests: use custom lifespan without worker by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20408](https://github.com/PrefectHQ/prefect/pull/20408)
-* Add Bluesky link to README by [@zzstoatzz](https://github.com/zzstoatzz) in [#20413](https://github.com/PrefectHQ/prefect/pull/20413)
 * Fix flaky test: use `TestClient` as context manager for proper lifespan cleanup by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20426](https://github.com/PrefectHQ/prefect/pull/20426)
 * Add CLI benchmark harness as external dependency by [@zzstoatzz](https://github.com/zzstoatzz) in [#20439](https://github.com/PrefectHQ/prefect/pull/20439)
 * Add in-repo CLI benchmark workflow by [@zzstoatzz](https://github.com/zzstoatzz) in [#20451](https://github.com/PrefectHQ/prefect/pull/20451)
@@ -47,6 +44,7 @@ title: 3.6
 * Add accordion for logging pydantic-ai tool calls to Prefect by [@zzstoatzz](https://github.com/zzstoatzz) in [#20410](https://github.com/PrefectHQ/prefect/pull/20410)
 * Expand task invocation methods documentation by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20403](https://github.com/PrefectHQ/prefect/pull/20403)
 * Add Docket URL configuration for HA background services by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20422](https://github.com/PrefectHQ/prefect/pull/20422)
+* Add Bluesky link to README by [@zzstoatzz](https://github.com/zzstoatzz) in [#20413](https://github.com/PrefectHQ/prefect/pull/20413)
 
 **Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.13...3.6.14
 
