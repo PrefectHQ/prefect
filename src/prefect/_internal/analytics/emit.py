@@ -17,7 +17,7 @@ logger = logging.getLogger("prefect.sdk_analytics")
 def _is_interactive_terminal() -> bool:
     """Check if we're running in an interactive terminal."""
     try:
-        return sys.stdout.isatty()
+        return sys.stdout.isatty() or sys.stderr.isatty()
     except Exception:
         return False
 

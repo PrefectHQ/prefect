@@ -24,7 +24,7 @@ def _get_server_analytics_enabled() -> bool:
         return False
 
     try:
-        response = httpx.get(f"{api_url}/admin/settings", timeout=5.0)
+        response = httpx.get(f"{api_url}/admin/settings", timeout=1.0)
         response.raise_for_status()
         settings = response.json()
         return settings.get("server", {}).get("analytics_enabled", False)

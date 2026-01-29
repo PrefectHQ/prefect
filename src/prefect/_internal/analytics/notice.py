@@ -8,6 +8,7 @@ but only in interactive terminal sessions.
 import sys
 from pathlib import Path
 
+from prefect._internal.analytics.emit import _is_interactive_terminal
 from prefect.settings import get_current_settings
 
 NOTICE_TEXT = """
@@ -36,14 +37,6 @@ def _mark_notice_shown() -> None:
         marker_path.touch()
     except Exception:
         pass
-
-
-def _is_interactive_terminal() -> bool:
-    """Check if we're running in an interactive terminal."""
-    try:
-        return sys.stdout.isatty()
-    except Exception:
-        return False
 
 
 def maybe_show_telemetry_notice() -> None:

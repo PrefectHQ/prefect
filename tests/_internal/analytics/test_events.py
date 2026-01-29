@@ -3,9 +3,12 @@ Tests for SDK analytics event emission.
 """
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
+
+from prefect._internal.analytics import emit_integration_event
 
 
 class TestEventEmission:
@@ -258,3 +261,65 @@ class TestAnalyticsInitialization:
             mock_emit.assert_called_once_with("sdk_imported")
             # Should show notice for new users
             mock_notice.assert_called_once()
+
+
+class TestIntegrationEventEmission:
+    """Test emit_integration_event public API."""
+
+    def test_event_namespacing(self, clean_telemetry_state: Path, telemetry_enabled):
+        """Event name should be namespaced with 'integration:event_name'."""
+        with patch("prefect._internal.analytics.emit.track_event") as mock_track:
+            mock_track.return_value = True
+
+            emit_integration_event("prefect-aws", "s3_block_created")
+
+            mock_track.assert_called_once()
+            call_kwargs = mock_track.call_args[1]
+            assert call_kwargs["event_name"] == "prefect-aws:s3_block_created"
+
+    def test_integration_property_included(
+        self, clean_telemetry_state: Path, telemetry_enabled
+    ):
+        """Integration name should be included in extra_properties."""
+        with patch("prefect._internal.analytics.emit.track_event") as mock_track:
+            mock_track.return_value = True
+
+            emit_integration_event("prefect-gcp", "bigquery_task_run")
+
+            call_kwargs = mock_track.call_args[1]
+            assert call_kwargs["extra_properties"]["integration"] == "prefect-gcp"
+
+    def test_extra_properties_merged(
+        self, clean_telemetry_state: Path, telemetry_enabled
+    ):
+        """Extra properties should be merged with integration property."""
+        with patch("prefect._internal.analytics.emit.track_event") as mock_track:
+            mock_track.return_value = True
+
+            emit_integration_event(
+                "prefect-aws",
+                "s3_block_created",
+                extra_properties={"bucket": "my-bucket", "region": "us-east-1"},
+            )
+
+            call_kwargs = mock_track.call_args[1]
+            extra_props: dict[str, Any] = call_kwargs["extra_properties"]
+            assert extra_props["integration"] == "prefect-aws"
+            assert extra_props["bucket"] == "my-bucket"
+            assert extra_props["region"] == "us-east-1"
+
+    def test_returns_false_when_telemetry_disabled(
+        self, clean_telemetry_state: Path, telemetry_disabled
+    ):
+        """Should return False when telemetry is disabled."""
+        result = emit_integration_event("prefect-aws", "s3_block_created")
+        assert result is False
+
+    def test_handles_exceptions(self, clean_telemetry_state: Path, telemetry_enabled):
+        """Should handle exceptions without raising."""
+        with patch(
+            "prefect._internal.analytics.emit.get_or_create_device_id",
+            side_effect=Exception("Test error"),
+        ):
+            result = emit_integration_event("prefect-aws", "s3_block_created")
+            assert result is False
