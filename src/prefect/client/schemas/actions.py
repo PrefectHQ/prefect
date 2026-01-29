@@ -117,6 +117,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
         default=None,
         description="A unique identifier for the schedule.",
     )
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
+    )
 
     @field_validator("active", mode="wrap")
     @classmethod
@@ -194,6 +198,10 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     slug: Optional[str] = Field(
         default=None,
         description="A unique identifier for the schedule.",
+    )
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
     )
 
     @field_validator("max_scheduled_runs")
