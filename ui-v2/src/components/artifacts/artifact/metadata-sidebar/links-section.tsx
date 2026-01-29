@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
-import { Typography } from "@/components/ui/typography";
+import { KeyValue } from "@/components/ui/key-value";
 
 type LinksSectionProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;
@@ -15,53 +15,53 @@ export const LinksSection = ({ artifact }: LinksSectionProps) => {
 	}
 
 	return (
-		<div>
+		<div className="flex flex-col gap-2">
 			{artifact.key && (
-				<div>
-					<Typography variant="bodySmall" className="text-muted-foreground">
-						Artifact
-					</Typography>
-					<Link
-						to="/artifacts/key/$key"
-						params={{ key: artifact.key }}
-						className="text-blue-500 hover:underline"
-					>
-						<Typography variant="bodySmall">{artifact.key}</Typography>
-					</Link>
-				</div>
+				<KeyValue
+					label="Artifact"
+					value={
+						<Link
+							to="/artifacts/key/$key"
+							params={{ key: artifact.key }}
+							className="text-blue-500 hover:underline"
+						>
+							{artifact.key}
+						</Link>
+					}
+				/>
 			)}
 
 			{flow_run && (
-				<div className="mt-2">
-					<Typography variant="bodySmall" className="text-muted-foreground">
-						Flow Run
-					</Typography>
-					<Link
-						to="/runs/flow-run/$id"
-						params={{ id: flow_run.id }}
-						className="text-blue-500 hover:underline"
-					>
-						<Typography variant="bodySmall">{flow_run.name}</Typography>
-					</Link>
-				</div>
+				<KeyValue
+					label="Flow Run"
+					value={
+						<Link
+							to="/runs/flow-run/$id"
+							params={{ id: flow_run.id }}
+							className="text-blue-500 hover:underline"
+						>
+							{flow_run.name}
+						</Link>
+					}
+				/>
 			)}
 
 			{task_run && (
-				<div className="mt-2">
-					<Typography variant="bodySmall" className="text-muted-foreground">
-						Task Run
-					</Typography>
-					<Link
-						to="/runs/task-run/$id"
-						params={{ id: task_run.id }}
-						className="text-blue-500 hover:underline"
-					>
-						<Typography variant="bodySmall">{task_run.name}</Typography>
-					</Link>
-				</div>
+				<KeyValue
+					label="Task Run"
+					value={
+						<Link
+							to="/runs/task-run/$id"
+							params={{ id: task_run.id }}
+							className="text-blue-500 hover:underline"
+						>
+							{task_run.name}
+						</Link>
+					}
+				/>
 			)}
 
-			<hr className="mt-4 border-border" />
+			<hr className="mt-2 border-border" />
 		</div>
 	);
 };
