@@ -39,7 +39,7 @@ from prefect.utilities.schema_tools.validation import (
     validate,
 )
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
