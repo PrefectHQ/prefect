@@ -6,6 +6,7 @@ import { DetailImage } from "./detail-image";
 import { DetailMarkdown } from "./detail-markdown";
 import { DetailProgress } from "./detail-progress";
 import { DetailTable } from "./detail-table";
+import { MetadataSidebar } from "./metadata-sidebar";
 
 export type ArtifactDetailPageProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;
@@ -30,8 +31,13 @@ export const ArtifactDetailPage = ({ artifact }: ArtifactDetailPageProps) => {
 	return (
 		<div>
 			<ArtifactDetailHeader artifact={artifact} />
-			{mapArtifactHoc}
-			<ArtifactDataDisplay artifact={artifact} />
+			<div className="flex flex-row gap-4 justify-between">
+				<div className="flex-grow min-w-0">
+					{mapArtifactHoc}
+					<ArtifactDataDisplay artifact={artifact} />
+				</div>
+				<MetadataSidebar artifact={artifact} />
+			</div>
 		</div>
 	);
 };
