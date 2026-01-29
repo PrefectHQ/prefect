@@ -62,105 +62,73 @@ class TestAmplitudeClient:
 
     def test_track_event_with_mock_amplitude(self, clean_telemetry_state: Path):
         """track_event should send events when Amplitude is configured."""
-        mock_instance = MagicMock()
+        import prefect._internal.analytics.client as client_module
 
-        with (
-            patch(
-                "prefect._internal.analytics.client.AMPLITUDE_API_KEY", "test-api-key"
-            ),
-            patch.dict(
-                "sys.modules",
-                {
-                    "amplitude": MagicMock(
-                        Amplitude=MagicMock(return_value=mock_instance),
-                        Config=MagicMock(),
-                        BaseEvent=MagicMock(),
-                    )
-                },
-            ),
-        ):
+        mock_client = MagicMock()
+
+        with patch.object(client_module, "AMPLITUDE_API_KEY", "test-api-key"):
             # Reset initialization state
-            import prefect._internal.analytics.client
+            client_module._initialized = False
+            client_module._amplitude_client = None
 
-            prefect._internal.analytics.client._initialized = False
-            prefect._internal.analytics.client._amplitude_client = None
+            # Mock the Amplitude class to return our mock client
+            with patch.object(
+                client_module, "Amplitude", return_value=mock_client
+            ) as mock_amplitude_class:
+                result = client_module.track_event(
+                    event_name="sdk_imported",
+                    device_id="test-device-id",
+                )
 
-            from prefect._internal.analytics.client import track_event
-
-            result = track_event(
-                event_name="sdk_imported",
-                device_id="test-device-id",
-            )
-
-            assert result is True
-            mock_instance.track.assert_called_once()
+                assert result is True
+                mock_amplitude_class.assert_called_once()
+                mock_client.track.assert_called_once()
 
     def test_track_event_includes_extra_properties(self, clean_telemetry_state: Path):
         """track_event should include extra properties."""
-        mock_instance = MagicMock()
-        mock_event_class = MagicMock()
+        import prefect._internal.analytics.client as client_module
 
-        with (
-            patch(
-                "prefect._internal.analytics.client.AMPLITUDE_API_KEY", "test-api-key"
-            ),
-            patch.dict(
-                "sys.modules",
-                {
-                    "amplitude": MagicMock(
-                        Amplitude=MagicMock(return_value=mock_instance),
-                        Config=MagicMock(),
-                        BaseEvent=mock_event_class,
-                    )
-                },
-            ),
-        ):
+        mock_client = MagicMock()
+        captured_event = None
+
+        def capture_track(event):
+            nonlocal captured_event
+            captured_event = event
+
+        mock_client.track = capture_track
+
+        with patch.object(client_module, "AMPLITUDE_API_KEY", "test-api-key"):
             # Reset initialization state
-            import prefect._internal.analytics.client
+            client_module._initialized = False
+            client_module._amplitude_client = None
 
-            prefect._internal.analytics.client._initialized = False
-            prefect._internal.analytics.client._amplitude_client = None
+            with patch.object(client_module, "Amplitude", return_value=mock_client):
+                client_module.track_event(
+                    event_name="sdk_imported",
+                    device_id="test-device-id",
+                    extra_properties={"custom_key": "custom_value"},
+                )
 
-            from prefect._internal.analytics.client import track_event
-
-            track_event(
-                event_name="sdk_imported",
-                device_id="test-device-id",
-                extra_properties={"custom_key": "custom_value"},
-            )
-
-            # Verify BaseEvent was created with custom property
-            call_kwargs = mock_event_class.call_args[1]
-            assert call_kwargs["event_properties"]["custom_key"] == "custom_value"
+                # Verify the event was created with custom property
+                assert captured_event is not None
+                assert captured_event.event_properties["custom_key"] == "custom_value"
 
     def test_track_event_handles_exceptions_silently(self, clean_telemetry_state: Path):
         """track_event should handle exceptions without raising."""
-        with (
-            patch(
-                "prefect._internal.analytics.client.AMPLITUDE_API_KEY", "test-api-key"
-            ),
-            patch.dict(
-                "sys.modules",
-                {
-                    "amplitude": MagicMock(
-                        Amplitude=MagicMock(side_effect=Exception("Test error")),
-                        Config=MagicMock(),
-                    )
-                },
-            ),
-        ):
+        import prefect._internal.analytics.client as client_module
+
+        with patch.object(client_module, "AMPLITUDE_API_KEY", "test-api-key"):
             # Reset initialization state
-            import prefect._internal.analytics.client
+            client_module._initialized = False
+            client_module._amplitude_client = None
 
-            prefect._internal.analytics.client._initialized = False
-            prefect._internal.analytics.client._amplitude_client = None
+            with patch.object(
+                client_module, "Amplitude", side_effect=Exception("Test error")
+            ):
+                # Should not raise
+                result = client_module.track_event(
+                    event_name="sdk_imported",
+                    device_id="test-device-id",
+                )
 
-            from prefect._internal.analytics.client import track_event
-
-            # Should not raise
-            result = track_event(
-                event_name="sdk_imported",
-                device_id="test-device-id",
-            )
-
-            assert result is False
+                assert result is False

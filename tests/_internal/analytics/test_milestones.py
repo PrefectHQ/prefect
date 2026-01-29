@@ -50,8 +50,9 @@ class TestMilestones:
         self, clean_telemetry_state: Path, telemetry_disabled
     ):
         """try_mark_milestone should return True the first time."""
+        # Patch where the function is imported (in milestones.py), not where it's defined
         with patch(
-            "prefect._internal.analytics.emit._is_interactive_terminal",
+            "prefect._internal.analytics.milestones._is_interactive_terminal",
             return_value=True,
         ):
             from prefect._internal.analytics.milestones import try_mark_milestone
@@ -65,7 +66,7 @@ class TestMilestones:
     ):
         """try_mark_milestone should return False if already marked."""
         with patch(
-            "prefect._internal.analytics.emit._is_interactive_terminal",
+            "prefect._internal.analytics.milestones._is_interactive_terminal",
             return_value=True,
         ):
             from prefect._internal.analytics.milestones import try_mark_milestone
@@ -79,12 +80,13 @@ class TestMilestones:
         self, clean_telemetry_state: Path, telemetry_enabled
     ):
         """try_mark_milestone should emit an event."""
+        # Patch where the functions are imported (in milestones.py)
         with (
             patch(
-                "prefect._internal.analytics.emit._is_interactive_terminal",
+                "prefect._internal.analytics.milestones._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.milestones.emit_sdk_event") as mock_emit,
         ):
             from prefect._internal.analytics.milestones import try_mark_milestone
 
@@ -110,10 +112,10 @@ class TestMilestones:
         """try_mark_milestone should skip in non-interactive terminals."""
         with (
             patch(
-                "prefect._internal.analytics.emit._is_interactive_terminal",
+                "prefect._internal.analytics.milestones._is_interactive_terminal",
                 return_value=False,
             ),
-            patch("prefect._internal.analytics.emit.emit_sdk_event") as mock_emit,
+            patch("prefect._internal.analytics.milestones.emit_sdk_event") as mock_emit,
         ):
             from prefect._internal.analytics.milestones import try_mark_milestone
 

@@ -10,21 +10,35 @@ import pytest
 
 
 @pytest.fixture
-def telemetry_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Disable telemetry via environment variable."""
-    monkeypatch.setenv("PREFECT_SERVER_ANALYTICS_ENABLED", "false")
+def telemetry_disabled() -> Generator[None, None, None]:
+    """Disable telemetry by mocking is_telemetry_enabled to return False."""
+    with patch(
+        "prefect._internal.analytics.enabled.is_telemetry_enabled", return_value=False
+    ):
+        yield
 
 
 @pytest.fixture
-def telemetry_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure telemetry is enabled via environment variable."""
-    monkeypatch.setenv("PREFECT_SERVER_ANALYTICS_ENABLED", "true")
+def telemetry_enabled(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Enable telemetry by mocking _get_server_analytics_enabled to return True."""
     monkeypatch.delenv("DO_NOT_TRACK", raising=False)
+
     # Clear CI variables
     from prefect._internal.analytics.ci_detection import CI_ENV_VARS
 
     for var in CI_ENV_VARS:
         monkeypatch.delenv(var, raising=False)
+
+    # Mock the server check to return True
+    with patch(
+        "prefect._internal.analytics.enabled._get_server_analytics_enabled",
+        return_value=True,
+    ):
+        # Clear the cache so our mock is used
+        from prefect._internal.analytics.enabled import _get_server_analytics_enabled
+
+        _get_server_analytics_enabled.cache_clear()
+        yield
 
 
 @pytest.fixture
@@ -72,12 +86,25 @@ def clean_telemetry_state(
 
     fresh_settings = Settings()
 
-    # Patch get_current_settings to return our fresh settings
+    # Patch get_current_settings everywhere it's used
+    # Need to patch in all modules that import it at the top level
     with (
         patch(
             "prefect.settings.context.get_current_settings", return_value=fresh_settings
         ),
         patch("prefect.settings.get_current_settings", return_value=fresh_settings),
+        patch(
+            "prefect._internal.analytics.device_id.get_current_settings",
+            return_value=fresh_settings,
+        ),
+        patch(
+            "prefect._internal.analytics.milestones.get_current_settings",
+            return_value=fresh_settings,
+        ),
+        patch(
+            "prefect._internal.analytics.notice.get_current_settings",
+            return_value=fresh_settings,
+        ),
     ):
         # Clear any existing telemetry initialization state
         import prefect._internal.analytics
