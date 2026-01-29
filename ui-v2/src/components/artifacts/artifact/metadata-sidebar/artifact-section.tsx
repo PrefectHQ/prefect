@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
+import { KeyValue } from "@/components/ui/key-value";
 import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
 
@@ -19,38 +20,22 @@ export const ArtifactSection = ({ artifact }: ArtifactSectionProps) => {
 				Artifact
 			</Typography>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Key
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 text-foreground"
-			>
-				{artifact.key ?? "None"}
-			</Typography>
+			<div className="mt-3 flex flex-col gap-3">
+				<KeyValue
+					label="Key"
+					value={<span className="font-mono">{artifact.key ?? "None"}</span>}
+				/>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Type
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 text-foreground"
-			>
-				{artifact.type ?? "None"}
-			</Typography>
+				<KeyValue
+					label="Type"
+					value={<span className="font-mono">{artifact.type ?? "None"}</span>}
+				/>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Created
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 text-foreground"
-			>
-				{createdDate ?? "None"}
-			</Typography>
+				<KeyValue
+					label="Created"
+					value={<span className="font-mono">{createdDate ?? "None"}</span>}
+				/>
+			</div>
 		</div>
 	);
 };

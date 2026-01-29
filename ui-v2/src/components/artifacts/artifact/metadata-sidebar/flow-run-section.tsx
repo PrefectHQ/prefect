@@ -2,6 +2,7 @@ import humanizeDuration from "humanize-duration";
 import { useMemo } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import { Icon } from "@/components/ui/icons";
+import { KeyValue } from "@/components/ui/key-value";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
@@ -37,79 +38,61 @@ export const FlowRunSection = ({ flowRun }: FlowRunSectionProps) => {
 				Flow Run
 			</Typography>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Start time
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 flex items-center text-foreground"
-			>
-				<Icon id="Calendar" className="inline w-4 mr-2" />
-				{startTime ?? "None"}
-			</Typography>
+			<div className="mt-3 flex flex-col gap-3">
+				<KeyValue
+					label="Start time"
+					value={
+						<span className="font-mono flex items-center">
+							<Icon id="Calendar" className="inline w-4 mr-2" />
+							{startTime ?? "None"}
+						</span>
+					}
+				/>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Duration
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 flex items-center text-foreground"
-			>
-				<Icon id="Clock" className="inline w-4 mr-2" />
-				{duration ?? "None"}
-			</Typography>
+				<KeyValue
+					label="Duration"
+					value={
+						<span className="font-mono flex items-center">
+							<Icon id="Clock" className="inline w-4 mr-2" />
+							{duration ?? "None"}
+						</span>
+					}
+				/>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Created
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 text-foreground"
-			>
-				{createdDate ?? "None"}
-			</Typography>
+				<KeyValue
+					label="Created"
+					value={<span className="font-mono">{createdDate ?? "None"}</span>}
+				/>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Last Updated
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 text-foreground"
-			>
-				{updatedDate ?? "None"}
-			</Typography>
+				<KeyValue
+					label="Last Updated"
+					value={<span className="font-mono">{updatedDate ?? "None"}</span>}
+				/>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Tags
-			</Typography>
-			<div className="mt-1 flex flex-wrap">
-				{flowRun.tags && flowRun.tags.length > 0 ? (
-					flowRun.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
-				) : (
-					<Typography
-						variant="bodySmall"
-						fontFamily="mono"
-						className="text-foreground"
-					>
-						None
-					</Typography>
-				)}
+				<KeyValue
+					label="Tags"
+					value={
+						flowRun.tags && flowRun.tags.length > 0 ? (
+							<div className="flex flex-wrap">
+								{flowRun.tags.map((tag) => (
+									<TagBadge key={tag} tag={tag} />
+								))}
+							</div>
+						) : (
+							<span className="font-mono">None</span>
+						)
+					}
+				/>
+
+				<KeyValue
+					label="State Message"
+					value={
+						<span className="font-mono">
+							{flowRun.state?.message ?? "None"}
+						</span>
+					}
+				/>
 			</div>
-
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				State Message
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 text-foreground"
-			>
-				{flowRun.state?.message ?? "None"}
-			</Typography>
 		</div>
 	);
 };

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { TaskRun } from "@/api/task-runs";
+import { KeyValue } from "@/components/ui/key-value";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
@@ -25,43 +26,31 @@ export const TaskRunSection = ({ taskRun }: TaskRunSectionProps) => {
 				Task Run
 			</Typography>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Created
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 text-foreground"
-			>
-				{createdDate ?? "None"}
-			</Typography>
+			<div className="mt-3 flex flex-col gap-3">
+				<KeyValue
+					label="Created"
+					value={<span className="font-mono">{createdDate ?? "None"}</span>}
+				/>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Last Updated
-			</Typography>
-			<Typography
-				variant="bodySmall"
-				fontFamily="mono"
-				className="mt-1 text-foreground"
-			>
-				{updatedDate ?? "None"}
-			</Typography>
+				<KeyValue
+					label="Last Updated"
+					value={<span className="font-mono">{updatedDate ?? "None"}</span>}
+				/>
 
-			<Typography variant="bodySmall" className="text-muted-foreground mt-3">
-				Tags
-			</Typography>
-			<div className="mt-1 flex flex-wrap">
-				{taskRun.tags && taskRun.tags.length > 0 ? (
-					taskRun.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
-				) : (
-					<Typography
-						variant="bodySmall"
-						fontFamily="mono"
-						className="text-foreground"
-					>
-						None
-					</Typography>
-				)}
+				<KeyValue
+					label="Tags"
+					value={
+						taskRun.tags && taskRun.tags.length > 0 ? (
+							<div className="flex flex-wrap">
+								{taskRun.tags.map((tag) => (
+									<TagBadge key={tag} tag={tag} />
+								))}
+							</div>
+						) : (
+							<span className="font-mono">None</span>
+						)
+					}
+				/>
 			</div>
 		</div>
 	);
