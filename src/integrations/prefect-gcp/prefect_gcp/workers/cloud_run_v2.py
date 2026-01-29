@@ -15,7 +15,6 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
-
 from tenacity import (
     Retrying,
     retry_if_exception,
