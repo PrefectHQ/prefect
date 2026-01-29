@@ -6,10 +6,9 @@ import logging
 import sys
 from typing import Any
 
-from prefect._internal.analytics.client import track_event
 from prefect._internal.analytics.device_id import get_or_create_device_id
-from prefect._internal.analytics.enabled import is_telemetry_enabled
 from prefect._internal.analytics.events import SDKEvent
+from prefect._internal.analytics.service import AnalyticsEvent, AnalyticsService
 
 logger = logging.getLogger("prefect.sdk_analytics")
 
@@ -30,25 +29,24 @@ def emit_sdk_event(
     Emit an SDK telemetry event.
 
     This is an internal function for tracking SDK events.
-    Events are only sent if telemetry is enabled.
+    Events are queued for processing in a background thread (non-blocking).
 
     Args:
         event_name: The name of the event to track
         extra_properties: Additional event properties
 
     Returns:
-        True if the event was tracked, False otherwise
+        True if the event was queued, False otherwise
     """
-    if not is_telemetry_enabled():
-        return False
-
     try:
         device_id = get_or_create_device_id()
-        return track_event(
+        event = AnalyticsEvent(
             event_name=event_name,
             device_id=device_id,
             extra_properties=extra_properties,
         )
+        AnalyticsService.instance().enqueue(event)
+        return True
     except Exception as exc:
         logger.debug(f"Failed to emit SDK event {event_name}: {exc}")
         return False
@@ -72,11 +70,8 @@ def emit_integration_event(
         extra_properties: Additional event properties
 
     Returns:
-        True if the event was tracked, False otherwise
+        True if the event was queued, False otherwise
     """
-    if not is_telemetry_enabled():
-        return False
-
     try:
         # Namespace the event with the integration name
         namespaced_event = f"{integration}:{event_name}"
@@ -88,11 +83,13 @@ def emit_integration_event(
         if extra_properties:
             properties.update(extra_properties)
 
-        return track_event(
+        event = AnalyticsEvent(
             event_name=namespaced_event,
             device_id=device_id,
             extra_properties=properties,
         )
+        AnalyticsService.instance().enqueue(event)
+        return True
     except Exception as exc:
         logger.debug(
             f"Failed to emit integration event {integration}:{event_name}: {exc}"

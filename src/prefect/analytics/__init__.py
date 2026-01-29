@@ -49,16 +49,17 @@ def emit_integration_event(
 
 def is_telemetry_enabled() -> bool:
     """
-    Check if telemetry is enabled.
+    Check if telemetry is enabled based on local settings.
+
+    This performs a quick, non-blocking check of local telemetry settings.
+    Server-side analytics settings are checked asynchronously in the background.
 
     Telemetry is disabled if:
     - DO_NOT_TRACK environment variable is set (client-side)
     - Running in a CI environment
-    - Server has PREFECT_SERVER_ANALYTICS_ENABLED=false
-    - Server is unreachable
 
     Returns:
-        True if telemetry is enabled, False otherwise
+        True if local telemetry checks pass, False otherwise
     """
     return _is_telemetry_enabled()
 

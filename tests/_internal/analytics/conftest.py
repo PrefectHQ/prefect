@@ -20,7 +20,11 @@ def telemetry_disabled() -> Generator[None, None, None]:
 
 @pytest.fixture
 def telemetry_enabled(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
-    """Enable telemetry by mocking _get_server_analytics_enabled to return True."""
+    """
+    Enable telemetry by clearing DO_NOT_TRACK and CI environment variables.
+
+    Also mocks the service's server analytics check to return True.
+    """
     monkeypatch.delenv("DO_NOT_TRACK", raising=False)
 
     # Clear CI variables
@@ -29,15 +33,11 @@ def telemetry_enabled(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, 
     for var in CI_ENV_VARS:
         monkeypatch.delenv(var, raising=False)
 
-    # Mock the server check to return True
+    # Mock the service's server check to return True
     with patch(
-        "prefect._internal.analytics.enabled._get_server_analytics_enabled",
+        "prefect._internal.analytics.service.AnalyticsService._check_server_analytics",
         return_value=True,
     ):
-        # Clear the cache so our mock is used
-        from prefect._internal.analytics.enabled import _get_server_analytics_enabled
-
-        _get_server_analytics_enabled.cache_clear()
         yield
 
 
@@ -73,6 +73,7 @@ def clean_telemetry_state(
     1. Creates a fresh PREFECT_HOME in tmp_path
     2. Patches get_current_settings to use settings with the new home
     3. Resets telemetry initialization state
+    4. Resets the AnalyticsService singleton
 
     Returns the path to the telemetry directory.
     """
@@ -117,9 +118,21 @@ def clean_telemetry_state(
         prefect._internal.analytics.client._amplitude_client = None
         prefect._internal.analytics.client._initialized = False
 
-        # Clear the server analytics cache
-        import prefect._internal.analytics.enabled
+        # Reset the AnalyticsService singleton
+        from prefect._internal.analytics.service import AnalyticsService
 
-        prefect._internal.analytics.enabled._get_server_analytics_enabled.cache_clear()
+        AnalyticsService.reset()
 
         yield prefect_home / ".sdk_telemetry"
+
+
+@pytest.fixture
+def mock_analytics_service() -> Generator[MagicMock, None, None]:
+    """Mock the AnalyticsService for testing event emission without background processing."""
+    mock_service = MagicMock()
+
+    with patch(
+        "prefect._internal.analytics.service.AnalyticsService.instance",
+        return_value=mock_service,
+    ):
+        yield mock_service

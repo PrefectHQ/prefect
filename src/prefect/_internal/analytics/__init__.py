@@ -30,7 +30,7 @@ def initialize_analytics() -> None:
     Initialize SDK analytics on Prefect import.
 
     This function:
-    1. Checks if telemetry is enabled and running in an interactive terminal
+    1. Checks if telemetry is enabled (quick local checks only - non-blocking)
     2. Detects existing users and pre-marks their milestones (no events emitted)
     3. For new users: shows the first-run notice and emits sdk_imported
 
@@ -46,6 +46,7 @@ def initialize_analytics() -> None:
 
     _telemetry_initialized = True
 
+    # Quick local checks only - no network calls
     if not is_telemetry_enabled():
         return
 
@@ -69,6 +70,7 @@ def initialize_analytics() -> None:
         maybe_show_telemetry_notice()
 
         # Emit sdk_imported event for new users only
+        # This is now non-blocking - event is queued to background service
         emit_sdk_event("sdk_imported")
     except Exception as exc:
         logger.debug(f"Failed to initialize SDK analytics: {exc}")
