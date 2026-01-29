@@ -916,13 +916,11 @@ async def bulk_create_flow_runs_from_deployment(
             detail=f"Cannot create more than {BULK_CREATE_LIMIT} flow runs at once.",
         )
 
-    if not flow_runs:
-        return FlowRunBulkCreateResponse(results=[])
-
     results: List[FlowRunCreateResult] = []
 
     async with db.session_context(begin_transaction=True) as session:
-        # Get the deployment once
+        # Get the deployment once - do this before the empty check so we
+        # return 404 for non-existent deployments even with an empty list
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
         )
@@ -931,6 +929,10 @@ async def bulk_create_flow_runs_from_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
+
+        # Return early for empty list, but only after verifying deployment exists
+        if not flow_runs:
+            return FlowRunBulkCreateResponse(results=[])
 
         # Pre-create unique work queues to avoid race conditions
         # Collect unique work queue names that differ from the deployment's default

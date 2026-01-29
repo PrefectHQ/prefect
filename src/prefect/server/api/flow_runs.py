@@ -624,6 +624,7 @@ async def bulk_delete_flow_runs(
     ),
     limit: int = Body(
         BULK_OPERATION_LIMIT,
+        ge=1,
         le=BULK_OPERATION_LIMIT,
         description=f"Maximum number of flow runs to delete. Defaults to {BULK_OPERATION_LIMIT}.",
     ),
@@ -678,6 +679,7 @@ async def bulk_set_flow_run_state(
     ),
     limit: int = Body(
         BULK_OPERATION_LIMIT,
+        ge=1,
         le=BULK_OPERATION_LIMIT,
         description=f"Maximum number of flow runs to update. Defaults to {BULK_OPERATION_LIMIT}.",
     ),
