@@ -712,6 +712,89 @@ class TestAPICompatibility:
         assert block._block_document_id == api_block.id
         assert block._block_type_id == block_type_id
 
+    def test_to_block_document_excludes_none_values(self):
+        """Test that _to_block_document excludes None values from the data.
+
+        This is important because:
+        1. It matches the behavior of the web UI when creating blocks
+        2. It prevents validation issues with union types where explicit None
+           values can cause Pydantic to fail validation against all union members
+        3. It allows Pydantic to use field defaults when loading the block back
+        """
+        from typing import Optional
+
+        class NestedConfig(BaseModel):
+            api_version: Optional[str] = None
+            use_ssl: bool = True
+            verify: Union[bool, str, None] = None
+            endpoint_url: Optional[str] = None
+
+        class BlockWithOptionalFields(Block):
+            required_field: str
+            optional_str: Optional[str] = None
+            optional_int: Optional[int] = None
+            nested_config: NestedConfig = Field(default_factory=NestedConfig)
+
+        block = BlockWithOptionalFields(
+            required_field="required",
+            optional_str=None,
+            optional_int=None,
+            nested_config=NestedConfig(),
+        )
+
+        block_schema_id = uuid4()
+        block_type_id = uuid4()
+        block_doc = block._to_block_document(
+            name="test-block",
+            block_schema_id=block_schema_id,
+            block_type_id=block_type_id,
+        )
+
+        # None values should be excluded from the data
+        assert "optional_str" not in block_doc.data
+        assert "optional_int" not in block_doc.data
+        assert "required_field" in block_doc.data
+        assert block_doc.data["required_field"] == "required"
+
+        # Nested config should also have None values excluded
+        nested_data = block_doc.data["nested_config"]
+        assert "api_version" not in nested_data
+        assert "verify" not in nested_data
+        assert "endpoint_url" not in nested_data
+        assert nested_data["use_ssl"] is True
+
+    def test_to_block_document_roundtrip_with_optional_fields(self):
+        """Test that blocks with optional fields can be saved and loaded correctly."""
+        from typing import Optional
+
+        class BlockWithOptionalFields(Block):
+            required_field: str
+            optional_str: Optional[str] = None
+            optional_int: Optional[int] = None
+            default_value: str = "default"
+
+        block = BlockWithOptionalFields(
+            required_field="required",
+            optional_str=None,
+            optional_int=None,
+        )
+
+        block_schema_id = uuid4()
+        block_type_id = uuid4()
+        block_doc = block._to_block_document(
+            name="test-block",
+            block_schema_id=block_schema_id,
+            block_type_id=block_type_id,
+        )
+
+        # Roundtrip: load the block back from the document
+        loaded_block = BlockWithOptionalFields._from_block_document(block_doc)
+
+        assert loaded_block.required_field == "required"
+        assert loaded_block.optional_str is None
+        assert loaded_block.optional_int is None
+        assert loaded_block.default_value == "default"
+
     def test_create_block_document_from_block(self, block_type_x):
         @register_type
         class MakesALottaAttributes(Block):
