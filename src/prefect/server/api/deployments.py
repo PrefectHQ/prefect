@@ -3,6 +3,7 @@ Routes for interacting with Deployment objects.
 """
 
 import datetime
+import logging
 from typing import List, Optional
 from uuid import UUID
 
@@ -37,6 +38,8 @@ from prefect.utilities.schema_tools.validation import (
     ValidationError,
     validate,
 )
+
+logger = logging.getLogger(__name__)
 
 router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -233,9 +236,36 @@ async def update_deployment(
                 schedule.slug for schedule in existing_deployment.schedules
             ]
 
+            # Check for duplicate replaces targets
+            replaces_targets: dict[str, str] = {}  # old_slug -> new_slug
+            for schedule in deployment.schedules or []:
+                if schedule.replaces:
+                    if schedule.replaces in replaces_targets:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"Multiple schedules have 'replaces' targeting the same slug: {schedule.replaces}",
+                        )
+                    replaces_targets[schedule.replaces] = schedule.slug or ""
+
             for schedule in deployment.schedules:
-                if schedule.slug in current_slugs:
+                # Check if this schedule replaces an existing one
+                target_slug = schedule.replaces if schedule.replaces else schedule.slug
+
+                if target_slug in current_slugs:
                     schedules_to_patch.append(schedule)
+                elif schedule.replaces:
+                    # replaces points to a non-existent slug - warn and create new
+                    logger.warning(
+                        f"Schedule with slug '{schedule.slug}' has 'replaces: {schedule.replaces}' "
+                        f"but no schedule with slug '{schedule.replaces}' exists. Creating new schedule."
+                    )
+                    if schedule.schedule:
+                        schedules_to_create.append(schedule)
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Unable to create new deployment schedules without a schedule configuration.",
+                        )
                 elif schedule.schedule:
                     schedules_to_create.append(schedule)
                 else:
@@ -343,11 +373,13 @@ async def update_deployment(
         )
 
         for schedule in schedules_to_patch:
+            # Use replaces slug if provided, otherwise use the schedule's own slug
+            lookup_slug = schedule.replaces if schedule.replaces else schedule.slug
             await models.deployments.update_deployment_schedule(
                 session=session,
                 deployment_id=deployment_id,
                 schedule=schedule,
-                deployment_schedule_slug=schedule.slug,
+                deployment_schedule_slug=lookup_slug,
             )
         if schedules_to_create:
             await models.deployments.create_deployment_schedules(

@@ -3361,6 +3361,67 @@ class TestSchedules:
         assert deployment_schedule.schedule.cron == "0 4 * * *"
         assert deployment_schedule.schedule.timezone == "America/Chicago"
 
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_replaces_renames_schedule(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        """Test that replaces field in YAML renames an existing schedule."""
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        # First deploy with original slug
+        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["schedules"] = [
+            {
+                "cron": "0 8 * * *",
+                "slug": "original-slug",
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+        assert result.exit_code == 0
+
+        # Verify initial state
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].slug == "original-slug"
+        original_id = deployment.schedules[0].id
+
+        # Second deploy with replaces
+        deploy_config["deployments"][0]["schedules"] = [
+            {
+                "cron": "0 9 * * *",
+                "slug": "renamed-slug",
+                "replaces": "original-slug",
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+        )
+        assert result.exit_code == 0
+
+        # Verify schedule was renamed
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert len(deployment.schedules) == 1
+        assert deployment.schedules[0].slug == "renamed-slug"
+        assert deployment.schedules[0].id == original_id  # Same schedule
+
 
 class TestMultiDeploy:
     @pytest.mark.usefixtures("project_dir")
