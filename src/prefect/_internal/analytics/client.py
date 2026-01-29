@@ -17,7 +17,10 @@ logger = logging.getLogger("prefect.sdk_analytics")
 
 # Amplitude API key for SDK telemetry
 # This is a write-only key that can only send events, not read data
-AMPLITUDE_API_KEY = "YOUR_AMPLITUDE_API_KEY_HERE"  # TODO: Replace with actual key
+try:
+    from prefect._internal.analytics._config import AMPLITUDE_API_KEY
+except ImportError:
+    AMPLITUDE_API_KEY = "YOUR_AMPLITUDE_API_KEY_HERE"
 
 # Module-level client instance
 _amplitude_client: Amplitude | None = None
