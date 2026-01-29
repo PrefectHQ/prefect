@@ -42,9 +42,14 @@ class CausalOrdering(_CausalOrdering):
         super().__init__(scope=scope)
 
     def _key(self, key: str) -> str:
+        """Generate Redis key with hash tag for cluster mode compatibility.
+
+        Hash tags ({}) ensure all keys with the same scope hash to the same slot,
+        allowing pipeline operations to work in Redis cluster mode.
+        """
         if not self.scope:
             return key
-        return f"{self.scope}:{key}"
+        return f"{{{self.scope}}}:{key}"
 
     async def record_event_as_processing(self, event: ReceivedEvent) -> bool:
         """
@@ -98,7 +103,8 @@ class CausalOrdering(_CausalOrdering):
     async def get_lost_followers(self) -> list[ReceivedEvent]:
         """Returns events that were waiting on a leader event that never arrived"""
         async with self.redis.pipeline() as p:
-            temporary_set = str(uuid4())
+            # Use _key() for temporary set to ensure same slot as waitlist (cluster mode)
+            temporary_set = self._key(f"temp:{uuid4()}")
             earlier = (
                 datetime.now(timezone.utc) - PRECEDING_EVENT_LOOKBACK
             ).timestamp()
