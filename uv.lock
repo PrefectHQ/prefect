@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10, <3.15"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -4175,7 +4175,7 @@ requires-dist = [
     { name = "cachetools", specifier = ">=5.3,<7.0" },
     { name = "click", specifier = ">=8.0,<9" },
     { name = "cloudpickle", specifier = ">=2.0,<4.0" },
-    { name = "coolname", specifier = ">=1.0.4,<3.0.0" },
+    { name = "coolname", specifier = ">=1.0.4,<4.0.0" },
     { name = "cryptography", specifier = ">=36.0.1" },
     { name = "dateparser", specifier = ">=1.1.1,<2.0.0" },
     { name = "docker", specifier = ">=4.0,<8.0" },
