@@ -251,6 +251,20 @@ async def update_deployment(
                 # Check if this schedule replaces an existing one
                 target_slug = schedule.replaces if schedule.replaces else schedule.slug
 
+                # Check for slug collision: if renaming to a slug that already exists
+                # (and it's not the one being replaced), reject with 422
+                if (
+                    schedule.replaces
+                    and schedule.slug
+                    and schedule.slug in current_slugs
+                    and schedule.slug != schedule.replaces
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Cannot rename schedule '{schedule.replaces}' to '{schedule.slug}': "
+                        f"a schedule with slug '{schedule.slug}' already exists.",
+                    )
+
                 if target_slug in current_slugs:
                     schedules_to_patch.append(schedule)
                 elif schedule.replaces:

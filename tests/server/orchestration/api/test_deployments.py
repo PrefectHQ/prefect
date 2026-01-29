@@ -2728,6 +2728,63 @@ class TestUpdateDeployment:
             in response.text
         )
 
+    async def test_update_deployment_schedule_replaces_collision_with_existing_slug(
+        self,
+        client,
+        flow,
+    ):
+        """When 'replaces' renames to a slug that already exists, return 422."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        # Create deployment with two schedules
+        data = DeploymentCreate(  # type: ignore
+            name="test-deployment-replaces-collision",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="old-slug",
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=True,
+                    slug="existing-slug",
+                ),
+            ],
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # Try to rename old-slug to existing-slug (collision)
+        schedule3 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=3)
+        )
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule3,
+                    slug="existing-slug",  # This already exists!
+                    replaces="old-slug",
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    slug="existing-slug",  # Keep this one unchanged
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 422
+        assert "Cannot rename schedule 'old-slug' to 'existing-slug'" in response.text
+        assert "already exists" in response.text
+
 
 class TestGetScheduledFlowRuns:
     @pytest.fixture
