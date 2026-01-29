@@ -707,8 +707,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     "title": "Name",
                     "description": (
                         "Name given to infrastructure created by the worker using this "
-                        "job configuration. Supports templates using {{ flow.* }} and "
-                        "{{ flow_run.* }} when prepared for a flow run."
+                        "job configuration. Supports templates using {{ ctx.flow.* }} and "
+                        "{{ ctx.flow_run.* }} when prepared for a flow run."
                     ),
                 },
                 "other": {
@@ -1599,12 +1599,12 @@ class TestWorkerProperties:
                         "anyOf": [{"type": "string"}, {"type": "null"}],
                         "title": "Name",
                         "default": None,
-                        "description": (
-                            "Name given to infrastructure created by the worker using "
-                            "this job configuration. Supports templates using {{ flow.* }} "
-                            "and {{ flow_run.* }} when prepared for a flow run."
-                        ),
-                    },
+                    "description": (
+                        "Name given to infrastructure created by the worker using "
+                        "this job configuration. Supports templates using {{ ctx.flow.* }} "
+                        "and {{ ctx.flow_run.* }} when prepared for a flow run."
+                    ),
+                },
                 },
                 "type": "object",
             },
@@ -1725,12 +1725,12 @@ class TestWorkerProperties:
                             "title": "Name",
                             "anyOf": [{"type": "string"}, {"type": "null"}],
                             "default": None,
-                            "description": (
-                                "Name given to infrastructure created by the worker using "
-                                "this job configuration. Supports templates using {{ flow.* }} "
-                                "and {{ flow_run.* }} when prepared for a flow run."
-                            ),
-                        },
+                    "description": (
+                        "Name given to infrastructure created by the worker using "
+                        "this job configuration. Supports templates using {{ ctx.flow.* }} "
+                        "and {{ ctx.flow_run.* }} when prepared for a flow run."
+                    ),
+                },
                         "var1": {"title": "Var1", "type": "string"},
                         "var2": {"title": "Var2", "type": "integer", "default": 1},
                     },
@@ -1824,7 +1824,7 @@ class TestPrepareForFlowRun:
 
     def test_prepare_for_flow_run_renders_name_template(self, flow_run, flow):
         job_config = BaseJobConfiguration(
-            name="worker-1/{{ flow.name }}/{{ flow_run.name }}"
+            name="worker-1/{{ ctx.flow.name }}/{{ ctx.flow_run.name }}"
         )
 
         job_config.prepare_for_flow_run(flow_run, flow=flow)

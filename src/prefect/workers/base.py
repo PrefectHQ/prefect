@@ -131,8 +131,8 @@ class BaseJobConfiguration(BaseModel):
         default=None,
         description=(
             "Name given to infrastructure created by the worker using this "
-            "job configuration. Supports templates using {{ flow.* }} and "
-            "{{ flow_run.* }} when prepared for a flow run."
+            "job configuration. Supports templates using {{ ctx.flow.* }} and "
+            "{{ ctx.flow_run.* }} when prepared for a flow run."
         ),
     )
 
@@ -305,8 +305,10 @@ class BaseJobConfiguration(BaseModel):
         }
         if self.name:
             template_values = {
-                "flow": flow.model_dump(mode="json") if flow is not None else {},
-                "flow_run": flow_run.model_dump(mode="json") if flow_run else {},
+                "ctx": {
+                    "flow": flow.model_dump(mode="json") if flow is not None else {},
+                    "flow_run": flow_run.model_dump(mode="json") if flow_run else {},
+                },
             }
             rendered_name = apply_values(
                 template=self.name,
