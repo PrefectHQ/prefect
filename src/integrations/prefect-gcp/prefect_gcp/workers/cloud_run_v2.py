@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import shlex
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, Final, List, Literal, Optional
 from uuid import uuid4
 
 from anyio.abc import TaskStatus
@@ -33,6 +33,8 @@ from prefect_gcp.utilities import slugify_name
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
+
+_CLOUD_RUN_JOB_NAME_MAX_LENGTH: Final[int] = 63
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -144,6 +146,16 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             "actively try to mark it failed and kill associated containers (maximum of 604800 seconds, 7 days)."
         ),
     )
+    job_name_uuid_length: int = Field(
+        default=32,
+        ge=1,
+        le=32,
+        description=(
+            "The number of hex characters from a UUID4 to append to the job name "
+            "for uniqueness. Lower values allow longer base job names. "
+            "The total job name length (base + hyphen + UUID) is capped at 63 characters."
+        ),
+    )
     _job_name: str = PrivateAttr(default=None)
 
     @property
@@ -165,8 +177,11 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             str: The name of the job.
         """
         if self._job_name is None:
-            base_job_name = slugify_name(self.name)
-            job_name = f"{base_job_name}-{uuid4().hex}"
+            slug_max_length = (
+                _CLOUD_RUN_JOB_NAME_MAX_LENGTH - 1 - self.job_name_uuid_length
+            )
+            base_job_name = slugify_name(self.name, max_length=slug_max_length)
+            job_name = f"{base_job_name}-{uuid4().hex[: self.job_name_uuid_length]}"
             self._job_name = job_name
 
         return self._job_name
