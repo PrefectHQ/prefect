@@ -33,7 +33,7 @@ DBUrl = Annotated[str, AfterValidator(check_make_url)]
 
 class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     """
-    Block used to manage authentication with a database.
+    Block used to manage authentication with a database using synchronous drivers.
 
     Upon instantiating, an engine is created and maintained for the life of
     the object until the close method is called.
@@ -115,11 +115,11 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         default=1, description="The number of rows to fetch at a time."
     )
 
-    _engine: Optional[Union[AsyncEngine, Engine]] = None
-    _exit_stack: Optional[Union[ExitStack, AsyncExitStack]] = None
+    _engine: Optional[Engine] = None
+    _exit_stack: Optional[ExitStack] = None
     _unique_results: Optional[Dict[str, CursorResult]] = None
 
-    def block_initialization(self):
+    def block_initialization(self) -> None:
         """
         Initializes the engine.
         """
@@ -128,31 +128,27 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         if isinstance(self.connection_info, ConnectionComponents):
             self._rendered_url = self.connection_info.create_url()
         else:
-            # make rendered url from string
             self._rendered_url = make_url(str(self.connection_info))
         drivername = self._rendered_url.drivername
 
         try:
             AsyncDriver(drivername)
-            self._driver_is_async = True
-        except ValueError:
-            self._driver_is_async = False
+            raise ValueError(
+                f"The driver {drivername!r} is an async driver. "
+                f"Please use `AsyncSqlAlchemyConnector` instead."
+            )
+        except ValueError as e:
+            if "async driver" in str(e):
+                raise
+            pass
 
         if self._unique_results is None:
             self._unique_results = {}
 
         if self._exit_stack is None:
-            self._start_exit_stack()
+            self._exit_stack = ExitStack()
 
-    def _start_exit_stack(self):
-        """
-        Starts an AsyncExitStack or ExitStack depending on whether driver is async.
-        """
-        self._exit_stack = AsyncExitStack() if self._driver_is_async else ExitStack()
-
-    def get_engine(
-        self, **create_engine_kwargs: Dict[str, Any]
-    ) -> Union[Engine, AsyncEngine]:
+    def get_engine(self, **create_engine_kwargs: Dict[str, Any]) -> Engine:
         """
         Returns an authenticated engine that can be
         used to query from databases.
@@ -160,44 +156,26 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         If an existing engine exists, return that one.
 
         Returns:
-            The authenticated SQLAlchemy Engine / AsyncEngine.
+            The authenticated SQLAlchemy Engine.
 
         Examples:
-            Create an asynchronous engine to PostgreSQL using URL params.
+            Create a synchronous engine to PostgreSQL using URL params.
             ```python
             from prefect import flow
             from prefect_sqlalchemy import (
-                SqlAlchemyConnector, ConnectionComponents, AsyncDriver
+                SqlAlchemyConnector, ConnectionComponents, SyncDriver
             )
 
             @flow
             def sqlalchemy_credentials_flow():
                 sqlalchemy_credentials = SqlAlchemyConnector(
                 connection_info=ConnectionComponents(
-                        driver=AsyncDriver.POSTGRESQL_ASYNCPG,
+                        driver=SyncDriver.POSTGRESQL_PSYCOPG2,
                         username="prefect",
                         password="prefect_password",
                         database="postgres"
                     )
                 )
-                print(sqlalchemy_credentials.get_engine())
-
-            sqlalchemy_credentials_flow()
-            ```
-
-            Create a synchronous engine to Snowflake using the `url` kwarg.
-            ```python
-            from prefect import flow
-            from prefect_sqlalchemy import SqlAlchemyConnector, AsyncDriver
-
-            @flow
-            def sqlalchemy_credentials_flow():
-                url = (
-                    "snowflake://<user_login_name>:<password>"
-                    "@<account_identifier>/<database_name>"
-                    "?warehouse=<warehouse_name>"
-                )
-                sqlalchemy_credentials = SqlAlchemyConnector(url=url)
                 print(sqlalchemy_credentials.get_engine())
 
             sqlalchemy_credentials_flow()
@@ -212,11 +190,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             connect_args=self.connect_args or {},
             **create_engine_kwargs,
         )
-        if self._driver_is_async:
-            # no need to await here
-            engine = create_async_engine(**engine_kwargs)
-        else:
-            engine = create_engine(**engine_kwargs)
+        engine = create_engine(**engine_kwargs)
         self.logger.info("Created a new engine.")
 
         if self._engine is None:
@@ -226,7 +200,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
     def get_connection(
         self, begin: bool = True, **connect_kwargs: Dict[str, Any]
-    ) -> Union[Connection, AsyncConnection]:
+    ) -> Connection:
         """
         Returns a connection that can be used to query from databases.
 
@@ -237,10 +211,10 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
                 `engine.begin` or engine.connect`.
 
         Returns:
-            The SQLAlchemy Connection / AsyncConnection.
+            The SQLAlchemy Connection.
 
         Examples:
-            Create an synchronous connection as a context-managed transaction.
+            Create a synchronous connection as a context-managed transaction.
             ```python
             from prefect_sqlalchemy import SqlAlchemyConnector
 
@@ -248,17 +222,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             with sqlalchemy_connector.get_connection(begin=False) as connection:
                 connection.execute("SELECT * FROM table LIMIT 1;")
             ```
-
-            Create an asynchronous connection as a context-managed transacation.
-            ```python
-            import asyncio
-            from prefect_sqlalchemy import SqlAlchemyConnector
-
-            sqlalchemy_connector = SqlAlchemyConnector.load("BLOCK_NAME")
-            async with sqlalchemy_connector.get_connection(begin=False) as connection:
-                asyncio.run(connection.execute("SELECT * FROM table LIMIT 1;"))
-            ```
-        """  # noqa: E501
+        """
         engine = self.get_engine()
         if begin:
             connection = engine.begin(**connect_kwargs)
@@ -271,7 +235,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self,
         client_type: Literal["engine", "connection"],
         **get_client_kwargs: Dict[str, Any],
-    ) -> Union[Engine, AsyncEngine, Connection, AsyncConnection]:
+    ) -> Union[Engine, Connection]:
         """
         Returns either an engine or connection that can be used to query from databases.
 
@@ -286,7 +250,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         Examples:
             Create an engine.
             ```python
-            from prefect_sqlalchemy import SqlalchemyConnector
+            from prefect_sqlalchemy import SqlAlchemyConnector
 
             sqlalchemy_connector = SqlAlchemyConnector.load("BLOCK_NAME")
             engine = sqlalchemy_connector.get_client(client_type="engine")
@@ -294,13 +258,13 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
             Create a context managed connection.
             ```python
-            from prefect_sqlalchemy import SqlalchemyConnector
+            from prefect_sqlalchemy import SqlAlchemyConnector
 
             sqlalchemy_connector = SqlAlchemyConnector.load("BLOCK_NAME")
             with sqlalchemy_connector.get_client(client_type="connection") as conn:
                 ...
             ```
-        """  # noqa: E501
+        """
         if client_type == "engine":
             client = self.get_engine(**get_client_kwargs)
         elif client_type == "connection":
@@ -311,81 +275,30 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             )
         return client
 
-    @asynccontextmanager
-    async def _manage_connection_async(self, **get_connection_kwargs: Dict[str, Any]):
-        """Async context manager for managing connections (async drivers only)."""
-        async with self.get_connection(**get_connection_kwargs) as connection:
-            yield connection
-
     @contextmanager
-    def _manage_connection_sync(self, **get_connection_kwargs: Dict[str, Any]):
-        """Sync context manager for managing connections (sync drivers only)."""
+    def _manage_connection(self, **get_connection_kwargs: Dict[str, Any]):
+        """Sync context manager for managing connections."""
         with self.get_connection(**get_connection_kwargs) as connection:
             yield connection
 
-    async def _async_execute(
-        self,
-        connection: AsyncConnection,
-        *execute_args: Tuple[Any],
-        execute_commit: bool = True,
-        **execute_kwargs: Dict[str, Any],
-    ) -> CursorResult:
-        """Execute the statement asynchronously (async drivers only)."""
-        result_set = await connection.execute(*execute_args, **execute_kwargs)
-        if execute_commit:
-            await connection.commit()
-        return result_set
-
-    def _sync_execute(
+    def _execute(
         self,
         connection: Connection,
         *execute_args: Tuple[Any],
         execute_commit: bool = True,
         **execute_kwargs: Dict[str, Any],
     ) -> CursorResult:
-        """Execute the statement synchronously (sync drivers only)."""
+        """Execute the statement synchronously."""
         result_set = connection.execute(*execute_args, **execute_kwargs)
         if SQLALCHEMY_VERSION.startswith("2.") and execute_commit:
             connection.commit()
         return result_set
 
-    async def _get_result_set_async(
+    def _get_result_set(
         self, *execute_args: Tuple[Any], **execute_kwargs: Dict[str, Any]
     ) -> CursorResult:
         """
-        Returns a new or existing result set (async version for async drivers).
-
-        Args:
-            *execute_args: Args to pass to execute.
-            **execute_kwargs: Keyword args to pass to execute.
-
-        Returns:
-            The result set from the operation.
-        """
-        input_hash = hash_objects(*execute_args, **execute_kwargs)
-        assert input_hash is not None, (
-            "We were not able to hash your inputs, "
-            "which resulted in an unexpected data return; "
-            "please open an issue with a reproducible example."
-        )
-
-        if input_hash not in self._unique_results.keys():
-            connection = await self._exit_stack.enter_async_context(
-                self.get_connection()
-            )
-            result_set = await self._async_execute(
-                connection, *execute_args, execute_commit=False, **execute_kwargs
-            )
-            self._unique_results[input_hash] = result_set
-        else:
-            result_set = self._unique_results[input_hash]
-        return result_set
-
-    def _get_result_set_sync(
-        self, *execute_args: Tuple[Any], **execute_kwargs: Dict[str, Any]
-    ) -> CursorResult:
-        """
-        Returns a new or existing result set (sync version for sync drivers).
+        Returns a new or existing result set.
 
         Args:
             *execute_args: Args to pass to execute.
@@ -403,7 +316,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
 
         if input_hash not in self._unique_results.keys():
             connection = self._exit_stack.enter_context(self.get_connection())
-            result_set = self._sync_execute(
+            result_set = self._execute(
                 connection, *execute_args, execute_commit=False, **execute_kwargs
             )
             self._unique_results[input_hash] = result_set
@@ -425,42 +338,9 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
                     f"Failed to close connection for input hash {input_hash!r}: {exc}"
                 )
 
-    async def reset_async_connections(self) -> None:
-        """
-        Tries to close all opened connections and their results (async version for async drivers).
-
-        Examples:
-            Resets connections so `fetch_*` methods return new results.
-            ```python
-            import asyncio
-            from prefect_sqlalchemy import SqlAlchemyConnector
-
-            async def example_run():
-                async with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                    results = await database.afetch_one("SELECT * FROM customers")
-                    await database.reset_async_connections()
-                    results = await database.afetch_one("SELECT * FROM customers")
-
-            asyncio.run(example_run())
-            ```
-        """
-        if not self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} has no asynchronous connections. "
-                f"Please use the `reset_connections` method instead."
-            )
-
-        if self._exit_stack is None:
-            self.logger.info("There were no connections to reset.")
-            return
-
-        self._reset_cursor_results()
-        await self._exit_stack.aclose()
-        self.logger.info("Reset opened connections and their results.")
-
     def reset_connections(self) -> None:
         """
-        Tries to close all opened connections and their results (sync version for sync drivers).
+        Tries to close all opened connections and their results.
 
         Examples:
             Resets connections so `fetch_*` methods return new results.
@@ -473,12 +353,6 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
                 results = database.fetch_one("SELECT * FROM customers")
             ```
         """
-        if self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} has no synchronous connections. "
-                f"Please use the `reset_async_connections` method instead."
-            )
-
         if self._exit_stack is None:
             self.logger.info("There were no connections to reset.")
             return
@@ -487,68 +361,6 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         self._exit_stack.close()
         self.logger.info("Reset opened connections and their results.")
 
-    async def afetch_one(
-        self,
-        operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
-    ) -> Tuple[Any]:
-        """
-        Fetch a single result from the database (async version for async drivers).
-
-        Repeated calls using the same inputs to *any* of the fetch methods of this
-        block will skip executing the operation again, and instead,
-        return the next set of results from the previous execution,
-        until the reset_cursors method is called.
-
-        Args:
-            operation: The SQL query or other operation to be executed.
-            parameters: The parameters for the operation.
-            **execution_options: Options to pass to `Connection.execution_options`.
-
-        Returns:
-            A tuple containing the data returned by the database,
-                where each column is a value in the tuple.
-
-        Examples:
-            Create a table, insert three rows into it, and fetch a row repeatedly.
-            ```python
-            import asyncio
-            from prefect_sqlalchemy import SqlAlchemyConnector
-
-            async def example_run():
-                async with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                    await database.aexecute(
-                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-                    )
-                    await database.aexecute_many(
-                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                        seq_of_parameters=[
-                            {"name": "Ford", "address": "Highway 42"},
-                            {"name": "Unknown", "address": "Space"},
-                            {"name": "Me", "address": "Myway 88"},
-                        ],
-                    )
-                    results = True
-                    while results:
-                        results = await database.afetch_one("SELECT * FROM customers")
-                        print(results)
-
-            asyncio.run(example_run())
-            ```
-        """  # noqa
-        if not self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is not an async driver. "
-                f"Please use the `fetch_one` method instead."
-            )
-        result_set = await self._get_result_set_async(
-            text(operation), parameters, execution_options=execution_options
-        )
-        self.logger.debug("Preparing to fetch one row.")
-        row = result_set.fetchone()
-        return row
-
     def fetch_one(
         self,
         operation: str,
@@ -556,12 +368,12 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         **execution_options: Dict[str, Any],
     ) -> Tuple[Any]:
         """
-        Fetch a single result from the database (sync version for sync drivers).
+        Fetch a single result from the database.
 
         Repeated calls using the same inputs to *any* of the fetch methods of this
         block will skip executing the operation again, and instead,
         return the next set of results from the previous execution,
-        until the reset_cursors method is called.
+        until the reset_connections method is called.
 
         Args:
             operation: The SQL query or other operation to be executed.
@@ -578,7 +390,9 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             from prefect_sqlalchemy import SqlAlchemyConnector
 
             with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                database.execute("CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);")
+                database.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
                 database.execute_many(
                     "INSERT INTO customers (name, address) VALUES (:name, :address);",
                     seq_of_parameters=[
@@ -592,84 +406,13 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
                     results = database.fetch_one("SELECT * FROM customers")
                     print(results)
             ```
-        """  # noqa
-        if self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is an async driver. "
-                f"Please use the `afetch_one` method instead."
-            )
-        result_set = self._get_result_set_sync(
+        """
+        result_set = self._get_result_set(
             text(operation), parameters, execution_options=execution_options
         )
         self.logger.debug("Preparing to fetch one row.")
         row = result_set.fetchone()
         return row
-
-    async def afetch_many(
-        self,
-        operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
-        size: Optional[int] = None,
-        **execution_options: Dict[str, Any],
-    ) -> List[Tuple[Any]]:
-        """
-        Fetch a limited number of results from the database (async version for async drivers).
-
-        Repeated calls using the same inputs to *any* of the fetch methods of this
-        block will skip executing the operation again, and instead,
-        return the next set of results from the previous execution,
-        until the reset_cursors method is called.
-
-        Args:
-            operation: The SQL query or other operation to be executed.
-            parameters: The parameters for the operation.
-            size: The number of results to return; if None or 0, uses the value of
-                `fetch_size` configured on the block.
-            **execution_options: Options to pass to `Connection.execution_options`.
-
-        Returns:
-            A list of tuples containing the data returned by the database,
-                where each row is a tuple and each column is a value in the tuple.
-
-        Examples:
-            Create a table, insert three rows into it, and fetch two rows repeatedly.
-            ```python
-            import asyncio
-            from prefect_sqlalchemy import SqlAlchemyConnector
-
-            async def example_run():
-                async with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                    await database.aexecute(
-                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-                    )
-                    await database.aexecute_many(
-                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                        seq_of_parameters=[
-                            {"name": "Ford", "address": "Highway 42"},
-                            {"name": "Unknown", "address": "Space"},
-                            {"name": "Me", "address": "Myway 88"},
-                        ],
-                    )
-                    results = await database.afetch_many("SELECT * FROM customers", size=2)
-                    print(results)
-                    results = await database.afetch_many("SELECT * FROM customers", size=2)
-                    print(results)
-
-            asyncio.run(example_run())
-            ```
-        """  # noqa
-        if not self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is not an async driver. "
-                f"Please use the `fetch_many` method instead."
-            )
-        result_set = await self._get_result_set_async(
-            text(operation), parameters, execution_options=execution_options
-        )
-        size = size or self.fetch_size
-        self.logger.debug(f"Preparing to fetch {size} rows.")
-        rows = result_set.fetchmany(size=size)
-        return rows
 
     def fetch_many(
         self,
@@ -679,12 +422,12 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         **execution_options: Dict[str, Any],
     ) -> List[Tuple[Any]]:
         """
-        Fetch a limited number of results from the database (sync version for sync drivers).
+        Fetch a limited number of results from the database.
 
         Repeated calls using the same inputs to *any* of the fetch methods of this
         block will skip executing the operation again, and instead,
         return the next set of results from the previous execution,
-        until the reset_cursors method is called.
+        until the reset_connections method is called.
 
         Args:
             operation: The SQL query or other operation to be executed.
@@ -703,7 +446,9 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             from prefect_sqlalchemy import SqlAlchemyConnector
 
             with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                database.execute("CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);")
+                database.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
                 database.execute_many(
                     "INSERT INTO customers (name, address) VALUES (:name, :address);",
                     seq_of_parameters=[
@@ -717,80 +462,13 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
                 results = database.fetch_many("SELECT * FROM customers", size=2)
                 print(results)
             ```
-        """  # noqa
-        if self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is an async driver. "
-                f"Please use the `afetch_many` method instead."
-            )
-        result_set = self._get_result_set_sync(
+        """
+        result_set = self._get_result_set(
             text(operation), parameters, execution_options=execution_options
         )
         size = size or self.fetch_size
         self.logger.debug(f"Preparing to fetch {size} rows.")
         rows = result_set.fetchmany(size=size)
-        return rows
-
-    async def afetch_all(
-        self,
-        operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
-    ) -> List[Tuple[Any]]:
-        """
-        Fetch all results from the database (async version for async drivers).
-
-        Repeated calls using the same inputs to *any* of the fetch methods of this
-        block will skip executing the operation again, and instead,
-        return the next set of results from the previous execution,
-        until the reset_cursors method is called.
-
-        Args:
-            operation: The SQL query or other operation to be executed.
-            parameters: The parameters for the operation.
-            **execution_options: Options to pass to `Connection.execution_options`.
-
-        Returns:
-            A list of tuples containing the data returned by the database,
-                where each row is a tuple and each column is a value in the tuple.
-
-        Examples:
-            Create a table, insert three rows into it, and fetch all where name is 'Me'.
-            ```python
-            import asyncio
-            from prefect_sqlalchemy import SqlAlchemyConnector
-
-            async def example_run():
-                async with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                    await database.aexecute(
-                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-                    )
-                    await database.aexecute_many(
-                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                        seq_of_parameters=[
-                            {"name": "Ford", "address": "Highway 42"},
-                            {"name": "Unknown", "address": "Space"},
-                            {"name": "Me", "address": "Myway 88"},
-                        ],
-                    )
-                    results = await database.afetch_all(
-                        "SELECT * FROM customers WHERE name = :name",
-                        parameters={"name": "Me"}
-                    )
-
-            asyncio.run(example_run())
-            ```
-        """  # noqa
-        if not self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is not an async driver. "
-                f"Please use the `fetch_all` method instead."
-            )
-        result_set = await self._get_result_set_async(
-            text(operation), parameters, execution_options=execution_options
-        )
-        self.logger.debug("Preparing to fetch all rows.")
-        rows = result_set.fetchall()
         return rows
 
     def fetch_all(
@@ -800,12 +478,12 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         **execution_options: Dict[str, Any],
     ) -> List[Tuple[Any]]:
         """
-        Fetch all results from the database (sync version for sync drivers).
+        Fetch all results from the database.
 
         Repeated calls using the same inputs to *any* of the fetch methods of this
         block will skip executing the operation again, and instead,
         return the next set of results from the previous execution,
-        until the reset_cursors method is called.
+        until the reset_connections method is called.
 
         Args:
             operation: The SQL query or other operation to be executed.
@@ -822,7 +500,9 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             from prefect_sqlalchemy import SqlAlchemyConnector
 
             with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                database.execute("CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);")
+                database.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
                 database.execute_many(
                     "INSERT INTO customers (name, address) VALUES (:name, :address);",
                     seq_of_parameters=[
@@ -831,73 +511,18 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
                         {"name": "Me", "address": "Myway 88"},
                     ],
                 )
-                results = database.fetch_all("SELECT * FROM customers WHERE name = :name", parameters={"name": "Me"})
+                results = database.fetch_all(
+                    "SELECT * FROM customers WHERE name = :name",
+                    parameters={"name": "Me"}
+                )
             ```
-        """  # noqa
-        if self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is an async driver. "
-                f"Please use the `afetch_all` method instead."
-            )
-        result_set = self._get_result_set_sync(
+        """
+        result_set = self._get_result_set(
             text(operation), parameters, execution_options=execution_options
         )
         self.logger.debug("Preparing to fetch all rows.")
         rows = result_set.fetchall()
         return rows
-
-    async def aexecute(
-        self,
-        operation: str,
-        parameters: Optional[Dict[str, Any]] = None,
-        **execution_options: Dict[str, Any],
-    ) -> CursorResult:
-        """
-        Executes an operation on the database (async version for async drivers).
-        This method is intended to be used for operations that do not return data,
-        such as INSERT, UPDATE, or DELETE.
-
-        Unlike the fetch methods, this method will always execute the operation
-        upon calling.
-
-        Args:
-            operation: The SQL query or other operation to be executed.
-            parameters: The parameters for the operation.
-            **execution_options: Options to pass to `Connection.execution_options`.
-
-        Examples:
-            Create a table and insert one row into it.
-            ```python
-            import asyncio
-            from prefect_sqlalchemy import SqlAlchemyConnector
-
-            async def example_run():
-                async with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                    await database.aexecute(
-                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-                    )
-                    await database.aexecute(
-                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                        parameters={"name": "Marvin", "address": "Highway 42"},
-                    )
-
-            asyncio.run(example_run())
-            ```
-        """  # noqa
-        if not self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is not an async driver. "
-                f"Please use the `execute` method instead."
-            )
-        async with self._manage_connection_async(begin=False) as connection:
-            result = await self._async_execute(
-                connection,
-                text(operation),
-                parameters,
-                execution_options=execution_options,
-            )
-        self.logger.info(f"Executed the operation, {operation!r}")
-        return result
 
     def execute(
         self,
@@ -906,7 +531,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         **execution_options: Dict[str, Any],
     ) -> CursorResult:
         """
-        Executes an operation on the database (sync version for sync drivers).
+        Executes an operation on the database.
         This method is intended to be used for operations that do not return data,
         such as INSERT, UPDATE, or DELETE.
 
@@ -924,85 +549,23 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             from prefect_sqlalchemy import SqlAlchemyConnector
 
             with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                database.execute("CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);")
+                database.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
                 database.execute(
                     "INSERT INTO customers (name, address) VALUES (:name, :address);",
                     parameters={"name": "Marvin", "address": "Highway 42"},
                 )
             ```
-        """  # noqa
-        if self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is an async driver. "
-                f"Please use the `aexecute` method instead."
-            )
-        with self._manage_connection_sync(begin=False) as connection:
-            result = self._sync_execute(
+        """
+        with self._manage_connection(begin=False) as connection:
+            result = self._execute(
                 connection,
                 text(operation),
                 parameters,
                 execution_options=execution_options,
             )
         self.logger.info(f"Executed the operation, {operation!r}")
-        return result
-
-    async def aexecute_many(
-        self,
-        operation: str,
-        seq_of_parameters: List[Dict[str, Any]],
-        **execution_options: Dict[str, Any],
-    ) -> CursorResult:
-        """
-        Executes many operations on the database (async version for async drivers).
-        This method is intended to be used for operations that do not return data,
-        such as INSERT, UPDATE, or DELETE.
-
-        Unlike the fetch methods, this method will always execute the operation
-        upon calling.
-
-        Args:
-            operation: The SQL query or other operation to be executed.
-            seq_of_parameters: The sequence of parameters for the operation.
-            **execution_options: Options to pass to `Connection.execution_options`.
-
-        Examples:
-            Create a table and insert two rows into it.
-            ```python
-            import asyncio
-            from prefect_sqlalchemy import SqlAlchemyConnector
-
-            async def example_run():
-                async with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                    await database.aexecute(
-                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-                    )
-                    await database.aexecute_many(
-                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                        seq_of_parameters=[
-                            {"name": "Ford", "address": "Highway 42"},
-                            {"name": "Unknown", "address": "Space"},
-                            {"name": "Me", "address": "Myway 88"},
-                        ],
-                    )
-
-            asyncio.run(example_run())
-            ```
-        """  # noqa
-        if not self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is not an async driver. "
-                f"Please use the `execute_many` method instead."
-            )
-        async with self._manage_connection_async(begin=False) as connection:
-            result = await self._async_execute(
-                connection,
-                text(operation),
-                seq_of_parameters,
-                execution_options=execution_options,
-            )
-        self.logger.info(
-            f"Executed {len(seq_of_parameters)} operations based off {operation!r}."
-        )
         return result
 
     def execute_many(
@@ -1012,7 +575,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         **execution_options: Dict[str, Any],
     ) -> CursorResult:
         """
-        Executes many operations on the database (sync version for sync drivers).
+        Executes many operations on the database.
         This method is intended to be used for operations that do not return data,
         such as INSERT, UPDATE, or DELETE.
 
@@ -1030,7 +593,9 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             from prefect_sqlalchemy import SqlAlchemyConnector
 
             with SqlAlchemyConnector.load("MY_BLOCK") as database:
-                database.execute("CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);")
+                database.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
                 database.execute_many(
                     "INSERT INTO customers (name, address) VALUES (:name, :address);",
                     seq_of_parameters=[
@@ -1040,14 +605,9 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
                     ],
                 )
             ```
-        """  # noqa
-        if self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is an async driver. "
-                f"Please use the `aexecute_many` method instead."
-            )
-        with self._manage_connection_sync(begin=False) as connection:
-            result = self._sync_execute(
+        """
+        with self._manage_connection(begin=False) as connection:
+            result = self._execute(
                 connection,
                 text(operation),
                 seq_of_parameters,
@@ -1058,49 +618,10 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         )
         return result
 
-    async def __aenter__(self):
-        """
-        Start an asynchronous database engine upon entry.
-        """
-        if not self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} cannot be run asynchronously. "
-                f"Please use the `with` syntax."
-            )
-        return self
-
-    async def __aexit__(self, *args):
-        """
-        Dispose the asynchronous database engine upon exit.
-        """
-        await self.aclose()
-
-    async def aclose(self):
-        """
-        Closes async connections and its cursors.
-        """
-        if not self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is not asynchronous. "
-                f"Please use the `close` method instead."
-            )
-        try:
-            await self.reset_async_connections()
-        finally:
-            if self._engine is not None:
-                await self._engine.dispose()
-                self._engine = None
-                self.logger.info("Disposed the engine.")
-
     def __enter__(self):
         """
-        Start an synchronous database engine upon entry.
+        Start a synchronous database engine upon entry.
         """
-        if self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} cannot be run synchronously. "
-                f"Please use the `async with` syntax."
-            )
         return self
 
     def __exit__(self, *args):
@@ -1109,16 +630,10 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         """
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         """
         Closes sync connections and its cursors.
         """
-        if self._driver_is_async:
-            raise RuntimeError(
-                f"{self._rendered_url.drivername} is not synchronous. "
-                f"Please use the `aclose` method instead."
-            )
-
         try:
             self.reset_connections()
         finally:
@@ -1141,4 +656,667 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
             self._unique_results = {}
 
         if self._exit_stack is None:
-            self._start_exit_stack()
+            self._exit_stack = ExitStack()
+
+
+class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
+    """
+    Block used to manage authentication with a database using asynchronous drivers.
+
+    Upon instantiating, an engine is created and maintained for the life of
+    the object until the close method is called.
+
+    It is recommended to use this block as an async context manager, which will
+    automatically close the engine and its connections when the context is exited.
+
+    It is also recommended that this block is loaded and consumed within a single task
+    or flow because if the block is passed across separate tasks and flows,
+    the state of the block's connection and cursor could be lost.
+
+    Attributes:
+        connection_info: SQLAlchemy URL to create the engine;
+            either create from components or create from a string.
+        connect_args: The options which will be passed directly to the
+            DBAPI's connect() method as additional keyword arguments.
+        fetch_size: The number of rows to fetch at a time.
+
+    Example:
+        Load stored database credentials and use in async context manager:
+        ```python
+        import asyncio
+        from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+        async def main():
+            database_block = AsyncSqlAlchemyConnector.load("BLOCK_NAME")
+            async with await database_block:
+                ...
+
+        asyncio.run(main())
+        ```
+
+        Create table named customers and insert values; then fetch the first 10 rows.
+        ```python
+        import asyncio
+        from prefect_sqlalchemy import (
+            AsyncSqlAlchemyConnector, AsyncDriver, ConnectionComponents
+        )
+
+        async def main():
+            async with AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=AsyncDriver.SQLITE_AIOSQLITE,
+                    database="prefect.db"
+                )
+            ) as database:
+                await database.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);",
+                )
+                for i in range(1, 42):
+                    await database.execute(
+                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                        parameters={"name": "Marvin", "address": f"Highway {i}"},
+                    )
+                results = await database.fetch_many(
+                    "SELECT * FROM customers WHERE name = :name;",
+                    parameters={"name": "Marvin"},
+                    size=10
+                )
+            print(results)
+
+        asyncio.run(main())
+        ```
+    """
+
+    _block_type_name = "Async SQLAlchemy Connector"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/3c7dff04f70aaf4528e184a3b028f9e40b98d68c-250x250.png"  # type: ignore
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-sqlalchemy"  # type: ignore
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    connection_info: Union[ConnectionComponents, DBUrl] = Field(
+        default=...,
+        description=(
+            "SQLAlchemy URL to create the engine; either create from components "
+            "or create from a string."
+        ),
+    )
+    connect_args: Optional[Dict[str, Any]] = Field(
+        default=None,
+        title="Additional Connection Arguments",
+        description=(
+            "The options which will be passed directly to the DBAPI's connect() "
+            "method as additional keyword arguments."
+        ),
+    )
+    fetch_size: int = Field(
+        default=1, description="The number of rows to fetch at a time."
+    )
+
+    _engine: Optional[AsyncEngine] = None
+    _exit_stack: Optional[AsyncExitStack] = None
+    _unique_results: Optional[Dict[str, CursorResult]] = None
+
+    def block_initialization(self) -> None:
+        """
+        Initializes the engine.
+        """
+        super().block_initialization()
+
+        if isinstance(self.connection_info, ConnectionComponents):
+            self._rendered_url = self.connection_info.create_url()
+        else:
+            self._rendered_url = make_url(str(self.connection_info))
+        drivername = self._rendered_url.drivername
+
+        try:
+            AsyncDriver(drivername)
+        except ValueError:
+            raise ValueError(
+                f"The driver {drivername!r} is not an async driver. "
+                f"Please use `SqlAlchemyConnector` instead."
+            )
+
+        if self._unique_results is None:
+            self._unique_results = {}
+
+        if self._exit_stack is None:
+            self._exit_stack = AsyncExitStack()
+
+    def get_engine(self, **create_engine_kwargs: Dict[str, Any]) -> AsyncEngine:
+        """
+        Returns an authenticated engine that can be
+        used to query from databases.
+
+        If an existing engine exists, return that one.
+
+        Returns:
+            The authenticated SQLAlchemy AsyncEngine.
+
+        Examples:
+            Create an asynchronous engine to PostgreSQL using URL params.
+            ```python
+            from prefect import flow
+            from prefect_sqlalchemy import (
+                AsyncSqlAlchemyConnector, ConnectionComponents, AsyncDriver
+            )
+
+            @flow
+            async def sqlalchemy_credentials_flow():
+                sqlalchemy_credentials = AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                        driver=AsyncDriver.POSTGRESQL_ASYNCPG,
+                        username="prefect",
+                        password="prefect_password",
+                        database="postgres"
+                    )
+                )
+                print(sqlalchemy_credentials.get_engine())
+
+            asyncio.run(sqlalchemy_credentials_flow())
+            ```
+        """
+        if self._engine is not None:
+            self.logger.debug("Reusing existing engine.")
+            return self._engine
+
+        engine_kwargs = dict(
+            url=self._rendered_url,
+            connect_args=self.connect_args or {},
+            **create_engine_kwargs,
+        )
+        engine = create_async_engine(**engine_kwargs)
+        self.logger.info("Created a new engine.")
+
+        if self._engine is None:
+            self._engine = engine
+
+        return engine
+
+    def get_connection(
+        self, begin: bool = True, **connect_kwargs: Dict[str, Any]
+    ) -> AsyncConnection:
+        """
+        Returns a connection that can be used to query from databases.
+
+        Args:
+            begin: Whether to begin a transaction on the connection; if True, if
+                any operations fail, the entire transaction will be rolled back.
+            **connect_kwargs: Additional keyword arguments to pass to either
+                `engine.begin` or engine.connect`.
+
+        Returns:
+            The SQLAlchemy AsyncConnection.
+
+        Examples:
+            Create an asynchronous connection as a context-managed transaction.
+            ```python
+            import asyncio
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            async def main():
+                sqlalchemy_connector = await AsyncSqlAlchemyConnector.load("BLOCK_NAME")
+                async with sqlalchemy_connector.get_connection(begin=False) as connection:
+                    await connection.execute("SELECT * FROM table LIMIT 1;")
+
+            asyncio.run(main())
+            ```
+        """
+        engine = self.get_engine()
+        if begin:
+            connection = engine.begin(**connect_kwargs)
+        else:
+            connection = engine.connect(**connect_kwargs)
+        self.logger.info("Created a new connection.")
+        return connection
+
+    def get_client(
+        self,
+        client_type: Literal["engine", "connection"],
+        **get_client_kwargs: Dict[str, Any],
+    ) -> Union[AsyncEngine, AsyncConnection]:
+        """
+        Returns either an engine or connection that can be used to query from databases.
+
+        Args:
+            client_type: Select from either 'engine' or 'connection'.
+            **get_client_kwargs: Additional keyword arguments to pass to
+                either `get_engine` or `get_connection`.
+
+        Returns:
+            The authenticated SQLAlchemy engine or connection.
+
+        Examples:
+            Create an engine.
+            ```python
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            sqlalchemy_connector = AsyncSqlAlchemyConnector.load("BLOCK_NAME")
+            engine = sqlalchemy_connector.get_client(client_type="engine")
+            ```
+
+            Create a context managed connection.
+            ```python
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            sqlalchemy_connector = AsyncSqlAlchemyConnector.load("BLOCK_NAME")
+            async with sqlalchemy_connector.get_client(client_type="connection") as conn:
+                ...
+            ```
+        """
+        if client_type == "engine":
+            client = self.get_engine(**get_client_kwargs)
+        elif client_type == "connection":
+            client = self.get_connection(**get_client_kwargs)
+        else:
+            raise ValueError(
+                f"{client_type!r} is not supported; choose from engine or connection."
+            )
+        return client
+
+    @asynccontextmanager
+    async def _manage_connection(self, **get_connection_kwargs: Dict[str, Any]):
+        """Async context manager for managing connections."""
+        async with self.get_connection(**get_connection_kwargs) as connection:
+            yield connection
+
+    async def _execute(
+        self,
+        connection: AsyncConnection,
+        *execute_args: Tuple[Any],
+        execute_commit: bool = True,
+        **execute_kwargs: Dict[str, Any],
+    ) -> CursorResult:
+        """Execute the statement asynchronously."""
+        result_set = await connection.execute(*execute_args, **execute_kwargs)
+        if execute_commit:
+            await connection.commit()
+        return result_set
+
+    async def _get_result_set(
+        self, *execute_args: Tuple[Any], **execute_kwargs: Dict[str, Any]
+    ) -> CursorResult:
+        """
+        Returns a new or existing result set.
+
+        Args:
+            *execute_args: Args to pass to execute.
+            **execute_kwargs: Keyword args to pass to execute.
+
+        Returns:
+            The result set from the operation.
+        """
+        input_hash = hash_objects(*execute_args, **execute_kwargs)
+        assert input_hash is not None, (
+            "We were not able to hash your inputs, "
+            "which resulted in an unexpected data return; "
+            "please open an issue with a reproducible example."
+        )
+
+        if input_hash not in self._unique_results.keys():
+            connection = await self._exit_stack.enter_async_context(
+                self.get_connection()
+            )
+            result_set = await self._execute(
+                connection, *execute_args, execute_commit=False, **execute_kwargs
+            )
+            self._unique_results[input_hash] = result_set
+        else:
+            result_set = self._unique_results[input_hash]
+        return result_set
+
+    def _reset_cursor_results(self) -> None:
+        """
+        Closes all the existing cursor results.
+        """
+        input_hashes = tuple(self._unique_results.keys())
+        for input_hash in input_hashes:
+            try:
+                cursor_result = self._unique_results.pop(input_hash)
+                cursor_result.close()
+            except Exception as exc:
+                self.logger.warning(
+                    f"Failed to close connection for input hash {input_hash!r}: {exc}"
+                )
+
+    async def reset_connections(self) -> None:
+        """
+        Tries to close all opened connections and their results.
+
+        Examples:
+            Resets connections so `fetch_*` methods return new results.
+            ```python
+            import asyncio
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            async def example_run():
+                async with AsyncSqlAlchemyConnector.load("MY_BLOCK") as database:
+                    results = await database.fetch_one("SELECT * FROM customers")
+                    await database.reset_connections()
+                    results = await database.fetch_one("SELECT * FROM customers")
+
+            asyncio.run(example_run())
+            ```
+        """
+        if self._exit_stack is None:
+            self.logger.info("There were no connections to reset.")
+            return
+
+        self._reset_cursor_results()
+        await self._exit_stack.aclose()
+        self.logger.info("Reset opened connections and their results.")
+
+    async def fetch_one(
+        self,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        **execution_options: Dict[str, Any],
+    ) -> Tuple[Any]:
+        """
+        Fetch a single result from the database.
+
+        Repeated calls using the same inputs to *any* of the fetch methods of this
+        block will skip executing the operation again, and instead,
+        return the next set of results from the previous execution,
+        until the reset_connections method is called.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            parameters: The parameters for the operation.
+            **execution_options: Options to pass to `Connection.execution_options`.
+
+        Returns:
+            A tuple containing the data returned by the database,
+                where each column is a value in the tuple.
+
+        Examples:
+            Create a table, insert three rows into it, and fetch a row repeatedly.
+            ```python
+            import asyncio
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            async def example_run():
+                async with AsyncSqlAlchemyConnector.load("MY_BLOCK") as database:
+                    await database.execute(
+                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                    )
+                    await database.execute_many(
+                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                        seq_of_parameters=[
+                            {"name": "Ford", "address": "Highway 42"},
+                            {"name": "Unknown", "address": "Space"},
+                            {"name": "Me", "address": "Myway 88"},
+                        ],
+                    )
+                    results = True
+                    while results:
+                        results = await database.fetch_one("SELECT * FROM customers")
+                        print(results)
+
+            asyncio.run(example_run())
+            ```
+        """
+        result_set = await self._get_result_set(
+            text(operation), parameters, execution_options=execution_options
+        )
+        self.logger.debug("Preparing to fetch one row.")
+        row = result_set.fetchone()
+        return row
+
+    async def fetch_many(
+        self,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        size: Optional[int] = None,
+        **execution_options: Dict[str, Any],
+    ) -> List[Tuple[Any]]:
+        """
+        Fetch a limited number of results from the database.
+
+        Repeated calls using the same inputs to *any* of the fetch methods of this
+        block will skip executing the operation again, and instead,
+        return the next set of results from the previous execution,
+        until the reset_connections method is called.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            parameters: The parameters for the operation.
+            size: The number of results to return; if None or 0, uses the value of
+                `fetch_size` configured on the block.
+            **execution_options: Options to pass to `Connection.execution_options`.
+
+        Returns:
+            A list of tuples containing the data returned by the database,
+                where each row is a tuple and each column is a value in the tuple.
+
+        Examples:
+            Create a table, insert three rows into it, and fetch two rows repeatedly.
+            ```python
+            import asyncio
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            async def example_run():
+                async with AsyncSqlAlchemyConnector.load("MY_BLOCK") as database:
+                    await database.execute(
+                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                    )
+                    await database.execute_many(
+                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                        seq_of_parameters=[
+                            {"name": "Ford", "address": "Highway 42"},
+                            {"name": "Unknown", "address": "Space"},
+                            {"name": "Me", "address": "Myway 88"},
+                        ],
+                    )
+                    results = await database.fetch_many("SELECT * FROM customers", size=2)
+                    print(results)
+                    results = await database.fetch_many("SELECT * FROM customers", size=2)
+                    print(results)
+
+            asyncio.run(example_run())
+            ```
+        """
+        result_set = await self._get_result_set(
+            text(operation), parameters, execution_options=execution_options
+        )
+        size = size or self.fetch_size
+        self.logger.debug(f"Preparing to fetch {size} rows.")
+        rows = result_set.fetchmany(size=size)
+        return rows
+
+    async def fetch_all(
+        self,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        **execution_options: Dict[str, Any],
+    ) -> List[Tuple[Any]]:
+        """
+        Fetch all results from the database.
+
+        Repeated calls using the same inputs to *any* of the fetch methods of this
+        block will skip executing the operation again, and instead,
+        return the next set of results from the previous execution,
+        until the reset_connections method is called.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            parameters: The parameters for the operation.
+            **execution_options: Options to pass to `Connection.execution_options`.
+
+        Returns:
+            A list of tuples containing the data returned by the database,
+                where each row is a tuple and each column is a value in the tuple.
+
+        Examples:
+            Create a table, insert three rows into it, and fetch all where name is 'Me'.
+            ```python
+            import asyncio
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            async def example_run():
+                async with AsyncSqlAlchemyConnector.load("MY_BLOCK") as database:
+                    await database.execute(
+                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                    )
+                    await database.execute_many(
+                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                        seq_of_parameters=[
+                            {"name": "Ford", "address": "Highway 42"},
+                            {"name": "Unknown", "address": "Space"},
+                            {"name": "Me", "address": "Myway 88"},
+                        ],
+                    )
+                    results = await database.fetch_all(
+                        "SELECT * FROM customers WHERE name = :name",
+                        parameters={"name": "Me"}
+                    )
+
+            asyncio.run(example_run())
+            ```
+        """
+        result_set = await self._get_result_set(
+            text(operation), parameters, execution_options=execution_options
+        )
+        self.logger.debug("Preparing to fetch all rows.")
+        rows = result_set.fetchall()
+        return rows
+
+    async def execute(
+        self,
+        operation: str,
+        parameters: Optional[Dict[str, Any]] = None,
+        **execution_options: Dict[str, Any],
+    ) -> CursorResult:
+        """
+        Executes an operation on the database.
+        This method is intended to be used for operations that do not return data,
+        such as INSERT, UPDATE, or DELETE.
+
+        Unlike the fetch methods, this method will always execute the operation
+        upon calling.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            parameters: The parameters for the operation.
+            **execution_options: Options to pass to `Connection.execution_options`.
+
+        Examples:
+            Create a table and insert one row into it.
+            ```python
+            import asyncio
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            async def example_run():
+                async with AsyncSqlAlchemyConnector.load("MY_BLOCK") as database:
+                    await database.execute(
+                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                    )
+                    await database.execute(
+                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                        parameters={"name": "Marvin", "address": "Highway 42"},
+                    )
+
+            asyncio.run(example_run())
+            ```
+        """
+        async with self._manage_connection(begin=False) as connection:
+            result = await self._execute(
+                connection,
+                text(operation),
+                parameters,
+                execution_options=execution_options,
+            )
+        self.logger.info(f"Executed the operation, {operation!r}")
+        return result
+
+    async def execute_many(
+        self,
+        operation: str,
+        seq_of_parameters: List[Dict[str, Any]],
+        **execution_options: Dict[str, Any],
+    ) -> CursorResult:
+        """
+        Executes many operations on the database.
+        This method is intended to be used for operations that do not return data,
+        such as INSERT, UPDATE, or DELETE.
+
+        Unlike the fetch methods, this method will always execute the operation
+        upon calling.
+
+        Args:
+            operation: The SQL query or other operation to be executed.
+            seq_of_parameters: The sequence of parameters for the operation.
+            **execution_options: Options to pass to `Connection.execution_options`.
+
+        Examples:
+            Create a table and insert two rows into it.
+            ```python
+            import asyncio
+            from prefect_sqlalchemy import AsyncSqlAlchemyConnector
+
+            async def example_run():
+                async with AsyncSqlAlchemyConnector.load("MY_BLOCK") as database:
+                    await database.execute(
+                        "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                    )
+                    await database.execute_many(
+                        "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                        seq_of_parameters=[
+                            {"name": "Ford", "address": "Highway 42"},
+                            {"name": "Unknown", "address": "Space"},
+                            {"name": "Me", "address": "Myway 88"},
+                        ],
+                    )
+
+            asyncio.run(example_run())
+            ```
+        """
+        async with self._manage_connection(begin=False) as connection:
+            result = await self._execute(
+                connection,
+                text(operation),
+                seq_of_parameters,
+                execution_options=execution_options,
+            )
+        self.logger.info(
+            f"Executed {len(seq_of_parameters)} operations based off {operation!r}."
+        )
+        return result
+
+    async def __aenter__(self):
+        """
+        Start an asynchronous database engine upon entry.
+        """
+        return self
+
+    async def __aexit__(self, *args):
+        """
+        Dispose the asynchronous database engine upon exit.
+        """
+        await self.close()
+
+    async def close(self) -> None:
+        """
+        Closes async connections and its cursors.
+        """
+        try:
+            await self.reset_connections()
+        finally:
+            if self._engine is not None:
+                await self._engine.dispose()
+                self._engine = None
+                self.logger.info("Disposed the engine.")
+
+    def __getstate__(self):
+        """Allows the block to be pickleable."""
+        data = self.__dict__.copy()
+        data.update({k: None for k in {"_engine", "_exit_stack", "_unique_results"}})
+        return data
+
+    def __setstate__(self, data: dict):
+        """Upon loading back, restart the engine and results."""
+        self.__dict__.update(data)
+
+        if self._unique_results is None:
+            self._unique_results = {}
+
+        if self._exit_stack is None:
+            self._exit_stack = AsyncExitStack()

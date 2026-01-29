@@ -1,7 +1,7 @@
-"""Tests for async_dispatch migration in prefect-sqlalchemy.
+"""Tests for the SqlAlchemyConnector class split.
 
-These tests verify the critical behavior from issue #15008 where
-@sync_compatible would incorrectly return coroutines in sync context.
+These tests verify that SqlAlchemyConnector (sync) and AsyncSqlAlchemyConnector (async)
+work correctly with their respective driver types.
 """
 
 from typing import Coroutine
@@ -12,57 +12,14 @@ from prefect_sqlalchemy.credentials import (
     ConnectionComponents,
     SyncDriver,
 )
-from prefect_sqlalchemy.database import SqlAlchemyConnector
+from prefect_sqlalchemy.database import AsyncSqlAlchemyConnector, SqlAlchemyConnector
+from sqlalchemy.engine.cursor import CursorResult
 
 from prefect import flow
 
 
-class TestSqlAlchemyConnectorAsyncDispatch:
-    """Tests for SqlAlchemyConnector methods migrated from @sync_compatible to @async_dispatch."""
-
-    @pytest.fixture
-    def sync_connector(self, tmp_path):
-        """Create a sync SQLite connector with test data."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=SyncDriver.SQLITE_PYSQLITE,
-                database=str(tmp_path / "test.db"),
-            ),
-            fetch_size=2,
-        )
-        with connector:
-            connector.execute(
-                "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-            )
-            connector.execute(
-                "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                parameters={"name": "Marvin", "address": "Highway 42"},
-            )
-            yield connector
-
-    @pytest.fixture
-    async def async_connector(self, tmp_path):
-        """Create an async SQLite connector with test data."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=AsyncDriver.SQLITE_AIOSQLITE,
-                database=str(tmp_path / "test.db"),
-            ),
-            fetch_size=2,
-        )
-        async with connector:
-            await connector.aexecute(
-                "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-            )
-            await connector.aexecute(
-                "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                parameters={"name": "Marvin", "address": "Highway 42"},
-            )
-            yield connector
-
-
-class TestFetchOneAsyncDispatch:
-    """Tests for fetch_one migrated from @sync_compatible to @async_dispatch."""
+class TestSqlAlchemyConnectorSync:
+    """Tests for SqlAlchemyConnector with sync drivers."""
 
     def test_fetch_one_sync_context_returns_value_not_coroutine(self, tmp_path):
         """fetch_one must return tuple (not coroutine) in sync context.
@@ -93,45 +50,6 @@ class TestFetchOneAsyncDispatch:
 
         result = test_flow()
         assert result == ("Marvin", "Highway 42")
-
-    async def test_afetch_one_async_context_works(self, tmp_path):
-        """afetch_one should work correctly in async context."""
-
-        @flow
-        async def test_flow():
-            async with SqlAlchemyConnector(
-                connection_info=ConnectionComponents(
-                    driver=AsyncDriver.SQLITE_AIOSQLITE,
-                    database=str(tmp_path / "test.db"),
-                )
-            ) as connector:
-                await connector.aexecute(
-                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
-                )
-                await connector.aexecute(
-                    "INSERT INTO customers (name, address) VALUES (:name, :address);",
-                    parameters={"name": "Marvin", "address": "Highway 42"},
-                )
-                result = await connector.afetch_one("SELECT * FROM customers")
-                return result
-
-        result = await test_flow()
-        assert result == ("Marvin", "Highway 42")
-
-    def test_afetch_one_is_available(self, tmp_path):
-        """afetch_one should be available for direct async usage."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=SyncDriver.SQLITE_PYSQLITE,
-                database=str(tmp_path / "test.db"),
-            )
-        )
-        assert hasattr(connector, "afetch_one")
-        assert callable(connector.afetch_one)
-
-
-class TestFetchManyAsyncDispatch:
-    """Tests for fetch_many migrated from @sync_compatible to @async_dispatch."""
 
     def test_fetch_many_sync_context_returns_value_not_coroutine(self, tmp_path):
         """fetch_many must return list (not coroutine) in sync context.
@@ -167,21 +85,6 @@ class TestFetchManyAsyncDispatch:
         assert isinstance(result, list)
         assert len(result) == 2
 
-    def test_afetch_many_is_available(self, tmp_path):
-        """afetch_many should be available for direct async usage."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=SyncDriver.SQLITE_PYSQLITE,
-                database=str(tmp_path / "test.db"),
-            )
-        )
-        assert hasattr(connector, "afetch_many")
-        assert callable(connector.afetch_many)
-
-
-class TestFetchAllAsyncDispatch:
-    """Tests for fetch_all migrated from @sync_compatible to @async_dispatch."""
-
     def test_fetch_all_sync_context_returns_value_not_coroutine(self, tmp_path):
         """fetch_all must return list (not coroutine) in sync context.
 
@@ -216,27 +119,11 @@ class TestFetchAllAsyncDispatch:
         assert isinstance(result, list)
         assert len(result) == 2
 
-    def test_afetch_all_is_available(self, tmp_path):
-        """afetch_all should be available for direct async usage."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=SyncDriver.SQLITE_PYSQLITE,
-                database=str(tmp_path / "test.db"),
-            )
-        )
-        assert hasattr(connector, "afetch_all")
-        assert callable(connector.afetch_all)
-
-
-class TestExecuteAsyncDispatch:
-    """Tests for execute migrated from @sync_compatible to @async_dispatch."""
-
     def test_execute_sync_context_returns_value_not_coroutine(self, tmp_path):
         """execute must return CursorResult (not coroutine) in sync context.
 
         This is a critical regression test for issues #14712 and #14625.
         """
-        from sqlalchemy.engine.cursor import CursorResult
 
         @flow
         def test_flow():
@@ -257,27 +144,11 @@ class TestExecuteAsyncDispatch:
         result = test_flow()
         assert isinstance(result, CursorResult)
 
-    def test_aexecute_is_available(self, tmp_path):
-        """aexecute should be available for direct async usage."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=SyncDriver.SQLITE_PYSQLITE,
-                database=str(tmp_path / "test.db"),
-            )
-        )
-        assert hasattr(connector, "aexecute")
-        assert callable(connector.aexecute)
-
-
-class TestExecuteManyAsyncDispatch:
-    """Tests for execute_many migrated from @sync_compatible to @async_dispatch."""
-
     def test_execute_many_sync_context_returns_value_not_coroutine(self, tmp_path):
         """execute_many must return CursorResult (not coroutine) in sync context.
 
         This is a critical regression test for issues #14712 and #14625.
         """
-        from sqlalchemy.engine.cursor import CursorResult
 
         @flow
         def test_flow():
@@ -304,21 +175,6 @@ class TestExecuteManyAsyncDispatch:
 
         result = test_flow()
         assert isinstance(result, CursorResult)
-
-    def test_aexecute_many_is_available(self, tmp_path):
-        """aexecute_many should be available for direct async usage."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=SyncDriver.SQLITE_PYSQLITE,
-                database=str(tmp_path / "test.db"),
-            )
-        )
-        assert hasattr(connector, "aexecute_many")
-        assert callable(connector.aexecute_many)
-
-
-class TestResetConnectionsAsyncDispatch:
-    """Tests for reset_connections migrated from @sync_compatible to @async_dispatch."""
 
     def test_reset_connections_sync_context_returns_none_not_coroutine(self, tmp_path):
         """reset_connections must not return coroutine in sync context.
@@ -347,39 +203,176 @@ class TestResetConnectionsAsyncDispatch:
         result = test_flow()
         assert result is None
 
-    def test_reset_async_connections_is_available(self, tmp_path):
-        """reset_async_connections should be available for direct async usage."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=SyncDriver.SQLITE_PYSQLITE,
-                database=str(tmp_path / "test.db"),
-            )
-        )
-        assert hasattr(connector, "reset_async_connections")
-        assert callable(connector.reset_async_connections)
+
+class TestAsyncSqlAlchemyConnector:
+    """Tests for AsyncSqlAlchemyConnector with async drivers."""
+
+    async def test_fetch_one_async_context_works(self, tmp_path):
+        """fetch_one should work correctly in async context."""
+
+        @flow
+        async def test_flow():
+            async with AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=AsyncDriver.SQLITE_AIOSQLITE,
+                    database=str(tmp_path / "test.db"),
+                )
+            ) as connector:
+                await connector.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                await connector.execute(
+                    "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                    parameters={"name": "Marvin", "address": "Highway 42"},
+                )
+                result = await connector.fetch_one("SELECT * FROM customers")
+                return result
+
+        result = await test_flow()
+        assert result == ("Marvin", "Highway 42")
+
+    async def test_fetch_many_async_context_works(self, tmp_path):
+        """fetch_many should work correctly in async context."""
+
+        @flow
+        async def test_flow():
+            async with AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=AsyncDriver.SQLITE_AIOSQLITE,
+                    database=str(tmp_path / "test.db"),
+                )
+            ) as connector:
+                await connector.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                await connector.execute_many(
+                    "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                    seq_of_parameters=[
+                        {"name": "Ford", "address": "Highway 42"},
+                        {"name": "Unknown", "address": "Space"},
+                    ],
+                )
+                result = await connector.fetch_many("SELECT * FROM customers", size=2)
+                return result
+
+        result = await test_flow()
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    async def test_fetch_all_async_context_works(self, tmp_path):
+        """fetch_all should work correctly in async context."""
+
+        @flow
+        async def test_flow():
+            async with AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=AsyncDriver.SQLITE_AIOSQLITE,
+                    database=str(tmp_path / "test.db"),
+                )
+            ) as connector:
+                await connector.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                await connector.execute_many(
+                    "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                    seq_of_parameters=[
+                        {"name": "Ford", "address": "Highway 42"},
+                        {"name": "Unknown", "address": "Space"},
+                    ],
+                )
+                result = await connector.fetch_all("SELECT * FROM customers")
+                return result
+
+        result = await test_flow()
+        assert isinstance(result, list)
+        assert len(result) == 2
+
+    async def test_execute_async_context_works(self, tmp_path):
+        """execute should work correctly in async context."""
+
+        @flow
+        async def test_flow():
+            async with AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=AsyncDriver.SQLITE_AIOSQLITE,
+                    database=str(tmp_path / "test.db"),
+                )
+            ) as connector:
+                result = await connector.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                return result
+
+        result = await test_flow()
+        assert isinstance(result, CursorResult)
+
+    async def test_execute_many_async_context_works(self, tmp_path):
+        """execute_many should work correctly in async context."""
+
+        @flow
+        async def test_flow():
+            async with AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=AsyncDriver.SQLITE_AIOSQLITE,
+                    database=str(tmp_path / "test.db"),
+                )
+            ) as connector:
+                await connector.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                result = await connector.execute_many(
+                    "INSERT INTO customers (name, address) VALUES (:name, :address);",
+                    seq_of_parameters=[
+                        {"name": "Ford", "address": "Highway 42"},
+                        {"name": "Unknown", "address": "Space"},
+                    ],
+                )
+                return result
+
+        result = await test_flow()
+        assert isinstance(result, CursorResult)
+
+    async def test_reset_connections_async_context_works(self, tmp_path):
+        """reset_connections should work correctly in async context."""
+
+        @flow
+        async def test_flow():
+            async with AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=AsyncDriver.SQLITE_AIOSQLITE,
+                    database=str(tmp_path / "test.db"),
+                )
+            ) as connector:
+                await connector.execute(
+                    "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
+                )
+                await connector.fetch_one("SELECT 1")
+                result = await connector.reset_connections()
+                return result
+
+        result = await test_flow()
+        assert result is None
 
 
 class TestDriverTypeEnforcement:
-    """Tests that verify sync methods raise errors for async drivers and vice versa."""
+    """Tests that verify sync connector rejects async drivers and vice versa."""
 
-    def test_sync_method_raises_for_async_driver(self, tmp_path):
-        """Sync methods should raise RuntimeError when used with async drivers."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=AsyncDriver.SQLITE_AIOSQLITE,
-                database=str(tmp_path / "test.db"),
+    def test_sync_connector_raises_for_async_driver(self, tmp_path):
+        """SqlAlchemyConnector should raise ValueError when used with async drivers."""
+        with pytest.raises(ValueError, match="async driver"):
+            SqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=AsyncDriver.SQLITE_AIOSQLITE,
+                    database=str(tmp_path / "test.db"),
+                )
             )
-        )
-        with pytest.raises(RuntimeError, match="is an async driver"):
-            connector.fetch_one("SELECT 1")
 
-    async def test_async_method_raises_for_sync_driver(self, tmp_path):
-        """Async methods should raise RuntimeError when used with sync drivers."""
-        connector = SqlAlchemyConnector(
-            connection_info=ConnectionComponents(
-                driver=SyncDriver.SQLITE_PYSQLITE,
-                database=str(tmp_path / "test.db"),
+    def test_async_connector_raises_for_sync_driver(self, tmp_path):
+        """AsyncSqlAlchemyConnector should raise ValueError when used with sync drivers."""
+        with pytest.raises(ValueError, match="sync driver"):
+            AsyncSqlAlchemyConnector(
+                connection_info=ConnectionComponents(
+                    driver=SyncDriver.SQLITE_PYSQLITE,
+                    database=str(tmp_path / "test.db"),
+                )
             )
-        )
-        with pytest.raises(RuntimeError, match="is not an async driver"):
-            await connector.afetch_one("SELECT 1")
