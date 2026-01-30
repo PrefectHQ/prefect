@@ -446,6 +446,73 @@ class TestJSONSerializer:
         loaded = serializer.loads(serialized)
         assert loaded.data == "hello"
 
+    def test_json_serializer_handles_websocket_clientconnection(self):
+        """Test that ClientConnection objects serialize to a placeholder.
+
+        Regression test for: https://github.com/PrefectHQ/prefect/issues/OSS-7568
+
+        When the websockets library's internal keepalive mechanism fails, it logs
+        an error with exc_info=True. In Kubernetes workers using JSON logging,
+        Prefect's JsonFormatter tries to serialize the log record which contains
+        a ClientConnection object reference. This test ensures ClientConnection
+        objects serialize gracefully instead of causing PydanticSerializationError.
+        """
+        from websockets.asyncio.client import ClientConnection
+
+        serializer = JSONSerializer()
+
+        mock_connection = MagicMock(spec=ClientConnection)
+        mock_connection.__class__ = ClientConnection
+        mock_connection.state = "OPEN"
+
+        data_with_connection = {"my_connection": mock_connection, "other_data": 456}
+
+        serialized_data = serializer.dumps(data_with_connection)
+
+        deserialized_data = json.loads(serialized_data.decode())
+
+        deserialized_connection_placeholder: dict[str, Any] = deserialized_data.get(
+            "my_connection"
+        )
+
+        assert isinstance(deserialized_connection_placeholder, dict), (
+            f"Deserialized 'my_connection' should be a dict placeholder, "
+            f"but got {type(deserialized_connection_placeholder)}"
+        )
+
+        assert deserialized_connection_placeholder.get(
+            "__class__"
+        ) == to_qualified_name(ClientConnection), (
+            f"Placeholder __class__ ('{deserialized_connection_placeholder.get('__class__')}') "
+            f"does not match expected ('{to_qualified_name(ClientConnection)}')"
+        )
+
+        placeholder_data_string = deserialized_connection_placeholder.get("data")
+        assert isinstance(placeholder_data_string, str), (
+            f"Placeholder data field should be a string, "
+            f"but got {type(placeholder_data_string)}"
+        )
+
+        expected_placeholder_prefix = "<Prefect WebSocket Placeholder:"
+        expected_placeholder_type_info = "type=ClientConnection"
+        expected_placeholder_state_info = "state=OPEN"
+        expected_placeholder_suffix = "(connection object not serialized)>"
+
+        assert expected_placeholder_prefix in placeholder_data_string, (
+            f"Placeholder prefix '{expected_placeholder_prefix}' missing in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_type_info in placeholder_data_string, (
+            f"Expected type info '{expected_placeholder_type_info}' not in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_state_info in placeholder_data_string, (
+            f"Expected state info '{expected_placeholder_state_info}' not in placeholder string: {placeholder_data_string}"
+        )
+        assert expected_placeholder_suffix in placeholder_data_string, (
+            f"Placeholder suffix '{expected_placeholder_suffix}' missing in placeholder string: {placeholder_data_string}"
+        )
+
+        assert deserialized_data.get("other_data") == 456, "Other data was altered"
+
 
 class TestCompressedSerializer:
     @pytest.mark.parametrize("data", SERIALIZER_TEST_CASES)
