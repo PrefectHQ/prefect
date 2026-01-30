@@ -134,7 +134,7 @@ leaving a terminal state, the end time will be unset.
 before_transition(self, context: GenericOrchestrationContext[orm_models.Run, Any]) -> None
 ```
 
-### `IncrementRunTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IncrementRunTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Records the amount of time a run spends in the running state.
@@ -142,13 +142,13 @@ Records the amount of time a run spends in the running state.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: GenericOrchestrationContext[orm_models.Run, Any]) -> None
 ```
 
-### `IncrementFlowRunCount` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IncrementFlowRunCount` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Records the number of times a run enters a running state. For use with retries.
@@ -156,13 +156,13 @@ Records the number of times a run enters a running state. For use with retries.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L266" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `RemoveResumingIndicator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L283" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RemoveResumingIndicator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Removes the indicator on a flow run that marks it as resuming.
@@ -170,13 +170,13 @@ Removes the indicator on a flow run that marks it as resuming.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L292" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `IncrementTaskRunCount` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IncrementTaskRunCount` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Records the number of times a run enters a running state. For use with retries.
@@ -184,13 +184,13 @@ Records the number of times a run enters a running state. For use with retries.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L314" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L316" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `SetExpectedStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SetExpectedStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L330" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Estimates the time a state is expected to start running if not set.
@@ -201,13 +201,13 @@ this is set to the time the proposed state was created by Prefect.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L340" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: GenericOrchestrationContext[orm_models.Run, Any]) -> None
 ```
 
-### `SetNextScheduledStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SetNextScheduledStartTime` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Records the scheduled time on a run.
@@ -219,13 +219,13 @@ the state's scheduled time. When leaving a scheduled state,
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L369" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: GenericOrchestrationContext[orm_models.Run, Any]) -> None
 ```
 
-### `UpdateSubflowParentTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L386" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UpdateSubflowParentTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L388" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Whenever a subflow changes state, it must update its parent task run's state.
@@ -233,13 +233,13 @@ Whenever a subflow changes state, it must update its parent task run's state.
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L395" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `UpdateSubflowStateDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UpdateSubflowStateDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L420" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Update a child subflow state's references to a corresponding tracking task run id
@@ -248,13 +248,13 @@ in the parent flow run
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L426" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `UpdateStateDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `UpdateStateDetails` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L444" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Update a state's references to a corresponding flow- or task- run.
@@ -262,7 +262,7 @@ Update a state's references to a corresponding flow- or task- run.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/global_policy.py#L453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: GenericOrchestrationContext) -> None
