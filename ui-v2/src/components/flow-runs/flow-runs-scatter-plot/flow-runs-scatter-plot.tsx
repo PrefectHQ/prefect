@@ -171,17 +171,52 @@ const formatYAxisTick = (value: number): string => {
 	return `${Math.ceil(value)}s`;
 };
 
-const generateTimeTicks = (
+const TIME_INTERVALS = [
+	{ ms: 1000, name: "second" },
+	{ ms: 5 * 1000, name: "5seconds" },
+	{ ms: 15 * 1000, name: "15seconds" },
+	{ ms: 30 * 1000, name: "30seconds" },
+	{ ms: 60 * 1000, name: "minute" },
+	{ ms: 5 * 60 * 1000, name: "5minutes" },
+	{ ms: 15 * 60 * 1000, name: "15minutes" },
+	{ ms: 30 * 60 * 1000, name: "30minutes" },
+	{ ms: 60 * 60 * 1000, name: "hour" },
+	{ ms: 3 * 60 * 60 * 1000, name: "3hours" },
+	{ ms: 6 * 60 * 60 * 1000, name: "6hours" },
+	{ ms: 12 * 60 * 60 * 1000, name: "12hours" },
+	{ ms: 24 * 60 * 60 * 1000, name: "day" },
+	{ ms: 7 * 24 * 60 * 60 * 1000, name: "week" },
+	{ ms: 30 * 24 * 60 * 60 * 1000, name: "month" },
+];
+
+const generateNiceTimeTicks = (
 	startMs: number,
 	endMs: number,
-	tickCount: number,
+	targetTickCount: number,
 ): number[] => {
-	if (tickCount < 2) return [startMs];
-	const step = (endMs - startMs) / (tickCount - 1);
-	const ticks: number[] = [];
-	for (let i = 0; i < tickCount; i++) {
-		ticks.push(startMs + step * i);
+	const range = endMs - startMs;
+	if (range <= 0) return [startMs];
+
+	const idealInterval = range / targetTickCount;
+	let chosenInterval = TIME_INTERVALS[0].ms;
+	for (const interval of TIME_INTERVALS) {
+		if (interval.ms >= idealInterval) {
+			chosenInterval = interval.ms;
+			break;
+		}
+		chosenInterval = interval.ms;
 	}
+
+	const firstTick = Math.ceil(startMs / chosenInterval) * chosenInterval;
+	const ticks: number[] = [];
+	for (let tick = firstTick; tick <= endMs; tick += chosenInterval) {
+		ticks.push(tick);
+	}
+
+	if (ticks.length === 0) {
+		ticks.push(startMs);
+	}
+
 	return ticks;
 };
 
@@ -277,9 +312,9 @@ export const FlowRunsScatterPlot = ({
 	// Create memoized X-axis formatter
 	const formatXAxisTick = useMemo(() => createXAxisTickFormatter(), []);
 
-	// Generate explicit tick values for X-axis (similar to D3's tick generation)
+	// Generate explicit tick values for X-axis aligned with nice time boundaries
 	const xAxisTicks = useMemo(() => {
-		return generateTimeTicks(xDomain[0], xDomain[1], 10);
+		return generateNiceTimeTicks(xDomain[0], xDomain[1], 10);
 	}, [xDomain]);
 
 	if (history.length === 0) {
