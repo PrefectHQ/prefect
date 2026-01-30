@@ -141,6 +141,16 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/test_flows.py",
     "tests/server/orchestration/api/ui/test_task_runs.py",
     "tests/test_transactions.py",
+    "tests/test_types.py",
+    "tests/test_highlighters.py",
+    "tests/test_exceptions.py",
+    "tests/test_schedules.py",
+    "tests/test_plugins.py",
+    "tests/test_serializers.py",
+    "tests/test_cache_policies.py",
+    "tests/test_versioning.py",
+    "tests/custom_types",
+    "tests/test_states.py",
 ]
 
 
