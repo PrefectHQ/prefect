@@ -37,7 +37,7 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 					/>
 				</div>
 			</div>
-			<div className="rounded-md border">
+			<div className="rounded-md border overflow-hidden">
 				<Table>
 					<TableHeader className="bg-muted">
 						<TableRow>
