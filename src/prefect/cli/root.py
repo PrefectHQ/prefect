@@ -14,7 +14,7 @@ import typer
 import prefect
 import prefect.context
 import prefect.settings
-from prefect.cli._types import PrefectTyper, SettingsOption
+from prefect.cli._types import LazyTyperGroup, PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.client.base import determine_server_type
 from prefect.client.constants import SERVER_API_VERSION
@@ -22,7 +22,9 @@ from prefect.logging.configuration import setup_logging
 from prefect.settings import get_current_settings
 from prefect.types._datetime import parse_datetime
 
-app: PrefectTyper = PrefectTyper(add_completion=True, no_args_is_help=True)
+app: PrefectTyper = PrefectTyper(
+    add_completion=True, no_args_is_help=True, cls=LazyTyperGroup
+)
 
 
 def version_callback(value: bool) -> None:
