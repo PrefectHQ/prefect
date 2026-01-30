@@ -15,6 +15,12 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
+from tenacity import (
+    Retrying,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
@@ -703,27 +709,59 @@ class CloudRunWorkerV2(
     ):
         """
         Creates the Cloud Run job and waits for it to register.
+        Includes retry logic for transient errors (HTTP 500, 503, 429).
 
         Args:
             configuration: The configuration for the job.
             cr_client: The Cloud Run client.
             logger: The logger to use.
         """
-        try:
-            logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+        max_attempts = 3
+        retry_statuses = {500, 503, 429}
 
-            JobV2.create(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_id=configuration.job_name,
-                body=configuration.job_body,
-            )
+        def _is_transient_error(exc: Exception) -> bool:
+            return isinstance(exc, HttpError) and exc.status_code in retry_statuses
+
+        def _log_retry(retry_state) -> None:
+            exc = retry_state.outcome.exception()
+            if isinstance(exc, HttpError):
+                delay = retry_state.next_action.sleep
+                logger.warning(
+                    "Transient error (HTTP %s) when creating Cloud Run job. "
+                    "Retrying in %.2fs... (Attempt %s/%s)",
+                    exc.status_code,
+                    delay,
+                    retry_state.attempt_number,
+                    max_attempts,
+                )
+
+        retrying = Retrying(
+            reraise=True,
+            stop=stop_after_attempt(max_attempts),
+            wait=wait_exponential_jitter(initial=1.0, max=10.0),
+            retry=retry_if_exception(_is_transient_error),
+            before_sleep=_log_retry,
+            sleep=time.sleep,
+        )
+
+        try:
+            for attempt in retrying:
+                with attempt:
+                    logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+
+                    JobV2.create(
+                        cr_client=cr_client,
+                        project=configuration.project,
+                        location=configuration.region,
+                        job_id=configuration.job_name,
+                        body=configuration.job_body,
+                    )
         except HttpError as exc:
             self._create_job_error(
                 exc=exc,
                 configuration=configuration,
             )
+            raise
 
         try:
             self._wait_for_job_creation(
