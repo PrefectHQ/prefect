@@ -39,7 +39,66 @@ Example:
 
 ## Functions
 
-### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `adeploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1351" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adeploy(*deployments: RunnerDeployment) -> List[UUID]
+```
+
+
+Deploy the provided list of deployments to dynamic infrastructure via a
+work pool.
+
+By default, calling this function will build a Docker image for the deployments, push it to a
+registry, and create each deployment via the Prefect API that will run the corresponding
+flow on the given schedule.
+
+If you want to use an existing image, you can pass `build=False` to skip building and pushing
+an image.
+
+**Args:**
+- `*deployments`: A list of deployments to deploy.
+- `work_pool_name`: The name of the work pool to use for these deployments. Defaults to
+the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+- `image`: The name of the Docker image to build, including the registry and
+repository. Pass a DockerImage instance to customize the Dockerfile used
+and build arguments.
+- `build`: Whether or not to build a new image for the flow. If False, the provided
+image will be used as-is and pulled at runtime.
+- `push`: Whether or not to skip pushing the built image to a registry.
+- `print_next_steps_message`: Whether or not to print a message with next steps
+after deploying the deployments.
+
+**Returns:**
+- A list of deployment IDs for the created/updated deployments.
+
+**Examples:**
+
+Deploy a group of flows to a work pool:
+
+```python
+from prefect import deploy, flow
+
+@flow(log_prints=True)
+def local_flow():
+    print("I'm a locally defined flow!")
+
+if __name__ == "__main__":
+    await adeploy(
+        local_flow.to_deployment(name="example-deploy-local-flow"),
+        flow.from_source(
+            source="https://github.com/org/repo.git",
+            entrypoint="flows.py:my_flow",
+        ).to_deployment(
+            name="example-deploy-remote-flow",
+        ),
+        work_pool_name="my-work-pool",
+        image="my-registry/my-image:dev",
+    )
+```
+
+
+### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1590" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deploy(*deployments: RunnerDeployment) -> List[UUID]
@@ -140,7 +199,27 @@ available settings.
 
 **Methods:**
 
-#### `afrom_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L908" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aapply` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L666" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aapply(self, schedules: Optional[List[dict[str, Any]]] = None, work_pool_name: Optional[str] = None, image: Optional[str] = None, version_info: Optional[VersionInfo] = None) -> UUID
+```
+
+Registers this deployment with the API and returns the deployment's ID.
+
+**Args:**
+- `work_pool_name`: The name of the work pool to use for this
+deployment.
+- `image`: The registry, name, and tag of the Docker image to
+use for this deployment. Only used when the deployment is
+deployed to a work pool.
+- `version_info`: The version information to use for the deployment.
+
+Returns:
+    The ID of the created deployment.
+
+
+#### `afrom_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 afrom_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -185,7 +264,7 @@ available settings.
 - `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
 
-#### `apply` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L520" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `apply` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 apply(self, schedules: Optional[List[dict[str, Any]]] = None, work_pool_name: Optional[str] = None, image: Optional[str] = None, version_info: Optional[VersionInfo] = None) -> UUID
@@ -211,7 +290,7 @@ Returns:
 entrypoint_type(self) -> EntrypointType
 ```
 
-#### `from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L808" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1010" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_entrypoint(cls, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -249,7 +328,7 @@ available settings.
 - `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
 
-#### `from_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L668" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L870" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_flow(cls, flow: 'Flow[..., Any]', name: str, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -289,7 +368,7 @@ available settings.
 - `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
 
 
-#### `from_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1030" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_storage(cls, storage: RunnerStorage, entrypoint: str, name: str, flow_name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, timedelta]], int, float, timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
