@@ -19,6 +19,7 @@ from rich.color import Color, ColorType
 from rich.console import Console
 from rich.highlighter import NullHighlighter, ReprHighlighter
 from rich.style import Style
+from websockets.asyncio.client import ClientConnection
 
 import prefect
 import prefect.logging.configuration
@@ -1677,16 +1678,12 @@ class TestJsonFormatter:
         a placeholder representation instead of crashing while preserving
         valid serializable fields like timestamps and UUIDs.
         """
-        from uuid import UUID
-
-        from websockets.asyncio.client import ClientConnection
-
         formatter = JsonFormatter("default", None, "%")
 
         mock_connection = MagicMock(spec=ClientConnection)
         mock_connection.__class__ = ClientConnection
 
-        test_uuid = UUID("12345678-1234-5678-1234-567812345678")
+        test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
         test_timestamp = datetime.now()
 
         record = logging.LogRecord(
