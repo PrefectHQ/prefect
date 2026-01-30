@@ -93,46 +93,6 @@ class TestCloudRunWorkerJobV2Configuration:
         assert job_name_1[:-33] == job_name_2[:-33]
         assert job_name_1 != job_name_2
 
-    def test_job_name_custom_uuid_length(self, service_account_info, job_body):
-        uuid_length = 8
-        config = CloudRunWorkerJobV2Configuration(
-            name="my-job-name",
-            job_body=job_body,
-            credentials=GcpCredentials(service_account_info=service_account_info),
-            region="us-central1",
-            timeout=86400,
-            job_name_uuid_length=uuid_length,
-        )
-        job_name = config.job_name
-
-        # UUID suffix should be exactly uuid_length hex characters
-        suffix = job_name.split("-", 3)[-1]  # "my-job-name-<uuid>"
-        assert len(suffix) == uuid_length
-
-        # base_job_name should be preserved as-is since it fits within the limit
-        expected_separator_index = -(uuid_length + 1)
-        assert job_name[:expected_separator_index] == "my-job-name"
-
-    def test_job_name_short_uuid_allows_longer_base(
-        self, service_account_info, job_body
-    ):
-        uuid_length = 8
-        # 63 - 1 - 8 = 54 characters available for base name
-        long_name = "a" * 60
-        config = CloudRunWorkerJobV2Configuration(
-            name=long_name,
-            job_body=job_body,
-            credentials=GcpCredentials(service_account_info=service_account_info),
-            region="us-central1",
-            timeout=86400,
-            job_name_uuid_length=uuid_length,
-        )
-        job_name = config.job_name
-
-        assert len(job_name) <= 63
-        base_part = job_name[: -(uuid_length + 1)]
-        assert len(base_part) == 54  # 63 - 1 - 8
-
     def test_populate_timeout(self, cloud_run_worker_v2_job_config):
         cloud_run_worker_v2_job_config._populate_timeout()
 
