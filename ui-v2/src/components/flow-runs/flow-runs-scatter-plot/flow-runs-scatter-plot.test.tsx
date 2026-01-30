@@ -2,12 +2,12 @@ import { render, screen } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import { createFakeSimpleFlowRuns } from "@/mocks";
+import { FlowRunsScatterPlot } from "./flow-runs-scatter-plot";
 import {
 	createXAxisTickFormatter,
-	FlowRunsScatterPlot,
 	formatYAxisTick,
 	generateNiceTimeTicks,
-} from "./flow-runs-scatter-plot";
+} from "./scatter-plot-utils";
 
 describe("FlowRunsScatterPlot", () => {
 	it("renders the scatter plot when history data is provided", () => {
