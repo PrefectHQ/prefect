@@ -171,6 +171,20 @@ const formatYAxisTick = (value: number): string => {
 	return `${Math.ceil(value)}s`;
 };
 
+const generateTimeTicks = (
+	startMs: number,
+	endMs: number,
+	tickCount: number,
+): number[] => {
+	if (tickCount < 2) return [startMs];
+	const step = (endMs - startMs) / (tickCount - 1);
+	const ticks: number[] = [];
+	for (let i = 0; i < tickCount; i++) {
+		ticks.push(startMs + step * i);
+	}
+	return ticks;
+};
+
 const createXAxisTickFormatter = () => {
 	return (value: number): string => {
 		const date = new Date(value);
@@ -263,6 +277,11 @@ export const FlowRunsScatterPlot = ({
 	// Create memoized X-axis formatter
 	const formatXAxisTick = useMemo(() => createXAxisTickFormatter(), []);
 
+	// Generate explicit tick values for X-axis (similar to D3's tick generation)
+	const xAxisTicks = useMemo(() => {
+		return generateTimeTicks(xDomain[0], xDomain[1], 10);
+	}, [xDomain]);
+
 	if (history.length === 0) {
 		return null;
 	}
@@ -282,7 +301,7 @@ export const FlowRunsScatterPlot = ({
 						dataKey="x"
 						scale="time"
 						domain={xDomain}
-						tickCount={6}
+						ticks={xAxisTicks}
 						tickFormatter={formatXAxisTick}
 						tick={{ fontSize: 12 }}
 						tickLine={false}
