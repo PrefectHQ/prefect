@@ -178,6 +178,23 @@ async def test_cloud_client_can_connect_and_emit(
     assert recorder.events == [example_event_1]
 
 
+async def test_cloud_client_does_not_send_auth_handshake(
+    events_cloud_api_url: str, example_event_1: Event, recorder: Recorder
+):
+    """Regression test: PrefectCloudEventsClient authenticates via the
+    Authorization HTTP header, not the "prefect" subprotocol auth handshake.
+    If the client sends an auth handshake message, Prefect Cloud will close
+    the connection because it doesn't expect it."""
+    async with PrefectCloudEventsClient(events_cloud_api_url, "my-token") as client:
+        await client.emit(example_event_1)
+
+    # The recorder only sets the token attribute when the "prefect" subprotocol
+    # auth handshake occurs. If the Cloud client correctly skips the handshake,
+    # the token should never be set.
+    assert not hasattr(recorder, "token")
+    assert recorder.events == [example_event_1]
+
+
 async def test_reconnects_and_resends_after_hard_disconnect(
     Client: Type[PrefectEventsClient],
     example_event_1: Event,
