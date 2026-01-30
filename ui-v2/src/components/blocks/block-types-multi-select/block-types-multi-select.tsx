@@ -79,7 +79,7 @@ function BlockTypesMultiSelectImplementation({
 									onRemove={() => onRemoveBlockTypeSlug(blockType.slug)}
 								/>
 							))
-						: "Select blocks"}
+						: "Block type"}
 				</div>
 			</ComboboxTrigger>
 			<ComboboxContent>
@@ -100,7 +100,14 @@ function BlockTypesMultiSelectImplementation({
 									setSearch("");
 								}}
 								value={blockType.slug}
+								closeOnSelect={false}
 							>
+								<input
+									type="checkbox"
+									checked={selectedBlockTypesSlugs.includes(blockType.slug)}
+									readOnly
+									className="mr-2 pointer-events-none"
+								/>
 								{blockType.name}
 							</ComboboxCommandItem>
 						))}
