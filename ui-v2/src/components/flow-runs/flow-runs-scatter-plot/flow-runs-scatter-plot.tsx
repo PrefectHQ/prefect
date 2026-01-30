@@ -147,7 +147,7 @@ const FlowRunTooltip = ({ active, payload }: FlowRunTooltipProps) => {
 	);
 };
 
-const formatYAxisTick = (value: number): string => {
+export const formatYAxisTick = (value: number): string => {
 	if (value === 0) return "0s";
 	if (value < 1) return `${value.toFixed(2)}s`;
 
@@ -171,7 +171,7 @@ const formatYAxisTick = (value: number): string => {
 	return `${Math.ceil(value)}s`;
 };
 
-const TIME_INTERVALS = [
+export const TIME_INTERVALS = [
 	{ ms: 1000, name: "second" },
 	{ ms: 5 * 1000, name: "5seconds" },
 	{ ms: 15 * 1000, name: "15seconds" },
@@ -189,7 +189,7 @@ const TIME_INTERVALS = [
 	{ ms: 30 * 24 * 60 * 60 * 1000, name: "month" },
 ];
 
-const generateNiceTimeTicks = (
+export const generateNiceTimeTicks = (
 	startMs: number,
 	endMs: number,
 	targetTickCount: number,
@@ -220,7 +220,7 @@ const generateNiceTimeTicks = (
 	return ticks;
 };
 
-const createXAxisTickFormatter = () => {
+export const createXAxisTickFormatter = () => {
 	return (value: number): string => {
 		const date = new Date(value);
 
