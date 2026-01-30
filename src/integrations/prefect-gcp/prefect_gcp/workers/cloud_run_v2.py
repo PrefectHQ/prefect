@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import shlex
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, Final, List, Literal, Optional
 from uuid import uuid4
 
 from anyio.abc import TaskStatus
@@ -33,6 +33,9 @@ from prefect_gcp.utilities import slugify_name
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
+
+_CLOUD_RUN_JOB_NAME_MAX_LENGTH: Final[int] = 63
+_CLOUD_RUN_JOB_NAME_UUID_LENGTH: Final[int] = 7
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -165,8 +168,15 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             str: The name of the job.
         """
         if self._job_name is None:
-            base_job_name = slugify_name(self.name)
-            job_name = f"{base_job_name}-{uuid4().hex}"
+            base_job_name = slugify_name(
+                self.name,
+                max_length=_CLOUD_RUN_JOB_NAME_MAX_LENGTH
+                - 1
+                - _CLOUD_RUN_JOB_NAME_UUID_LENGTH,
+            )
+            job_name = (
+                f"{base_job_name}-{uuid4().hex[:_CLOUD_RUN_JOB_NAME_UUID_LENGTH]}"
+            )
             self._job_name = job_name
 
         return self._job_name

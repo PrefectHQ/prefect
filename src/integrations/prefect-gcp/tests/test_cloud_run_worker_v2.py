@@ -76,11 +76,11 @@ class TestCloudRunWorkerJobV2Configuration:
         assert cloud_run_worker_v2_job_config.project == "my_project"
 
     def test_job_name(self, cloud_run_worker_v2_job_config):
-        assert cloud_run_worker_v2_job_config.job_name[:-33] == "my-job-name"
+        assert cloud_run_worker_v2_job_config.job_name[:-8] == "my-job-name"
 
     def test_job_name_is_slug(self, cloud_run_worker_v2_job_config_noncompliant_name):
         assert cloud_run_worker_v2_job_config_noncompliant_name.job_name[
-            :-33
+            :-8
         ] == slugify_name("MY_JOB_NAME")
 
     def test_job_name_different_after_retry(self, cloud_run_worker_v2_job_config):
@@ -90,8 +90,22 @@ class TestCloudRunWorkerJobV2Configuration:
 
         job_name_2 = cloud_run_worker_v2_job_config.job_name
 
-        assert job_name_1[:-33] == job_name_2[:-33]
+        assert job_name_1[:-8] == job_name_2[:-8]
         assert job_name_1 != job_name_2
+
+    def test_job_name_preserves_long_base_name(self, service_account_info, job_body):
+        long_name = "a" * 60
+        config = CloudRunWorkerJobV2Configuration(
+            name=long_name,
+            job_body=job_body,
+            credentials=GcpCredentials(service_account_info=service_account_info),
+            region="us-central1",
+            timeout=86400,
+        )
+        job_name = config.job_name
+        assert len(job_name) <= 63
+        base_part = job_name[:-8]  # 7 UUID + 1 hyphen
+        assert len(base_part) == 55  # 63 - 1 - 7
 
     def test_populate_timeout(self, cloud_run_worker_v2_job_config):
         cloud_run_worker_v2_job_config._populate_timeout()
