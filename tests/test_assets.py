@@ -729,6 +729,10 @@ def test_fan_out_dependency(asserting_events_worker: EventsWorker):
                                    --> [M: s3://data/events_daily]
     [M: s3://data/events_raw]
                                    --> [M: s3://data/events_hourly]
+
+    IMPORTANT: Sibling assets (events_daily and events_hourly) should NOT
+    have each other in their related arrays - they only share the same
+    upstream parent, they are not dependencies of each other.
     """
     events_raw = Asset(key="s3://data/events_raw")
     events_daily = Asset(key="s3://data/events_daily")
@@ -785,6 +789,16 @@ def test_fan_out_dependency(asserting_events_worker: EventsWorker):
 
     assert _has_upstream_asset(daily_evt, events_raw.key)
     assert _has_upstream_asset(hourly_evt, events_raw.key)
+
+    # Verify sibling assets do NOT reference each other.
+    # In a fan-out pattern, the daily and hourly assets both depend on raw,
+    # but they should NOT have each other as dependencies.
+    assert not _has_upstream_asset(daily_evt, events_hourly.key), (
+        "daily should NOT have hourly as upstream"
+    )
+    assert not _has_upstream_asset(hourly_evt, events_daily.key), (
+        "hourly should NOT have daily as upstream"
+    )
 
     # Also check for flow-run context
     assert any(r.id.startswith("prefect.flow-run.") for r in daily_evt.related)
