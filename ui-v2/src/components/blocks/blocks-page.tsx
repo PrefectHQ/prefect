@@ -69,11 +69,13 @@ export const BlocksPage = ({
 									onChange={(e) => onSearch(e.target.value)}
 								/>
 							</div>
-							<BlockTypesMultiSelect
-								selectedBlockTypesSlugs={blockTypeSlugsFilter}
-								onToggleBlockTypeSlug={onToggleBlockTypeSlug}
-								onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
-							/>
+							<div className="min-w-64">
+								<BlockTypesMultiSelect
+									selectedBlockTypesSlugs={blockTypeSlugsFilter}
+									onToggleBlockTypeSlug={onToggleBlockTypeSlug}
+									onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
+								/>
+							</div>
 						</div>
 					</div>
 					<BlockDocumentsDataTable
