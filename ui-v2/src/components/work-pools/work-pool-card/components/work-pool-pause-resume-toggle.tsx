@@ -44,16 +44,11 @@ export const WorkPoolPauseResumeToggle = ({
 	};
 
 	return (
-		<span className="flex items-center gap-2">
-			<span className="text-sm text-muted-foreground">
-				{isPaused ? "Paused" : "Active"}
-			</span>
-			<Switch
-				checked={!isPaused}
-				onCheckedChange={handleTogglePause}
-				disabled={disabled}
-				aria-label={isPaused ? "Resume work pool" : "Pause work pool"}
-			/>
-		</span>
+		<Switch
+			checked={!isPaused}
+			onCheckedChange={handleTogglePause}
+			disabled={disabled}
+			aria-label={isPaused ? "Resume work pool" : "Pause work pool"}
+		/>
 	);
 };
