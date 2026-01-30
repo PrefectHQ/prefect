@@ -7,13 +7,13 @@ sidebarTitle: futures
 
 ## Functions
 
-### `as_completed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L507" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `as_completed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L520" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 as_completed(futures: list[PrefectFuture[R]], timeout: float | None = None) -> Generator[PrefectFuture[R], None]
 ```
 
-### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L558" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L571" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait(futures: list[PrefectFuture[R]], timeout: float | None = None) -> DoneAndNotDoneFutures[R]
@@ -51,7 +51,7 @@ def flow():
 ```
 
 
-### `resolve_futures_to_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L651" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_futures_to_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L664" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_futures_to_states(expr: PrefectFuture[R] | Any) -> PrefectFuture[R] | Any
@@ -65,7 +65,7 @@ Resolving futures to their final states may wait for execution to complete.
 Unsupported object types will be returned without modification.
 
 
-### `resolve_futures_to_results` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L672" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_futures_to_results` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L685" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_futures_to_results(expr: PrefectFuture[R] | Any) -> Any
@@ -81,7 +81,7 @@ Unsupported object types will be returned without modification.
 
 ## Classes
 
-### `PrefectFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Abstract base class for Prefect futures. A Prefect future is a handle to the
@@ -91,7 +91,7 @@ to complete and to retrieve the result of the run.
 
 **Methods:**
 
-#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_done_callback(self, fn: Callable[['PrefectFuture[R]'], None]) -> None
@@ -103,13 +103,13 @@ Add a callback to be run when the future completes or is cancelled.
 - `fn`: A callable that will be called with this future as its only argument when the future completes or is cancelled.
 
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
 ```
 
-#### `state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 state(self) -> State
@@ -118,7 +118,7 @@ state(self) -> State
 The current state of the task run associated with this future
 
 
-#### `task_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `task_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 task_run_id(self) -> uuid.UUID
@@ -127,13 +127,13 @@ task_run_id(self) -> uuid.UUID
 The ID of the task run associated with this future
 
 
-#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait(self, timeout: float | None = None) -> None
 ```
 
-### `PrefectTaskRunFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectTaskRunFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect future that represents the eventual execution of a task run.
@@ -141,7 +141,7 @@ A Prefect future that represents the eventual execution of a task run.
 
 **Methods:**
 
-#### `state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 state(self) -> State
@@ -150,7 +150,7 @@ state(self) -> State
 The current state of the task run associated with this future
 
 
-#### `task_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `task_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L141" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 task_run_id(self) -> uuid.UUID
@@ -159,7 +159,7 @@ task_run_id(self) -> uuid.UUID
 The ID of the task run associated with this future
 
 
-### `PrefectWrappedFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectWrappedFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect future that wraps another future object.
@@ -167,7 +167,7 @@ A Prefect future that wraps another future object.
 
 **Methods:**
 
-#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None
@@ -176,7 +176,7 @@ add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None
 Add a callback to be executed when the future completes.
 
 
-#### `wrapped_future` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L173" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wrapped_future` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wrapped_future(self) -> F
@@ -185,7 +185,7 @@ wrapped_future(self) -> F
 The underlying future object wrapped by this Prefect future
 
 
-### `PrefectConcurrentFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectConcurrentFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect future that wraps a concurrent.futures.Future. This future is used
@@ -194,19 +194,19 @@ when the task run is submitted to a ThreadPoolExecutor.
 
 **Methods:**
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
 ```
 
-#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait(self, timeout: float | None = None) -> None
 ```
 
-### `PrefectDistributedFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L229" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectDistributedFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L230" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Represents the result of a computation happening anywhere.
@@ -218,37 +218,37 @@ any task run scheduled in Prefect's API.
 
 **Methods:**
 
-#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L319" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None
 ```
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L289" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
 ```
 
-#### `result_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result_async(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
 ```
 
-#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait(self, timeout: float | None = None) -> None
 ```
 
-#### `wait_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_async(self, timeout: float | None = None) -> None
 ```
 
-### `PrefectFlowRunFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L341" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectFlowRunFuture` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect future that represents the eventual execution of a flow run.
@@ -256,19 +256,19 @@ A Prefect future that represents the eventual execution of a flow run.
 
 **Methods:**
 
-#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L434" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_done_callback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None
 ```
 
-#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L420" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aresult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aresult(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
 ```
 
-#### `flow_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L351" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L352" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run_id(self) -> uuid.UUID
@@ -277,13 +277,13 @@ flow_run_id(self) -> uuid.UUID
 The ID of the flow run associated with this future
 
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L411" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self, timeout: float | None = None, raise_on_failure: bool = True) -> R
 ```
 
-#### `state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 state(self) -> State
@@ -292,19 +292,19 @@ state(self) -> State
 The current state of the flow run associated with this future
 
 
-#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait(self, timeout: float | None = None) -> None
 ```
 
-#### `wait_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_async(self, timeout: float | None = None) -> None
 ```
 
-### `PrefectFutureList` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectFutureList` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A list of Prefect futures.
@@ -315,7 +315,7 @@ in the list to complete and to retrieve the results of all task runs.
 
 **Methods:**
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L487" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self: Self, timeout: float | None = None, raise_on_failure: bool = True) -> list[R]
@@ -335,7 +335,7 @@ complete.
 - `TimeoutError`: If the timeout is reached before all futures complete.
 
 
-#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L464" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait(self, timeout: float | None = None) -> None
@@ -348,7 +348,7 @@ Wait for all futures in the list to complete.
 complete. This method will not raise if the timeout is reached.
 
 
-### `DoneAndNotDoneFutures` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L548" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DoneAndNotDoneFutures` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/futures.py#L561" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A named 2-tuple of sets.
