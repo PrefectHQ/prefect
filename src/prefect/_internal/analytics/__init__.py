@@ -5,8 +5,6 @@ This module contains internal functions that should not be used directly.
 Use the public API from prefect.analytics instead.
 """
 
-import logging
-
 from prefect._internal.analytics.emit import (
     _is_interactive_terminal,
     emit_integration_event,
@@ -18,8 +16,6 @@ from prefect._internal.analytics.milestones import (
     try_mark_milestone,
 )
 from prefect._internal.analytics.notice import maybe_show_telemetry_notice
-
-logger: logging.Logger = logging.getLogger("prefect.sdk_analytics")
 
 # Track initialization state
 _telemetry_initialized = False
@@ -53,7 +49,6 @@ def initialize_analytics() -> None:
     # Only emit onboarding events in interactive terminals
     # This prevents deployed flow runs from being counted as new users
     if not _is_interactive_terminal():
-        logger.debug("Non-interactive terminal, skipping onboarding events")
         return
 
     try:
@@ -63,7 +58,6 @@ def initialize_analytics() -> None:
 
         # Don't emit onboarding events for existing users
         if is_existing_user:
-            logger.debug("Existing Prefect user detected, skipping onboarding events")
             return
 
         # Show first-run notice (only in interactive terminals)
@@ -72,8 +66,8 @@ def initialize_analytics() -> None:
         # Emit first_sdk_import event for new users only (tracked as a milestone
         # so it is only emitted once per installation)
         try_mark_milestone("first_sdk_import")
-    except Exception as exc:
-        logger.debug(f"Failed to initialize SDK analytics: {exc}")
+    except Exception:
+        pass  # Silently ignore initialization errors
 
 
 __all__ = [

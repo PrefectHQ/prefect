@@ -2,15 +2,12 @@
 Event emission for SDK analytics.
 """
 
-import logging
 import sys
 from typing import Any
 
 from prefect._internal.analytics.device_id import get_or_create_device_id
 from prefect._internal.analytics.events import SDKEvent
 from prefect._internal.analytics.service import AnalyticsEvent, AnalyticsService
-
-logger = logging.getLogger("prefect.sdk_analytics")
 
 
 def _is_interactive_terminal() -> bool:
@@ -47,8 +44,7 @@ def emit_sdk_event(
         )
         AnalyticsService.instance().enqueue(event)
         return True
-    except Exception as exc:
-        logger.debug(f"Failed to emit SDK event {event_name}: {exc}")
+    except Exception:
         return False
 
 
@@ -90,8 +86,5 @@ def emit_integration_event(
         )
         AnalyticsService.instance().enqueue(event)
         return True
-    except Exception as exc:
-        logger.debug(
-            f"Failed to emit integration event {integration}:{event_name}: {exc}"
-        )
+    except Exception:
         return False

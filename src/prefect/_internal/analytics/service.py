@@ -7,7 +7,6 @@ once per process, off the main thread.
 """
 
 import atexit
-import logging
 import os
 import queue
 import threading
@@ -16,8 +15,6 @@ from typing import Any, ClassVar
 
 from prefect._internal.analytics.ci_detection import is_ci_environment
 from prefect._internal.analytics.client import track_event
-
-logger = logging.getLogger("prefect.sdk_analytics")
 
 
 @dataclass
@@ -95,7 +92,7 @@ class AnalyticsService:
         try:
             self._queue.put_nowait(event)
         except queue.Full:
-            logger.debug("Analytics queue full, dropping event")
+            pass  # Drop event silently if queue is full
 
     def _quick_enabled_check(self) -> bool:
         """
@@ -150,11 +147,10 @@ class AnalyticsService:
                     self._queue.task_done()
                 except queue.Empty:
                     continue
-                except Exception as exc:
-                    logger.debug(f"Error processing analytics event: {exc}")
+                except Exception:
+                    pass  # Silently ignore processing errors
 
-        except Exception as exc:
-            logger.debug(f"Analytics service error: {exc}")
+        except Exception:
             self._analytics_checked.set()
 
     def _check_server_analytics(self) -> bool:
@@ -178,9 +174,7 @@ class AnalyticsService:
                 response = client.request("GET", "/admin/settings")
                 response.raise_for_status()
                 server_settings = response.json()
-                return server_settings.get("server", {}).get(
-                    "analytics_enabled", False
-                )
+                return server_settings.get("server", {}).get("analytics_enabled", False)
         except Exception:
             return False
 
@@ -201,8 +195,8 @@ class AnalyticsService:
                 device_id=event.device_id,
                 extra_properties=event.extra_properties,
             )
-        except Exception as exc:
-            logger.debug(f"Failed to track event {event.event_name}: {exc}")
+        except Exception:
+            pass  # Silently ignore tracking errors
 
     def shutdown(self, timeout: float = 2.0) -> None:
         """

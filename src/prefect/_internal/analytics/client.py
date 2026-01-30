@@ -13,8 +13,6 @@ from amplitude import Amplitude, BaseEvent, Config
 
 import prefect
 
-logger = logging.getLogger("prefect.sdk_analytics")
-
 # Amplitude API key for SDK telemetry
 # This is a write-only key that can only send events, not read data
 try:
@@ -56,6 +54,10 @@ def _initialize_client() -> bool:
         return False
 
     try:
+        # Create a silent logger for Amplitude to prevent SDK errors from reaching users
+        amplitude_logger = logging.getLogger("amplitude")
+        amplitude_logger.setLevel(logging.CRITICAL)
+
         config = Config(
             # Flush events after a short delay to avoid blocking
             flush_interval_millis=10000,  # 10 seconds
@@ -70,8 +72,7 @@ def _initialize_client() -> bool:
         atexit.register(_shutdown_client)
 
         return True
-    except Exception as exc:
-        logger.debug(f"Failed to initialize Amplitude client: {exc}")
+    except Exception:
         return False
 
 
@@ -118,8 +119,7 @@ def track_event(
         )
         _amplitude_client.track(event)
         return True
-    except Exception as exc:
-        logger.debug(f"Failed to track event {event_name}: {exc}")
+    except Exception:
         return False
 
 
