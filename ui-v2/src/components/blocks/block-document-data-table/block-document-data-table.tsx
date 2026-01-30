@@ -24,7 +24,7 @@ const createColumns = ({
 	onDelete: (blockDocument: BlockDocument) => void;
 }) => [
 	columnHelper.display({
-		size: 20,
+		maxSize: 10,
 		id: "select",
 		header: ({ table }) => {
 			let checkedState: CheckedState = false;
