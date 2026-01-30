@@ -341,20 +341,21 @@ async def events_server(
             await outgoing_events(socket)
 
     async def incoming_events(socket: ServerConnection):
-        # 1. authentication (always required, matching server behavior)
-        auth_message = json.loads(await socket.recv())
+        # 1. authentication (required when using the "prefect" subprotocol)
+        if socket.subprotocol == "prefect":
+            auth_message = json.loads(await socket.recv())
 
-        assert auth_message["type"] == "auth"
-        recorder.token = auth_message["token"]
-        if puppeteer.token is not None and puppeteer.token != recorder.token:
-            if not puppeteer.hard_auth_failure:
-                await socket.send(
-                    json.dumps({"type": "auth_failure", "reason": "nope"})
-                )
-            await socket.close(WS_1008_POLICY_VIOLATION)
-            return
+            assert auth_message["type"] == "auth"
+            recorder.token = auth_message["token"]
+            if puppeteer.token is not None and puppeteer.token != recorder.token:
+                if not puppeteer.hard_auth_failure:
+                    await socket.send(
+                        json.dumps({"type": "auth_failure", "reason": "nope"})
+                    )
+                await socket.close(WS_1008_POLICY_VIOLATION)
+                return
 
-        await socket.send(json.dumps({"type": "auth_success"}))
+            await socket.send(json.dumps({"type": "auth_success"}))
 
         # 2. receive events
         while True:
