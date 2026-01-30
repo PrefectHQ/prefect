@@ -170,10 +170,14 @@ class TestAnalyticsService:
         """When no API URL is configured, should read the local analytics setting."""
         service = AnalyticsService()
 
-        mock_settings = type("Settings", (), {
-            "api": type("API", (), {"url": None})(),
-            "server": type("Server", (), {"analytics_enabled": True})(),
-        })()
+        mock_settings = type(
+            "Settings",
+            (),
+            {
+                "api": type("API", (), {"url": None})(),
+                "server": type("Server", (), {"analytics_enabled": True})(),
+            },
+        )()
 
         with patch(
             "prefect.settings.context.get_current_settings",
@@ -188,10 +192,14 @@ class TestAnalyticsService:
         """When no API URL is configured and analytics is disabled locally, should return False."""
         service = AnalyticsService()
 
-        mock_settings = type("Settings", (), {
-            "api": type("API", (), {"url": None})(),
-            "server": type("Server", (), {"analytics_enabled": False})(),
-        })()
+        mock_settings = type(
+            "Settings",
+            (),
+            {
+                "api": type("API", (), {"url": None})(),
+                "server": type("Server", (), {"analytics_enabled": False})(),
+            },
+        )()
 
         with patch(
             "prefect.settings.context.get_current_settings",
@@ -206,25 +214,40 @@ class TestAnalyticsService:
         """Server analytics check should return True when server has analytics enabled."""
         service = AnalyticsService()
 
-        mock_settings = type("Settings", (), {
-            "api": type("API", (), {"url": "http://localhost:4200/api"})(),
-        })()
-        mock_response = type("Response", (), {
-            "raise_for_status": lambda self: None,
-            "json": lambda self: {"server": {"analytics_enabled": True}},
-        })()
-        mock_client = type("Client", (), {
-            "request": lambda self, method, path: mock_response,
-            "__enter__": lambda self: self,
-            "__exit__": lambda self, *args: None,
-        })()
+        mock_settings = type(
+            "Settings",
+            (),
+            {
+                "api": type("API", (), {"url": "http://localhost:4200/api"})(),
+            },
+        )()
+        mock_response = type(
+            "Response",
+            (),
+            {
+                "raise_for_status": lambda self: None,
+                "json": lambda self: {"server": {"analytics_enabled": True}},
+            },
+        )()
+        mock_client = type(
+            "Client",
+            (),
+            {
+                "request": lambda self, method, path: mock_response,
+                "__enter__": lambda self: self,
+                "__exit__": lambda self, *args: None,
+            },
+        )()
 
-        with patch(
-            "prefect.settings.context.get_current_settings",
-            return_value=mock_settings,
-        ), patch(
-            "prefect.client.orchestration.get_client",
-            return_value=mock_client,
+        with (
+            patch(
+                "prefect.settings.context.get_current_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "prefect.client.orchestration.get_client",
+                return_value=mock_client,
+            ),
         ):
             result = service._check_server_analytics()
             assert result is True
@@ -233,16 +256,23 @@ class TestAnalyticsService:
         """Server analytics check should return False on error."""
         service = AnalyticsService()
 
-        mock_settings = type("Settings", (), {
-            "api": type("API", (), {"url": "http://localhost:4200/api"})(),
-        })()
+        mock_settings = type(
+            "Settings",
+            (),
+            {
+                "api": type("API", (), {"url": "http://localhost:4200/api"})(),
+            },
+        )()
 
-        with patch(
-            "prefect.settings.context.get_current_settings",
-            return_value=mock_settings,
-        ), patch(
-            "prefect.client.orchestration.get_client",
-            side_effect=Exception("Connection error"),
+        with (
+            patch(
+                "prefect.settings.context.get_current_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "prefect.client.orchestration.get_client",
+                side_effect=Exception("Connection error"),
+            ),
         ):
             result = service._check_server_analytics()
             assert result is False
@@ -253,25 +283,40 @@ class TestAnalyticsService:
         """Server analytics check should return False when server has analytics disabled."""
         service = AnalyticsService()
 
-        mock_settings = type("Settings", (), {
-            "api": type("API", (), {"url": "http://localhost:4200/api"})(),
-        })()
-        mock_response = type("Response", (), {
-            "raise_for_status": lambda self: None,
-            "json": lambda self: {"server": {"analytics_enabled": False}},
-        })()
-        mock_client = type("Client", (), {
-            "request": lambda self, method, path: mock_response,
-            "__enter__": lambda self: self,
-            "__exit__": lambda self, *args: None,
-        })()
+        mock_settings = type(
+            "Settings",
+            (),
+            {
+                "api": type("API", (), {"url": "http://localhost:4200/api"})(),
+            },
+        )()
+        mock_response = type(
+            "Response",
+            (),
+            {
+                "raise_for_status": lambda self: None,
+                "json": lambda self: {"server": {"analytics_enabled": False}},
+            },
+        )()
+        mock_client = type(
+            "Client",
+            (),
+            {
+                "request": lambda self, method, path: mock_response,
+                "__enter__": lambda self: self,
+                "__exit__": lambda self, *args: None,
+            },
+        )()
 
-        with patch(
-            "prefect.settings.context.get_current_settings",
-            return_value=mock_settings,
-        ), patch(
-            "prefect.client.orchestration.get_client",
-            return_value=mock_client,
+        with (
+            patch(
+                "prefect.settings.context.get_current_settings",
+                return_value=mock_settings,
+            ),
+            patch(
+                "prefect.client.orchestration.get_client",
+                return_value=mock_client,
+            ),
         ):
             result = service._check_server_analytics()
             assert result is False

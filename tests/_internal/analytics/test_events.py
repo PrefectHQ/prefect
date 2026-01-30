@@ -146,9 +146,7 @@ class TestAnalyticsInitialization:
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch(
-                "prefect._internal.analytics.try_mark_milestone"
-            ) as mock_milestone,
+            patch("prefect._internal.analytics.try_mark_milestone") as mock_milestone,
             patch("prefect._internal.analytics.maybe_show_telemetry_notice"),
         ):
             import prefect._internal.analytics
@@ -170,9 +168,7 @@ class TestAnalyticsInitialization:
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch(
-                "prefect._internal.analytics.try_mark_milestone"
-            ) as mock_milestone,
+            patch("prefect._internal.analytics.try_mark_milestone") as mock_milestone,
             patch("prefect._internal.analytics.maybe_show_telemetry_notice"),
         ):
             import prefect._internal.analytics
@@ -224,9 +220,7 @@ class TestAnalyticsInitialization:
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch(
-                "prefect._internal.analytics.try_mark_milestone"
-            ) as mock_milestone,
+            patch("prefect._internal.analytics.try_mark_milestone") as mock_milestone,
             patch(
                 "prefect._internal.analytics.maybe_show_telemetry_notice"
             ) as mock_notice,
@@ -255,9 +249,7 @@ class TestAnalyticsInitialization:
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch(
-                "prefect._internal.analytics.try_mark_milestone"
-            ) as mock_milestone,
+            patch("prefect._internal.analytics.try_mark_milestone") as mock_milestone,
             patch(
                 "prefect._internal.analytics.maybe_show_telemetry_notice"
             ) as mock_notice,
