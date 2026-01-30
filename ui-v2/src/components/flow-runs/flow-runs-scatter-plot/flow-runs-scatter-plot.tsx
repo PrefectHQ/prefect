@@ -203,10 +203,7 @@ export const FlowRunsScatterPlot = ({
 	}
 
 	return (
-		<div
-			className="hidden md:block w-full h-[275px]"
-			data-testid="scatter-plot"
-		>
+		<div className="hidden md:block w-full h-72" data-testid="scatter-plot">
 			<ResponsiveContainer width="100%" height="100%">
 				<ScatterChart>
 					<CartesianGrid
