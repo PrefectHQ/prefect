@@ -16,6 +16,7 @@ from prefect._internal.analytics.emit import _is_interactive_terminal, emit_sdk_
 from prefect.settings import get_current_settings
 
 MilestoneName = Literal[
+    "first_sdk_import",
     "first_flow_defined",
     "first_flow_run",
     "first_deployment_created",
@@ -24,6 +25,7 @@ MilestoneName = Literal[
 
 # All milestone names for pre-marking existing users
 ALL_MILESTONES: list[MilestoneName] = [
+    "first_sdk_import",
     "first_flow_defined",
     "first_flow_run",
     "first_deployment_created",

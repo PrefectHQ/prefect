@@ -54,7 +54,7 @@ class TestAmplitudeClient:
 
         # The default API key is a placeholder, so initialization should fail
         result = track_event(
-            event_name="sdk_imported",
+            event_name="first_sdk_import",
             device_id="test-device-id",
         )
 
@@ -76,7 +76,7 @@ class TestAmplitudeClient:
                 client_module, "Amplitude", return_value=mock_client
             ) as mock_amplitude_class:
                 result = client_module.track_event(
-                    event_name="sdk_imported",
+                    event_name="first_sdk_import",
                     device_id="test-device-id",
                 )
 
@@ -104,7 +104,7 @@ class TestAmplitudeClient:
 
             with patch.object(client_module, "Amplitude", return_value=mock_client):
                 client_module.track_event(
-                    event_name="sdk_imported",
+                    event_name="first_sdk_import",
                     device_id="test-device-id",
                     extra_properties={"custom_key": "custom_value"},
                 )
@@ -127,7 +127,7 @@ class TestAmplitudeClient:
             ):
                 # Should not raise
                 result = client_module.track_event(
-                    event_name="sdk_imported",
+                    event_name="first_sdk_import",
                     device_id="test-device-id",
                 )
 

@@ -26,13 +26,13 @@ class TestEventEmission:
         ):
             from prefect._internal.analytics import emit_sdk_event
 
-            result = emit_sdk_event("sdk_imported")
+            result = emit_sdk_event("first_sdk_import")
 
             assert result is True
             mock_service.enqueue.assert_called_once()
             event = mock_service.enqueue.call_args[0][0]
             assert isinstance(event, AnalyticsEvent)
-            assert event.event_name == "sdk_imported"
+            assert event.event_name == "first_sdk_import"
 
     def test_emit_sdk_event_with_extra_properties(
         self, clean_telemetry_state: Path, telemetry_enabled
@@ -46,7 +46,7 @@ class TestEventEmission:
         ):
             from prefect._internal.analytics import emit_sdk_event
 
-            emit_sdk_event("sdk_imported", extra_properties={"key": "value"})
+            emit_sdk_event("first_sdk_import", extra_properties={"key": "value"})
 
             event = mock_service.enqueue.call_args[0][0]
             assert event.extra_properties == {"key": "value"}
@@ -62,7 +62,7 @@ class TestEventEmission:
             from prefect._internal.analytics import emit_sdk_event
 
             # Should not raise
-            result = emit_sdk_event("sdk_imported")
+            result = emit_sdk_event("first_sdk_import")
 
             assert result is False
 
@@ -84,7 +84,7 @@ class TestEventEmission:
         ):
             from prefect._internal.analytics import emit_sdk_event
 
-            emit_sdk_event("sdk_imported")
+            emit_sdk_event("first_sdk_import")
 
             event = mock_service.enqueue.call_args[0][0]
             assert event.device_id == "test-device-id"
@@ -140,13 +140,15 @@ class TestAnalyticsInitialization:
     def test_initialize_analytics_enabled(
         self, clean_telemetry_state: Path, telemetry_enabled
     ):
-        """initialize_analytics should emit sdk_imported when enabled."""
+        """initialize_analytics should mark sdk_imported milestone when enabled."""
         with (
             patch(
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch(
+                "prefect._internal.analytics.try_mark_milestone"
+            ) as mock_milestone,
             patch("prefect._internal.analytics.maybe_show_telemetry_notice"),
         ):
             import prefect._internal.analytics
@@ -157,7 +159,7 @@ class TestAnalyticsInitialization:
 
             initialize_analytics()
 
-            mock_emit.assert_called_once_with("sdk_imported")
+            mock_milestone.assert_called_once_with("first_sdk_import")
 
     def test_initialize_analytics_only_once(
         self, clean_telemetry_state: Path, telemetry_enabled
@@ -168,7 +170,9 @@ class TestAnalyticsInitialization:
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch(
+                "prefect._internal.analytics.try_mark_milestone"
+            ) as mock_milestone,
             patch("prefect._internal.analytics.maybe_show_telemetry_notice"),
         ):
             import prefect._internal.analytics
@@ -181,7 +185,7 @@ class TestAnalyticsInitialization:
             initialize_analytics()  # Second call
 
             # Should only be called once
-            mock_emit.assert_called_once()
+            mock_milestone.assert_called_once()
 
     def test_initialize_analytics_shows_notice(
         self, clean_telemetry_state: Path, telemetry_enabled
@@ -192,7 +196,7 @@ class TestAnalyticsInitialization:
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event"),
+            patch("prefect._internal.analytics.try_mark_milestone"),
             patch(
                 "prefect._internal.analytics.maybe_show_telemetry_notice"
             ) as mock_notice,
@@ -220,7 +224,9 @@ class TestAnalyticsInitialization:
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch(
+                "prefect._internal.analytics.try_mark_milestone"
+            ) as mock_milestone,
             patch(
                 "prefect._internal.analytics.maybe_show_telemetry_notice"
             ) as mock_notice,
@@ -233,15 +239,15 @@ class TestAnalyticsInitialization:
 
             initialize_analytics()
 
-            # Should not emit sdk_imported for existing users
-            mock_emit.assert_not_called()
+            # Should not try to mark milestone for existing users
+            mock_milestone.assert_not_called()
             # Should not show notice for existing users
             mock_notice.assert_not_called()
 
     def test_initialize_analytics_emits_for_new_user(
         self, clean_telemetry_state: Path, telemetry_enabled
     ):
-        """initialize_analytics should emit events for new users."""
+        """initialize_analytics should mark sdk_imported milestone for new users."""
         # No existing user indicators - this is a new user
 
         with (
@@ -249,7 +255,9 @@ class TestAnalyticsInitialization:
                 "prefect._internal.analytics._is_interactive_terminal",
                 return_value=True,
             ),
-            patch("prefect._internal.analytics.emit_sdk_event") as mock_emit,
+            patch(
+                "prefect._internal.analytics.try_mark_milestone"
+            ) as mock_milestone,
             patch(
                 "prefect._internal.analytics.maybe_show_telemetry_notice"
             ) as mock_notice,
@@ -262,8 +270,8 @@ class TestAnalyticsInitialization:
 
             initialize_analytics()
 
-            # Should emit sdk_imported for new users
-            mock_emit.assert_called_once_with("sdk_imported")
+            # Should mark sdk_imported milestone for new users
+            mock_milestone.assert_called_once_with("first_sdk_import")
             # Should show notice for new users
             mock_notice.assert_called_once()
 

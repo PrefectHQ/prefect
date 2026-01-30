@@ -14,11 +14,8 @@ import threading
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-import httpx
-
 from prefect._internal.analytics.ci_detection import is_ci_environment
 from prefect._internal.analytics.client import track_event
-from prefect.settings import PREFECT_API_URL
 
 logger = logging.getLogger("prefect.sdk_analytics")
 
@@ -164,18 +161,26 @@ class AnalyticsService:
         """
         Check if the server has analytics enabled.
 
-        Uses a 5-second timeout since this runs in a background thread.
-        Returns False if the server is unreachable or has analytics disabled.
+        When no API URL is configured, reads the local setting directly.
+        When an API URL is set, queries the remote server using the Prefect client.
         """
-        api_url = PREFECT_API_URL.value()
+        from prefect.settings.context import get_current_settings
+
+        settings = get_current_settings()
+        api_url = settings.api.url
         if not api_url:
-            return False
+            return settings.server.analytics_enabled
 
         try:
-            response = httpx.get(f"{api_url}/admin/settings", timeout=5.0)
-            response.raise_for_status()
-            settings = response.json()
-            return settings.get("server", {}).get("analytics_enabled", False)
+            from prefect.client.orchestration import get_client
+
+            with get_client(sync_client=True) as client:
+                response = client.request("GET", "/admin/settings")
+                response.raise_for_status()
+                server_settings = response.json()
+                return server_settings.get("server", {}).get(
+                    "analytics_enabled", False
+                )
         except Exception:
             return False
 

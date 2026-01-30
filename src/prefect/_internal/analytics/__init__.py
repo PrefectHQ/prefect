@@ -32,7 +32,7 @@ def initialize_analytics() -> None:
     This function:
     1. Checks if telemetry is enabled (quick local checks only - non-blocking)
     2. Detects existing users and pre-marks their milestones (no events emitted)
-    3. For new users: shows the first-run notice and emits sdk_imported
+    3. For new users: shows the first-run notice and emits first_sdk_import
 
     Onboarding events are only emitted in interactive terminals to avoid
     tracking deployed flow runs (e.g., Kubernetes jobs) as new users.
@@ -69,9 +69,9 @@ def initialize_analytics() -> None:
         # Show first-run notice (only in interactive terminals)
         maybe_show_telemetry_notice()
 
-        # Emit sdk_imported event for new users only
-        # This is now non-blocking - event is queued to background service
-        emit_sdk_event("sdk_imported")
+        # Emit first_sdk_import event for new users only (tracked as a milestone
+        # so it is only emitted once per installation)
+        try_mark_milestone("first_sdk_import")
     except Exception as exc:
         logger.debug(f"Failed to initialize SDK analytics: {exc}")
 

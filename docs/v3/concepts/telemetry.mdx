@@ -12,7 +12,7 @@ Prefect SDK telemetry tracks anonymous usage patterns to understand how develope
 
 | Data | Example | Purpose |
 |------|---------|---------|
-| Events | `sdk_imported`, `first_flow_run` | Track feature adoption |
+| Events | `first_sdk_import`, `first_flow_run` | Track feature adoption |
 | Prefect version | `3.2.0` | Version distribution |
 | Python version | `3.12.1` | Compatibility planning |
 | Platform | `Darwin`, `Linux`, `Windows` | Platform support |
@@ -23,7 +23,7 @@ Prefect SDK telemetry tracks anonymous usage patterns to understand how develope
 
 The SDK tracks milestone events in the "Quick Start Funnel":
 
-- `sdk_imported` - When Prefect is first imported
+- `first_sdk_import` - When Prefect is first imported in an interactive terminal
 - `first_flow_defined` - When you define your first flow
 - `first_flow_run` - When you successfully run your first flow
 - `first_deployment_created` - When you create your first deployment

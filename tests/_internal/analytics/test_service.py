@@ -164,50 +164,116 @@ class TestAnalyticsService:
 
                 service.shutdown(timeout=0.5)
 
-    def test_server_check_uses_5_second_timeout(self, clean_telemetry_state: Path):
-        """Server analytics check should use 5-second timeout."""
+    def test_server_check_reads_local_setting_when_no_api_url(
+        self, clean_telemetry_state: Path
+    ):
+        """When no API URL is configured, should read the local analytics setting."""
         service = AnalyticsService()
 
-        with patch("prefect._internal.analytics.service.httpx.get") as mock_get:
-            with patch(
-                "prefect._internal.analytics.service.PREFECT_API_URL"
-            ) as mock_url:
-                mock_url.value.return_value = "http://localhost:4200/api"
+        mock_settings = type("Settings", (), {
+            "api": type("API", (), {"url": None})(),
+            "server": type("Server", (), {"analytics_enabled": True})(),
+        })()
 
-                service._check_server_analytics()
+        with patch(
+            "prefect.settings.context.get_current_settings",
+            return_value=mock_settings,
+        ):
+            result = service._check_server_analytics()
+            assert result is True
 
-                mock_get.assert_called_once()
-                call_kwargs = mock_get.call_args[1]
-                assert call_kwargs["timeout"] == 5.0
+    def test_server_check_reads_local_setting_disabled_when_no_api_url(
+        self, clean_telemetry_state: Path
+    ):
+        """When no API URL is configured and analytics is disabled locally, should return False."""
+        service = AnalyticsService()
+
+        mock_settings = type("Settings", (), {
+            "api": type("API", (), {"url": None})(),
+            "server": type("Server", (), {"analytics_enabled": False})(),
+        })()
+
+        with patch(
+            "prefect.settings.context.get_current_settings",
+            return_value=mock_settings,
+        ):
+            result = service._check_server_analytics()
+            assert result is False
+
+    def test_server_check_returns_true_when_analytics_enabled(
+        self, clean_telemetry_state: Path
+    ):
+        """Server analytics check should return True when server has analytics enabled."""
+        service = AnalyticsService()
+
+        mock_settings = type("Settings", (), {
+            "api": type("API", (), {"url": "http://localhost:4200/api"})(),
+        })()
+        mock_response = type("Response", (), {
+            "raise_for_status": lambda self: None,
+            "json": lambda self: {"server": {"analytics_enabled": True}},
+        })()
+        mock_client = type("Client", (), {
+            "request": lambda self, method, path: mock_response,
+            "__enter__": lambda self: self,
+            "__exit__": lambda self, *args: None,
+        })()
+
+        with patch(
+            "prefect.settings.context.get_current_settings",
+            return_value=mock_settings,
+        ), patch(
+            "prefect.client.orchestration.get_client",
+            return_value=mock_client,
+        ):
+            result = service._check_server_analytics()
+            assert result is True
 
     def test_server_check_returns_false_on_error(self, clean_telemetry_state: Path):
         """Server analytics check should return False on error."""
         service = AnalyticsService()
 
+        mock_settings = type("Settings", (), {
+            "api": type("API", (), {"url": "http://localhost:4200/api"})(),
+        })()
+
         with patch(
-            "prefect._internal.analytics.service.httpx.get",
+            "prefect.settings.context.get_current_settings",
+            return_value=mock_settings,
+        ), patch(
+            "prefect.client.orchestration.get_client",
             side_effect=Exception("Connection error"),
         ):
-            with patch(
-                "prefect._internal.analytics.service.PREFECT_API_URL"
-            ) as mock_url:
-                mock_url.value.return_value = "http://localhost:4200/api"
+            result = service._check_server_analytics()
+            assert result is False
 
-                result = service._check_server_analytics()
-
-                assert result is False
-
-    def test_server_check_returns_false_when_no_api_url(
+    def test_server_check_returns_false_when_analytics_disabled(
         self, clean_telemetry_state: Path
     ):
-        """Server analytics check should return False when no API URL is configured."""
+        """Server analytics check should return False when server has analytics disabled."""
         service = AnalyticsService()
 
-        with patch("prefect._internal.analytics.service.PREFECT_API_URL") as mock_url:
-            mock_url.value.return_value = None
+        mock_settings = type("Settings", (), {
+            "api": type("API", (), {"url": "http://localhost:4200/api"})(),
+        })()
+        mock_response = type("Response", (), {
+            "raise_for_status": lambda self: None,
+            "json": lambda self: {"server": {"analytics_enabled": False}},
+        })()
+        mock_client = type("Client", (), {
+            "request": lambda self, method, path: mock_response,
+            "__enter__": lambda self: self,
+            "__exit__": lambda self, *args: None,
+        })()
 
+        with patch(
+            "prefect.settings.context.get_current_settings",
+            return_value=mock_settings,
+        ), patch(
+            "prefect.client.orchestration.get_client",
+            return_value=mock_client,
+        ):
             result = service._check_server_analytics()
-
             assert result is False
 
     def test_shutdown_flushes_pending_events(
