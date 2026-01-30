@@ -100,7 +100,8 @@
               "v3/concepts/variables",
               "v3/concepts/blocks",
               "v3/concepts/settings-and-profiles",
-              "v3/concepts/server"
+              "v3/concepts/server",
+              "v3/concepts/telemetry"
             ]
           },
           {
