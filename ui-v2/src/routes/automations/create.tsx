@@ -17,7 +17,7 @@ type AutomationCreate = components["schemas"]["AutomationCreate"];
 
 /**
  * Search params schema for the create automation route.
- * Supports pre-populating the wizard from an event or work pool.
+ * Supports pre-populating the wizard from an event.
  */
 const searchParams = z.object({
 	actions: z.record(z.unknown()).optional(),
@@ -25,8 +25,6 @@ const searchParams = z.object({
 	eventId: z.string().optional(),
 	/** Event date in YYYY-MM-DD format for fetching the event */
 	eventDate: z.string().optional(),
-	/** Work pool ID to pre-populate the trigger from */
-	workPoolId: z.string().optional(),
 });
 
 /**

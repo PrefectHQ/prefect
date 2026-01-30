@@ -45,9 +45,6 @@ export const WorkPoolContextMenu = ({
 					<DropdownMenuItem>Edit</DropdownMenuItem>
 				</Link>
 				<DropdownMenuItem onClick={onDelete}>Delete</DropdownMenuItem>
-				<Link to="/automations/create" search={{ workPoolId: workPool.id }}>
-					<DropdownMenuItem>Automate</DropdownMenuItem>
-				</Link>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
