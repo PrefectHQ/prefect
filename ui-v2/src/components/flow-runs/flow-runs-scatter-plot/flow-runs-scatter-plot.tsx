@@ -53,9 +53,13 @@ const CustomDot = ({ cx, cy, payload }: CustomDotProps) => {
 		return null;
 	}
 
-	// Use getStateColor for dynamic color mode support
-	const color =
-		getStateColor(payload.stateType) ||
+	// Use 500 shade for fill, 600 shade for border (matching V1)
+	const fillColor =
+		getStateColor(payload.stateType, 500) ||
+		STATE_COLORS[payload.stateType] ||
+		"#6b7280";
+	const strokeColor =
+		getStateColor(payload.stateType, 600) ||
 		STATE_COLORS[payload.stateType] ||
 		"#6b7280";
 
@@ -63,11 +67,11 @@ const CustomDot = ({ cx, cy, payload }: CustomDotProps) => {
 		<circle
 			cx={cx}
 			cy={cy}
-			r={6}
-			fill={color}
-			stroke={color}
+			r={8}
+			fill={fillColor}
+			stroke={strokeColor}
 			strokeWidth={1}
-			opacity={0.7}
+			opacity={0.5}
 			className="hover:opacity-100 transition-opacity cursor-pointer"
 		/>
 	);
@@ -199,7 +203,10 @@ export const FlowRunsScatterPlot = ({
 	}
 
 	return (
-		<div className="hidden md:block w-full h-64" data-testid="scatter-plot">
+		<div
+			className="hidden md:block w-full h-[275px]"
+			data-testid="scatter-plot"
+		>
 			<ResponsiveContainer width="100%" height="100%">
 				<ScatterChart>
 					<CartesianGrid
