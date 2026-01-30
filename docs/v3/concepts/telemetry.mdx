@@ -1,0 +1,123 @@
+---
+title: Telemetry
+sidebarTitle: Telemetry
+description: Learn about Prefect's anonymous usage telemetry
+---
+
+Prefect collects anonymous usage telemetry to help improve the product. This page explains what data is collected, how it's used, and how to opt out.
+
+## What We Collect
+
+Prefect SDK telemetry tracks anonymous usage patterns to understand how developers use the product. We collect:
+
+| Data | Example | Purpose |
+|------|---------|---------|
+| Events | `first_sdk_import`, `first_flow_run` | Track feature adoption |
+| Prefect version | `3.2.0` | Version distribution |
+| Python version | `3.12.1` | Compatibility planning |
+| Platform | `Darwin`, `Linux`, `Windows` | Platform support |
+| Architecture | `arm64`, `x86_64` | Build optimization |
+| Anonymous device ID | `uuid4()` | Session correlation (not user-identifiable) |
+
+### Events Tracked
+
+The SDK tracks milestone events in the "Quick Start Funnel":
+
+- `first_sdk_import` - When Prefect is first imported in an interactive terminal
+- `first_flow_defined` - When you define your first flow
+- `first_flow_run` - When you successfully run your first flow
+- `first_deployment_created` - When you create your first deployment
+- `first_schedule_created` - When you create your first scheduled deployment
+
+Each milestone event is only sent once per installation.
+
+## Server Telemetry
+
+When running a Prefect server, anonymous heartbeat data is sent every 10 minutes to help us understand server deployment patterns. This data includes:
+
+| Data | Example | Purpose |
+|------|---------|---------|
+| Platform | `Darwin`, `Linux`, `Windows` | Server environment distribution |
+| Architecture | `arm64`, `x86_64` | Build optimization |
+| Python version | `3.12.1` | Compatibility planning |
+| Prefect version | `3.2.0` | Version distribution |
+| API version | `0.8.4` | API compatibility tracking |
+| Anonymous session ID | `uuid4()` | Session correlation (not user-identifiable) |
+| Session start timestamp | ISO-8601 datetime | Uptime tracking |
+
+Server telemetry is disabled automatically when `PREFECT_SERVER_ANALYTICS_ENABLED=false`.
+
+## What We Do NOT Collect
+
+We respect your privacy. Prefect telemetry **never** collects:
+
+- User identity, credentials, or API keys
+- Code, flow definitions, or task parameters
+- Flow names, task names, or deployment names
+- File paths or directory structures
+- Environment variables or secrets
+- Error messages or stack traces
+- IP addresses or network information
+- Any personally identifiable information (PII)
+
+## How to Opt Out
+
+You can disable telemetry using any of these methods:
+
+### Environment Variable
+
+```bash
+# Prefect-specific setting
+export PREFECT_SERVER_ANALYTICS_ENABLED=false
+
+# Industry standard DO_NOT_TRACK
+export DO_NOT_TRACK=1
+```
+
+### Prefect CLI
+
+```bash
+prefect config set PREFECT_SERVER_ANALYTICS_ENABLED=false
+```
+
+### Automatic CI Detection
+
+Telemetry is automatically disabled when Prefect detects a CI environment. We check for common CI environment variables including:
+
+- `CI`
+- `GITHUB_ACTIONS`
+- `GITLAB_CI`
+- `JENKINS_URL`
+- `TRAVIS`
+- `CIRCLECI`
+- `BUILDKITE`
+- `TF_BUILD` (Azure DevOps)
+- `CODEBUILD_BUILD_ID` (AWS CodeBuild)
+- `BITBUCKET_COMMIT`
+
+## First-Run Notice
+
+The first time you import Prefect with telemetry enabled in an interactive terminal, you'll see a brief notice:
+
+```
+Prefect collects anonymous usage data to improve the product.
+To opt out: PREFECT_SERVER_ANALYTICS_ENABLED=false or DO_NOT_TRACK=1
+Learn more: https://docs.prefect.io/concepts/telemetry
+```
+
+This notice only appears once and only in interactive terminal sessions (not in scripts, CI, or non-TTY environments).
+
+## Local State
+
+Prefect stores telemetry state files locally to track which events have been sent:
+
+```
+~/.prefect/.sdk_telemetry/
+├── device_id      # Anonymous UUID for this installation
+├── milestones.json # Tracks which milestone events have been sent
+└── notice_shown    # Marker that the first-run notice was displayed
+```
+
+## Questions?
+
+If you have questions about Prefect's telemetry practices, please open an issue on [GitHub](https://github.com/PrefectHQ/prefect/issues) or reach out to us at [help@prefect.io](mailto:help@prefect.io).

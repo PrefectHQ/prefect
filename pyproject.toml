@@ -41,6 +41,7 @@ dependencies = [
     "typer>=0.16.0,<0.22.0",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
+    "amplitude-analytics>=1.2.1,<2.0.0",
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<7.0",
@@ -232,7 +233,7 @@ dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 
 [tool.hatch.build]
-artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
+artifacts = ["src/prefect/_build_info.py", "src/prefect/_internal/analytics/_config.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]

@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
     # Client dependencies
+    "amplitude-analytics>=1.2.1,<2.0.0",
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<7.0",
