@@ -61,11 +61,6 @@ export const BlocksPage = ({
 							count={allCount}
 						/>
 						<div className="flex items-center gap-2">
-							<BlockTypesMultiSelect
-								selectedBlockTypesSlugs={blockTypeSlugsFilter}
-								onToggleBlockTypeSlug={onToggleBlockTypeSlug}
-								onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
-							/>
 							<div className="min-w-56">
 								<SearchInput
 									aria-label="search blocks"
@@ -74,6 +69,11 @@ export const BlocksPage = ({
 									onChange={(e) => onSearch(e.target.value)}
 								/>
 							</div>
+							<BlockTypesMultiSelect
+								selectedBlockTypesSlugs={blockTypeSlugsFilter}
+								onToggleBlockTypeSlug={onToggleBlockTypeSlug}
+								onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
+							/>
 						</div>
 					</div>
 					<BlockDocumentsDataTable
