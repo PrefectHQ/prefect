@@ -446,66 +446,63 @@ class TestJSONSerializer:
         loaded = serializer.loads(serialized)
         assert loaded.data == "hello"
 
-    def test_json_serializer_handles_websocket_clientconnection(self):
-        """Test that ClientConnection objects serialize to a placeholder.
+    def test_json_serializer_handles_non_serializable_objects(self):
+        """Test that non-serializable objects serialize to a placeholder.
 
         Regression test for: https://github.com/PrefectHQ/prefect/issues/OSS-7568
 
-        When the websockets library's internal keepalive mechanism fails, it logs
-        an error with exc_info=True. In Kubernetes workers using JSON logging,
-        Prefect's JsonFormatter tries to serialize the log record which contains
-        a ClientConnection object reference. This test ensures ClientConnection
-        objects serialize gracefully instead of causing PydanticSerializationError.
+        When objects that can't be JSON serialized are encountered (e.g., websocket
+        connections, file handles, etc.), the serializer should gracefully fall back
+        to a placeholder representation instead of crashing with a serialization error.
         """
-        from websockets.asyncio.client import ClientConnection
+
+        class NonSerializableObject:
+            """A custom class that cannot be JSON serialized."""
+
+            def __init__(self, value: str):
+                self.value = value
+
+            def __repr__(self) -> str:
+                return f"NonSerializableObject(value={self.value!r})"
 
         serializer = JSONSerializer()
 
-        mock_connection = MagicMock(spec=ClientConnection)
-        mock_connection.__class__ = ClientConnection
-        mock_connection.state = "OPEN"
+        non_serializable = NonSerializableObject("test_value")
+        data_with_non_serializable = {
+            "my_object": non_serializable,
+            "other_data": 456,
+        }
 
-        data_with_connection = {"my_connection": mock_connection, "other_data": 456}
-
-        serialized_data = serializer.dumps(data_with_connection)
+        serialized_data = serializer.dumps(data_with_non_serializable)
 
         deserialized_data = json.loads(serialized_data.decode())
 
-        deserialized_connection_placeholder: dict[str, Any] = deserialized_data.get(
-            "my_connection"
+        deserialized_placeholder: dict[str, Any] = deserialized_data.get("my_object")
+
+        assert isinstance(deserialized_placeholder, dict), (
+            f"Deserialized 'my_object' should be a dict placeholder, "
+            f"but got {type(deserialized_placeholder)}"
         )
 
-        assert isinstance(deserialized_connection_placeholder, dict), (
-            f"Deserialized 'my_connection' should be a dict placeholder, "
-            f"but got {type(deserialized_connection_placeholder)}"
+        assert "__class__" in deserialized_placeholder, (
+            "Placeholder should contain '__class__' key"
         )
 
-        assert deserialized_connection_placeholder.get(
-            "__class__"
-        ) == to_qualified_name(ClientConnection), (
-            f"Placeholder __class__ ('{deserialized_connection_placeholder.get('__class__')}') "
-            f"does not match expected ('{to_qualified_name(ClientConnection)}')"
-        )
-
-        placeholder_data_string = deserialized_connection_placeholder.get("data")
+        placeholder_data_string = deserialized_placeholder.get("data")
         assert isinstance(placeholder_data_string, str), (
             f"Placeholder data field should be a string, "
             f"but got {type(placeholder_data_string)}"
         )
 
-        expected_placeholder_prefix = "<Prefect WebSocket Placeholder:"
-        expected_placeholder_type_info = "type=ClientConnection"
-        expected_placeholder_state_info = "state=OPEN"
-        expected_placeholder_suffix = "(connection object not serialized)>"
+        expected_placeholder_prefix = "<Prefect Placeholder:"
+        expected_placeholder_type_info = "type=NonSerializableObject"
+        expected_placeholder_suffix = "(object not serializable)>"
 
         assert expected_placeholder_prefix in placeholder_data_string, (
             f"Placeholder prefix '{expected_placeholder_prefix}' missing in placeholder string: {placeholder_data_string}"
         )
         assert expected_placeholder_type_info in placeholder_data_string, (
             f"Expected type info '{expected_placeholder_type_info}' not in placeholder string: {placeholder_data_string}"
-        )
-        assert expected_placeholder_state_info in placeholder_data_string, (
-            f"Expected state info '{expected_placeholder_state_info}' not in placeholder string: {placeholder_data_string}"
         )
         assert expected_placeholder_suffix in placeholder_data_string, (
             f"Placeholder suffix '{expected_placeholder_suffix}' missing in placeholder string: {placeholder_data_string}"

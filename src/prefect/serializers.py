@@ -13,17 +13,7 @@ bytes to an object respectively.
 
 import base64
 import io
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Optional, Union, overload
-
-if TYPE_CHECKING:
-    from websockets.asyncio.client import ClientConnection
-
-try:
-    from websockets.asyncio.client import ClientConnection
-
-    _WEBSOCKETS_AVAILABLE = True
-except ImportError:
-    _WEBSOCKETS_AVAILABLE = False
+from typing import Any, ClassVar, Generic, Optional, Union, overload
 
 from pydantic import (
     BaseModel,
@@ -82,20 +72,21 @@ def prefect_json_object_encoder(obj: Any) -> Any:
                 f"repr={repr(obj)} (original content not read)>"
             ),
         }
-    elif _WEBSOCKETS_AVAILABLE and isinstance(obj, ClientConnection):  # type: ignore[possibly-undefined]
-        return {
-            "__class__": to_qualified_name(obj.__class__),
-            "data": (
-                f"<Prefect WebSocket Placeholder: type={obj.__class__.__name__}, "
-                f"state={getattr(obj, 'state', 'unknown')} (connection object not serialized)>"
-            ),
-        }
     else:
         importable_class = _get_importable_class(obj.__class__)
-        return {
-            "__class__": to_qualified_name(importable_class),
-            "data": custom_pydantic_encoder({}, obj),
-        }
+        try:
+            return {
+                "__class__": to_qualified_name(importable_class),
+                "data": custom_pydantic_encoder({}, obj),
+            }
+        except Exception:
+            return {
+                "__class__": to_qualified_name(importable_class),
+                "data": (
+                    f"<Prefect Placeholder: type={obj.__class__.__name__}, "
+                    f"repr={repr(obj)} (object not serializable)>"
+                ),
+            }
 
 
 def prefect_json_object_decoder(result: dict[str, Any]) -> Any:
