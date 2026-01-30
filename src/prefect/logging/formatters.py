@@ -16,6 +16,27 @@ ExceptionInfoType = Union[
 ]
 
 
+def _make_record_serializable(record_dict: dict[str, Any]) -> dict[str, Any]:
+    """
+    Convert a log record dict to be JSON-serializable by replacing
+    non-serializable values with placeholder strings.
+
+    This is used as a fallback when the initial serialization attempt fails,
+    which can happen when log records contain objects like websocket connections
+    or other non-serializable types.
+    """
+    result = {}
+    for key, value in record_dict.items():
+        try:
+            import json
+
+            json.dumps(value)
+            result[key] = value
+        except (TypeError, ValueError):
+            result[key] = f"<non-serializable: {type(value).__name__}>"
+    return result
+
+
 def format_exception_info(exc_info: ExceptionInfoType) -> dict[str, Any]:
     # if sys.exc_info() returned a (None, None, None) tuple,
     # then there's nothing to format
@@ -66,7 +87,11 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             record_dict["exc_info"] = format_exception_info(record.exc_info)
 
-        log_json_bytes = self.serializer.dumps(record_dict)
+        try:
+            log_json_bytes = self.serializer.dumps(record_dict)
+        except Exception:
+            record_dict = _make_record_serializable(record_dict)
+            log_json_bytes = self.serializer.dumps(record_dict)
 
         # JSONSerializer returns bytes; decode to string to conform to
         # the `logging.Formatter.format` interface

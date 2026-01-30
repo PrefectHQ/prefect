@@ -74,19 +74,10 @@ def prefect_json_object_encoder(obj: Any) -> Any:
         }
     else:
         importable_class = _get_importable_class(obj.__class__)
-        try:
-            return {
-                "__class__": to_qualified_name(importable_class),
-                "data": custom_pydantic_encoder({}, obj),
-            }
-        except Exception:
-            return {
-                "__class__": to_qualified_name(importable_class),
-                "data": (
-                    f"<Prefect Placeholder: type={obj.__class__.__name__}, "
-                    f"repr={repr(obj)} (object not serializable)>"
-                ),
-            }
+        return {
+            "__class__": to_qualified_name(importable_class),
+            "data": custom_pydantic_encoder({}, obj),
+        }
 
 
 def prefect_json_object_decoder(result: dict[str, Any]) -> Any:

@@ -1667,6 +1667,41 @@ class TestJsonFormatter:
         assert deserialized["exc_info"]["traceback"] is not None
         assert len(deserialized["exc_info"]["traceback"]) > 0
 
+    def test_json_log_formatter_handles_non_serializable_objects(self):
+        """Test that JsonFormatter handles non-serializable objects gracefully.
+
+        Regression test for: https://github.com/PrefectHQ/prefect/issues/OSS-7568
+
+        When log records contain objects that can't be JSON serialized (e.g.,
+        websocket connections), the formatter should gracefully fall back to
+        a placeholder representation instead of crashing.
+        """
+        from websockets.asyncio.client import ClientConnection
+
+        formatter = JsonFormatter("default", None, "%")
+
+        mock_connection = MagicMock(spec=ClientConnection)
+        mock_connection.__class__ = ClientConnection
+
+        record = logging.LogRecord(
+            name="Test Log",
+            level=logging.ERROR,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="WebSocket error",
+            args=None,
+            exc_info=None,
+        )
+        record.connection = mock_connection
+
+        formatted = formatter.format(record)
+
+        deserialized = json.loads(formatted)
+
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["msg"] == "WebSocket error"
+        assert "<non-serializable:" in deserialized["connection"]
+
 
 class TestObfuscateApiKeyFilter:
     def test_filters_current_api_key(self):
