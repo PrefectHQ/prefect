@@ -594,17 +594,6 @@ class CloudRunWorkerV2Variables(BaseVariables):
             " actively try to mark it failed and kill associated containers (maximum of 86400 seconds, 1 day)."
         ),
     )
-    job_name_uuid_length: int = Field(
-        default=32,
-        ge=1,
-        le=32,
-        title="Job Name UUID Length",
-        description=(
-            "The number of hex characters from a UUID4 to append to the job name "
-            "for uniqueness. Lower values allow longer base job names. "
-            "The total job name length (base + hyphen + UUID) is capped at 63 characters."
-        ),
-    )
     vpc_connector_name: Optional[str] = Field(
         default=None,
         title="VPC Connector Name",
