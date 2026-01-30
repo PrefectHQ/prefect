@@ -28,9 +28,7 @@ def _make_record_serializable(record_dict: dict[str, Any]) -> dict[str, Any]:
     result = {}
     for key, value in record_dict.items():
         try:
-            import json
-
-            json.dumps(value)
+            orjson.dumps(value)
             result[key] = value
         except (TypeError, ValueError):
             result[key] = f"<non-serializable: {type(value).__name__}>"
