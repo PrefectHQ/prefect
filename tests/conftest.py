@@ -166,6 +166,8 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/public",
     "tests/test_task_runs.py",
     "tests/assets",
+    "tests/test_flow_runs.py",
+    "tests/telemetry",
 ]
 
 

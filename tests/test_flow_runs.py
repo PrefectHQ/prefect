@@ -24,7 +24,7 @@ from prefect.states import Completed, Pending
 
 
 async def test_create_then_wait_for_flow_run(prefect_client: PrefectClient):
-    @flow
+    @flow(name=f"foo_{uuid.uuid4()}")
     def foo():
         pass
 
@@ -39,7 +39,7 @@ async def test_create_then_wait_for_flow_run(prefect_client: PrefectClient):
 
 
 async def test_create_then_wait_timeout(prefect_client: PrefectClient):
-    @flow
+    @flow(name=f"foo_{uuid.uuid4()}")
     def foo():
         time.sleep(9999)
 
@@ -60,7 +60,7 @@ async def test_wait_for_flow_run_handles_heartbeats(
     Regression test for https://github.com/PrefectHQ/prefect/issues/17930
     """
 
-    @flow
+    @flow(name=f"my_short_flow_{uuid.uuid4()}")
     async def my_short_flow():
         await asyncio.sleep(1)
 
@@ -102,7 +102,7 @@ class TestResumeFlowRunAsyncDispatch:
     ):
         """Test that aresume_flow_run raises NotPausedError for non-paused flow runs."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
@@ -118,7 +118,7 @@ class TestResumeFlowRunAsyncDispatch:
     ):
         """Test that resume_flow_run dispatches to async when awaited."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
@@ -133,7 +133,7 @@ class TestResumeFlowRunAsyncDispatch:
     def test_resume_flow_run_works_in_sync_context(self, sync_prefect_client):
         """Test that resume_flow_run works in pure sync context."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
@@ -149,13 +149,13 @@ class TestResumeFlowRunAsyncDispatch:
     def test_resume_flow_run_in_sync_flow(self, sync_prefect_client):
         """Test sync usage within a sync flow."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
         target_flow_run = sync_prefect_client.create_flow_run(foo, state=Pending())
 
-        @flow
+        @flow(name=f"sync_test_flow_{uuid.uuid4()}")
         def sync_test_flow():
             with pytest.raises(
                 NotPausedError, match="Cannot resume a run that isn't paused"
@@ -169,13 +169,13 @@ class TestResumeFlowRunAsyncDispatch:
     async def test_resume_flow_run_in_async_flow(self, prefect_client: PrefectClient):
         """Test async usage within an async flow."""
 
-        @flow
+        @flow(name=f"foo_{uuid.uuid4()}")
         def foo():
             pass
 
         flow_run = await prefect_client.create_flow_run(foo, state=Pending())
 
-        @flow
+        @flow(name=f"async_test_flow_{uuid.uuid4()}")
         async def async_test_flow():
             with pytest.raises(
                 NotPausedError, match="Cannot resume a run that isn't paused"
