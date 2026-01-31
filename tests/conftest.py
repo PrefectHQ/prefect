@@ -168,6 +168,10 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/assets",
     "tests/test_flow_runs.py",
     "tests/telemetry",
+    "tests/input",
+    "tests/deployment",
+    "tests/experimental",
+    "tests/results",
 ]
 
 
