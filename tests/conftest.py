@@ -151,6 +151,16 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/test_versioning.py",
     "tests/custom_types",
     "tests/test_states.py",
+    # Phase 2 additions
+    "tests/test_filesystems.py",
+    "tests/test_locking.py",
+    "tests/test_flows_compat.py",
+    "tests/logging",
+    "tests/scripts",
+    "tests/_sdk",
+    "tests/_experimental",
+    "tests/docker",
+    "tests/test_observers.py",
 ]
 
 
