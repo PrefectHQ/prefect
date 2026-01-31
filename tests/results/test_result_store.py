@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import pytest
 
 import prefect.exceptions
@@ -179,11 +177,10 @@ def test_root_flow_custom_serializer_by_instance(default_persistence_off):
 
 
 async def test_root_flow_custom_storage_by_slug(tmp_path, default_persistence_off):
-    block_name = f"test-{uuid4()}"
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save(block_name)
+    storage_id = await storage.save("test")
 
-    @flow(result_storage=f"local-file-system/{block_name}")
+    @flow(result_storage="local-file-system/test")
     def foo():
         return get_run_context().result_store, should_persist_result()
 
@@ -198,7 +195,7 @@ async def test_root_flow_custom_storage_by_instance_presaved(
     tmp_path, default_persistence_off
 ):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save(f"test-{uuid4()}")
+    storage_id = await storage.save("test")
 
     @flow(result_storage=storage)
     def foo():
@@ -362,11 +359,10 @@ def test_child_flow_inherits_custom_serializer(default_persistence_off):
 
 
 async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_off):
-    block_name = f"test-{uuid4()}"
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save(block_name)
+    storage_id = await storage.save("test")
 
-    @flow(result_storage=f"local-file-system/{block_name}")
+    @flow(result_storage="local-file-system/test")
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
@@ -383,16 +379,15 @@ async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_
 
 
 async def test_child_flow_custom_storage(tmp_path, default_persistence_off):
-    block_name = f"test-{uuid4()}"
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save(block_name)
+    storage_id = await storage.save("test")
 
     @flow()
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
 
-    @flow(result_storage=f"local-file-system/{block_name}")
+    @flow(result_storage="local-file-system/test")
     def bar():
         return get_run_context().result_store, should_persist_result()
 
@@ -588,11 +583,10 @@ def test_task_inherits_custom_serializer(default_persistence_off):
 
 
 async def test_task_inherits_custom_storage(tmp_path):
-    block_name = f"test-{uuid4()}"
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save(block_name)
+    storage_id = await storage.save("test")
 
-    @flow(result_storage=f"local-file-system/{block_name}", persist_result=True)
+    @flow(result_storage="local-file-system/test", persist_result=True)
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
@@ -627,16 +621,15 @@ def test_task_custom_serializer(default_persistence_off):
 
 
 async def test_nested_flow_custom_storage(tmp_path):
-    block_name = f"test-{uuid4()}"
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save(block_name)
+    storage_id = await storage.save("test")
 
     @flow(persist_result=True)
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
 
-    @flow(result_storage=f"local-file-system/{block_name}", persist_result=True)
+    @flow(result_storage="local-file-system/test", persist_result=True)
     def bar():
         return get_run_context().result_store, should_persist_result()
 

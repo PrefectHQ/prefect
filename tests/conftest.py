@@ -171,7 +171,6 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/input",
     "tests/deployment",
     "tests/experimental",
-    "tests/results",
 ]
 
 

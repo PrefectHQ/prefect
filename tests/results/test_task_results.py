@@ -1,5 +1,5 @@
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 
@@ -177,7 +177,7 @@ async def test_task_result_serializer(
     prefect_client, events_pipeline, source, serializer, tmp_path: Path
 ):
     storage = LocalFileSystem(basepath=tmp_path)
-    await storage.save(f"tmp-test-{uuid4()}")
+    await storage.save("tmp-test")
 
     @flow(
         result_serializer=serializer if source == "parent" else None,
@@ -211,7 +211,7 @@ async def test_task_result_serializer(
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_task_result_storage(prefect_client, source, events_pipeline):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
-    await storage.save(f"tmp-test-storage-{uuid4()}")
+    await storage.save("tmp-test-storage")
 
     @flow(result_storage=storage if source == "parent" else None)
     def foo():
@@ -239,7 +239,7 @@ async def test_task_result_static_storage_key(
     prefect_client, tmp_path, events_pipeline
 ):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
-    await storage.save(f"tmp-test-storage-{uuid4()}")
+    await storage.save("tmp-test-storage")
 
     @flow
     def foo():
@@ -270,7 +270,7 @@ async def test_task_failure_is_persisted_randomly(
     If we use the result storage key it can interfere with proper caching.
     """
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
-    await storage.save(f"tmp-test-storage-{uuid4()}")
+    await storage.save("tmp-test-storage")
 
     @flow
     def foo():
@@ -303,7 +303,7 @@ async def test_task_result_parameter_formatted_storage_key(
     prefect_client, tmp_path, events_pipeline
 ):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
-    await storage.save(f"tmp-test-storage-again-{uuid4()}")
+    await storage.save("tmp-test-storage-again")
 
     @flow
     def foo():
@@ -335,7 +335,7 @@ async def test_task_result_flow_run_formatted_storage_key(
     prefect_client, tmp_path, events_pipeline
 ):
     storage = LocalFileSystem(basepath=tmp_path / "test-storage")
-    await storage.save(f"tmp-test-storage-again-{uuid4()}")
+    await storage.save("tmp-test-storage-again")
 
     @flow
     def foo():

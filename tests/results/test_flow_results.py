@@ -1,5 +1,4 @@
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 
@@ -177,7 +176,7 @@ async def test_flow_result_serializer(serializer, prefect_client):
 
 async def test_flow_result_storage_by_instance(prefect_client):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
-    await storage.save(f"test-storage-stuff-{uuid4()}")
+    await storage.save("test-storage-stuff")
 
     @flow(result_storage=storage, persist_result=True)
     def foo():
@@ -195,11 +194,8 @@ async def test_flow_result_storage_by_instance(prefect_client):
 
 
 async def test_flow_result_storage_by_slug(prefect_client):
-    block_name = f"test-{uuid4()}"
-    await LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage").save(
-        block_name
-    )
-    slug = LocalFileSystem.get_block_type_slug() + f"/{block_name}"
+    await LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage").save("test")
+    slug = LocalFileSystem.get_block_type_slug() + "/test"
 
     @flow(result_storage=slug, persist_result=True)
     def foo():
@@ -265,7 +261,7 @@ async def test_child_flow_result_serializer(prefect_client, source):
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_child_flow_result_storage(prefect_client, source):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
-    await storage.save(f"child-flow-test-{uuid4()}")
+    await storage.save("child-flow-test")
 
     @flow(result_storage=storage if source == "parent" else None)
     def foo():
@@ -354,13 +350,12 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
         result_fac = get_run_context().result_store
         return result_fac.result_storage
 
-    block_name = f"my-result-storage-{uuid4()}"
     block = LocalFileSystem(basepath=tmp_path)
-    await block.save(block_name)
+    await block.save("my-result-storage")
 
     with temporary_settings(
         {
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{block_name}",
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
         }
     ):
         storage_block = await foo()
@@ -370,8 +365,7 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
 
 
 async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
-    block_name = f"my-result-storage-{uuid4()}"
-    await LocalFileSystem(basepath=tmp_path).save(block_name)
+    await LocalFileSystem(basepath=tmp_path).save("my-result-storage")
 
     @task(result_storage_key="my-result.pkl", persist_result=True)
     async def bar():
@@ -383,13 +377,13 @@ async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
 
     with temporary_settings(
         {
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{block_name}",
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
         }
     ):
         result = await foo()
 
     assert result == {"foo": "bar"}
-    local_storage = await LocalFileSystem.load(block_name)
+    local_storage = await LocalFileSystem.load("my-result-storage")
     result_bytes = await local_storage.read_path(f"{tmp_path / 'my-result.pkl'}")
     saved_python_result = ResultRecord.deserialize(result_bytes).result
 
@@ -415,23 +409,25 @@ async def test_root_flow_nonexistent_default_storage_block_fails():
 
 
 async def test_root_flow_explicit_result_storage_settings_overrides_default():
-    explicit_name = f"explicit-storage-{uuid4()}"
-    default_name = f"default-result-storage-{uuid4()}"
-    await LocalFileSystem(basepath="~/.prefect/results").save(explicit_name)
-    await LocalFileSystem(basepath="~/.prefect/other-results").save(default_name)
+    await LocalFileSystem(basepath="~/.prefect/results").save("explicit-storage")
+    await LocalFileSystem(basepath="~/.prefect/other-results").save(
+        "default-result-storage"
+    )
 
-    @flow(result_storage=await LocalFileSystem.load(explicit_name))
+    @flow(result_storage=await LocalFileSystem.load("explicit-storage"))
     async def foo():
         return get_run_context().result_store.result_storage
 
     with temporary_settings(
         {
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: (f"local-file-system/{default_name}"),
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: (
+                "local-file-system/default-result-storage"
+            ),
         }
     ):
         result = await foo()
 
-    assert_blocks_equal(result, await LocalFileSystem.load(explicit_name))
+    assert_blocks_equal(result, await LocalFileSystem.load("explicit-storage"))
 
 
 def test_flow_version_result_storage_key():
