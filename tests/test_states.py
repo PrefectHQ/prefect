@@ -56,7 +56,7 @@ class TestRaiseStateException:
     def test_works_in_sync_context(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
 
-            @flow
+            @flow(flow_run_name=f"test_flow_{uuid.uuid4()}")
             def test_flow():
                 raise_state_exception(state_cls(data=ValueError("Test")))
 
@@ -133,7 +133,7 @@ class TestRaiseStateException:
             await raise_state_exception(state_cls(data=2))
 
     async def test_quoted_state_does_not_raise_state_exception(self, state_cls):
-        @flow
+        @flow(flow_run_name=f"test_flow_{uuid.uuid4()}")
         def test_flow():
             return quote(state_cls())
 
