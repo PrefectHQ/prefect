@@ -309,3 +309,117 @@ class TestFlowRunCancellingObserver:
 
         # After exiting context, task should be cancelled
         assert consumer_task.cancelled() or consumer_task.done()
+
+    async def test_observer_initialization_with_on_failure(self):
+        """Test observer initializes with on_failure callback."""
+        on_cancelling = AsyncMock()
+        on_failure = mock.MagicMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=on_failure,
+            polling_interval=5,
+        )
+
+        assert observer.on_cancelling == on_cancelling
+        assert observer.on_failure == on_failure
+        assert observer.polling_interval == 5
+
+    async def test_on_failure_called_when_polling_task_fails(self):
+        """Test on_failure callback is called when polling task fails."""
+        on_cancelling = AsyncMock()
+        on_failure = mock.MagicMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=on_failure,
+            polling_interval=0.1,
+        )
+
+        flow_run_id = uuid.uuid4()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            # Simulate a failed polling task
+            failed_task = mock.MagicMock()
+            failed_task.exception.return_value = Exception("Polling failed")
+
+            # Call the done callback handler directly
+            observer._handle_polling_task_done(failed_task)
+
+            # Verify on_failure was called with the in-flight flow run IDs
+            on_failure.assert_called_once()
+            call_args = on_failure.call_args[0][0]
+            assert flow_run_id in call_args
+
+    async def test_on_failure_receives_copy_of_in_flight_ids(self):
+        """Test on_failure receives a copy of in-flight IDs, not the original set."""
+        on_cancelling = AsyncMock()
+        captured_ids = []
+
+        def capture_on_failure(ids):
+            captured_ids.append(ids)
+
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=capture_on_failure,
+            polling_interval=0.1,
+        )
+
+        flow_run_id_1 = uuid.uuid4()
+        flow_run_id_2 = uuid.uuid4()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id_1)
+            observer.add_in_flight_flow_run_id(flow_run_id_2)
+
+            # Simulate a failed polling task
+            failed_task = mock.MagicMock()
+            failed_task.exception.return_value = Exception("Polling failed")
+
+            observer._handle_polling_task_done(failed_task)
+
+            # Modify the original set after the callback
+            observer._in_flight_flow_run_ids.add(uuid.uuid4())
+
+            # Verify the captured IDs were not affected by the modification
+            assert len(captured_ids) == 1
+            assert len(captured_ids[0]) == 2
+            assert flow_run_id_1 in captured_ids[0]
+            assert flow_run_id_2 in captured_ids[0]
+
+    async def test_on_failure_not_called_when_polling_succeeds(self):
+        """Test on_failure is not called when polling completes successfully."""
+        on_cancelling = AsyncMock()
+        on_failure = mock.MagicMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=on_failure,
+            polling_interval=0.1,
+        )
+
+        async with observer:
+            # Simulate a successful polling task (no exception)
+            successful_task = mock.MagicMock()
+            successful_task.exception.return_value = None
+
+            observer._handle_polling_task_done(successful_task)
+
+            # Verify on_failure was NOT called
+            on_failure.assert_not_called()
+
+    async def test_on_failure_not_called_when_callback_is_none(self):
+        """Test no error when on_failure is None and polling fails."""
+        on_cancelling = AsyncMock()
+        observer = FlowRunCancellingObserver(
+            on_cancelling=on_cancelling,
+            on_failure=None,  # Explicitly None
+            polling_interval=0.1,
+        )
+
+        async with observer:
+            # Simulate a failed polling task
+            failed_task = mock.MagicMock()
+            failed_task.exception.return_value = Exception("Polling failed")
+
+            # Should not raise even though on_failure is None
+            observer._handle_polling_task_done(failed_task)

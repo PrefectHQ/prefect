@@ -95,6 +95,7 @@ def _initialize_plugins() -> None:
 
         from prefect._experimental.plugins import run_startup_hooks
         from prefect._experimental.plugins.spec import HookContext
+        from prefect.context import refresh_global_settings_context
         from prefect.logging import get_logger
         from prefect.settings import get_current_settings
 
@@ -106,6 +107,9 @@ def _initialize_plugins() -> None:
 
         # Run plugin hooks synchronously during import
         anyio.run(run_startup_hooks, ctx)
+
+        # Refresh global settings context to pick up any env vars set by plugins
+        refresh_global_settings_context()
     except SystemExit:
         # Re-raise SystemExit from strict mode
         raise
@@ -125,6 +129,26 @@ def _initialize_plugins() -> None:
 
 # Initialize plugins on import if enabled
 _initialize_plugins()
+
+
+def _initialize_sdk_analytics() -> None:
+    """
+    Initialize SDK analytics for telemetry.
+
+    This runs automatically when Prefect is imported. Errors are silently
+    ignored to ensure analytics never impacts normal Prefect operation.
+    """
+    try:
+        from prefect._internal.analytics import initialize_analytics
+
+        initialize_analytics()
+    except Exception:
+        # Never let analytics initialization impact Prefect
+        pass
+
+
+# Initialize SDK analytics on import
+_initialize_sdk_analytics()
 
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),

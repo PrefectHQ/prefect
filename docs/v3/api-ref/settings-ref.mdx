@@ -526,6 +526,18 @@ Settings for the experimental plugin system
 ---
 ## FlowsSettings
 Settings for controlling flow behavior
+### `heartbeat_frequency`
+Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.
+
+**Type**: `integer | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `flows.heartbeat_frequency`
+
+**Supported environment variables**:
+`PREFECT_FLOWS_HEARTBEAT_FREQUENCY`, `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`
+
 ### `default_retries`
 This value sets the default number of retries for all flows.
 
@@ -956,17 +968,17 @@ Number of seconds a runner should wait between queries for scheduled work.
 **Supported environment variables**:
 `PREFECT_RUNNER_POLL_FREQUENCY`
 
-### `heartbeat_frequency`
-Number of seconds a runner should wait between heartbeats for flow runs.
+### `crash_on_cancellation_failure`
+Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.
 
-**Type**: `integer | None`
+**Type**: `boolean`
 
-**Default**: `None`
+**Default**: `False`
 
-**TOML dotted key path**: `runner.heartbeat_frequency`
+**TOML dotted key path**: `runner.crash_on_cancellation_failure`
 
 **Supported environment variables**:
-`PREFECT_RUNNER_HEARTBEAT_FREQUENCY`
+`PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE`
 
 ### `server`
 

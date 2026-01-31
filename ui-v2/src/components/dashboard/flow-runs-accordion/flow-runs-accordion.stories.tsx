@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
-import { Suspense } from "react";
 import { createFakeFlow, createFakeFlowRun } from "@/mocks";
 import { reactQueryDecorator, routerDecorator } from "@/storybook/utils";
 import { FlowRunsAccordion } from "./index";
@@ -85,15 +84,7 @@ const MOCK_SCHEDULED_FLOW_RUNS = [
 const meta = {
 	title: "Dashboard/FlowRunsAccordion",
 	component: FlowRunsAccordion,
-	decorators: [
-		routerDecorator,
-		reactQueryDecorator,
-		(Story) => (
-			<Suspense fallback={<div>Loading...</div>}>
-				<Story />
-			</Suspense>
-		),
-	],
+	decorators: [routerDecorator, reactQueryDecorator],
 } satisfies Meta<typeof FlowRunsAccordion>;
 
 export default meta;
