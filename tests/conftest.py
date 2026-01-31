@@ -161,6 +161,11 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/_experimental",
     "tests/docker",
     "tests/test_observers.py",
+    # Phase 3 additions
+    "tests/test_log_prints.py",
+    "tests/public",
+    "tests/test_task_runs.py",
+    "tests/assets",
 ]
 
 
