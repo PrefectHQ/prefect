@@ -610,9 +610,17 @@ class Block(BaseModel, ABC):
         data_keys = self.model_json_schema(by_alias=False)["properties"].keys()
 
         # `block_document_data`` must return the aliased version for it to show in the UI
+        # exclude_none=True ensures that optional fields with None values are not
+        # included in the serialized data. This is important because:
+        # 1. It matches the behavior of the web UI when creating blocks
+        # 2. It prevents validation issues with union types (e.g., AwsCredentials |
+        #    OidcAwsCredentials) where explicit None values can cause Pydantic to
+        #    fail validation against all union members
+        # 3. It allows Pydantic to use field defaults when loading the block back
         block_document_data = self.model_dump(
             by_alias=True,
             include=data_keys,
+            exclude_none=True,
             context={"include_secrets": include_secrets},
         )
 
@@ -623,6 +631,7 @@ class Block(BaseModel, ABC):
                 mode="json",
                 by_alias=True,
                 include=data_keys,
+                exclude_none=True,
                 context={"include_secrets": include_secrets},
             )
             # Replace non-secret, non-Block fields with their JSON representation
