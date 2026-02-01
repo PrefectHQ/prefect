@@ -142,8 +142,9 @@ class Cache(_Cache):
                     )
                     messages_without_attribute.append(m)
                     continue
+                # Use hash tags for cluster mode compatibility
                 p.set(
-                    f"message:{self.topic}:{m.attributes[attribute]}",
+                    f"message:{{{self.topic}}}:{m.attributes[attribute]}",
                     "1",
                     nx=True,
                     ex=MESSAGE_DEDUPLICATION_LOOKBACK,
@@ -165,7 +166,8 @@ class Cache(_Cache):
                         extra={"event_message": m},
                     )
                     continue
-                p.delete(f"message:{self.topic}:{m.attributes[attribute]}")
+                # Use hash tags for cluster mode compatibility
+                p.delete(f"message:{{{self.topic}}}:{m.attributes[attribute]}")
             await p.execute()
 
 
