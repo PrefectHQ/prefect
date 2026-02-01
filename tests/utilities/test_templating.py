@@ -274,17 +274,24 @@ class TestResolveBlockDocumentReferences:
         pass
 
     @pytest.fixture()
-    async def block_document_id(self, prefect_client):
-        slug = f"arbitraryblock-{uuid.uuid4().hex[:8]}"
-        doc_name = f"arbitrary-block-{uuid.uuid4().hex[:8]}"
+    async def block_document_id(self):
+        # Use unique slug and doc name to avoid conflicts in parallel tests
+        unique_id = uuid.uuid4().hex[:8]
+        slug = f"arbitraryblock-{unique_id}"
+        doc_name = f"arbitrary-block-{unique_id}"
 
-        class ArbitraryBlock(Block):
-            _block_type_slug = slug
-            a: int
-            b: str
+        # Create a unique class to avoid block registry conflicts
+        ArbitraryBlock = type(
+            f"ArbitraryBlock{unique_id}",
+            (Block,),
+            {
+                "_block_type_slug": slug,
+                "__annotations__": {"a": int, "b": str},
+            },
+        )
 
         block_document_id = await ArbitraryBlock(a=1, b="hello").save(
-            name=doc_name, overwrite=True, client=prefect_client
+            name=doc_name, overwrite=True
         )
         return {"id": block_document_id, "slug": slug, "name": doc_name}
 
