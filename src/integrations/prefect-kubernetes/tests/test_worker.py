@@ -61,7 +61,7 @@ def mock_operator_start(monkeypatch: pytest.MonkeyPatch):
 
 @pytest.fixture
 def mock_watch(monkeypatch: pytest.MonkeyPatch):
-    mock = MagicMock(return_value=AsyncMock())
+    mock = MagicMock(return_value=MagicMock())
     monkeypatch.setattr("kubernetes_asyncio.watch.Watch", mock)
     return mock
 
@@ -89,7 +89,7 @@ def mock_cluster_config(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def mock_anyio_sleep_monotonic(monkeypatch: pytest.MonkeyPatch, event_loop: Any):
+def mock_anyio_sleep_monotonic(monkeypatch: pytest.MonkeyPatch):
     def mock_monotonic():
         return mock_sleep.current_time
 
@@ -99,6 +99,7 @@ def mock_anyio_sleep_monotonic(monkeypatch: pytest.MonkeyPatch, event_loop: Any)
     mock_sleep.current_time = monotonic()
     monkeypatch.setattr("time.monotonic", mock_monotonic)
     monkeypatch.setattr("anyio.sleep", mock_sleep)
+    monkeypatch.setattr("anyio.current_time", mock_monotonic)
 
 
 @pytest.fixture
@@ -107,6 +108,7 @@ def mock_job():
 
     mock.metadata.name = "mock-job"
     mock.metadata.namespace = "mock-namespace"
+    mock.metadata.uid = "mock-job-uid"
     return mock
 
 
@@ -121,13 +123,28 @@ def mock_pod():
 
 
 @pytest.fixture
-def mock_core_client(monkeypatch: pytest.MonkeyPatch, mock_cluster_config: MagicMock):
-    mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
-    mock.return_value.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
-    mock.return_value.list_namespaced_pod.return_value.items.sort = MagicMock()
-    mock.return_value.read_namespaced_pod_log.return_value.content.readline = AsyncMock(
+def mock_core_client(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_cluster_config: MagicMock,
+    mock_pod: MagicMock,
+):
+    client = MagicMock()
+    client.read_namespace = AsyncMock()
+    client.read_namespace.return_value.metadata.uid = MOCK_CLUSTER_UID
+    client.list_namespaced_pod = AsyncMock()
+    client.list_namespaced_pod.return_value.items.sort = MagicMock()
+    client.list_namespaced_pod.return_value.items = [mock_pod]
+    client.list_namespaced_job = AsyncMock()
+    client.list_namespaced_event = AsyncMock()
+    client.read_namespaced_secret = AsyncMock()
+    client.replace_namespaced_secret = AsyncMock()
+    client.create_namespaced_secret = AsyncMock()
+    client.delete_namespaced_secret = AsyncMock()
+    client.read_namespaced_pod_log = MagicMock()
+    client.read_namespaced_pod_log.return_value.content.readline = AsyncMock(
         return_value=None
     )
+    mock = MagicMock(spec=CoreV1Api, return_value=client)
 
     monkeypatch.setattr(
         "prefect_kubernetes.worker.KubernetesWorker._get_configured_kubernetes_client",
@@ -139,17 +156,29 @@ def mock_core_client(monkeypatch: pytest.MonkeyPatch, mock_cluster_config: Magic
 
 
 @pytest.fixture
-def mock_core_client_lean(monkeypatch: pytest.MonkeyPatch):
-    mock = MagicMock(spec=CoreV1Api, return_value=AsyncMock())
+def mock_core_client_lean(monkeypatch: pytest.MonkeyPatch, mock_pod: MagicMock):
+    client = MagicMock()
+    client.list_namespaced_pod = AsyncMock()
+    client.list_namespaced_pod.return_value.items.sort = MagicMock()
+    client.list_namespaced_pod.return_value.items = [mock_pod]
+    client.list_namespaced_job = AsyncMock()
+    client.list_namespaced_event = AsyncMock()
+    client.read_namespaced_secret = AsyncMock()
+    client.replace_namespaced_secret = AsyncMock()
+    client.create_namespaced_secret = AsyncMock()
+    client.delete_namespaced_secret = AsyncMock()
+    mock = MagicMock(spec=CoreV1Api, return_value=client)
     monkeypatch.setattr("prefect_kubernetes.worker.CoreV1Api", mock)
     monkeypatch.setattr("kubernetes_asyncio.client.CoreV1Api", mock)
-    mock.return_value.list_namespaced_pod.return_value.items.sort = MagicMock()
     return mock
 
 
 @pytest.fixture
 def mock_batch_client(monkeypatch: pytest.MonkeyPatch, mock_job: MagicMock):
-    mock = MagicMock(spec=BatchV1Api, return_value=AsyncMock())
+    client = MagicMock()
+    client.create_namespaced_job = AsyncMock()
+    client.delete_namespaced_job = AsyncMock()
+    mock = MagicMock(spec=BatchV1Api, return_value=client)
 
     @asynccontextmanager
     async def get_batch_client(*args: Any, **kwargs: Any):
@@ -1561,6 +1590,40 @@ class TestKubernetesWorker:
             expected_value = "mock-namespace:mock-job"
             fake_status.started.assert_called_once_with(expected_value)
 
+    async def test_run_fails_when_pod_never_starts_and_logs_events(
+        self,
+        default_configuration: KubernetesWorkerJobConfiguration,
+        flow_run,
+        mock_batch_client,
+        mock_core_client,
+        mock_anyio_sleep_monotonic,
+    ):
+        default_configuration.prepare_for_flow_run(flow_run)
+        default_configuration.pod_watch_timeout_seconds = 1
+        mock_core_client.return_value.list_namespaced_pod.return_value.items = []
+
+        mock_event = MagicMock()
+        mock_event.type = "Warning"
+        mock_event.reason = "FailedCreate"
+        mock_event.message = "Error creating: forbidden"
+        mock_event.involved_object = MagicMock(kind="Job", name="mock-job")
+        mock_core_client.return_value.list_namespaced_event.return_value.items = [
+            mock_event
+        ]
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            with pytest.raises(InfrastructureError):
+                await k8s_worker.run(flow_run=flow_run, configuration=default_configuration)
+
+        field_selectors = [
+            call.kwargs.get("field_selector")
+            for call in mock_core_client.return_value.list_namespaced_event.call_args_list
+        ]
+        assert any(
+            selector and "involvedObject.uid=mock-job-uid" in selector
+            for selector in field_selectors
+        )
+
     @pytest.mark.parametrize(
         "job_name,clean_name",
         [
@@ -1902,8 +1965,12 @@ class TestKubernetesWorker:
         self,
         flow_run,
         mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
         caplog,
     ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
         with temporary_settings(updates={PREFECT_API_AUTH_STRING: "fake"}):
             configuration = (
                 await KubernetesWorkerJobConfiguration.from_template_and_values(
@@ -2783,7 +2850,11 @@ class TestKubernetesWorker:
             monkeypatch.setattr(uuid, "uuid4", lambda: frozen_uuid)
             python_version_info = sys.version_info
             async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
-                future = await k8s_worker.submit(test_flow)
+                with pytest.warns(
+                    FutureWarning,
+                    match="Ad-hoc flow submission via workers is experimental",
+                ):
+                    future = await k8s_worker.submit(test_flow)
                 assert isinstance(future, PrefectFlowRunFuture)
             expected_upload_command = [
                 "uv",
@@ -2850,7 +2921,11 @@ class TestKubernetesWorker:
             )
 
             async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
-                future = await k8s_worker.submit(test_flow)
+                with pytest.warns(
+                    FutureWarning,
+                    match="Ad-hoc flow submission via workers is experimental",
+                ):
+                    future = await k8s_worker.submit(test_flow)
                 assert isinstance(future, PrefectFlowRunFuture)
 
             async with prefect.get_client() as client:

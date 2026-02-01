@@ -105,6 +105,7 @@ from __future__ import annotations
 import base64
 import enum
 import json
+import logging
 import shlex
 from contextlib import asynccontextmanager
 from typing import (
@@ -174,6 +175,7 @@ MAX_ATTEMPTS = 3
 RETRY_MIN_DELAY_SECONDS = 1
 RETRY_MIN_DELAY_JITTER_SECONDS = 0
 RETRY_MAX_DELAY_JITTER_SECONDS = 3
+POD_START_POLL_INTERVAL_SECONDS = 2
 
 
 def _get_default_job_manifest_template() -> Dict[str, Any]:
@@ -735,6 +737,163 @@ class KubernetesWorker(
 
             await self._create_job(configuration, client)
 
+    async def _wait_for_pod_start(
+        self,
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+        job: V1Job,
+        logger: logging.Logger,
+    ) -> None:
+        """
+        Wait for a pod created by the job to start. If a pod never starts, log
+        Kubernetes events and raise an InfrastructureError.
+        """
+        if configuration.pod_watch_timeout_seconds <= 0:
+            return
+
+        core_client = CoreV1Api(client)
+        namespace = configuration.namespace
+        job_name = job.metadata.name
+        deadline = (
+            anyio.current_time() + configuration.pod_watch_timeout_seconds
+            if configuration.pod_watch_timeout_seconds
+            else None
+        )
+
+        while True:
+            try:
+                pod_list = await core_client.list_namespaced_pod(
+                    namespace=namespace,
+                    label_selector=f"job-name={job_name}",
+                )
+            except ApiException as exc:
+                raise InfrastructureError(
+                    f"Unable to list pods for Kubernetes job {job_name!r}: {exc}"
+                ) from exc
+
+            pods = list(getattr(pod_list, "items", []) or [])
+            for pod in pods:
+                phase = getattr(getattr(pod, "status", None), "phase", None)
+                if phase in {"Running", "Succeeded"}:
+                    return
+                if phase == "Failed":
+                    await self._log_kubernetes_events(
+                        core_client=core_client,
+                        namespace=namespace,
+                        job=job,
+                        pods=pods,
+                        logger=logger,
+                    )
+                    raise InfrastructureError(
+                        f"Kubernetes job {job_name!r} pod failed before starting."
+                    )
+
+            if deadline is not None and anyio.current_time() >= deadline:
+                await self._log_kubernetes_events(
+                    core_client=core_client,
+                    namespace=namespace,
+                    job=job,
+                    pods=pods,
+                    logger=logger,
+                )
+                raise InfrastructureError(
+                    f"Kubernetes job {job_name!r} pod did not start within "
+                    f"{configuration.pod_watch_timeout_seconds} seconds."
+                )
+
+            if deadline is None:
+                sleep_for = POD_START_POLL_INTERVAL_SECONDS
+            else:
+                sleep_for = max(
+                    0,
+                    min(POD_START_POLL_INTERVAL_SECONDS, deadline - anyio.current_time()),
+                )
+            if sleep_for == 0:
+                continue
+            await anyio.sleep(sleep_for)
+
+    async def _log_kubernetes_events(
+        self,
+        core_client: CoreV1Api,
+        namespace: str,
+        job: V1Job,
+        pods: list[Any],
+        logger: logging.Logger,
+    ) -> None:
+        """
+        Log warning events for the job and any associated pods.
+        """
+        events: list[Any] = []
+
+        job_selector = self._build_event_field_selector(job)
+        if job_selector:
+            events.extend(
+                await self._list_namespaced_events(
+                    core_client, namespace, job_selector
+                )
+            )
+
+        for pod in pods:
+            selector = self._build_event_field_selector(pod)
+            if selector:
+                events.extend(
+                    await self._list_namespaced_events(
+                        core_client, namespace, selector
+                    )
+                )
+
+        warning_events = [
+            event
+            for event in events
+            if getattr(event, "type", None) not in {None, "Normal"}
+        ]
+
+        if not warning_events:
+            logger.error(
+                "No warning events found for Kubernetes job %r. "
+                "Inspect the cluster for details.",
+                job.metadata.name,
+            )
+            return
+
+        for event in warning_events:
+            involved_object = getattr(event, "involved_object", None)
+            object_kind = getattr(involved_object, "kind", "Unknown")
+            object_name = getattr(involved_object, "name", "unknown")
+            reason = getattr(event, "reason", "UnknownReason")
+            message = getattr(event, "message", "")
+            logger.error(
+                "Kubernetes event for %s %s: %s - %s",
+                object_kind,
+                object_name,
+                reason,
+                message,
+            )
+
+    @staticmethod
+    def _build_event_field_selector(obj: Any) -> str | None:
+        metadata = getattr(obj, "metadata", None)
+        if metadata is None:
+            return None
+        if getattr(metadata, "uid", None):
+            return f"involvedObject.uid={metadata.uid}"
+        if getattr(metadata, "name", None):
+            return f"involvedObject.name={metadata.name}"
+        return None
+
+    @staticmethod
+    async def _list_namespaced_events(
+        core_client: CoreV1Api, namespace: str, field_selector: str
+    ) -> list[Any]:
+        try:
+            event_list = await core_client.list_namespaced_event(
+                namespace=namespace,
+                field_selector=field_selector,
+            )
+        except ApiException:
+            return []
+        return list(getattr(event_list, "items", []) or [])
+
     async def run(
         self,
         flow_run: "FlowRun",
@@ -763,6 +922,12 @@ class KubernetesWorker(
 
             assert job, "Job should be created"
             pid = f"{job.metadata.namespace}:{job.metadata.name}"
+            await self._wait_for_pod_start(
+                configuration=configuration,
+                client=client,
+                job=job,
+                logger=logger,
+            )
             # Indicate that the job has started
             if task_status is not None:
                 task_status.started(pid)
