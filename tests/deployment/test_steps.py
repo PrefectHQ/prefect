@@ -863,7 +863,10 @@ class TestGitCloneStep:
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
     async def test_git_clone_with_credentials(self, git_repository_mock):
+        slug = f"mockgitcredentials-{uuid.uuid4().hex[:8]}"
+
         class MockGitCredentials(Block):
+            _block_type_slug = slug
             username: str
             password: str
 
@@ -875,9 +878,7 @@ class TestGitCloneStep:
             {
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://github.com/org/repo.git",
-                    "credentials": (
-                        f"{{{{ prefect.blocks.mockgitcredentials.{creds_name} }}}}"
-                    ),
+                    "credentials": (f"{{{{ prefect.blocks.{slug}.{creds_name} }}}}"),
                 }
             }
         )
@@ -1457,6 +1458,7 @@ class TestPullWithBlock:
     @pytest.fixture
     async def test_block(self, monkeypatch, tmp_path):
         monkeypatch.chdir(str(tmp_path))  # ensures never writes to active directory
+        doc_name = f"test-block-{uuid.uuid4().hex[:8]}"
 
         class FakeStorageBlock(Block):
             _block_type_slug = "fake-storage-block"
@@ -1475,7 +1477,7 @@ class TestPullWithBlock:
                 (Path(local_path) / "flows.py").write_text(self.code)
 
         block = FakeStorageBlock()
-        await block.save("test-block")
+        await block.save(doc_name)
         return block
 
     async def test_normal_operation(self, test_block: Block):
@@ -1531,12 +1533,15 @@ class TestPullWithBlock:
         have a `get_directory` method, `run_step` should raise and log
         a message.
         """
+        slug = f"wrong-{uuid.uuid4().hex[:8]}"
+        doc_name = f"test-block-{uuid.uuid4().hex[:8]}"
 
         class Wrong(Block):
+            _block_type_slug = slug
             square_peg: str = "round_hole"
 
         block = Wrong()
-        await block.save("test-block")
+        await block.save(doc_name)
 
         with pytest.raises(ValueError):
             await run_step(

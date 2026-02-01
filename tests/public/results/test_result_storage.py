@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 from unittest.mock import patch
 
@@ -11,8 +12,10 @@ from prefect.results import ResultStore
 
 @pytest.fixture
 def custom_storage_block(tmpdir: Path):
+    unique_slug = f"test-storage-{uuid.uuid4().hex[:8]}"
+
     class Test(LocalFileSystem):
-        _block_type_slug = "test"
+        _block_type_slug = unique_slug
 
         async def awrite_path(self, path: str, content: bytes) -> str:
             _path: Path = self._resolve_path(path)
