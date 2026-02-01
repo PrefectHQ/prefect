@@ -3,7 +3,7 @@ Functions for interacting with flow ORM objects.
 Intended for internal use by the Prefect REST API.
 """
 
-from typing import Optional, Sequence, TypeVar, Union
+from typing import List, Optional, Sequence, TypeVar, Union
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -288,6 +288,45 @@ async def delete_flow(
 
     result = await session.execute(delete(db.Flow).where(db.Flow.id == flow_id))
     return result.rowcount > 0
+
+
+@db_injector
+async def delete_flows(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_ids: List[UUID],
+) -> List[UUID]:
+    """
+    Delete multiple flows by their IDs.
+
+    This also deletes all associated deployments (hard delete).
+
+    Args:
+        session: A database session
+        flow_ids: a list of flow ids to delete
+
+    Returns:
+        List[UUID]: the IDs of the flows that were deleted
+    """
+    if not flow_ids:
+        return []
+
+    # Get existing flow IDs
+    result = await session.execute(select(db.Flow.id).where(db.Flow.id.in_(flow_ids)))
+    existing_ids = list(result.scalars().all())
+
+    if not existing_ids:
+        return []
+
+    # Delete associated deployments (hard delete - cascade will handle related data)
+    await session.execute(
+        delete(db.Deployment).where(db.Deployment.flow_id.in_(existing_ids))
+    )
+
+    # Delete the flows
+    await session.execute(delete(db.Flow).where(db.Flow.id.in_(existing_ids)))
+
+    return existing_ids
 
 
 @db_injector

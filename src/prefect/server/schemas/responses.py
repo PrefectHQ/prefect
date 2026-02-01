@@ -665,3 +665,53 @@ SchemaValueError = Union[str, SchemaValuePropertyError, SchemaValueIndexError]
 class SchemaValuesValidationResponse(BaseModel):
     errors: List[SchemaValueError]
     valid: bool
+
+
+# Bulk operation response schemas
+
+
+class FlowRunBulkDeleteResponse(PrefectBaseModel):
+    """Response from bulk flow run deletion."""
+
+    deleted: List[UUID] = Field(default_factory=list)
+
+
+class DeploymentBulkDeleteResponse(PrefectBaseModel):
+    """Response from bulk deployment deletion."""
+
+    deleted: List[UUID] = Field(default_factory=list)
+
+
+class FlowBulkDeleteResponse(PrefectBaseModel):
+    """Response from bulk flow deletion."""
+
+    deleted: List[UUID] = Field(default_factory=list)
+
+
+class FlowRunOrchestrationResult(PrefectBaseModel):
+    """Per-run result for bulk state operations."""
+
+    flow_run_id: UUID
+    status: SetStateStatus
+    state: Optional[schemas.states.State] = None
+    details: StateResponseDetails
+
+
+class FlowRunBulkSetStateResponse(PrefectBaseModel):
+    """Response from bulk set state operation."""
+
+    results: List[FlowRunOrchestrationResult] = Field(default_factory=list)
+
+
+class FlowRunCreateResult(PrefectBaseModel):
+    """Per-run result for bulk create operations."""
+
+    flow_run_id: Optional[UUID] = None
+    status: Literal["CREATED", "FAILED"]
+    error: Optional[str] = None
+
+
+class FlowRunBulkCreateResponse(PrefectBaseModel):
+    """Response from bulk flow run creation."""
+
+    results: List[FlowRunCreateResult] = Field(default_factory=list)
