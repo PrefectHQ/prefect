@@ -932,17 +932,20 @@ class TestAPICompatibility:
         )
         mock_load_prefect_collections.assert_called_once()
 
-    async def test_load_from_block_base_class(self):
+    async def test_load_from_block_base_class(self, unique_block_slug):
+        slug = unique_block_slug("custom")
+
         class Custom(Block):
+            _block_type_slug = slug
             message: str
 
         my_custom_block = Custom(message="hello")
         await my_custom_block.save("my-custom-block")
 
-        loaded_block = Block.load("custom/my-custom-block", _sync=True)
+        loaded_block = Block.load(f"{slug}/my-custom-block", _sync=True)
         assert loaded_block.message == "hello"
 
-        aloaded_block = await Block.aload("custom/my-custom-block")
+        aloaded_block = await Block.aload(f"{slug}/my-custom-block")
         assert aloaded_block.message == "hello"
 
     async def test_load_nested_block(self, session, in_memory_prefect_client):
@@ -1126,8 +1129,11 @@ class TestAPICompatibility:
         ):
             await test_block.aload("blocky")
 
-    async def test_save_block_from_flow(self):
+    async def test_save_block_from_flow(self, unique_block_slug):
+        slug = unique_block_slug("test")
+
         class Test(Block):
+            _block_type_slug = slug
             a: str
 
         @prefect.flow
@@ -1666,26 +1672,34 @@ class TestRegisterBlockTypeAndSchema:
 
 class TestSaveBlock:
     @pytest.fixture
-    def NewBlock(self):
+    def NewBlock(self, unique_block_slug):
         # Ignore warning caused by matching key in registry due to block fixture
         warnings.filterwarnings("ignore", category=UserWarning)
+        slug = unique_block_slug("newblock")
 
         class NewBlock(Block):
+            _block_type_slug = slug
             a: str
             b: str
 
         return NewBlock
 
     @pytest.fixture
-    def InnerBlock(self):
+    def InnerBlock(self, unique_block_slug):
+        slug = unique_block_slug("innerblock")
+
         class InnerBlock(Block):
+            _block_type_slug = slug
             size: int
 
         return InnerBlock
 
     @pytest.fixture
-    def OuterBlock(self, InnerBlock):
+    def OuterBlock(self, InnerBlock, unique_block_slug):
+        slug = unique_block_slug("outerblock")
+
         class OuterBlock(Block):
+            _block_type_slug = slug
             size: int
             contents: InnerBlock
 
@@ -1771,19 +1785,25 @@ class TestSaveBlock:
         ):
             await new_block._save()
 
-    async def test_save_nested_blocks(self):
+    async def test_save_nested_blocks(self, unique_block_slug):
         block_name = "biggest-block-in-all-the-land"
+        big_slug = unique_block_slug("big")
+        bigger_slug = unique_block_slug("bigger")
+        biggest_slug = unique_block_slug("biggest")
 
         class Big(Block):
+            _block_type_slug = big_slug
             id: UUID = Field(default_factory=uuid4)
             size: int
 
         class Bigger(Block):
+            _block_type_slug = bigger_slug
             size: int
             contents: Big
             random_other_field: Dict[str, float]
 
         class Biggest(Block):
+            _block_type_slug = biggest_slug
             size: int
             contents: Bigger
 
@@ -1856,9 +1876,12 @@ class TestSaveBlock:
         assert loaded_outer_block.contents._block_document_name is None
 
     async def test_save_and_load_block_with_secrets_includes_secret_data(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, unique_block_slug
     ):
+        slug = unique_block_slug("secretblockb")
+
         class SecretBlockB(Block):
+            _block_type_slug = slug
             w: SecretDict
             x: SecretStr
             y: SecretBytes
@@ -1897,14 +1920,19 @@ class TestSaveBlock:
         assert api_block.z == "z"
 
     async def test_save_and_load_nested_block_with_secrets_hardcoded_child(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, unique_block_slug
     ):
+        child_slug = unique_block_slug("child")
+        parent_slug = unique_block_slug("parent")
+
         class Child(Block):
+            _block_type_slug = child_slug
             a: SecretStr
             b: str
             c: SecretDict
 
         class Parent(Block):
+            _block_type_slug = parent_slug
             a: SecretStr
             b: str
             child: Child
@@ -1923,7 +1951,7 @@ class TestSaveBlock:
                 "a": "********",
                 "b": "b",
                 "c": {"secret": "********"},
-                "block_type_slug": "child",
+                "block_type_slug": child_slug,
             },
         }
 
@@ -1938,7 +1966,7 @@ class TestSaveBlock:
                 "a": "a",
                 "b": "b",
                 "c": {"secret": "value"},
-                "block_type_slug": "child",
+                "block_type_slug": child_slug,
             },
         }
 
@@ -1951,14 +1979,19 @@ class TestSaveBlock:
         assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
     async def test_save_and_load_nested_block_with_secrets_saved_child(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, unique_block_slug
     ):
+        child_slug = unique_block_slug("child")
+        parent_slug = unique_block_slug("parent")
+
         class Child(Block):
+            _block_type_slug = child_slug
             a: SecretStr
             b: str
             c: SecretDict
 
         class Parent(Block):
+            _block_type_slug = parent_slug
             a: SecretStr
             b: str
             child: Child
@@ -2052,8 +2085,11 @@ class TestSaveBlock:
 
         assert loaded_inner_block == updated_inner_block
 
-    async def test_update_block_with_secrets(self):
+    async def test_update_block_with_secrets(self, unique_block_slug):
+        slug = unique_block_slug("hassomethingtohide")
+
         class HasSomethingToHide(Block):
+            _block_type_slug = slug
             something_to_hide: SecretStr
 
         shifty_block = HasSomethingToHide(something_to_hide="a surprise birthday party")
@@ -2070,8 +2106,11 @@ class TestSaveBlock:
             == "a birthday present"
         )
 
-    async def test_update_block_with_secret_dict(self):
+    async def test_update_block_with_secret_dict(self, unique_block_slug):
+        slug = unique_block_slug("hassomethingtohide")
+
         class HasSomethingToHide(Block):
+            _block_type_slug = slug
             something_to_hide: SecretDict
 
         shifty_block = HasSomethingToHide(
@@ -2091,8 +2130,11 @@ class TestSaveBlock:
             "what I'm hiding": "a birthday present"
         }
 
-    async def test_block_with_alias(self):
+    async def test_block_with_alias(self, unique_block_slug):
+        slug = unique_block_slug("aliasblock")
+
         class AliasBlock(Block):
+            _block_type_slug = slug
             type: str
             schema_: str = Field(alias="schema")
             real_name: str = Field(alias="an_alias")
@@ -2109,10 +2151,12 @@ class TestSaveBlock:
         assert loaded_alias_block.real_name == "my_real_name"
         assert loaded_alias_block.threads == 8
 
-    async def test_save_block_with_semantic_version(self):
+    async def test_save_block_with_semantic_version(self, unique_block_slug):
         """Test that blocks with SemanticVersion fields can be saved and loaded."""
+        slug = unique_block_slug("blockwithsemanticversion")
 
         class BlockWithSemanticVersion(Block):
+            _block_type_slug = slug
             version: SemanticVersion
 
         # Test creating and saving a block with SemanticVersion
@@ -2811,8 +2855,11 @@ class TestBlockSchemaMigration:
         # with pytest.raises(AttributeError):
         #     foo_alias.y
 
-    async def test_load_with_skip_validation_keeps_metadata(self):
+    async def test_load_with_skip_validation_keeps_metadata(self, unique_block_slug):
+        slug = unique_block_slug("bar")
+
         class Bar(Block):
+            _block_type_slug = slug
             x: int = 1
 
         bar = Bar()
