@@ -1073,18 +1073,18 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("concurrency_limit", [10, 5, 1])
     async def test_get_runs_in_queue_concurrency_limit(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         concurrency_limit,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=concurrency_limit),
         )
 
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs"
         )
 
@@ -1093,17 +1093,17 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("limit", [10, 1])
     async def test_get_runs_in_queue_concurrency_limit_and_limit(
         self,
-        hosted_api_client,
+        ephemeral_client_with_lifespan,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        await hosted_api_client.patch(
+        await ephemeral_client_with_lifespan.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=5),
         )
-        response1 = await hosted_api_client.post(
+        response1 = await ephemeral_client_with_lifespan.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(limit=limit),
         )
