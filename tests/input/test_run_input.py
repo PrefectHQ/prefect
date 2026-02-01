@@ -91,7 +91,7 @@ async def test_save_stores_provided_description(flow_run_context):
 
 
 def test_save_works_sync():
-    @flow
+    @flow(name=f"test_save_works_sync_{uuid4()}")
     def test_flow():
         keyset = keyset_from_base_key("person")
         Person.save(keyset)
@@ -140,7 +140,7 @@ async def test_load_populates_metadata(flow_run_context):
 
 
 async def test_load_works_sync():
-    @flow
+    @flow(name=f"test_load_works_sync_{uuid4()}")
     def test_flow():
         keyset = keyset_from_base_key("person")
         create_flow_run_input(
@@ -267,7 +267,7 @@ async def test_respond_functions_sync(flow_run):
 
     person = Person.load_from_flow_run_input(flow_run_input)
 
-    @flow
+    @flow(name=f"test_respond_functions_sync_{uuid4()}")
     def test_flow():
         person.respond(Place(city="New York", state="NY"))
 
@@ -359,7 +359,7 @@ async def test_automatic_input_send_to(flow_run):
 
 
 async def test_automatic_input_send_to_works_sync(flow_run):
-    @flow
+    @flow(name=f"test_automatic_input_send_to_works_sync_{uuid4()}")
     def test_flow():
         send_input(1, flow_run_id=flow_run.id)
 
@@ -429,7 +429,7 @@ async def test_send_to_works_sync(flow_run):
 
     person = Person.load_from_flow_run_input(flow_run_input)
 
-    @flow
+    @flow(name=f"test_send_to_works_sync_{uuid4()}")
     def test_flow():
         person.send_to(flow_run_id=flow_run.id)
 
@@ -526,7 +526,7 @@ async def test_automatic_input_receive_works_sync(flow_run):
 
     received = []
 
-    @flow
+    @flow(name=f"test_automatic_input_receive_works_sync_{uuid4()}")
     def test_flow():
         for city in receive_input(
             Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
@@ -659,7 +659,7 @@ async def test_receive_works_sync(flow_run):
 
     received = []
 
-    @flow
+    @flow(name=f"test_receive_works_sync_{uuid4()}")
     def test_flow():
         for place in Place.receive(
             flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
@@ -729,7 +729,7 @@ async def test_receive_can_raise_timeout_errors_as_generator(flow_run):
 def test_receive_can_raise_timeout_errors_as_generator_sync(flow_run):
     with pytest.raises(TimeoutError):
 
-        @flow
+        @flow(name=f"test_receive_can_raise_timeout_errors_as_generator_sync_{uuid4()}")
         def test_flow():
             for _ in Place.receive(
                 flow_run_id=flow_run.id,
@@ -876,7 +876,7 @@ class TestAsyncDispatchMigration:
     def test_filter_for_inputs_sync_returns_inputs(self, flow_run):
         """Test that filter_for_inputs_sync returns inputs correctly."""
 
-        @flow
+        @flow(name=f"test_filter_for_inputs_sync_returns_inputs_{uuid4()}")
         def test_flow():
             send_input(1, flow_run_id=flow_run.id)
             handler = receive_input(int, flow_run_id=flow_run.id, timeout=0.1)

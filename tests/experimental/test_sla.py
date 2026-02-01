@@ -55,7 +55,7 @@ def project_dir(tmp_path):
 async def docker_work_pool(prefect_client: PrefectClient) -> WorkPool:
     return await prefect_client.create_work_pool(
         work_pool=WorkPoolCreate(
-            name="test-docker-work-pool",
+            name=f"test-docker-work-pool-{uuid4()}",
             type="docker",
             base_job_template={
                 "job_configuration": {"image": "{{ image}}"},
@@ -92,7 +92,7 @@ def interactive_console(monkeypatch):
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
 
-@flow()
+@flow(name=f"tired_flow_{uuid4()}")
 def tired_flow():
     print("I am so tired...")
 
