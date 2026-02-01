@@ -274,7 +274,7 @@ class TestResolveBlockDocumentReferences:
         pass
 
     @pytest.fixture()
-    async def block_document_id(self):
+    async def block_document_id(self, prefect_client):
         slug = f"arbitraryblock-{uuid.uuid4().hex[:8]}"
         doc_name = f"arbitrary-block-{uuid.uuid4().hex[:8]}"
 
@@ -284,7 +284,7 @@ class TestResolveBlockDocumentReferences:
             b: str
 
         block_document_id = await ArbitraryBlock(a=1, b="hello").save(
-            name=doc_name, overwrite=True
+            name=doc_name, overwrite=True, client=prefect_client
         )
         return {"id": block_document_id, "slug": slug, "name": doc_name}
 
