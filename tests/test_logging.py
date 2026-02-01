@@ -19,6 +19,7 @@ from rich.color import Color, ColorType
 from rich.console import Console
 from rich.highlighter import NullHighlighter, ReprHighlighter
 from rich.style import Style
+from websockets.asyncio.client import ClientConnection
 
 import prefect
 import prefect.logging.configuration
@@ -1666,6 +1667,48 @@ class TestJsonFormatter:
         assert deserialized["exc_info"]["message"] == "test exception"
         assert deserialized["exc_info"]["traceback"] is not None
         assert len(deserialized["exc_info"]["traceback"]) > 0
+
+    def test_json_log_formatter_handles_non_serializable_objects(self):
+        """Test that JsonFormatter handles non-serializable objects gracefully.
+
+        Regression test for: https://github.com/PrefectHQ/prefect/issues/OSS-7568
+
+        When log records contain objects that can't be JSON serialized (e.g.,
+        websocket connections), the formatter should gracefully fall back to
+        a placeholder representation instead of crashing while preserving
+        valid serializable fields like timestamps and UUIDs.
+        """
+        formatter = JsonFormatter("default", None, "%")
+
+        mock_connection = MagicMock(spec=ClientConnection)
+        mock_connection.__class__ = ClientConnection
+
+        test_uuid = uuid.UUID("12345678-1234-5678-1234-567812345678")
+        test_timestamp = datetime.now()
+
+        record = logging.LogRecord(
+            name="Test Log",
+            level=logging.ERROR,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="WebSocket error",
+            args=None,
+            exc_info=None,
+        )
+        record.connection = mock_connection
+        record.request_id = test_uuid
+        record.event_time = test_timestamp
+
+        formatted = formatter.format(record)
+
+        deserialized = json.loads(formatted)
+
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["msg"] == "WebSocket error"
+        assert "<non-serializable:" in deserialized["connection"]
+        assert deserialized["request_id"] == str(test_uuid)
+        assert deserialized["event_time"] == test_timestamp.isoformat()
+        assert isinstance(deserialized["created"], float)
 
 
 class TestObfuscateApiKeyFilter:
