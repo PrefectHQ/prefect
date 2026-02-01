@@ -125,6 +125,7 @@ class RawScheduleConfig(BaseModel):
     active: Optional[Union[bool, str]] = None  # Allow string for template values
     parameters: Dict[str, Any] = Field(default_factory=dict)
     slug: Optional[str] = None
+    replaces: Optional[str] = None  # The slug of an existing schedule to replace
 
     # Cron-specific
     day_or: Optional[Union[bool, str]] = None  # Allow string for template values
