@@ -479,6 +479,10 @@ class DeploymentResponse(ORMBaseModel):
         default=None,
         description="The block document defining infrastructure to use for flow runs.",
     )
+    code_repository_url: Optional[str] = Field(
+        default=None,
+        description="URL to the code repository for this deployment.",
+    )
     created_by: Optional[CreatedBy] = Field(
         default=None,
         description="Optional information about the creator of this deployment.",
