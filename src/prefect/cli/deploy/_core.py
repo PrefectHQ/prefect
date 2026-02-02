@@ -6,6 +6,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from rich.markup import escape
 from rich.panel import Panel
 
 import prefect.cli.root as root
@@ -500,5 +501,11 @@ async def _run_multi_deploy(
             else:
                 app.console.print("Skipping unnamed deployment.", style="yellow")
                 continue
-        app.console.print(Panel(f"Deploying {deploy_config['name']}", style="blue"))
+        # Resolve env var templates in name for display purposes only
+        resolved_name = apply_values(
+            {"name": deploy_config["name"]}, os.environ, remove_notset=False
+        )["name"]
+        # Escape Rich markup to prevent brackets from being interpreted as style tags
+        display_name = escape(str(resolved_name))
+        app.console.print(Panel(f"Deploying {display_name}", style="blue"))
         await _run_single_deploy(deploy_config, actions, prefect_file=prefect_file)
