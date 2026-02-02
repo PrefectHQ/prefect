@@ -221,6 +221,13 @@ class LazyTyperGroup(TyperGroup):
     _typer_instance: Optional[typer.Typer] = None
 
     @classmethod
+    def reset(cls) -> None:
+        """Reset class-level state. Used for test isolation."""
+        cls._lazy_commands = {}
+        cls._loaded_modules = set()
+        cls._typer_instance = None
+
+    @classmethod
     def register_lazy_commands(
         cls,
         commands: dict[str, Iterable[str] | str],
