@@ -180,7 +180,8 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/cli/test_version.py",
     # Phase 4 - Part 2
     "tests/events/client",
-    "tests/infrastructure",
+    "tests/infrastructure/provisioners/test_coiled.py",
+    "tests/infrastructure/provisioners/test_modal.py",
 ]
 
 
