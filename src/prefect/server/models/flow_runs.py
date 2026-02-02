@@ -504,6 +504,48 @@ async def delete_flow_run(
     return result.rowcount > 0
 
 
+@db_injector
+async def delete_flow_runs(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run_ids: List[UUID],
+) -> List[UUID]:
+    """
+    Delete multiple flow runs by their IDs, handling concurrency limits.
+
+    Args:
+        session: A database session
+        flow_run_ids: a list of flow run ids to delete
+
+    Returns:
+        List[UUID]: the IDs of the flow runs that were deleted
+    """
+    if not flow_run_ids:
+        return []
+
+    # Read all flow runs to handle concurrency cleanup
+    flow_runs = await session.execute(
+        select(db.FlowRun).where(db.FlowRun.id.in_(flow_run_ids))
+    )
+    flow_run_list = flow_runs.scalars().all()
+
+    if not flow_run_list:
+        return []
+
+    # Cleanup concurrency slots for each flow run that has a deployment
+    for flow_run in flow_run_list:
+        if flow_run.deployment_id:
+            await cleanup_flow_run_concurrency_slots(session=session, flow_run=flow_run)
+
+    # Get the IDs of flow runs that exist
+    existing_ids = [fr.id for fr in flow_run_list]
+
+    # Delete all flow runs in one query
+    await session.execute(delete(db.FlowRun).where(db.FlowRun.id.in_(existing_ids)))
+
+    return existing_ids
+
+
 async def set_flow_run_state(
     session: AsyncSession,
     flow_run_id: UUID,
