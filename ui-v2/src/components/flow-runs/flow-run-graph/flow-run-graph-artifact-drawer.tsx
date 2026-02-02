@@ -10,7 +10,6 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Typography } from "@/components/ui/typography";
 
 type FlowRunGraphArtifactDrawerProps = {
 	artifactId: string | null;
@@ -61,27 +60,19 @@ function ArtifactContent({ artifactId }: { artifactId: string }) {
 			<KeyValue
 				label="Key"
 				value={
-					<Typography variant="bodySmall" className="font-medium">
-						{artifact.key ?? "Unnamed"}
-					</Typography>
+					<p className="text-sm font-medium">{artifact.key ?? "Unnamed"}</p>
 				}
 			/>
 			{artifact.type && (
 				<KeyValue
 					label="Type"
-					value={
-						<Typography variant="bodySmall" className="uppercase">
-							{artifact.type}
-						</Typography>
-					}
+					value={<p className="text-sm uppercase">{artifact.type}</p>}
 				/>
 			)}
 			{artifact.description && (
 				<KeyValue
 					label="Description"
-					value={
-						<Typography variant="bodySmall">{artifact.description}</Typography>
-					}
+					value={<p className="text-sm">{artifact.description}</p>}
 				/>
 			)}
 			{artifact.created && (
@@ -92,9 +83,7 @@ function ArtifactContent({ artifactId }: { artifactId: string }) {
 			)}
 			{artifact.data !== undefined && artifact.data !== null && (
 				<div className="space-y-2">
-					<Typography variant="bodySmall" className="text-muted-foreground">
-						Data
-					</Typography>
+					<p className="text-sm text-muted-foreground">Data</p>
 					<pre className="bg-muted p-3 rounded-md text-sm overflow-auto max-h-64">
 						{typeof artifact.data === "string"
 							? artifact.data

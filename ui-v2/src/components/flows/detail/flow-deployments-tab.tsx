@@ -29,7 +29,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { TagsInput } from "@/components/ui/tags-input";
-import { Typography } from "@/components/ui/typography";
 import { columns as baseDeploymentColumns } from "./deployment-columns";
 
 type DeploymentSort = components["schemas"]["DeploymentSort"];
@@ -137,9 +136,9 @@ export const FlowDeploymentsTab = ({
 				<div className="flex flex-col gap-1 xl:col-span-3 md:col-span-12 col-span-6 md:order-0 order-3">
 					{selectedCount > 0 ? (
 						<div className="flex items-center gap-2">
-							<Typography variant="bodySmall" className="text-muted-foreground">
+							<p className="text-sm text-muted-foreground">
 								{selectedCount} selected
-							</Typography>
+							</p>
 							<Button
 								variant="ghost"
 								size="icon"
@@ -151,9 +150,9 @@ export const FlowDeploymentsTab = ({
 							</Button>
 						</div>
 					) : (
-						<Typography variant="bodySmall" className="text-muted-foreground">
+						<p className="text-sm text-muted-foreground">
 							{deploymentsCount} Deployment{deploymentsCount !== 1 ? "s" : ""}
-						</Typography>
+						</p>
 					)}
 				</div>
 

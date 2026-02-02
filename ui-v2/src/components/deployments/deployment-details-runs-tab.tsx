@@ -15,7 +15,6 @@ import {
 	type SortFilters,
 	useFlowRunsSelectedRows,
 } from "@/components/flow-runs/flow-runs-list";
-import { Typography } from "@/components/ui/typography";
 
 const routeApi = getRouteApi("/deployments/deployment/$id");
 
@@ -75,7 +74,7 @@ export const DeploymentDetailsRunsTab = ({
 		<div className="flex flex-col gap-2">
 			{nextRun && (
 				<div className="flex flex-col gap-2 border-b py-2">
-					<Typography variant="bodyLarge">Next Run</Typography>
+					<p className="text-lg">Next Run</p>
 					<FlowRunCard flowRun={nextRun} />
 				</div>
 			)}

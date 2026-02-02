@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import { KeyValue } from "@/components/ui/key-value";
-import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
 
 type ArtifactSectionProps = {
@@ -16,9 +15,7 @@ export const ArtifactSection = ({ artifact }: ArtifactSectionProps) => {
 
 	return (
 		<div className="mt-4">
-			<Typography variant="bodyLarge" className="font-bold">
-				Artifact
-			</Typography>
+			<p className="text-lg font-bold">Artifact</p>
 
 			<div className="mt-3 flex flex-col gap-3">
 				<KeyValue
