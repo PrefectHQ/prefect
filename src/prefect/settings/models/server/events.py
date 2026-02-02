@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
@@ -66,6 +66,20 @@ class ServerEventsSettings(PrefectBaseSettings):
             AliasPath("maximum_size_bytes"),
             "prefect_server_events_maximum_size_bytes",
             "prefect_events_maximum_size_bytes",
+        ),
+    )
+
+    maximum_size_bytes_behavior: Literal["error", "warn", "ignore"] = Field(
+        default="error",
+        description=(
+            "Controls the behavior when an Event exceeds the maximum size. "
+            '"error" raises an exception; "warn" logs a warning and still emits the event; '
+            '"ignore" still emits the event without logging.'
+        ),
+        validation_alias=AliasChoices(
+            AliasPath("maximum_size_bytes_behavior"),
+            "prefect_server_events_maximum_size_bytes_behavior",
+            "prefect_events_maximum_size_bytes_behavior",
         ),
     )
 

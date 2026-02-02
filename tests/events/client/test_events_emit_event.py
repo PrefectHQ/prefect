@@ -12,6 +12,7 @@ from prefect.exceptions import EventTooLarge
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_EVENTS_MAXIMUM_SIZE_BYTES,
+    PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR,
     temporary_settings,
 )
 from prefect.types import DateTime
@@ -93,6 +94,54 @@ def test_raises_for_events_exceeding_maximum_size(
     asserting_events_worker.drain()
     client = asserting_events_worker._client
     assert client.events == []
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_warns_and_emits_events_exceeding_maximum_size(
+    asserting_events_worker: EventsWorker, caplog: pytest.LogCaptureFixture
+):
+    with temporary_settings(
+        updates={
+            PREFECT_EVENTS_MAXIMUM_SIZE_BYTES: 100,
+            PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR: "warn",
+        }
+    ):
+        with caplog.at_level("WARNING"):
+            emitted = emit_event(
+                event="vogon.poetry.read",
+                resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
+                payload={"text": "X" * 200},
+            )
+            assert emitted is not None
+
+    asserting_events_worker.drain()
+    assert "Event exceeds maximum size" in caplog.text
+    client = asserting_events_worker._client
+    assert len(client.events) == 1
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+def test_ignores_and_emits_events_exceeding_maximum_size(
+    asserting_events_worker: EventsWorker, caplog: pytest.LogCaptureFixture
+):
+    with temporary_settings(
+        updates={
+            PREFECT_EVENTS_MAXIMUM_SIZE_BYTES: 100,
+            PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR: "ignore",
+        }
+    ):
+        with caplog.at_level("WARNING"):
+            emitted = emit_event(
+                event="vogon.poetry.read",
+                resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
+                payload={"text": "X" * 200},
+            )
+            assert emitted is not None
+
+    asserting_events_worker.drain()
+    assert "Event exceeds maximum size" not in caplog.text
+    client = asserting_events_worker._client
+    assert len(client.events) == 1
 
 
 @pytest.mark.usefixtures("reset_worker_events")

@@ -97,9 +97,19 @@ def emit_event(
 
         event_obj = Event(**event_kwargs)
 
-        max_size = get_current_settings().server.events.maximum_size_bytes
+        events_settings = get_current_settings().server.events
+        max_size = events_settings.maximum_size_bytes
+        behavior = events_settings.maximum_size_bytes_behavior
         if event_obj.size_bytes > max_size:
-            raise EventTooLarge(event_obj.size_bytes, max_size)
+            if behavior == "error":
+                raise EventTooLarge(event_obj.size_bytes, max_size)
+            elif behavior == "warn":
+                logger.warning(
+                    "Event exceeds maximum size (%s > %s bytes); server may reject event %s",
+                    event_obj.size_bytes,
+                    max_size,
+                    event_obj.event,
+                )
 
         worker_instance.send(event_obj)
 
