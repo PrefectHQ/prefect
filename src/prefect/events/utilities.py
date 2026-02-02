@@ -105,7 +105,7 @@ def emit_event(
                 raise EventTooLarge(event_obj.size_bytes, max_size)
             elif behavior == "warn":
                 logger.warning(
-                    "Event exceeds maximum size (%s > %s bytes); server may reject event %s",
+                    "Event exceeds maximum size (%s > %s bytes); server may drop event %s",
                     event_obj.size_bytes,
                     max_size,
                     event_obj.event,
