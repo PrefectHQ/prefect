@@ -1,5 +1,3 @@
-import uuid
-
 import httpx
 import readchar
 from starlette import status
@@ -86,12 +84,12 @@ class TestAssetList:
         )
 
         asset1 = {
-            "id": str(uuid.uuid4()),
             "key": "s3://my-bucket/data.csv",
+            "last_seen": "2026-01-20T18:52:16.681416Z",
         }
         asset2 = {
-            "id": str(uuid.uuid4()),
             "key": "postgres://db/users",
+            "last_seen": "2026-01-21T10:30:00.000000Z",
         }
 
         respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
@@ -108,7 +106,7 @@ class TestAssetList:
                 expected_output_contains=[asset1["key"], asset2["key"]],
             )
 
-    def test_list_assets_with_limit(self, respx_mock):
+    def test_list_assets_with_prefix(self, respx_mock):
         foo_workspace = gen_test_workspace(
             account_handle="test", workspace_handle="foo"
         )
@@ -128,13 +126,11 @@ class TestAssetList:
         )
 
         asset = {
-            "id": str(uuid.uuid4()),
             "key": "s3://my-bucket/data.csv",
+            "last_seen": "2026-01-20T18:52:16.681416Z",
         }
 
-        respx_mock.get(
-            f"{foo_workspace.api_url()}/assets/",
-        ).mock(
+        respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
             return_value=httpx.Response(
                 status.HTTP_200_OK,
                 json=[asset],
@@ -143,7 +139,7 @@ class TestAssetList:
 
         with use_profile("logged-in-profile"):
             invoke_and_assert(
-                ["cloud", "asset", "ls", "--limit", "50"],
+                ["cloud", "asset", "ls", "--prefix", "s3://"],
                 expected_code=0,
                 expected_output_contains=asset["key"],
             )
@@ -168,8 +164,8 @@ class TestAssetList:
         )
 
         asset = {
-            "id": str(uuid.uuid4()),
             "key": "s3://my-bucket/data.csv",
+            "last_seen": "2026-01-20T18:52:16.681416Z",
         }
 
         respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
@@ -183,7 +179,7 @@ class TestAssetList:
             invoke_and_assert(
                 ["cloud", "asset", "ls", "-o", "json"],
                 expected_code=0,
-                expected_output_contains=[asset["key"], asset["id"]],
+                expected_output_contains=[asset["key"], asset["last_seen"]],
             )
 
     def test_list_assets_invalid_output_format(self):
@@ -250,10 +246,8 @@ class TestAssetDelete:
         )
 
         asset_key = "s3://my-bucket/data.csv"
-        # URL encoded key
-        encoded_key = "s3%3A%2F%2Fmy-bucket%2Fdata.csv"
 
-        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key/{encoded_key}").mock(
+        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key").mock(
             return_value=httpx.Response(
                 status.HTTP_204_NO_CONTENT,
             )
@@ -287,9 +281,8 @@ class TestAssetDelete:
         )
 
         asset_key = "s3://my-bucket/data.csv"
-        encoded_key = "s3%3A%2F%2Fmy-bucket%2Fdata.csv"
 
-        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key/{encoded_key}").mock(
+        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key").mock(
             return_value=httpx.Response(
                 status.HTTP_204_NO_CONTENT,
             )
@@ -322,9 +315,8 @@ class TestAssetDelete:
         )
 
         asset_key = "s3://nonexistent/data.csv"
-        encoded_key = "s3%3A%2F%2Fnonexistent%2Fdata.csv"
 
-        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key/{encoded_key}").mock(
+        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key").mock(
             return_value=httpx.Response(
                 status.HTTP_404_NOT_FOUND,
                 json={"detail": "Asset not found"},

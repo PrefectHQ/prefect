@@ -5,7 +5,6 @@ Command line interface for managing Prefect Cloud assets
 from __future__ import annotations
 
 from typing import Optional
-from urllib.parse import quote
 
 import orjson
 import typer
@@ -25,16 +24,17 @@ cloud_app.add_typer(asset_app, aliases=["assets"])
 
 @asset_app.command("ls")
 async def list_assets(
-    limit: int = typer.Option(
-        100,
-        "--limit",
-        "-l",
-        help="Maximum number of assets to return",
+    prefix: Optional[str] = typer.Option(
+        None,
+        "--prefix",
+        "-p",
+        help="Filter assets by key prefix",
     ),
-    offset: int = typer.Option(
-        0,
-        "--offset",
-        help="Offset for pagination",
+    search: Optional[str] = typer.Option(
+        None,
+        "--search",
+        "-s",
+        help="Filter assets by key substring",
     ),
     output: Optional[str] = typer.Option(
         None,
@@ -51,12 +51,14 @@ async def list_assets(
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
+    params: dict[str, str] = {}
+    if prefix:
+        params["prefix"] = prefix
+    if search:
+        params["search"] = search
+
     async with get_cloud_client(host=get_current_settings().api.url) as client:
-        assets = await client.request(
-            "GET",
-            "/assets/",
-            params={"limit": limit, "offset": offset},
-        )
+        assets = await client.request("GET", "/assets/", params=params or None)
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(assets, option=orjson.OPT_INDENT_2).decode()
@@ -72,12 +74,12 @@ async def list_assets(
         )
 
         table.add_column("Key", style="blue", no_wrap=False)
-        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("Last Seen", style="cyan", no_wrap=True)
 
         for asset in sorted(assets, key=lambda x: x.get("key", "")):
             table.add_row(
                 asset.get("key", ""),
-                str(asset.get("id", "")),
+                asset.get("last_seen", ""),
             )
 
         app.console.print(table)
@@ -108,12 +110,9 @@ async def delete_asset(
         ):
             exit_with_error("Deletion aborted.")
 
-    # URL encode the key for the API path
-    encoded_key = quote(key, safe="")
-
     async with get_cloud_client(host=get_current_settings().api.url) as client:
         try:
-            await client.request("DELETE", f"/assets/key/{encoded_key}")
+            await client.request("DELETE", "/assets/key", params={"key": key})
         except ObjectNotFound:
             exit_with_error(f"Asset {key!r} not found.")
         except Exception as exc:
