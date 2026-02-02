@@ -501,11 +501,11 @@ async def _run_multi_deploy(
             else:
                 app.console.print("Skipping unnamed deployment.", style="yellow")
                 continue
-        # Create resolved copy for display purposes only
-        display_config = deepcopy(deploy_config)
-        display_config = apply_values(display_config, os.environ, remove_notset=False)
-
-        # Escape Rich markup in the name to prevent brackets from being interpreted as tags
-        display_name = escape(str(display_config["name"]))
+        # Resolve env var templates in name for display purposes only
+        resolved_name = apply_values(
+            {"name": deploy_config["name"]}, os.environ, remove_notset=False
+        )["name"]
+        # Escape Rich markup to prevent brackets from being interpreted as style tags
+        display_name = escape(str(resolved_name))
         app.console.print(Panel(f"Deploying {display_name}", style="blue"))
         await _run_single_deploy(deploy_config, actions, prefect_file=prefect_file)
