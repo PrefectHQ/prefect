@@ -1674,6 +1674,7 @@ class TestRegisterBlockTypeAndSchema:
             await Interface.register_type_and_schema(client=prefect_client)
 
 
+@pytest.mark.clear_db
 class TestSaveBlock:
     @pytest.fixture
     def NewBlock(self, unique_block_slug):
@@ -1729,7 +1730,6 @@ class TestSaveBlock:
 
         assert loaded_new_block == new_block
 
-    @pytest.mark.clear_db
     async def test_save_block_with_name_inferred_from_loaded_document(self, NewBlock):
         new_block = NewBlock(a="foo", b="bar")
 
@@ -1750,7 +1750,6 @@ class TestSaveBlock:
         assert loaded_new_block.a == "baz"
         assert loaded_new_block.b == "bar"
 
-    @pytest.mark.clear_db
     async def test_save_anonymous_block(self, NewBlock):
         new_anon_block = NewBlock(a="foo", b="bar")
         await new_anon_block._save(is_anonymous=True)
@@ -1858,7 +1857,6 @@ class TestSaveBlock:
         )
         assert loaded_anonymous_outer_block == anonymous_outer_block
 
-    @pytest.mark.clear_db
     async def test_save_anonymous_block_nested_in_named_block(
         self, InnerBlock, OuterBlock
     ):
@@ -1875,7 +1873,6 @@ class TestSaveBlock:
         loaded_anonymous_outer_block = await OuterBlock.load(outer_block_name)
         assert loaded_anonymous_outer_block == named_outer_block
 
-    @pytest.mark.clear_db
     async def test_save_nested_block_without_references(self, InnerBlock, OuterBlock):
         new_inner_block = InnerBlock(size=1)
         new_outer_block = OuterBlock(size=10, contents=new_inner_block)
@@ -1994,7 +1991,6 @@ class TestSaveBlock:
         assert api_block.child.b == "b"
         assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
-    @pytest.mark.clear_db
     async def test_save_and_load_nested_block_with_secrets_saved_child(
         self, prefect_client: PrefectClient, unique_block_slug
     ):
@@ -2064,7 +2060,6 @@ class TestSaveBlock:
         loaded_inner_block.size = 2
         assert loaded_inner_block == inner_block
 
-    @pytest.mark.clear_db
     async def test_save_block_without_overwrite_raises(self, InnerBlock):
         inner_block = InnerBlock(size=1)
         block_name = f"my-inner-block-{uuid4()}"
@@ -2084,7 +2079,6 @@ class TestSaveBlock:
         loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 1
 
-    @pytest.mark.clear_db
     async def test_update_from_loaded_block(self, InnerBlock):
         inner_block = InnerBlock(size=1)
         block_name = f"my-inner-block-{uuid4()}"
@@ -2954,6 +2948,7 @@ class TestBlockSchemaMigration:
         assert updated_schema_id == new_schema_id
 
 
+@pytest.mark.clear_db
 class TestDeleteBlock:
     @pytest.fixture
     def NewBlock(self):
@@ -2967,7 +2962,6 @@ class TestDeleteBlock:
 
         return NewBlock
 
-    @pytest.mark.clear_db
     async def test_delete_block(self, NewBlock):
         new_block = NewBlock(a="foo", b="bar")
         new_block_name = f"my-block-{uuid4()}"
