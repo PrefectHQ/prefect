@@ -47,7 +47,9 @@ def test_client_context_lifespan_is_robust_to_threaded_concurrency():
         thread.start()
 
     for thread in threads:
-        thread.join(15)
+        thread.join(30)
+        if thread.is_alive():
+            raise TimeoutError(f"Thread {thread.name} did not complete within timeout")
 
     assert startup.call_count == shutdown.call_count
     assert startup.call_count > 0
