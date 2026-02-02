@@ -127,10 +127,6 @@ def _initialize_plugins() -> None:
             print(f"Failed to initialize plugins: {e}", file=sys.stderr)
 
 
-# Initialize plugins on import if enabled
-_initialize_plugins()
-
-
 def _initialize_sdk_analytics() -> None:
     """
     Initialize SDK analytics for telemetry.
@@ -214,3 +210,8 @@ def __getattr__(attr_name: str) -> Any:
         mname, _, attr = (ex.name or "").rpartition(".")
         ctx = {"name": mname, "obj": attr} if sys.version_info >= (3, 10) else {}
         raise AttributeError(f"module {mname} has no attribute {attr}", **ctx) from ex
+
+
+# Initialize plugins on import if enabled
+# Must be after __getattr__ so lazy imports work when plugins import from prefect
+_initialize_plugins()
