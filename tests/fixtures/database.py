@@ -856,9 +856,12 @@ async def work_queue_2(session, work_pool):
 
 @pytest.fixture
 async def block_type_x(session):
+    unique_suffix = uuid.uuid4().hex[:8]
     block_type = await models.block_types.create_block_type(
         session=session,
-        block_type=schemas.actions.BlockTypeCreate(name="x", slug="x-fixture"),
+        block_type=schemas.actions.BlockTypeCreate(
+            name=f"x-{unique_suffix}", slug=f"x-fixture-{unique_suffix}"
+        ),
     )
     await session.commit()
     return block_type
@@ -866,8 +869,12 @@ async def block_type_x(session):
 
 @pytest.fixture
 async def block_type_y(session):
+    unique_suffix = uuid.uuid4().hex[:8]
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="y", slug="y")
+        session=session,
+        block_type=schemas.actions.BlockTypeCreate(
+            name=f"y-{unique_suffix}", slug=f"y-{unique_suffix}"
+        ),
     )
     await session.commit()
     return block_type
@@ -875,8 +882,12 @@ async def block_type_y(session):
 
 @pytest.fixture
 async def block_type_z(session):
+    unique_suffix = uuid.uuid4().hex[:8]
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="z", slug="z")
+        session=session,
+        block_type=schemas.actions.BlockTypeCreate(
+            name=f"z-{unique_suffix}", slug=f"z-{unique_suffix}"
+        ),
     )
     await session.commit()
     return block_type
