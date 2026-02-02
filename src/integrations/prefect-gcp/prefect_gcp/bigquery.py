@@ -753,6 +753,9 @@ def bigquery_load_cloud_storage(
         example_bigquery_load_cloud_storage_flow()
         ```
     """
+    logger = get_run_logger()
+    logger.info("Loading into %s.%s from cloud storage", dataset, table)
+
     client = gcp_credentials.get_bigquery_client(project=project, location=location)
     table_ref = client.dataset(dataset).table(table)
 
@@ -771,10 +774,11 @@ def bigquery_load_cloud_storage(
             table_ref,
             job_config=job_config,
         )
-    except Exception:
+    except Exception as exception:
+        logger.exception(exception)
         if result is not None and result.errors is not None:
             for error in result.errors:
-                pass  # errors logged in async version
+                logger.exception(error)
         raise
 
     if result is not None:
@@ -949,6 +953,9 @@ def bigquery_load_file(
         example_bigquery_load_file_flow()
         ```
     """
+    logger = get_run_logger()
+    logger.info("Loading into %s.%s from file", dataset, table)
+
     if not os.path.exists(path):
         raise ValueError(f"{path} does not exist")
     elif not os.path.isfile(path):
