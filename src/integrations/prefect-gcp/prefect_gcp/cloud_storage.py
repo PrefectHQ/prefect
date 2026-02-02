@@ -120,6 +120,9 @@ def cloud_storage_create_bucket(
         example_cloud_storage_create_bucket_flow()
         ```
     """
+    logger = get_run_logger()
+    logger.info("Creating %s bucket", bucket)
+
     client = gcp_credentials.get_cloud_storage_client(project=project)
     client.create_bucket(bucket, location=location, **create_kwargs)
     return bucket
@@ -318,6 +321,9 @@ def cloud_storage_download_blob_as_bytes(
         example_cloud_storage_download_blob_flow()
         ```
     """
+    logger = get_run_logger()
+    logger.info("Downloading blob named %s from the %s bucket", blob, bucket)
+
     return _download_blob_as_bytes_sync(
         bucket=bucket,
         blob=blob,
@@ -520,6 +526,11 @@ def cloud_storage_download_blob_to_file(
         example_cloud_storage_download_blob_flow()
         ```
     """
+    logger = get_run_logger()
+    logger.info(
+        "Downloading blob named %s from the %s bucket to %s", blob, bucket, path
+    )
+
     return _download_blob_to_file_sync(
         bucket=bucket,
         blob=blob,
@@ -723,6 +734,9 @@ def cloud_storage_upload_blob_from_string(
         example_cloud_storage_upload_blob_from_string_flow()
         ```
     """
+    logger = get_run_logger()
+    logger.info("Uploading blob named %s to the %s bucket", blob, bucket)
+
     return _upload_blob_from_string_sync(
         data=data,
         bucket=bucket,
@@ -879,6 +893,9 @@ def cloud_storage_upload_blob_from_file(
         example_cloud_storage_upload_blob_from_file_flow()
         ```
     """
+    logger = get_run_logger()
+    logger.info("Uploading blob named %s to the %s bucket", blob, bucket)
+
     bucket_obj = _get_bucket(bucket, gcp_credentials, project=project)
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
