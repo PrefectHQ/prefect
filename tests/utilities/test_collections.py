@@ -2,7 +2,7 @@ import io
 import json
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, NamedTuple
 
 import numpy as np
 import pydantic
@@ -678,6 +678,24 @@ class TestVisitCollection:
         # The circular reference is preserved (though not with perfect identity)
         assert "self" in result
         assert "self" in result["self"]
+
+    def test_visit_collection_namedtuple(self):
+        class DoneAndNotDoneFutures(NamedTuple):
+            done: set
+            not_done: set
+
+        original = DoneAndNotDoneFutures(done={1, 2}, not_done={3, 4})
+
+        def double_ints(x):
+            if isinstance(x, int):
+                return x * 2
+            return x
+
+        result = visit_collection(original, double_ints, return_data=True)
+
+        assert isinstance(result, DoneAndNotDoneFutures)
+        assert result.done == {2, 4}
+        assert result.not_done == {6, 8}
 
 
 class TestRemoveKeys:

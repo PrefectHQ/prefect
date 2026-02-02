@@ -481,7 +481,11 @@ def visit_collection(
         if return_data:
             modified = any(item is not orig for item, orig in zip(items, seq))
             if modified:
-                result = type(seq)(items)
+                # Use _make for NamedTuples
+                if hasattr(type(seq), "_make"):
+                    result = type(seq)._make(items)
+                else:
+                    result = type(seq)(items)
 
     # --- Dictionaries
 
