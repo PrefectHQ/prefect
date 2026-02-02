@@ -131,8 +131,9 @@ async def test_events_client_can_emit_when_ephemeral_enabled(example_event_1: Ev
             await events_client.emit(example_event_1)
 
             async for event in events_subscriber:
-                assert event == example_event_1
-                break
+                if event.id == example_event_1.id:
+                    assert event == example_event_1
+                    break
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc):

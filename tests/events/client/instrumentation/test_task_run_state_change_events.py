@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -430,7 +431,7 @@ async def test_background_task_state_changes(
     events_pipeline: Any,
 ):
     storage = LocalFileSystem(basepath=str(tmp_path))
-    await storage.save("test")
+    await storage.save(f"test-{uuid.uuid4()}")
 
     @task(result_storage=storage)
     def foo():
