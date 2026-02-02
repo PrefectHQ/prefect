@@ -172,6 +172,12 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/deployment",
     "tests/experimental",
     "tests/results",
+    # Phase 4 - Part 1 (No changes needed)
+    "tests/engine",
+    "tests/client/schemas",
+    "tests/cli/test_config.py",
+    "tests/cli/test_profile.py",
+    "tests/cli/test_version.py",
 ]
 
 
