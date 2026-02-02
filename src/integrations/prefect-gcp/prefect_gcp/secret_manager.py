@@ -121,9 +121,6 @@ def create_secret(
         example_cloud_storage_create_secret_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Creating the %s secret", secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
@@ -235,9 +232,6 @@ def update_secret(
         example_cloud_storage_update_secret_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Updating the %s secret", secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
@@ -342,9 +336,6 @@ def read_secret(
         example_cloud_storage_read_secret_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Reading %s version of %s secret", version_id, secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
@@ -439,9 +430,6 @@ def delete_secret(
         example_cloud_storage_delete_secret_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Deleting %s secret", secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
@@ -542,9 +530,6 @@ def delete_secret_version(
         example_cloud_storage_delete_secret_version_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Deleting %s version of %s secret", version_id, secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
@@ -608,11 +593,8 @@ class GcpSecret(SecretBlock):
         name = f"projects/{project}/secrets/{self.secret_name}/versions/{self.secret_version}"  # noqa
         request = AccessSecretVersionRequest(name=name)
 
-        self.logger.debug(f"Preparing to read secret data from {name!r}.")
         response = client.access_secret_version(request=request)
-        secret = response.payload.data
-        self.logger.info(f"The secret {name!r} data was successfully read.")
-        return secret
+        return response.payload.data
 
     async def awrite_secret(self, secret_data: bytes) -> str:
         """
@@ -676,13 +658,9 @@ class GcpSecret(SecretBlock):
         payload = SecretPayload(data=secret_data)
         add_request = AddSecretVersionRequest(parent=parent, payload=payload)
 
-        self.logger.debug(f"Preparing to write secret data to {parent!r}.")
         try:
             response = client.add_secret_version(request=add_request)
         except NotFound:
-            self.logger.info(
-                f"The secret {parent!r} does not exist yet, creating it now."
-            )
             create_parent = f"projects/{project}"
             secret_id = self.secret_name
             secret = Secret(replication=Replication(automatic=Replication.Automatic()))
@@ -690,11 +668,8 @@ class GcpSecret(SecretBlock):
                 parent=create_parent, secret_id=secret_id, secret=secret
             )
             client.create_secret(request=create_request)
-
-            self.logger.debug(f"Preparing to write secret data to {parent!r} again.")
             response = client.add_secret_version(request=add_request)
 
-        self.logger.info(f"The secret data was written successfully to {parent!r}.")
         return response.name
 
     async def adelete_secret(self) -> str:
@@ -729,7 +704,5 @@ class GcpSecret(SecretBlock):
         name = f"projects/{project}/secrets/{self.secret_name}"
         request = DeleteSecretRequest(name=name)
 
-        self.logger.debug(f"Preparing to delete the secret {name!r}.")
         client.delete_secret(request=request)
-        self.logger.info(f"The secret {name!r} was successfully deleted.")
         return name
