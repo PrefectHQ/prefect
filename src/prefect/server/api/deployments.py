@@ -620,6 +620,7 @@ async def bulk_delete_deployments(
     ),
     limit: int = Body(
         BULK_OPERATION_LIMIT,
+        ge=1,
         le=BULK_OPERATION_LIMIT,
         description=f"Maximum number of deployments to delete. Defaults to {BULK_OPERATION_LIMIT}.",
     ),

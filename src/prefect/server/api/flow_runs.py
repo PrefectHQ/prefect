@@ -613,7 +613,6 @@ async def delete_flow_run_logs(
 
 
 BULK_OPERATION_LIMIT = 50
-BULK_OPERATION_CONCURRENCY = 10
 
 
 @router.post("/bulk_delete")

@@ -177,6 +177,7 @@ async def bulk_delete_flows(
     ),
     limit: int = Body(
         BULK_OPERATION_LIMIT,
+        ge=1,
         le=BULK_OPERATION_LIMIT,
         description=f"Maximum number of flows to delete. Defaults to {BULK_OPERATION_LIMIT}.",
     ),
