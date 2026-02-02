@@ -66,11 +66,22 @@ class TestLazyTyperGroup:
     """Tests for the LazyTyperGroup class."""
 
     @pytest.fixture(autouse=True)
-    def reset_lazy_typer_group(self):
-        """Reset LazyTyperGroup state before and after each test."""
+    def isolate_lazy_typer_group(self):
+        """Save and restore LazyTyperGroup state around each test."""
+        # Save original state
+        original_lazy_commands = LazyTyperGroup._lazy_commands.copy()
+        original_loaded_modules = LazyTyperGroup._loaded_modules.copy()
+        original_typer_instance = LazyTyperGroup._typer_instance
+
+        # Clear for test isolation
         LazyTyperGroup.reset()
+
         yield
-        LazyTyperGroup.reset()
+
+        # Restore original state
+        LazyTyperGroup._lazy_commands = original_lazy_commands
+        LazyTyperGroup._loaded_modules = original_loaded_modules
+        LazyTyperGroup._typer_instance = original_typer_instance
 
     def test_reset_clears_all_state(self):
         """reset() should clear all class-level state."""
@@ -269,11 +280,14 @@ class TestCLIIntegration:
 
     def test_version_flag_works(self):
         """--version flag should work and show version info."""
-        invoke_and_assert(
+        result = invoke_and_assert(
             ["--version"],
             expected_code=0,
-            expected_output_contains="Version:",
         )
+        # --version outputs just the version number (e.g., "3.6.14")
+        assert result.output.strip(), "Expected version output"
+        # Should contain digits and dots (version format)
+        assert any(c.isdigit() for c in result.output), "Expected version number"
 
     def test_help_shows_all_commands(self):
         """--help should show all available commands."""
