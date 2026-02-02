@@ -55,6 +55,7 @@ from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
+    PrefectHTTPStatusError,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFlowRunFuture
@@ -1301,24 +1302,58 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         run_logger = self.get_flow_run_logger(flow_run)
 
         if flow_run.deployment_id:
-            try:
-                await self.client.read_deployment(flow_run.deployment_id)
-            except ObjectNotFound:
-                self._logger.exception(
-                    f"Deployment {flow_run.deployment_id} no longer exists. "
-                    f"Flow run {flow_run.id} will not be submitted for"
-                    " execution"
-                )
-                self._submitting_flow_run_ids.remove(flow_run.id)
-                if self._cancelling_observer is not None:
-                    self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
-                await self._mark_flow_run_as_cancelled(
-                    flow_run,
-                    state_updates=dict(
-                        message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
-                    ),
-                )
-                return
+            max_429_retries = 5
+            for attempt in range(max_429_retries + 1):
+                try:
+                    await self.client.read_deployment(flow_run.deployment_id)
+                    break
+                except ObjectNotFound:
+                    self._logger.exception(
+                        f"Deployment {flow_run.deployment_id} no longer exists. "
+                        f"Flow run {flow_run.id} will not be submitted for"
+                        " execution"
+                    )
+                    self._submitting_flow_run_ids.remove(flow_run.id)
+                    if self._cancelling_observer is not None:
+                        self._cancelling_observer.remove_in_flight_flow_run_id(
+                            flow_run.id
+                        )
+                    await self._mark_flow_run_as_cancelled(
+                        flow_run,
+                        state_updates=dict(
+                            message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
+                        ),
+                    )
+                    return
+                except PrefectHTTPStatusError as exc:
+                    if exc.response.status_code != 429:
+                        raise
+                    if attempt == max_429_retries:
+                        self._logger.warning(
+                            "Rate limited (429) after %s attempts reading deployment; "
+                            "flow run %s will be retried on next poll",
+                            max_429_retries + 1,
+                            flow_run.id,
+                        )
+                        self._submitting_flow_run_ids.remove(flow_run.id)
+                        if self._cancelling_observer is not None:
+                            self._cancelling_observer.remove_in_flight_flow_run_id(
+                                flow_run.id
+                            )
+                        self._release_limit_slot(flow_run.id)
+                        return
+                    retry_seconds = 2.0 ** (attempt + 1)
+                    retry_after = exc.response.headers.get("Retry-After")
+                    if retry_after is not None:
+                        try:
+                            retry_seconds = float(retry_after)
+                        except (TypeError, ValueError):
+                            pass
+                    self._logger.debug(
+                        "Rate limited (429) reading deployment, retrying in %.1fs",
+                        retry_seconds,
+                    )
+                    await anyio.sleep(retry_seconds)
 
         ready_to_submit = await self._propose_pending_state(flow_run)
         self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
