@@ -187,6 +187,3 @@ def materialize(
     except Exception:
         # If context access fails, assume decorator usage and return callable
         return materialize_obj
-
-    # Return the callable for decorator use (fallback)
-    return materialize_obj
