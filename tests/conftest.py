@@ -178,6 +178,8 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/cli/test_config.py",
     "tests/cli/test_profile.py",
     "tests/cli/test_version.py",
+    # Phase 4 - Part 2
+    "tests/events/client",
 ]
 
 
