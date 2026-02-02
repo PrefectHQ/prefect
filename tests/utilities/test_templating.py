@@ -275,13 +275,25 @@ class TestResolveBlockDocumentReferences:
 
     @pytest.fixture()
     async def block_document_id(self):
-        class ArbitraryBlock(Block):
-            a: int
-            b: str
+        # Use unique slug and doc name to avoid conflicts in parallel tests
+        unique_id = uuid.uuid4().hex[:8]
+        slug = f"arbitraryblock-{unique_id}"
+        doc_name = f"arbitrary-block-{unique_id}"
 
-        return await ArbitraryBlock(a=1, b="hello").save(
-            name="arbitrary-block", overwrite=True
+        # Create a unique class to avoid block registry conflicts
+        ArbitraryBlock = type(
+            f"ArbitraryBlock{unique_id}",
+            (Block,),
+            {
+                "_block_type_slug": slug,
+                "__annotations__": {"a": int, "b": str},
+            },
         )
+
+        block_document_id = await ArbitraryBlock(a=1, b="hello").save(
+            name=doc_name, overwrite=True
+        )
+        return {"id": block_document_id, "slug": slug, "name": doc_name}
 
     async def test_resolve_block_document_references_with_no_block_document_references(
         self,
@@ -296,7 +308,7 @@ class TestResolveBlockDocumentReferences:
         assert {
             "key": {"a": 1, "b": "hello"}
         } == await resolve_block_document_references(
-            {"key": {"$ref": {"block_document_id": block_document_id}}},
+            {"key": {"$ref": {"block_document_id": block_document_id["id"]}}},
             client=prefect_client,
         )
 
@@ -305,11 +317,15 @@ class TestResolveBlockDocumentReferences:
     ):
         template = {
             "key": {
-                "nested_key": {"$ref": {"block_document_id": block_document_id}},
-                "other_nested_key": {"$ref": {"block_document_id": block_document_id}},
+                "nested_key": {"$ref": {"block_document_id": block_document_id["id"]}},
+                "other_nested_key": {
+                    "$ref": {"block_document_id": block_document_id["id"]}
+                },
             }
         }
-        block_document = await prefect_client.read_block_document(block_document_id)
+        block_document = await prefect_client.read_block_document(
+            block_document_id["id"]
+        )
 
         result = await resolve_block_document_references(
             template, client=prefect_client
@@ -325,8 +341,10 @@ class TestResolveBlockDocumentReferences:
     async def test_resolve_block_document_references_with_list_of_block_document_references(
         self, prefect_client, block_document_id
     ):
-        template = [{"$ref": {"block_document_id": block_document_id}}]
-        block_document = await prefect_client.read_block_document(block_document_id)
+        template = [{"$ref": {"block_document_id": block_document_id["id"]}}]
+        block_document = await prefect_client.read_block_document(
+            block_document_id["id"]
+        )
 
         result = await resolve_block_document_references(
             template, client=prefect_client
@@ -337,9 +355,13 @@ class TestResolveBlockDocumentReferences:
     async def test_resolve_block_document_references_with_dot_delimited_syntax(
         self, prefect_client, block_document_id
     ):
-        template = {"key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }}"}
+        slug = block_document_id["slug"]
+        doc_name = block_document_id["name"]
+        template = {"key": f"{{{{ prefect.blocks.{slug}.{doc_name} }}}}"}
 
-        block_document = await prefect_client.read_block_document(block_document_id)
+        block_document = await prefect_client.read_block_document(
+            block_document_id["id"]
+        )
 
         result = await resolve_block_document_references(
             template, client=prefect_client
@@ -392,10 +414,11 @@ class TestResolveBlockDocumentReferences:
         assert result == template
 
     async def test_resolve_block_document_resolves_block_attribute(self):
-        await Webhook(url="https://example.com").save(name="webhook-block-2")
+        doc_name = f"webhook-block-{uuid.uuid4().hex[:8]}"
+        await Webhook(url="https://example.com").save(name=doc_name)
 
         template = {
-            "block_attribute": "{{ prefect.blocks.webhook.webhook-block-2.url }}",
+            "block_attribute": f"{{{{ prefect.blocks.webhook.{doc_name}.url }}}}",
         }
         result = await resolve_block_document_references(template)
 
