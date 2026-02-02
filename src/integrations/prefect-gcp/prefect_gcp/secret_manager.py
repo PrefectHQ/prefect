@@ -6,9 +6,10 @@ from google.api_core.exceptions import NotFound
 from pydantic import Field
 
 from prefect import task
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.blocks.abstract import SecretBlock
 from prefect.logging import get_run_logger
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect_gcp.credentials import GcpCredentials
 
 try:
@@ -28,8 +29,64 @@ except ModuleNotFoundError:
 
 
 @task
-@sync_compatible
-async def create_secret(
+async def acreate_secret(
+    secret_name: str,
+    gcp_credentials: "GcpCredentials",
+    timeout: float = 60,
+    project: Optional[str] = None,
+) -> str:
+    """
+    Creates a secret in Google Cloud Platform's Secret Manager.
+
+    Args:
+        secret_name: Name of the secret to retrieve.
+        gcp_credentials: Credentials to use for authentication with GCP.
+        timeout: The number of seconds the transport should wait
+            for the server response.
+        project: Name of the project to use; overrides the
+            gcp_credentials project if provided.
+
+    Returns:
+        The path of the created secret.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect_gcp import GcpCredentials
+        from prefect_gcp.secret_manager import acreate_secret
+
+        @flow()
+        async def example_cloud_storage_create_secret_flow():
+            gcp_credentials = GcpCredentials(project="project")
+            secret_path = await acreate_secret("secret_name", gcp_credentials)
+            return secret_path
+
+        example_cloud_storage_create_secret_flow()
+        ```
+    """
+    logger = get_run_logger()
+    logger.info("Creating the %s secret", secret_name)
+
+    client = gcp_credentials.get_secret_manager_client()
+    project = project or gcp_credentials.project
+
+    parent = f"projects/{project}"
+    secret_settings = {"replication": {"automatic": {}}}
+
+    partial_create = partial(
+        client.create_secret,
+        parent=parent,
+        secret_id=secret_name,
+        secret=secret_settings,
+        timeout=timeout,
+    )
+    response = await to_thread.run_sync(partial_create)
+    return response.name
+
+
+@task
+@async_dispatch(acreate_secret)
+def create_secret(
     secret_name: str,
     gcp_credentials: "GcpCredentials",
     timeout: float = 60,
@@ -64,29 +121,81 @@ async def create_secret(
         example_cloud_storage_create_secret_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Creating the %s secret", secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
     parent = f"projects/{project}"
     secret_settings = {"replication": {"automatic": {}}}
 
-    partial_create = partial(
-        client.create_secret,
+    response = client.create_secret(
         parent=parent,
         secret_id=secret_name,
         secret=secret_settings,
         timeout=timeout,
     )
-    response = await to_thread.run_sync(partial_create)
     return response.name
 
 
 @task
-@sync_compatible
-async def update_secret(
+async def aupdate_secret(
+    secret_name: str,
+    secret_value: Union[str, bytes],
+    gcp_credentials: "GcpCredentials",
+    timeout: float = 60,
+    project: Optional[str] = None,
+) -> str:
+    """
+    Updates a secret in Google Cloud Platform's Secret Manager.
+
+    Args:
+        secret_name: Name of the secret to retrieve.
+        secret_value: Desired value of the secret. Can be either `str` or `bytes`.
+        gcp_credentials: Credentials to use for authentication with GCP.
+        timeout: The number of seconds the transport should wait
+            for the server response.
+        project: Name of the project to use; overrides the
+            gcp_credentials project if provided.
+
+    Returns:
+        The path of the updated secret.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect_gcp import GcpCredentials
+        from prefect_gcp.secret_manager import aupdate_secret
+
+        @flow()
+        async def example_cloud_storage_update_secret_flow():
+            gcp_credentials = GcpCredentials(project="project")
+            secret_path = await aupdate_secret("secret_name", "secret_value", gcp_credentials)
+            return secret_path
+
+        example_cloud_storage_update_secret_flow()
+        ```
+    """
+    logger = get_run_logger()
+    logger.info("Updating the %s secret", secret_name)
+
+    client = gcp_credentials.get_secret_manager_client()
+    project = project or gcp_credentials.project
+
+    parent = f"projects/{project}/secrets/{secret_name}"
+    if isinstance(secret_value, str):
+        secret_value = secret_value.encode("UTF-8")
+    partial_add = partial(
+        client.add_secret_version,
+        parent=parent,
+        payload={"data": secret_value},
+        timeout=timeout,
+    )
+    response = await to_thread.run_sync(partial_add)
+    return response.name
+
+
+@task
+@async_dispatch(aupdate_secret)
+def update_secret(
     secret_name: str,
     secret_value: Union[str, bytes],
     gcp_credentials: "GcpCredentials",
@@ -123,28 +232,22 @@ async def update_secret(
         example_cloud_storage_update_secret_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Updating the %s secret", secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
     parent = f"projects/{project}/secrets/{secret_name}"
     if isinstance(secret_value, str):
         secret_value = secret_value.encode("UTF-8")
-    partial_add = partial(
-        client.add_secret_version,
+    response = client.add_secret_version(
         parent=parent,
         payload={"data": secret_value},
         timeout=timeout,
     )
-    response = await to_thread.run_sync(partial_add)
     return response.name
 
 
 @task
-@sync_compatible
-async def read_secret(
+async def aread_secret(
     secret_name: str,
     gcp_credentials: "GcpCredentials",
     version_id: Union[str, int] = "latest",
@@ -157,6 +260,59 @@ async def read_secret(
     Args:
         secret_name: Name of the secret to retrieve.
         gcp_credentials: Credentials to use for authentication with GCP.
+        version_id: Version number of the secret to use, or "latest".
+        timeout: The number of seconds the transport should wait
+            for the server response.
+        project: Name of the project to use; overrides the
+            gcp_credentials project if provided.
+
+    Returns:
+        Contents of the specified secret.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect_gcp import GcpCredentials
+        from prefect_gcp.secret_manager import aread_secret
+
+        @flow()
+        async def example_cloud_storage_read_secret_flow():
+            gcp_credentials = GcpCredentials(project="project")
+            secret_value = await aread_secret("secret_name", gcp_credentials, version_id=1)
+            return secret_value
+
+        example_cloud_storage_read_secret_flow()
+        ```
+    """
+    logger = get_run_logger()
+    logger.info("Reading %s version of %s secret", version_id, secret_name)
+
+    client = gcp_credentials.get_secret_manager_client()
+    project = project or gcp_credentials.project
+
+    name = f"projects/{project}/secrets/{secret_name}/versions/{version_id}"
+    partial_access = partial(client.access_secret_version, name=name, timeout=timeout)
+    response = await to_thread.run_sync(partial_access)
+    secret = response.payload.data.decode("UTF-8")
+    return secret
+
+
+@task
+@async_dispatch(aread_secret)
+def read_secret(
+    secret_name: str,
+    gcp_credentials: "GcpCredentials",
+    version_id: Union[str, int] = "latest",
+    timeout: float = 60,
+    project: Optional[str] = None,
+) -> str:
+    """
+    Reads the value of a given secret from Google Cloud Platform's Secret Manager.
+
+    Args:
+        secret_name: Name of the secret to retrieve.
+        gcp_credentials: Credentials to use for authentication with GCP.
+        version_id: Version number of the secret to use, or "latest".
         timeout: The number of seconds the transport should wait
             for the server response.
         project: Name of the project to use; overrides the
@@ -180,22 +336,66 @@ async def read_secret(
         example_cloud_storage_read_secret_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Reading %s version of %s secret", version_id, secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
     name = f"projects/{project}/secrets/{secret_name}/versions/{version_id}"
-    partial_access = partial(client.access_secret_version, name=name, timeout=timeout)
-    response = await to_thread.run_sync(partial_access)
+    response = client.access_secret_version(name=name, timeout=timeout)
     secret = response.payload.data.decode("UTF-8")
     return secret
 
 
 @task
-@sync_compatible
-async def delete_secret(
+async def adelete_secret(
+    secret_name: str,
+    gcp_credentials: "GcpCredentials",
+    timeout: float = 60,
+    project: Optional[str] = None,
+) -> str:
+    """
+    Deletes the specified secret from Google Cloud Platform's Secret Manager.
+
+    Args:
+        secret_name: Name of the secret to delete.
+        gcp_credentials: Credentials to use for authentication with GCP.
+        timeout: The number of seconds the transport should wait
+            for the server response.
+        project: Name of the project to use; overrides the
+            gcp_credentials project if provided.
+
+    Returns:
+        The path of the deleted secret.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect_gcp import GcpCredentials
+        from prefect_gcp.secret_manager import adelete_secret
+
+        @flow()
+        async def example_cloud_storage_delete_secret_flow():
+            gcp_credentials = GcpCredentials(project="project")
+            secret_path = await adelete_secret("secret_name", gcp_credentials)
+            return secret_path
+
+        example_cloud_storage_delete_secret_flow()
+        ```
+    """
+    logger = get_run_logger()
+    logger.info("Deleting %s secret", secret_name)
+
+    client = gcp_credentials.get_secret_manager_client()
+    project = project or gcp_credentials.project
+
+    name = f"projects/{project}/secrets/{secret_name}/"
+    partial_delete = partial(client.delete_secret, name=name, timeout=timeout)
+    await to_thread.run_sync(partial_delete)
+    return name
+
+
+@task
+@async_dispatch(adelete_secret)
+def delete_secret(
     secret_name: str,
     gcp_credentials: "GcpCredentials",
     timeout: float = 60,
@@ -230,21 +430,71 @@ async def delete_secret(
         example_cloud_storage_delete_secret_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Deleting %s secret", secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
     name = f"projects/{project}/secrets/{secret_name}/"
-    partial_delete = partial(client.delete_secret, name=name, timeout=timeout)
-    await to_thread.run_sync(partial_delete)
+    client.delete_secret(name=name, timeout=timeout)
     return name
 
 
 @task
-@sync_compatible
-async def delete_secret_version(
+async def adelete_secret_version(
+    secret_name: str,
+    version_id: int,
+    gcp_credentials: "GcpCredentials",
+    timeout: float = 60,
+    project: Optional[str] = None,
+) -> str:
+    """
+    Deletes a version of a given secret from Google Cloud Platform's Secret Manager.
+
+    Args:
+        secret_name: Name of the secret to retrieve.
+        version_id: Version number of the secret to use; "latest" can NOT be used.
+        gcp_credentials: Credentials to use for authentication with GCP.
+        timeout: The number of seconds the transport should wait
+            for the server response.
+        project: Name of the project to use; overrides the
+            gcp_credentials project if provided.
+
+    Returns:
+        The path of the deleted secret version.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect_gcp import GcpCredentials
+        from prefect_gcp.secret_manager import adelete_secret_version
+
+        @flow()
+        async def example_cloud_storage_delete_secret_version_flow():
+            gcp_credentials = GcpCredentials(project="project")
+            secret_value = await adelete_secret_version("secret_name", 1, gcp_credentials)
+            return secret_value
+
+        example_cloud_storage_delete_secret_version_flow()
+        ```
+    """
+    logger = get_run_logger()
+    # codeql[py/clear-text-logging-sensitive-data] - logging secret name, not value
+    logger.info("Deleting %s version of %s secret", version_id, secret_name)
+
+    client = gcp_credentials.get_secret_manager_client()
+    project = project or gcp_credentials.project
+
+    if version_id == "latest":
+        raise ValueError("The version_id cannot be 'latest'")
+
+    name = f"projects/{project}/secrets/{secret_name}/versions/{version_id}"
+    partial_destroy = partial(client.destroy_secret_version, name=name, timeout=timeout)
+    await to_thread.run_sync(partial_destroy)
+    return name
+
+
+@task
+@async_dispatch(adelete_secret_version)
+def delete_secret_version(
     secret_name: str,
     version_id: int,
     gcp_credentials: "GcpCredentials",
@@ -281,9 +531,6 @@ async def delete_secret_version(
         example_cloud_storage_delete_secret_version_flow()
         ```
     """
-    logger = get_run_logger()
-    logger.info("Reading %s version of %s secret", version_id, secret_name)
-
     client = gcp_credentials.get_secret_manager_client()
     project = project or gcp_credentials.project
 
@@ -291,8 +538,7 @@ async def delete_secret_version(
         raise ValueError("The version_id cannot be 'latest'")
 
     name = f"projects/{project}/secrets/{secret_name}/versions/{version_id}"
-    partial_destroy = partial(client.destroy_secret_version, name=name, timeout=timeout)
-    await to_thread.run_sync(partial_destroy)
+    client.destroy_secret_version(name=name, timeout=timeout)
     return name
 
 
@@ -315,10 +561,9 @@ class GcpSecret(SecretBlock):
         default="latest", description="Version number of the secret to use."
     )
 
-    @sync_compatible
-    async def read_secret(self) -> bytes:
+    async def aread_secret(self) -> bytes:
         """
-        Reads the secret data from the secret storage service.
+        Reads the secret data from the secret storage service (async version).
 
         Returns:
             The secret data as bytes.
@@ -336,11 +581,26 @@ class GcpSecret(SecretBlock):
         self.logger.info(f"The secret {name!r} data was successfully read.")
         return secret
 
-    @sync_compatible
-    async def write_secret(self, secret_data: bytes) -> str:
+    @async_dispatch(aread_secret)
+    def read_secret(self) -> bytes:
         """
-        Writes the secret data to the secret storage service; if it doesn't exist
-        it will be created.
+        Reads the secret data from the secret storage service.
+
+        Returns:
+            The secret data as bytes.
+        """
+        client = self.gcp_credentials.get_secret_manager_client()
+        project = self.gcp_credentials.project
+        name = f"projects/{project}/secrets/{self.secret_name}/versions/{self.secret_version}"  # noqa
+        request = AccessSecretVersionRequest(name=name)
+
+        response = client.access_secret_version(request=request)
+        return response.payload.data
+
+    async def awrite_secret(self, secret_data: bytes) -> str:
+        """
+        Writes the secret data to the secret storage service (async version);
+        if it doesn't exist it will be created.
 
         Args:
             secret_data: The secret to write.
@@ -381,10 +641,41 @@ class GcpSecret(SecretBlock):
         self.logger.info(f"The secret data was written successfully to {parent!r}.")
         return response.name
 
-    @sync_compatible
-    async def delete_secret(self) -> str:
+    @async_dispatch(awrite_secret)
+    def write_secret(self, secret_data: bytes) -> str:
         """
-        Deletes the secret from the secret storage service.
+        Writes the secret data to the secret storage service; if it doesn't exist
+        it will be created.
+
+        Args:
+            secret_data: The secret to write.
+
+        Returns:
+            The path that the secret was written to.
+        """
+        client = self.gcp_credentials.get_secret_manager_client()
+        project = self.gcp_credentials.project
+        parent = f"projects/{project}/secrets/{self.secret_name}"
+        payload = SecretPayload(data=secret_data)
+        add_request = AddSecretVersionRequest(parent=parent, payload=payload)
+
+        try:
+            response = client.add_secret_version(request=add_request)
+        except NotFound:
+            create_parent = f"projects/{project}"
+            secret_id = self.secret_name
+            secret = Secret(replication=Replication(automatic=Replication.Automatic()))
+            create_request = CreateSecretRequest(
+                parent=create_parent, secret_id=secret_id, secret=secret
+            )
+            client.create_secret(request=create_request)
+            response = client.add_secret_version(request=add_request)
+
+        return response.name
+
+    async def adelete_secret(self) -> str:
+        """
+        Deletes the secret from the secret storage service (async version).
 
         Returns:
             The path that the secret was deleted from.
@@ -398,4 +689,21 @@ class GcpSecret(SecretBlock):
         self.logger.debug(f"Preparing to delete the secret {name!r}.")
         await run_sync_in_worker_thread(client.delete_secret, request=request)
         self.logger.info(f"The secret {name!r} was successfully deleted.")
+        return name
+
+    @async_dispatch(adelete_secret)
+    def delete_secret(self) -> str:
+        """
+        Deletes the secret from the secret storage service.
+
+        Returns:
+            The path that the secret was deleted from.
+        """
+        client = self.gcp_credentials.get_secret_manager_client()
+        project = self.gcp_credentials.project
+
+        name = f"projects/{project}/secrets/{self.secret_name}"
+        request = DeleteSecretRequest(name=name)
+
+        client.delete_secret(request=request)
         return name
