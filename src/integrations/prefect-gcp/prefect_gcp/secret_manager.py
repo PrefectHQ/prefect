@@ -477,6 +477,7 @@ async def adelete_secret_version(
         ```
     """
     logger = get_run_logger()
+    # codeql[py/clear-text-logging-sensitive-data] - logging secret name, not value
     logger.info("Deleting %s version of %s secret", version_id, secret_name)
 
     client = gcp_credentials.get_secret_manager_client()
