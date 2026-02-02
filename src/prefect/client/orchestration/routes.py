@@ -1,9 +1,6 @@
 from typing import Literal
 
 ServerRoutes = Literal[
-    "/admin/database/clear",
-    "/admin/database/create",
-    "/admin/database/drop",
     "/admin/settings",
     "/admin/version",
     "/artifacts/",
