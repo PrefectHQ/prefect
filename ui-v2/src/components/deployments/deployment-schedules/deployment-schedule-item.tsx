@@ -1,6 +1,5 @@
 import type { DeploymentSchedule } from "@/api/deployments";
 import { Card } from "@/components/ui/card";
-import { Typography } from "@/components/ui/typography";
 
 import { getScheduleTitle } from "./get-schedule-title";
 import { ScheduleActionMenu } from "./schedule-action-menu";
@@ -20,7 +19,7 @@ export const DeploymentScheduleItem = ({
 	return (
 		<Card className="p-3">
 			<div className="flex items-center justify-between gap-2">
-				<Typography>{getScheduleTitle(deploymentSchedule)}</Typography>
+				<p className="text-base">{getScheduleTitle(deploymentSchedule)}</p>
 				<div className="flex items-baseline gap-2">
 					<ScheduleToggleSwitch
 						deploymentSchedule={deploymentSchedule}

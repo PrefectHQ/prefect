@@ -13,7 +13,6 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import { Typography } from "@/components/ui/typography";
 
 const getValues = ({
 	flowRun,
@@ -119,9 +118,9 @@ const TimeRan = ({ duration }: TimeRanProps) => {
 	return (
 		<div className="flex gap-1 items-center">
 			<Icon id="Clock" className="size-4" />
-			<Typography variant="bodySmall">
+			<p className="text-sm">
 				{humanizeDuration(duration, { maxDecimalPoints: 3, units: ["s"] })}
-			</Typography>
+			</p>
 		</div>
 	);
 };
@@ -132,9 +131,9 @@ type StartTimeProps = {
 const StartTime = ({ time }: StartTimeProps) => (
 	<div className="flex gap-1 items-center">
 		<Icon id="Calendar" className="size-4" />
-		<Typography variant="bodySmall" className="font-mono">
+		<p className="text-sm font-mono">
 			{format(parseISO(time), "yyyy/MM/dd pp")}
-		</Typography>
+		</p>
 	</div>
 );
 

@@ -16,7 +16,6 @@ import {
 	MenubarMenu,
 	MenubarTrigger,
 } from "@/components/ui/menubar";
-import { Typography } from "@/components/ui/typography";
 
 type ArtifactsKeyHeaderProps = {
 	artifactKey: string;
@@ -52,9 +51,9 @@ export const ArtifactsKeyHeader = ({
 			</div>
 			{pageHeader && (
 				<div className="">
-					<Typography variant="h2" className="my-4 font-bold prose lg:prose-xl">
+					<h2 className="text-3xl font-semibold tracking-tight my-4 font-bold prose lg:prose-xl">
 						<LazyMarkdown>{pageHeader}</LazyMarkdown>
-					</Typography>
+					</h2>
 					<hr />
 				</div>
 			)}

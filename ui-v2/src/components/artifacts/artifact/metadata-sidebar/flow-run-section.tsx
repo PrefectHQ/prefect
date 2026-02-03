@@ -4,7 +4,6 @@ import type { FlowRun } from "@/api/flow-runs";
 import { Icon } from "@/components/ui/icons";
 import { KeyValue } from "@/components/ui/key-value";
 import { TagBadge } from "@/components/ui/tag-badge";
-import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
 
 type FlowRunSectionProps = {
@@ -34,9 +33,7 @@ export const FlowRunSection = ({ flowRun }: FlowRunSectionProps) => {
 
 	return (
 		<div className="mt-4">
-			<Typography variant="bodyLarge" className="font-bold">
-				Flow Run
-			</Typography>
+			<p className="text-lg font-bold">Flow Run</p>
 
 			<div className="mt-3 flex flex-col gap-3">
 				<KeyValue

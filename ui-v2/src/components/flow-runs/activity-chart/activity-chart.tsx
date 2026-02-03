@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Typography } from "@/components/ui/typography";
 import { FlowRunCell } from "./flowRunCell";
 
 export type FlowRunsBarChartProps = {
@@ -144,12 +143,10 @@ const FlowRunsBarChart = ({
 			<TooltipProvider>
 				<div className="w-full h-full flex flex-col p-4 border rounded-lg">
 					<div className="flex justify-between">
-						<Typography variant="body" className="text-foreground font-bold">
-							Flow Runs
-						</Typography>
-						<Typography variant="bodySmall" className="text-foreground">
+						<p className="text-base text-foreground font-bold">Flow Runs</p>
+						<p className="text-sm text-foreground">
 							<span className="font-bold">{flowRuns.length}</span> runs
-						</Typography>
+						</p>
 					</div>
 					<div ref={divRef} className="w-full h-full flex items-end">
 						{barFlowRuns.map((flowRun, index) => (

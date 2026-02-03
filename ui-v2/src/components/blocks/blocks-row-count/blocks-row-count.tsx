@@ -4,7 +4,6 @@ import { useDeleteBlockDocumentConfirmationDialog } from "@/components/blocks/us
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
 export type BlocksRowCountProps = {
@@ -30,9 +29,9 @@ export const BlocksRowCount = ({
 		return (
 			<>
 				<div className="flex items-center gap-2">
-					<Typography variant="bodySmall" className="text-muted-foreground">
+					<p className="text-sm text-muted-foreground">
 						{selectedBlockIds.length} selected
-					</Typography>
+					</p>
 					<Button
 						aria-label="Delete rows"
 						size="icon"
@@ -51,8 +50,8 @@ export const BlocksRowCount = ({
 		);
 
 	return (
-		<Typography variant="bodySmall" className="text-muted-foreground">
+		<p className="text-sm text-muted-foreground">
 			{count} {pluralize(count, "Block")}
-		</Typography>
+		</p>
 	);
 };

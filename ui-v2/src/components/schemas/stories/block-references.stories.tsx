@@ -3,7 +3,6 @@ import { useState } from "react";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
-import { Typography } from "@/components/ui/typography";
 import type { SchemaFormValues } from "../types/values";
 import { resolveBlockReferences } from "../utilities/resolveBlockReferences";
 import { toBlockReferenceRequest } from "../utilities/toBlockReferenceRequest";
@@ -35,11 +34,13 @@ function BlockReferenceDemo({
 	return (
 		<div className="grid grid-cols-2 gap-4 p-4 size-full">
 			<div className="flex flex-col gap-4">
-				<Typography variant="h2">Block Reference Resolution Demo</Typography>
-				<Typography variant="bodySmall" className="text-muted-foreground">
+				<h2 className="text-3xl font-semibold tracking-tight">
+					Block Reference Resolution Demo
+				</h2>
+				<p className="text-sm text-muted-foreground">
 					This demonstrates how block document references are transformed
 					between API format and UI format.
-				</Typography>
+				</p>
 
 				<div className="flex gap-2">
 					<Button
@@ -56,40 +57,50 @@ function BlockReferenceDemo({
 					</Button>
 				</div>
 
-				<Typography variant="h3">
+				<h3 className="text-2xl font-semibold tracking-tight">
 					Current Values ({currentFormat.toUpperCase()})
-				</Typography>
+				</h3>
 				<JsonInput value={JSON.stringify(displayValues, null, 2)} />
 			</div>
 
 			<div className="flex flex-col gap-4">
-				<Typography variant="h2">Transformation Details</Typography>
+				<h2 className="text-3xl font-semibold tracking-tight">
+					Transformation Details
+				</h2>
 
-				<Typography variant="h3">1. API Response (Input)</Typography>
-				<Typography variant="bodySmall" className="text-muted-foreground">
+				<h3 className="text-2xl font-semibold tracking-tight">
+					1. API Response (Input)
+				</h3>
+				<p className="text-sm text-muted-foreground">
 					Block references come from the API in this format with $ref containing
 					block_document_id
-				</Typography>
+				</p>
 				<JsonInput value={JSON.stringify(apiValues, null, 2)} />
 
-				<Typography variant="h3">2. Block Document References</Typography>
-				<Typography variant="bodySmall" className="text-muted-foreground">
+				<h3 className="text-2xl font-semibold tracking-tight">
+					2. Block Document References
+				</h3>
+				<p className="text-sm text-muted-foreground">
 					The API also provides metadata about each referenced block
-				</Typography>
+				</p>
 				<JsonInput value={JSON.stringify(blockDocumentReferences, null, 2)} />
 
-				<Typography variant="h3">3. Resolved UI Values</Typography>
-				<Typography variant="bodySmall" className="text-muted-foreground">
+				<h3 className="text-2xl font-semibold tracking-tight">
+					3. Resolved UI Values
+				</h3>
+				<p className="text-sm text-muted-foreground">
 					After resolveBlockReferences(), values are in UI format with
 					blockTypeSlug and blockDocumentId
-				</Typography>
+				</p>
 				<JsonInput value={JSON.stringify(uiValues, null, 2)} />
 
-				<Typography variant="h3">4. Back to API Format</Typography>
-				<Typography variant="bodySmall" className="text-muted-foreground">
+				<h3 className="text-2xl font-semibold tracking-tight">
+					4. Back to API Format
+				</h3>
+				<p className="text-sm text-muted-foreground">
 					toBlockReferenceRequest() converts UI format back to API format for
 					submission
-				</Typography>
+				</p>
 				<JsonInput value={JSON.stringify(backToApiValues, null, 2)} />
 			</div>
 		</div>

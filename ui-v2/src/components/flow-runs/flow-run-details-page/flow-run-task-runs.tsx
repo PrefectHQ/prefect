@@ -19,7 +19,6 @@ import {
 import type { PaginationState } from "@/components/task-runs/task-runs-list/task-runs-pagination";
 import { SearchInput } from "@/components/ui/input";
 import { TagsInput } from "@/components/ui/tags-input";
-import { Typography } from "@/components/ui/typography";
 import useDebounce from "@/hooks/use-debounce";
 
 type FlowRunTaskRunsProps = {
@@ -170,9 +169,9 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 	if (countData === 0) {
 		return (
 			<div className="flex items-center justify-center h-48 border rounded-lg bg-muted/50">
-				<Typography className="text-muted-foreground">
+				<p className="text-base text-muted-foreground">
 					No task runs found for this flow run.
-				</Typography>
+				</p>
 			</div>
 		);
 	}
@@ -183,16 +182,13 @@ export const FlowRunTaskRuns = ({ flowRunId }: FlowRunTaskRunsProps) => {
 			<div className="grid grid-cols-12 items-center gap-2">
 				{/* Count - first column */}
 				<div className="flex flex-col gap-1 xl:col-span-3 md:col-span-12 col-span-6 md:order-0 order-3">
-					<Typography variant="bodySmall" className="text-muted-foreground">
+					<p className="text-sm text-muted-foreground">
 						{countData} Task run{countData !== 1 ? "s" : ""}
-					</Typography>
+					</p>
 					{stateSummary && (
-						<Typography
-							variant="bodySmall"
-							className="text-muted-foreground text-xs capitalize"
-						>
+						<p className="text-sm text-muted-foreground text-xs capitalize">
 							({stateSummary})
-						</Typography>
+						</p>
 					)}
 				</div>
 
