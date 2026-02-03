@@ -182,6 +182,7 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/events/client",
     "tests/infrastructure/provisioners/test_coiled.py",
     "tests/infrastructure/provisioners/test_modal.py",
+    "tests/blocks",
 ]
 
 
