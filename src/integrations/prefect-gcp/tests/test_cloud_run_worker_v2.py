@@ -325,6 +325,9 @@ class TestCloudRunWorkerJobV2Configuration:
             id = "test-id"
             name = "test-run"
 
+            def model_dump(self, mode: str = "python") -> dict:
+                return {"id": self.id, "name": self.name}
+
         cloud_run_worker_v2_job_config.prepare_for_flow_run(
             flow_run=MockFlowRun(), deployment=None, flow=None
         )
