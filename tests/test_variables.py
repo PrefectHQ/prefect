@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 
 from prefect import flow
@@ -6,20 +8,24 @@ from prefect.variables import Variable
 
 @pytest.fixture
 async def variable() -> Variable:
-    var = await Variable.aset(name="my_variable", value="my-value", tags=["123", "456"])
+    var = await Variable.aset(
+        name=f"my_variable_{uuid.uuid4()}", value="my-value", tags=["123", "456"]
+    )
     return var
 
 
 async def test_set_sync(variable: Variable):
+    var_name = f"my_new_variable_{uuid.uuid4()}"
+
     @flow
     def test_flow():
         # confirm variable doesn't exist
-        variable_doesnt_exist = Variable.get("my_new_variable")
+        variable_doesnt_exist = Variable.get(var_name)
         assert variable_doesnt_exist is None
 
         # create new
         created = Variable.set(
-            name="my_new_variable",
+            name=var_name,
             value="my_value",
             tags=["123", "456"],
         )
@@ -29,13 +35,13 @@ async def test_set_sync(variable: Variable):
         # try to overwrite
         with pytest.raises(
             ValueError,
-            match="Variable 'my_new_variable' already exists. Use `overwrite=True` to update it.",
+            match=f"Variable '{var_name}' already exists. Use `overwrite=True` to update it.",
         ):
-            Variable.set(name="my_new_variable", value="other_value")
+            Variable.set(name=var_name, value="other_value")
 
         # actually overwrite
         updated = Variable.set(
-            name="my_new_variable",
+            name=var_name,
             value="other_value",
             tags=["new", "tags"],
             overwrite=True,
@@ -47,27 +53,27 @@ async def test_set_sync(variable: Variable):
 
 
 async def test_set_async(variable: Variable):
+    var_name = f"my_new_variable_{uuid.uuid4()}"
+
     # confirm variable doesn't exist
-    variable_doesnt_exist = await Variable.get("my_new_variable")
+    variable_doesnt_exist = await Variable.get(var_name)
     assert variable_doesnt_exist is None
 
     # create new
-    created = await Variable.set(
-        name="my_new_variable", value="my_value", tags=["123", "456"]
-    )
+    created = await Variable.set(name=var_name, value="my_value", tags=["123", "456"])
     assert created.value == "my_value"
     assert created.tags == ["123", "456"]
 
     # try to overwrite
     with pytest.raises(
         ValueError,
-        match="Variable 'my_new_variable' already exists. Use `overwrite=True` to update it.",
+        match=f"Variable '{var_name}' already exists. Use `overwrite=True` to update it.",
     ):
-        await Variable.set(name="my_new_variable", value="other_value")
+        await Variable.set(name=var_name, value="other_value")
 
     # actually overwrite
     updated = await Variable.set(
-        name="my_new_variable",
+        name=var_name,
         value="other_value",
         tags=["new", "tags"],
         overwrite=True,
@@ -92,7 +98,8 @@ async def test_set_async(variable: Variable):
     ],
 )
 async def test_json_types(value):
-    set_value = await Variable.set("json_variable", value=value)
+    var_name = f"json_variable_{uuid.uuid4()}"
+    set_value = await Variable.set(var_name, value=value)
     assert set_value.value == value
 
 
@@ -155,7 +162,7 @@ async def test_unset_async(variable: Variable):
 def test_get_in_sync_flow(variable: Variable):
     @flow
     def foo():
-        var = Variable.get("my_variable")
+        var = Variable.get(variable.name)
         return var
 
     value = foo()
@@ -165,7 +172,7 @@ def test_get_in_sync_flow(variable: Variable):
 async def test_get_in_async_flow(variable: Variable):
     @flow
     async def foo():
-        var = await Variable.get("my_variable")
+        var = await Variable.get(variable.name)
         return var
 
     value = await foo()
@@ -173,9 +180,11 @@ async def test_get_in_async_flow(variable: Variable):
 
 
 def test_set_in_sync_flow():
+    var_name = f"my_variable_{uuid.uuid4()}"
+
     @flow
     def foo():
-        return Variable.set("my_variable", value="my-value")
+        return Variable.set(var_name, value="my-value")
 
     res = foo()
     assert res
@@ -183,9 +192,11 @@ def test_set_in_sync_flow():
 
 
 async def test_set_in_async_flow():
+    var_name = f"my_variable_{uuid.uuid4()}"
+
     @flow
     async def foo():
-        return await Variable.set("my_variable", value="my-value")
+        return await Variable.set(var_name, value="my-value")
 
     res = await foo()
     assert res
@@ -213,19 +224,18 @@ async def test_unset_in_async_flow(variable: Variable):
 
 
 async def test_explicit_async_methods_from_async_context(variable: Variable):
-    variable = await Variable.aset("some_variable", value="my value", tags=["marvin"])
-    assert variable.value == "my value"
-    assert variable.tags == ["marvin"]
-    assert variable.name == "some_variable"
+    var_name = f"some_variable_{uuid.uuid4()}"
+    var = await Variable.aset(var_name, value="my value", tags=["marvin"])
+    assert var.value == "my value"
+    assert var.tags == ["marvin"]
+    assert var.name == var_name
 
-    updated = await Variable.aset(
-        "some_variable", value="my updated value", overwrite=True
-    )
+    updated = await Variable.aset(var_name, value="my updated value", overwrite=True)
     assert updated.value == "my updated value"
     assert updated.tags == []
 
-    await Variable.aunset("some_variable")
-    assert await Variable.aget("some_variable") is None
+    await Variable.aunset(var_name)
+    assert await Variable.aget(var_name) is None
 
 
 async def test_generic_typing_syntax():
@@ -236,29 +246,31 @@ async def test_generic_typing_syntax():
     but we verify the runtime behavior is unchanged.
     """
     # Set up a test variable
-    await Variable.aset("typed_variable", value="test_value", overwrite=True)
+    var_name = f"typed_variable_{uuid.uuid4()}"
+    await Variable.aset(var_name, value="test_value", overwrite=True)
 
     # Test sync get with generic syntax
     @flow
     def sync_flow():
         # Variable[str].get() should work the same as Variable.get()
-        value = Variable[str].get("typed_variable")
+        value = Variable[str].get(var_name)
         return value
 
     result = sync_flow()
     assert result == "test_value"
 
     # Test async get with generic syntax
-    value = await Variable[str].aget("typed_variable")
+    value = await Variable[str].aget(var_name)
     assert value == "test_value"
 
     # Test with default value
-    default_value = await Variable[str].aget("nonexistent_variable", "default")
+    nonexistent_var = f"nonexistent_variable_{uuid.uuid4()}"
+    default_value = await Variable[str].aget(nonexistent_var, "default")
     assert default_value == "default"
 
     # Test without default (should return None)
-    none_value = await Variable[str].aget("nonexistent_variable")
+    none_value = await Variable[str].aget(nonexistent_var)
     assert none_value is None
 
     # Clean up
-    await Variable.aunset("typed_variable")
+    await Variable.aunset(var_name)
