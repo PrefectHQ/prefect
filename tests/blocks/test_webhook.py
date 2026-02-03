@@ -1,4 +1,5 @@
 import json
+import uuid
 from unittest.mock import AsyncMock
 
 import pytest
@@ -130,20 +131,22 @@ class TestWebhook:
         )
 
     async def test_save_and_load_webhook(self):
+        secure_block_name = f"secure-webhook-test-{uuid.uuid4()}"
         await Webhook(
             method="GET", url="http://google.com", headers={"foo": "bar"}
-        ).save(name="secure-webhook-test")
+        ).save(name=secure_block_name)
 
-        secure_webhook = await Webhook.load(name="secure-webhook-test")
+        secure_webhook = await Webhook.load(name=secure_block_name)
         assert secure_webhook.url.get_secret_value() == "http://google.com"
         assert secure_webhook.method == "GET"
         assert secure_webhook.headers.get_secret_value() == {"foo": "bar"}
 
+        insecure_block_name = f"insecure-webhook-test-{uuid.uuid4()}"
         await Webhook(
             method="GET", url="http://google.com", headers={"foo": "bar"}, verify=False
-        ).save(name="insecure-webhook-test")
+        ).save(name=insecure_block_name)
 
-        insecure_webhook = await Webhook.load(name="insecure-webhook-test")
+        insecure_webhook = await Webhook.load(name=insecure_block_name)
         assert insecure_webhook.url.get_secret_value() == "http://google.com"
         assert insecure_webhook.method == "GET"
         assert insecure_webhook.headers.get_secret_value() == {"foo": "bar"}

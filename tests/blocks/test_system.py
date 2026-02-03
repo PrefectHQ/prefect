@@ -1,3 +1,4 @@
+import uuid
 from typing import Any
 
 import pytest
@@ -13,8 +14,9 @@ from prefect.blocks.system import Secret
     ids=["string", "dict", "list"],
 )
 def test_secret_block(value: Any):
-    Secret(value=value).save(name="test")
-    api_block = Secret.load("test")
+    block_name = f"test-{uuid.uuid4()}"
+    Secret(value=value).save(name=block_name)
+    api_block = Secret.load(block_name)
     assert isinstance(api_block.value, PydanticSecret)
 
     assert api_block.get() == value
@@ -30,8 +32,9 @@ def test_secret_block(value: Any):
     ids=["secret_string", "secret_dict", "secret_list"],
 )
 def test_secret_block_with_pydantic_secret(value: Any):
-    Secret(value=value).save(name="test")
-    api_block = Secret.load("test")
+    block_name = f"test-{uuid.uuid4()}"
+    Secret(value=value).save(name=block_name)
+    api_block = Secret.load(block_name)
     assert isinstance(api_block.value, PydanticSecret)
 
     assert api_block.get() == value.get_secret_value()
