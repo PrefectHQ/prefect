@@ -12,6 +12,7 @@ import {
 	LayoutWellContent,
 	LayoutWellHeader,
 } from "@/components/ui/layout-well";
+import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolQueueDetails } from "@/components/work-pools/work-pool-queue-details";
@@ -106,6 +107,7 @@ export const Route = createFileRoute(
 		return { queue };
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 function RouteComponent() {

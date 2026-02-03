@@ -40,6 +40,7 @@ import {
 	buildTaskRunsHistoryFilterForFlow,
 	buildTotalTaskRunsCountFilter,
 } from "@/components/flows/detail/flow-stats-summary/query-filters";
+import { PrefectLoading } from "@/components/ui/loading";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 // Route for /flows/flow/$id
@@ -535,4 +536,5 @@ export const Route = createFileRoute("/flows/flow/$id")({
 		return context.queryClient.ensureQueryData(buildFLowDetailsQuery(id));
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });

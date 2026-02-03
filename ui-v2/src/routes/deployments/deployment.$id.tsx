@@ -13,6 +13,7 @@ import {
 	FLOW_RUN_STATES_NO_SCHEDULED,
 	SORT_FILTERS,
 } from "@/components/flow-runs/flow-runs-list";
+import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
 /**
@@ -104,6 +105,7 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 		}
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 	errorComponent: DeploymentErrorComponent,
 });
 
