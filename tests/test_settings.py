@@ -245,7 +245,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_EVENTS_MAXIMUM_SIZE_BYTES": {"test_value": 10, "legacy": True},
     "PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR": {
         "test_value": "warn",
-        "legacy": True,
     },
     "PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL": {
         "test_value": timedelta(minutes=15),
