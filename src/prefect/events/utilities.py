@@ -102,7 +102,11 @@ def emit_event(
         behavior = events_settings.maximum_size_bytes_behavior
         if event_obj.size_bytes > max_size:
             if behavior == "error":
-                raise EventTooLarge(event_obj.size_bytes, max_size)
+                raise EventTooLarge(
+                    event_obj.size_bytes,
+                    max_size,
+                    hint="To warn instead of error set PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR=warn",
+                )
             elif behavior == "warn":
                 logger.warning(
                     "Event exceeds maximum size (%s > %s bytes); server may drop event %s",
