@@ -9,6 +9,7 @@ import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildPaginateTaskRunsQuery } from "@/api/task-runs";
 import { FlowRunDetailsPage } from "@/components/flow-runs/flow-run-details-page";
 import { FlowRunNotFound } from "@/components/flow-runs/flow-run-not-found";
+import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
 const searchParams = z.object({
@@ -103,6 +104,7 @@ export const Route = createFileRoute("/runs/flow-run/$id")({
 		}
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 	errorComponent: FlowRunErrorComponent,
 	notFoundComponent: FlowRunNotFound,
 });
