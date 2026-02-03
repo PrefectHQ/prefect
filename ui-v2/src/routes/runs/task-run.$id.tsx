@@ -7,6 +7,7 @@ import { categorizeError } from "@/api/error-utils";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { TaskRunDetailsPage } from "@/components/task-runs/task-run-details-page";
+import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
 const searchParams = z.object({
@@ -71,6 +72,7 @@ export const Route = createFileRoute("/runs/task-run/$id")({
 		await queryClient.ensureQueryData(buildGetTaskRunDetailsQuery(params.id));
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 	errorComponent: TaskRunErrorComponent,
 });
 

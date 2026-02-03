@@ -40,6 +40,7 @@ import {
 	type TaskRunSortFilters,
 } from "@/components/task-runs/task-runs-list";
 import { mapValueToRange } from "@/components/ui/date-range-select";
+import { PrefectLoading } from "@/components/ui/loading";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useRunsFilters } from "@/hooks/use-runs-filters";
 
@@ -378,6 +379,7 @@ export const Route = createFileRoute("/runs/")({
 		})();
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 const usePagination = () => {

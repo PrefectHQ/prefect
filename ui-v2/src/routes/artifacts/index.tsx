@@ -10,6 +10,7 @@ import {
 } from "@/api/artifacts";
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
 import type { filterType } from "@/components/artifacts/types";
+import { PrefectLoading } from "@/components/ui/loading";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
 
 /**
@@ -71,6 +72,7 @@ export const Route = createFileRoute("/artifacts/")({
 		return { artifactsCount, artifactsList };
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 const useFilter = () => {

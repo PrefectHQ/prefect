@@ -8,6 +8,7 @@ import {
 	buildFilterWorkPoolsQuery,
 } from "@/api/work-pools";
 import { SearchInput } from "@/components/ui/input";
+import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { WorkPoolsEmptyState } from "@/components/work-pools/empty-state";
 import { WorkPoolsPageHeader } from "@/components/work-pools/header";
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/work-pools/")({
 		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 function RouteComponent() {

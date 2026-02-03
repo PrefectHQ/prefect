@@ -4,6 +4,7 @@ import { z } from "zod";
 import { buildListGlobalConcurrencyLimitsQuery } from "@/api/global-concurrency-limits";
 import { buildListTaskRunConcurrencyLimitsQuery } from "@/api/task-run-concurrency-limits";
 import { ConcurrencyLimitsPage } from "@/components/concurrency/concurrency-limits-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 /**
  * Schema for validating URL search parameters for the Concurrency Limits page.
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/concurrency-limits/")({
 	validateSearch: zodValidator(searchParams),
 	component: ConcurrencyLimitsPage,
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 	loader: ({ context }) =>
 		Promise.all([
 			context.queryClient.ensureQueryData(

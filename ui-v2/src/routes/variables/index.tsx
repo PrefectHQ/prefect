@@ -15,6 +15,7 @@ import {
 	buildFilterVariablesQuery,
 	type VariablesFilter,
 } from "@/api/variables";
+import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import { VariablesEmptyState } from "@/components/variables/empty-state";
@@ -98,6 +99,7 @@ export const Route = createFileRoute("/variables/")({
 		void context.queryClient.prefetchQuery(buildCountVariablesQuery());
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 /**

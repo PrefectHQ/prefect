@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildGetSettingsQuery, buildGetVersionQuery } from "@/api/admin";
 import { SettingsPage } from "@/components/settings/settings-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 export const Route = createFileRoute("/settings")({
 	component: SettingsPage,
@@ -10,4 +11,5 @@ export const Route = createFileRoute("/settings")({
 			context.queryClient.ensureQueryData(buildGetVersionQuery()),
 		]),
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
