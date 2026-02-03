@@ -358,7 +358,7 @@ class TestResolveFuturesToResults:
 
 class TestPrefectDistributedFuture:
     async def test_wait_with_timeout(self, task_run):
-        @task
+        @task(name=f"my_task_{uuid.uuid4()}")
         async def my_task():
             return 42
 
@@ -380,7 +380,7 @@ class TestPrefectDistributedFuture:
         assert future.state.is_pending()
 
     async def test_wait_without_timeout(self, events_pipeline):
-        @task
+        @task(name=f"my_task_{uuid.uuid4()}")
         def my_task():
             return 42
 
@@ -402,7 +402,7 @@ class TestPrefectDistributedFuture:
         assert future.state.is_completed()
 
     async def test_result_with_final_state(self, events_pipeline):
-        @task(persist_result=True)
+        @task(persist_result=True, name=f"my_task_{uuid.uuid4()}")
         def my_task():
             return 42
 
@@ -428,7 +428,7 @@ class TestPrefectDistributedFuture:
         assert future.result() == 42
 
     async def test_final_state_without_result(self, events_pipeline):
-        @task(persist_result=False)
+        @task(persist_result=False, name=f"my_task_{uuid.uuid4()}")
         def my_task():
             return 42
 
@@ -450,7 +450,7 @@ class TestPrefectDistributedFuture:
             future.result()
 
     async def test_result_with_final_state_and_raise_on_failure(self, events_pipeline):
-        @task(persist_result=True)
+        @task(persist_result=True, name=f"my_task_{uuid.uuid4()}")
         def my_task():
             raise ValueError("oops")
 
@@ -472,7 +472,7 @@ class TestPrefectDistributedFuture:
             future.result(raise_on_failure=True)
 
     async def test_final_state_missing_result(self, events_pipeline):
-        @task(persist_result=False)
+        @task(persist_result=False, name=f"my_task_{uuid.uuid4()}")
         def my_task():
             return 42
 
@@ -501,7 +501,7 @@ class TestPrefectDistributedFuture:
         completed successfully.
         """
 
-        @task(persist_result=True)
+        @task(persist_result=True, name=f"delayed_task_{uuid.uuid4()}")
         def delayed_task():
             return "delayed_result"
 
@@ -535,7 +535,7 @@ class TestPrefectDistributedFuture:
 
 class TestPrefectFlowRunFuture:
     async def test_wait_with_timeout(self, prefect_client: PrefectClient):
-        @flow
+        @flow(name=f"my_flow_{uuid.uuid4()}")
         async def my_flow():
             return 42
 
@@ -560,7 +560,7 @@ class TestPrefectFlowRunFuture:
     async def test_wait_without_timeout(
         self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
     ):
-        @flow
+        @flow(name=f"my_flow_{uuid.uuid4()}")
         def my_flow():
             return 42
 
@@ -586,7 +586,7 @@ class TestPrefectFlowRunFuture:
     async def test_result_with_final_state(
         self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
     ):
-        @flow(persist_result=True)
+        @flow(persist_result=True, name=f"my_flow_{uuid.uuid4()}")
         def my_flow():
             return 42
 
@@ -613,7 +613,7 @@ class TestPrefectFlowRunFuture:
     async def test_final_state_without_result(
         self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
     ):
-        @flow(persist_result=False)
+        @flow(persist_result=False, name=f"my_flow_{uuid.uuid4()}")
         def my_flow():
             return 42
 
@@ -639,7 +639,7 @@ class TestPrefectFlowRunFuture:
     async def test_result_with_final_state_and_raise_on_failure(
         self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
     ):
-        @flow(persist_result=True)
+        @flow(persist_result=True, name=f"my_flow_{uuid.uuid4()}")
         def my_flow():
             raise ValueError("oops")
 
@@ -665,7 +665,7 @@ class TestPrefectFlowRunFuture:
     async def test_final_state_missing_result(
         self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
     ):
-        @flow(persist_result=False)
+        @flow(persist_result=False, name=f"my_flow_{uuid.uuid4()}")
         def my_flow():
             return 42
 
