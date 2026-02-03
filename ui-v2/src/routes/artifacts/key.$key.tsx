@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type ArtifactsFilter, buildListArtifactsQuery } from "@/api/artifacts";
 import { useFilterArtifactsFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-flow-task-runs/use-get-artifacts-flow-task-runs";
 import { ArtifactsKeyPage } from "@/components/artifacts/key/artifacts-key-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 const buildFilterBody = (key: string): ArtifactsFilter => ({
 	artifacts: {
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/artifacts/key/$key")({
 		return { artifacts };
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 function RouteComponent() {

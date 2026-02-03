@@ -26,6 +26,7 @@ import {
 	LayoutWellContent,
 	LayoutWellHeader,
 } from "@/components/ui/layout-well";
+import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WorkPoolDeploymentsTab } from "@/components/work-pools/work-pool-deployments-tab";
@@ -140,6 +141,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		return { workPool };
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 // Wrapper component for Work Pool Queues tab

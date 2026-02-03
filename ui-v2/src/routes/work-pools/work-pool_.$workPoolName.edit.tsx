@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { buildGetWorkPoolQuery } from "@/api/work-pools/work-pools";
+import { PrefectLoading } from "@/components/ui/loading";
 import {
 	WorkPoolEditForm,
 	WorkPoolEditPageHeader,
@@ -17,6 +18,7 @@ export const Route = createFileRoute(
 		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 function RouteComponent() {

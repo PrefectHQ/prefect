@@ -5,6 +5,7 @@ import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
 import { BlocksCatalogPage } from "@/components/blocks/blocks-catalog-page/blocks-catalog-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/blocks/catalog")({
 		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 function RouteComponent() {

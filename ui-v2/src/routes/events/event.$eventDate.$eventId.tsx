@@ -3,6 +3,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildGetEventQuery } from "@/api/events";
 import { EventDetailsPage } from "@/components/events/event-details-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 const searchParams = z.object({
 	tab: z.enum(["details", "raw"]).optional().default("details"),
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/events/event/$eventDate/$eventId")({
 		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 function RouteComponent() {
