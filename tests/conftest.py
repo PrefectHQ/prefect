@@ -183,6 +183,8 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/infrastructure/provisioners/test_coiled.py",
     "tests/infrastructure/provisioners/test_modal.py",
     "tests/blocks",
+    "tests/test_task_runners.py",
+    "tests/test_variables.py",
 ]
 
 
