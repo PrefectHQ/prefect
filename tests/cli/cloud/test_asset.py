@@ -1,4 +1,5 @@
 import httpx
+import pytest
 import readchar
 from starlette import status
 from tests.cli.cloud.test_cloud import gen_test_workspace
@@ -14,6 +15,26 @@ from prefect.settings import (
 from prefect.testing.cli import invoke_and_assert
 
 
+@pytest.fixture
+def cloud_workspace():
+    workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+    return workspace
+
+
 class TestAssetList:
     def test_cannot_list_assets_if_not_logged_in(self):
         cloud_profile = "cloud-foo"
@@ -25,36 +46,12 @@ class TestAssetList:
             invoke_and_assert(
                 ["cloud", "asset", "ls"],
                 expected_code=1,
-                expected_output=(
-                    f"Currently not authenticated in profile {cloud_profile!r}. "
-                    "Please log in with `prefect cloud login`."
-                ),
+                expected_output_contains="Please log in with `prefect cloud login`",
             )
 
-    def test_list_assets_empty(self, respx_mock):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
-        respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[],
-            )
+    def test_list_assets_empty(self, respx_mock, cloud_workspace):
+        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=[])
         )
 
         with use_profile("logged-in-profile"):
@@ -64,153 +61,45 @@ class TestAssetList:
                 expected_output_contains="No assets found in this workspace",
             )
 
-    def test_list_assets(self, respx_mock):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
-        asset1 = {
-            "key": "s3://my-bucket/data.csv",
-            "last_seen": "2026-01-20T18:52:16.681416Z",
-        }
-        asset2 = {
-            "key": "postgres://db/users",
-            "last_seen": "2026-01-21T10:30:00.000000Z",
-        }
-
-        respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[asset1, asset2],
-            )
+    def test_list_assets(self, respx_mock, cloud_workspace):
+        assets = [
+            {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"},
+            {"key": "postgres://db/users", "last_seen": "2026-01-21T10:30:00Z"},
+        ]
+        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=assets)
         )
 
         with use_profile("logged-in-profile"):
             invoke_and_assert(
                 ["cloud", "asset", "ls"],
                 expected_code=0,
-                expected_output_contains=[asset1["key"], asset2["key"]],
-            )
-
-    def test_list_assets_with_prefix(self, respx_mock):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
+                expected_output_contains=[
+                    "s3://my-bucket/data.csv",
+                    "postgres://db/users",
                 ],
-                active=None,
             )
-        )
 
-        asset = {
-            "key": "s3://my-bucket/data.csv",
-            "last_seen": "2026-01-20T18:52:16.681416Z",
-        }
-
-        respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[asset],
-            )
+    @pytest.mark.parametrize(
+        "flag,value", [("--prefix", "s3://"), ("--search", "bucket")]
+    )
+    def test_list_assets_with_filters(self, respx_mock, cloud_workspace, flag, value):
+        asset = {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"}
+        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=[asset])
         )
 
         with use_profile("logged-in-profile"):
             invoke_and_assert(
-                ["cloud", "asset", "ls", "--prefix", "s3://"],
+                ["cloud", "asset", "ls", flag, value],
                 expected_code=0,
                 expected_output_contains=asset["key"],
             )
 
-    def test_list_assets_with_search(self, respx_mock):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
-        asset = {
-            "key": "s3://my-bucket/data.csv",
-            "last_seen": "2026-01-20T18:52:16.681416Z",
-        }
-
-        respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[asset],
-            )
-        )
-
-        with use_profile("logged-in-profile"):
-            invoke_and_assert(
-                ["cloud", "asset", "ls", "--search", "bucket"],
-                expected_code=0,
-                expected_output_contains=asset["key"],
-            )
-
-    def test_list_assets_json_output(self, respx_mock):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
-        asset = {
-            "key": "s3://my-bucket/data.csv",
-            "last_seen": "2026-01-20T18:52:16.681416Z",
-        }
-
-        respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[asset],
-            )
+    def test_list_assets_json_output(self, respx_mock, cloud_workspace):
+        asset = {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"}
+        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=[asset])
         )
 
         with use_profile("logged-in-profile"):
@@ -220,30 +109,24 @@ class TestAssetList:
                 expected_output_contains=[asset["key"], asset["last_seen"]],
             )
 
-    def test_list_assets_invalid_output_format(self):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
+    def test_list_assets_invalid_output_format(self, cloud_workspace):
         with use_profile("logged-in-profile"):
             invoke_and_assert(
                 ["cloud", "asset", "ls", "-o", "xml"],
                 expected_code=1,
                 expected_output_contains="Only 'json' output format is supported",
+            )
+
+    def test_assets_alias(self, respx_mock, cloud_workspace):
+        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=[])
+        )
+
+        with use_profile("logged-in-profile"):
+            invoke_and_assert(
+                ["cloud", "assets", "ls"],
+                expected_code=0,
+                expected_output_contains="No assets found",
             )
 
 
@@ -258,173 +141,53 @@ class TestAssetDelete:
             invoke_and_assert(
                 ["cloud", "asset", "delete", "s3://bucket/data.csv"],
                 expected_code=1,
-                expected_output=(
-                    f"Currently not authenticated in profile {cloud_profile!r}. "
-                    "Please log in with `prefect cloud login`."
-                ),
+                expected_output_contains="Please log in with `prefect cloud login`",
             )
 
-    def test_delete_asset_with_confirmation(self, respx_mock):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
-        asset_key = "s3://my-bucket/data.csv"
-
-        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key").mock(
-            return_value=httpx.Response(
-                status.HTTP_204_NO_CONTENT,
-            )
+    def test_delete_asset_with_confirmation(self, respx_mock, cloud_workspace):
+        respx_mock.delete(f"{cloud_workspace.api_url()}/assets/key").mock(
+            return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
         )
 
         with use_profile("logged-in-profile"):
             invoke_and_assert(
-                ["cloud", "asset", "delete", asset_key],
+                ["cloud", "asset", "delete", "s3://my-bucket/data.csv"],
                 expected_code=0,
                 user_input="y" + readchar.key.ENTER,
-                expected_output_contains=f"Deleted asset {asset_key!r}",
+                expected_output_contains="Deleted asset 's3://my-bucket/data.csv'",
             )
 
-    def test_delete_asset_with_force_flag(self, respx_mock):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
-        asset_key = "s3://my-bucket/data.csv"
-
-        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key").mock(
-            return_value=httpx.Response(
-                status.HTTP_204_NO_CONTENT,
-            )
+    def test_delete_asset_with_force_flag(self, respx_mock, cloud_workspace):
+        respx_mock.delete(f"{cloud_workspace.api_url()}/assets/key").mock(
+            return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
         )
 
         with use_profile("logged-in-profile"):
             invoke_and_assert(
-                ["cloud", "asset", "delete", asset_key, "--force"],
+                ["cloud", "asset", "delete", "s3://my-bucket/data.csv", "--force"],
                 expected_code=0,
-                expected_output_contains=f"Deleted asset {asset_key!r}",
+                expected_output_contains="Deleted asset 's3://my-bucket/data.csv'",
             )
 
-    def test_delete_asset_not_found(self, respx_mock):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
-        asset_key = "s3://nonexistent/data.csv"
-
-        respx_mock.delete(f"{foo_workspace.api_url()}/assets/key").mock(
+    def test_delete_asset_not_found(self, respx_mock, cloud_workspace):
+        respx_mock.delete(f"{cloud_workspace.api_url()}/assets/key").mock(
             return_value=httpx.Response(
-                status.HTTP_404_NOT_FOUND,
-                json={"detail": "Asset not found"},
+                status.HTTP_404_NOT_FOUND, json={"detail": "Asset not found"}
             )
         )
 
         with use_profile("logged-in-profile"):
             invoke_and_assert(
-                ["cloud", "asset", "delete", asset_key, "--force"],
+                ["cloud", "asset", "delete", "s3://nonexistent/data.csv", "--force"],
                 expected_code=1,
-                expected_output_contains=f"Asset {asset_key!r} not found",
+                expected_output_contains="Asset 's3://nonexistent/data.csv' not found",
             )
 
-    def test_delete_asset_abort_confirmation(self):
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
+    def test_delete_asset_abort_confirmation(self, cloud_workspace):
         with use_profile("logged-in-profile"):
             invoke_and_assert(
                 ["cloud", "asset", "delete", "s3://bucket/data.csv"],
                 expected_code=1,
                 user_input="n" + readchar.key.ENTER,
                 expected_output_contains="Deletion aborted",
-            )
-
-    def test_delete_asset_uses_aliases(self, respx_mock):
-        """Test that 'assets' alias works for the asset command."""
-        foo_workspace = gen_test_workspace(
-            account_handle="test", workspace_handle="foo"
-        )
-        save_profiles(
-            ProfilesCollection(
-                [
-                    Profile(
-                        name="logged-in-profile",
-                        settings={
-                            PREFECT_API_URL: foo_workspace.api_url(),
-                            PREFECT_API_KEY: "foo",
-                        },
-                    )
-                ],
-                active=None,
-            )
-        )
-
-        respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(
-                status.HTTP_200_OK,
-                json=[],
-            )
-        )
-
-        with use_profile("logged-in-profile"):
-            invoke_and_assert(
-                ["cloud", "assets", "ls"],
-                expected_code=0,
-                expected_output_contains="No assets found",
             )

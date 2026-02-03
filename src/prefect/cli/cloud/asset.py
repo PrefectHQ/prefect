@@ -115,7 +115,5 @@ async def delete_asset(
             await client.request("DELETE", "/assets/key", params={"key": key})
         except ObjectNotFound:
             exit_with_error(f"Asset {key!r} not found.")
-        except Exception as exc:
-            exit_with_error(f"Error deleting asset: {exc}")
 
     exit_with_success(f"Deleted asset {key!r}.")
