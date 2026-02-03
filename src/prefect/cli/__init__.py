@@ -8,6 +8,7 @@ import prefect.cli.api
 import prefect.cli.artifact
 import prefect.cli.block
 import prefect.cli.cloud
+import prefect.cli.cloud.asset
 import prefect.cli.cloud.ip_allowlist
 import prefect.cli.cloud.webhook
 import prefect.cli.shell
