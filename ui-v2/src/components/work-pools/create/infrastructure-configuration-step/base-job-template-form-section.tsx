@@ -9,7 +9,6 @@ import type { JsonInputOnChange } from "@/components/ui/json-input";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Typography } from "@/components/ui/typography";
 import type { WorkerBaseJobTemplate } from "./schema";
 
 type BaseJobTemplateFormSectionProps = {
@@ -106,7 +105,9 @@ export function BaseJobTemplateFormSection({
 
 	return (
 		<div className="space-y-4">
-			<Typography variant="h3">Base Job Template</Typography>
+			<h3 className="text-2xl font-semibold tracking-tight">
+				Base Job Template
+			</h3>
 
 			<Tabs defaultValue="defaults" className="w-full">
 				<TabsList>

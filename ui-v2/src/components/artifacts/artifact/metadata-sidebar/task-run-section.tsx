@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import type { TaskRun } from "@/api/task-runs";
 import { KeyValue } from "@/components/ui/key-value";
 import { TagBadge } from "@/components/ui/tag-badge";
-import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
 
 type TaskRunSectionProps = {
@@ -22,9 +21,7 @@ export const TaskRunSection = ({ taskRun }: TaskRunSectionProps) => {
 
 	return (
 		<div className="mt-4">
-			<Typography variant="bodyLarge" className="font-bold">
-				Task Run
-			</Typography>
+			<p className="text-lg font-bold">Task Run</p>
 
 			<div className="mt-3 flex flex-col gap-3">
 				<KeyValue

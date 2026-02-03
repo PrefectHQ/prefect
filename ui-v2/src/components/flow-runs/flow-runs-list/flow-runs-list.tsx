@@ -5,7 +5,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Typography } from "@/components/ui/typography";
 
 type FlowRunCardProps =
 	| {
@@ -32,7 +31,7 @@ export const FlowRunsList = ({
 		return (
 			<div className="flex justify-center py-4">
 				<div className="flex flex-col gap-2">
-					<Typography>No runs found</Typography>
+					<p className="text-base">No runs found</p>
 					{onClearFilters && (
 						<Button onClick={onClearFilters}>Clear Filters</Button>
 					)}

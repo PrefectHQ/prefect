@@ -15,7 +15,6 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
-import { Typography } from "@/components/ui/typography";
 
 const MAX_WORK_POOLS_DISPLAYED = 2;
 
@@ -69,11 +68,7 @@ export const WorkPoolFilter = ({
 				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
 					<span className="truncate">{visible.join(", ")}</span>
 				</div>
-				{extraCount > 0 && (
-					<Typography variant="bodySmall" className="shrink-0">
-						+ {extraCount}
-					</Typography>
-				)}
+				{extraCount > 0 && <p className="text-sm shrink-0">+ {extraCount}</p>}
 			</div>
 		);
 	};

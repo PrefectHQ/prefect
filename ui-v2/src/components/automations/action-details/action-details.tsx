@@ -17,7 +17,6 @@ import {
 import { Icon, type IconId } from "@/components/ui/icons";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { StateBadge } from "@/components/ui/state-badge";
-import { Typography } from "@/components/ui/typography";
 import { capitalize } from "@/utils";
 
 const ACTION_TYPE_TO_STRING = {
@@ -93,7 +92,7 @@ const ActionDetailsType = ({
 			if (action.deployment_id && action.source === "selected") {
 				const deployment = deploymentsMap.get(action.deployment_id);
 				if (!deployment) {
-					return <Typography>Deployment not found</Typography>;
+					return <p className="text-base">Deployment not found</p>;
 				}
 				return (
 					<DeploymentActionDetails
@@ -110,7 +109,7 @@ const ActionDetailsType = ({
 			if (action.deployment_id && action.source === "selected") {
 				const deployment = deploymentsMap.get(action.deployment_id);
 				if (!deployment) {
-					return <Typography>Deployment not found</Typography>;
+					return <p className="text-base">Deployment not found</p>;
 				}
 				return (
 					<DeploymentActionDetails label={label} deployment={deployment} />
@@ -122,7 +121,7 @@ const ActionDetailsType = ({
 			if (action.work_queue_id && action.source === "selected") {
 				const workQueue = workQueuesMap.get(action.work_queue_id);
 				if (!workQueue) {
-					return <Typography>Work queue not found</Typography>;
+					return <p className="text-base">Work queue not found</p>;
 				}
 				return <WorkQueueActionDetails label={label} workQueue={workQueue} />;
 			}
@@ -132,7 +131,7 @@ const ActionDetailsType = ({
 			if (action.automation_id && action.source === "selected") {
 				const automation = automationsMap.get(action.automation_id);
 				if (!automation) {
-					return <Typography>Automation not found</Typography>;
+					return <p className="text-base">Automation not found</p>;
 				}
 				return (
 					<AutomationActionDetails label={label} automation={automation} />
@@ -144,7 +143,7 @@ const ActionDetailsType = ({
 			if (action.work_pool_id && action.source === "selected") {
 				const workPool = workPoolsMap.get(action.work_pool_id);
 				if (!workPool) {
-					return <Typography>Workpool not found</Typography>;
+					return <p className="text-base">Workpool not found</p>;
 				}
 				return <WorkPoolActionDetails label={label} workPool={workPool} />;
 			}
@@ -153,7 +152,7 @@ const ActionDetailsType = ({
 		case "send-notification": {
 			const blockDocument = blockDocumentsMap.get(action.block_document_id);
 			if (!blockDocument) {
-				return <Typography>Block document not found</Typography>;
+				return <p className="text-base">Block document not found</p>;
 			}
 			return (
 				<BlockDocumentActionDetails
@@ -165,7 +164,7 @@ const ActionDetailsType = ({
 		case "call-webhook": {
 			const blockDocument = blockDocumentsMap.get(action.block_document_id);
 			if (!blockDocument) {
-				return <Typography>Block document not found</Typography>;
+				return <p className="text-base">Block document not found</p>;
 			}
 			return (
 				<CallWebhookActionDetails label={label} blockDocument={blockDocument} />
@@ -202,13 +201,11 @@ const ActionResourceName = ({
 );
 
 const NoninferredAction = ({ label }: { label: ActionLabel }) => (
-	<Typography variant="bodySmall">{label} from the triggering event</Typography>
+	<p className="text-sm">{label} from the triggering event</p>
 );
 
 const InferredAction = ({ label }: { label: ActionLabel }) => (
-	<Typography variant="bodySmall">
-		{label} inferred from the triggering event
-	</Typography>
+	<p className="text-sm">{label} inferred from the triggering event</p>
 );
 
 type ChangeFlowRunStateActionDetailsProps = {
@@ -322,7 +319,7 @@ export const BlockDocumentActionDetails = ({
 	blockDocument,
 }: BlockDocumentActionDetailsProps) => {
 	if (!blockDocument.name) {
-		return <Typography>Block not found</Typography>;
+		return <p className="text-base">Block not found</p>;
 	}
 
 	const _label = blockDocument.block_type_name
@@ -352,7 +349,7 @@ export const CallWebhookActionDetails = ({
 	blockDocument,
 }: CallWebhookActionDetailsProps) => {
 	if (!blockDocument.name) {
-		return <Typography>Block not found</Typography>;
+		return <p className="text-base">Block not found</p>;
 	}
 
 	return (

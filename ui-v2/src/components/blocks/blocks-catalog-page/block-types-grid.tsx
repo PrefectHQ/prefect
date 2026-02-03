@@ -1,6 +1,5 @@
 import type { BlockType } from "@/api/block-types";
 import { SearchInput } from "@/components/ui/input";
-import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 import { BlockTypeCard } from "./block-type-card";
 
@@ -18,9 +17,9 @@ export const BlockTypesGrid = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex justify-between items-center">
-				<Typography variant="bodySmall" className="text-muted-foreground">
+				<p className="text-sm text-muted-foreground">
 					{blockTypes.length} {pluralize(blockTypes.length, "Block")}
-				</Typography>
+				</p>
 				<div className="min-w-40">
 					<SearchInput
 						value={search}

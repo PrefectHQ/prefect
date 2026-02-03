@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
 
 type FlowRunDeploymentProps = { deployment: Deployment };
 export const FlowRunDeployment = ({ deployment }: FlowRunDeploymentProps) => {
@@ -11,11 +10,9 @@ export const FlowRunDeployment = ({ deployment }: FlowRunDeploymentProps) => {
 			to="/deployments/deployment/$id"
 			params={{ id: deployment.id }}
 		>
-			<Typography variant="xsmall" className="font-medium leading-none">
-				Deployment
-			</Typography>
+			<p className="text-xs font-medium leading-none">Deployment</p>
 			<Icon id="Rocket" className="size-4" />
-			<Typography variant="xsmall">{deployment.name}</Typography>
+			<p className="text-xs">{deployment.name}</p>
 		</Link>
 	);
 };

@@ -1,5 +1,4 @@
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
-import { Typography } from "@/components/ui/typography";
 import { formatDate } from "@/utils/date";
 import { ArtifactTimelineCard } from "./timelineCard";
 
@@ -17,10 +16,8 @@ export const TimelineRow = ({ artifact }: TimelineRowProps) => {
 				className="flex flex-col items-end justify-items-start pt-4"
 				style={{ width: "128px" }}
 			>
-				<Typography variant="body">{time}</Typography>
-				<Typography variant="bodySmall" className="text-muted-foreground">
-					{date}
-				</Typography>
+				<p className="text-base">{time}</p>
+				<p className="text-sm text-muted-foreground">{date}</p>
 			</div>
 			<div className="w-10 flex flex-col">
 				<div className="w-5 h-full border-r border-gray-200">

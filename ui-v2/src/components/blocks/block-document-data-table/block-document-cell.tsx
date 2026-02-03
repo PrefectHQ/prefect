@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { BlockDocument } from "@/api/block-documents";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
-import { Typography } from "@/components/ui/typography";
 
 type BlockDocumentCellProps = {
 	blockDocument: BlockDocument;
@@ -24,7 +23,7 @@ export const BlockDocumentCell = ({
 			<div className="flex flex-col">
 				{name && (
 					<Link to="/blocks/block/$id" params={{ id }}>
-						<Typography className="font-semibold">{name}</Typography>
+						<p className="text-base font-semibold">{name}</p>
 					</Link>
 				)}
 				{block_type_name && blockDocument.block_type?.slug && (
@@ -32,9 +31,7 @@ export const BlockDocumentCell = ({
 						to="/blocks/catalog/$slug"
 						params={{ slug: blockDocument.block_type.slug }}
 					>
-						<Typography variant="bodySmall" className="text-muted-foreground">
-							{block_type_name}
-						</Typography>
+						<p className="text-sm text-muted-foreground">{block_type_name}</p>
 					</Link>
 				)}
 			</div>

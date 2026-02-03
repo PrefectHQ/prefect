@@ -4,7 +4,6 @@ import { BlockTypeDetails } from "@/components/blocks/block-type-details";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { DOCS_LINKS } from "@/components/ui/docs-link";
-import { Typography } from "@/components/ui/typography";
 import { PythonBlockSnippet } from "../python-example-snippet";
 import { useDeleteBlockDocumentConfirmationDialog } from "../use-delete-block-document-confirmation-dialog";
 import { BlockDocumentDetailsPageHeader } from "./block-document-details-page-header";
@@ -80,14 +79,14 @@ function NeedHelpDocsLink({
 	return (
 		<div className="flex items-center gap-1">
 			{hasCodeExample && (
-				<Typography variant="bodySmall" className="muted">
+				<p className="text-sm muted">
 					Paste this snippet{" "}
 					<span className="font-semibold">into your flows</span> to use this
 					block.
-				</Typography>
+				</p>
 			)}
 			{hasDocumentationUrl && (
-				<Typography variant="bodySmall" className="muted">
+				<p className="text-sm muted">
 					Need help?{" "}
 					<a
 						className="underline text-blue-600 hover:text-blue-800 visited:text-purple-600"
@@ -95,7 +94,7 @@ function NeedHelpDocsLink({
 					>
 						View Docs
 					</a>
-				</Typography>
+				</p>
 			)}
 		</div>
 	);

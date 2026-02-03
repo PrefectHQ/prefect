@@ -10,7 +10,6 @@ import {
 import { pluralize } from "@/utils";
 import { Icon } from "../ui/icons";
 import { ToggleGroup, ToggleGroupItem } from "../ui/toggle-group";
-import { Typography } from "../ui/typography";
 import type { filterType } from "./types";
 
 type ArtifactsFilterProps = {
@@ -71,9 +70,9 @@ export const ArtifactsFilterComponent = ({
 			className="flex justify-between items-center"
 		>
 			<div>
-				<Typography variant="body" className="text-sm text-muted-foreground">
+				<p className="text-base text-sm text-muted-foreground">
 					{totalCount} {pluralize(totalCount, "artifact")}
-				</Typography>
+				</p>
 			</div>
 			<div className="flex gap-4">
 				<SearchInput

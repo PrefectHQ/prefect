@@ -1,6 +1,5 @@
 import type { Deployment } from "@/api/deployments";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
-import { Typography } from "@/components/ui/typography";
 
 type DeploymentConfigurationProps = {
 	deployment: Deployment;
@@ -17,9 +16,9 @@ export const DeploymentConfiguration = ({
 	const pullStepsDisplay = JSON.stringify(deployment.pull_steps ?? [], null, 2);
 	return (
 		<div className="flex flex-col gap-4">
-			<Typography variant="h4">Job Variables</Typography>
+			<h4 className="text-xl font-semibold tracking-tight">Job Variables</h4>
 			<JsonInput copy disabled hideLineNumbers value={jobVariablesDisplay} />
-			<Typography variant="h4">Pull Steps </Typography>
+			<h4 className="text-xl font-semibold tracking-tight">Pull Steps</h4>
 			<JsonInput copy disabled hideLineNumbers value={pullStepsDisplay} />
 		</div>
 	);

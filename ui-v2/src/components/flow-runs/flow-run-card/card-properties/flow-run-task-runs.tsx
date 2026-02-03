@@ -3,7 +3,6 @@ import clsx from "clsx";
 import { buildGetFlowRunsTaskRunsCountQuery } from "@/api/task-runs";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
 type FlowRunTaskRunsProps = {
@@ -24,12 +23,14 @@ export const FlowRunTaskRuns = ({ flowRun }: FlowRunTaskRunsProps) => {
 	return (
 		<div className="flex items-center gap-2">
 			<Icon id="Spline" className="size-4" />
-			<Typography
-				variant="xsmall"
-				className={clsx(taskRunsCount === 0 && "text-muted-foreground")}
+			<p
+				className={clsx(
+					"text-xs",
+					taskRunsCount === 0 && "text-muted-foreground",
+				)}
 			>
 				{taskRunsCount} {pluralize(taskRunsCount, "Task run")}
-			</Typography>
+			</p>
 		</div>
 	);
 };

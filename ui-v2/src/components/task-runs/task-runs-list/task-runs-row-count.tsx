@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 import { useDeleteTaskRunsDialog } from "./use-delete-task-runs-dialog";
 
@@ -35,9 +34,9 @@ export const TaskRunsRowCount = ({
 
 	// Count only UX
 	return (
-		<Typography variant="bodySmall" className="text-muted-foreground">
+		<p className="text-sm text-muted-foreground">
 			{count} {pluralize(count, "Task run")}
-		</Typography>
+		</p>
 	);
 };
 
@@ -85,9 +84,9 @@ function SelectedCount({
 			<>
 				<div className="flex items-center gap-2">
 					<ToggleCheckbox />
-					<Typography variant="bodySmall" className="text-muted-foreground">
+					<p className="text-sm text-muted-foreground">
 						{selectedRowsList.length} selected
-					</Typography>
+					</p>
 					<Button
 						aria-label="Delete rows"
 						size="icon"
@@ -115,9 +114,9 @@ function SelectedCount({
 					aria-label="Toggle all"
 				/>
 			)}
-			<Typography variant="bodySmall" className="text-muted-foreground">
+			<p className="text-sm text-muted-foreground">
 				{count} {pluralize(count, "Task run")}
-			</Typography>
+			</p>
 		</div>
 	);
 }
