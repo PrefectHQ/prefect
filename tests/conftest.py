@@ -186,6 +186,7 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/test_task_runners.py",
     "tests/test_variables.py",
     "tests/test_futures.py",
+    "tests/test_logging.py",
 ]
 
 
