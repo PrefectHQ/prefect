@@ -243,9 +243,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE": {"test_value": 10, "legacy": True},
     "PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES": {"test_value": 10, "legacy": True},
     "PREFECT_EVENTS_MAXIMUM_SIZE_BYTES": {"test_value": 10, "legacy": True},
-    "PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR": {
-        "test_value": "warn",
-    },
     "PREFECT_EVENTS_MAXIMUM_WEBSOCKET_BACKFILL": {
         "test_value": timedelta(minutes=15),
         "legacy": True,

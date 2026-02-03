@@ -105,7 +105,7 @@ def emit_event(
                 raise EventTooLarge(
                     event_obj.size_bytes,
                     max_size,
-                    hint="To warn instead of error set PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR=warn",
+                    hint="To warn instead of error set PREFECT_SERVER_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR=warn",
                 )
             elif behavior == "warn":
                 logger.warning(

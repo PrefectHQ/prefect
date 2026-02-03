@@ -12,7 +12,7 @@ from prefect.exceptions import EventTooLarge
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_EVENTS_MAXIMUM_SIZE_BYTES,
-    PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR,
+    PREFECT_SERVER_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR,
     temporary_settings,
 )
 from prefect.types import DateTime
@@ -103,7 +103,7 @@ def test_warns_and_emits_events_exceeding_maximum_size(
     with temporary_settings(
         updates={
             PREFECT_EVENTS_MAXIMUM_SIZE_BYTES: 100,
-            PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR: "warn",
+            PREFECT_SERVER_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR: "warn",
         }
     ):
         with caplog.at_level("WARNING"):
@@ -127,7 +127,7 @@ def test_ignores_and_emits_events_exceeding_maximum_size(
     with temporary_settings(
         updates={
             PREFECT_EVENTS_MAXIMUM_SIZE_BYTES: 100,
-            PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR: "ignore",
+            PREFECT_SERVER_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR: "ignore",
         }
     ):
         with caplog.at_level("WARNING"):

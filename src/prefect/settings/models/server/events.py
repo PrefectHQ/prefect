@@ -76,11 +76,6 @@ class ServerEventsSettings(PrefectBaseSettings):
             '"error" raises an exception; "warn" logs a warning and still emits the event; '
             '"ignore" still emits the event without logging.'
         ),
-        validation_alias=AliasChoices(
-            AliasPath("maximum_size_bytes_behavior"),
-            "prefect_server_events_maximum_size_bytes_behavior",
-            "prefect_events_maximum_size_bytes_behavior",
-        ),
     )
 
     expired_bucket_buffer: timedelta = Field(
