@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
-import { Typography } from "@/components/ui/typography";
 import {
 	FLOW_RUN_STATES_MAP,
 	FLOW_RUN_STATES_NO_SCHEDULED,
@@ -92,11 +91,7 @@ export const StateFilter = ({
 						/>
 					))}
 				</div>
-				{extraCount > 0 && (
-					<Typography variant="bodySmall" className="shrink-0">
-						+ {extraCount}
-					</Typography>
-				)}
+				{extraCount > 0 && <p className="text-sm shrink-0">+ {extraCount}</p>}
 			</div>
 		);
 	};
