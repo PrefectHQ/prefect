@@ -452,7 +452,11 @@ class EventTooLarge(PrefectException):
     """
 
     def __init__(self, size: int, maximum: int):
-        super().__init__(f"Event is too large to emit ({size} > {maximum} bytes)")
+        super().__init__(
+            f"Event is too large to emit ({size} > {maximum} bytes). "
+            "To warn instead of erroring, set "
+            "PREFECT_EVENTS_MAXIMUM_SIZE_BYTES_BEHAVIOR=warn."
+        )
         self.size = size
         self.maximum = maximum
 
