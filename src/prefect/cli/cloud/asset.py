@@ -13,7 +13,7 @@ from rich.table import Table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import cloud_app, confirm_logged_in
-from prefect.cli.root import app
+from prefect.cli.root import app, is_interactive
 from prefect.client.cloud import get_cloud_client
 from prefect.exceptions import ObjectNotFound
 from prefect.settings import get_current_settings
@@ -103,7 +103,7 @@ async def delete_asset(
     """
     confirm_logged_in()
 
-    if not force:
+    if is_interactive() and not force:
         if not typer.confirm(
             f"Are you sure you want to delete asset {key!r}?",
             default=False,
