@@ -8,7 +8,6 @@ import {
 	PopoverAnchor,
 	PopoverContent,
 } from "@/components/ui/popover";
-import { Typography } from "@/components/ui/typography";
 
 type FlowRunGraphArtifactsPopoverProps = {
 	selection: ArtifactsSelection;
@@ -48,9 +47,7 @@ export function FlowRunGraphArtifactsPopover({
 			<PopoverAnchor style={anchorStyle} />
 			<PopoverContent align="center" side="bottom" className="w-72">
 				<div className="flex items-center justify-between mb-3">
-					<Typography variant="bodySmall" className="font-semibold">
-						Artifacts
-					</Typography>
+					<p className="text-sm font-semibold">Artifacts</p>
 					<Button
 						variant="ghost"
 						size="icon"
@@ -74,19 +71,13 @@ export function FlowRunGraphArtifactsPopover({
 									className="flex items-center justify-between gap-2 p-2 rounded-md border bg-muted/50"
 								>
 									<div className="flex flex-col min-w-0 flex-1">
-										<Typography
-											variant="bodySmall"
-											className="font-medium truncate"
-										>
+										<p className="text-sm font-medium truncate">
 											{artifact.key ?? "Unnamed"}
-										</Typography>
+										</p>
 										{artifact.type && (
-											<Typography
-												variant="xsmall"
-												className="text-muted-foreground uppercase"
-											>
+											<p className="text-xs text-muted-foreground uppercase">
 												{artifact.type}
-											</Typography>
+											</p>
 										)}
 									</div>
 									<Button
