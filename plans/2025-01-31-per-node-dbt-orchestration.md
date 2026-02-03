@@ -101,6 +101,59 @@ User calls orchestrator.run_build()
     └───────────────┘
 ```
 
+## Manifest Parsing Strategy
+
+1. **Delegate to dbt for parsing and selection** - Use `dbtRunner` or `dbt ls` for the heavy lifting
+2. **Work with JSON artifacts** - Parse `manifest.json` rather than Python classes
+3. **Build minimal graph utilities ourselves** - Only what's needed for wave computation
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    What dbt provides                            │
+├─────────────────────────────────────────────────────────────────┤
+│  • dbt parse             → Generates manifest.json              │
+│  • dbt ls --select ...   → Resolves selectors to node list      │
+│  • manifest.json         → Stable JSON schema (versioned)       │
+│    - nodes, sources      → All node metadata                    │
+│    - parent_map          → Dependency graph (already computed)  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         What we build                           │
+├─────────────────────────────────────────────────────────────────┤
+│  • ManifestParser        → Parse JSON, extract DbtNode objects  │
+│  • Wave computation      → Topological sort into parallel groups│
+│  • Ephemeral resolution  → Trace through ephemeral to real deps │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### What manifest.json Provides
+
+The `manifest.json` artifact contains everything we need:
+
+```python
+{
+    "nodes": {
+        "model.project.stg_users": {
+            "unique_id": "model.project.stg_users",
+            "name": "stg_users",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["source.project.raw.users"]},
+            "config": {"materialized": "view", ...},
+            ...
+        },
+        ...
+    },
+    "sources": {...},
+    "parent_map": {  # Dependencies already computed by dbt
+        "model.project.stg_users": ["source.project.raw.users"],
+        ...
+    },
+    "child_map": {...}  # Reverse dependencies
+}
+```
+
 ## Interfaces
 
 ### Core Classes
