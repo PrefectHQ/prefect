@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "@/api/prefect";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Typography } from "@/components/ui/typography";
 import { FlowRunCell } from "./flowRunCell";
 
 export type FlowRunsBarChartProps = {
@@ -126,15 +125,15 @@ const FlowRunsBarChart = ({
 	const stateBadgeVariants = cva("gap-1", {
 		variants: {
 			state: {
-				COMPLETED: "bg-green-500",
-				FAILED: "bg-red-500",
-				RUNNING: "bg-blue-500",
-				CANCELLED: "bg-gray-500",
-				CANCELLING: "bg-gray-500",
-				CRASHED: "bg-orange-500",
-				PAUSED: "bg-gray-500",
-				PENDING: "bg-gray-500",
-				SCHEDULED: "bg-yellow-500",
+				COMPLETED: "bg-[var(--state-completed-500)]",
+				FAILED: "bg-[var(--state-failed-500)]",
+				RUNNING: "bg-[var(--state-running-500)]",
+				CANCELLED: "bg-[var(--state-cancelled-500)]",
+				CANCELLING: "bg-[var(--state-cancelling-500)]",
+				CRASHED: "bg-[var(--state-crashed-500)]",
+				PAUSED: "bg-[var(--state-paused-500)]",
+				PENDING: "bg-[var(--state-pending-500)]",
+				SCHEDULED: "bg-[var(--state-scheduled-500)]",
 			} satisfies Record<components["schemas"]["StateType"], string>,
 		},
 	});
@@ -144,12 +143,10 @@ const FlowRunsBarChart = ({
 			<TooltipProvider>
 				<div className="w-full h-full flex flex-col p-4 border rounded-lg">
 					<div className="flex justify-between">
-						<Typography variant="body" className="text-foreground font-bold">
-							Flow Runs
-						</Typography>
-						<Typography variant="bodySmall" className="text-foreground">
+						<p className="text-base text-foreground font-bold">Flow Runs</p>
+						<p className="text-sm text-foreground">
 							<span className="font-bold">{flowRuns.length}</span> runs
-						</Typography>
+						</p>
 					</div>
 					<div ref={divRef} className="w-full h-full flex items-end">
 						{barFlowRuns.map((flowRun, index) => (

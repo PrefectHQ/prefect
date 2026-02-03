@@ -1493,3 +1493,47 @@ class TestSubmitAdhocRunWithFlowRunParameter:
             # Verify a new flow run was created
             final_flow_runs = await client.read_flow_runs()
             assert len(final_flow_runs) > initial_count
+
+
+class TestDockerWorkerKillInfrastructure:
+    """Tests for DockerWorker.kill_infrastructure method."""
+
+    async def test_kill_infrastructure_stops_container(
+        self, mock_docker_client, default_docker_worker_job_configuration
+    ):
+        """Test that kill_infrastructure successfully stops a Docker container."""
+        container_id = "test-container-id"
+        infrastructure_pid = f"{FAKE_BASE_URL}:{container_id}"
+
+        async with DockerWorker(work_pool_name="test") as worker:
+            await worker.kill_infrastructure(
+                infrastructure_pid=infrastructure_pid,
+                configuration=default_docker_worker_job_configuration,
+                grace_seconds=30,
+            )
+
+        mock_docker_client.containers.get.assert_called_with(container_id)
+        mock_docker_client.containers.get.return_value.stop.assert_called_once_with(
+            timeout=30
+        )
+
+    async def test_kill_infrastructure_raises_not_found(
+        self, mock_docker_client, default_docker_worker_job_configuration
+    ):
+        """Test that kill_infrastructure raises InfrastructureNotFound for missing container."""
+        from prefect.exceptions import InfrastructureNotFound
+
+        container_id = "nonexistent-container"
+        infrastructure_pid = f"{FAKE_BASE_URL}:{container_id}"
+
+        mock_docker_client.containers.get.side_effect = docker.errors.NotFound(
+            "Container not found"
+        )
+
+        async with DockerWorker(work_pool_name="test") as worker:
+            with pytest.raises(InfrastructureNotFound):
+                await worker.kill_infrastructure(
+                    infrastructure_pid=infrastructure_pid,
+                    configuration=default_docker_worker_job_configuration,
+                    grace_seconds=30,
+                )

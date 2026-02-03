@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
-import { Typography } from "@/components/ui/typography";
 import { cn } from "@/utils";
 
 const MAX_FILTERS_DISPLAYED = 2;
@@ -92,11 +91,7 @@ export const TaskRunStateFilter = ({
 						/>
 					))}
 				</div>
-				{extraCount > 0 && (
-					<Typography variant="bodySmall" className="shrink-0">
-						+ {extraCount}
-					</Typography>
-				)}
+				{extraCount > 0 && <p className="text-sm shrink-0">+ {extraCount}</p>}
 			</div>
 		);
 	};

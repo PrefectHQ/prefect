@@ -8,7 +8,6 @@ import { useDeferredValue, useMemo, useState } from "react";
 import type { Deployment } from "@/api/deployments";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/input";
-import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
 type DeploymentParametersTableProps = {
@@ -111,9 +110,9 @@ export const DeploymentParametersTable = ({
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-between">
-				<Typography variant="bodySmall" className="text-muted-foreground">
+				<p className="text-sm text-muted-foreground">
 					{filteredData.length} {pluralize(filteredData.length, "parameter")}
-				</Typography>
+				</p>
 				<div className="sm:col-span-2 md:col-span-2 lg:col-span-3">
 					<SearchInput
 						className="sm:col-span-2 md:col-span-2 lg:col-span-3"

@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 
 import prefect.exceptions
@@ -178,9 +180,10 @@ def test_root_flow_custom_serializer_by_instance(default_persistence_off):
 
 async def test_root_flow_custom_storage_by_slug(tmp_path, default_persistence_off):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
-    @flow(result_storage="local-file-system/test")
+    @flow(result_storage=f"local-file-system/{block_name}")
     def foo():
         return get_run_context().result_store, should_persist_result()
 
@@ -195,7 +198,8 @@ async def test_root_flow_custom_storage_by_instance_presaved(
     tmp_path, default_persistence_off
 ):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
     @flow(result_storage=storage)
     def foo():
@@ -360,9 +364,10 @@ def test_child_flow_inherits_custom_serializer(default_persistence_off):
 
 async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_off):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
-    @flow(result_storage="local-file-system/test")
+    @flow(result_storage=f"local-file-system/{block_name}")
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
@@ -380,14 +385,15 @@ async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_
 
 async def test_child_flow_custom_storage(tmp_path, default_persistence_off):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
     @flow()
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
 
-    @flow(result_storage="local-file-system/test")
+    @flow(result_storage=f"local-file-system/{block_name}")
     def bar():
         return get_run_context().result_store, should_persist_result()
 
@@ -584,9 +590,10 @@ def test_task_inherits_custom_serializer(default_persistence_off):
 
 async def test_task_inherits_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
-    @flow(result_storage="local-file-system/test", persist_result=True)
+    @flow(result_storage=f"local-file-system/{block_name}", persist_result=True)
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
@@ -622,14 +629,15 @@ def test_task_custom_serializer(default_persistence_off):
 
 async def test_nested_flow_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
     @flow(persist_result=True)
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
 
-    @flow(result_storage="local-file-system/test", persist_result=True)
+    @flow(result_storage=f"local-file-system/{block_name}", persist_result=True)
     def bar():
         return get_run_context().result_store, should_persist_result()
 
@@ -881,3 +889,65 @@ async def test_supports_isolation_level():
     assert not store_without_lock_manager.supports_isolation_level(
         IsolationLevel.SERIALIZABLE
     )
+
+
+class TestAsyncDispatch:
+    """Tests for async_dispatch behavior of ResultStore methods."""
+
+    async def test_update_for_flow_dispatches_to_async_in_async_context(self):
+        """Test that update_for_flow dispatches to aupdate_for_flow in async context."""
+
+        @flow
+        async def my_flow():
+            pass
+
+        store = ResultStore()
+        # In async context, calling update_for_flow should return a coroutine
+        result = store.update_for_flow(my_flow)
+        # Should be a coroutine that we can await
+        assert hasattr(result, "__await__")
+        updated_store = await result
+        assert isinstance(updated_store, ResultStore)
+
+    async def test_update_for_task_dispatches_to_async_in_async_context(self):
+        """Test that update_for_task dispatches to aupdate_for_task in async context."""
+
+        @task
+        async def my_task():
+            pass
+
+        store = ResultStore()
+        # In async context, calling update_for_task should return a coroutine
+        result = store.update_for_task(my_task)
+        # Should be a coroutine that we can await
+        assert hasattr(result, "__await__")
+        updated_store = await result
+        assert isinstance(updated_store, ResultStore)
+
+    def test_update_for_flow_returns_sync_in_sync_context(self):
+        """Test that update_for_flow returns directly in sync context."""
+
+        @flow
+        def my_flow():
+            pass
+
+        store = ResultStore()
+        # In sync context, calling update_for_flow should return directly
+        result = store.update_for_flow(my_flow)
+        # Should not be a coroutine
+        assert not hasattr(result, "__await__")
+        assert isinstance(result, ResultStore)
+
+    def test_update_for_task_returns_sync_in_sync_context(self):
+        """Test that update_for_task returns directly in sync context."""
+
+        @task
+        def my_task():
+            pass
+
+        store = ResultStore()
+        # In sync context, calling update_for_task should return directly
+        result = store.update_for_task(my_task)
+        # Should not be a coroutine
+        assert not hasattr(result, "__await__")
+        assert isinstance(result, ResultStore)

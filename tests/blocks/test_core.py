@@ -932,17 +932,21 @@ class TestAPICompatibility:
         )
         mock_load_prefect_collections.assert_called_once()
 
-    async def test_load_from_block_base_class(self):
+    async def test_load_from_block_base_class(self, unique_block_slug):
+        slug = unique_block_slug("custom")
+
         class Custom(Block):
+            _block_type_slug = slug
             message: str
 
         my_custom_block = Custom(message="hello")
-        await my_custom_block.save("my-custom-block")
+        block_name = f"my-custom-block-{uuid4()}"
+        await my_custom_block.save(block_name)
 
-        loaded_block = Block.load("custom/my-custom-block", _sync=True)
+        loaded_block = Block.load(f"{slug}/{block_name}", _sync=True)
         assert loaded_block.message == "hello"
 
-        aloaded_block = await Block.aload("custom/my-custom-block")
+        aloaded_block = await Block.aload(f"{slug}/{block_name}")
         assert aloaded_block.message == "hello"
 
     async def test_load_nested_block(self, session, in_memory_prefect_client):
@@ -1126,17 +1130,22 @@ class TestAPICompatibility:
         ):
             await test_block.aload("blocky")
 
-    async def test_save_block_from_flow(self):
+    async def test_save_block_from_flow(self, unique_block_slug):
+        slug = unique_block_slug("test")
+
         class Test(Block):
+            _block_type_slug = slug
             a: str
+
+        block_name = f"test-{uuid4()}"
 
         @prefect.flow
         def save_block_flow():
-            Test(a="foo").save("test")
+            Test(a="foo").save(block_name)
 
         save_block_flow()
 
-        block = await Test.load("test")
+        block = await Test.load(block_name)
         assert block.a == "foo"
 
     async def test_save_protected_block_with_new_block_schema_version(
@@ -1155,7 +1164,8 @@ class TestAPICompatibility:
 
         Secret._block_schema_version = mock_version
 
-        block_document_id = await Secret(value="secret").save("test")
+        block_name = f"test-{uuid4()}"
+        block_document_id = await Secret(value="secret").save(block_name)
 
         block_document = await prefect_client.read_block_document(block_document_id)
         assert block_document.block_schema.version == mock_version
@@ -1664,28 +1674,37 @@ class TestRegisterBlockTypeAndSchema:
             await Interface.register_type_and_schema(client=prefect_client)
 
 
+@pytest.mark.clear_db
 class TestSaveBlock:
     @pytest.fixture
-    def NewBlock(self):
+    def NewBlock(self, unique_block_slug):
         # Ignore warning caused by matching key in registry due to block fixture
         warnings.filterwarnings("ignore", category=UserWarning)
+        slug = unique_block_slug("newblock")
 
         class NewBlock(Block):
+            _block_type_slug = slug
             a: str
             b: str
 
         return NewBlock
 
     @pytest.fixture
-    def InnerBlock(self):
+    def InnerBlock(self, unique_block_slug):
+        slug = unique_block_slug("innerblock")
+
         class InnerBlock(Block):
+            _block_type_slug = slug
             size: int
 
         return InnerBlock
 
     @pytest.fixture
-    def OuterBlock(self, InnerBlock):
+    def OuterBlock(self, InnerBlock, unique_block_slug):
+        slug = unique_block_slug("outerblock")
+
         class OuterBlock(Block):
+            _block_type_slug = slug
             size: int
             contents: InnerBlock
 
@@ -1693,7 +1712,7 @@ class TestSaveBlock:
 
     async def test_save_block(self, NewBlock):
         new_block = NewBlock(a="foo", b="bar")
-        new_block_name = "my-block"
+        new_block_name = f"my-block-{uuid4()}"
         await new_block.save(new_block_name)
 
         assert new_block._block_document_name == new_block_name
@@ -1720,13 +1739,14 @@ class TestSaveBlock:
         ):
             await new_block.save()
 
-        await new_block.save("new-block")
+        block_name = f"new-block-{uuid4()}"
+        await new_block.save(block_name)
 
-        new_python_instance = await NewBlock.load("new-block")
+        new_python_instance = await NewBlock.load(block_name)
         new_python_instance.a = "baz"
         await new_python_instance.save(overwrite=True)
 
-        loaded_new_block = await NewBlock.load("new-block")
+        loaded_new_block = await NewBlock.load(block_name)
         assert loaded_new_block.a == "baz"
         assert loaded_new_block.b == "bar"
 
@@ -1771,34 +1791,42 @@ class TestSaveBlock:
         ):
             await new_block._save()
 
-    async def test_save_nested_blocks(self):
-        block_name = "biggest-block-in-all-the-land"
+    async def test_save_nested_blocks(self, unique_block_slug):
+        block_name = f"biggest-block-in-all-the-land-{uuid4()}"
+        big_slug = unique_block_slug("big")
+        bigger_slug = unique_block_slug("bigger")
+        biggest_slug = unique_block_slug("biggest")
 
         class Big(Block):
+            _block_type_slug = big_slug
             id: UUID = Field(default_factory=uuid4)
             size: int
 
         class Bigger(Block):
+            _block_type_slug = bigger_slug
             size: int
             contents: Big
             random_other_field: Dict[str, float]
 
         class Biggest(Block):
+            _block_type_slug = biggest_slug
             size: int
             contents: Bigger
 
         new_big_block = Big(size=1)
-        await new_big_block.save("big-block")
+        big_block_name = f"big-block-{uuid4()}"
+        await new_big_block.save(big_block_name)
 
-        loaded_big_block = await Big.load("big-block")
+        loaded_big_block = await Big.load(big_block_name)
         assert loaded_big_block == new_big_block
 
         new_bigger_block = Bigger(
             size=10, random_other_field={}, contents=new_big_block
         )
-        await new_bigger_block.save("bigger-block")
+        bigger_block_name = f"bigger-block-{uuid4()}"
+        await new_bigger_block.save(bigger_block_name)
 
-        loaded_bigger_block = await Bigger.load("bigger-block")
+        loaded_bigger_block = await Bigger.load(bigger_block_name)
         assert loaded_bigger_block == new_bigger_block
 
         new_biggest_block = Biggest(
@@ -1815,7 +1843,8 @@ class TestSaveBlock:
         self, InnerBlock, OuterBlock
     ):
         named_inner_block = InnerBlock(size=1)
-        await named_inner_block.save("the-inside-block")
+        inner_block_name = f"the-inside-block-{uuid4()}"
+        await named_inner_block.save(inner_block_name)
 
         anonymous_outer_block = OuterBlock(size=10, contents=named_inner_block)
         await anonymous_outer_block._save(is_anonymous=True)
@@ -1838,17 +1867,19 @@ class TestSaveBlock:
         assert anonymous_inner_block._is_anonymous
 
         named_outer_block = OuterBlock(size=10, contents=anonymous_inner_block)
-        await named_outer_block.save("the-outer-block")
+        outer_block_name = f"the-outer-block-{uuid4()}"
+        await named_outer_block.save(outer_block_name)
 
-        loaded_anonymous_outer_block = await OuterBlock.load("the-outer-block")
+        loaded_anonymous_outer_block = await OuterBlock.load(outer_block_name)
         assert loaded_anonymous_outer_block == named_outer_block
 
     async def test_save_nested_block_without_references(self, InnerBlock, OuterBlock):
         new_inner_block = InnerBlock(size=1)
         new_outer_block = OuterBlock(size=10, contents=new_inner_block)
-        await new_outer_block.save("outer-block-no-references")
+        outer_block_name = f"outer-block-no-references-{uuid4()}"
+        await new_outer_block.save(outer_block_name)
 
-        loaded_outer_block = await OuterBlock.load("outer-block-no-references")
+        loaded_outer_block = await OuterBlock.load(outer_block_name)
         assert_blocks_equal(loaded_outer_block, new_outer_block)
         assert isinstance(loaded_outer_block.contents, InnerBlock)
         assert_blocks_equal(loaded_outer_block.contents, new_inner_block)
@@ -1856,16 +1887,20 @@ class TestSaveBlock:
         assert loaded_outer_block.contents._block_document_name is None
 
     async def test_save_and_load_block_with_secrets_includes_secret_data(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, unique_block_slug
     ):
+        slug = unique_block_slug("secretblockb")
+
         class SecretBlockB(Block):
+            _block_type_slug = slug
             w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
         block = SecretBlockB(w=dict(secret="value"), x="x", y=b"y", z="z")
-        await block.save("secret-block")
+        block_name = f"secret-block-{uuid4()}"
+        await block.save(block_name)
 
         # read from API without secrets
         api_block = await prefect_client.read_block_document(
@@ -1890,27 +1925,33 @@ class TestSaveBlock:
         }
 
         # load block with secrets
-        api_block = await SecretBlockB.load("secret-block")
+        api_block = await SecretBlockB.load(block_name)
         assert api_block.w.get_secret_value() == {"secret": "value"}
         assert api_block.x.get_secret_value() == "x"
         assert api_block.y.get_secret_value() == b"y"
         assert api_block.z == "z"
 
     async def test_save_and_load_nested_block_with_secrets_hardcoded_child(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, unique_block_slug
     ):
+        child_slug = unique_block_slug("child")
+        parent_slug = unique_block_slug("parent")
+
         class Child(Block):
+            _block_type_slug = child_slug
             a: SecretStr
             b: str
             c: SecretDict
 
         class Parent(Block):
+            _block_type_slug = parent_slug
             a: SecretStr
             b: str
             child: Child
 
         block = Parent(a="a", b="b", child=dict(a="a", b="b", c=dict(secret="value")))
-        await block.save("secret-block")
+        block_name = f"secret-block-{uuid4()}"
+        await block.save(block_name)
 
         # read from API without secrets
         api_block = await prefect_client.read_block_document(
@@ -1923,7 +1964,7 @@ class TestSaveBlock:
                 "a": "********",
                 "b": "b",
                 "c": {"secret": "********"},
-                "block_type_slug": "child",
+                "block_type_slug": child_slug,
             },
         }
 
@@ -1938,12 +1979,12 @@ class TestSaveBlock:
                 "a": "a",
                 "b": "b",
                 "c": {"secret": "value"},
-                "block_type_slug": "child",
+                "block_type_slug": child_slug,
             },
         }
 
         # load block with secrets
-        api_block = await Parent.load("secret-block")
+        api_block = await Parent.load(block_name)
         assert api_block.a.get_secret_value() == "a"
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"
@@ -1951,22 +1992,29 @@ class TestSaveBlock:
         assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
     async def test_save_and_load_nested_block_with_secrets_saved_child(
-        self, prefect_client: PrefectClient
+        self, prefect_client: PrefectClient, unique_block_slug
     ):
+        child_slug = unique_block_slug("child")
+        parent_slug = unique_block_slug("parent")
+
         class Child(Block):
+            _block_type_slug = child_slug
             a: SecretStr
             b: str
             c: SecretDict
 
         class Parent(Block):
+            _block_type_slug = parent_slug
             a: SecretStr
             b: str
             child: Child
 
         child = Child(a="a", b="b", c=dict(secret="value"))
-        await child.save("child-block")
+        child_block_name = f"child-block-{uuid4()}"
+        await child.save(child_block_name)
         block = Parent(a="a", b="b", child=child)
-        await block.save("parent-block")
+        parent_block_name = f"parent-block-{uuid4()}"
+        await block.save(parent_block_name)
 
         # read from API without secrets
         api_block = await prefect_client.read_block_document(
@@ -1993,7 +2041,7 @@ class TestSaveBlock:
         }
 
         # load block with secrets
-        api_block = await Parent.load("parent-block")
+        api_block = await Parent.load(parent_block_name)
         assert api_block.a.get_secret_value() == "a"
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"
@@ -2002,18 +2050,20 @@ class TestSaveBlock:
 
     async def test_save_block_with_overwrite(self, InnerBlock):
         inner_block = InnerBlock(size=1)
-        await inner_block.save("my-inner-block")
+        block_name = f"my-inner-block-{uuid4()}"
+        await inner_block.save(block_name)
 
         inner_block.size = 2
-        await inner_block.save("my-inner-block", overwrite=True)
+        await inner_block.save(block_name, overwrite=True)
 
-        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 2
         assert loaded_inner_block == inner_block
 
     async def test_save_block_without_overwrite_raises(self, InnerBlock):
         inner_block = InnerBlock(size=1)
-        await inner_block.save("my-inner-block")
+        block_name = f"my-inner-block-{uuid4()}"
+        await inner_block.save(block_name)
 
         inner_block.size = 2
 
@@ -2024,54 +2074,63 @@ class TestSaveBlock:
                 "use for this block type"
             ),
         ):
-            await inner_block.save("my-inner-block")
+            await inner_block.save(block_name)
 
-        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 1
 
     async def test_update_from_loaded_block(self, InnerBlock):
         inner_block = InnerBlock(size=1)
-        await inner_block.save("my-inner-block")
+        block_name = f"my-inner-block-{uuid4()}"
+        await inner_block.save(block_name)
 
-        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 2
-        await loaded_inner_block.save("my-inner-block", overwrite=True)
+        await loaded_inner_block.save(block_name, overwrite=True)
 
-        loaded_inner_block_after_update = await InnerBlock.load("my-inner-block")
+        loaded_inner_block_after_update = await InnerBlock.load(block_name)
         assert loaded_inner_block == loaded_inner_block_after_update
 
     async def test_update_from_in_memory_block(self, InnerBlock):
         inner_block = InnerBlock(size=1)
-        await inner_block.save("my-inner-block")
+        block_name = f"my-inner-block-{uuid4()}"
+        await inner_block.save(block_name)
 
         updated_inner_block = InnerBlock(size=2)
-        await updated_inner_block.save("my-inner-block", overwrite=True)
+        await updated_inner_block.save(block_name, overwrite=True)
 
-        loaded_inner_block = await InnerBlock.load("my-inner-block")
+        loaded_inner_block = await InnerBlock.load(block_name)
         loaded_inner_block.size = 2
 
         assert loaded_inner_block == updated_inner_block
 
-    async def test_update_block_with_secrets(self):
+    async def test_update_block_with_secrets(self, unique_block_slug):
+        slug = unique_block_slug("hassomethingtohide")
+
         class HasSomethingToHide(Block):
+            _block_type_slug = slug
             something_to_hide: SecretStr
 
         shifty_block = HasSomethingToHide(something_to_hide="a surprise birthday party")
-        await shifty_block.save("my-shifty-block")
+        block_name = f"my-shifty-block-{uuid4()}"
+        await shifty_block.save(block_name)
 
         updated_shifty_block = HasSomethingToHide(
             something_to_hide="a birthday present"
         )
-        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+        await updated_shifty_block.save(block_name, overwrite=True)
 
-        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        loaded_shifty_block = await HasSomethingToHide.load(block_name)
         assert (
             loaded_shifty_block.something_to_hide.get_secret_value()
             == "a birthday present"
         )
 
-    async def test_update_block_with_secret_dict(self):
+    async def test_update_block_with_secret_dict(self, unique_block_slug):
+        slug = unique_block_slug("hassomethingtohide")
+
         class HasSomethingToHide(Block):
+            _block_type_slug = slug
             something_to_hide: SecretDict
 
         shifty_block = HasSomethingToHide(
@@ -2079,20 +2138,24 @@ class TestSaveBlock:
                 "what I'm hiding": "a surprise birthday party",
             }
         )
-        await shifty_block.save("my-shifty-block")
+        block_name = f"my-shifty-block-{uuid4()}"
+        await shifty_block.save(block_name)
 
         updated_shifty_block = HasSomethingToHide(
             something_to_hide={"what I'm hiding": "a birthday present"}
         )
-        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+        await updated_shifty_block.save(block_name, overwrite=True)
 
-        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        loaded_shifty_block = await HasSomethingToHide.load(block_name)
         assert loaded_shifty_block.something_to_hide.get_secret_value() == {
             "what I'm hiding": "a birthday present"
         }
 
-    async def test_block_with_alias(self):
+    async def test_block_with_alias(self, unique_block_slug):
+        slug = unique_block_slug("aliasblock")
+
         class AliasBlock(Block):
+            _block_type_slug = slug
             type: str
             schema_: str = Field(alias="schema")
             real_name: str = Field(alias="an_alias")
@@ -2101,39 +2164,39 @@ class TestSaveBlock:
         alias_block = AliasBlock(
             type="snowflake", schema="a_schema", an_alias="my_real_name", threads=8
         )
-        await alias_block.save(name="my-aliased-block")
+        block_name = f"my-aliased-block-{uuid4()}"
+        await alias_block.save(name=block_name)
 
-        loaded_alias_block = await AliasBlock.load("my-aliased-block")
+        loaded_alias_block = await AliasBlock.load(block_name)
         assert loaded_alias_block.type == "snowflake"
         assert loaded_alias_block.schema_ == "a_schema"
         assert loaded_alias_block.real_name == "my_real_name"
         assert loaded_alias_block.threads == 8
 
-    async def test_save_block_with_semantic_version(self):
+    async def test_save_block_with_semantic_version(self, unique_block_slug):
         """Test that blocks with SemanticVersion fields can be saved and loaded."""
+        slug = unique_block_slug("blockwithsemanticversion")
 
         class BlockWithSemanticVersion(Block):
+            _block_type_slug = slug
             version: SemanticVersion
 
         # Test creating and saving a block with SemanticVersion
         block = BlockWithSemanticVersion(version=SemanticVersion(1, 2, 3))
-        await block.save("test-semantic-version-block")
+        block_name = f"test-semantic-version-block-{uuid4()}"
+        await block.save(block_name)
 
         # Test loading the block
-        loaded_block = await BlockWithSemanticVersion.load(
-            "test-semantic-version-block"
-        )
+        loaded_block = await BlockWithSemanticVersion.load(block_name)
         assert loaded_block.version == SemanticVersion(1, 2, 3)
         assert str(loaded_block.version) == "1.2.3"
 
         # Test updating the block
         loaded_block.version = SemanticVersion(2, 0, 0)
-        await loaded_block.save("test-semantic-version-block", overwrite=True)
+        await loaded_block.save(block_name, overwrite=True)
 
         # Verify the update
-        updated_block = await BlockWithSemanticVersion.load(
-            "test-semantic-version-block"
-        )
+        updated_block = await BlockWithSemanticVersion.load(block_name)
         assert updated_block.version == SemanticVersion(2, 0, 0)
         assert str(updated_block.version) == "2.0.0"
 
@@ -2501,44 +2564,48 @@ class TestGetCodeExample:
 
 class TestSyncCompatible:
     async def test_block_in_flow_sync_test_sync_flow(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.flow
         def my_flow():
-            loaded_block = CoolBlock.load("blk")
+            loaded_block = CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         result = my_flow()
         assert result == 1000000
 
     async def test_block_in_flow_async_test_sync_flow(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.flow
         def my_flow():
-            loaded_block = CoolBlock.load("blk")
+            loaded_block = CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         result = my_flow()
         assert result == 1000000
 
     async def test_block_in_flow_async_test_async_flow(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.flow
         async def my_flow():
-            loaded_block = await CoolBlock.load("blk")
+            loaded_block = await CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         result = await my_flow()
         assert result == 1000000
 
     async def test_block_in_task_sync_test_sync_flow(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.task
         def my_task():
-            loaded_block = CoolBlock.load("blk")
+            loaded_block = CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         @prefect.flow()
@@ -2549,11 +2616,12 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_sync_task(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.task
         def my_task():
-            loaded_block = CoolBlock.load("blk")
+            loaded_block = CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         @prefect.flow()
@@ -2564,11 +2632,12 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_async_task(self):
-        await CoolBlock(cool_factor=1000000).save("blk")
+        block_name = f"blk-{uuid4()}"
+        await CoolBlock(cool_factor=1000000).save(block_name)
 
         @prefect.task
         async def my_task():
-            loaded_block = await CoolBlock.load("blk")
+            loaded_block = await CoolBlock.load(block_name)
             return loaded_block.cool_factor
 
         @prefect.flow()
@@ -2680,12 +2749,14 @@ class TestTypeDispatch:
 
     async def test_created_block_can_be_saved(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
-        assert await block.save("test")
+        block_name = f"test-{uuid4()}"
+        assert await block.save(block_name)
 
     async def test_created_block_can_be_saved_then_loaded(self):
         block = BaseBlock.model_validate(AChildBlock().model_dump())
-        await block.save("test")
-        new_block = await block.load("test")
+        block_name = f"test-{uuid4()}"
+        await block.save(block_name)
+        new_block = await block.load(block_name)
         assert_blocks_equal(block, new_block)
         assert new_block.model_fields_set
 
@@ -2747,7 +2818,8 @@ class TestBlockSchemaMigration:
 
         a = A()
 
-        await a.save("test")
+        block_name = f"test-{uuid4()}"
+        await a.save(block_name)
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
@@ -2760,7 +2832,7 @@ class TestBlockSchemaMigration:
         with pytest.raises(
             RuntimeError, match="try loading again with `validate=False`"
         ):
-            await A_Alias.load("test")
+            await A_Alias.load(block_name)
 
     async def test_add_field_to_schema_partial_load_with_skip_validation(self):
         class A(Block):
@@ -2768,7 +2840,8 @@ class TestBlockSchemaMigration:
 
         a = A()
 
-        await a.save("test")
+        block_name = f"test-{uuid4()}"
+        await a.save(block_name)
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
@@ -2779,7 +2852,7 @@ class TestBlockSchemaMigration:
                 y: int
 
         with pytest.warns(UserWarning, match="Could not fully load"):
-            a = await A_Alias.load("test", validate=False)
+            a = await A_Alias.load(block_name, validate=False)
 
         assert a.x == 1
         assert a.y is None
@@ -2793,7 +2866,8 @@ class TestBlockSchemaMigration:
 
         foo = Foo()
 
-        await foo.save("xy")
+        block_name = f"xy-{uuid4()}"
+        await foo.save(block_name)
 
         with pytest.warns(UserWarning, match="matches existing registered type 'Foo'"):
 
@@ -2802,7 +2876,7 @@ class TestBlockSchemaMigration:
                 _block_type_slug = "foo"
                 x: int = 1
 
-        foo_alias = await Foo_Alias.load("xy")
+        foo_alias = await Foo_Alias.load(block_name)
 
         assert foo_alias.x == 1
 
@@ -2811,15 +2885,19 @@ class TestBlockSchemaMigration:
         # with pytest.raises(AttributeError):
         #     foo_alias.y
 
-    async def test_load_with_skip_validation_keeps_metadata(self):
+    async def test_load_with_skip_validation_keeps_metadata(self, unique_block_slug):
+        slug = unique_block_slug("bar")
+
         class Bar(Block):
+            _block_type_slug = slug
             x: int = 1
 
         bar = Bar()
 
-        await bar.save("test")
+        block_name = f"test-{uuid4()}"
+        await bar.save(block_name)
 
-        bar_new = await Bar.load("test", validate=False)
+        bar_new = await Bar.load(block_name, validate=False)
 
         assert bar.model_dump() == bar_new.model_dump()
 
@@ -2831,10 +2909,11 @@ class TestBlockSchemaMigration:
 
         baz = Baz()
 
-        await baz.save("test")
+        block_name = f"test-{uuid4()}"
+        await baz.save(block_name)
 
         block_document = await prefect_client.read_block_document_by_name(
-            name="test", block_type_slug="baz"
+            name=block_name, block_type_slug="baz"
         )
         old_schema_id = block_document.block_schema_id
 
@@ -2846,11 +2925,11 @@ class TestBlockSchemaMigration:
                 x: int = 1
                 y: int = 2
 
-        baz_alias = await Baz_Alias.load("test", validate=False)
+        baz_alias = await Baz_Alias.load(block_name, validate=False)
 
-        await baz_alias.save("test", overwrite=True)
+        await baz_alias.save(block_name, overwrite=True)
 
-        baz_alias_RELOADED = await Baz_Alias.load("test")
+        baz_alias_RELOADED = await Baz_Alias.load(block_name)
 
         assert baz_alias_RELOADED.x == 1
         assert baz_alias_RELOADED.y == 2
@@ -2861,7 +2940,7 @@ class TestBlockSchemaMigration:
         assert old_schema_id != new_schema_id
 
         updated_schema = await prefect_client.read_block_document_by_name(
-            name="test", block_type_slug="baz"
+            name=block_name, block_type_slug="baz"
         )
         updated_schema_id = updated_schema.block_schema_id
 
@@ -2869,6 +2948,7 @@ class TestBlockSchemaMigration:
         assert updated_schema_id == new_schema_id
 
 
+@pytest.mark.clear_db
 class TestDeleteBlock:
     @pytest.fixture
     def NewBlock(self):
@@ -2884,7 +2964,7 @@ class TestDeleteBlock:
 
     async def test_delete_block(self, NewBlock):
         new_block = NewBlock(a="foo", b="bar")
-        new_block_name = "my-block"
+        new_block_name = f"my-block-{uuid4()}"
         await new_block.save(new_block_name)
 
         loaded_new_block = await new_block.load(new_block_name)
@@ -3157,3 +3237,100 @@ class TestDumpSecrets:
 def test_dunder_new_loads_collections(mock_load_prefect_collections):
     Block.__new__(FunSecretModel, block_type_slug="funsecretmodel")
     mock_load_prefect_collections.assert_called_once()
+
+
+class TestAsyncDispatchMigration:
+    """Tests for the sync_compatible to async_dispatch migration."""
+
+    def test_aio_attributes_exist(self):
+        """Test that the .aio attributes exist for backward compatibility."""
+        assert hasattr(Block.load_from_ref, "aio")
+        assert hasattr(Block.register_type_and_schema, "aio")
+        assert hasattr(Block.save, "aio")
+        assert hasattr(Block.delete, "aio")
+
+    async def test_save_sync_in_sync_flow(self):
+        """Test that save works in sync context via sync flow."""
+        await CoolBlock(cool_factor=42).asave("test-save-sync-flow", overwrite=True)
+
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load("test-save-sync-flow")
+            return loaded.cool_factor
+
+        result = my_flow()
+        assert result == 42
+
+    async def test_save_async_in_async_flow(self):
+        """Test that asave works in async context."""
+        block = CoolBlock(cool_factor=43)
+        block_id = await block.asave("test-save-async-flow", overwrite=True)
+        assert block_id is not None
+
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload("test-save-async-flow")
+            return loaded.cool_factor
+
+        result = await my_flow()
+        assert result == 43
+
+    async def test_delete_sync_in_sync_flow(self):
+        """Test that delete works in sync context via sync flow."""
+        await CoolBlock(cool_factor=44).asave("test-delete-sync-flow", overwrite=True)
+
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load("test-delete-sync-flow")
+            loaded.delete("test-delete-sync-flow")
+            return True
+
+        result = my_flow()
+        assert result is True
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            await CoolBlock.aload("test-delete-sync-flow")
+
+    async def test_delete_async_in_async_flow(self):
+        """Test that adelete works in async context."""
+        await CoolBlock(cool_factor=45).asave("test-delete-async-flow", overwrite=True)
+
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload("test-delete-async-flow")
+            await loaded.adelete("test-delete-async-flow")
+            return True
+
+        result = await my_flow()
+        assert result is True
+
+        with pytest.raises(ValueError, match="Unable to find block document"):
+            await CoolBlock.aload("test-delete-async-flow")
+
+    async def test_load_from_ref_sync_in_sync_flow(self):
+        """Test that load_from_ref works in sync context via sync flow."""
+        block_id = await CoolBlock(cool_factor=46).asave(
+            "test-load-from-ref-sync", overwrite=True
+        )
+
+        @prefect.flow
+        def my_flow():
+            loaded = CoolBlock.load_from_ref(block_id)
+            return loaded.cool_factor
+
+        result = my_flow()
+        assert result == 46
+
+    async def test_aload_from_ref_async_in_async_flow(self):
+        """Test that aload_from_ref works in async context."""
+        block_id = await CoolBlock(cool_factor=47).asave(
+            "test-aload-from-ref-async", overwrite=True
+        )
+
+        @prefect.flow
+        async def my_flow():
+            loaded = await CoolBlock.aload_from_ref(block_id)
+            return loaded.cool_factor
+
+        result = await my_flow()
+        assert result == 47

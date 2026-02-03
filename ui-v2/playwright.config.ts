@@ -8,7 +8,7 @@ export default defineConfig({
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
-	workers: process.env.CI ? 1 : undefined,
+	workers: process.env.CI ? 2 : undefined,
 	reporter: process.env.CI ? [["html"], ["github"]] : [["html"]],
 	use: {
 		baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:5173",
@@ -25,5 +25,8 @@ export default defineConfig({
 		command: "npm run dev",
 		url: "http://localhost:5173",
 		reuseExistingServer: !process.env.CI,
+		env: {
+			VITE_DISABLE_DEVTOOLS: "true",
+		},
 	},
 });

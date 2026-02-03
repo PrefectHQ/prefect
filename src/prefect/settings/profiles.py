@@ -20,6 +20,7 @@ from pydantic import (
     ValidationError,
 )
 
+from prefect._internal.compatibility.backports import tomllib
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 from prefect.settings.context import get_current_settings
@@ -276,7 +277,7 @@ def _read_profiles_from(path: Path) -> ProfilesCollection:
         <SETTING: str> = <value: Any>
         ```
     """
-    contents = toml.loads(path.read_text())
+    contents = tomllib.loads(path.read_text())
     active_profile = contents.get("active")
     raw_profiles = contents.get("profiles", {})
 

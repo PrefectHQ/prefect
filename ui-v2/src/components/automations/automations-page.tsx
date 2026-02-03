@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Card } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
-import { Typography } from "../ui/typography";
 import {
 	AutomationActions,
 	AutomationDescription,
@@ -34,10 +33,10 @@ export const AutomationsPage = () => {
 					<AutomationsEmptyState />
 				) : (
 					<div className="flex flex-col gap-4">
-						<Typography variant="bodySmall" className="text-muted-foreground">
+						<p className="text-sm text-muted-foreground">
 							{data.length}{" "}
 							{`${data.length === 1 ? "automation" : "automations"}`}
-						</Typography>
+						</p>
 						<ul className="flex flex-col gap-2">
 							{data.map((automation) => (
 								<li

@@ -24,6 +24,8 @@ export type SchemaFormPropertyMenuProps = {
 	property: SchemaObject | ReferenceObject | (SchemaObject | ReferenceObject)[];
 	disableKinds?: boolean;
 	children?: ReactNode;
+	defaultValue?: unknown;
+	hasDefaultValue?: boolean;
 };
 
 export const SchemaFormPropertyMenu = ({
@@ -32,9 +34,20 @@ export const SchemaFormPropertyMenu = ({
 	property,
 	children,
 	disableKinds,
+	defaultValue,
+	hasDefaultValue,
 }: SchemaFormPropertyMenuProps) => {
 	const { schema, kinds } = useSchemaFormContext();
 	const [open, setOpen] = useState(false);
+
+	const isDefaultValueDisabled =
+		!hasDefaultValue || JSON.stringify(value) === JSON.stringify(defaultValue);
+
+	function handleUseDefaultValue() {
+		if (hasDefaultValue) {
+			onValueChange(defaultValue);
+		}
+	}
 
 	function convertValueKind(kind: PrefectKind) {
 		const newValue = convertValueToPrefectKind({
@@ -61,11 +74,7 @@ export const SchemaFormPropertyMenu = ({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button
-					variant="ghost"
-					data-open={open}
-					className="h-8 w-8 p-0 opacity-0 transition-opacity disabled:!opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 data-[open=true]:opacity-100"
-				>
+				<Button variant="ghost" data-open={open} className="h-8 w-8 p-0">
 					<span className="sr-only">Open menu</span>
 					<Icon id="MoreVertical" className="size-4" />
 				</Button>
@@ -76,6 +85,15 @@ export const SchemaFormPropertyMenu = ({
 						{getPrefectKindLabel(kind)}
 					</DropdownMenuItem>
 				))}
+
+				{hasDefaultValue && (
+					<DropdownMenuItem
+						onClick={handleUseDefaultValue}
+						disabled={isDefaultValueDisabled}
+					>
+						Use default value
+					</DropdownMenuItem>
+				)}
 
 				<DropdownMenuSeparator />
 

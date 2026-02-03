@@ -3143,6 +3143,43 @@ class TestHandleCancellingStateTransitions:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.CANCELLING
 
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        sorted(
+            list(set(ALL_ORCHESTRATION_STATES) - {states.StateType.CANCELLED, None})
+        ),
+    )
+    async def test_does_not_block_cancelled_to_other_states(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        """
+        The EnforceCancellingToCancelledTransition rule should only apply to
+        CANCELLING states, not CANCELLED states. CANCELLED flows should be
+        allowed to transition to other states (e.g., for retry functionality).
+
+        This is a regression test for https://github.com/PrefectHQ/prefect/issues/20271
+        """
+        initial_state_type = states.StateType.CANCELLED
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with EnforceCancellingToCancelledTransition(
+            ctx, *intended_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        # The rule should NOT reject transitions from CANCELLED state
+        # because this rule is specifically for CANCELLING -> CANCELLED enforcement
+        assert ctx.response_status != SetStateStatus.REJECT
+
 
 class TestBypassCancellingFlowRunsWithNoInfra:
     async def test_rejects_cancelling_scheduled_flow_and_sets_to_cancelled(

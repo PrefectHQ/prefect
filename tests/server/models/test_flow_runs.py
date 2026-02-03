@@ -664,9 +664,11 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
+                # Use PENDING state (non-terminal) to test start_time is_null_ filter
+                # Terminal states now get start_time set automatically
                 state=schemas.states.State(
-                    type="COMPLETED",
-                    name="My Completed State 4",
+                    type="PENDING",
+                    name="My Pending State 4",
                 ),
             ),
         )
@@ -689,6 +691,8 @@ class TestReadFlowRuns:
                 start_time=schemas.filters.FlowRunFilterStartTime(after_=now_dt)
             ),
         )
+        # flow_run_4 has no start_time but expected_start_time is set,
+        # and the filter uses coalesce(start_time, expected_start_time)
         assert {res.id for res in result} == {
             flow_run_2.id,
             flow_run_3.id,
@@ -1224,6 +1228,83 @@ class TestReadFlowRuns:
         for r in result:
             with pytest.raises(sa.exc.MissingGreenlet):
                 r.state_type
+
+    async def test_read_flow_runs_filters_by_created_by(self, flow, session):
+        creator_id_1 = uuid4()
+        creator_id_2 = uuid4()
+        created_by_1 = schemas.core.CreatedBy(
+            id=creator_id_1, type="DEPLOYMENT", display_value="scheduled-deploy"
+        )
+        created_by_2 = schemas.core.CreatedBy(
+            id=creator_id_2, type="AUTOMATION", display_value="my-automation"
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, created_by=created_by_1),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, created_by=created_by_2),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),  # no created_by
+        )
+
+        # test type_ filter
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                created_by=schemas.filters.FlowRunFilterCreatedBy(type_=["DEPLOYMENT"])
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                created_by=schemas.filters.FlowRunFilterCreatedBy(
+                    type_=["DEPLOYMENT", "AUTOMATION"]
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
+
+        # test id_ filter
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                created_by=schemas.filters.FlowRunFilterCreatedBy(id_=[creator_id_1])
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                created_by=schemas.filters.FlowRunFilterCreatedBy(
+                    id_=[creator_id_1, creator_id_2]
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
+
+        # test is_null_ filter
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                created_by=schemas.filters.FlowRunFilterCreatedBy(is_null_=True)
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_3.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                created_by=schemas.filters.FlowRunFilterCreatedBy(is_null_=False)
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
 
 
 class TestReadFlowRunTaskRunDependencies:

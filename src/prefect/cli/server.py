@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import ipaddress
 import os
 import shlex
 import signal
@@ -13,6 +14,7 @@ import socket
 import subprocess
 import sys
 import textwrap
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -72,6 +74,17 @@ logger: "logging.Logger" = get_logger(__name__)
 
 SERVER_PID_FILE_NAME = "server.pid"
 SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
+
+
+def _format_host_for_url(host: str) -> str:
+    """Format a host for use in a URL, adding brackets for IPv6 addresses."""
+    try:
+        ip = ipaddress.ip_address(host)
+        if ip.version == 6:
+            return f"[{host}]"
+    except ValueError:
+        pass  # not an IP address (e.g., hostname)
+    return host
 
 
 def generate_welcome_blurb(base_url: str, ui_enabled: bool) -> str:
@@ -327,7 +340,7 @@ def start(
     """
     Start a Prefect server instance
     """
-    base_url = f"http://{host}:{port}"
+    base_url = f"http://{_format_host_for_url(host)}:{port}"
     if is_interactive():
         try:
             prestart_check(base_url)
@@ -352,9 +365,12 @@ def start(
     pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
     # check if port is already in use
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        # use getaddrinfo to support both IPv4 and IPv6 addresses
+        info = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        family, socktype, proto, canonname, sockaddr = info[0]
+        with socket.socket(family, socktype, proto) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind((host, port))
+            s.bind(sockaddr)
     except socket.gaierror:
         exit_with_error(
             f"Invalid host '{host}'. Please specify a valid hostname or IP address."
@@ -726,7 +742,9 @@ async def _run_all_services() -> None:
 
     docket_url = get_current_settings().server.docket.url
 
-    async with Docket(name="prefect", url=docket_url) as docket:
+    async with Docket(
+        name="prefect", url=docket_url, execution_ttl=timedelta(0)
+    ) as docket:
         async with background_worker(docket, ephemeral=False, webserver_only=False):
             # Run Service-based services (will block until shutdown)
             await Service.run_services()

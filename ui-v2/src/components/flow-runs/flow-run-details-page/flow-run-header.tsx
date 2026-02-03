@@ -1,10 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { MoreVertical } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
-import { buildFilterFlowRunsQuery, type FlowRun } from "@/api/flow-runs";
+import {
+	buildFilterFlowRunsQuery,
+	type FlowRun,
+	isPausedState,
+	isRunningState,
+	isStuckState,
+	isTerminalState,
+	useSetFlowRunState,
+} from "@/api/flow-runs";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
+import {
+	CancelFlowRunDialog,
+	PauseFlowRunDialog,
+	ResumeFlowRunDialog,
+	RetryFlowRunDialog,
+} from "@/components/flow-runs/flow-run-actions";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,6 +32,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
+	ChangeStateDialog,
+	useChangeStateDialog,
+} from "@/components/ui/change-state-dialog";
+import {
 	DeleteConfirmationDialog,
 	useDeleteConfirmationDialog,
 } from "@/components/ui/delete-confirmation-dialog";
@@ -24,10 +43,12 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
+import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { formatDate, secondsToApproximateString } from "@/utils";
 
 type FlowRunHeaderProps = {
@@ -37,6 +58,54 @@ type FlowRunHeaderProps = {
 
 export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 	const [dialogState, confirmDelete] = useDeleteConfirmationDialog();
+	const {
+		open: isChangeStateOpen,
+		onOpenChange: setChangeStateOpen,
+		openDialog: openChangeState,
+	} = useChangeStateDialog();
+	const [isCancelOpen, setIsCancelOpen] = useState(false);
+	const [isPauseOpen, setIsPauseOpen] = useState(false);
+	const [isResumeOpen, setIsResumeOpen] = useState(false);
+	const [isRetryOpen, setIsRetryOpen] = useState(false);
+	const { setFlowRunState, isPending: isChangingState } = useSetFlowRunState();
+
+	const canChangeState =
+		flowRun.state_type &&
+		["COMPLETED", "FAILED", "CANCELLED", "CRASHED"].includes(
+			flowRun.state_type,
+		);
+
+	const canCancel = isStuckState(flowRun.state_type) && flowRun.deployment_id;
+	const canPause = isRunningState(flowRun.state_type) && flowRun.deployment_id;
+	const canResume = isPausedState(flowRun.state_type);
+	const canRetry = isTerminalState(flowRun.state_type) && flowRun.deployment_id;
+
+	const handleChangeState = (newState: { type: string; message?: string }) => {
+		setFlowRunState(
+			{
+				id: flowRun.id,
+				state: {
+					type: newState.type as
+						| "COMPLETED"
+						| "FAILED"
+						| "CANCELLED"
+						| "CRASHED",
+					name: newState.type.charAt(0) + newState.type.slice(1).toLowerCase(),
+					message: newState.message,
+				},
+				force: true,
+			},
+			{
+				onSuccess: () => {
+					toast.success("Flow run state changed");
+					setChangeStateOpen(false);
+				},
+				onError: (error) => {
+					toast.error(error.message || "Failed to change state");
+				},
+			},
+		);
+	};
 
 	const { data: deployment } = useQuery({
 		...buildDeploymentDetailsQuery(flowRun.deployment_id ?? ""),
@@ -92,6 +161,11 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 								<Badge variant="outline" className="ml-2">
 									{flowRun.work_pool_name}
 								</Badge>
+							)}
+							{flowRun.tags && flowRun.tags.length > 0 && (
+								<div className="ml-2">
+									<TagBadgeGroup tags={flowRun.tags} maxTagsDisplayed={3} />
+								</div>
 							)}
 						</BreadcrumbItem>
 					</BreadcrumbList>
@@ -180,6 +254,36 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent>
+					{canCancel && (
+						<DropdownMenuItem onClick={() => setIsCancelOpen(true)}>
+							Cancel
+						</DropdownMenuItem>
+					)}
+					{canPause && (
+						<DropdownMenuItem onClick={() => setIsPauseOpen(true)}>
+							Pause
+						</DropdownMenuItem>
+					)}
+					{canResume && (
+						<DropdownMenuItem onClick={() => setIsResumeOpen(true)}>
+							Resume
+						</DropdownMenuItem>
+					)}
+					{canRetry && (
+						<DropdownMenuItem onClick={() => setIsRetryOpen(true)}>
+							Retry
+						</DropdownMenuItem>
+					)}
+					{canChangeState && (
+						<DropdownMenuItem onClick={openChangeState}>
+							Change state
+						</DropdownMenuItem>
+					)}
+					{(canCancel ||
+						canPause ||
+						canResume ||
+						canRetry ||
+						canChangeState) && <DropdownMenuSeparator />}
 					<DropdownMenuItem
 						onClick={() => {
 							void navigator.clipboard.writeText(flowRun.id);
@@ -202,6 +306,44 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 				</DropdownMenuContent>
 			</DropdownMenu>
 			<DeleteConfirmationDialog {...dialogState} />
+			<ChangeStateDialog
+				open={isChangeStateOpen}
+				onOpenChange={setChangeStateOpen}
+				currentState={
+					flowRun.state
+						? {
+								type: flowRun.state.type,
+								name:
+									flowRun.state.name ??
+									flowRun.state.type.charAt(0) +
+										flowRun.state.type.slice(1).toLowerCase(),
+							}
+						: null
+				}
+				label="Flow Run"
+				onConfirm={handleChangeState}
+				isLoading={isChangingState}
+			/>
+			<CancelFlowRunDialog
+				flowRun={flowRun}
+				open={isCancelOpen}
+				onOpenChange={setIsCancelOpen}
+			/>
+			<PauseFlowRunDialog
+				flowRun={flowRun}
+				open={isPauseOpen}
+				onOpenChange={setIsPauseOpen}
+			/>
+			<ResumeFlowRunDialog
+				flowRun={flowRun}
+				open={isResumeOpen}
+				onOpenChange={setIsResumeOpen}
+			/>
+			<RetryFlowRunDialog
+				flowRun={flowRun}
+				open={isRetryOpen}
+				onOpenChange={setIsRetryOpen}
+			/>
 		</div>
 	);
 }

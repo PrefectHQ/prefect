@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, TypedDict
@@ -48,6 +50,34 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _expiration_index_path(self) -> anyio.Path:
         return anyio.Path(self.storage_path / "expirations.json")
 
+    def _atomic_write_json(self, file_path: Path, data: Any) -> None:
+        """
+        Atomically write JSON data to a file.
+
+        Uses write-to-temp-then-rename pattern to ensure readers never see
+        partial/corrupted data. This prevents race conditions when multiple
+        processes read and write the same file.
+        """
+        self._ensure_storage_path()
+        # Create temp file in same directory to ensure atomic rename works
+        # (rename across filesystems is not atomic)
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.storage_path, suffix=".tmp", prefix=".lease_"
+        )
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(data, f)
+            # Atomic rename - readers will either see old file or new file,
+            # never partial content
+            os.replace(temp_path, file_path)
+        except Exception:
+            # Clean up temp file on error
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            raise
+
     async def _load_expiration_index(self) -> dict[str, str]:
         """Load the expiration index from disk."""
         expiration_file = self._expiration_index_path()
@@ -60,12 +90,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             return {}
 
     def _save_expiration_index(self, index: dict[str, str]) -> None:
-        """Save the expiration index to disk."""
-        self._ensure_storage_path()
-        expiration_file = self._expiration_index_path()
-
-        with open(expiration_file, "w") as f:
-            json.dump(index, f)
+        """Save the expiration index to disk atomically."""
+        expiration_file = Path(self._expiration_index_path())
+        self._atomic_write_json(expiration_file, index)
 
     async def _update_expiration_index(
         self, lease_id: UUID, expiration: datetime
@@ -130,12 +157,11 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             resource_ids=resource_ids, metadata=metadata, expiration=expiration
         )
 
-        self._ensure_storage_path()
         lease_file = self._lease_file_path(lease.id)
         lease_data = self._serialize_lease(lease)
 
-        with open(lease_file, "w") as f:
-            json.dump(lease_data, f)
+        # Use atomic write to prevent race conditions with concurrent readers
+        self._atomic_write_json(lease_file, lease_data)
 
         # Update expiration index
         await self._update_expiration_index(lease.id, expiration)
@@ -158,7 +184,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
             return lease
         except (json.JSONDecodeError, KeyError, ValueError):
-            # Clean up corrupted lease file
+            # Clean up corrupted lease file. With atomic writes in place,
+            # corruption indicates a real issue (not a race condition),
+            # so it's safe to clean up.
             lease_file.unlink(missing_ok=True)
             await self._remove_from_expiration_index(lease_id)
             return None
@@ -192,11 +220,8 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             new_expiration = datetime.now(timezone.utc) + ttl
             lease_data["expiration"] = new_expiration.isoformat()
 
-            self._ensure_storage_path()
-
-            # Write updated lease file
-            with open(lease_file, "w") as f:
-                json.dump(lease_data, f)
+            # Use atomic write to prevent race conditions with concurrent readers
+            self._atomic_write_json(lease_file, lease_data)
 
             # Verify file still exists after write (could have been deleted)
             if not lease_file.exists():

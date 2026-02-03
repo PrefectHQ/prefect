@@ -22,6 +22,7 @@ import {
 	type FlowsPaginateFilter,
 } from "@/api/flows";
 import FlowsPage from "@/components/flows/flows-page";
+import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
 // Route for /flows/
@@ -125,6 +126,7 @@ export const Route = createFileRoute("/flows/")({
 		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 const usePagination = () => {

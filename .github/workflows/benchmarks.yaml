@@ -8,8 +8,10 @@ on:
     paths:
       - .github/workflows/benchmarks.yaml
       - .github/workflows/python-tests.yaml
+      - benches/cli-bench.toml
       - "src/prefect/**/*.py"
       - pyproject.toml
+      - uv.lock
       - Dockerfile
   push:
     branches:
@@ -93,3 +95,101 @@ jobs:
           --timeout=180 \
           --benchmark-save="${sanitized_uniquename}" \
           ${{ steps.bench-cache.outputs.cache-hit && '--benchmark-compare' || '' }}
+
+  cli-benchmarks:
+    name: CLI startup benchmarks
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install hyperfine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y hyperfine
+
+      - name: Extract cli-bench config from head
+        run: |
+          git show ${{ github.event.pull_request.head.sha }}:benches/cli-bench.toml > "$RUNNER_TEMP/cli-bench.toml"
+          echo "Using benches/cli-bench.toml from ${{ github.event.pull_request.head.sha }}"
+          cat "$RUNNER_TEMP/cli-bench.toml"
+
+      - name: Prepare worktrees
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+          git worktree add "$RUNNER_TEMP/base" ${{ github.event.pull_request.base.sha }}
+          git worktree add "$RUNNER_TEMP/head" ${{ github.event.pull_request.head.sha }}
+
+      - name: Install dependencies (head)
+        run: uv sync --group cli-bench --locked
+
+      - name: Run baseline benchmarks (base)
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config "$RUNNER_TEMP/cli-bench.toml" \
+            --project-root "$RUNNER_TEMP/base" \
+            run \
+            --runs 10 \
+            --category startup \
+            --output baseline.json
+
+      - name: Run comparison benchmarks (head)
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config "$RUNNER_TEMP/cli-bench.toml" \
+            --project-root "$RUNNER_TEMP/head" \
+            run \
+            --runs 10 \
+            --category startup \
+            --compare baseline.json \
+            --output comparison.json
+
+      - name: Summarize benchmark results
+        run: |
+          echo "## CLI Benchmark Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          python - <<'PY' >> $GITHUB_STEP_SUMMARY
+          import json
+          from pathlib import Path
+
+          baseline = json.loads(Path("baseline.json").read_text())
+          comparison = json.loads(Path("comparison.json").read_text())
+
+          base_by_cmd = {r["command"]: r for r in baseline["results"]}
+          comp_by_cmd = {r["command"]: r for r in comparison["results"]}
+
+          print("| Command | Baseline warm (ms) | Compare warm (ms) | Delta |")
+          print("|---|---:|---:|---:|")
+
+          for cmd in base_by_cmd:
+              base = base_by_cmd.get(cmd, {})
+              comp = comp_by_cmd.get(cmd, {})
+              base_warm = base.get("warm_cache", {}) or {}
+              comp_warm = comp.get("warm_cache", {}) or {}
+              b_mean = base_warm.get("mean_ms")
+              c_mean = comp_warm.get("mean_ms")
+              if b_mean is None or c_mean is None:
+                  print(f"| {cmd} | - | - | - |")
+                  continue
+              delta = (c_mean - b_mean) / b_mean * 100
+              print(f"| {cmd} | {b_mean:.0f} | {c_mean:.0f} | {delta:+.1f}% |")
+          PY
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v6
+        with:
+          name: cli-benchmark-results
+          path: |
+            baseline.json
+            comparison.json

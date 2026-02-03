@@ -988,7 +988,7 @@ class TestElasticContainerServicePushProvisioner:
                 return "custom-iam-policy"
             elif "Enter a name for the ECS cluster" in args[0]:
                 return "custom-ecs-cluster"
-            elif "Enter a name for the AWS credentials block" in args[0]:
+            elif "Enter a name for the Prefect AWS credentials block" in args[0]:
                 return "custom-aws-credentials"
             elif "Enter a name for the VPC" in args[0]:
                 return "custom-vpc"

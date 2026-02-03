@@ -7,7 +7,7 @@ sidebarTitle: __init__
 
 ## Functions
 
-### `create_cache` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_cache` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_cache() -> Cache
@@ -20,7 +20,7 @@ Creates a new cache with the applications default settings.
 - a new Cache instance
 
 
-### `create_publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_publisher(topic: str, cache: Optional[Cache] = None, deduplicate_by: Optional[str] = None) -> Publisher
@@ -34,7 +34,7 @@ Returns:
     a new Consumer instance
 
 
-### `ephemeral_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ephemeral_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ephemeral_subscription(topic: str) -> AsyncGenerator[Mapping[str, Any], Any]
@@ -45,7 +45,7 @@ Creates an ephemeral subscription to the given source, removing it when the cont
 exits.
 
 
-### `create_consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L224" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_consumer(topic: str, **kwargs: Any) -> Consumer
@@ -146,6 +146,21 @@ call a handler function for each message received.
 
 **Methods:**
 
+#### `cleanup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cleanup(self) -> None
+```
+
+Cleanup resources when the consumer is stopped.
+
+Override this method in subclasses that need to perform cleanup,
+such as unsubscribing from topics or closing connections.
+
+The default implementation is a no-op, which is appropriate for
+consumers that don't need explicit cleanup.
+
+
 #### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
@@ -155,6 +170,6 @@ run(self, handler: MessageHandler) -> None
 Runs the consumer (indefinitely)
 
 
-### `CacheModule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CacheModule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BrokerModule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BrokerModule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/messaging/__init__.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

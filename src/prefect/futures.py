@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import concurrent.futures
 import threading
+import time
 import uuid
 import warnings
 from collections.abc import Generator, Iterator
@@ -401,11 +403,23 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
                 "Waiting for completed event for flow run %s...",
                 self.flow_run_id,
             )
+            start_time = time.monotonic()
             await FlowRunWaiter.wait_for_flow_run(self._flow_run_id, timeout=timeout)
-            flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
-            if flow_run.state and flow_run.state.is_final():
-                self._final_state = flow_run.state
-            return
+
+            # Poll for the final state in case the event was missed due to race
+            # conditions or connection issues with the event subscriber
+            while True:
+                flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
+                if flow_run.state and flow_run.state.is_final():
+                    self._final_state = flow_run.state
+                    return
+                # Check if timeout has been exceeded
+                if timeout is not None:
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= timeout:
+                        return
+                # Brief sleep before polling again to avoid hammering the API
+                await asyncio.sleep(0.1)
 
     def result(
         self,
@@ -604,6 +618,7 @@ def wait(
     # With timeout, monitor all futures concurrently
     try:
         with timeout_context(timeout):
+            deadline = time.monotonic() + timeout
             finished_event = threading.Event()
             finished_lock = threading.Lock()
             finished_futures: list[PrefectFuture[R]] = []
@@ -619,8 +634,16 @@ def wait(
 
             # Wait for futures to complete within timeout
             while not_done:
-                # Wait for at least one future to complete
-                finished_event.wait()
+                # Calculate remaining time until deadline
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+
+                # Wait for at least one future to complete, with timeout to respect deadline
+                # The timeout parameter ensures we don't block indefinitely even if
+                # WatcherThreadCancelScope is used (which can't interrupt blocking calls)
+                finished_event.wait(timeout=remaining)
+
                 with finished_lock:
                     newly_done = finished_futures[:]
                     finished_futures.clear()

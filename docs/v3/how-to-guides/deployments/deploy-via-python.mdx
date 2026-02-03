@@ -153,6 +153,35 @@ prefect deployment run 'my-flow/my-deployment'
 
 After a few seconds, you should see logs from your worker showing that the flow run has started and see the state update in the UI.
 
+## Use existing Docker images
+
+If you have a pre-built Docker image (from a CI/CD pipeline or previous build), you can skip the image building step by setting `build=False`:
+
+```python existing-image.py
+from prefect import flow
+
+
+@flow(log_prints=True)
+def my_flow(name: str = "world"):
+    print(f"Hello, {name}!")
+
+
+if __name__ == "__main__":
+    my_flow.deploy(
+        name="my-deployment",
+        work_pool_name="my-work-pool",
+        image="my-registry.com/my-docker-image:my-tag",
+        build=False,  # Skip building, use existing image
+        push=False,   # You can also skip pushing if the image is already available in a remote registry
+    )
+```
+
+This is useful when:
+
+- Using images built by external CI/CD pipelines
+- Reusing the same image across multiple deployments
+- Iterating quickly without rebuilding during development
+
 ## Deploy with a schedule
 
 To deploy a flow with a schedule, you can use one of the following options:

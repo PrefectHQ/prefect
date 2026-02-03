@@ -12,6 +12,7 @@ import {
 	type AutomationWizardSchemaType,
 	transformEventToTrigger,
 } from "@/components/automations/automations-wizard";
+import { PrefectLoading } from "@/components/ui/loading";
 
 type AutomationCreate = components["schemas"]["AutomationCreate"];
 
@@ -52,6 +53,7 @@ export const Route = createFileRoute("/automations/create")({
 		}
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 /**
