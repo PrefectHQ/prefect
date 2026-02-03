@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { DocsLink } from "@/components/ui/docs-link";
 import { LazyMarkdown } from "@/components/ui/lazy-markdown";
-import { Typography } from "@/components/ui/typography";
 
 export type ArtifactDetailHeaderProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;
@@ -89,9 +88,9 @@ export const ArtifactDetailHeader = ({
 			</div>
 			{artifact.description && (
 				<div className="">
-					<Typography variant="h2" className="my-4 font-bold prose lg:prose-xl">
+					<h2 className="text-3xl font-semibold tracking-tight my-4 font-bold prose lg:prose-xl">
 						<LazyMarkdown>{artifact.description}</LazyMarkdown>
-					</Typography>
+					</h2>
 				</div>
 			)}
 			<hr />
