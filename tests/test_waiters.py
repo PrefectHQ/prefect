@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 
 import pytest
 
@@ -31,7 +32,7 @@ class TestFlowRunWaiter:
     ):
         """This test will fail with a timeout error if waiting is not working correctly."""
 
-        @flow
+        @flow(name=f"test-flow-{uuid.uuid4()}")
         async def test_flow():
             await asyncio.sleep(1)
 
@@ -47,7 +48,7 @@ class TestFlowRunWaiter:
         assert flow_run.state.is_completed()
 
     async def test_wait_for_flow_run_with_timeout(self, prefect_client: PrefectClient):
-        @flow
+        @flow(name=f"test-flow-{uuid.uuid4()}")
         async def test_flow():
             await asyncio.sleep(5)
 
@@ -67,7 +68,7 @@ class TestFlowRunWaiter:
         waiter = FlowRunWaiter()
         assert waiter is not FlowRunWaiter.instance()
 
-        @flow
+        @flow(name=f"test-flow-{uuid.uuid4()}")
         async def test_flow():
             await asyncio.sleep(1)
 
@@ -88,11 +89,11 @@ class TestFlowRunWaiter:
     async def test_handles_concurrent_task_runs(
         self, prefect_client: PrefectClient, emitting_events_pipeline: EventsPipeline
     ):
-        @flow
+        @flow(name=f"fast-flow-{uuid.uuid4()}")
         async def fast_flow():
             await asyncio.sleep(1)
 
-        @flow
+        @flow(name=f"slow-flow-{uuid.uuid4()}")
         async def slow_flow():
             await asyncio.sleep(5)
 
