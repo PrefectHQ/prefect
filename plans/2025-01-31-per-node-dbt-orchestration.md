@@ -48,16 +48,15 @@ The new `PrefectDbtOrchestrator` will be **proactive**:
 │  └───────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │                         Cache System                                    ││
+│  │                    Cache System (cross-run by default)                  ││
 │  │                                                                         ││
-│  │   ┌─────────────────────────────────────────────────────────────────┐   ││
-│  │   │  DbtNodeCachePolicy                                             │   ││
-│  │   │                                                                 │   ││
-│  │   │  Cache Key:                    Expiration:                      │   ││
-│  │   │  • SQL content hash            • Optional TTL                   │   ││
-│  │   │  • Config hash                 • Source freshness timestamps    │   ││
-│  │   │  • Upstream cache keys           inform expiration time         │   ││
-│  │   └─────────────────────────────────────────────────────────────────┘   ││
+│  │   DbtNodeCachePolicy (key)             Task Decorator (expiration)      ││
+│  │   ┌─────────────────────────────┐      ┌─────────────────────────┐      ││
+│  │   │ • SQL content hash          │      │ cache_expiration=       │      ││
+│  │   │ • Config hash               │      │   timedelta(days=1)     │      ││
+│  │   │ • Upstream cache keys       │      │                         │      ││
+│  │   │ • NO run ID (cross-run!)    │      │ Or: source freshness    │      ││
+│  │   └─────────────────────────────┘      └─────────────────────────┘      ││
 │  └─────────────────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -304,14 +303,12 @@ class DbtNodeCachePolicy(CachePolicy):
     - The node's configuration changes
     - Any upstream node's cache key changes
 
-    Cache expiration can be set based on source freshness:
-    - When sources have freshness configured, the orchestrator computes
-      expiration times from source max_loaded_at timestamps
-    - This allows cached results to automatically expire when new source
-      data arrives, without baking freshness into the cache key itself
+    IMPORTANT: This policy does NOT include RUN_ID, enabling cross-run caching.
+    Unlike Prefect's DEFAULT policy (INPUTS + TASK_SOURCE + RUN_ID), this policy
+    intentionally excludes the run ID so cached results persist across flow runs.
 
-    This separation of concerns (key vs expiration) aligns with Prefect's
-    native caching model and enables cleaner cache invalidation semantics.
+    Cache expiration is configured separately on the task via `cache_expiration`.
+    Default is 1 day; can be overridden with source freshness-based expiration.
     """
 
     def __init__(
@@ -320,7 +317,6 @@ class DbtNodeCachePolicy(CachePolicy):
         manifest_parser: ManifestParser,
         node: DbtNode,
         upstream_cache_keys: Optional[dict[str, str]] = None,
-        expiration: Optional[datetime] = None,
     ): ...
 
     def compute_key(
@@ -335,11 +331,17 @@ class DbtNodeCachePolicy(CachePolicy):
 
 
 def compute_freshness_expiration(
-    source_freshness: dict[str, str],
+    source_freshness: dict[str, datetime],
     node: DbtNode,
     manifest_parser: ManifestParser,
-) -> Optional[datetime]:
-    """Compute cache expiration time based on upstream source freshness.
+) -> Optional[timedelta]:
+    """Compute cache expiration timedelta based on upstream source freshness.
+
+    This returns a timedelta to be passed to the task's `cache_expiration`
+    parameter.
+
+    Strategy: Compute how long until the source is expected to have new data
+    based on the freshness configuration (warn_after, error_after thresholds).
 
     Args:
         source_freshness: Dict mapping source_id to max_loaded_at timestamp
@@ -347,7 +349,7 @@ def compute_freshness_expiration(
         manifest_parser: Parser for resolving source dependencies
 
     Returns:
-        Expiration datetime, or None if no freshness data available
+        Expiration timedelta, or None if no freshness data available
     """
     ...
 
@@ -357,6 +359,19 @@ CachePolicyFactory = Callable[
     [Path, ManifestParser, DbtNode, dict[str, str]],
     CachePolicy
 ]
+```
+
+**Cache expiration is configured on the task.** When creating node tasks, the orchestrator passes `cache_expiration` to the `@task` decorator:
+
+```python
+@task(
+    name=f"dbt_{command}_{node.name}",
+    cache_policy=node_cache_policy,
+    cache_expiration=compute_freshness_expiration(...), 
+    retries=self.retries,
+)
+def execute_node():
+    ...
 ```
 
 ### Main Orchestrator
@@ -397,10 +412,11 @@ class PrefectDbtOrchestrator:
         threads: Optional[int] = None,
         # Caching configuration
         enable_caching: bool = True,
+        cache_expiration: Optional[timedelta] = timedelta(days=1),  # Default 1 day
         cache_policy_factory: Optional[CachePolicyFactory] = None,
         result_storage: Optional[Union[WritableFileSystem, str, Path]] = None,
         cache_key_storage: Optional[Union[WritableFileSystem, str, Path]] = None,
-        use_source_freshness_expiration: bool = False,
+        use_source_freshness_expiration: bool = False,  # Override default expiration
         # Retry configuration
         retries: int = 2,
         retry_delay_seconds: int = 30,
@@ -416,7 +432,7 @@ class PrefectDbtOrchestrator:
         create_summary_artifact: bool = True,
         include_compiled_code: bool = False,
         write_run_results: bool = False,  # Write dbt-compatible run_results.json
-        # Custom executor (overrides auto-detection)
+        # Custom executor
         executor: Optional[DbtExecutor] = None,
     ):
         """Initialize the orchestrator.
@@ -427,11 +443,12 @@ class PrefectDbtOrchestrator:
             concurrency: Either a string (name of existing global limit) or int (creates
                 ephemeral limit for this run). E.g., "dbt-warehouse" or 4.
             threads: dbt --threads for parallelism within each node
-            enable_caching: Whether to enable per-node caching
+            enable_caching: Whether to enable per-node caching (cross-run by default)
+            cache_expiration: How long cached results remain valid (default: 1 day)
             cache_policy_factory: Custom factory for cache policies
             result_storage: Storage for cross-run cache persistence (e.g., "s3-bucket/results")
             cache_key_storage: Storage for cache metadata
-            use_source_freshness_expiration: Compute cache expiration from source freshness
+            use_source_freshness_expiration: Override cache_expiration with source freshness-based value
             retries: Number of retries per node (per-node mode only)
             retry_delay_seconds: Delay between retries
             test_strategy: When to run tests (immediate/deferred/skip)
@@ -443,7 +460,7 @@ class PrefectDbtOrchestrator:
             create_summary_artifact: Create markdown summary artifact at end of run
             include_compiled_code: Include compiled SQL in asset descriptions
             write_run_results: Write dbt-compatible run_results.json for tooling integration
-            executor: Custom executor (DbtCoreExecutor or DbtCloudExecutor)
+            executor: Custom executor (DbtCoreExecutor or DbtCloudExecutor, default: DbtCoreExecutor)
         """
         ...
 
@@ -720,16 +737,17 @@ def run_on_fresh_data():
 
     The orchestrator automatically:
     1. Runs `dbt source freshness` to get max_loaded_at timestamps
-    2. Computes cache expiration based on when sources were last loaded
-    3. Expires cached results when new source data arrives
+    2. Computes `cache_expiration` timedelta for each task based on
+       source freshness thresholds (warn_after, error_after)
+    3. Passes expiration to the task decorator
 
-    This uses Prefect's native cache expiration rather than baking
-    freshness into the cache key, providing cleaner invalidation semantics.
+    This uses Prefect's native task-level cache_expiration parameter,
+    keeping the CachePolicy focused only on key computation.
     """
     orchestrator = PrefectDbtOrchestrator(
         settings=PrefectDbtSettings(project_dir=Path("./analytics")),
         state_path=Path("./prod_artifacts"),
-        # Enable freshness-based cache expiration
+        # Compute cache_expiration from source freshness thresholds
         use_source_freshness_expiration=True,
     )
 
@@ -794,9 +812,9 @@ Asset metadata (execution details like timing, row counts) is added via `AssetCo
 | Capability | Description |
 |------------|-------------|
 | **Per-node retries** | Failed models retry independently (per-node mode) |
-| **Per-node caching** | Skip unchanged models; changes propagate downstream |
-| **Freshness-based expiration** | Cache expires when source data changes (via Prefect's native expiration) |
-| **Cross-run persistence** | Configure `result_storage` for caching across flow runs |
+| **Cross-run caching** | Cache persists across flow runs (no RUN_ID in key); 1-day default expiration |
+| **Freshness-based expiration** | Optionally override expiration using source freshness thresholds |
+| **Result storage** | Configure `result_storage` for remote cache persistence (S3, GCS, etc.) |
 | **Flexible concurrency** | Use named limits or create ephemeral limits with an int |
 | **Two-level concurrency** | Prefect controls parallel nodes; `--threads` controls within-node parallelism |
 | **Test strategies** | Run tests immediately, deferred, or skip entirely |
