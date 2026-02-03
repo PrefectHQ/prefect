@@ -36,6 +36,12 @@ async def list_assets(
         "-s",
         help="Filter assets by key substring",
     ),
+    limit: int = typer.Option(
+        50,
+        "--limit",
+        "-l",
+        help="Maximum number of assets to return (default 50, max 200)",
+    ),
     output: Optional[str] = typer.Option(
         None,
         "--output",
@@ -51,14 +57,24 @@ async def list_assets(
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
-    params: dict[str, str] = {}
+    if limit < 1 or limit > 200:
+        exit_with_error("Limit must be between 1 and 200.")
+
+    key_filter: dict[str, list[str]] = {}
     if prefix:
-        params["prefix"] = prefix
+        key_filter["prefix"] = [prefix]
     if search:
-        params["search"] = search
+        key_filter["search"] = [search]
+
+    body: dict[str, object] = {"limit": limit}
+    if key_filter:
+        body["filter"] = {"key": key_filter}
 
     async with get_cloud_client(host=get_current_settings().api.url) as client:
-        assets = await client.request("GET", "/assets/", params=params or None)
+        response = await client.request("POST", "/assets/filter", json=body)
+
+    assets = response.get("assets", [])
+    total = response.get("total", len(assets))
 
     if output and output.lower() == "json":
         json_output = orjson.dumps(assets, option=orjson.OPT_INDENT_2).decode()
@@ -83,7 +99,7 @@ async def list_assets(
             )
 
         app.console.print(table)
-        app.console.print(f"\nShowing {len(assets)} asset(s)")
+        app.console.print(f"\nShowing {len(assets)} of {total} asset(s)")
 
 
 @asset_app.command("delete")

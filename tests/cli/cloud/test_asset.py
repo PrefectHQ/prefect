@@ -54,8 +54,10 @@ class TestAssetList:
     def test_list_assets_empty(
         self, respx_mock: respx.MockRouter, cloud_workspace: Workspace
     ) -> None:
-        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(status.HTTP_200_OK, json=[])
+        respx_mock.post(f"{cloud_workspace.api_url()}/assets/filter").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK, json={"assets": [], "total": 0}
+            )
         )
 
         with use_profile("logged-in-profile"):
@@ -72,8 +74,10 @@ class TestAssetList:
             {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"},
             {"key": "postgres://db/users", "last_seen": "2026-01-21T10:30:00Z"},
         ]
-        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(status.HTTP_200_OK, json=assets)
+        respx_mock.post(f"{cloud_workspace.api_url()}/assets/filter").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK, json={"assets": assets, "total": 2}
+            )
         )
 
         with use_profile("logged-in-profile"):
@@ -83,6 +87,7 @@ class TestAssetList:
                 expected_output_contains=[
                     "s3://my-bucket/data.csv",
                     "postgres://db/users",
+                    "Showing 2 of 2 asset(s)",
                 ],
             )
 
@@ -97,8 +102,10 @@ class TestAssetList:
         value: str,
     ) -> None:
         asset = {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"}
-        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(status.HTTP_200_OK, json=[asset])
+        respx_mock.post(f"{cloud_workspace.api_url()}/assets/filter").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK, json={"assets": [asset], "total": 1}
+            )
         )
 
         with use_profile("logged-in-profile"):
@@ -108,12 +115,41 @@ class TestAssetList:
                 expected_output_contains=asset["key"],
             )
 
+    def test_list_assets_with_limit(
+        self, respx_mock: respx.MockRouter, cloud_workspace: Workspace
+    ) -> None:
+        assets = [
+            {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"},
+        ]
+        respx_mock.post(f"{cloud_workspace.api_url()}/assets/filter").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK, json={"assets": assets, "total": 100}
+            )
+        )
+
+        with use_profile("logged-in-profile"):
+            invoke_and_assert(
+                ["cloud", "asset", "ls", "--limit", "1"],
+                expected_code=0,
+                expected_output_contains="Showing 1 of 100 asset(s)",
+            )
+
+    def test_list_assets_invalid_limit(self, cloud_workspace: Workspace) -> None:
+        with use_profile("logged-in-profile"):
+            invoke_and_assert(
+                ["cloud", "asset", "ls", "--limit", "500"],
+                expected_code=1,
+                expected_output_contains="Limit must be between 1 and 200",
+            )
+
     def test_list_assets_json_output(
         self, respx_mock: respx.MockRouter, cloud_workspace: Workspace
     ) -> None:
         asset = {"key": "s3://my-bucket/data.csv", "last_seen": "2026-01-20T18:52:16Z"}
-        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(status.HTTP_200_OK, json=[asset])
+        respx_mock.post(f"{cloud_workspace.api_url()}/assets/filter").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK, json={"assets": [asset], "total": 1}
+            )
         )
 
         with use_profile("logged-in-profile"):
@@ -136,8 +172,10 @@ class TestAssetList:
     def test_assets_alias(
         self, respx_mock: respx.MockRouter, cloud_workspace: Workspace
     ) -> None:
-        respx_mock.get(f"{cloud_workspace.api_url()}/assets/").mock(
-            return_value=httpx.Response(status.HTTP_200_OK, json=[])
+        respx_mock.post(f"{cloud_workspace.api_url()}/assets/filter").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK, json={"assets": [], "total": 0}
+            )
         )
 
         with use_profile("logged-in-profile"):
