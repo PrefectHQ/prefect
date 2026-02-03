@@ -1,4 +1,3 @@
-import { Typography } from "@/components/ui/typography";
 import type { SequenceTrigger } from "./trigger-utils";
 
 type TriggerDetailsSequenceProps = {
@@ -12,10 +11,10 @@ export const TriggerDetailsSequence = ({
 
 	return (
 		<div className="flex flex-wrap gap-1 items-center">
-			<Typography variant="bodySmall">
+			<p className="text-sm">
 				A sequence trigger with {triggerCount} nested{" "}
 				{triggerCount === 1 ? "trigger" : "triggers"} that must fire in order
-			</Typography>
+			</p>
 		</div>
 	);
 };
