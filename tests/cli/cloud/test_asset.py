@@ -144,6 +144,44 @@ class TestAssetList:
                 expected_output_contains=asset["key"],
             )
 
+    def test_list_assets_with_search(self, respx_mock):
+        foo_workspace = gen_test_workspace(
+            account_handle="test", workspace_handle="foo"
+        )
+        save_profiles(
+            ProfilesCollection(
+                [
+                    Profile(
+                        name="logged-in-profile",
+                        settings={
+                            PREFECT_API_URL: foo_workspace.api_url(),
+                            PREFECT_API_KEY: "foo",
+                        },
+                    )
+                ],
+                active=None,
+            )
+        )
+
+        asset = {
+            "key": "s3://my-bucket/data.csv",
+            "last_seen": "2026-01-20T18:52:16.681416Z",
+        }
+
+        respx_mock.get(f"{foo_workspace.api_url()}/assets/").mock(
+            return_value=httpx.Response(
+                status.HTTP_200_OK,
+                json=[asset],
+            )
+        )
+
+        with use_profile("logged-in-profile"):
+            invoke_and_assert(
+                ["cloud", "asset", "ls", "--search", "bucket"],
+                expected_code=0,
+                expected_output_contains=asset["key"],
+            )
+
     def test_list_assets_json_output(self, respx_mock):
         foo_workspace = gen_test_workspace(
             account_handle="test", workspace_handle="foo"
