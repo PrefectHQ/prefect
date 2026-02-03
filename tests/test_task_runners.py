@@ -30,49 +30,49 @@ from prefect.task_worker import TaskWorker
 from prefect.tasks import task
 
 
-@task
+@task(task_run_name=f"my_test_task_{uuid.uuid4()}")
 def my_test_task(param1: Any, param2: Any) -> tuple[Any, Any]:
     return param1, param2
 
 
-@task
+@task(task_run_name=f"my_test_async_task_{uuid.uuid4()}")
 async def my_test_async_task(param1: Any, param2: Any) -> tuple[Any, Any]:
     return param1, param2
 
 
-@task
+@task(task_run_name=f"context_matters_{uuid.uuid4()}")
 def context_matters(param1: Any = None, param2: Any = None) -> set[str]:
     return TagsContext.get().current_tags
 
 
-@task
+@task(task_run_name=f"context_matters_async_{uuid.uuid4()}")
 async def context_matters_async(param1: Any = None, param2: Any = None) -> set[str]:
     return TagsContext.get().current_tags
 
 
-@task
+@task(task_run_name=f"task_that_raises_exception_{uuid.uuid4()}")
 def task_that_raises_exception() -> None:
     raise ValueError("Test exception from subprocess")
 
 
-@task
+@task(task_run_name=f"async_task_that_raises_exception_{uuid.uuid4()}")
 async def async_task_that_raises_exception() -> None:
     raise RuntimeError("Test async exception from subprocess")
 
 
-@task
+@task(task_run_name=f"task_with_large_data_{uuid.uuid4()}")
 def task_with_large_data(data: list[int]) -> tuple[int, int]:
     # Process large data structure
     return len(data), sum(data)
 
 
-@task
+@task(task_run_name=f"task_with_unpicklable_param_{uuid.uuid4()}")
 def task_with_unpicklable_param(func: Callable[[int], Any]) -> Any:
     # This will fail because lambdas can't be pickled normally
     return func(42)
 
 
-@task
+@task(task_run_name=f"slow_task_{uuid.uuid4()}")
 def slow_task(duration: float = 0.1) -> str:
     import time
 
