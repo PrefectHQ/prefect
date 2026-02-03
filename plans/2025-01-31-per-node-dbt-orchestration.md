@@ -1,36 +1,606 @@
-# Per-Node dbt Orchestration Mode
+# Per-Node dbt Orchestration
 
 ## Overview
 
-Introduce a per-node dbt orchestration mode that allows Prefect to orchestrate each dbt node (model, seed, snapshot, test) individually. This enables per-node retries, caching, and observability while still supporting a lower-overhead per-wave execution mode.
+Build a new per-node dbt orchestration mode that gives Prefect full control over dbt DAG execution. Instead of running dbt as a single batch operation (letting dbt handle its own concurrency), Prefect will orchestrate each model, seed, snapshot, and test individually.
 
-## Why This Change
+## Why We're Doing This
 
-Prefect currently delegates most execution control to dbt. This limits retry granularity, makes it harder to apply Prefect-native caching, and reduces visibility into node-level performance and failures. A per-node orchestration mode gives Prefect the opportunity to express dbt execution in Prefect-native terms without altering dbt's graph semantics.
+The current `PrefectDbtRunner` is **reactive**—it registers callbacks with dbt's internal scheduler and creates Prefect tasks as dbt starts each node. This means:
 
-## Desired Outcomes
+- **dbt controls execution**: DAG traversal, concurrency, and retry logic are all handled by dbt
+- **Limited Prefect integration**: No per-node retries, no per-node caching, no Prefect-native concurrency limits
 
-- Improve observability with per-node task runs and richer metadata.
-- Reduce mean time to recovery by enabling per-node retries.
-- Enable deterministic caching and cache invalidation per node.
-- Provide consistent concurrency controls across dbt and non-dbt workloads.
-- Preserve the existing dbt runner for users who prefer dbt-managed orchestration.
+The new `PrefectDbtOrchestrator` will be **proactive**:
 
-## Goals
+- **Prefect controls execution**: Parse manifest upfront, compute waves, create tasks with proper dependencies
+- **Per-node retries**: A failed model retries independently—no "rerun entire DAG"
+- **Per-node caching**: Skip unchanged models automatically; changes propagate downstream
+- **Prefect-native concurrency**: Use global concurrency limits to protect warehouse resources
+- **Full observability**: Each node is a distinct Prefect task with timing, status, and asset lineage
 
-- Per-node orchestration with Prefect-native retries and caching.
-- Optional per-wave execution mode for reduced process overhead.
-- Support dbt Core and dbt Cloud execution backends.
-- Preserve existing `PrefectDbtRunner` behavior.
+## Architecture
 
-## Non-Goals
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           PrefectDbtOrchestrator                            │
+│                                                                             │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────────────┐  │
+│  │ ManifestParser  │───▶│  ExecutionWave  │───▶│  Per-Node/Wave Tasks    │  │
+│  │                 │    │   (wave 0..N)   │    │                         │  │
+│  │ • Parse JSON    │    │                 │    │ • Retries               │  │
+│  │ • Build graph   │    │ • Independent   │    │ • Cache policies        │  │
+│  │ • Filter nodes  │    │   nodes in      │    │ • Concurrency limits    │  │
+│  │ • Compute waves │    │   parallel      │    │ • Asset tracking        │  │
+│  └─────────────────┘    └─────────────────┘    └───────────┬─────────────┘  │
+│                                                            │                │
+│  ┌─────────────────────────────────────────────────────────▼─────────────┐  │
+│  │                          DbtExecutor (Protocol)                       │  │
+│  │                                                                       │  │
+│  │   ┌─────────────────────┐         ┌─────────────────────────────┐     │  │
+│  │   │   DbtCoreExecutor   │         │     DbtCloudExecutor        │     │  │
+│  │   │                     │         │                             │     │  │
+│  │   │ • dbtRunner.invoke()│         │ • Create ephemeral job      │     │  │
+│  │   │ • Local execution   │         │ • Trigger run               │     │  │
+│  │   │ • State flags       │         │ • Poll for completion       │     │  │
+│  │   └─────────────────────┘         │ • Delete job (cleanup)      │     │  │
+│  │                                   └─────────────────────────────┘     │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────────┐│
+│  │                         Cache System                                    ││
+│  │                                                                         ││
+│  │   ┌─────────────────────────────────────────────────────────────────┐   ││
+│  │   │  DbtNodeCachePolicy                                             │   ││
+│  │   │                                                                 │   ││
+│  │   │  Cache Key:                    Expiration:                      │   ││
+│  │   │  • SQL content hash            • Optional TTL                   │   ││
+│  │   │  • Config hash                 • Source freshness timestamps    │   ││
+│  │   │  • Upstream cache keys           inform expiration time         │   ││
+│  │   └─────────────────────────────────────────────────────────────────┘   ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-- Rewriting existing `PrefectDbtRunner`.
-- Changing dbt compilation semantics or graph resolution.
+### Execution Flow
+
+```
+User calls orchestrator.run_build()
+            │
+            ▼
+    ┌───────────────┐
+    │ Parse manifest│  (or run dbt parse if missing)
+    └───────┬───────┘
+            │
+            ▼
+    ┌───────────────┐
+    │ Compute waves │  Wave 0: seeds, Wave 1: staging, Wave 2: marts, etc.
+    └───────┬───────┘
+            │
+            ▼
+    ┌───────────────┐
+    │ Apply filters │  select="marts", exclude="stg_legacy_*"
+    └───────┬───────┘
+            │
+            ▼
+  ┌─────────┴─────────┐
+  │  For each wave:   │
+  │                   │
+  │  ┌─────────────┐  │     PER_NODE mode:
+  │  │ Create tasks│──┼───▶ One task per node with retries/caching
+  │  └─────────────┘  │
+  │         │         │     PER_WAVE mode:
+  │         ▼         │───▶ One dbt invocation with multiple selectors
+  │  ┌─────────────┐  │
+  │  │Submit/wait  │  │
+  │  └─────────────┘  │
+  └─────────┬─────────┘
+            │
+            ▼
+    ┌───────────────┐
+    │ Return results│  { node_id: { status, result/error } }
+    └───────────────┘
+```
+
+## Interfaces
+
+### Core Classes
+
+```python
+@dataclass
+class DbtNode:
+    """Represents a single dbt node for orchestration.
+
+    Wraps the essential information from dbt's manifest for a model, seed,
+    snapshot, or test. Used to track dependencies and determine execution order.
+    """
+    unique_id: str                              # e.g., "model.analytics.stg_users"
+    name: str                                   # e.g., "stg_users"
+    resource_type: NodeType                     # Model, Seed, Snapshot, Test
+    depends_on: list[str]                       # List of upstream node unique_ids
+    materialization: Optional[str]              # "view", "table", "incremental", "ephemeral"
+    relation_name: Optional[str]                # Full database relation name
+    original_file_path: Optional[str]           # Path to SQL file
+    config: dict[str, Any]                      # Node configuration
+
+    @property
+    def is_executable(self) -> bool:
+        """Return True if this node should be executed (not ephemeral or source)."""
+        ...
+
+    @property
+    def dbt_selector(self) -> str:
+        """Return the dbt selector string for this node."""
+        ...
+
+
+@dataclass
+class ExecutionWave:
+    """A group of nodes that can be executed in parallel.
+
+    Nodes within a wave have no dependencies on each other—they only depend
+    on nodes from previous waves. This enables safe parallel execution.
+    """
+    nodes: list[DbtNode]
+    wave_number: int
+
+
+class ManifestParser:
+    """Parse dbt manifest and construct execution graph.
+
+    Reads manifest.json, extracts executable nodes (excluding ephemeral models
+    and sources), resolves transitive dependencies through ephemeral nodes,
+    and computes execution waves for parallel scheduling.
+    """
+
+    def __init__(self, manifest_path: Path): ...
+
+    def get_executable_nodes(self) -> dict[str, DbtNode]:
+        """Extract all executable nodes from manifest.
+
+        Returns dict mapping unique_id -> DbtNode for models, seeds, snapshots, tests.
+        Excludes ephemeral models and sources.
+        """
+        ...
+
+    def compute_execution_waves(self) -> list[ExecutionWave]:
+        """Compute execution waves based on DAG dependencies.
+
+        Wave 0: nodes with no dependencies
+        Wave 1: nodes depending only on wave 0 nodes
+        Wave N: nodes depending only on wave 0..N-1 nodes
+        """
+        ...
+
+    def filter_nodes(
+        self,
+        select: Optional[str] = None,
+        exclude: Optional[str] = None,
+    ) -> dict[str, DbtNode]:
+        """Filter nodes based on dbt selector expressions.
+
+        Supports model names, tags (tag:daily), paths (path:models/staging),
+        wildcards (stg_*), and graph operators (+model, model+).
+        """
+        ...
+
+    def get_node_dependencies(self, node_id: str) -> list[str]:
+        """Get direct executable dependencies for a node."""
+        ...
+```
+
+### Executor Protocol
+
+```python
+@dataclass
+class ExecutionResult:
+    """Result from executing a dbt node or wave."""
+    success: bool
+    node_ids: list[str]
+    error: Optional[Exception] = None
+    artifacts: Optional[dict[str, Any]] = None
+
+
+@runtime_checkable
+class DbtExecutor(Protocol):
+    """Protocol for dbt executors.
+
+    Executors handle the actual invocation of dbt commands. This abstraction
+    allows the orchestrator to work with either dbt Core CLI or dbt Cloud.
+    """
+
+    def execute_node(
+        self,
+        node: DbtNode,
+        command: str,
+        full_refresh: bool = False,
+    ) -> ExecutionResult:
+        """Execute a single dbt node."""
+        ...
+
+    def execute_wave(
+        self,
+        nodes: list[DbtNode],
+        full_refresh: bool = False,
+    ) -> ExecutionResult:
+        """Execute multiple nodes in a single invocation."""
+        ...
+
+
+class DbtCoreExecutor:
+    """Executor using dbt Core CLI via dbtRunner.invoke().
+
+    This is the default executor for local dbt execution. Supports all dbt
+    state-based execution flags (--state, --defer, --favor-state).
+    """
+
+    def __init__(
+        self,
+        settings: PrefectDbtSettings,
+        threads: Optional[int] = None,
+        state_path: Optional[Path] = None,
+        defer: bool = False,
+        defer_state_path: Optional[Path] = None,
+        favor_state: bool = False,
+    ): ...
+
+
+class DbtCloudExecutor:
+    """Executor using dbt Cloud ephemeral jobs.
+
+    Creates temporary jobs in dbt Cloud, runs them, and deletes them after
+    completion. This enables per-node orchestration for dbt Cloud customers
+    without requiring local dbt installation.
+
+    Manifest Resolution:
+        The orchestrator needs a manifest to parse the DAG. For dbt Cloud, this
+        can come from:
+        1. `defer_to_job_id` (recommended) - Downloads manifest.json from the
+           specified job's most recent successful run via dbt Cloud API
+        2. `manifest_path` on the orchestrator - User provides a local manifest
+           (e.g., synced from dbt Cloud or generated locally)
+
+        If neither is provided, the executor will create an ephemeral compile
+        job to generate the manifest before orchestration begins.
+    """
+
+    def __init__(
+        self,
+        credentials: DbtCloudCredentials,
+        project_id: int,
+        environment_id: int,
+        job_name_prefix: str = "prefect-orchestrator",
+        timeout_seconds: int = 900,
+        poll_frequency_seconds: int = 10,
+        threads: Optional[int] = None,
+        defer_to_job_id: Optional[int] = None,  # Also used to fetch manifest
+    ): ...
+
+    def fetch_manifest_from_job(self, job_id: int) -> dict:
+        """Fetch manifest.json from a job's latest successful run artifacts.
+
+        Uses: GET /accounts/{account_id}/jobs/{job_id}/artifacts/manifest.json
+        """
+        ...
+
+    def generate_manifest(self) -> dict:
+        """Generate manifest by running an ephemeral dbt compile job.
+
+        Creates a temporary job with `dbt compile`, runs it, downloads the
+        manifest from the run artifacts, then deletes the job. Used when no
+        defer_to_job_id is configured.
+        """
+        ...
+```
+
+### Cache Policy
+
+```python
+class DbtNodeCachePolicy(CachePolicy):
+    """Cache policy for dbt nodes based on SQL content and upstream changes.
+
+    Cache key is invalidated when:
+    - The node's SQL file content changes
+    - The node's configuration changes
+    - Any upstream node's cache key changes
+
+    Cache expiration can be set based on source freshness:
+    - When sources have freshness configured, the orchestrator computes
+      expiration times from source max_loaded_at timestamps
+    - This allows cached results to automatically expire when new source
+      data arrives, without baking freshness into the cache key itself
+
+    This separation of concerns (key vs expiration) aligns with Prefect's
+    native caching model and enables cleaner cache invalidation semantics.
+    """
+
+    def __init__(
+        self,
+        project_dir: Path,
+        manifest_parser: ManifestParser,
+        node: DbtNode,
+        upstream_cache_keys: Optional[dict[str, str]] = None,
+        expiration: Optional[datetime] = None,
+    ): ...
+
+    def compute_key(
+        self,
+        task_ctx: TaskRunContext,
+        inputs: dict[str, Any],
+        flow_parameters: dict[str, Any],
+        **kwargs: Any,
+    ) -> Optional[str]:
+        """Compute cache key combining SQL hash, config hash, and upstream keys."""
+        ...
+
+
+def compute_freshness_expiration(
+    source_freshness: dict[str, str],
+    node: DbtNode,
+    manifest_parser: ManifestParser,
+) -> Optional[datetime]:
+    """Compute cache expiration time based on upstream source freshness.
+
+    Args:
+        source_freshness: Dict mapping source_id to max_loaded_at timestamp
+        node: The node to compute expiration for
+        manifest_parser: Parser for resolving source dependencies
+
+    Returns:
+        Expiration datetime, or None if no freshness data available
+    """
+    ...
+
+
+# Type alias for custom cache policy factories
+CachePolicyFactory = Callable[
+    [Path, ManifestParser, DbtNode, dict[str, str]],
+    CachePolicy
+]
+```
+
+### Main Orchestrator
+
+```python
+class TestStrategy:
+    """Test execution strategies."""
+    IMMEDIATE = "immediate"  # Run tests immediately after their model (like dbt build)
+    DEFERRED = "deferred"    # Run all tests after all models complete
+    SKIP = "skip"            # Skip tests entirely
+
+
+class ExecutionMode:
+    """Execution mode strategies."""
+    PER_NODE = "per_node"    # One dbt invocation per node (enables retries/caching)
+    PER_WAVE = "per_wave"    # One dbt invocation per wave (lower process overhead)
+
+
+class PrefectDbtOrchestrator:
+    """Orchestrates per-node dbt execution with Prefect.
+
+    Provides fine-grained control over dbt DAG execution with:
+    - Per-node retries and caching
+    - Prefect-native concurrency limits
+    - Configurable test strategies
+    - Support for both dbt Core and dbt Cloud executors
+    - State-based incremental execution for CI/CD
+    - Automatic downstream skipping on failure
+    """
+
+    def __init__(
+        self,
+        # dbt Core settings (default executor)
+        settings: Optional[PrefectDbtSettings] = None,
+        manifest_path: Optional[Path] = None,
+        # Concurrency configuration
+        concurrency: Optional[Union[str, int]] = None,
+        threads: Optional[int] = None,
+        # Caching configuration
+        enable_caching: bool = True,
+        cache_policy_factory: Optional[CachePolicyFactory] = None,
+        result_storage: Optional[Union[WritableFileSystem, str, Path]] = None,
+        cache_key_storage: Optional[Union[WritableFileSystem, str, Path]] = None,
+        use_source_freshness_expiration: bool = False,
+        # Retry configuration
+        retries: int = 2,
+        retry_delay_seconds: int = 30,
+        # Execution configuration
+        test_strategy: str = TestStrategy.IMMEDIATE,
+        execution_mode: str = ExecutionMode.PER_NODE,
+        # State-based execution
+        state_path: Optional[Path] = None,
+        defer: bool = False,
+        defer_state_path: Optional[Path] = None,
+        favor_state: bool = False,
+        # Artifact configuration
+        create_summary_artifact: bool = True,
+        include_compiled_code: bool = False,
+        write_run_results: bool = False,  # Write dbt-compatible run_results.json
+        # Custom executor (overrides auto-detection)
+        executor: Optional[DbtExecutor] = None,
+    ):
+        """Initialize the orchestrator.
+
+        Args:
+            settings: PrefectDbtSettings for dbt Core executor
+            manifest_path: Override path to manifest.json
+            concurrency: Either a string (name of existing global limit) or int (creates
+                ephemeral limit for this run). E.g., "dbt-warehouse" or 4.
+            threads: dbt --threads for parallelism within each node
+            enable_caching: Whether to enable per-node caching
+            cache_policy_factory: Custom factory for cache policies
+            result_storage: Storage for cross-run cache persistence (e.g., "s3-bucket/results")
+            cache_key_storage: Storage for cache metadata
+            use_source_freshness_expiration: Compute cache expiration from source freshness
+            retries: Number of retries per node (per-node mode only)
+            retry_delay_seconds: Delay between retries
+            test_strategy: When to run tests (immediate/deferred/skip)
+            execution_mode: Per-node or per-wave execution
+            state_path: Path to state artifacts for comparison (dbt --state)
+            defer: Use state for unbuilt dependencies (dbt --defer)
+            defer_state_path: Override state path for deferral
+            favor_state: Prefer state artifacts over local (dbt --favor-state)
+            create_summary_artifact: Create markdown summary artifact at end of run
+            include_compiled_code: Include compiled SQL in asset descriptions
+            write_run_results: Write dbt-compatible run_results.json for tooling integration
+            executor: Custom executor (DbtCoreExecutor or DbtCloudExecutor)
+        """
+        ...
+
+    def run_build(
+        self,
+        select: Optional[str] = None,
+        exclude: Optional[str] = None,
+        full_refresh: bool = False,
+        only_fresh_sources: bool = False,
+    ) -> dict[str, Any]:
+        """Run dbt build with per-node orchestration.
+
+        Equivalent to `dbt build` but with per-node Prefect tasks.
+
+        Args:
+            select: dbt selector expression (e.g., "marts", "tag:daily")
+            exclude: dbt exclude expression
+            full_refresh: Whether to full-refresh incremental models
+            only_fresh_sources: Only run models whose upstream sources have new data
+
+        Returns:
+            Dict mapping node_id to execution result:
+            {
+                "model.analytics.stg_users": {"status": "success", "result": ...},
+                "model.analytics.company_summary": {"status": "error", "error": "..."},
+                "model.analytics.top_merchants": {"status": "skipped", "reason": "upstream failure"},
+            }
+        """
+        ...
+```
+
+## Selector Resolution
+
+To ensure compatibility with dbt's selector semantics (graph operators, tags, paths, etc.), we **delegate selector resolution to dbt** rather than reimplementing it:
+
+```python
+def resolve_selection(
+    self,
+    select: Optional[str] = None,
+    exclude: Optional[str] = None,
+) -> set[str]:
+    """Resolve dbt selectors to a set of node unique_ids.
+
+    Delegates to `dbt ls` to ensure exact compatibility with dbt's
+    selector syntax, including graph operators (+model, model+),
+    indirect selection, and state-based selectors.
+    """
+    args = ["ls", "--output", "json", "--resource-type", "all"]
+    if select:
+        args.extend(["--select", select])
+    if exclude:
+        args.extend(["--exclude", exclude])
+
+    # Run dbt ls and parse JSON output
+    result = self._run_dbt(args)
+    return {node["unique_id"] for node in result}
+```
+
+**Ephemeral node handling**: The manifest parser traces through ephemeral models to their non-ephemeral dependencies. If model A depends on ephemeral model B which depends on model C, then A's `depends_on` will include C (not B). This ensures execution waves only contain runnable nodes.
+
+## Test Execution Semantics
+
+**TestStrategy.IMMEDIATE** runs each test immediately after its parent model completes:
+
+- A test on `stg_users` runs after `stg_users` succeeds (same wave or next)
+- A test spanning multiple models (e.g., relationship test between `stg_users` and `stg_orders`) runs after **all** referenced models complete
+- Tests are placed in the earliest wave where all their dependencies are satisfied
+
+**TestStrategy.DEFERRED** collects all tests and runs them in a final phase:
+
+- All models/seeds/snapshots complete first
+- Tests run in parallel (respecting concurrency limits)
+- Useful when you want faster model execution and can tolerate delayed test feedback
+
+**Test execution uses `dbt test --select <test_unique_id>`**, not `dbt build`, ensuring each test runs independently with proper isolation.
+
+## Failure Semantics
+
+**PER_NODE mode:**
+- Each node is an independent Prefect task with its own retries
+- If a node fails after all retries, it's marked as failed
+- Downstream nodes are marked as "skipped" with reason "upstream failure"
+- Other nodes in the same wave continue executing (they're independent)
+
+**PER_WAVE mode:**
+- Each wave is a single dbt invocation: `dbt run --select node1 node2 node3`
+- If **any** node in the wave fails, the entire wave is marked as failed
+- All downstream waves are skipped
+- **Partial successes within a wave are not recoverable** - this is an explicit tradeoff for lower overhead
+
+```python
+# PER_WAVE failure example:
+# Wave 1: [stg_users, stg_orders, stg_products]
+# If stg_orders fails, stg_users and stg_products may have succeeded,
+# but the entire wave is marked failed and downstream waves are skipped.
+```
+
+## Performance Guidance
+
+| Mode | Overhead | Best For |
+|------|----------|----------|
+| **PER_NODE** | Higher (one dbt process per node) | Production runs where retries/caching matter, DAGs with flaky nodes |
+| **PER_WAVE** | Lower (one dbt process per wave) | CI/CD pipelines, dev iterations, stable DAGs where failures are rare |
+
+**Rules of thumb:**
+- Start with PER_NODE (the default) for correctness and observability
+- Switch to PER_WAVE if you have >50 nodes and process startup overhead becomes noticeable
+- PER_WAVE is ~2-5x faster for large DAGs but loses per-node retry granularity
+- For CI, PER_WAVE + `state:modified+` selector is typically the fastest option
+
+## Result Object Contract
+
+`run_build()` returns a dict mapping node unique_id to result:
+
+```python
+{
+    "model.analytics.stg_users": {
+        "status": "success",          # "success" | "error" | "skipped" | "cached"
+        "timing": {
+            "started_at": "2024-01-15T10:30:00Z",
+            "completed_at": "2024-01-15T10:30:05Z",
+            "duration_seconds": 5.2,
+        },
+        "invocation": {
+            "command": "run",
+            "args": ["--select", "model.analytics.stg_users"],
+        },
+        "rows_affected": 1523,        # If available from dbt
+        "cache_key": "abc123...",     # If caching enabled
+    },
+    "model.analytics.stg_orders": {
+        "status": "error",
+        "timing": {...},
+        "invocation": {...},
+        "error": {
+            "message": "Database error: relation does not exist",
+            "type": "DatabaseError",
+        },
+    },
+    "model.analytics.order_summary": {
+        "status": "skipped",
+        "reason": "upstream failure",
+        "failed_upstream": ["model.analytics.stg_orders"],
+    },
+    "model.analytics.cached_model": {
+        "status": "cached",
+        "cache_key": "def456...",
+        "cached_at": "2024-01-14T08:00:00Z",
+    },
+}
+```
+
+**Note**: Results are Prefect-native. For dbt tooling compatibility, users can optionally enable `write_run_results=True` to generate a `run_results.json` file in dbt's schema.
 
 ## Usage Examples
 
-### Example 1: Basic Per-Node Orchestration
+### Basic Per-Node Orchestration
 
 ```python
 from pathlib import Path
@@ -44,9 +614,13 @@ def run_dbt_build():
         profiles_dir=Path("~/.dbt"),
     )
 
-    orchestrator = PrefectDbtOrchestrator(settings=settings)
+    orchestrator = PrefectDbtOrchestrator(
+        settings=settings,
+        concurrency=4,  # Limit to 4 parallel nodes (ephemeral limit)
+    )
     results = orchestrator.run_build()
 
+    # Summarize results
     success = sum(1 for r in results.values() if r["status"] == "success")
     failed = sum(1 for r in results.values() if r["status"] == "error")
     print(f"Completed: {success} succeeded, {failed} failed")
@@ -54,31 +628,28 @@ def run_dbt_build():
     return results
 ```
 
-### Example 2: Production Setup with Caching and Concurrency
+### Production Setup with Caching and Concurrency
 
 ```python
-from pathlib import Path
-from prefect import flow
-from prefect_dbt import (
-    PrefectDbtOrchestrator,
-    PrefectDbtSettings,
-    TestStrategy,
-)
+from prefect_dbt import PrefectDbtOrchestrator, PrefectDbtSettings, TestStrategy
 
 @flow
 def run_production_dbt():
-    settings = PrefectDbtSettings(
-        project_dir=Path("./analytics"),
-        profiles_dir=Path("./profiles"),
-    )
-
     orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
-        concurrency_limit_name="dbt-warehouse",
+        settings=PrefectDbtSettings(
+            project_dir=Path("./analytics"),
+            profiles_dir=Path("./profiles"),
+        ),
+        # Protect warehouse with concurrency limit
+        # Either use existing: concurrency="dbt-warehouse"
+        # Or create ephemeral: concurrency=4
+        concurrency="dbt-warehouse",
         threads=2,
+        # Cross-run caching with S3
         enable_caching=True,
         result_storage="s3-bucket/dbt-results",
         cache_key_storage="s3-bucket/dbt-cache-keys",
+        # Retry configuration
         retries=3,
         retry_delay_seconds=60,
         test_strategy=TestStrategy.IMMEDIATE,
@@ -87,811 +658,202 @@ def run_production_dbt():
     return orchestrator.run_build()
 ```
 
-### Example 3: CI Incremental Builds (State-Based Execution)
+### CI/CD Incremental Builds
 
 ```python
-from pathlib import Path
-from prefect import flow
 from prefect_dbt import PrefectDbtOrchestrator, PrefectDbtSettings, ExecutionMode
 
 @flow
 def run_ci_incremental():
-    settings = PrefectDbtSettings(
-        project_dir=Path("./analytics"),
-        profiles_dir=Path("./profiles"),
-    )
-
+    """Run only modified models, deferring to production for unchanged ones."""
     orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
+        settings=PrefectDbtSettings(project_dir=Path("./analytics")),
+        # Point to production artifacts for comparison
         state_path=Path("./prod_artifacts"),
         defer=True,
+        # Use per-wave mode for faster CI
         execution_mode=ExecutionMode.PER_WAVE,
     )
 
+    # Only run models that changed and their downstream dependents
     return orchestrator.run_build(select="state:modified+")
 ```
 
-### Example 4: Freshness-Aware Caching (Event-Driven Pipelines)
+### dbt Cloud Executor
 
 ```python
-from pathlib import Path
-from prefect import flow
-from prefect_dbt import PrefectDbtOrchestrator, PrefectDbtSettings
-from prefect_dbt.core.cache import create_freshness_aware_cache_policy
-
-@flow
-def run_on_fresh_data():
-    """Only run models whose sources have new data.
-
-    This is ideal for event-driven pipelines where you want to:
-    - Skip models when source tables haven't changed
-    - Automatically re-run when new data arrives
-    - Reduce unnecessary compute costs
-
-    Requires:
-    - Sources configured with `freshness` and `loaded_at_field` in dbt
-    - Previous run artifacts for comparison (state_path)
-    """
-    settings = PrefectDbtSettings(
-        project_dir=Path("./analytics"),
-        profiles_dir=Path("./profiles"),
-    )
-
-    orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
-        # Point to previous run artifacts for freshness comparison
-        state_path=Path("./prod_artifacts"),
-        # Use freshness-aware cache policy (includes max_loaded_at in cache key)
-        cache_policy_factory=create_freshness_aware_cache_policy,
-    )
-
-    # Only run models whose upstream sources have new data
-    results = orchestrator.run_build(only_fresh_sources=True)
-    return results
-
-
-@flow
-def run_with_freshness_caching():
-    """Alternative: Use freshness in cache key without selector filtering.
-
-    Models still run on schedule, but cache is invalidated when source
-    data changes (even if SQL is unchanged).
-    """
-    settings = PrefectDbtSettings(project_dir=Path("./analytics"))
-
-    orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
-        # Freshness-aware caching: cache key includes source max_loaded_at
-        cache_policy_factory=create_freshness_aware_cache_policy,
-        enable_caching=True,
-    )
-
-    # All models run, but cache hits only when source data unchanged
-    results = orchestrator.run_build()
-    return results
-```
-
-### Example 5: dbt Cloud Executor (Ephemeral Jobs)
-
-```python
-from prefect import flow
 from prefect_dbt import PrefectDbtOrchestrator, TestStrategy
-from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.core.executors import DbtCloudExecutor
+from prefect_dbt.cloud.credentials import DbtCloudCredentials
 
 @flow
 def run_dbt_cloud():
     """Per-node orchestration using dbt Cloud ephemeral jobs."""
-    # Load credentials from Prefect block
-    # Create with: prefect block register -m prefect_dbt.cloud
-    credentials = DbtCloudCredentials.load("my-dbt-cloud")
-
-    # Explicitly configure dbt Cloud executor
     cloud_executor = DbtCloudExecutor(
-        credentials=credentials,
+        credentials=DbtCloudCredentials.load("my-dbt-cloud"),
         project_id=12345,
         environment_id=67890,
         job_name_prefix="prefect-ci",
-        # Optional: defer to a production job for state comparison
+        # Production job ID - used to:
+        # 1. Fetch manifest.json for DAG parsing
+        # 2. Defer to production for state comparison
         defer_to_job_id=111,
     )
 
     orchestrator = PrefectDbtOrchestrator(
         executor=cloud_executor,
-        # Standard orchestrator options still work
-        concurrency_limit_name="dbt-cloud-slots",
+        concurrency="dbt-cloud-slots",  # or concurrency=4 for ephemeral limit
         test_strategy=TestStrategy.IMMEDIATE,
     )
 
-    results = orchestrator.run_build()
-    return results
+    return orchestrator.run_build()
 ```
 
-### Example 6: Different Test Strategies
+### Freshness-Aware Caching
 
 ```python
-from prefect import flow
-from prefect_dbt import PrefectDbtOrchestrator, PrefectDbtSettings, TestStrategy
-
-@flow
-def run_with_deferred_tests():
-    """Run all models first, then all tests in a separate phase."""
-    settings = PrefectDbtSettings(project_dir=Path("./analytics"))
-
-    orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
-        test_strategy=TestStrategy.DEFERRED,  # Tests run after all models
-    )
-
-    results = orchestrator.run_build()
-    return results
-
-@flow
-def run_models_only():
-    """Run models without any tests (useful for dev iterations)."""
-    settings = PrefectDbtSettings(project_dir=Path("./analytics"))
-
-    orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
-        test_strategy=TestStrategy.SKIP,  # No tests
-    )
-
-    results = orchestrator.run_build()
-    return results
-```
-
-### Example 7: Selective Execution with Filters
-
-```python
-from prefect import flow
 from prefect_dbt import PrefectDbtOrchestrator, PrefectDbtSettings
 
 @flow
-def run_selective():
-    settings = PrefectDbtSettings(project_dir=Path("./analytics"))
-    orchestrator = PrefectDbtOrchestrator(settings=settings)
+def run_on_fresh_data():
+    """Only run models whose sources have new data.
 
-    # Run only mart models
-    results = orchestrator.run_build(select="marts")
+    The orchestrator automatically:
+    1. Runs `dbt source freshness` to get max_loaded_at timestamps
+    2. Computes cache expiration based on when sources were last loaded
+    3. Expires cached results when new source data arrives
 
-    # Run staging models and everything downstream
-    results = orchestrator.run_build(select="staging+")
-
-    # Run everything upstream of a specific model (inclusive)
-    results = orchestrator.run_build(select="+company_summary")
-
-    # Run models matching a pattern
-    results = orchestrator.run_build(select="stg_*")
-
-    # Run models with a specific tag
-    results = orchestrator.run_build(select="tag:daily")
-
-    # Exclude specific models
-    results = orchestrator.run_build(exclude="stg_legacy_*")
-
-    # Full refresh incremental models
-    results = orchestrator.run_build(full_refresh=True)
-
-    return results
-```
-
-### Example 8: Per-Wave Execution Mode (Lower Overhead)
-
-```python
-from prefect import flow
-from prefect_dbt import PrefectDbtOrchestrator, PrefectDbtSettings, ExecutionMode
-
-@flow
-def run_fast():
-    """Lower overhead mode - one dbt invocation per wave instead of per node.
-
-    Trade-offs:
-    - Faster execution (fewer dbt process startups)
-    - No per-node retries (entire wave retries on failure)
-    - No per-node caching (wave-level only)
-    - Useful for CI or when nodes rarely fail
+    This uses Prefect's native cache expiration rather than baking
+    freshness into the cache key, providing cleaner invalidation semantics.
     """
-    settings = PrefectDbtSettings(project_dir=Path("./analytics"))
-
     orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
-        execution_mode=ExecutionMode.PER_WAVE,
+        settings=PrefectDbtSettings(project_dir=Path("./analytics")),
+        state_path=Path("./prod_artifacts"),
+        # Enable freshness-based cache expiration
+        use_source_freshness_expiration=True,
     )
 
-    results = orchestrator.run_build()
-    return results
+    # Models automatically skip when source data unchanged
+    return orchestrator.run_build(only_fresh_sources=True)
 ```
 
-### Example 9: Custom Cache Policy
+## Artifacts and Asset Tracking
 
-```python
-from pathlib import Path
-from typing import Any, Optional
-from prefect import flow
-from prefect.cache_policies import CachePolicy
-from prefect.context import TaskRunContext
-from prefect_dbt import PrefectDbtOrchestrator, PrefectDbtSettings
-from prefect_dbt.core.manifest import DbtNode, ManifestParser
+The orchestrator mirrors the artifact creation behavior of `PrefectDbtRunner`:
 
-class CustomDbtCachePolicy(CachePolicy):
-    """Custom cache policy that includes environment in cache key."""
+### Summary Markdown Artifact
 
-    def __init__(self, node: DbtNode, environment: str):
-        self.node = node
-        self.environment = environment
+Created at the end of `run_build()` via `create_markdown_artifact()`:
 
-    def compute_key(
-        self,
-        task_ctx: TaskRunContext,
-        inputs: dict[str, Any],
-        flow_parameters: dict[str, Any],
-        **kwargs: Any,
-    ) -> Optional[str]:
-        # Include environment in cache key so dev/prod don't share cache
-        return f"{self.node.unique_id}-{self.environment}-v1"
+```markdown
+## dbt build Task Summary
 
-def custom_cache_factory(
-    project_dir: Path,
-    parser: ManifestParser,
-    node: DbtNode,
-    upstream_keys: dict[str, str],
-) -> CachePolicy:
-    """Factory function to create custom cache policies."""
-    import os
-    environment = os.getenv("DBT_ENVIRONMENT", "dev")
-    return CustomDbtCachePolicy(node=node, environment=environment)
+| Successes | Errors | Failures | Skips | Warnings |
+| :-------: | :----: | :------: | :---: | :------: |
+|    12     |   1    |    0     |   2   |    1     |
 
-@flow
-def run_with_custom_cache():
-    settings = PrefectDbtSettings(project_dir=Path("./analytics"))
+### Unsuccessful Nodes
 
-    orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
-        cache_policy_factory=custom_cache_factory,
-    )
+**stg_transactions**
+Type: model
+Message: > Database error: relation "raw.transactions" does not exist
+Path: models/staging/stg_transactions.sql
 
-    results = orchestrator.run_build()
-    return results
+### Successful Nodes
+stg_users, stg_companies, stg_cards, ...
 ```
 
-### Example 10: Handling Results and Failures
+### Per-Node Asset Tracking
+
+For models, seeds, and snapshots with a `relation_name`, the orchestrator uses `MaterializingTask`:
 
 ```python
-from prefect import flow, get_run_logger
-from prefect_dbt import PrefectDbtOrchestrator, PrefectDbtSettings
-
-@flow
-def run_and_report():
-    logger = get_run_logger()
-    settings = PrefectDbtSettings(project_dir=Path("./analytics"))
-    orchestrator = PrefectDbtOrchestrator(settings=settings)
-
-    results = orchestrator.run_build()
-
-    # Categorize results
-    succeeded = [k for k, v in results.items() if v["status"] == "success"]
-    failed = [k for k, v in results.items() if v["status"] == "error"]
-    skipped = [k for k, v in results.items() if v["status"] == "skipped"]
-
-    logger.info(f"Succeeded ({len(succeeded)}): {succeeded}")
-    logger.info(f"Skipped ({len(skipped)}): {skipped}")
-
-    if failed:
-        logger.error(f"Failed ({len(failed)}): {failed}")
-        for node_id in failed:
-            error = results[node_id].get("error", "Unknown error")
-            logger.error(f"  {node_id}: {error}")
-
-        # Optionally raise to mark flow as failed
-        raise RuntimeError(f"{len(failed)} nodes failed")
-
-    return results
-```
-
-### Example 11: Parameterized Flow for Deployment
-
-```python
-from pathlib import Path
-from prefect import flow
-from prefect_dbt import (
-    PrefectDbtOrchestrator,
-    PrefectDbtSettings,
-    TestStrategy,
-    ExecutionMode,
+# Asset created from node metadata
+asset = Asset(
+    key=format_resource_id(adapter_type, node.relation_name),  # e.g., "postgres://db.schema.table"
+    properties=AssetProperties(
+        name=node.name,
+        description=node.description + compiled_code,  # Compiled SQL if enabled
+        owners=[owner] if owner else [],               # From node meta.owner
+    ),
 )
 
-@flow(name="dbt-orchestrated-build")
-def run_dbt(
-    select: str | None = None,
-    exclude: str | None = None,
-    full_refresh: bool = False,
-    test_strategy: str = "immediate",
-    execution_mode: str = "per_node",
-    concurrency_limit: str | None = "dbt-warehouse",
-    state_path: str | None = None,
-    defer: bool = False,
-):
-    """Parameterized dbt build flow for deployment.
-
-    Deploy with:
-        prefect deploy run_dbt.py:run_dbt -n dbt-build
-
-    Trigger with:
-        prefect deployment run dbt-orchestrated-build/dbt-build \
-            --param select="marts" \
-            --param full_refresh=true
-    """
-    settings = PrefectDbtSettings(
-        project_dir=Path("./analytics"),
-        profiles_dir=Path("./profiles"),
-    )
-
-    orchestrator = PrefectDbtOrchestrator(
-        settings=settings,
-        concurrency_limit_name=concurrency_limit,
-        test_strategy=test_strategy,
-        execution_mode=execution_mode,
-        state_path=Path(state_path) if state_path else None,
-        defer=defer,
-    )
-
-    results = orchestrator.run_build(
-        select=select,
-        exclude=exclude,
-        full_refresh=full_refresh,
-    )
-
-    # Return summary for visibility in UI
-    return {
-        "total": len(results),
-        "succeeded": sum(1 for r in results.values() if r["status"] == "success"),
-        "failed": sum(1 for r in results.values() if r["status"] == "error"),
-        "skipped": sum(1 for r in results.values() if r["status"] == "skipped"),
-    }
+# Task wrapped with MaterializingTask for asset lineage
+task = MaterializingTask(
+    fn=execute_node,
+    assets=[asset],
+    asset_deps=upstream_assets,  # Assets from upstream nodes
+    materialized_by="dbt",
+)
 ```
 
-## Proposed Interfaces
-
-```python
-from __future__ import annotations
-
-from dataclasses import dataclass
-from enum import Enum
-from pathlib import Path
-from typing import Callable, Iterable, Mapping, Protocol, TypedDict
-
-from prefect.cache_policies import CachePolicy
-
-
-# Type alias for cache policy factory functions
-CachePolicyFactory = Callable[
-    [Path, "ManifestParser", "DbtNode", dict[str, str]],  # (project_dir, parser, node, upstream_keys)
-    CachePolicy
-]
-
-
-class ExecutionMode(str, Enum):
-    """Selects how execution is grouped.
-
-    - `PER_NODE`: execute each dbt node independently.
-    - `PER_WAVE`: execute dependency waves in batches.
-    """
-    PER_NODE = "per_node"
-    PER_WAVE = "per_wave"
-
-
-class TestStrategy(str, Enum):
-    """Controls when (or if) tests run relative to models.
-
-    - `IMMEDIATE`: run tests alongside models in their wave.
-    - `DEFERRED`: run tests after all non-test nodes.
-    - `SKIP`: do not execute tests.
-    """
-    IMMEDIATE = "immediate"
-    DEFERRED = "deferred"
-    SKIP = "skip"
-
-
-@dataclass
-class PrefectDbtSettings:
-    """Captures dbt project paths and runtime directories.
-
-    Attributes:
-        project_dir: Root of the dbt project.
-        profiles_dir: Directory containing dbt profiles.yml.
-        profiles_dir_required: Enforces profile directory validation.
-        target_dir: Optional override for dbt target directory.
-        log_dir: Optional override for dbt log directory.
-    """
-    project_dir: Path
-    profiles_dir: Path | None = None
-    profiles_dir_required: bool = True
-    target_dir: Path | None = None
-    log_dir: Path | None = None
-
-
-class DbtNodeResult(TypedDict):
-    """Normalized node-level execution result metadata.
-
-    Keys:
-        unique_id: dbt unique identifier for the node.
-        status: Node execution status (e.g. success, error, skipped).
-        execution_time: Runtime duration in seconds, if available.
-        message: Optional error or status message.
-        thread_id: Optional thread identifier used by dbt.
-    """
-    unique_id: str
-    status: str
-    execution_time: float | None
-    message: str | None
-    thread_id: str | None
-
-
-class DbtResults(TypedDict):
-    """Executor-level result bundle keyed by node id.
-
-    Keys:
-        results: Mapping from node id to node result metadata.
-    """
-    results: Mapping[str, DbtNodeResult]
-
-
-class DbtExecutor(Protocol):
-    """Backend abstraction for running dbt Core or dbt Cloud.
-
-    Implementations handle manifest loading and execution.
-    """
-    def get_manifest(self) -> Mapping[str, object]:
-        """Return a parsed manifest.json structure."""
-        ...
-
-    def run_nodes(
-        self,
-        node_ids: Iterable[str],
-        *,
-        threads: int | None = None,
-        target: str | None = None,
-        defer: bool = False,
-        state_path: Path | None = None,
-        full_refresh: bool = False,
-    ) -> DbtResults:
-        """Execute an explicit list of node ids.
-
-        Args:
-            node_ids: Ordered node ids to execute.
-            threads: Optional dbt thread count for this invocation.
-            target: Optional dbt target name override.
-            defer: Whether to enable dbt deferral.
-            state_path: Path to dbt state artifacts for deferral.
-            full_refresh: Whether to force full refresh for incremental nodes.
-        """
-        ...
-
-    def run_selection(
-        self,
-        selection: str,
-        *,
-        threads: int | None = None,
-        target: str | None = None,
-        defer: bool = False,
-        state_path: Path | None = None,
-        full_refresh: bool = False,
-    ) -> DbtResults:
-        """Execute a dbt selection expression.
-
-        Args:
-            selection: dbt selection string (e.g. "state:modified+").
-            threads: Optional dbt thread count for this invocation.
-            target: Optional dbt target name override.
-            defer: Whether to enable dbt deferral.
-            state_path: Path to dbt state artifacts for deferral.
-            full_refresh: Whether to force full refresh for incremental nodes.
-        """
-        ...
-
-
-class DbtCoreExecutor:
-    """Executor for dbt Core CLI execution.
-
-    Args:
-        settings: Local dbt project configuration.
-    """
-
-    def __init__(self, *, settings: PrefectDbtSettings) -> None:
-        ...
-
-
-class DbtCloudExecutor:
-    """Executor for dbt Cloud via ephemeral jobs.
-
-    Args:
-        credentials: Prefect block for dbt Cloud auth.
-        project_id: dbt Cloud project identifier.
-        environment_id: dbt Cloud environment identifier.
-    """
-
-    def __init__(
-        self,
-        *,
-        credentials: object,
-        project_id: int,
-        environment_id: int,
-    ) -> None:
-        ...
-
-
-class PrefectDbtOrchestrator:
-    """Public entry point for planning and running dbt flows.
-
-    Keyword Args:
-        settings: Local dbt project configuration.
-        executor: Optional executor override (Core or Cloud).
-            Use `DbtCloudExecutor` for dbt Cloud configuration.
-        execution_mode: Per-node or per-wave execution strategy.
-        test_strategy: Controls when tests run.
-        threads: dbt thread count for each execution call.
-        concurrency_limit_name: Prefect global concurrency limit name.
-        enable_caching: Enables per-node (or per-wave) caching.
-        cache_key_storage: Storage location for cache keys.
-        result_storage: Storage location for cached results.
-        cache_policy_factory: Factory function to create cache policies per node.
-            Use `create_freshness_aware_cache_policy` for source freshness support.
-        retries: Per-node retry count.
-        retry_delay_seconds: Delay between retries.
-        state_path: dbt state path for selection and deferral.
-        defer: Whether to defer to state artifacts.
-    """
-    def __init__(
-        self,
-        *,
-        settings: PrefectDbtSettings | None = None,
-        executor: DbtExecutor | None = None,
-        execution_mode: ExecutionMode = ExecutionMode.PER_NODE,
-        test_strategy: TestStrategy = TestStrategy.IMMEDIATE,
-        threads: int | None = None,
-        concurrency_limit_name: str | None = None,
-        enable_caching: bool = False,
-        cache_key_storage: str | None = None,
-        result_storage: str | None = None,
-        cache_policy_factory: CachePolicyFactory | None = None,
-        retries: int = 0,
-        retry_delay_seconds: int = 0,
-        state_path: Path | None = None,
-        defer: bool = False,
-    ) -> None:
-        ...
-
-    def run_build(
-        self,
-        *,
-        select: str | None = None,
-        exclude: str | None = None,
-        full_refresh: bool = False,
-        only_fresh_sources: bool = False,
-    ) -> Mapping[str, DbtNodeResult]:
-        """Run models/seeds/snapshots/tests for a selection.
-
-        Args:
-            select: dbt selection string to include.
-            exclude: dbt selection string to exclude.
-            full_refresh: Whether to full-refresh incremental models.
-            only_fresh_sources: If True, only run models whose upstream sources
-                have new data (uses dbt's `source_status:fresher+` selector).
-                Requires `state_path` to be configured for comparison.
-        """
-        ...
-
-    def run_seed(self, *, select: str | None = None) -> Mapping[str, DbtNodeResult]:
-        """Run seed nodes.
-
-        Args:
-            select: dbt selection string to include.
-        """
-        ...
-
-    def run_snapshot(
-        self, *, select: str | None = None, full_refresh: bool = False
-    ) -> Mapping[str, DbtNodeResult]:
-        """Run snapshot nodes.
-
-        Args:
-            select: dbt selection string to include.
-            full_refresh: Whether to full-refresh snapshots.
-        """
-        ...
-
-    def run_test(self, *, select: str | None = None) -> Mapping[str, DbtNodeResult]:
-        """Run test nodes.
-
-        Args:
-            select: dbt selection string to include.
-        """
-        ...
-```
-
-## Internal Interfaces (Implementation Omitted)
-
-```python
-from __future__ import annotations
-
-from dataclasses import dataclass
-from enum import Enum
-from typing import Iterable, Mapping, Protocol, Sequence, TypedDict
-
-
-class NodeKind(str, Enum):
-    """Categorizes dbt nodes for planning and test scheduling."""
-    MODEL = "model"
-    SEED = "seed"
-    SNAPSHOT = "snapshot"
-    TEST = "test"
-
-
-@dataclass
-class DbtNode:
-    """Canonical node representation derived from manifest data.
-
-    Attributes:
-        unique_id: dbt unique identifier.
-        name: Human-readable dbt node name.
-        kind: Normalized node kind.
-        depends_on: Upstream node identifiers.
-        resource_type: Raw dbt resource type string.
-    """
-    unique_id: str
-    name: str
-    kind: NodeKind
-    depends_on: Sequence[str]
-    resource_type: str
-
-
-class DbtGraph(Protocol):
-    """Provides selection, dependency, and wave planning utilities."""
-    def nodes(self) -> Mapping[str, DbtNode]:
-        """Return all nodes keyed by unique id."""
-        ...
-
-    def selection(self, select: str | None, exclude: str | None) -> Sequence[str]:
-        """Resolve select/exclude expressions to node ids."""
-        ...
-
-    def waves(self, node_ids: Iterable[str]) -> Sequence[Sequence[str]]:
-        """Group node ids into dependency waves."""
-        ...
-
-    def tests_for_nodes(self, node_ids: Iterable[str]) -> Sequence[str]:
-        """Return test node ids associated with the given nodes."""
-        ...
-
-
-class CacheKeyProvider(Protocol):
-    """Computes cache keys from node inputs and metadata."""
-    def compute_key(self, node: DbtNode) -> str:
-        """Return a deterministic cache key for a node."""
-        ...
-
-
-class ResultStore(Protocol):
-    """Reads and writes cached node results."""
-    def read(self, cache_key: str) -> DbtNodeResult | None:
-        """Return cached result if present for a key."""
-        ...
-
-    def write(self, cache_key: str, result: DbtNodeResult) -> None:
-        """Persist a node result to cache storage."""
-        ...
-
-
-class OrchestrationResult(TypedDict):
-    """Execution metadata enriched with cache and retry info.
-
-    Keys:
-        node_id: dbt node identifier.
-        status: Execution outcome for the node.
-        cached: Whether the node used cached results.
-        retries: Number of retries attempted.
-    """
-    node_id: str
-    status: str
-    cached: bool
-    retries: int
-
-
-class OrchestratorPlan(Protocol):
-    """Planned node ordering, waves, and test scheduling."""
-    def node_ids(self) -> Sequence[str]:
-        """Return the ordered node ids included in the plan."""
-        ...
-
-    def waves(self) -> Sequence[Sequence[str]]:
-        """Return node ids grouped into execution waves."""
-        ...
-
-    def tests_for_wave(self, wave: Sequence[str]) -> Sequence[str]:
-        """Return test ids that should run with or after the wave."""
-        ...
-
-
-class DbtNodeRunner(Protocol):
-    """Executes a single node in per-node mode."""
-    def run(self, node_id: str) -> DbtNodeResult:
-        """Execute a single node id and return its result."""
-        ...
-
-
-class DbtWaveRunner(Protocol):
-    """Executes a batch of nodes in per-wave mode."""
-    def run(self, node_ids: Sequence[str]) -> Mapping[str, DbtNodeResult]:
-        """Execute a wave of node ids and return per-node results."""
-        ...
-
-
-class OrchestrationEngine(Protocol):
-    """Produces execution plans and runs them."""
-    def plan(
-        self,
-        *,
-        select: str | None,
-        exclude: str | None,
-        include_tests: bool,
-    ) -> OrchestratorPlan:
-        """Build an execution plan for a selection.
-
-        Args:
-            select: dbt selection string to include.
-            exclude: dbt selection string to exclude.
-            include_tests: Whether to include tests in the plan.
-        """
-        ...
-
-    def execute(self, plan: OrchestratorPlan) -> Mapping[str, OrchestrationResult]:
-        """Execute the plan and return orchestration results."""
-        ...
-```
-
-## Architecture Flow
-
-This flow shows how user input, planning, execution, and caching interact in the per-node orchestrator. The executor swap point is the `DbtExecutor` dependency, which can be satisfied by `DbtCoreExecutor` or `DbtCloudExecutor`.
-
-```mermaid
-flowchart TD
-    UserFlow[User Flow
-run_build/select/exclude] --> Orchestrator[PrefectDbtOrchestrator]
-    Orchestrator --> Graph[DbtGraph
-manifest + selection]
-    Graph --> Plan[OrchestrationEngine.plan
-OrchestratorPlan]
-    Plan --> Executor[OrchestrationEngine.execute]
-    Executor -->|per node| NodeRunner[DbtNodeRunner]
-    Executor -->|per wave| WaveRunner[DbtWaveRunner]
-    NodeRunner --> DbtExec[DbtExecutor
-dbt core or cloud]
-    WaveRunner --> DbtExec
-    Executor --> Cache[ResultStore
-CacheKeyProvider]
-    Cache --> Executor
-    Executor --> Results[DbtNodeResult
-OrchestrationResult]
-    Results --> Orchestrator
-```
-
-## Behavior Summary
-
-- `ExecutionMode.PER_NODE` runs each node independently.
-- `ExecutionMode.PER_WAVE` batches nodes by dependency wave.
-- `TestStrategy.IMMEDIATE` runs tests in the same wave as models.
-- `TestStrategy.DEFERRED` runs tests after all model/seed/snapshot nodes.
-- `TestStrategy.SKIP` does not execute tests.
-- Caching is applied per node (or per wave when using per-wave mode).
-- Global concurrency limit is supported via `concurrency_limit_name`.
-
-## Migration Notes
-
-- Existing users can continue to use `PrefectDbtRunner` unchanged.
-- Opt in by using `PrefectDbtOrchestrator`.
-- Switching back is a code-only change.
-
-## References
-
-- Existing runner: `prefect/src/integrations/prefect-dbt/prefect_dbt/core/runner.py`
-- dbt Cloud integration: `prefect/src/integrations/prefect-dbt/prefect_dbt/cloud/`
+Asset metadata (execution details like timing, row counts) is added via `AssetContext.add_asset_metadata()` after successful execution.
+
+## Key Capabilities
+
+| Capability | Description |
+|------------|-------------|
+| **Per-node retries** | Failed models retry independently (per-node mode) |
+| **Per-node caching** | Skip unchanged models; changes propagate downstream |
+| **Freshness-based expiration** | Cache expires when source data changes (via Prefect's native expiration) |
+| **Cross-run persistence** | Configure `result_storage` for caching across flow runs |
+| **Flexible concurrency** | Use named limits or create ephemeral limits with an int |
+| **Two-level concurrency** | Prefect controls parallel nodes; `--threads` controls within-node parallelism |
+| **Test strategies** | Run tests immediately, deferred, or skip entirely |
+| **Downstream skipping** | When a node fails, downstream dependents are automatically skipped |
+| **State-based execution** | `--state`, `--defer`, `--favor-state` for efficient CI/CD |
+| **Execution modes** | Per-node (default) for retries/caching; per-wave for lower overhead |
+| **Swappable executors** | dbt Core CLI (default) or dbt Cloud ephemeral jobs |
+| **Full observability** | Each node is a distinct Prefect task with timing and status |
+| **Asset lineage** | Track dependencies in Prefect's asset graph via MaterializingTask |
+| **Summary artifact** | Markdown artifact with success/error counts and failure details |
+
+## What We're NOT Doing
+
+1. **Not replacing `PrefectDbtRunner`**: The new mode is additive
+2. **Not modifying dbt internals**: We invoke dbt correctly per-node
+3. **Not implementing snapshot SCD logic**: dbt handles this
+4. **Not implementing custom SQL compilation**: dbt compiles, we execute
+
+## Migration Path
+
+- **Existing users**: Continue using `PrefectDbtRunner` unchanged
+- **Opting in**: Use `PrefectDbtOrchestrator` for per-node control
+- **Switching**: No data migration needed—just code change
+- **Rollback**: Simply switch back to `PrefectDbtRunner`
+
+## Testing Plan
+
+### Unit Tests
+
+Located in `prefect/src/integrations/prefect-dbt/tests/core/`:
+
+- **test_manifest.py**: ManifestParser correctly parses nodes, computes waves, traces ephemeral dependencies
+- **test_cache.py**: Cache key computation, expiration logic, upstream key propagation
+- **test_executors.py**: DbtCoreExecutor invocation args, DbtCloudExecutor job lifecycle (mocked API)
+- **test_orchestrator.py**: Wave execution, failure propagation, concurrency limit handling
+
+### Integration Tests
+
+Against a DuckDB-based test project:
+
+1. **Full build**: Run orchestrator, verify all nodes execute in correct wave order
+2. **Caching**: Run twice, verify cache hits; modify SQL, verify re-execution
+3. **Failure propagation**: Inject error in staging model, verify downstream marts are skipped
+4. **Test strategies**: Verify IMMEDIATE/DEFERRED/SKIP behavior
+5. **Selector resolution**: Test `select="marts"`, `select="+model_name"`, `exclude="stg_*"`
+6. **Concurrency**: Create global limit, verify max parallel nodes respected
+
+### dbt Cloud Testing
+
+- **Mock API responses** for unit tests (job create/run/delete, artifact fetch)
+- **Optional live test** with test dbt Cloud project (gated by `DBT_CLOUD_API_KEY` env var)
+- Verify ephemeral job cleanup happens even on failure (finally block)
+
+### Manual Verification
+
+1. Run `run_analytics_orchestrated()` flow against test project
+2. Verify Prefect UI shows individual task runs per node with correct timing
+3. Verify asset lineage graph displays model dependencies
+4. Verify summary artifact contains success/failure counts and error details
+5. Test retry behavior by introducing transient failure (e.g., connection timeout)
