@@ -1412,7 +1412,7 @@ async def test_run_logger_with_explicit_context_overrides_existing(
 
 
 async def test_run_logger_in_flow(prefect_client: PrefectClient):
-    @flow(name=f"test_flow_{uuid.uuid4()}")
+    @flow
     def test_flow():
         return get_run_logger()
 
@@ -1428,7 +1428,7 @@ async def test_run_logger_in_flow(prefect_client: PrefectClient):
 
 
 async def test_run_logger_extra_data(prefect_client: PrefectClient):
-    @flow(name=f"test_flow_{uuid.uuid4()}")
+    @flow
     def test_flow():
         return get_run_logger(foo="test", flow_name="bar")
 
@@ -1445,11 +1445,11 @@ async def test_run_logger_extra_data(prefect_client: PrefectClient):
 
 
 async def test_run_logger_in_nested_flow(prefect_client: PrefectClient):
-    @flow(name=f"child_flow_{uuid.uuid4()}")
+    @flow
     def child_flow():
         return get_run_logger()
 
-    @flow(name=f"test_flow_{uuid.uuid4()}")
+    @flow
     def test_flow():
         return child_flow(return_state=True)
 
@@ -1467,11 +1467,11 @@ async def test_run_logger_in_nested_flow(prefect_client: PrefectClient):
 async def test_run_logger_in_task(
     prefect_client: PrefectClient, events_pipeline: "EventsPipeline"
 ):
-    @task(name=f"test_task_{uuid.uuid4()}")
+    @task
     def test_task():
         return get_run_logger()
 
-    @flow(name=f"test_flow_{uuid.uuid4()}")
+    @flow
     def test_flow():
         return test_task(return_state=True)
 
