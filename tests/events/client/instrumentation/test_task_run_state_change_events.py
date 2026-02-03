@@ -648,3 +648,105 @@ async def test_apply_async_emits_scheduled_event(
             "total_run_time": 0.0,
         },
     }
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+async def test_nested_task_pending_event_has_no_stale_task_run_related_resource(
+    asserting_events_worker: EventsWorker,
+    prefect_client: PrefectClient,
+    events_pipeline: Any,
+):
+    """Regression test: when task_a calls task_b (nested), task_b's Pending
+    event must not include task_a's task run ID as a related resource.
+
+    Before the fix, the Pending event was emitted before setup_run_context()
+    entered the new TaskRunContext for the inner task.  EventsWorker captures
+    context via copy_context() at emission time, so task_a's TaskRunContext
+    leaked into task_b's Pending event as a 'task-run' related resource."""
+
+    @task
+    def inner_task():
+        return "inner"
+
+    @task
+    def outer_task():
+        return inner_task()
+
+    @flow
+    def nesting_flow():
+        return outer_task()
+
+    nesting_flow()
+
+    await events_pipeline.process_events(dequeue_events=False)
+    await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+
+    task_events = [
+        event
+        for event in asserting_events_worker._client.events
+        if event.event.startswith("prefect.task-run.")
+    ]
+    # 3 events per task (Pending, Running, Completed) x 2 tasks = 6
+    assert len(task_events) == 6
+
+    # For every task event, no related resource with role "task-run" should
+    # point to a *different* task run.  The event's own task run is already
+    # the primary resource and gets excluded by the worker, so no task-run
+    # related resource should appear at all.
+    for event in task_events:
+        task_run_related = [
+            r for r in event.related if r.get("prefect.resource.role") == "task-run"
+        ]
+        assert task_run_related == [], (
+            f"{event.event} for {event.resource['prefect.resource.id']} "
+            f"has unexpected task-run related resource(s): "
+            f"{[r['prefect.resource.id'] for r in task_run_related]}"
+        )
+
+
+@pytest.mark.usefixtures("reset_worker_events")
+async def test_async_nested_task_pending_event_has_no_stale_task_run_related_resource(
+    asserting_events_worker: EventsWorker,
+    prefect_client: PrefectClient,
+    events_pipeline: Any,
+):
+    """Async variant of the stale TaskRunContext regression test.
+
+    Both SyncTaskRunEngine and AsyncTaskRunEngine were fixed, so both
+    paths need coverage."""
+
+    @task
+    async def async_inner_task():
+        return "inner"
+
+    @task
+    async def async_outer_task():
+        return await async_inner_task()
+
+    @flow
+    async def async_nesting_flow():
+        return await async_outer_task()
+
+    await async_nesting_flow()
+
+    await events_pipeline.process_events(dequeue_events=False)
+    await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+
+    task_events = [
+        event
+        for event in asserting_events_worker._client.events
+        if event.event.startswith("prefect.task-run.")
+    ]
+    assert len(task_events) == 6
+
+    for event in task_events:
+        task_run_related = [
+            r for r in event.related if r.get("prefect.resource.role") == "task-run"
+        ]
+        assert task_run_related == [], (
+            f"{event.event} for {event.resource['prefect.resource.id']} "
+            f"has unexpected task-run related resource(s): "
+            f"{[r['prefect.resource.id'] for r in task_run_related]}"
+        )
