@@ -27,6 +27,7 @@ import prefect.settings
 from prefect import flow, task
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import MissingContextError
 from prefect.logging import LogEavesdropper
@@ -435,7 +436,8 @@ class TestAPILogHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         await handler.aflush()
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 2
 
     async def test_logs_can_still_be_sent_after_flush(
@@ -450,7 +452,8 @@ class TestAPILogHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})
         await handler.aflush()
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 2
 
     async def test_sync_flush_from_async_context(
@@ -466,7 +469,8 @@ class TestAPILogHandler:
         # Yield to the worker thread
         time.sleep(2)
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 1
 
     def test_sync_flush_from_global_event_loop(
@@ -1089,7 +1093,10 @@ class TestAPILogWorker:
     ):
         worker.send(log_dict)
         await worker.drain()
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(
+            flow_run_id=LogFilterFlowRunId(any_=[uuid.UUID(log_dict["flow_run_id"])])
+        )
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 1
         assert logs[0].model_dump(include=log_dict.keys(), mode="json") == log_dict
 
@@ -1101,6 +1108,7 @@ class TestAPILogWorker:
     ):
         # Use the read limit as the count since we'd need multiple read calls otherwise
         count = prefect.settings.PREFECT_API_DEFAULT_LIMIT.value()
+        flow_run_id = uuid.UUID(log_dict["flow_run_id"])
         log_dict.pop("message")
 
         for i in range(count):
@@ -1109,7 +1117,8 @@ class TestAPILogWorker:
             worker.send(new_log)
         await worker.drain()
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == count
         for log in logs:
             assert (
@@ -1167,6 +1176,7 @@ class TestAPILogWorker:
         self, log_dict: dict[str, Any], prefect_client: PrefectClient
     ):
         # Set a long interval
+        flow_run_id = uuid.UUID(log_dict["flow_run_id"])
         start_time = time.time()
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
             worker = APILogWorker.instance()
@@ -1179,7 +1189,8 @@ class TestAPILogWorker:
             end_time - start_time
         ) < 5  # An arbitrary time less than the 10s interval
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 2
 
     async def test_logs_are_sent_immediately_when_flushed(
@@ -1189,6 +1200,7 @@ class TestAPILogWorker:
         worker: APILogWorker,
     ):
         # Set a long interval
+        flow_run_id = uuid.UUID(log_dict["flow_run_id"])
         start_time = time.time()
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "10"}):
             worker.send(log_dict)
@@ -1200,7 +1212,8 @@ class TestAPILogWorker:
             end_time - start_time
         ) < 5  # An arbitrary time less than the 10s interval
 
-        logs = await prefect_client.read_logs()
+        log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        logs = await prefect_client.read_logs(log_filter=log_filter)
         assert len(logs) == 2
 
     async def test_logs_include_worker_id_if_available(
