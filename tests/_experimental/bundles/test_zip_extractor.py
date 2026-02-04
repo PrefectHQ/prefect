@@ -443,3 +443,138 @@ class TestZipExtractorTypeMismatch:
         # Verify no files were extracted
         assert not (target_dir / "goodfile.txt").exists()
         assert extractor._extracted is False
+
+
+class TestZipExtractorCleanup:
+    """Tests for cleanup() method behavior."""
+
+    @pytest.fixture
+    def create_test_zip(self, tmp_path: Path):
+        """Factory fixture to create test zip files."""
+
+        def _create(files: dict[str, str]) -> Path:
+            """Create a zip with the given files. Keys are paths, values are content."""
+            zip_path = tmp_path / "test.zip"
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                for path, content in files.items():
+                    zf.writestr(path, content)
+            return zip_path
+
+        return _create
+
+    def test_cleanup_deletes_zip_file(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """Zip file is deleted after cleanup."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"file.txt": "content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        extractor.extract(target_dir)
+        assert zip_path.exists()
+
+        extractor.cleanup()
+        assert not zip_path.exists()
+
+    def test_cleanup_only_after_successful_extract(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """Cleanup skips deletion if extraction not completed."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"file.txt": "content"})
+
+        extractor = ZipExtractor(zip_path)
+        # Don't call extract
+        extractor.cleanup()
+
+        # Zip should still exist
+        assert zip_path.exists()
+
+    def test_cleanup_logs_warning_if_not_extracted(
+        self,
+        tmp_path: Path,
+        create_test_zip: callable,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Warning is logged when cleanup called before extract."""
+        import logging
+
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"file.txt": "content"})
+
+        extractor = ZipExtractor(zip_path)
+        with caplog.at_level(logging.WARNING):
+            extractor.cleanup()
+
+        assert "extraction not completed" in caplog.text.lower()
+
+    def test_cleanup_logs_warning_on_delete_failure(
+        self,
+        tmp_path: Path,
+        create_test_zip: callable,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Warning is logged if deletion fails (doesn't raise)."""
+        import logging
+        from unittest.mock import patch
+
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"file.txt": "content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        extractor.extract(target_dir)
+
+        # Mock unlink to raise OSError
+        with (
+            patch.object(zip_path, "unlink", side_effect=OSError("Permission denied")),
+            caplog.at_level(logging.WARNING),
+        ):
+            # Should not raise
+            extractor.cleanup()
+
+        assert "Failed to delete" in caplog.text
+
+    def test_cleanup_safe_to_call_multiple_times(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """Multiple cleanup calls don't raise."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"file.txt": "content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        extractor.extract(target_dir)
+
+        # Call cleanup multiple times - should not raise
+        extractor.cleanup()
+        extractor.cleanup()
+        extractor.cleanup()
+
+    def test_cleanup_handles_missing_file(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """No error if zip file was already deleted."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"file.txt": "content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        extractor.extract(target_dir)
+
+        # Delete file manually before cleanup
+        zip_path.unlink()
+
+        # Should not raise
+        extractor.cleanup()
