@@ -746,8 +746,9 @@ class TestFlowRetries:
     ):
         child_flow_run_count = 0
         flow_run_count = 0
+        child_flow_name = f"child-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=child_flow_name)
         def child_flow():
             nonlocal child_flow_run_count
             child_flow_run_count += 1
@@ -781,7 +782,7 @@ class TestFlowRetries:
             child_state.state_details.flow_run_id
         )
         child_flow_runs = sync_prefect_client.read_flow_runs(
-            flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[child_flow_name])),
             sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
 
@@ -1323,12 +1324,17 @@ class TestPauseFlowRun:
         assert len(task_runs) == 2, "only two tasks should have completed"
 
     async def test_paused_flows_can_be_resumed(self, prefect_client, events_pipeline):
+        flow_run_id = None
+
         @task
         async def foo():
             return 42
 
         @flow
         async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
             await foo()
             await foo()
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
@@ -1338,16 +1344,22 @@ class TestPauseFlowRun:
             await foo()
 
         async def flow_resumer():
-            await anyio.sleep(3)
-            flow_runs = await prefect_client.read_flow_runs(limit=1)
-            active_flow_run = flow_runs[0]
-            await resume_flow_run(active_flow_run.id)
+            # Wait for the flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait for the flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await anyio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            await resume_flow_run(flow_run_id)
 
         flow_run_state, the_answer = await asyncio.gather(
             pausing_flow(return_state=True),
             flow_resumer(),
         )
-        flow_run_id = flow_run_state.state_details.flow_run_id
         await events_pipeline.process_events()
         task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
