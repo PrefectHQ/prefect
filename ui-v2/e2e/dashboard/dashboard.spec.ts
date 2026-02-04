@@ -203,22 +203,22 @@ test.describe("Dashboard Page", () => {
 			await waitForDashboardReady(page);
 
 			// --- VERIFY: Date range selector is visible ---
-			// The RichDateRangeSelector component shows "Last 24 hours" by default
+			// The RichDateRangeSelector component shows "Past day" by default (86400 seconds)
 			await expect(
-				page.getByRole("button", { name: /last 24 hours|select a time span/i }),
+				page.getByRole("button", { name: /past day|select a time span/i }),
 			).toBeVisible();
 
 			// --- ACTION: Open date range selector and change to a different range ---
 			await page
-				.getByRole("button", { name: /last 24 hours|select a time span/i })
+				.getByRole("button", { name: /past day|select a time span/i })
 				.click();
 
-			// Select "Last 7 days" option (7 days = 604800 seconds)
-			const last7DaysOption = page.getByRole("option", {
-				name: /last 7 days/i,
+			// Select "Past 7 days" option (7 days = 604800 seconds)
+			const past7DaysOption = page.getByRole("button", {
+				name: /past 7 days/i,
 			});
-			if (await last7DaysOption.isVisible()) {
-				await last7DaysOption.click();
+			if (await past7DaysOption.isVisible()) {
+				await past7DaysOption.click();
 				// --- VERIFY: URL updates with new time span ---
 				await expect(page).toHaveURL(/seconds=-604800|rangeType=span/);
 			} else {
