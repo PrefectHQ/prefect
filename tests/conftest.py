@@ -187,6 +187,18 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/test_variables.py",
     "tests/test_futures.py",
     "tests/test_logging.py",
+    # Phase 5 - Top-level test files with UUID-based randomization
+    "tests/test_artifacts.py",
+    "tests/test_assets.py",
+    "tests/test_automations.py",
+    "tests/test_background_tasks.py",
+    "tests/test_context.py",
+    "tests/test_flow_engine.py",
+    "tests/test_infrastructure_bound_flow.py",
+    "tests/test_task_engine.py",
+    "tests/test_task_worker.py",
+    "tests/test_tasks.py",
+    "tests/test_waiters.py",
 ]
 
 
