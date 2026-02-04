@@ -395,3 +395,186 @@ def resolve_with_symlink_check(
         )
 
     return resolved
+
+
+class PathResolver:
+    """
+    Path resolver with caching for efficient repeated resolution.
+
+    Usage:
+        resolver = PathResolver(base_dir=Path("/project/flows"))
+        result = resolver.resolve_all(["config.yaml", "data/input.csv"])
+        if result.has_errors:
+            # Handle errors
+        else:
+            # Use result.valid_paths
+    """
+
+    def __init__(self, base_dir: Path):
+        """
+        Initialize resolver with base directory.
+
+        Args:
+            base_dir: Base directory for path resolution (typically flow file's parent)
+        """
+        self.base_dir = base_dir.resolve()
+        self._cache: dict[str, Path] = {}
+        self._error_cache: dict[str, PathValidationError] = {}
+
+    def resolve(self, user_path: str) -> Path:
+        """
+        Resolve a single path with caching.
+
+        Args:
+            user_path: User-provided relative path
+
+        Returns:
+            Resolved Path
+
+        Raises:
+            PathValidationError: If validation fails
+        """
+        # Check error cache first
+        if user_path in self._error_cache:
+            raise self._error_cache[user_path]
+
+        # Check success cache
+        if user_path in self._cache:
+            return self._cache[user_path]
+
+        # Perform resolution
+        try:
+            resolved = self._do_resolve(user_path)
+            self._cache[user_path] = resolved
+            return resolved
+        except PathValidationError as e:
+            self._error_cache[user_path] = e
+            raise
+
+    def _do_resolve(self, user_path: str) -> Path:
+        """Internal resolution logic."""
+        # 1. Input validation
+        validate_path_input(user_path)
+
+        # 2. Normalize separators
+        normalized = normalize_path_separator(user_path)
+
+        # 3. Construct and resolve path
+        target = self.base_dir / normalized
+
+        # 4. Check if path involves symlinks and use appropriate resolver
+        if target.is_symlink() or any(
+            p.is_symlink() for p in target.parents if p != self.base_dir
+        ):
+            return resolve_with_symlink_check(target, self.base_dir)
+        else:
+            return resolve_secure_path(user_path, self.base_dir)
+
+    def resolve_all(self, paths: list[str]) -> PathValidationResult:
+        """
+        Resolve multiple paths, collecting all errors.
+
+        Per user requirements: Collect all errors before failing.
+        Does NOT stop on first error.
+
+        Args:
+            paths: List of user-provided paths
+
+        Returns:
+            PathValidationResult with valid_paths and errors
+        """
+        result = PathValidationResult()
+
+        # Check for duplicates first
+        duplicates = check_for_duplicates(paths)
+        for dup in duplicates:
+            result.errors.append(
+                PathValidationError(
+                    input_path=dup,
+                    resolved_path=None,
+                    error_type="duplicate",
+                    message=f"Duplicate path in input: {dup!r}",
+                    suggestion="Remove duplicate paths from include_files",
+                )
+            )
+
+        # Resolve each unique path
+        seen: set[str] = set()
+        for path in paths:
+            normalized = normalize_path_separator(path)
+            if normalized in seen:
+                continue  # Skip duplicates (already reported)
+            seen.add(normalized)
+
+            try:
+                resolved = self.resolve(path)
+                result.valid_paths.append(resolved)
+            except PathValidationError as e:
+                result.errors.append(e)
+
+        return result
+
+    def clear_cache(self) -> None:
+        """Clear resolution caches."""
+        self._cache.clear()
+        self._error_cache.clear()
+
+
+def resolve_paths(
+    paths: list[str],
+    base_dir: Path,
+    raise_on_errors: bool = True,
+) -> PathValidationResult:
+    """
+    Resolve multiple paths relative to a base directory.
+
+    This is the main entry point for path resolution. It:
+    1. Validates all paths for security issues
+    2. Checks for duplicates
+    3. Resolves paths relative to base_dir
+    4. Collects ALL errors before optionally raising
+
+    Args:
+        paths: List of user-provided paths (files, directories, patterns for Phase 2)
+        base_dir: Base directory for resolution (flow file's parent directory)
+        raise_on_errors: If True, raise PathResolutionError when any validation fails.
+                        If False, return result with errors for inspection.
+
+    Returns:
+        PathValidationResult containing valid_paths and errors
+
+    Raises:
+        PathResolutionError: If raise_on_errors=True and any validation fails
+
+    Example:
+        # With raising (default)
+        result = resolve_paths(["config.yaml", "data/"], flow_dir)
+
+        # Without raising (for inspection)
+        result = resolve_paths(["config.yaml", "missing.txt"], flow_dir, raise_on_errors=False)
+        if result.has_errors:
+            for error in result.errors:
+                print(f"Warning: {error.message}")
+    """
+    resolver = PathResolver(base_dir)
+    result = resolver.resolve_all(paths)
+
+    if raise_on_errors and result.has_errors:
+        result.raise_if_errors()
+
+    return result
+
+
+__all__ = [
+    "PathValidationError",
+    "PathValidationResult",
+    "PathResolutionError",
+    "PathResolver",
+    "resolve_paths",
+    "resolve_secure_path",
+    "resolve_with_symlink_check",
+    "validate_path_input",
+    "check_for_duplicates",
+    "normalize_path_separator",
+    "MAX_SYMLINK_DEPTH",
+]
