@@ -621,7 +621,10 @@ def convert_step_to_command(
 
 
 def upload_bundle_to_storage(
-    bundle: SerializedBundle, key: str, upload_command: list[str]
+    bundle: SerializedBundle,
+    key: str,
+    upload_command: list[str],
+    zip_path: Path | None = None,
 ) -> None:
     """
     Uploads a bundle to storage.
@@ -630,11 +633,21 @@ def upload_bundle_to_storage(
         bundle: The serialized bundle to upload.
         key: The key to use for the remote file when uploading.
         upload_command: The command to use to upload the bundle as a list of strings.
+        zip_path: Optional path to sidecar zip file. If provided, uploads alongside
+            the bundle using the bundle's files_key as the storage key.
     """
+    import shutil
+
     # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
     # via the upload command
     with tempfile.TemporaryDirectory() as temp_dir:
         Path(temp_dir).joinpath(key).write_bytes(json.dumps(bundle).encode("utf-8"))
+
+        # Copy sidecar zip if present
+        if zip_path and bundle.get("files_key"):
+            sidecar_dest = Path(temp_dir) / bundle["files_key"]
+            sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(zip_path, sidecar_dest)
 
         try:
             full_command = upload_command + [key]
@@ -643,12 +656,28 @@ def upload_bundle_to_storage(
                 full_command,
                 cwd=temp_dir,
             )
+
+            # Upload sidecar if present
+            if zip_path and bundle.get("files_key"):
+                sidecar_command = upload_command + [bundle["files_key"]]
+                logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
+                subprocess.check_call(
+                    sidecar_command,
+                    cwd=temp_dir,
+                )
+                logger.info(
+                    "Successfully uploaded sidecar zip: %s", bundle["files_key"]
+                )
+
         except subprocess.CalledProcessError as e:
             raise RuntimeError(e.stderr.decode("utf-8")) from e
 
 
 async def aupload_bundle_to_storage(
-    bundle: SerializedBundle, key: str, upload_command: list[str]
+    bundle: SerializedBundle,
+    key: str,
+    upload_command: list[str],
+    zip_path: Path | None = None,
 ) -> None:
     """
     Asynchronously uploads a bundle to storage.
@@ -657,7 +686,11 @@ async def aupload_bundle_to_storage(
         bundle: The serialized bundle to upload.
         key: The key to use for the remote file when uploading.
         upload_command: The command to use to upload the bundle as a list of strings.
+        zip_path: Optional path to sidecar zip file. If provided, uploads alongside
+            the bundle using the bundle's files_key as the storage key.
     """
+    import shutil
+
     # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
     # via the upload command
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -667,6 +700,12 @@ async def aupload_bundle_to_storage(
             .write_bytes(json.dumps(bundle).encode("utf-8"))
         )
 
+        # Copy sidecar zip if present
+        if zip_path and bundle.get("files_key"):
+            sidecar_dest = Path(temp_dir) / bundle["files_key"]
+            sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(zip_path, sidecar_dest)
+
         try:
             full_command = upload_command + [key]
             logger.debug("Uploading execution bundle with command: %s", full_command)
@@ -674,6 +713,19 @@ async def aupload_bundle_to_storage(
                 full_command,
                 cwd=temp_dir,
             )
+
+            # Upload sidecar if present
+            if zip_path and bundle.get("files_key"):
+                sidecar_command = upload_command + [bundle["files_key"]]
+                logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
+                await anyio.run_process(
+                    sidecar_command,
+                    cwd=temp_dir,
+                )
+                logger.info(
+                    "Successfully uploaded sidecar zip: %s", bundle["files_key"]
+                )
+
         except subprocess.CalledProcessError as e:
             raise RuntimeError(e.stderr.decode("utf-8")) from e
 
