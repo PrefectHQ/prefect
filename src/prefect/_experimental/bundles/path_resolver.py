@@ -2,14 +2,19 @@
 Path resolution and validation utilities for bundles.
 
 This module provides functions for validating user-provided paths
-before resolution and collection. All validation is performed on
-the path strings without filesystem access.
+before resolution and collection. Includes input validation (no filesystem
+access) and symlink resolution with security checks.
 """
 
 from __future__ import annotations
 
+import errno
 from dataclasses import dataclass, field
 from pathlib import Path
+
+# Maximum depth for symlink chain traversal.
+# Provides defense-in-depth alongside OS-level ELOOP protection.
+MAX_SYMLINK_DEPTH = 10
 
 
 class PathValidationError(Exception):
@@ -221,3 +226,107 @@ def normalize_path_separator(path: str) -> str:
         Path string with all backslashes converted to forward slashes.
     """
     return path.replace("\\", "/")
+
+
+def resolve_with_symlink_check(
+    path: Path,
+    base_dir: Path,
+    max_depth: int = MAX_SYMLINK_DEPTH,
+) -> Path:
+    """
+    Resolve path with explicit symlink chain depth limit.
+
+    This provides defense-in-depth alongside OS-level ELOOP protection.
+    Symlinks are followed, but the final resolved path must be within base_dir.
+
+    Args:
+        path: Path to resolve (may contain symlinks)
+        base_dir: Base directory for containment check
+        max_depth: Maximum symlink chain depth (default: 10)
+
+    Returns:
+        Resolved path (symlinks followed)
+
+    Raises:
+        PathValidationError: If symlink chain too deep, broken, or escapes base dir
+    """
+    resolved_base = base_dir.resolve()
+    current = path
+    depth = 0
+    seen_paths: set[Path] = set()
+
+    # Manual symlink chain traversal for depth limiting
+    while current.is_symlink():
+        # Circular reference check
+        if current in seen_paths:
+            raise PathValidationError(
+                input_path=str(path),
+                resolved_path=str(current),
+                error_type="symlink_loop",
+                message="Circular symlink detected",
+                suggestion="Check for circular symlinks in your project",
+            )
+        seen_paths.add(current)
+
+        # Depth check
+        if depth >= max_depth:
+            raise PathValidationError(
+                input_path=str(path),
+                resolved_path=str(current),
+                error_type="symlink_loop",
+                message=f"Symlink chain exceeded {max_depth} levels",
+                suggestion="Check for circular symlinks in your project",
+            )
+
+        # Read symlink target
+        try:
+            target = current.readlink()
+        except OSError as e:
+            raise PathValidationError(
+                input_path=str(path),
+                resolved_path=str(current),
+                error_type="broken_symlink",
+                message=f"Cannot read symlink: {e}",
+                suggestion="Check that the symlink target exists",
+            )
+
+        # Resolve relative symlinks relative to symlink's parent
+        if not target.is_absolute():
+            target = current.parent / target
+
+        current = target
+        depth += 1
+
+    # Final resolution with existence check
+    try:
+        resolved = current.resolve(strict=True)
+    except FileNotFoundError:
+        raise PathValidationError(
+            input_path=str(path),
+            resolved_path=str(current),
+            error_type="broken_symlink",
+            message="Symlink target does not exist",
+            suggestion="Check that the symlink points to an existing file",
+        )
+    except OSError as e:
+        if e.errno == errno.ELOOP:
+            raise PathValidationError(
+                input_path=str(path),
+                resolved_path=None,
+                error_type="symlink_loop",
+                message="Circular symlink detected by OS",
+                suggestion="Check for circular symlinks in your project",
+            )
+        raise
+
+    # Containment check on final resolved path
+    if not resolved.is_relative_to(resolved_base):
+        raise PathValidationError(
+            input_path=str(path),
+            resolved_path=str(resolved),
+            error_type="traversal",
+            message="Symlink resolves outside base directory",
+            suggestion="Symlinks must point to files within the flow file's directory",
+        )
+
+    return resolved
