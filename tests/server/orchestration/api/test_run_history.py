@@ -969,9 +969,11 @@ async def test_flow_run_lateness(client, session):
     # Scheduled runs estimated lateness can be 'off' by up to
     # a second based on how we estimate the 'current' time used by the api.
     # Calculate tolerance based on API request latency to avoid flakes.
+    # We multiply test_elapsed by 2 because there are 2 scheduled runs,
+    # and each one's lateness is affected by the API latency.
     fudge_seconds = 2.0  # Compensates for SQLite's lack of microseconds
     test_elapsed = (datetime.now(timezone.utc) - request_time).total_seconds()
-    tolerance = fudge_seconds + test_elapsed  # SQLite precision + API latency
+    tolerance = fudge_seconds + 2 * test_elapsed  # SQLite precision + 2x API latency
 
     assert (
         abs(
