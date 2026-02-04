@@ -84,13 +84,16 @@ test.describe("Dashboard Page", () => {
 
 			// --- VERIFY: Flow Runs card displays data ---
 			await expect(page.getByText("Flow Runs")).toBeVisible();
-			// Total count should reflect our created runs
-			await expect(page.getByText(/\d+ total/)).toBeVisible();
-			// State tabs should be visible
-			await expect(page.getByRole("tablist")).toBeVisible();
+
+			// Wait for state tabs to be visible (indicates data has loaded)
+			await expect(page.getByRole("tablist")).toBeVisible({ timeout: 10000 });
 			await expect(page.getByRole("tab", { name: /failed/i })).toBeVisible();
 			await expect(page.getByRole("tab", { name: /running/i })).toBeVisible();
 			await expect(page.getByRole("tab", { name: /completed/i })).toBeVisible();
+
+			// Total count is only shown when count > 0, so check it's visible after tabs load
+			// Use a longer timeout since count queries may take time to complete
+			await expect(page.getByText(/\d+ total/)).toBeVisible({ timeout: 10000 });
 
 			// --- VERIFY: Task Runs card is visible ---
 			await expect(page.getByText("Task Runs")).toBeVisible();
