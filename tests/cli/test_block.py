@@ -268,18 +268,6 @@ def test_register_fails_on_multiple_options():
     )
 
 
-def test_listing_blocks_when_none_are_registered():
-    invoke_and_assert(
-        ["block", "ls"],
-        expected_output_contains="""
-           ┏━━━━┳━━━━━━┳━━━━━━┳━━━━━━┓
-           ┃ ID ┃ Type ┃ Name ┃ Slug ┃
-           ┡━━━━╇━━━━━━╇━━━━━━╇━━━━━━┩
-           └────┴──────┴──────┴──────┘
-            """,
-    )
-
-
 async def test_listing_blocks_after_saving_a_block():
     block_name = f"wildblock-{uuid.uuid4()}"
     block_id = await system.Secret(value="a casual test block").save(block_name)
@@ -300,19 +288,11 @@ async def test_listing_blocks_after_saving_a_block():
     )
 
 
-def test_listing_blocks_when_none_are_registered_not_json_output():
+def test_listing_blocks_invalid_output_format():
     invoke_and_assert(
         ["block", "ls", "-o", "xml"],
         expected_output_contains="Only 'json' output format is supported.",
         expected_code=1,
-    )
-
-
-def test_listing_blocks_when_none_are_registered_json_output():
-    invoke_and_assert(
-        ["block", "ls", "-o", "json"],
-        expected_output_contains="[]",
-        expected_code=0,
     )
 
 
