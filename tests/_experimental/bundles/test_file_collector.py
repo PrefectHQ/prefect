@@ -593,3 +593,264 @@ class TestFileCollectorDirectory:
         assert len(result.files) == 0
         assert len(result.warnings) == 1
         assert "nonexistent" in result.warnings[0]
+
+
+class TestFileCollectorGlob:
+    """Tests for FileCollector glob pattern matching."""
+
+    def test_collect_glob_star_matches_files_in_base_dir(self, tmp_path):
+        """Test that *.json matches .json files in base directory."""
+        # Setup: create json files
+        (tmp_path / "a.json").write_text("{}")
+        (tmp_path / "b.json").write_text("{}")
+        (tmp_path / "c.txt").write_text("not json")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.json"])
+
+        # Should match both json files
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"a.json", "b.json"}
+        assert result.warnings == []
+
+    def test_collect_glob_recursive_matches_nested_files(self, tmp_path):
+        """Test that **/*.csv matches .csv files in any subdirectory."""
+        # Setup: create nested csv files
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "x.csv").write_text("col1,col2")
+
+        nested_dir = tmp_path / "nested" / "deep"
+        nested_dir.mkdir(parents=True)
+        (nested_dir / "y.csv").write_text("col1,col2")
+
+        # Also create csv at root (should not match **/*.csv per gitwildmatch)
+        (tmp_path / "root.csv").write_text("col1,col2")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["**/*.csv"])
+
+        # Should match nested csv files (gitwildmatch **/ matches any directory)
+        file_names = {f.name for f in result.files}
+        assert "x.csv" in file_names
+        assert "y.csv" in file_names
+
+    def test_collect_glob_subdir_pattern(self, tmp_path):
+        """Test that data/*.txt matches .txt files directly in data/."""
+        # Setup: create txt files
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "a.txt").write_text("a")
+        (data_dir / "b.txt").write_text("b")
+
+        # Nested file should NOT match data/*.txt
+        nested = data_dir / "sub"
+        nested.mkdir()
+        (nested / "c.txt").write_text("c")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/*.txt"])
+
+        # Should only match direct children
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"a.txt", "b.txt"}
+
+    def test_collect_glob_question_mark_wildcard(self, tmp_path):
+        """Test that ?? matches exactly two characters."""
+        # Setup: create files with varying name lengths
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "ab.txt").write_text("ab")  # matches
+        (data_dir / "cd.txt").write_text("cd")  # matches
+        (data_dir / "a.txt").write_text("a")  # doesn't match (1 char)
+        (data_dir / "abc.txt").write_text("abc")  # doesn't match (3 chars)
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/??.txt"])
+
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"ab.txt", "cd.txt"}
+
+    def test_collect_glob_zero_matches_produces_warning(self, tmp_path):
+        """Test that glob matching no files adds warning."""
+        # Setup: create files that don't match pattern
+        (tmp_path / "file.txt").write_text("content")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.missing"])
+
+        # Should have warning, no files
+        assert len(result.files) == 0
+        assert len(result.warnings) == 1
+        assert "*.missing" in result.warnings[0]
+        assert "matched no files" in result.warnings[0].lower()
+
+    def test_collect_glob_excludes_hidden_files(self, tmp_path):
+        """Test that glob results exclude hidden files."""
+        # Setup: create visible and hidden files
+        (tmp_path / "visible.txt").write_text("visible")
+        (tmp_path / ".hidden.txt").write_text("hidden")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.txt"])
+
+        # Should only match visible file
+        assert len(result.files) == 1
+        assert result.files[0].name == "visible.txt"
+
+    def test_collect_glob_excludes_files_in_hidden_dirs(self, tmp_path):
+        """Test that glob results exclude files in hidden directories."""
+        # Setup: create files in visible and hidden directories
+        visible = tmp_path / "visible"
+        visible.mkdir()
+        (visible / "file.txt").write_text("visible")
+
+        hidden = tmp_path / ".hidden"
+        hidden.mkdir()
+        (hidden / "file.txt").write_text("hidden")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["**/*.txt"])
+
+        # Should only match file in visible directory
+        assert len(result.files) == 1
+        assert "visible" in str(result.files[0])
+
+    def test_collect_glob_excludes_pycache(self, tmp_path):
+        """Test that glob results exclude __pycache__ directories."""
+        # Setup: create files including in __pycache__
+        (tmp_path / "module.py").write_text("# module")
+        pycache = tmp_path / "__pycache__"
+        pycache.mkdir()
+        (pycache / "module.cpython-312.pyc").write_text("bytecode")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["**/*"])
+
+        # Should not include pycache contents
+        file_paths = [str(f) for f in result.files]
+        assert not any("__pycache__" in p for p in file_paths)
+        assert any("module.py" in p for p in file_paths)
+
+    def test_collect_glob_excludes_node_modules(self, tmp_path):
+        """Test that glob results exclude node_modules directory."""
+        # Setup: create files including in node_modules
+        (tmp_path / "index.js").write_text("// index")
+        node_modules = tmp_path / "node_modules"
+        node_modules.mkdir()
+        (node_modules / "dep.js").write_text("// dep")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["**/*.js"])
+
+        # Should not include node_modules contents
+        assert len(result.files) == 1
+        assert result.files[0].name == "index.js"
+
+    def test_collect_glob_excludes_venv(self, tmp_path):
+        """Test that glob results exclude .venv and venv directories."""
+        # Setup: create files including in virtual environments
+        (tmp_path / "app.py").write_text("# app")
+
+        venv = tmp_path / ".venv"
+        venv.mkdir()
+        (venv / "pyvenv.cfg").write_text("home = /usr/bin")
+
+        venv2 = tmp_path / "venv"
+        venv2.mkdir()
+        (venv2 / "pyvenv.cfg").write_text("home = /usr/bin")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["**/*"])
+
+        # Should not include venv contents
+        file_paths = [str(f) for f in result.files]
+        assert not any(".venv" in p for p in file_paths)
+        assert not any("/venv/" in p or p.endswith("/venv") for p in file_paths)
+        assert any("app.py" in p for p in file_paths)
+
+    def test_collect_glob_excludes_git_directory(self, tmp_path):
+        """Test that glob results exclude .git directory."""
+        # Setup: create files including in .git
+        (tmp_path / "file.txt").write_text("content")
+
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        (git_dir / "config").write_text("[core]")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["**/*"])
+
+        # Should not include .git contents (also hidden, but specifically excluded)
+        file_paths = [str(f) for f in result.files]
+        assert not any(".git" in p for p in file_paths)
+
+    def test_collect_multiple_glob_patterns(self, tmp_path):
+        """Test collecting with multiple glob patterns."""
+        # Setup: create various files
+        (tmp_path / "a.json").write_text("{}")
+        (tmp_path / "b.yaml").write_text("key: value")
+        (tmp_path / "c.txt").write_text("text")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.json", "*.yaml"])
+
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"a.json", "b.yaml"}
+
+    def test_collect_glob_with_bracket_character_class(self, tmp_path):
+        """Test that [abc] character class works in glob patterns."""
+        # Setup: create files
+        (tmp_path / "file_a.txt").write_text("a")
+        (tmp_path / "file_b.txt").write_text("b")
+        (tmp_path / "file_c.txt").write_text("c")
+        (tmp_path / "file_d.txt").write_text("d")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["file_[ab].txt"])
+
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"file_a.txt", "file_b.txt"}
+
+    def test_collect_glob_not_negation_pattern(self, tmp_path):
+        """Test that patterns starting with ! are not treated as globs."""
+        # A pattern like !*.txt is negation (handled in 02-04), not glob
+        # This test verifies glob detection skips negation patterns
+        (tmp_path / "file.txt").write_text("content")
+
+        collector = FileCollector(tmp_path)
+        # This should NOT be treated as a glob - it's a negation pattern
+        # For now it will fail (file not found) since negation isn't implemented
+        result = collector.collect(["!file.txt"])
+
+        # Should produce warning about pattern matching no files
+        # (since !file.txt as a literal file doesn't exist)
+        assert len(result.files) == 0
+        assert len(result.warnings) == 1
+
+    def test_collect_glob_tracks_pattern(self, tmp_path):
+        """Test that glob pattern is tracked in patterns_matched."""
+        (tmp_path / "a.json").write_text("{}")
+        (tmp_path / "b.json").write_text("{}")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.json"])
+
+        assert "*.json" in result.patterns_matched
+        assert len(result.patterns_matched["*.json"]) == 2
+
+    def test_collect_glob_deduplicates_with_explicit_file(self, tmp_path):
+        """Test that glob and explicit file don't duplicate."""
+        (tmp_path / "data.json").write_text("{}")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data.json", "*.json"])
+
+        # File should only appear once
+        assert len(result.files) == 1
+        assert result.files[0].name == "data.json"
