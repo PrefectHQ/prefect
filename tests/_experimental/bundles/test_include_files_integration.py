@@ -7,6 +7,7 @@ through bundle creation, upload, download, extraction, and flow execution.
 
 from __future__ import annotations
 
+import json
 import zipfile
 from pathlib import Path
 
@@ -199,3 +200,83 @@ class TestIncludeFilesIntegration:
             assert not (work_dir / "data" / "lookup.json").exists()
         finally:
             builder.cleanup()
+
+    def test_simulated_bundle_execution_flow(
+        self, project_dir: Path, tmp_path: Path
+    ) -> None:
+        """Simulate complete flow: collect -> zip -> 'upload' -> 'download' -> extract."""
+        from prefect._experimental.bundles.file_collector import FileCollector
+        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # === Development Environment ===
+
+        # Collect files
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/"])
+
+        # Build zip
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        # Create bundle metadata (simulating create_bundle_for_flow_run)
+        bundle = {
+            "function": "serialized_flow",
+            "context": "serialized_context",
+            "flow_run": {"id": "test-run-123"},
+            "dependencies": "prefect>=2.0",
+            "files_key": zip_result.storage_key,
+        }
+
+        # Simulate "upload" - just keep references
+        uploaded_bundle = json.dumps(bundle).encode()
+        uploaded_zip = zip_result.zip_path.read_bytes()
+
+        builder.cleanup()
+
+        # === Execution Environment ===
+
+        execution_dir = tmp_path / "execution"
+        execution_dir.mkdir()
+
+        # Simulate "download" bundle
+        bundle_path = execution_dir / "bundle.json"
+        bundle_path.write_bytes(uploaded_bundle)
+
+        # Parse bundle
+        downloaded_bundle = json.loads(bundle_path.read_bytes())
+
+        # Check for files_key and "download" zip
+        files_key = downloaded_bundle.get("files_key")
+        assert files_key is not None
+        assert files_key.startswith("files/")
+
+        # Simulate "download" zip
+        zip_path = execution_dir / "files.zip"
+        zip_path.write_bytes(uploaded_zip)
+
+        # Extract to working directory
+        work_dir = execution_dir / "work"
+        work_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        extractor.extract(work_dir)
+        extractor.cleanup()
+
+        # === Verification ===
+
+        # Files should be available at same relative paths
+        assert (work_dir / "config.yaml").exists()
+        assert (work_dir / "data" / "input.csv").exists()
+        assert (work_dir / "data" / "lookup.json").exists()
+
+        # Content should match original
+        assert (work_dir / "config.yaml").read_text() == (
+            project_dir / "config.yaml"
+        ).read_text()
+        assert (work_dir / "data" / "input.csv").read_text() == (
+            project_dir / "data" / "input.csv"
+        ).read_text()
+
+        # Zip should be cleaned up
+        assert not zip_path.exists()
