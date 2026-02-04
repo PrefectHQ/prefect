@@ -669,3 +669,73 @@ class TestInfrastructureBoundFlow:
         retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
         assert retried_flow_run.state is not None
         assert retried_flow_run.state.type == StateType.PENDING
+
+    def test_include_files_defaults_to_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files defaults to None when not provided."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        assert infrastructure_bound_flow.include_files is None
+
+    def test_include_files_with_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files stores the provided list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["config.yaml", "data/*.json"],
+        )
+
+        assert infrastructure_bound_flow.include_files == ["config.yaml", "data/*.json"]
+
+    def test_include_files_with_empty_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files stores empty list when provided."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=[],
+        )
+
+        assert infrastructure_bound_flow.include_files == []
+
+    def test_include_files_tuple_converted_to_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files converts tuple to list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=("config.yaml", "data.txt"),
+        )
+
+        assert infrastructure_bound_flow.include_files == ["config.yaml", "data.txt"]
+        assert isinstance(infrastructure_bound_flow.include_files, list)
