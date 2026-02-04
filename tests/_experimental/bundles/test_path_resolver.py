@@ -15,10 +15,12 @@ import pytest
 from prefect._experimental.bundles.path_resolver import (
     MAX_SYMLINK_DEPTH,
     PathResolutionError,
+    PathResolver,
     PathValidationError,
     PathValidationResult,
     check_for_duplicates,
     normalize_path_separator,
+    resolve_paths,
     resolve_with_symlink_check,
     validate_path_input,
 )
@@ -904,3 +906,123 @@ class TestResolveSecurePath:
             "flow" in exc_info.value.suggestion.lower()
             or "within" in exc_info.value.suggestion.lower()
         )
+
+
+class TestPathResolver:
+    """Tests for PathResolver class."""
+
+    def test_resolve_caches_successful_resolution(self, tmp_path):
+        """Successful resolutions are cached."""
+        (tmp_path / "config.yaml").touch()
+        resolver = PathResolver(tmp_path)
+
+        # First resolution
+        result1 = resolver.resolve("config.yaml")
+        # Second resolution should use cache
+        result2 = resolver.resolve("config.yaml")
+
+        assert result1 == result2
+        assert "config.yaml" in resolver._cache
+
+    def test_resolve_caches_errors(self, tmp_path):
+        """Failed resolutions are cached to avoid repeated filesystem access."""
+        resolver = PathResolver(tmp_path)
+
+        # First attempt fails
+        with pytest.raises(PathValidationError) as exc1:
+            resolver.resolve("nonexistent.txt")
+
+        # Second attempt should raise same cached error
+        with pytest.raises(PathValidationError) as exc2:
+            resolver.resolve("nonexistent.txt")
+
+        assert exc1.value.error_type == exc2.value.error_type
+
+    def test_resolve_all_collects_all_errors(self, tmp_path):
+        """resolve_all collects ALL errors, doesn't stop on first."""
+        (tmp_path / "valid.txt").touch()
+        resolver = PathResolver(tmp_path)
+
+        result = resolver.resolve_all(
+            [
+                "valid.txt",  # Valid
+                "",  # Error: empty
+                "missing.txt",  # Error: not found
+                "/absolute/path",  # Error: absolute
+            ]
+        )
+
+        # Should have 1 valid path and 3 errors
+        assert len(result.valid_paths) == 1
+        assert len(result.errors) == 3
+        assert result.has_errors
+
+        # Check error types
+        error_types = {e.error_type for e in result.errors}
+        assert "empty" in error_types
+        assert "not_found" in error_types
+        assert "absolute" in error_types
+
+    def test_resolve_all_detects_duplicates(self, tmp_path):
+        """Duplicate paths are detected and reported."""
+        (tmp_path / "config.yaml").touch()
+        resolver = PathResolver(tmp_path)
+
+        result = resolver.resolve_all(
+            [
+                "config.yaml",
+                "config.yaml",  # Duplicate
+            ]
+        )
+
+        assert len(result.errors) == 1
+        assert result.errors[0].error_type == "duplicate"
+
+    def test_clear_cache(self, tmp_path):
+        """Cache can be cleared."""
+        (tmp_path / "file.txt").touch()
+        resolver = PathResolver(tmp_path)
+
+        resolver.resolve("file.txt")
+        assert len(resolver._cache) == 1
+
+        resolver.clear_cache()
+        assert len(resolver._cache) == 0
+
+
+class TestResolvePaths:
+    """Tests for resolve_paths convenience function."""
+
+    def test_resolve_paths_raises_by_default(self, tmp_path):
+        """resolve_paths raises PathResolutionError by default."""
+        with pytest.raises(PathResolutionError) as exc_info:
+            resolve_paths(["nonexistent.txt"], tmp_path)
+
+        assert "path validation error" in str(exc_info.value).lower()
+
+    def test_resolve_paths_no_raise_returns_errors(self, tmp_path):
+        """resolve_paths with raise_on_errors=False returns errors."""
+        result = resolve_paths(["nonexistent.txt"], tmp_path, raise_on_errors=False)
+
+        assert result.has_errors
+        assert len(result.errors) == 1
+
+    def test_resolve_paths_success(self, tmp_path):
+        """resolve_paths succeeds with valid paths."""
+        (tmp_path / "a.txt").touch()
+        (tmp_path / "b.txt").touch()
+
+        result = resolve_paths(["a.txt", "b.txt"], tmp_path)
+
+        assert not result.has_errors
+        assert len(result.valid_paths) == 2
+
+    def test_resolve_paths_error_message_includes_all_errors(self, tmp_path):
+        """PathResolutionError message includes all failed paths."""
+        try:
+            resolve_paths(["missing1.txt", "missing2.txt", ""], tmp_path)
+            pytest.fail("Should have raised PathResolutionError")
+        except PathResolutionError as e:
+            error_str = str(e)
+            assert "3" in error_str  # 3 errors
+            assert "missing1.txt" in error_str or "not_found" in error_str
