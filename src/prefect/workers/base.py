@@ -951,8 +951,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             worker_name=self.name,
         )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-        await aupload_bundle_to_storage(bundle, bundle_key, upload_command)
+        result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        await aupload_bundle_to_storage(result["bundle"], bundle_key, upload_command)
 
         logger.debug("Successfully uploaded execution bundle")
 
