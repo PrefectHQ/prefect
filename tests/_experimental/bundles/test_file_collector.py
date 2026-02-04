@@ -819,19 +819,18 @@ class TestFileCollectorGlob:
 
     def test_collect_glob_not_negation_pattern(self, tmp_path):
         """Test that patterns starting with ! are not treated as globs."""
-        # A pattern like !*.txt is negation (handled in 02-04), not glob
+        # A pattern like !*.txt is negation, not glob
         # This test verifies glob detection skips negation patterns
         (tmp_path / "file.txt").write_text("content")
 
         collector = FileCollector(tmp_path)
-        # This should NOT be treated as a glob - it's a negation pattern
-        # For now it will fail (file not found) since negation isn't implemented
+        # Negation pattern alone has nothing to negate (no prior inclusions)
         result = collector.collect(["!file.txt"])
 
-        # Should produce warning about pattern matching no files
-        # (since !file.txt as a literal file doesn't exist)
+        # Should have no files (nothing was included)
+        # No warning because negation patterns don't warn about excluding nothing
         assert len(result.files) == 0
-        assert len(result.warnings) == 1
+        assert len(result.warnings) == 0
 
     def test_collect_glob_tracks_pattern(self, tmp_path):
         """Test that glob pattern is tracked in patterns_matched."""

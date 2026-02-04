@@ -53,6 +53,7 @@ class PatternType(Enum):
     SINGLE_FILE = auto()
     DIRECTORY = auto()
     GLOB = auto()
+    NEGATION = auto()
 
 
 # Characters that indicate a glob pattern
@@ -129,12 +130,21 @@ class FileCollector:
         """
         Collect files matching the given patterns.
 
-        Supports single file patterns and directory patterns. Directory patterns
-        collect all files recursively, excluding hidden files and common
-        generated directories (see DEFAULT_EXCLUSIONS).
+        Supports single file patterns, directory patterns, glob patterns, and
+        negation patterns. Patterns are processed in order (gitignore-style):
+        - Inclusion patterns add files to the collection
+        - Negation patterns (starting with !) remove files from the current collection
+
+        Pattern order matters: negation at position N only removes files that were
+        already collected by patterns 1 to N-1. For example:
+        - ["*.json", "!fixtures/*.json"] = all JSON except fixtures
+        - ["!fixtures/*.json", "*.json"] = all JSON (negation had nothing to negate)
+
+        Directory patterns collect all files recursively, excluding hidden files
+        and common generated directories (see DEFAULT_EXCLUSIONS).
 
         Args:
-            patterns: List of file patterns (e.g., ["config.yaml", "data/"])
+            patterns: List of file patterns (e.g., ["config.yaml", "data/", "!*.test.py"])
 
         Returns:
             CollectionResult with collected files, warnings, and metadata.
@@ -146,40 +156,80 @@ class FileCollector:
         result = CollectionResult()
         self._collected_files = set()  # Reset deduplication tracking
 
+        # Process patterns in order - order matters for negation
         for pattern in patterns:
-            # Classify and route pattern
             pattern_type = self._classify_pattern(pattern)
 
-            if pattern_type == PatternType.GLOB:
-                matched_files = self._collect_glob(pattern)
-            elif pattern_type == PatternType.DIRECTORY:
-                matched_files = self._collect_directory(pattern)
-            else:
-                matched_files = self._collect_single_file(pattern)
+            if pattern_type == PatternType.NEGATION:
+                # Negation: remove files from current collection
+                excluded_files = self._process_negation(pattern)
+                result.patterns_matched[pattern] = excluded_files
 
-            result.patterns_matched[pattern] = matched_files
-
-            if matched_files:
-                for file in matched_files:
-                    # Deduplicate: only add if not already collected
-                    if file not in self._collected_files:
-                        self._collected_files.add(file)
-                        result.files.append(file)
-                        result.total_size += file.stat().st_size
+                # Remove excluded files from collection
+                for file in excluded_files:
+                    self._collected_files.discard(file)
+                # No warning for negation patterns that exclude nothing
             else:
-                # Pattern matched no files - add warning
-                result.warnings.append(f"Pattern '{pattern}' matched no files")
+                # Inclusion pattern
+                if pattern_type == PatternType.GLOB:
+                    matched_files = self._collect_glob(pattern)
+                elif pattern_type == PatternType.DIRECTORY:
+                    matched_files = self._collect_directory(pattern)
+                else:
+                    matched_files = self._collect_single_file(pattern)
+
+                result.patterns_matched[pattern] = matched_files
+
+                if matched_files:
+                    for file in matched_files:
+                        # Deduplicate: only add if not already collected
+                        if file not in self._collected_files:
+                            self._collected_files.add(file)
+                else:
+                    # Pattern matched no files - add warning
+                    result.warnings.append(f"Pattern '{pattern}' matched no files")
+
+        # Build final file list with sizes
+        for file in self._collected_files:
+            result.files.append(file)
+            result.total_size += file.stat().st_size
 
         return result
+
+    def _process_negation(self, pattern: str) -> list[Path]:
+        """
+        Process a negation pattern and return files to exclude.
+
+        Args:
+            pattern: Negation pattern starting with '!' (e.g., "!*.test.py")
+
+        Returns:
+            List of files that match the negation pattern and should be excluded.
+        """
+        # Extract the inner pattern (without the leading !)
+        inner_pattern = pattern[1:]
+
+        # Compile the pattern using gitignore-style matching
+        spec = pathspec.PathSpec.from_lines("gitwildmatch", [inner_pattern])
+
+        # Find files in current collection that match the negation
+        excluded: list[Path] = []
+        for file in self._collected_files:
+            rel_path = str(file.relative_to(self.base_dir))
+            if spec.match_file(rel_path):
+                excluded.append(file)
+
+        return excluded
 
     def _classify_pattern(self, pattern: str) -> PatternType:
         """
         Classify a pattern to determine how to process it.
 
         Classification order:
-        1. Glob patterns (contains *, ?, [ but not starting with !)
-        2. Directory patterns (existing directory)
-        3. Single file patterns (default)
+        1. Negation patterns (starts with !)
+        2. Glob patterns (contains *, ?, [ but not starting with !)
+        3. Directory patterns (existing directory)
+        4. Single file patterns (default)
 
         Args:
             pattern: The pattern string to classify.
@@ -187,6 +237,10 @@ class FileCollector:
         Returns:
             PatternType indicating how to process the pattern.
         """
+        # Check for negation first
+        if pattern.startswith("!"):
+            return PatternType.NEGATION
+
         # Check for glob wildcards first (before checking filesystem)
         if _is_glob_pattern(pattern):
             return PatternType.GLOB
