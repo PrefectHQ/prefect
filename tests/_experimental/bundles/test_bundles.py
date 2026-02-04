@@ -76,7 +76,7 @@ class TestCreateBundleForFlowRunFilesKey:
     """Tests for create_bundle_for_flow_run with files_key field."""
 
     def test_create_bundle_returns_bundle_with_files_key(self, monkeypatch):
-        """create_bundle_for_flow_run should return bundle with files_key field."""
+        """create_bundle_for_flow_run should return BundleCreationResult with bundle containing files_key."""
         import prefect._experimental.bundles as bundles_module
         from prefect._experimental.bundles import create_bundle_for_flow_run
         from prefect.flows import flow
@@ -96,12 +96,17 @@ class TestCreateBundleForFlowRunFilesKey:
         mock_flow_run = MagicMock()
         mock_flow_run.model_dump.return_value = {"id": "test-id"}
 
-        bundle = create_bundle_for_flow_run(my_flow, mock_flow_run)
+        result = create_bundle_for_flow_run(my_flow, mock_flow_run)
+
+        # Result should have bundle and zip_path keys
+        assert "bundle" in result
+        assert "zip_path" in result
 
         # Bundle should have files_key field
-        assert "files_key" in bundle
+        assert "files_key" in result["bundle"]
         # Default should be None (no files included yet)
-        assert bundle["files_key"] is None
+        assert result["bundle"]["files_key"] is None
+        assert result["zip_path"] is None
 
     def test_create_bundle_files_key_defaults_to_none(self, monkeypatch):
         """create_bundle_for_flow_run should default files_key to None."""
@@ -122,6 +127,7 @@ class TestCreateBundleForFlowRunFilesKey:
         mock_flow_run = MagicMock()
         mock_flow_run.model_dump.return_value = {"id": "run-123"}
 
-        bundle = create_bundle_for_flow_run(simple_flow, mock_flow_run)
+        result = create_bundle_for_flow_run(simple_flow, mock_flow_run)
 
-        assert bundle.get("files_key") is None
+        assert result["bundle"].get("files_key") is None
+        assert result["zip_path"] is None

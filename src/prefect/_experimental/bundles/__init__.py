@@ -365,7 +365,7 @@ def create_bundle_for_flow_run(
     flow: Flow[Any, Any],
     flow_run: FlowRun,
     context: dict[str, Any] | None = None,
-) -> SerializedBundle:
+) -> BundleCreationResult:
     """
     Creates a bundle for a flow run.
 
@@ -375,7 +375,10 @@ def create_bundle_for_flow_run(
         context: The context to use when running the flow.
 
     Returns:
-        A serialized bundle.
+        A BundleCreationResult containing:
+        - bundle: The serialized bundle
+        - zip_path: Path to sidecar zip file if include_files was specified, None otherwise.
+                   Caller is responsible for uploading this file and calling cleanup.
     """
     context = context or serialize_context()
 
@@ -412,15 +415,61 @@ def create_bundle_for_flow_run(
             "\n".join(file_dependencies),
         )
 
+    # Collect and package included files if specified
+    files_key: str | None = None
+    zip_path: Path | None = None
+    include_files = getattr(flow, "include_files", None)
+
+    if include_files:
+        try:
+            # Get base directory from flow file location
+            flow_file = Path(inspect.getfile(flow.fn))
+            base_dir = flow_file.parent.resolve()
+
+            # Pipeline: collect -> filter -> check -> zip
+            collector = FileCollector(base_dir)
+            result = collector.collect(include_files)
+
+            if result.files:
+                # Apply .prefectignore filtering
+                ignore_filter = IgnoreFilter(base_dir)
+                filtered = ignore_filter.filter(
+                    result.files, explicit_patterns=include_files
+                )
+
+                # Warn on sensitive files (but still include them)
+                check_sensitive_files(filtered.included_files, base_dir)
+
+                if filtered.included_files:
+                    # Build sidecar zip
+                    builder = ZipBuilder(base_dir)
+                    zip_result = builder.build(filtered.included_files)
+
+                    files_key = zip_result.storage_key
+                    zip_path = zip_result.zip_path
+
+                    logger.info(
+                        "Created sidecar zip with %d files (key: %s)",
+                        len(filtered.included_files),
+                        files_key,
+                    )
+        except (OSError, TypeError, AttributeError) as e:
+            # Handle cases where flow has no file (dynamic flow) or other IO errors
+            logger.warning(
+                "Could not collect included files: %s. Files will not be bundled.",
+                e,
+            )
+
     # Automatically register local modules for pickle-by-value serialization
     with _pickle_local_modules_by_value(flow):
-        return {
+        bundle: SerializedBundle = {
             "function": _serialize_bundle_object(flow),
             "context": _serialize_bundle_object(context),
             "flow_run": flow_run.model_dump(mode="json"),
             "dependencies": dependencies,
-            "files_key": None,
+            "files_key": files_key,
         }
+        return BundleCreationResult(bundle=bundle, zip_path=zip_path)
 
 
 def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
