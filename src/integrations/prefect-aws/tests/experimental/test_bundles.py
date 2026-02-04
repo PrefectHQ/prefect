@@ -659,3 +659,24 @@ class TestExecuteBundleFromS3WithFiles:
 
         with pytest.raises(RuntimeError, match="Failed to extract"):
             execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
+
+    def test_execute_with_files_key_none_no_extraction(self, mock_s3_client: MagicMock):
+        """No extraction when files_key is explicitly None."""
+        bundle_data = {
+            "function": "test_function",
+            "context": "test_context",
+            "flow_run": {"id": "test_flow_run"},
+            "files_key": None,
+        }
+
+        def mock_download_file(bucket: str, key: str, filename: str):
+            Path(filename).write_text(json.dumps(bundle_data))
+
+        mock_s3_client.download_file.side_effect = mock_download_file
+
+        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
+            mock_execute.return_value = None
+            execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
+
+        # Should only download bundle once
+        assert mock_s3_client.download_file.call_count == 1
