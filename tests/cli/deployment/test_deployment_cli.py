@@ -21,6 +21,10 @@ from prefect.settings import (
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+# Mark all tests in this module to clear the database between tests
+# This is needed because tests use hardcoded deployment names
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def interactive_console(monkeypatch: pytest.MonkeyPatch):

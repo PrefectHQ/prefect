@@ -248,6 +248,7 @@ def set_ui_url():
         yield
 
 
+@pytest.mark.clear_db
 class TestProjectDeploy:
     @pytest.fixture
     def uninitialized_project_dir(self, project_dir):
@@ -5186,6 +5187,7 @@ class TestDeployWithoutEntrypoint:
         assert deployment.entrypoint == "flows/hello.py:my_flow"
 
 
+@pytest.mark.clear_db
 class TestDeploymentTrigger:
     class TestDeploymentTriggerSyncing:
         async def test_initialize_named_deployment_triggers(self):
@@ -5716,6 +5718,7 @@ class TestDeploymentTrigger:
                     )
 
 
+@pytest.mark.clear_db
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
 class TestDeployDockerBuildSteps:
     async def test_docker_build_step_exists_does_not_prompt_build_custom_docker_image(
@@ -6143,6 +6146,7 @@ class TestDeployDockerBuildSteps:
         )
 
 
+@pytest.mark.clear_db
 class TestDeployInfraOverrides:
     @pytest.fixture
     async def work_pool(self, prefect_client):
@@ -6226,6 +6230,7 @@ class TestDeployInfraOverrides:
         )
 
 
+@pytest.mark.clear_db
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
 class TestDeployDockerPushSteps:
     async def test_prompt_push_custom_docker_image_rejected(
@@ -6323,6 +6328,7 @@ class TestDeployDockerPushSteps:
         assert deployment.work_pool_name == docker_work_pool.name
 
 
+@pytest.mark.clear_db
 class TestDeployingUsingCustomPrefectFile:
     def customize_from_existing_prefect_file(
         self,

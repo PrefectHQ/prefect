@@ -1,9 +1,15 @@
 import os
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from prefect.cli.shell import run_shell_process
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+
+# Mark all tests in this module to clear the database between tests
+# This is needed because tests check for specific flow run counts
+pytestmark = pytest.mark.clear_db
 
 
 async def test_shell_serve(prefect_client):

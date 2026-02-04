@@ -26,6 +26,10 @@ from prefect.types._datetime import (
 from prefect.types._datetime import now as now_fn
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+# Mark all tests in this module to clear the database between tests
+# This is needed because tests check for specific flow run counts
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def deployment_name(
