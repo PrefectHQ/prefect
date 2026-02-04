@@ -40,6 +40,24 @@ class ZipExtractor:
         self.zip_path = Path(zip_path)
         self._extracted = False
 
+    def _check_type_mismatch(self, member: str, target_dir: Path) -> None:
+        """Check if extraction would cause file/dir type mismatch."""
+        dest_path = target_dir / member
+        if not dest_path.exists():
+            return
+
+        is_member_dir = member.endswith("/")
+        is_dest_dir = dest_path.is_dir()
+
+        if is_dest_dir and not is_member_dir:
+            raise RuntimeError(
+                f"Cannot extract file '{member}': destination exists as directory"
+            )
+        if not is_dest_dir and is_member_dir:
+            raise RuntimeError(
+                f"Cannot extract directory '{member}': destination exists as file"
+            )
+
     def extract(self, target_dir: Path | None = None) -> list[Path]:
         """
         Extract all files to target directory.
@@ -59,6 +77,10 @@ class ZipExtractor:
         extracted_paths: list[Path] = []
 
         with zipfile.ZipFile(self.zip_path, "r") as zf:
+            # Pre-check for type mismatches
+            for member in zf.namelist():
+                self._check_type_mismatch(member, target_dir)
+
             # Log overwrites before extraction
             for member in zf.namelist():
                 dest_path = target_dir / member
