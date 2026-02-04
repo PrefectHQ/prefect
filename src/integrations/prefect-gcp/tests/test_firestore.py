@@ -15,9 +15,7 @@ from prefect import flow
 def test_set_document(gcp_credentials):
     @flow
     def test_flow():
-        return set_document(
-            "my_collection", "doc1", {"key": "value"}, gcp_credentials
-        )
+        return set_document("my_collection", "doc1", {"key": "value"}, gcp_credentials)
 
     result = test_flow()
     assert result == "my_collection/doc1"
@@ -45,9 +43,7 @@ def test_get_document_not_found(gcp_credentials):
 def test_set_document_with_merge(gcp_credentials):
     @flow
     def test_flow():
-        set_document(
-            "my_collection", "doc1", {"a": 1, "b": 2}, gcp_credentials
-        )
+        set_document("my_collection", "doc1", {"a": 1, "b": 2}, gcp_credentials)
         set_document(
             "my_collection", "doc1", {"b": 3, "c": 4}, gcp_credentials, merge=True
         )
@@ -86,12 +82,8 @@ def test_list_documents_with_limit(gcp_credentials):
 def test_update_document(gcp_credentials):
     @flow
     def test_flow():
-        set_document(
-            "my_collection", "doc1", {"a": 1, "b": 2}, gcp_credentials
-        )
-        update_document(
-            "my_collection", "doc1", {"b": 99}, gcp_credentials
-        )
+        set_document("my_collection", "doc1", {"a": 1, "b": 2}, gcp_credentials)
+        update_document("my_collection", "doc1", {"b": 99}, gcp_credentials)
         return get_document("my_collection", "doc1", gcp_credentials)
 
     result = test_flow()
@@ -101,9 +93,7 @@ def test_update_document(gcp_credentials):
 def test_update_nonexistent_document(gcp_credentials):
     @flow
     def test_flow():
-        return update_document(
-            "my_collection", "missing", {"a": 1}, gcp_credentials
-        )
+        return update_document("my_collection", "missing", {"a": 1}, gcp_credentials)
 
     with pytest.raises(NotFound):
         test_flow()

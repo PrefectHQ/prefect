@@ -302,7 +302,7 @@ class MockCollectionReference:
         docs = []
         for key, data in self._store.items():
             if key.startswith(prefix):
-                doc_id = key[len(prefix):]
+                doc_id = key[len(prefix) :]
                 if "/" not in doc_id:
                     docs.append(MockDocumentSnapshot(doc_id, dict(data)))
 
