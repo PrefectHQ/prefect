@@ -21,6 +21,16 @@ from prefect.utilities.hashing import file_hash
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
+@pytest.fixture
+def work_pool_name():
+    return f"test-pool-{uuid4()}"
+
+
+@pytest.fixture
+def deployment_name():
+    return f"test-name-{uuid4()}"
+
+
 @pytest.fixture(autouse=True)
 def project_dir(tmp_path: Path):
     with tmpchdir(str(tmp_path)):
@@ -32,8 +42,10 @@ def project_dir(tmp_path: Path):
 
 
 @pytest.fixture(autouse=True)
-async def work_pool(project_dir: Path, prefect_client: PrefectClient):
-    await prefect_client.create_work_pool(WorkPoolCreate(name="test-pool", type="test"))
+async def work_pool(project_dir: Path, prefect_client: PrefectClient, work_pool_name):
+    await prefect_client.create_work_pool(
+        WorkPoolCreate(name=work_pool_name, type="test")
+    )
 
 
 @pytest.fixture
@@ -45,17 +57,19 @@ async def mock_create_deployment():
         yield mock_create
 
 
-async def test_deploy_with_simple_version(mock_create_deployment: mock.AsyncMock):
+async def test_deploy_with_simple_version(
+    mock_create_deployment: mock.AsyncMock, work_pool_name: str, deployment_name: str
+):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool_name} "
             "--version '1.2.3'"
         ),
         expected_code=0,
         expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
+            f"An important name/{deployment_name}",
+            f"prefect worker start --pool '{work_pool_name}'",
         ],
     )
 
@@ -91,17 +105,19 @@ async def mock_get_inferred_version_info():
 async def test_deploy_with_inferred_version(
     mock_create_deployment: mock.AsyncMock,
     mock_get_inferred_version_info: mock.AsyncMock,
+    work_pool_name: str,
+    deployment_name: str,
 ):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool_name} "
             "--version-type vcs:git"
         ),
         expected_code=0,
         expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
+            f"An important name/{deployment_name}",
+            f"prefect worker start --pool '{work_pool_name}'",
         ],
     )
 
@@ -124,17 +140,19 @@ async def test_deploy_with_inferred_version(
 async def test_deploy_with_inferred_version_and_version_name(
     mock_create_deployment: mock.AsyncMock,
     mock_get_inferred_version_info: mock.AsyncMock,
+    work_pool_name: str,
+    deployment_name: str,
 ):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool_name} "
             "--version-type vcs:git --version 'my-version-name'"
         ),
         expected_code=0,
         expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
+            f"An important name/{deployment_name}",
+            f"prefect worker start --pool '{work_pool_name}'",
         ],
     )
 
@@ -157,6 +175,8 @@ async def test_deploy_with_inferred_version_and_version_name(
 async def test_deploy_with_simple_type_and_no_version_uses_flow_version(
     mock_create_deployment: mock.AsyncMock,
     project_dir: Path,
+    work_pool_name: str,
+    deployment_name: str,
 ):
     # Calculate the expected version hash
     flow_file = project_dir / "flows" / "hello.py"
@@ -165,13 +185,13 @@ async def test_deploy_with_simple_type_and_no_version_uses_flow_version(
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool_name} "
             "--version-type prefect:simple"
         ),
         expected_code=0,
         expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
+            f"An important name/{deployment_name}",
+            f"prefect worker start --pool '{work_pool_name}'",
         ],
     )
 

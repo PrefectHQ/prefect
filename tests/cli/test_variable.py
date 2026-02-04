@@ -1,4 +1,5 @@
 import sys
+import uuid
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,9 +33,10 @@ def interactive_console(monkeypatch):
 async def variable(
     session: AsyncSession,
 ):
+    variable_name = f"my_variable-{uuid.uuid4()}"
     model = await create_variable(
         session,
-        VariableCreate(name="my_variable", value="my-value", tags=["123", "456"]),
+        VariableCreate(name=variable_name, value="my-value", tags=["123", "456"]),
     )
     await session.commit()
 
@@ -45,11 +47,20 @@ async def variable(
 async def variables(
     session: AsyncSession,
 ):
+    unique_suffix = str(uuid.uuid4())[:8]
     variables = [
-        VariableCreate(name="variable1", value="value1", tags=["tag1"]),
-        VariableCreate(name="variable12", value="value12", tags=["tag2"]),
-        VariableCreate(name="variable2", value="value2", tags=["tag1"]),
-        VariableCreate(name="variable21", value="value21", tags=["tag2"]),
+        VariableCreate(
+            name=f"variable1-{unique_suffix}", value="value1", tags=["tag1"]
+        ),
+        VariableCreate(
+            name=f"variable12-{unique_suffix}", value="value12", tags=["tag2"]
+        ),
+        VariableCreate(
+            name=f"variable2-{unique_suffix}", value="value2", tags=["tag1"]
+        ),
+        VariableCreate(
+            name=f"variable21-{unique_suffix}", value="value21", tags=["tag2"]
+        ),
     ]
     models = []
     for variable in variables:
@@ -189,24 +200,25 @@ def test_get_variable_doesnt_exist(variable):
 
 
 def test_set_variable():
+    variable_name = f"my_variable-{uuid.uuid4()}"
     invoke_and_assert(
         [
             "variable",
             "set",
-            "my_variable",
+            variable_name,
             "my-value",
             "--tag",
             "tag1",
             "--tag",
             "tag2",
         ],
-        expected_output_contains="Set variable 'my_variable'.",
+        expected_output_contains=f"Set variable '{variable_name}'.",
         expected_code=0,
     )
     invoke_and_assert(
-        ["variable", "inspect", "my_variable"],
+        ["variable", "inspect", variable_name],
         expected_output_contains=[
-            "name='my_variable'",
+            f"name='{variable_name}'",
             "value='my-value'",
             "tags=['tag1', 'tag2']",
         ],

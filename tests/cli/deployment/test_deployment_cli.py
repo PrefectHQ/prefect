@@ -1,5 +1,6 @@
 import json
 import sys
+import uuid
 from datetime import timedelta
 from typing import Any
 from uuid import UUID
@@ -59,8 +60,29 @@ def patch_import(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-async def create_flojo_deployment(prefect_client: PrefectClient) -> UUID:
-    @flow
+def deployment_names():
+    """Fixture providing unique flow and deployment names for testing."""
+    unique_suffix = str(uuid.uuid4())[:8]
+    return {
+        "flow_name": f"rence-griffith-{unique_suffix}",
+        "deployment_name": f"test-deployment-{unique_suffix}",
+    }
+
+
+@pytest.fixture
+def deployment_slug(deployment_names):
+    """Fixture providing the full deployment slug."""
+    return f"{deployment_names['flow_name']}/{deployment_names['deployment_name']}"
+
+
+@pytest.fixture
+async def create_flojo_deployment(
+    prefect_client: PrefectClient, deployment_names
+) -> UUID:
+    flow_name = deployment_names["flow_name"]
+    deployment_name = deployment_names["deployment_name"]
+
+    @flow(name=flow_name)
     async def rence_griffith():
         pass
 
@@ -71,7 +93,7 @@ async def create_flojo_deployment(prefect_client: PrefectClient) -> UUID:
 
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
-        name="test-deployment",
+        name=deployment_name,
         version="git-commit-hash",
         schedules=[schedule],
         parameters={"foo": "bar"},
