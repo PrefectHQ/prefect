@@ -507,3 +507,336 @@ class TestIgnoreFilterEdgeCases:
         assert secret2 in result.excluded_by_ignore
         # Should have warnings for both
         assert len(result.explicitly_excluded) >= 2
+
+
+class TestSensitivePatterns:
+    """Tests for sensitive file pattern detection."""
+
+    def test_sensitive_patterns_constant_defined(self):
+        """Test SENSITIVE_PATTERNS constant is defined and exported."""
+        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+
+        assert isinstance(SENSITIVE_PATTERNS, list)
+        assert len(SENSITIVE_PATTERNS) == 7
+
+    def test_sensitive_patterns_contains_env_files(self):
+        """Test SENSITIVE_PATTERNS contains .env* pattern."""
+        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+
+        assert ".env*" in SENSITIVE_PATTERNS
+
+    def test_sensitive_patterns_contains_pem_files(self):
+        """Test SENSITIVE_PATTERNS contains *.pem pattern."""
+        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+
+        assert "*.pem" in SENSITIVE_PATTERNS
+
+    def test_sensitive_patterns_contains_key_files(self):
+        """Test SENSITIVE_PATTERNS contains *.key pattern."""
+        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+
+        assert "*.key" in SENSITIVE_PATTERNS
+
+    def test_sensitive_patterns_contains_credentials_files(self):
+        """Test SENSITIVE_PATTERNS contains credentials.* pattern."""
+        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+
+        assert "credentials.*" in SENSITIVE_PATTERNS
+
+    def test_sensitive_patterns_contains_rsa_keys(self):
+        """Test SENSITIVE_PATTERNS contains *_rsa pattern."""
+        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+
+        assert "*_rsa" in SENSITIVE_PATTERNS
+
+    def test_sensitive_patterns_contains_p12_files(self):
+        """Test SENSITIVE_PATTERNS contains *.p12 pattern."""
+        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+
+        assert "*.p12" in SENSITIVE_PATTERNS
+
+    def test_sensitive_patterns_contains_secrets_files(self):
+        """Test SENSITIVE_PATTERNS contains secrets.* pattern."""
+        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+
+        assert "secrets.*" in SENSITIVE_PATTERNS
+
+
+class TestCheckSensitiveFiles:
+    """Tests for check_sensitive_files function."""
+
+    def test_check_sensitive_detects_env_files(self, tmp_path):
+        """Test check_sensitive_files detects .env files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        env_file = tmp_path / ".env"
+        env_file.touch()
+
+        warnings = check_sensitive_files([env_file], tmp_path)
+
+        assert len(warnings) == 1
+        assert ".env" in warnings[0]
+
+    def test_check_sensitive_detects_env_local(self, tmp_path):
+        """Test check_sensitive_files detects .env.local files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        env_file = tmp_path / ".env.local"
+        env_file.touch()
+
+        warnings = check_sensitive_files([env_file], tmp_path)
+
+        assert len(warnings) == 1
+        assert ".env.local" in warnings[0]
+
+    def test_check_sensitive_detects_pem_files(self, tmp_path):
+        """Test check_sensitive_files detects .pem files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        pem_file = tmp_path / "server.pem"
+        pem_file.touch()
+
+        warnings = check_sensitive_files([pem_file], tmp_path)
+
+        assert len(warnings) == 1
+        assert "server.pem" in warnings[0]
+
+    def test_check_sensitive_detects_key_files(self, tmp_path):
+        """Test check_sensitive_files detects .key files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        key_file = tmp_path / "private.key"
+        key_file.touch()
+
+        warnings = check_sensitive_files([key_file], tmp_path)
+
+        assert len(warnings) == 1
+        assert "private.key" in warnings[0]
+
+    def test_check_sensitive_detects_credentials_files(self, tmp_path):
+        """Test check_sensitive_files detects credentials.* files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        creds_file = tmp_path / "credentials.json"
+        creds_file.touch()
+
+        warnings = check_sensitive_files([creds_file], tmp_path)
+
+        assert len(warnings) == 1
+        assert "credentials.json" in warnings[0]
+
+    def test_check_sensitive_detects_rsa_keys(self, tmp_path):
+        """Test check_sensitive_files detects *_rsa files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        rsa_file = tmp_path / "id_rsa"
+        rsa_file.touch()
+
+        warnings = check_sensitive_files([rsa_file], tmp_path)
+
+        assert len(warnings) == 1
+        assert "id_rsa" in warnings[0]
+
+    def test_check_sensitive_detects_p12_files(self, tmp_path):
+        """Test check_sensitive_files detects .p12 files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        p12_file = tmp_path / "certificate.p12"
+        p12_file.touch()
+
+        warnings = check_sensitive_files([p12_file], tmp_path)
+
+        assert len(warnings) == 1
+        assert "certificate.p12" in warnings[0]
+
+    def test_check_sensitive_detects_secrets_files(self, tmp_path):
+        """Test check_sensitive_files detects secrets.* files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        secrets_file = tmp_path / "secrets.yaml"
+        secrets_file.touch()
+
+        warnings = check_sensitive_files([secrets_file], tmp_path)
+
+        assert len(warnings) == 1
+        assert "secrets.yaml" in warnings[0]
+
+    def test_check_sensitive_warning_format(self, tmp_path):
+        """Test warning format includes pattern that matched."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        env_file = tmp_path / ".env"
+        env_file.touch()
+
+        warnings = check_sensitive_files([env_file], tmp_path)
+
+        # Warning should include: "matches sensitive pattern {pattern}"
+        assert "matches sensitive pattern" in warnings[0]
+        assert ".env*" in warnings[0]
+
+    def test_check_sensitive_suggests_prefectignore(self, tmp_path):
+        """Test warning suggests adding to .prefectignore."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        key_file = tmp_path / "server.key"
+        key_file.touch()
+
+        warnings = check_sensitive_files([key_file], tmp_path)
+
+        # Warning should suggest adding to .prefectignore
+        assert ".prefectignore" in warnings[0]
+        assert "Consider adding" in warnings[0]
+
+    def test_check_sensitive_returns_empty_for_safe_files(self, tmp_path):
+        """Test check_sensitive_files returns empty for non-sensitive files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        safe_file = tmp_path / "main.py"
+        safe_file.touch()
+
+        warnings = check_sensitive_files([safe_file], tmp_path)
+
+        assert warnings == []
+
+    def test_check_sensitive_multiple_files(self, tmp_path):
+        """Test check_sensitive_files handles multiple files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        env_file = tmp_path / ".env"
+        key_file = tmp_path / "server.key"
+        safe_file = tmp_path / "main.py"
+        env_file.touch()
+        key_file.touch()
+        safe_file.touch()
+
+        warnings = check_sensitive_files([env_file, key_file, safe_file], tmp_path)
+
+        # Should have warnings for sensitive files only
+        assert len(warnings) == 2
+
+    def test_check_sensitive_nested_file(self, tmp_path):
+        """Test check_sensitive_files handles nested sensitive files."""
+        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        env_file = config_dir / ".env.production"
+        env_file.touch()
+
+        warnings = check_sensitive_files([env_file], tmp_path)
+
+        assert len(warnings) == 1
+        # Should show relative path
+        assert "config/.env.production" in warnings[0]
+
+
+class TestEmitExcludedWarning:
+    """Tests for emit_excluded_warning function."""
+
+    def test_emit_excluded_warning_batched(self, tmp_path, caplog):
+        """Test emit_excluded_warning batches files into single warning."""
+        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+
+        caplog.set_level(logging.WARNING)
+
+        # Create 3 excluded files
+        files = []
+        for i in range(3):
+            f = tmp_path / f"file{i}.log"
+            f.touch()
+            files.append(f)
+
+        emit_excluded_warning(files, tmp_path)
+
+        # Should emit single warning
+        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warning_records) == 1
+        # Warning should mention count
+        assert "3 files excluded" in warning_records[0].message
+
+    def test_emit_excluded_warning_includes_file_names(self, tmp_path, caplog):
+        """Test emit_excluded_warning includes file names."""
+        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+
+        caplog.set_level(logging.WARNING)
+
+        file1 = tmp_path / "debug.log"
+        file2 = tmp_path / "error.log"
+        file1.touch()
+        file2.touch()
+
+        emit_excluded_warning([file1, file2], tmp_path)
+
+        warning_msg = caplog.records[-1].message
+        assert "debug.log" in warning_msg
+        assert "error.log" in warning_msg
+
+    def test_emit_excluded_warning_truncates_after_10(self, tmp_path, caplog):
+        """Test emit_excluded_warning truncates list after 10 files."""
+        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+
+        caplog.set_level(logging.WARNING)
+
+        # Create 15 excluded files
+        files = []
+        for i in range(15):
+            f = tmp_path / f"file{i:02d}.log"
+            f.touch()
+            files.append(f)
+
+        emit_excluded_warning(files, tmp_path)
+
+        warning_msg = caplog.records[-1].message
+        # Should show first 10 files
+        assert "file00.log" in warning_msg
+        assert "file09.log" in warning_msg
+        # Should NOT show files after 10
+        assert "file10.log" not in warning_msg
+        # Should indicate more files
+        assert "and 5 more" in warning_msg
+
+    def test_emit_excluded_warning_mentions_prefectignore(self, tmp_path, caplog):
+        """Test emit_excluded_warning mentions .prefectignore."""
+        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+
+        caplog.set_level(logging.WARNING)
+
+        file = tmp_path / "excluded.log"
+        file.touch()
+
+        emit_excluded_warning([file], tmp_path)
+
+        warning_msg = caplog.records[-1].message
+        assert ".prefectignore" in warning_msg
+
+    def test_emit_excluded_warning_empty_list_no_warning(self, tmp_path, caplog):
+        """Test emit_excluded_warning emits nothing for empty list."""
+        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+
+        caplog.set_level(logging.WARNING)
+
+        emit_excluded_warning([], tmp_path)
+
+        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warning_records) == 0
+
+    def test_emit_excluded_warning_exactly_10_no_truncation(self, tmp_path, caplog):
+        """Test emit_excluded_warning shows all 10 files without truncation."""
+        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+
+        caplog.set_level(logging.WARNING)
+
+        # Create exactly 10 files
+        files = []
+        for i in range(10):
+            f = tmp_path / f"file{i}.log"
+            f.touch()
+            files.append(f)
+
+        emit_excluded_warning(files, tmp_path)
+
+        warning_msg = caplog.records[-1].message
+        # Should NOT show "and X more"
+        assert "and" not in warning_msg or "more" not in warning_msg
+        # Should show 10 files
+        assert "10 files excluded" in warning_msg

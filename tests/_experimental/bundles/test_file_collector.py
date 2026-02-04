@@ -1379,3 +1379,151 @@ class TestPreviewCollection:
         from prefect._experimental.bundles import file_collector
 
         assert "format_collection_summary" in file_collector.__all__
+
+    def test_preview_collection_returns_excluded_by_ignore(self, tmp_path):
+        """Test preview_collection returns excluded_by_ignore list."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: create .prefectignore and files
+        (tmp_path / ".prefectignore").write_text("*.log\n")
+        (tmp_path / "app.py").write_text("# app")
+        (tmp_path / "debug.log").write_text("log content")
+
+        result = preview_collection(tmp_path, ["*.py", "*.log"])
+
+        assert "excluded_by_ignore" in result
+        assert "debug.log" in result["excluded_by_ignore"]
+        # app.py should be included, not excluded
+        assert "app.py" not in result["excluded_by_ignore"]
+
+    def test_preview_collection_returns_sensitive_warnings(self, tmp_path):
+        """Test preview_collection returns sensitive_warnings list."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: create a sensitive file
+        (tmp_path / ".env").write_text("SECRET=value")
+        (tmp_path / "app.py").write_text("# app")
+
+        result = preview_collection(tmp_path, [".env", "app.py"])
+
+        assert "sensitive_warnings" in result
+        assert len(result["sensitive_warnings"]) == 1
+        assert ".env" in result["sensitive_warnings"][0]
+
+    def test_preview_collection_sensitive_files_still_collected(self, tmp_path):
+        """Test that sensitive files are still included (warning only)."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: create sensitive file
+        (tmp_path / ".env").write_text("SECRET=value")
+
+        result = preview_collection(tmp_path, [".env"])
+
+        # File should be in the files list despite warning
+        assert ".env" in result["files"]
+        # And warning should exist
+        assert len(result["sensitive_warnings"]) == 1
+
+    def test_preview_collection_excludes_by_prefectignore(self, tmp_path):
+        """Test preview_collection applies .prefectignore filtering."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: create .prefectignore and files
+        (tmp_path / ".prefectignore").write_text("*.tmp\n")
+        (tmp_path / "main.py").write_text("# main")
+        (tmp_path / "cache.tmp").write_text("cached data")
+
+        result = preview_collection(tmp_path, ["*.py", "*.tmp"])
+
+        # main.py should be in files
+        assert "main.py" in result["files"]
+        # cache.tmp should NOT be in files (excluded by .prefectignore)
+        assert "cache.tmp" not in result["files"]
+        # cache.tmp should be in excluded_by_ignore
+        assert "cache.tmp" in result["excluded_by_ignore"]
+
+    def test_preview_collection_file_count_excludes_ignored(self, tmp_path):
+        """Test preview_collection file_count reflects filtering."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: create files where some will be ignored
+        (tmp_path / ".prefectignore").write_text("*.log\n")
+        (tmp_path / "a.py").write_text("# a")
+        (tmp_path / "b.py").write_text("# b")
+        (tmp_path / "debug.log").write_text("log")
+
+        result = preview_collection(tmp_path, ["*.py", "*.log"])
+
+        # Only 2 py files should be counted (log excluded)
+        assert result["file_count"] == 2
+
+    def test_preview_collection_total_size_excludes_ignored(self, tmp_path):
+        """Test preview_collection total_size reflects filtering."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: create files with known sizes
+        (tmp_path / ".prefectignore").write_text("*.log\n")
+        (tmp_path / "small.py").write_text("small")  # 5 bytes
+        (tmp_path / "huge.log").write_text("x" * 10000)  # 10000 bytes
+
+        result = preview_collection(tmp_path, ["*.py", "*.log"])
+
+        # Total size should only include small.py
+        assert result["total_size"] == 5
+
+    def test_preview_collection_warnings_includes_explicit_excludes(self, tmp_path):
+        """Test preview_collection warnings includes explicit exclude warnings."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: user explicitly includes a file that's ignored
+        (tmp_path / ".prefectignore").write_text("important.log\n")
+        (tmp_path / "important.log").write_text("important data")
+
+        result = preview_collection(tmp_path, ["important.log"])
+
+        # Should have warning about explicit include being ignored
+        assert any("important.log" in w for w in result["warnings"])
+
+    def test_preview_collection_multiple_sensitive_files(self, tmp_path):
+        """Test preview_collection handles multiple sensitive files."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: create multiple sensitive files
+        (tmp_path / ".env").write_text("SECRET=1")
+        (tmp_path / "credentials.json").write_text("{}")
+        (tmp_path / "server.key").write_text("key")
+        (tmp_path / "app.py").write_text("# app")
+
+        result = preview_collection(
+            tmp_path, [".env", "credentials.json", "server.key", "app.py"]
+        )
+
+        # Should have 3 sensitive warnings
+        assert len(result["sensitive_warnings"]) == 3
+        # All 4 files should be collected (warning only)
+        assert result["file_count"] == 4
+
+    def test_preview_collection_excluded_by_ignore_empty_when_no_ignores(
+        self, tmp_path
+    ):
+        """Test excluded_by_ignore is empty when no .prefectignore."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: no .prefectignore
+        (tmp_path / "file.txt").write_text("content")
+
+        result = preview_collection(tmp_path, ["*.txt"])
+
+        assert result["excluded_by_ignore"] == []
+
+    def test_preview_collection_sensitive_warnings_empty_for_safe_files(self, tmp_path):
+        """Test sensitive_warnings is empty for non-sensitive files."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        # Setup: only safe files
+        (tmp_path / "main.py").write_text("# main")
+        (tmp_path / "config.yaml").write_text("key: value")
+
+        result = preview_collection(tmp_path, ["*.py", "*.yaml"])
+
+        assert result["sensitive_warnings"] == []
