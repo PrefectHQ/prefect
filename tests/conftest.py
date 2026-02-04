@@ -193,8 +193,11 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/test_automations.py",
     "tests/test_background_tasks.py",
     "tests/test_context.py",
+    "tests/test_flow_engine.py",
     "tests/test_infrastructure_bound_flow.py",
+    "tests/test_task_engine.py",
     "tests/test_task_worker.py",
+    "tests/test_tasks.py",
     "tests/test_waiters.py",
 ]
 

@@ -974,14 +974,18 @@ class TestFlowCrashDetection:
     async def test_interrupt_in_flow_function_crashes_flow(
         self, prefect_client, interrupt_type
     ):
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         async def my_flow():
             raise interrupt_type()
 
         with pytest.raises(interrupt_type):
             await my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -994,14 +998,18 @@ class TestFlowCrashDetection:
     async def test_interrupt_in_flow_function_crashes_flow_sync(
         self, prefect_client, interrupt_type
     ):
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         def my_flow():
             raise interrupt_type()
 
         with pytest.raises(interrupt_type):
             my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -1018,14 +1026,18 @@ class TestFlowCrashDetection:
             FlowRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
 
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         def my_flow():
             pass
 
         with pytest.raises(interrupt_type):
             my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -1041,8 +1053,9 @@ class TestFlowCrashDetection:
         Test that a BaseException raised after user code finishes executing
         does not crash the flow run (sync flow).
         """
+        flow_name = f"my-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=flow_name)
         def my_flow():
             return 42
 
@@ -1062,7 +1075,9 @@ class TestFlowCrashDetection:
         result = my_flow()
         assert result == 42
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         # The flow run should be completed, not crashed
@@ -1080,8 +1095,9 @@ class TestFlowCrashDetection:
         Test that a BaseException raised after user code finishes executing
         does not crash the flow run (async flow).
         """
+        flow_name = f"my-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=flow_name)
         async def my_flow():
             return 42
 
@@ -1101,7 +1117,9 @@ class TestFlowCrashDetection:
         result = await my_flow()
         assert result == 42
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         # The flow run should be completed, not crashed
@@ -1119,8 +1137,9 @@ class TestFlowCrashDetection:
         Test that a BaseException raised before user code finishes executing
         still crashes the flow run (sync flow).
         """
+        flow_name = f"my-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=flow_name)
         def my_flow():
             return 42
 
@@ -1134,7 +1153,9 @@ class TestFlowCrashDetection:
         with pytest.raises(BaseException, match="Pre-execution error"):
             my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         # The flow run should be crashed
@@ -1147,8 +1168,9 @@ class TestFlowCrashDetection:
         Test that a BaseException raised before user code finishes executing
         still crashes the flow run (async flow).
         """
+        flow_name = f"my-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=flow_name)
         async def my_flow():
             return 42
 
@@ -1161,7 +1183,9 @@ class TestFlowCrashDetection:
         with pytest.raises(BaseException, match="Pre-execution error"):
             await my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         # The flow run should be crashed
