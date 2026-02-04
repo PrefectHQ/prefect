@@ -951,8 +951,28 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             worker_name=self.name,
         )
 
-        result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-        await aupload_bundle_to_storage(result["bundle"], bundle_key, upload_command)
+        bundle_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        bundle = bundle_result["bundle"]
+        zip_path = bundle_result["zip_path"]
+
+        try:
+            await aupload_bundle_to_storage(
+                bundle, bundle_key, upload_command, zip_path=zip_path
+            )
+        finally:
+            # Clean up zip file after upload (success or failure)
+            if zip_path:
+                try:
+                    zip_path.unlink(missing_ok=True)
+                    # Also clean up the temp directory created by ZipBuilder
+                    if zip_path.parent.exists() and zip_path.parent.name.startswith(
+                        "prefect-zip-"
+                    ):
+                        import shutil
+
+                        shutil.rmtree(zip_path.parent, ignore_errors=True)
+                except Exception as cleanup_error:
+                    logger.debug("Failed to clean up zip file: %s", cleanup_error)
 
         logger.debug("Successfully uploaded execution bundle")
 
