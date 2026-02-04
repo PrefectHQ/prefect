@@ -75,7 +75,8 @@ def test_get_webhook_by_id(respx_mock):
         invoke_and_assert(
             ["cloud", "webhook", "get", webhook_id],
             expected_code=0,
-            expected_output_contains=[webhook["name"]],
+            # Check for "foobar" prefix since full UUID name gets wrapped in table output
+            expected_output_contains=["foobar"],
         )
 
 
@@ -148,7 +149,8 @@ def test_list_webhooks(respx_mock):
         invoke_and_assert(
             ["cloud", "webhook", "ls"],
             expected_code=0,
-            expected_output_contains=[webhook1["name"], webhook2["name"]],
+            # Check for prefixes since full UUID names get wrapped in table output
+            expected_output_contains=["foobar", "bazzbuzz"],
         )
 
 
