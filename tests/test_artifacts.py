@@ -1,5 +1,6 @@
 import asyncio
 import json
+import uuid
 from typing import cast
 from uuid import UUID
 
@@ -32,7 +33,7 @@ class TestCreateArtifacts:
     @pytest.fixture
     def artifact(self):
         yield ArtifactCreate(
-            key="voltaic",
+            key=f"voltaic-{uuid.uuid4()}",
             data=1,
             description="# This is a markdown description title",
         )
@@ -67,7 +68,7 @@ class TestCreateArtifacts:
             assert isinstance(run_context, TaskRunContext)
             task_run_id = run_context.task_run.id
             artifact_id = create_link_artifact(
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 link="google.com",
                 description="my-artifact-description",
             )
@@ -103,7 +104,7 @@ class TestCreateArtifacts:
             flow_run_id = run_context.flow_run.id
 
             artifact_id = create_link_artifact(
-                key="task-link-artifact-4",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 link="google.com",
                 description="my-artifact-description",
             )
@@ -129,7 +130,7 @@ class TestCreateArtifacts:
             assert run_context.flow_run is not None
             flow_run_id = run_context.flow_run.id
             artifact_id = create_link_artifact(
-                key="task-link-artifact-5",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 link="google.com",
                 description="my-artifact-description",
             )
@@ -161,7 +162,7 @@ class TestCreateArtifacts:
         def add_ten(x: int) -> int:
             create_link_artifact(
                 # TODO: uncomment this out once unique constraint is dropped on artifact key
-                # key="new-markdown-artifact",
+                # key=f"new-markdown-artifact-{uuid.uuid4()}",
                 link="s3://my-bucket/my-file",
                 description="my-artifact-description",
             )
@@ -184,7 +185,7 @@ class TestCreateArtifacts:
             assert isinstance(run_context, TaskRunContext)
             task_run_id = run_context.task_run.id
             artifact_id = create_markdown_artifact(
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
@@ -220,7 +221,7 @@ class TestCreateArtifacts:
             flow_run_id = run_context.flow_run.id
 
             artifact_id = create_markdown_artifact(
-                key="task-link-artifact-4",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
@@ -246,7 +247,7 @@ class TestCreateArtifacts:
             assert run_context.flow_run is not None
             flow_run_id = run_context.flow_run.id
             artifact_id = create_markdown_artifact(
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
@@ -275,7 +276,7 @@ class TestCreateArtifacts:
         @task
         def add_ten(x: int) -> int:
             create_markdown_artifact(
-                key="new-markdown-artifact",
+                key=f"new-markdown-artifact-{uuid.uuid4()}",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
@@ -363,7 +364,7 @@ class TestCreateArtifacts:
             assert isinstance(run_context, TaskRunContext)
             task_run_id = run_context.task_run.id
             artifact_id = create_table_artifact(
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -402,7 +403,7 @@ class TestCreateArtifacts:
             flow_run_id = run_context.flow_run.id
 
             artifact_id = create_table_artifact(
-                key="task-link-artifact-4",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -432,7 +433,7 @@ class TestCreateArtifacts:
             assert run_context.flow_run is not None
             flow_run_id = run_context.flow_run.id
             artifact_id = create_table_artifact(
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -487,7 +488,7 @@ class TestCreateArtifacts:
         @flow
         def my_flow():
             return create_table_artifact(
-                key="swiss-table",
+                key=f"swiss-table-{uuid.uuid4()}",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -502,7 +503,7 @@ class TestCreateArtifacts:
         @flow
         async def my_flow():
             return await acreate_table_artifact(
-                key="swiss-table",
+                key=f"swiss-table-{uuid.uuid4()}",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -524,7 +525,7 @@ class TestCreateArtifacts:
         @flow
         async def my_flow():
             await acreate_table_artifact(
-                key="swiss-table",
+                key=f"swiss-table-{uuid.uuid4()}",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -542,7 +543,7 @@ class TestCreateArtifacts:
         @flow
         async def my_flow():
             return await acreate_table_artifact(
-                key="swiss-table",
+                key=f"swiss-table-{uuid.uuid4()}",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -579,11 +580,12 @@ class TestCreateArtifacts:
 
     async def test_create_progress_artifact_with_key(self, client: httpx.AsyncClient):
         progress = 0.0
+        artifact_key = f"progress-artifact-{uuid.uuid4()}"
 
         @flow
         def my_flow():
             return create_progress_artifact(
-                progress, key="progress-artifact", description="my-description"
+                progress, key=artifact_key, description="my-description"
             )
 
         artifact_id = my_flow()
@@ -592,7 +594,7 @@ class TestCreateArtifacts:
         my_artifact = schemas.core.Artifact.model_validate(response.json())
         assert my_artifact.data == progress
         assert my_artifact.type == "progress"
-        assert my_artifact.key == "progress-artifact"
+        assert my_artifact.key == artifact_key
         assert my_artifact.description == "my-description"
 
     async def test_create_progress_artifact_in_task_succeeds(
@@ -605,7 +607,7 @@ class TestCreateArtifacts:
             assert run_context.task_run is not None
             task_run_id = run_context.task_run.id
             artifact_id = create_progress_artifact(
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 progress=0.0,
                 description="my-artifact-description",
             )
@@ -644,7 +646,7 @@ class TestCreateArtifacts:
             flow_run_id = run_context.flow_run.id
 
             artifact_id = create_progress_artifact(
-                key="task-link-artifact-4",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 progress=0.0,
                 description="my-artifact-description",
             )
@@ -674,7 +676,7 @@ class TestCreateArtifacts:
             task_run_id = run_context.task_run.id
             artifact_id = create_image_artifact(
                 image_url="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 description="my-artifact-description",
             )
             return artifact_id, task_run_id
@@ -716,7 +718,7 @@ class TestCreateArtifacts:
 
             artifact_id = create_image_artifact(
                 image_url="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png",
-                key="task-link-artifact-4",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 description="my-artifact-description",
             )
 
@@ -803,7 +805,7 @@ class TestUpdateArtifacts:
             task_run_id = run_context.task_run.id
 
             artifact_id = create_progress_artifact(
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 progress=0.0,
                 description="my-artifact-description",
             )
@@ -845,7 +847,7 @@ class TestUpdateArtifacts:
             task_run_id = run_context.task_run.id
 
             artifact_id_coro = create_progress_artifact(
-                key="task-link-artifact-3",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 progress=0.0,
                 description="my-artifact-description",
             )
@@ -889,7 +891,7 @@ class TestUpdateArtifacts:
             flow_run_id = run_context.flow_run.id
 
             artifact_id = create_progress_artifact(
-                key="task-link-artifact-4",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 progress=0.0,
                 description="my-artifact-description",
             )
@@ -921,7 +923,7 @@ class TestUpdateArtifacts:
             flow_run_id = run_context.flow_run.id
 
             artifact_id_coro = create_progress_artifact(
-                key="task-link-artifact-4",
+                key=f"task-link-artifact-{uuid.uuid4()}",
                 progress=0.0,
                 description="my-artifact-description",
             )
@@ -951,8 +953,9 @@ class TestArtifact:
     async def test_artifact_format(self):
         """Test creating an artifact and formatting its data"""
         data = {"key": "value"}
+        artifact_key = f"test-artifact-{uuid.uuid4()}"
         artifact = Artifact(
-            type="test", key="test-artifact", description="Test artifact", data=data
+            type="test", key=artifact_key, description="Test artifact", data=data
         )
 
         formatted_data = await artifact.aformat()
@@ -964,8 +967,9 @@ class TestArtifact:
     async def test_artifact_create_methods(self, prefect_client: PrefectClient):
         """Test both sync and async create methods"""
         data = {"test": "data"}
+        artifact_key = f"test-artifact-{uuid.uuid4()}"
         artifact = Artifact(
-            type="test", key="test-artifact", description="Test artifact", data=data
+            type="test", key=artifact_key, description="Test artifact", data=data
         )
 
         # Test async create
@@ -974,7 +978,7 @@ class TestArtifact:
             return await artifact.acreate(prefect_client)
 
         response = await my_async_flow()
-        assert response.key == "test-artifact"
+        assert response.key == artifact_key
         assert response.type == "test"
         assert response.description == "Test artifact"
 
@@ -985,15 +989,16 @@ class TestArtifact:
 
         response = my_sync_flow()
         assert isinstance(response, ArtifactResponse)
-        assert response.key == "test-artifact"
+        assert response.key == artifact_key
         assert response.type == "test"
         assert response.description == "Test artifact"
 
     async def test_artifact_get_async(self, prefect_client: PrefectClient):
         """Test both sync and async get methods"""
         # Create an artifact first
+        artifact_key = f"get-test-{uuid.uuid4()}"
         artifact = Artifact(
-            type="test", key="get-test", description="Test get", data={"test": "get"}
+            type="test", key=artifact_key, description="Test get", data={"test": "get"}
         )
 
         @flow
@@ -1003,15 +1008,16 @@ class TestArtifact:
         await my_flow()
 
         # Test async get
-        retrieved = await Artifact.aget("get-test", prefect_client)
+        retrieved = await Artifact.aget(artifact_key, prefect_client)
         assert retrieved is not None
-        assert retrieved.key == "get-test"
+        assert retrieved.key == artifact_key
         assert retrieved.type == "test"
 
     def test_artifact_get_sync(self, prefect_client: PrefectClient):
         # Create an artifact first
+        artifact_key = f"get-test-{uuid.uuid4()}"
         artifact = Artifact(
-            type="test", key="get-test", description="Test get", data={"test": "get"}
+            type="test", key=artifact_key, description="Test get", data={"test": "get"}
         )
 
         @flow
@@ -1021,18 +1027,19 @@ class TestArtifact:
         my_flow()
 
         # Test sync get
-        retrieved = Artifact.get("get-test")
+        retrieved = Artifact.get(artifact_key)
         assert isinstance(retrieved, ArtifactResponse)
-        assert retrieved.key == "get-test"
+        assert retrieved.key == artifact_key
         assert retrieved.type == "test"
 
     def test_artifact_get_or_create_sync(self):
         # Test sync get_or_create
+        artifact_key = f"get-or-create-test-sync-{uuid.uuid4()}"
 
         @flow
         def my_flow():
             return Artifact.get_or_create(
-                key="get-or-create-test-sync",
+                key=artifact_key,
                 type="test",
                 description="Test sync get or create",
                 data={"test": "sync"},
@@ -1042,19 +1049,21 @@ class TestArtifact:
         assert isinstance(get_or_create_result, tuple)
         artifact, created = get_or_create_result
         assert created is True
-        assert artifact.key == "get-or-create-test-sync"
+        assert artifact.key == artifact_key
 
         get_or_create_result = my_flow()
         assert isinstance(get_or_create_result, tuple)
         artifact, created = get_or_create_result
         assert created is False
-        assert artifact.key == "get-or-create-test-sync"
+        assert artifact.key == artifact_key
 
     async def test_artifact_get_or_create_async(self):
+        artifact_key = f"get-or-create-test-{uuid.uuid4()}"
+
         @flow
         async def my_flow():
             return await Artifact.aget_or_create(
-                key="get-or-create-test",
+                key=artifact_key,
                 type="test",
                 description="Test get or create",
                 data={"test": "get-or-create"},
@@ -1062,18 +1071,18 @@ class TestArtifact:
 
         artifact, created = await my_flow()
         assert created is True
-        assert artifact.key == "get-or-create-test"
+        assert artifact.key == artifact_key
 
         # Test getting existing - should not create new
         artifact, created = await my_flow()
         assert created is False
-        assert artifact.key == "get-or-create-test"
+        assert artifact.key == artifact_key
 
     async def test_artifact_creation_outside_run_context_warns(self):
         """Test that creating artifacts outside run context raises warning"""
         artifact = Artifact(
             type="test",
-            key="warning-test",
+            key=f"warning-test-{uuid.uuid4()}",
             description="Test warning",
             data={"test": "warning"},
         )

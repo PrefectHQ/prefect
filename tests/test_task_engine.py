@@ -17,6 +17,7 @@ from prefect import Task, flow, tags, task
 from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import StateDetails
+from prefect.client.schemas.filters import TaskRunFilter, TaskRunFilterName
 from prefect.client.schemas.objects import StateType
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -1365,7 +1366,9 @@ class TestTaskCrashDetection:
     async def test_interrupt_in_task_function_crashes_task(
         self, prefect_client, interrupt_type, events_pipeline
     ):
-        @task
+        task_name = f"my-task-{uuid4()}"
+
+        @task(name=task_name)
         async def my_task():
             raise interrupt_type()
 
@@ -1373,7 +1376,9 @@ class TestTaskCrashDetection:
             await my_task()
 
         await events_pipeline.process_events()
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = await prefect_client.read_task_runs(
+            task_run_filter=TaskRunFilter(name=TaskRunFilterName(any_=[task_name]))
+        )
         assert len(task_runs) == 1
         task_run = task_runs[0]
         assert task_run.state.is_crashed()
@@ -1386,7 +1391,9 @@ class TestTaskCrashDetection:
     async def test_interrupt_in_task_function_crashes_task_sync(
         self, prefect_client, events_pipeline, interrupt_type
     ):
-        @task
+        task_name = f"my-task-{uuid4()}"
+
+        @task(name=task_name)
         def my_task():
             raise interrupt_type()
 
@@ -1394,7 +1401,9 @@ class TestTaskCrashDetection:
             my_task()
 
         await events_pipeline.process_events()
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = await prefect_client.read_task_runs(
+            task_run_filter=TaskRunFilter(name=TaskRunFilterName(any_=[task_name]))
+        )
         assert len(task_runs) == 1
         task_run = task_runs[0]
         assert task_run.state.is_crashed()
@@ -1410,8 +1419,9 @@ class TestTaskCrashDetection:
         monkeypatch.setattr(
             SyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
+        task_name = f"my-task-{uuid4()}"
 
-        @task
+        @task(name=task_name)
         def my_task():
             pass
 
@@ -1419,7 +1429,9 @@ class TestTaskCrashDetection:
             my_task()
 
         await events_pipeline.process_events()
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = await prefect_client.read_task_runs(
+            task_run_filter=TaskRunFilter(name=TaskRunFilterName(any_=[task_name]))
+        )
         assert len(task_runs) == 1
         task_run = task_runs[0]
         assert task_run.state.is_crashed()
@@ -1435,8 +1447,9 @@ class TestTaskCrashDetection:
         monkeypatch.setattr(
             AsyncTaskRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
+        task_name = f"my-task-{uuid4()}"
 
-        @task
+        @task(name=task_name)
         async def my_task():
             pass
 
@@ -1444,7 +1457,9 @@ class TestTaskCrashDetection:
             await my_task()
 
         await events_pipeline.process_events()
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = await prefect_client.read_task_runs(
+            task_run_filter=TaskRunFilter(name=TaskRunFilterName(any_=[task_name]))
+        )
         assert len(task_runs) == 1
         task_run = task_runs[0]
         assert task_run.state.is_crashed()
@@ -1681,8 +1696,9 @@ class TestTaskTimeTracking:
         monkeypatch.setattr(
             SyncTaskRunEngine, "begin_run", MagicMock(side_effect=SystemExit)
         )
+        task_name = f"my-task-{uuid4()}"
 
-        @task
+        @task(name=task_name)
         def my_task():
             pass
 
@@ -1690,7 +1706,9 @@ class TestTaskTimeTracking:
             my_task()
 
         await events_pipeline.process_events()
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = await prefect_client.read_task_runs(
+            task_run_filter=TaskRunFilter(name=TaskRunFilterName(any_=[task_name]))
+        )
         assert len(task_runs) == 1
         run = task_runs[0]
 
@@ -1702,8 +1720,9 @@ class TestTaskTimeTracking:
         monkeypatch.setattr(
             AsyncTaskRunEngine, "begin_run", MagicMock(side_effect=SystemExit)
         )
+        task_name = f"my-task-{uuid4()}"
 
-        @task
+        @task(name=task_name)
         async def my_task():
             pass
 
@@ -1712,7 +1731,9 @@ class TestTaskTimeTracking:
 
         await events_pipeline.process_events()
 
-        task_runs = await prefect_client.read_task_runs()
+        task_runs = await prefect_client.read_task_runs(
+            task_run_filter=TaskRunFilter(name=TaskRunFilterName(any_=[task_name]))
+        )
         assert len(task_runs) == 1
         run = task_runs[0]
 

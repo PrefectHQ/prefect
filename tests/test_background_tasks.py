@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Iterable, Tuple
@@ -34,7 +35,7 @@ async def result_store_from_task(task: Task[Any, Any]) -> ResultStore:
 @pytest.fixture
 def local_filesystem(tmp_path: Path) -> LocalFileSystem:
     block = LocalFileSystem(basepath=str(tmp_path))
-    block.save("test-fs", overwrite=True)
+    block.save(f"test-fs-{uuid.uuid4()}", overwrite=True)
     return block
 
 
