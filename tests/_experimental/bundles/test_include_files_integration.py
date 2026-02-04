@@ -73,3 +73,47 @@ class TestIncludeFilesIntegration:
                 assert "Alice" in zf.read("data/input.csv").decode()
         finally:
             builder.cleanup()
+
+    def test_zip_builder_extractor_roundtrip(
+        self, project_dir: Path, tmp_path: Path
+    ) -> None:
+        """Files packaged by ZipBuilder extract correctly via ZipExtractor."""
+        from prefect._experimental.bundles.file_collector import FileCollector
+        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Collect and build
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/", "templates/"])
+
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        # Extract to different directory (simulating remote execution)
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        extractor = ZipExtractor(zip_result.zip_path)
+        extracted = extractor.extract(work_dir)
+
+        try:
+            # Verify extracted files
+            assert (work_dir / "config.yaml").exists()
+            assert (work_dir / "data" / "input.csv").exists()
+            assert (work_dir / "data" / "lookup.json").exists()
+            assert (work_dir / "templates" / "emails" / "welcome.html").exists()
+
+            # Verify content matches
+            assert (
+                work_dir / "config.yaml"
+            ).read_text() == "database: localhost\nport: 5432"
+            assert "Alice" in (work_dir / "data" / "input.csv").read_text()
+            assert (
+                work_dir / "templates" / "emails" / "welcome.html"
+            ).read_text() == "<h1>Welcome!</h1>"
+
+            # Verify returned paths
+            assert len(extracted) == 4
+            assert all(p.exists() for p in extracted)
+        finally:
+            builder.cleanup()
