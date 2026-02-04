@@ -13,9 +13,9 @@ import multiprocessing.context
 import os
 import subprocess
 import sys
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-import tempfile
 from types import ModuleType
 from typing import Any, TypedDict
 
@@ -35,6 +35,9 @@ from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
 
 from .execute import execute_bundle_from_file
+from .file_collector import FileCollector
+from .ignore_filter import IgnoreFilter, check_sensitive_files
+from .zip_builder import ZipBuilder
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -73,6 +76,21 @@ class SerializedBundle(TypedDict):
     flow_run: dict[str, Any]
     dependencies: str
     files_key: NotRequired[str | None]
+
+
+class BundleCreationResult(TypedDict):
+    """
+    Result of creating a bundle, including optional sidecar zip info.
+
+    Attributes:
+        bundle: The serialized bundle.
+        zip_path: Path to sidecar zip file if include_files was specified.
+            None when no files are included. Caller is responsible for
+            uploading this file and calling cleanup.
+    """
+
+    bundle: SerializedBundle
+    zip_path: Path | None
 
 
 def _serialize_bundle_object(obj: Any) -> str:
