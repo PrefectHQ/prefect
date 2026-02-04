@@ -22,6 +22,19 @@ import pathspec
 
 logger = logging.getLogger(__name__)
 
+# Hardcoded patterns for sensitive files that should trigger warnings.
+# These files are still collected (warning only, not blocked), but users
+# are advised to add them to .prefectignore if they don't want them bundled.
+SENSITIVE_PATTERNS = [
+    ".env*",  # Environment files
+    "*.pem",  # SSL certificates
+    "*.key",  # Private keys
+    "credentials.*",  # Credentials files
+    "*_rsa",  # RSA keys
+    "*.p12",  # PKCS12 certificates
+    "secrets.*",  # Secrets files
+]
+
 
 @dataclass
 class FilterResult:
@@ -241,9 +254,75 @@ class IgnoreFilter:
         return False
 
 
+def check_sensitive_files(files: list[Path], base_dir: Path) -> list[str]:
+    """
+    Check if any files match sensitive patterns and return warnings.
+
+    Sensitive files are still collected (warning only, not blocked), but
+    users are advised to add them to .prefectignore if they don't want
+    them bundled.
+
+    Args:
+        files: List of file paths to check.
+        base_dir: Base directory for relative path calculation.
+
+    Returns:
+        List of warning strings for files matching sensitive patterns.
+    """
+    spec = pathspec.GitIgnoreSpec.from_lines(SENSITIVE_PATTERNS)
+    warnings: list[str] = []
+
+    for file in files:
+        rel_path = str(file.relative_to(base_dir))
+        if spec.match_file(rel_path):
+            # Find which pattern matched
+            for pattern in SENSITIVE_PATTERNS:
+                single_spec = pathspec.GitIgnoreSpec.from_lines([pattern])
+                if single_spec.match_file(rel_path):
+                    warnings.append(
+                        f"{rel_path} matches sensitive pattern {pattern}. "
+                        "Consider adding to .prefectignore"
+                    )
+                    break
+
+    return warnings
+
+
+def emit_excluded_warning(
+    excluded: list[Path], base_dir: Path, limit: int = 10
+) -> None:
+    """
+    Emit a batched warning for files excluded by .prefectignore.
+
+    The warning lists up to `limit` files, then shows "and N more" for
+    any additional files.
+
+    Args:
+        excluded: List of excluded file paths.
+        base_dir: Base directory for relative path calculation.
+        limit: Maximum number of file names to show (default 10).
+    """
+    if not excluded:
+        return
+
+    count = len(excluded)
+    names = [str(f.relative_to(base_dir)) for f in excluded[:limit]]
+
+    if count <= limit:
+        logger.warning(f"{count} files excluded by .prefectignore: {', '.join(names)}")
+    else:
+        logger.warning(
+            f"{count} files excluded by .prefectignore: "
+            f"{', '.join(names)}...and {count - limit} more"
+        )
+
+
 __all__ = [
     "FilterResult",
     "IgnoreFilter",
+    "SENSITIVE_PATTERNS",
+    "check_sensitive_files",
+    "emit_excluded_warning",
     "find_project_root",
     "load_ignore_patterns",
 ]

@@ -16,6 +16,11 @@ from pathlib import Path
 import pathspec
 import pathspec.util
 
+from prefect._experimental.bundles.ignore_filter import (
+    IgnoreFilter,
+    check_sensitive_files,
+    emit_excluded_warning,
+)
 from prefect._experimental.bundles.path_resolver import (
     PathValidationError,
     normalize_path_separator,
@@ -546,7 +551,8 @@ def preview_collection(
 
     This function performs file collection but returns a preview dict
     instead of modifying any state. Useful for CLI preview commands
-    and debugging pattern matching.
+    and debugging pattern matching. Integrates .prefectignore filtering
+    and sensitive file detection.
 
     Args:
         base_dir: Base directory for file collection.
@@ -560,22 +566,47 @@ def preview_collection(
         - total_size_human: Human-readable size string
         - warnings: List of warning messages
         - patterns_matched: Dict of pattern -> match count
+        - excluded_by_ignore: List of files excluded by .prefectignore
+        - sensitive_warnings: List of warnings for sensitive files
     """
     collector = FileCollector(base_dir)
     result = collector.collect(patterns)
 
-    # Extract human-readable size from summary
-    summary = format_collection_summary(result)
-    # Parse "(X.Y KB)" or "(X.Y MB)" from "Collected N files (X.Y KB)"
-    size_human = summary.split("(")[1].rstrip(")")
+    # Apply ignore filtering
+    ignore_filter = IgnoreFilter(base_dir)
+    filter_result = ignore_filter.filter(result.files, explicit_patterns=patterns)
+
+    # Check for sensitive files in included files
+    sensitive = check_sensitive_files(filter_result.included_files, base_dir.resolve())
+
+    # Emit batched warning for excluded files
+    emit_excluded_warning(filter_result.excluded_by_ignore, base_dir.resolve())
+
+    # Calculate total size from included files only
+    total_size = sum(f.stat().st_size for f in filter_result.included_files)
+
+    # Format human-readable size
+    size_mb = total_size / (1024 * 1024)
+    if size_mb >= 1:
+        size_human = f"{size_mb:.1f} MB"
+    else:
+        size_kb = total_size / 1024
+        size_human = f"{size_kb:.1f} KB"
 
     return {
-        "files": [str(f.relative_to(base_dir.resolve())) for f in result.files],
-        "file_count": len(result.files),
-        "total_size": result.total_size,
+        "files": [
+            str(f.relative_to(base_dir.resolve())) for f in filter_result.included_files
+        ],
+        "file_count": len(filter_result.included_files),
+        "total_size": total_size,
         "total_size_human": size_human,
-        "warnings": result.warnings,
+        "warnings": result.warnings + filter_result.explicitly_excluded,
         "patterns_matched": {p: len(fs) for p, fs in result.patterns_matched.items()},
+        "excluded_by_ignore": [
+            str(f.relative_to(base_dir.resolve()))
+            for f in filter_result.excluded_by_ignore
+        ],
+        "sensitive_warnings": sensitive,
     }
 
 
