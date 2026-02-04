@@ -585,3 +585,56 @@ class TestZipExtractorCleanup:
 
         # Should not raise
         extractor.cleanup()
+
+
+class TestZipExtractorErrors:
+    """Tests for error handling scenarios."""
+
+    def test_extract_raises_on_missing_zip(self, tmp_path: Path) -> None:
+        """FileNotFoundError for non-existent zip file."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = tmp_path / "nonexistent.zip"
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(FileNotFoundError):
+            extractor.extract(target_dir)
+
+    def test_extract_raises_on_corrupted_zip(self, tmp_path: Path) -> None:
+        """BadZipFile for invalid/corrupted zip file."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Create corrupted zip by writing invalid bytes
+        zip_path = tmp_path / "corrupted.zip"
+        zip_path.write_bytes(b"not a valid zip file content")
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(zipfile.BadZipFile):
+            extractor.extract(target_dir)
+
+    def test_extract_raises_on_permission_error(self, tmp_path: Path) -> None:
+        """Clear error on permission issues when creating directory."""
+        from unittest.mock import patch
+
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Create a valid zip
+        zip_path = tmp_path / "test.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("file.txt", "content")
+
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        # Mock extractall to raise permission error
+        def mock_extractall(path=None, members=None, pwd=None):
+            raise PermissionError("Permission denied")
+
+        extractor = ZipExtractor(zip_path)
+        with patch.object(zipfile.ZipFile, "extractall", mock_extractall):
+            with pytest.raises(PermissionError):
+                extractor.extract(target_dir)
