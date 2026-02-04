@@ -7,6 +7,10 @@ sidecar zip archive to the working directory before flow execution.
 
 from __future__ import annotations
 
+__all__ = [
+    "ZipExtractor",
+]
+
 import logging
 import zipfile
 from pathlib import Path
