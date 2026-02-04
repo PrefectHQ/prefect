@@ -30,11 +30,21 @@ test.describe("Dashboard Page", () => {
 	});
 
 	test.beforeEach(async ({ apiClient }) => {
-		await cleanupFlowRuns(apiClient, TEST_PREFIX);
+		// Cleanup is best-effort - don't fail tests if server is temporarily unavailable
+		try {
+			await cleanupFlowRuns(apiClient, TEST_PREFIX);
+		} catch {
+			// Ignore cleanup errors - test data uses unique timestamps so collisions are unlikely
+		}
 	});
 
 	test.afterEach(async ({ apiClient }) => {
-		await cleanupFlowRuns(apiClient, TEST_PREFIX);
+		// Cleanup is best-effort - don't fail tests if server is temporarily unavailable
+		try {
+			await cleanupFlowRuns(apiClient, TEST_PREFIX);
+		} catch {
+			// Ignore cleanup errors - test data uses unique timestamps so collisions are unlikely
+		}
 	});
 
 	test.describe("Dashboard with Data", () => {
