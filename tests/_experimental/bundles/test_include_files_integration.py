@@ -315,3 +315,33 @@ class TestIncludeFilesIntegration:
         assert updated_flow.include_files == ["data/", "models/"]
         # Original unchanged
         assert my_flow.include_files == ["config.yaml"]
+
+    def test_empty_include_files_no_files_key(self) -> None:
+        """Empty include_files results in files_key being None."""
+        pytest.importorskip("prefect_aws")
+        from prefect_aws.experimental.decorators import ecs
+
+        from prefect.flows import flow
+
+        @ecs(work_pool="my-pool", include_files=[])
+        @flow
+        def my_flow():
+            pass
+
+        # Empty list should be treated as no files
+        assert my_flow.include_files == []
+
+    def test_none_include_files_no_files_key(self) -> None:
+        """None include_files (default) results in no files_key."""
+        pytest.importorskip("prefect_aws")
+        from prefect_aws.experimental.decorators import ecs
+
+        from prefect.flows import flow
+
+        @ecs(work_pool="my-pool")
+        @flow
+        def my_flow():
+            pass
+
+        # Default should be None
+        assert my_flow.include_files is None
