@@ -1051,3 +1051,331 @@ class TestFileCollectorNegation:
         # Should only include main.py (tests/ excluded)
         assert len(result.files) == 1
         assert result.files[0].name == "main.py"
+
+
+class TestZeroMatchWarning:
+    """Tests for zero-match pattern warning emission via logger."""
+
+    def test_zero_match_warning_logged(self, tmp_path, caplog):
+        """Test that zero-match pattern emits warning via logger."""
+        import logging
+
+        caplog.set_level(logging.WARNING)
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.missing"])
+
+        # Should log warning
+        assert any("*.missing" in record.message for record in caplog.records)
+        assert any(record.levelno == logging.WARNING for record in caplog.records)
+        # Should also store in result.warnings
+        assert "*.missing" in result.warnings[0]
+
+    def test_zero_match_warning_includes_pattern_text(self, tmp_path, caplog):
+        """Test that warning includes the pattern for debugging."""
+        import logging
+
+        caplog.set_level(logging.WARNING)
+
+        collector = FileCollector(tmp_path)
+        collector.collect(["specific_missing_file.xyz"])
+
+        # Warning should include the pattern text
+        warning_messages = [
+            r.message for r in caplog.records if r.levelno == logging.WARNING
+        ]
+        assert any("specific_missing_file.xyz" in msg for msg in warning_messages)
+
+    def test_zero_match_warning_collection_continues(self, tmp_path, caplog):
+        """Test that collection continues after zero-match warning."""
+        import logging
+
+        caplog.set_level(logging.WARNING)
+
+        # Create one file that exists
+        (tmp_path / "exists.txt").write_text("content")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["missing.txt", "exists.txt"])
+
+        # Should have warning for missing but still collect existing
+        assert len(result.files) == 1
+        assert result.files[0].name == "exists.txt"
+        assert len(result.warnings) == 1
+
+    def test_negation_pattern_no_zero_match_warning(self, tmp_path, caplog):
+        """Test that negation patterns don't trigger zero-match warning."""
+        import logging
+
+        caplog.set_level(logging.WARNING)
+
+        (tmp_path / "file.txt").write_text("content")
+
+        collector = FileCollector(tmp_path)
+        # Negation that doesn't match anything
+        result = collector.collect(["*.txt", "!*.nonexistent"])
+
+        # No warning for negation pattern
+        warning_messages = [
+            r.message for r in caplog.records if r.levelno == logging.WARNING
+        ]
+        assert not any("nonexistent" in msg for msg in warning_messages)
+        assert len(result.warnings) == 0
+
+
+class TestLargeFileWarning:
+    """Tests for large file (>10MB) warning emission."""
+
+    def test_large_file_warning_emitted(self, tmp_path, caplog):
+        """Test that files >10MB emit warning via logger."""
+        import logging
+
+        from prefect._experimental.bundles.file_collector import LARGE_FILE_THRESHOLD
+
+        caplog.set_level(logging.WARNING)
+
+        # Create a file slightly over threshold
+        large_file = tmp_path / "huge.bin"
+        large_file.write_bytes(b"x" * (LARGE_FILE_THRESHOLD + 1))
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["huge.bin"])
+
+        # Should emit warning
+        warning_messages = [
+            r.message for r in caplog.records if r.levelno == logging.WARNING
+        ]
+        assert any("huge.bin" in msg for msg in warning_messages)
+        # File should still be collected
+        assert len(result.files) == 1
+
+    def test_large_file_warning_includes_size(self, tmp_path, caplog):
+        """Test that large file warning includes file size."""
+        import logging
+
+        from prefect._experimental.bundles.file_collector import LARGE_FILE_THRESHOLD
+
+        caplog.set_level(logging.WARNING)
+
+        large_file = tmp_path / "big.bin"
+        size = LARGE_FILE_THRESHOLD + 1024 * 1024  # threshold + 1MB
+        large_file.write_bytes(b"x" * size)
+
+        collector = FileCollector(tmp_path)
+        collector.collect(["big.bin"])
+
+        # Warning should include size info
+        warning_messages = [
+            r.message for r in caplog.records if r.levelno == logging.WARNING
+        ]
+        assert len(warning_messages) >= 1
+        # Check warning mentions size (in MB or bytes)
+        assert any("MB" in msg or str(size) in msg for msg in warning_messages)
+
+    def test_large_file_still_collected(self, tmp_path):
+        """Test that large files are collected despite warning."""
+        from prefect._experimental.bundles.file_collector import LARGE_FILE_THRESHOLD
+
+        large_file = tmp_path / "collected.bin"
+        large_file.write_bytes(b"x" * (LARGE_FILE_THRESHOLD + 100))
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["collected.bin"])
+
+        # File must be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "collected.bin"
+        assert result.total_size > LARGE_FILE_THRESHOLD
+
+    def test_large_file_threshold_constant(self):
+        """Test LARGE_FILE_THRESHOLD is exported and equals 10MB."""
+        from prefect._experimental.bundles.file_collector import LARGE_FILE_THRESHOLD
+
+        assert LARGE_FILE_THRESHOLD == 10 * 1024 * 1024  # 10 MB
+
+
+class TestCollectionSummary:
+    """Tests for format_collection_summary function."""
+
+    def test_format_summary_file_count_and_size(self, tmp_path):
+        """Test that summary shows file count and total size."""
+        from prefect._experimental.bundles.file_collector import (
+            format_collection_summary,
+        )
+
+        # Create files with known sizes
+        (tmp_path / "a.txt").write_text("hello")  # 5 bytes
+        (tmp_path / "b.txt").write_text("world!")  # 6 bytes
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["a.txt", "b.txt"])
+
+        summary = format_collection_summary(result)
+
+        # Should include count
+        assert "2 files" in summary
+        # Should include size (11 bytes = ~0.0 KB)
+        assert "KB" in summary or "MB" in summary
+
+    def test_format_summary_kb_format(self, tmp_path):
+        """Test that small sizes show KB format."""
+        from prefect._experimental.bundles.file_collector import (
+            format_collection_summary,
+        )
+
+        # Create file with ~500 bytes
+        (tmp_path / "small.txt").write_text("x" * 500)
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["small.txt"])
+
+        summary = format_collection_summary(result)
+
+        # Should show KB for small files
+        assert "KB" in summary
+        assert "1 file" in summary
+
+    def test_format_summary_mb_format(self, tmp_path):
+        """Test that large sizes show MB format."""
+        from prefect._experimental.bundles.file_collector import (
+            format_collection_summary,
+        )
+
+        # Create file with ~2MB
+        (tmp_path / "large.txt").write_bytes(b"x" * (2 * 1024 * 1024))
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["large.txt"])
+
+        summary = format_collection_summary(result)
+
+        # Should show MB for large files
+        assert "MB" in summary
+        assert "2.0 MB" in summary or "2 MB" in summary
+
+    def test_format_summary_human_readable(self, tmp_path):
+        """Test that summary is human-readable format."""
+        from prefect._experimental.bundles.file_collector import (
+            format_collection_summary,
+        )
+
+        (tmp_path / "file.txt").write_text("content")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["file.txt"])
+
+        summary = format_collection_summary(result)
+
+        # Format should be "Collected N files (X.Y KB/MB)"
+        assert summary.startswith("Collected")
+        assert "(" in summary and ")" in summary
+
+
+class TestPreviewCollection:
+    """Tests for preview_collection function."""
+
+    def test_preview_returns_files_list(self, tmp_path):
+        """Test preview_collection returns list of files."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        (tmp_path / "a.json").write_text("{}")
+        (tmp_path / "b.json").write_text("{}")
+
+        result = preview_collection(tmp_path, ["*.json"])
+
+        assert "files" in result
+        assert "a.json" in result["files"]
+        assert "b.json" in result["files"]
+
+    def test_preview_returns_file_count(self, tmp_path):
+        """Test preview_collection returns file count."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        (tmp_path / "a.txt").write_text("a")
+        (tmp_path / "b.txt").write_text("b")
+        (tmp_path / "c.txt").write_text("c")
+
+        result = preview_collection(tmp_path, ["*.txt"])
+
+        assert result["file_count"] == 3
+
+    def test_preview_returns_total_size(self, tmp_path):
+        """Test preview_collection returns total size."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        (tmp_path / "data.txt").write_text("hello")  # 5 bytes
+
+        result = preview_collection(tmp_path, ["*.txt"])
+
+        assert "total_size" in result
+        assert result["total_size"] == 5
+
+    def test_preview_returns_human_readable_size(self, tmp_path):
+        """Test preview_collection returns human-readable size."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        (tmp_path / "file.txt").write_text("content")
+
+        result = preview_collection(tmp_path, ["*.txt"])
+
+        assert "total_size_human" in result
+        assert "KB" in result["total_size_human"] or "MB" in result["total_size_human"]
+
+    def test_preview_returns_warnings(self, tmp_path):
+        """Test preview_collection returns warnings."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        result = preview_collection(tmp_path, ["*.missing"])
+
+        assert "warnings" in result
+        assert len(result["warnings"]) == 1
+        assert "*.missing" in result["warnings"][0]
+
+    def test_preview_returns_patterns_matched(self, tmp_path):
+        """Test preview_collection returns pattern match counts."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        (tmp_path / "a.json").write_text("{}")
+        (tmp_path / "b.json").write_text("{}")
+
+        result = preview_collection(tmp_path, ["*.json"])
+
+        assert "patterns_matched" in result
+        assert result["patterns_matched"]["*.json"] == 2
+
+    def test_preview_does_not_modify_state(self, tmp_path):
+        """Test preview_collection doesn't modify any state."""
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        (tmp_path / "file.txt").write_text("content")
+
+        # Call preview multiple times
+        result1 = preview_collection(tmp_path, ["*.txt"])
+        result2 = preview_collection(tmp_path, ["*.txt"])
+
+        # Results should be identical
+        assert result1 == result2
+
+    def test_preview_with_path_object(self, tmp_path):
+        """Test preview_collection accepts Path objects."""
+        from pathlib import Path
+
+        from prefect._experimental.bundles.file_collector import preview_collection
+
+        (tmp_path / "file.txt").write_text("content")
+
+        result = preview_collection(Path(tmp_path), ["*.txt"])
+
+        assert result["file_count"] == 1
+
+    def test_preview_exported_in_all(self):
+        """Test preview_collection is in __all__."""
+        from prefect._experimental.bundles import file_collector
+
+        assert "preview_collection" in file_collector.__all__
+
+    def test_format_collection_summary_exported_in_all(self):
+        """Test format_collection_summary is in __all__."""
+        from prefect._experimental.bundles import file_collector
+
+        assert "format_collection_summary" in file_collector.__all__
