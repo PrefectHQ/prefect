@@ -19,6 +19,8 @@ import tempfile
 from types import ModuleType
 from typing import Any, TypedDict
 
+from typing_extensions import NotRequired
+
 import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
 
@@ -56,12 +58,21 @@ class SerializedBundle(TypedDict):
     """
     A serialized bundle is a serialized function, context, and flow run that can be
     easily transported for later execution.
+
+    Attributes:
+        function: Serialized (base64-encoded, gzip-compressed, cloudpickled) flow function.
+        context: Serialized context for flow execution.
+        flow_run: Flow run metadata as a dict.
+        dependencies: Newline-separated list of pip dependencies.
+        files_key: Optional storage key for sidecar zip containing included files.
+            Format: "files/{sha256hash}.zip". None when no files are included.
     """
 
     function: str
     context: str
     flow_run: dict[str, Any]
     dependencies: str
+    files_key: NotRequired[str | None]
 
 
 def _serialize_bundle_object(obj: Any) -> str:
@@ -390,6 +401,7 @@ def create_bundle_for_flow_run(
             "context": _serialize_bundle_object(context),
             "flow_run": flow_run.model_dump(mode="json"),
             "dependencies": dependencies,
+            "files_key": None,
         }
 
 
