@@ -31,6 +31,11 @@ except ModuleNotFoundError:
     pass
 
 try:
+    from google.cloud.firestore import Client as FirestoreClient
+except ModuleNotFoundError:
+    pass
+
+try:
     from google.cloud.aiplatform.gapic import JobServiceAsyncClient, JobServiceClient
 except ModuleNotFoundError:
     pass
@@ -78,6 +83,7 @@ class ClientType(Enum):
     CLOUD_STORAGE = "cloud_storage"
     BIGQUERY = "bigquery"
     SECRET_MANAGER = "secret_manager"
+    FIRESTORE = "firestore"
     AIPLATFORM = "job_service"  # vertex ai
 
 
@@ -439,6 +445,47 @@ class GcpCredentials(CredentialsBlock):
         # doesn't accept project; must pass in project in tasks
         secret_manager_client = SecretManagerServiceClient(credentials=credentials)
         return secret_manager_client
+
+    @_raise_help_msg("firestore")
+    def get_firestore_client(
+        self,
+        project: Optional[str] = None,
+        database: str = "(default)",
+    ) -> "FirestoreClient":
+        """
+        Gets an authenticated Firestore client.
+
+        Args:
+            project: Name of the project to use; overrides the base
+                class's project if provided.
+            database: Name of the Firestore database to use.
+
+        Returns:
+            An authenticated Firestore client.
+
+        Examples:
+            Gets a GCP Firestore client from a path.
+            ```python
+            from prefect import flow
+            from prefect_gcp.credentials import GcpCredentials
+
+            @flow()
+            def example_get_client_flow():
+                service_account_file = "~/.secrets/prefect-service-account.json"
+                client = GcpCredentials(
+                    service_account_file=service_account_file
+                ).get_firestore_client()
+            example_get_client_flow()
+            ```
+        """
+        credentials = self.get_credentials_from_service_account()
+
+        # override class project if method project is provided
+        project = project or self.project
+        firestore_client = FirestoreClient(
+            credentials=credentials, project=project, database=database
+        )
+        return firestore_client
 
     @_raise_help_msg("aiplatform")
     def get_job_service_client(

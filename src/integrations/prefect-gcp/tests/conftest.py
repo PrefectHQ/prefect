@@ -220,6 +220,136 @@ class SecretManagerClient:
         return name
 
 
+class MockDocumentSnapshot:
+    def __init__(self, doc_id, data, exists=True):
+        self.id = doc_id
+        self._data = data
+        self.exists = exists
+
+    def to_dict(self):
+        return self._data
+
+
+class MockDocumentReference:
+    def __init__(self, collection_path, doc_id, store):
+        self._collection_path = collection_path
+        self._doc_id = doc_id
+        self._store = store
+        self.path = f"{collection_path}/{doc_id}"
+
+    def set(self, data, merge=False):
+        key = self.path
+        if merge and key in self._store:
+            merged = dict(self._store[key])
+            merged.update(data)
+            self._store[key] = merged
+        else:
+            self._store[key] = dict(data)
+
+    def get(self):
+        key = self.path
+        if key in self._store:
+            return MockDocumentSnapshot(self._doc_id, dict(self._store[key]))
+        return MockDocumentSnapshot(self._doc_id, None, exists=False)
+
+    def update(self, data):
+        key = self.path
+        if key not in self._store:
+            raise ApiCoreNotFound(f"{key!r} does not exist.")
+        self._store[key].update(data)
+
+    def delete(self):
+        key = self.path
+        self._store.pop(key, None)
+
+
+class MockCollectionReference:
+    def __init__(self, path, store):
+        self._path = path
+        self._store = store
+        self._limit = None
+        self._filters = []
+        self._order_by_field = None
+
+    def document(self, doc_id):
+        return MockDocumentReference(self._path, doc_id, self._store)
+
+    def limit(self, count):
+        clone = MockCollectionReference(self._path, self._store)
+        clone._filters = list(self._filters)
+        clone._order_by_field = self._order_by_field
+        clone._limit = count
+        return clone
+
+    def where(self, filter=None, **kwargs):
+        clone = MockCollectionReference(self._path, self._store)
+        clone._limit = self._limit
+        clone._order_by_field = self._order_by_field
+        clone._filters = list(self._filters)
+        if filter is not None:
+            clone._filters.append(filter)
+        return clone
+
+    def order_by(self, field):
+        clone = MockCollectionReference(self._path, self._store)
+        clone._limit = self._limit
+        clone._filters = list(self._filters)
+        clone._order_by_field = field
+        return clone
+
+    def stream(self):
+        prefix = self._path + "/"
+        docs = []
+        for key, data in self._store.items():
+            if key.startswith(prefix):
+                doc_id = key[len(prefix):]
+                if "/" not in doc_id:
+                    docs.append(MockDocumentSnapshot(doc_id, dict(data)))
+
+        # Apply filters
+        for f in self._filters:
+            field_path = f.field_path
+            op = f.op_string
+            value = f.value
+            filtered = []
+            for doc in docs:
+                doc_val = doc.to_dict().get(field_path)
+                if op == "==" and doc_val == value:
+                    filtered.append(doc)
+                elif op == "!=" and doc_val != value:
+                    filtered.append(doc)
+                elif op == "<" and doc_val is not None and doc_val < value:
+                    filtered.append(doc)
+                elif op == "<=" and doc_val is not None and doc_val <= value:
+                    filtered.append(doc)
+                elif op == ">" and doc_val is not None and doc_val > value:
+                    filtered.append(doc)
+                elif op == ">=" and doc_val is not None and doc_val >= value:
+                    filtered.append(doc)
+            docs = filtered
+
+        # Apply ordering
+        if self._order_by_field:
+            docs.sort(key=lambda d: d.to_dict().get(self._order_by_field, 0))
+
+        # Apply limit
+        if self._limit is not None:
+            docs = docs[: self._limit]
+
+        return docs
+
+
+class FirestoreClient:
+    def __init__(self, credentials=None, project=None, database="(default)"):
+        self.credentials = credentials
+        self.project = project
+        self.database = database
+        self._store = {}
+
+    def collection(self, path):
+        return MockCollectionReference(path, self._store)
+
+
 @pytest.fixture
 def mock_credentials(monkeypatch):
     mock_credentials = MagicMock(name="MockGoogleCredentials")
@@ -336,6 +466,7 @@ def gcp_credentials(
     )
     gcp_credentials_mock.get_bigquery_client.return_value = BigQueryClient()
     gcp_credentials_mock.get_secret_manager_client.return_value = SecretManagerClient()
+    gcp_credentials_mock.get_firestore_client.return_value = FirestoreClient()
     gcp_credentials_mock.get_job_service_client.return_value = (
         gcp_credentials_mock.job_service_client
     )

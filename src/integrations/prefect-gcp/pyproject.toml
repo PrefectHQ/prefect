@@ -37,12 +37,14 @@ cloud_storage = ["google-cloud-storage"]
 bigquery = ["google-cloud-bigquery", "google-cloud-bigquery-storage"]
 secret_manager = ["google-cloud-secret-manager"]
 aiplatform = ["google-cloud-aiplatform"]
+firestore = ["google-cloud-firestore"]
 all_extras = [
   "google-cloud-storage",
   "google-cloud-bigquery",
   "google-cloud-bigquery-storage",
   "google-cloud-secret-manager",
   "google-cloud-aiplatform",
+  "google-cloud-firestore",
 ]
 
 [dependency-groups]
@@ -52,6 +54,7 @@ dev = [
   "google-cloud-bigquery-storage",
   "google-cloud-bigquery",
   "google-cloud-secret-manager",
+  "google-cloud-firestore",
   "google-cloud-storage",
   "interrogate",
   "mkdocs-gen-files",
