@@ -32,6 +32,7 @@ from typing import (
     NoReturn,
     Optional,
     Protocol,
+    Sequence,
     Tuple,
     Type,
     TypeVar,
@@ -2259,12 +2260,16 @@ class InfrastructureBoundFlow(Flow[P, R]):
         work_pool: str,
         job_variables: dict[str, Any],
         worker_cls: type["BaseWorker[Any, Any, Any]"],
+        include_files: Sequence[str] | None = None,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
         self.work_pool = work_pool
         self.job_variables = job_variables
         self.worker_cls = worker_cls
+        self.include_files: list[str] | None = (
+            list(include_files) if include_files is not None else None
+        )
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
@@ -2661,12 +2666,14 @@ def bind_flow_to_infrastructure(
     work_pool: str,
     worker_cls: type["BaseWorker[Any, Any, Any]"],
     job_variables: dict[str, Any] | None = None,
+    include_files: Sequence[str] | None = None,
 ) -> InfrastructureBoundFlow[P, R]:
     new = InfrastructureBoundFlow[P, R](
         flow.fn,
         work_pool=work_pool,
         job_variables=job_variables or {},
         worker_cls=worker_cls,
+        include_files=include_files,
     )
     # Copy all attributes from the original flow
     for attr, value in flow.__dict__.items():
