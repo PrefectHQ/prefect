@@ -97,6 +97,29 @@ def test_list_output_invaild_format_variables():
     )
 
 
+@pytest.mark.clear_db
+def test_list_output_variables_none_exist():
+    invoke_and_assert(
+        ["variable", "ls", "-o", "json"],
+        expected_output_contains="[]",
+        expected_code=0,
+    )
+
+
+@pytest.mark.clear_db
+def test_list_variables_none_exist():
+    invoke_and_assert(
+        ["variable", "ls"],
+        expected_output_contains="""
+            ┏━━━━━━┳━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┓
+            ┃ Name ┃ Value ┃ Created ┃ Updated ┃
+            ┡━━━━━━╇━━━━━━━╇━━━━━━━━━╇━━━━━━━━━┩
+            └──────┴───────┴─────────┴─────────┘
+        """,
+        expected_code=0,
+    )
+
+
 def test_list_variables_with_limit(variables):
     # variables are alphabetical by name
     name = sorted([variable.name for variable in variables])[0]

@@ -268,6 +268,19 @@ def test_register_fails_on_multiple_options():
     )
 
 
+@pytest.mark.clear_db
+def test_listing_blocks_when_none_are_registered():
+    invoke_and_assert(
+        ["block", "ls"],
+        expected_output_contains="""
+           ┏━━━━┳━━━━━━┳━━━━━━┳━━━━━━┓
+           ┃ ID ┃ Type ┃ Name ┃ Slug ┃
+           ┡━━━━╇━━━━━━╇━━━━━━╇━━━━━━┩
+           └────┴──────┴──────┴──────┘
+            """,
+    )
+
+
 async def test_listing_blocks_after_saving_a_block():
     block_name = f"wildblock-{uuid.uuid4()}"
     block_id = await system.Secret(value="a casual test block").save(block_name)
@@ -293,6 +306,15 @@ def test_listing_blocks_invalid_output_format():
         ["block", "ls", "-o", "xml"],
         expected_output_contains="Only 'json' output format is supported.",
         expected_code=1,
+    )
+
+
+@pytest.mark.clear_db
+def test_listing_blocks_when_none_are_registered_json_output():
+    invoke_and_assert(
+        ["block", "ls", "-o", "json"],
+        expected_output_contains="[]",
+        expected_code=0,
     )
 
 
