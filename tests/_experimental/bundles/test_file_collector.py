@@ -14,11 +14,11 @@ from __future__ import annotations
 import platform
 
 import pytest
+
 from prefect._experimental.bundles.file_collector import (
     CollectionResult,
     FileCollector,
 )
-
 from prefect._experimental.bundles.path_resolver import PathValidationError
 
 
@@ -302,3 +302,294 @@ class TestFileCollectorSymlinks:
             collector.collect(["sneaky.txt"])
 
         assert exc_info.value.error_type == "traversal"
+
+    def test_collect_broken_symlink_adds_warning(self, tmp_path):
+        """Test that broken symlink adds warning instead of raising."""
+        # Setup: create a symlink to nonexistent target
+        link = tmp_path / "broken.txt"
+        link.symlink_to(tmp_path / "nonexistent.txt")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["broken.txt"])
+
+        # Should be treated as missing file
+        assert len(result.files) == 0
+        assert len(result.warnings) == 1
+        assert "broken.txt" in result.warnings[0]
+
+
+class TestFileCollectorDirectory:
+    """Tests for FileCollector directory collection."""
+
+    def test_collect_directory_gets_all_files(self, tmp_path):
+        """Test collecting directory gets all files recursively."""
+        # Setup: create directory with files
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "a.txt").write_text("aaa")
+        (data_dir / "b.txt").write_text("bbb")
+        subdir = data_dir / "sub"
+        subdir.mkdir()
+        (subdir / "c.txt").write_text("ccc")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        # Should collect all 3 files
+        assert len(result.files) == 3
+        assert result.total_size == 9  # 3 + 3 + 3
+
+    def test_collect_directory_without_trailing_slash(self, tmp_path):
+        """Test that directory pattern works without trailing slash."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "file.txt").write_text("content")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data"])
+
+        assert len(result.files) == 1
+
+    def test_collect_directory_excludes_hidden_files(self, tmp_path):
+        """Test that hidden files (dotfiles) are excluded by default."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "visible.txt").write_text("visible")
+        (data_dir / ".hidden").write_text("hidden")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        # Only visible file should be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "visible.txt"
+
+    def test_collect_directory_excludes_hidden_directories(self, tmp_path):
+        """Test that files in hidden directories are excluded."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "visible.txt").write_text("visible")
+        hidden_dir = data_dir / ".hidden"
+        hidden_dir.mkdir()
+        (hidden_dir / "secret.txt").write_text("secret")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        # Only visible file should be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "visible.txt"
+
+    def test_collect_directory_excludes_pycache(self, tmp_path):
+        """Test that __pycache__ directories are excluded."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "module.py").write_text("# code")
+        pycache = data_dir / "__pycache__"
+        pycache.mkdir()
+        (pycache / "module.cpython-311.pyc").write_bytes(b"\x00\x00")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        # Only module.py should be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "module.py"
+
+    def test_collect_directory_excludes_pyc_files(self, tmp_path):
+        """Test that .pyc files are excluded even outside __pycache__."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "module.py").write_text("# code")
+        (data_dir / "old.pyc").write_bytes(b"\x00\x00")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        # Only module.py should be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "module.py"
+
+    def test_collect_directory_excludes_node_modules(self, tmp_path):
+        """Test that node_modules directories are excluded."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / "index.js").write_text("// code")
+        node_modules = project_dir / "node_modules"
+        node_modules.mkdir()
+        dep = node_modules / "some-dep"
+        dep.mkdir()
+        (dep / "index.js").write_text("// dep")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["project/"])
+
+        # Only project index.js should be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "index.js"
+
+    def test_collect_directory_excludes_venv(self, tmp_path):
+        """Test that venv and .venv directories are excluded."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / "main.py").write_text("# code")
+        venv = project_dir / "venv"
+        venv.mkdir()
+        (venv / "pyvenv.cfg").write_text("home = /usr")
+        dotvenv = project_dir / ".venv"
+        dotvenv.mkdir()
+        (dotvenv / "pyvenv.cfg").write_text("home = /usr")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["project/"])
+
+        # Only main.py should be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "main.py"
+
+    def test_collect_directory_excludes_ide_directories(self, tmp_path):
+        """Test that .idea and .vscode directories are excluded."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / "main.py").write_text("# code")
+        idea = project_dir / ".idea"
+        idea.mkdir()
+        (idea / "workspace.xml").write_text("<xml>")
+        vscode = project_dir / ".vscode"
+        vscode.mkdir()
+        (vscode / "settings.json").write_text("{}")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["project/"])
+
+        # Only main.py should be collected (IDE dirs are hidden anyway)
+        assert len(result.files) == 1
+        assert result.files[0].name == "main.py"
+
+    def test_collect_empty_directory_adds_warning(self, tmp_path):
+        """Test that empty directory produces warning, not error."""
+        empty_dir = tmp_path / "empty"
+        empty_dir.mkdir()
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["empty/"])
+
+        assert len(result.files) == 0
+        assert len(result.warnings) == 1
+        assert "empty" in result.warnings[0].lower()
+
+    def test_collect_directory_with_only_hidden_files_adds_warning(self, tmp_path):
+        """Test directory with only hidden files produces warning."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / ".hidden1").write_text("hidden")
+        (data_dir / ".hidden2").write_text("hidden")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        # All files excluded, should warn
+        assert len(result.files) == 0
+        assert len(result.warnings) == 1
+
+    def test_collect_directory_tracks_pattern(self, tmp_path):
+        """Test that directory pattern is tracked in patterns_matched."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "a.txt").write_text("a")
+        (data_dir / "b.txt").write_text("b")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        assert "data/" in result.patterns_matched
+        assert len(result.patterns_matched["data/"]) == 2
+
+    def test_collect_directory_excludes_egg_info(self, tmp_path):
+        """Test that *.egg-info directories are excluded."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / "setup.py").write_text("# setup")
+        egg_info = project_dir / "mypackage.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text("Name: mypackage")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["project/"])
+
+        # Only setup.py should be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "setup.py"
+
+    def test_collect_directory_excludes_git_directory(self, tmp_path):
+        """Test that .git directories are excluded."""
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / "main.py").write_text("# code")
+        git_dir = project_dir / ".git"
+        git_dir.mkdir()
+        (git_dir / "config").write_text("[core]")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["project/"])
+
+        # Only main.py should be collected (.git is hidden anyway)
+        assert len(result.files) == 1
+        assert result.files[0].name == "main.py"
+
+    def test_collect_directory_nested_hidden_component(self, tmp_path):
+        """Test that files under any hidden path component are excluded."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        visible = data_dir / "visible"
+        visible.mkdir()
+        (visible / "file.txt").write_text("ok")
+        hidden = data_dir / ".hidden"
+        hidden.mkdir()
+        nested = hidden / "nested"
+        nested.mkdir()
+        (nested / "secret.txt").write_text("secret")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        # Only data/visible/file.txt should be collected
+        assert len(result.files) == 1
+        assert "visible" in str(result.files[0])
+
+    def test_collect_directory_excludes_ds_store(self, tmp_path):
+        """Test that .DS_Store files are excluded."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "file.txt").write_text("content")
+        (data_dir / ".DS_Store").write_bytes(b"\x00\x00\x00\x01")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/"])
+
+        # Only file.txt should be collected
+        assert len(result.files) == 1
+        assert result.files[0].name == "file.txt"
+
+    def test_collect_directory_deduplicates_files(self, tmp_path):
+        """Test that same file from overlapping patterns is deduplicated."""
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        file = data_dir / "file.txt"
+        file.write_text("content")
+
+        collector = FileCollector(tmp_path)
+        # Collect the same file via directory and direct path
+        result = collector.collect(["data/", "data/file.txt"])
+
+        # File should only appear once
+        assert len(result.files) == 1
+
+    def test_collect_nonexistent_directory_adds_warning(self, tmp_path):
+        """Test that non-existent directory treated as missing pattern."""
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["nonexistent/"])
+
+        assert len(result.files) == 0
+        assert len(result.warnings) == 1
+        assert "nonexistent" in result.warnings[0]
