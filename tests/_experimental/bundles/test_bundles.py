@@ -1,6 +1,9 @@
 """Tests for SerializedBundle TypedDict with files_key field."""
 
-from unittest.mock import MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestSerializedBundleFilesKey:
@@ -130,4 +133,138 @@ class TestCreateBundleForFlowRunFilesKey:
         result = create_bundle_for_flow_run(simple_flow, mock_flow_run)
 
         assert result["bundle"].get("files_key") is None
+        assert result["zip_path"] is None
+
+
+class TestCreateBundleForFlowRunIncludeFiles:
+    """Tests for include_files integration in create_bundle_for_flow_run."""
+
+    @pytest.fixture
+    def project_with_files(self, tmp_path: Path) -> Path:
+        """Create a project directory with files and a flow."""
+        # Create files to include
+        (tmp_path / "config.yaml").write_text("key: value")
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "input.csv").write_text("a,b\n1,2")
+
+        # Create flow file
+        flow_file = tmp_path / "my_flow.py"
+        flow_file.write_text(
+            """
+from prefect import flow
+
+@flow
+def my_flow():
+    pass
+"""
+        )
+        return tmp_path
+
+    def test_files_key_populated_when_include_files_set(
+        self, project_with_files: Path, monkeypatch
+    ) -> None:
+        """files_key is populated when flow has include_files."""
+        import prefect._experimental.bundles as bundles_module
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect.flows import Flow
+
+        # Mock subprocess to avoid actual uv pip freeze
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+
+        # Create a flow with include_files
+        @Flow
+        def test_flow():
+            pass
+
+        # Set include_files attribute (as @ecs decorator would)
+        test_flow.include_files = ["config.yaml", "data/"]
+
+        # Mock inspect.getfile to return our flow file path
+        flow_file = project_with_files / "my_flow.py"
+
+        with patch(
+            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
+        ):
+            flow_run = MagicMock()
+            flow_run.model_dump.return_value = {"id": "test-123"}
+
+            result = create_bundle_for_flow_run(
+                flow=test_flow,
+                flow_run=flow_run,
+            )
+
+        # Verify files_key is populated
+        assert result["bundle"]["files_key"] is not None
+        assert result["bundle"]["files_key"].startswith("files/")
+        assert result["bundle"]["files_key"].endswith(".zip")
+
+        # Verify zip_path is returned
+        assert result["zip_path"] is not None
+        assert result["zip_path"].exists()
+
+        # Cleanup
+        if result["zip_path"]:
+            result["zip_path"].unlink(missing_ok=True)
+            result["zip_path"].parent.rmdir()
+
+    def test_files_key_none_when_no_include_files(self, monkeypatch) -> None:
+        """files_key is None when flow has no include_files."""
+        import prefect._experimental.bundles as bundles_module
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect.flows import Flow
+
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"",
+        )
+
+        @Flow
+        def test_flow():
+            pass
+
+        # No include_files attribute
+        flow_run = MagicMock()
+        flow_run.model_dump.return_value = {"id": "test-123"}
+
+        result = create_bundle_for_flow_run(
+            flow=test_flow,
+            flow_run=flow_run,
+        )
+
+        assert result["bundle"]["files_key"] is None
+        assert result["zip_path"] is None
+
+    def test_files_key_none_when_include_files_empty(self, monkeypatch) -> None:
+        """files_key is None when include_files is empty list."""
+        import prefect._experimental.bundles as bundles_module
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect.flows import Flow
+
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"",
+        )
+
+        @Flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = []
+
+        flow_run = MagicMock()
+        flow_run.model_dump.return_value = {"id": "test-123"}
+
+        result = create_bundle_for_flow_run(
+            flow=test_flow,
+            flow_run=flow_run,
+        )
+
+        assert result["bundle"]["files_key"] is None
         assert result["zip_path"] is None
