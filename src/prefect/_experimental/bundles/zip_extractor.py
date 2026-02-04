@@ -59,6 +59,12 @@ class ZipExtractor:
         extracted_paths: list[Path] = []
 
         with zipfile.ZipFile(self.zip_path, "r") as zf:
+            # Log overwrites before extraction
+            for member in zf.namelist():
+                dest_path = target_dir / member
+                if dest_path.exists() and dest_path.is_file():
+                    logger.warning(f"Overwriting existing file: {member}")
+
             # Extract all
             zf.extractall(target_dir)
 
