@@ -1198,6 +1198,7 @@ class TestPauseFlowRun:
         self, prefect_client, events_pipeline
     ):
         """Test that calling pause_flow_run from within a task pauses the parent flow."""
+        flow_run_id = None
 
         @task
         async def task_that_pauses():
@@ -1206,6 +1207,9 @@ class TestPauseFlowRun:
 
         @flow
         async def flow_with_pausing_task():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
             return await task_that_pauses()
 
         # The flow should timeout because it gets paused and never resumed
@@ -1213,10 +1217,7 @@ class TestPauseFlowRun:
             await flow_with_pausing_task()
 
         # Verify the flow run was actually paused
-        flow_runs = await prefect_client.read_flow_runs()
-        assert len(flow_runs) >= 1
-        # The most recent flow run should have been paused
-        flow_run = flow_runs[0]
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
         assert flow_run.state.is_paused() or flow_run.state.is_failed()
 
     async def test_pause_flow_run_from_task_with_input(self, prefect_client):
