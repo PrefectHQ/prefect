@@ -334,3 +334,112 @@ class TestZipExtractorOverwrite:
             extractor.extract(target_dir)
 
         assert "Overwriting" not in caplog.text
+
+
+class TestZipExtractorTypeMismatch:
+    """Tests for file/directory type mismatch detection."""
+
+    @pytest.fixture
+    def create_test_zip(self, tmp_path: Path):
+        """Factory fixture to create test zip files."""
+
+        def _create(files: dict[str, str]) -> Path:
+            """Create a zip with the given files. Keys are paths, values are content."""
+            zip_path = tmp_path / "test.zip"
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                for path, content in files.items():
+                    zf.writestr(path, content)
+            return zip_path
+
+        return _create
+
+    def test_extract_fails_file_over_directory(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """Error when file in zip would overwrite existing directory."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Create zip with a file named "data"
+        zip_path = create_test_zip({"data": "file content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        # Create existing directory with same name
+        (target_dir / "data").mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(RuntimeError) as exc_info:
+            extractor.extract(target_dir)
+
+        assert "data" in str(exc_info.value)
+        assert "directory" in str(exc_info.value).lower()
+
+    def test_extract_fails_directory_over_file(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """Error when directory in zip would overwrite existing file."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Create zip with a directory entry and file inside
+        zip_path = tmp_path / "test.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            # Explicitly add directory entry
+            zf.writestr("config/", "")
+            zf.writestr("config/settings.yaml", "key: value")
+
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        # Create existing file with same name as directory
+        (target_dir / "config").write_text("i am a file")
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(RuntimeError) as exc_info:
+            extractor.extract(target_dir)
+
+        assert "config" in str(exc_info.value)
+        assert "file" in str(exc_info.value).lower()
+
+    def test_extract_error_message_includes_path(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """Error message includes the problematic path."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Create zip with a file named "conflicting_name"
+        zip_path = create_test_zip({"conflicting_name": "content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        # Create existing directory with same name
+        (target_dir / "conflicting_name").mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(RuntimeError) as exc_info:
+            extractor.extract(target_dir)
+
+        assert "conflicting_name" in str(exc_info.value)
+
+    def test_extract_type_mismatch_before_any_extraction(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """No files are extracted when type mismatch is detected."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Create zip with multiple files, one will conflict
+        zip_path = create_test_zip(
+            {"goodfile.txt": "good content", "badname": "bad content"}
+        )
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        # Create existing directory that conflicts with "badname" file
+        (target_dir / "badname").mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(RuntimeError):
+            extractor.extract(target_dir)
+
+        # Verify no files were extracted
+        assert not (target_dir / "goodfile.txt").exists()
+        assert extractor._extracted is False
