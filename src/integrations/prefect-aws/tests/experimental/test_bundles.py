@@ -574,3 +574,35 @@ class TestExecuteBundleFromS3WithFiles:
         extracted_file = tmp_path / "data" / "config.yaml"
         assert extracted_file.exists()
         assert extracted_file.read_text() == "key: value"
+
+    def test_execute_with_files_cleans_up_zip(
+        self, mock_s3_client: MagicMock, tmp_path: Path
+    ):
+        """Downloaded zip file is deleted after extraction."""
+        bundle_data = {
+            "function": "test_function",
+            "context": "test_context",
+            "flow_run": {"id": "test_flow_run"},
+            "files_key": "files/abc123.zip",
+        }
+
+        downloaded_zip_path: Path | None = None
+
+        def mock_download_file(bucket: str, key: str, filename: str):
+            nonlocal downloaded_zip_path
+            if key.endswith(".zip"):
+                downloaded_zip_path = Path(filename)
+                with zipfile.ZipFile(filename, "w") as zf:
+                    zf.writestr("test.txt", "content")
+            else:
+                Path(filename).write_text(json.dumps(bundle_data))
+
+        mock_s3_client.download_file.side_effect = mock_download_file
+
+        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
+            mock_execute.return_value = None
+            execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
+
+        # Zip should be deleted after extraction
+        assert downloaded_zip_path is not None
+        assert not downloaded_zip_path.exists()
