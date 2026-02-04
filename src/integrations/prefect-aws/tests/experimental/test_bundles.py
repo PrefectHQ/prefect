@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import zipfile
 from pathlib import Path
 from typing import Any, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -507,3 +508,34 @@ class TestExecuteBundleFromS3WithFiles:
             # Should only download bundle, not files
             assert mock_s3_client.download_file.call_count == 1
             mock_execute.assert_called_once()
+
+    def test_execute_with_files_key_downloads_sidecar(self, mock_s3_client: MagicMock):
+        """When files_key present, sidecar zip is downloaded."""
+        bundle_data = {
+            "function": "test_function",
+            "context": "test_context",
+            "flow_run": {"id": "test_flow_run"},
+            "files_key": "files/abc123.zip",
+        }
+
+        call_log: list[dict[str, str]] = []
+
+        def mock_download_file(bucket: str, key: str, filename: str):
+            call_log.append({"bucket": bucket, "key": key})
+            if key.endswith(".zip"):
+                # Create minimal valid zip
+                with zipfile.ZipFile(filename, "w") as zf:
+                    zf.writestr("test.txt", "content")
+            else:
+                Path(filename).write_text(json.dumps(bundle_data))
+
+        mock_s3_client.download_file.side_effect = mock_download_file
+
+        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
+            mock_execute.return_value = None
+            execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
+
+        # Should download both bundle AND sidecar zip
+        assert len(call_log) == 2
+        assert call_log[0]["key"] == "bundle.json"
+        assert call_log[1]["key"] == "files/abc123.zip"
