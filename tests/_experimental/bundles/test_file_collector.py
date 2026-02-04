@@ -854,3 +854,201 @@ class TestFileCollectorGlob:
         # File should only appear once
         assert len(result.files) == 1
         assert result.files[0].name == "data.json"
+
+
+class TestFileCollectorNegation:
+    """Tests for FileCollector negation pattern support."""
+
+    def test_negation_pattern_excludes_matching_files(self, tmp_path):
+        """Test that !*.test.py excludes test files from collection."""
+        # Setup: create regular and test files
+        (tmp_path / "main.py").write_text("# main")
+        (tmp_path / "utils.py").write_text("# utils")
+        (tmp_path / "main_test.py").write_text("# test")
+        (tmp_path / "utils_test.py").write_text("# test")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.py", "!*_test.py"])
+
+        # Should exclude test files
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"main.py", "utils.py"}
+
+    def test_negation_pattern_order_matters(self, tmp_path):
+        """Test that negation before inclusion has no effect."""
+        # Setup: create json files
+        fixtures_dir = tmp_path / "fixtures"
+        fixtures_dir.mkdir()
+        (tmp_path / "config.json").write_text("{}")
+        (fixtures_dir / "test_data.json").write_text("{}")
+
+        collector = FileCollector(tmp_path)
+
+        # Negation first - nothing to negate yet
+        result = collector.collect(["!fixtures/*.json", "**/*.json"])
+
+        # All json files should be included (negation had nothing to negate)
+        file_names = {f.name for f in result.files}
+        assert "config.json" in file_names
+        assert "test_data.json" in file_names
+
+    def test_negation_pattern_after_inclusion_excludes(self, tmp_path):
+        """Test that negation after inclusion excludes matching files."""
+        # Setup: create json files in different directories
+        fixtures_dir = tmp_path / "fixtures"
+        fixtures_dir.mkdir()
+        (tmp_path / "config.json").write_text("{}")
+        (fixtures_dir / "test_data.json").write_text("{}")
+
+        collector = FileCollector(tmp_path)
+
+        # Include all json, then exclude fixtures
+        result = collector.collect(["**/*.json", "!fixtures/*.json"])
+
+        # Only non-fixture json should be included
+        assert len(result.files) == 1
+        assert result.files[0].name == "config.json"
+
+    def test_negation_all_files_results_in_empty(self, tmp_path):
+        """Test that negating all matched files results in empty collection."""
+        # Setup: create json files
+        (tmp_path / "a.json").write_text("{}")
+        (tmp_path / "b.json").write_text("{}")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.json", "!*.json"])
+
+        # All files negated
+        assert len(result.files) == 0
+
+    def test_negation_directory_pattern(self, tmp_path):
+        """Test that !fixtures/ excludes files in fixtures directory."""
+        # Setup: create directory structure
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        fixtures_dir = data_dir / "fixtures"
+        fixtures_dir.mkdir()
+        (data_dir / "config.txt").write_text("config")
+        (data_dir / "data.txt").write_text("data")
+        (fixtures_dir / "fixture1.txt").write_text("fixture")
+        (fixtures_dir / "fixture2.txt").write_text("fixture")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data/", "!data/fixtures/"])
+
+        # Should exclude fixtures directory contents
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"config.txt", "data.txt"}
+
+    def test_negation_with_deduplication(self, tmp_path):
+        """Test that negation works correctly with deduplicated files."""
+        # Setup: create files
+        (tmp_path / "a.txt").write_text("a")
+        (tmp_path / "b.txt").write_text("b")
+        (tmp_path / "c.txt").write_text("c")
+
+        collector = FileCollector(tmp_path)
+        # Multiple patterns matching same files, then negation
+        result = collector.collect(["a.txt", "*.txt", "!b.txt"])
+
+        # a.txt and c.txt should be in result (b.txt negated)
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"a.txt", "c.txt"}
+
+    def test_negation_pattern_tracked_in_patterns_matched(self, tmp_path):
+        """Test that negation patterns are tracked in patterns_matched."""
+        # Setup: create files
+        (tmp_path / "a.py").write_text("# a")
+        (tmp_path / "a_test.py").write_text("# test")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.py", "!*_test.py"])
+
+        # Negation pattern should be tracked
+        assert "!*_test.py" in result.patterns_matched
+        # And should show which files it excluded
+        excluded_names = [f.name for f in result.patterns_matched["!*_test.py"]]
+        assert "a_test.py" in excluded_names
+
+    def test_negation_multiple_patterns(self, tmp_path):
+        """Test multiple negation patterns work together."""
+        # Setup: create files
+        (tmp_path / "main.py").write_text("# main")
+        (tmp_path / "main_test.py").write_text("# test")
+        (tmp_path / "__init__.py").write_text("")
+        (tmp_path / "conftest.py").write_text("# pytest")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["*.py", "!*_test.py", "!conftest.py"])
+
+        # Should exclude both test and conftest files
+        assert len(result.files) == 2
+        file_names = {f.name for f in result.files}
+        assert file_names == {"main.py", "__init__.py"}
+
+    def test_negation_does_not_add_files(self, tmp_path):
+        """Test that negation only removes, never adds files."""
+        # Setup: create files
+        (tmp_path / "a.txt").write_text("a")
+        (tmp_path / "b.json").write_text("{}")
+
+        collector = FileCollector(tmp_path)
+        # Only include .txt, negation of .json should have no effect
+        result = collector.collect(["*.txt", "!*.json"])
+
+        # b.json was never in the set, so negation doesn't affect anything
+        assert len(result.files) == 1
+        assert result.files[0].name == "a.txt"
+
+    def test_negation_no_warning_for_zero_matches(self, tmp_path):
+        """Test that negation pattern matching nothing doesn't warn."""
+        # Setup: create files
+        (tmp_path / "a.txt").write_text("a")
+
+        collector = FileCollector(tmp_path)
+        # Negation that matches nothing shouldn't produce warning
+        result = collector.collect(["*.txt", "!*.nonexistent"])
+
+        assert len(result.files) == 1
+        # No warning for negation pattern that excluded nothing
+        assert len(result.warnings) == 0
+
+    def test_overlapping_patterns_deduplicate(self, tmp_path):
+        """Test that overlapping inclusion patterns deduplicate silently."""
+        # Setup: create files
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        config = data_dir / "config.json"
+        config.write_text("{}")
+
+        collector = FileCollector(tmp_path)
+        # Same file matched by multiple patterns
+        result = collector.collect(["data/", "data/config.json", "**/*.json"])
+
+        # File should only appear once
+        assert len(result.files) == 1
+        assert result.files[0] == config.resolve()
+
+    def test_negation_with_nested_directory(self, tmp_path):
+        """Test negation works with deeply nested directories."""
+        # Setup: create nested structure
+        src = tmp_path / "src"
+        src.mkdir()
+        tests = src / "tests"
+        tests.mkdir()
+        unit = tests / "unit"
+        unit.mkdir()
+
+        (src / "main.py").write_text("# main")
+        (tests / "conftest.py").write_text("# conftest")
+        (unit / "test_main.py").write_text("# test")
+
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["src/", "!src/tests/"])
+
+        # Should only include main.py (tests/ excluded)
+        assert len(result.files) == 1
+        assert result.files[0].name == "main.py"
