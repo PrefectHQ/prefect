@@ -219,3 +219,118 @@ class TestZipExtractorExtract:
         assert (
             target_dir / "dir2" / "nested" / "deep.txt"
         ).read_text() == "deep content"
+
+
+class TestZipExtractorOverwrite:
+    """Tests for overwrite behavior with warnings."""
+
+    @pytest.fixture
+    def create_test_zip(self, tmp_path: Path):
+        """Factory fixture to create test zip files."""
+
+        def _create(files: dict[str, str]) -> Path:
+            """Create a zip with the given files. Keys are paths, values are content."""
+            zip_path = tmp_path / "test.zip"
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                for path, content in files.items():
+                    zf.writestr(path, content)
+            return zip_path
+
+        return _create
+
+    def test_extract_overwrites_existing_file(
+        self, tmp_path: Path, create_test_zip: callable
+    ) -> None:
+        """Existing file is overwritten by extraction."""
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"config.yaml": "new content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        # Create existing file with different content
+        existing_file = target_dir / "config.yaml"
+        existing_file.write_text("old content")
+
+        extractor = ZipExtractor(zip_path)
+        extractor.extract(target_dir)
+
+        assert existing_file.read_text() == "new content"
+
+    def test_extract_logs_warning_on_overwrite(
+        self,
+        tmp_path: Path,
+        create_test_zip: callable,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Warning is logged when overwriting existing file."""
+        import logging
+
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"config.yaml": "new content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        # Create existing file
+        existing_file = target_dir / "config.yaml"
+        existing_file.write_text("old content")
+
+        extractor = ZipExtractor(zip_path)
+        with caplog.at_level(logging.WARNING):
+            extractor.extract(target_dir)
+
+        assert "Overwriting existing file: config.yaml" in caplog.text
+
+    def test_extract_overwrites_multiple_files(
+        self,
+        tmp_path: Path,
+        create_test_zip: callable,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Multiple existing files are overwritten with warnings."""
+        import logging
+
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"file1.txt": "new1", "dir/file2.txt": "new2"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+        (target_dir / "dir").mkdir()
+
+        # Create existing files
+        (target_dir / "file1.txt").write_text("old1")
+        (target_dir / "dir" / "file2.txt").write_text("old2")
+
+        extractor = ZipExtractor(zip_path)
+        with caplog.at_level(logging.WARNING):
+            extractor.extract(target_dir)
+
+        # Verify files overwritten
+        assert (target_dir / "file1.txt").read_text() == "new1"
+        assert (target_dir / "dir" / "file2.txt").read_text() == "new2"
+
+        # Verify warnings logged
+        assert "Overwriting existing file: file1.txt" in caplog.text
+        assert "Overwriting existing file: dir/file2.txt" in caplog.text
+
+    def test_extract_no_warning_for_new_files(
+        self,
+        tmp_path: Path,
+        create_test_zip: callable,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """No warning when file doesn't exist."""
+        import logging
+
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        zip_path = create_test_zip({"newfile.txt": "content"})
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with caplog.at_level(logging.WARNING):
+            extractor.extract(target_dir)
+
+        assert "Overwriting" not in caplog.text
