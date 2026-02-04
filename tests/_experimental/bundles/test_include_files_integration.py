@@ -117,3 +117,41 @@ class TestIncludeFilesIntegration:
             assert all(p.exists() for p in extracted)
         finally:
             builder.cleanup()
+
+    def test_glob_pattern_collection_and_extraction(
+        self, project_dir: Path, tmp_path: Path
+    ) -> None:
+        """Glob patterns collect and extract correctly."""
+        from prefect._experimental.bundles.file_collector import FileCollector
+        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Add more files for glob testing
+        (project_dir / "schema.json").write_text('{"type": "object"}')
+        (project_dir / "data" / "extra.json").write_text('{"extra": true}')
+
+        # Collect using globs
+        collector = FileCollector(project_dir)
+        result = collector.collect(["**/*.json", "config.yaml"])
+
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        # Extract
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        extractor = ZipExtractor(zip_result.zip_path)
+        extractor.extract(work_dir)
+
+        try:
+            # All JSON files should be present
+            assert (work_dir / "schema.json").exists()
+            assert (work_dir / "data" / "lookup.json").exists()
+            assert (work_dir / "data" / "extra.json").exists()
+            assert (work_dir / "config.yaml").exists()
+
+            # CSV should NOT be present (not matching pattern)
+            assert not (work_dir / "data" / "input.csv").exists()
+        finally:
+            builder.cleanup()
