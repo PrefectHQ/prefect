@@ -893,6 +893,264 @@ Asset metadata (execution details like timing, row counts) is added via `AssetCo
 - **Switching**: No data migration needed—just code change
 - **Rollback**: Simply switch back to `PrefectDbtRunner`
 
+## Implementation Phases
+
+This implementation is designed to be delivered across multiple PRs, with each phase building on the previous one.
+
+### Phase 1: Core Data Structures and Manifest Parsing
+
+**PR Scope**: Foundation classes for representing dbt nodes and parsing manifests.
+
+**Deliverables**:
+- `DbtNode` dataclass with all properties
+- `ExecutionWave` dataclass
+- `ManifestParser` class:
+  - Parse `manifest.json` to extract nodes
+  - Build dependency graph from `parent_map`
+  - Compute execution waves (topological sort)
+  - Handle ephemeral node resolution (trace through to real dependencies)
+- Unit tests for manifest parsing and wave computation
+
+**Dependencies**: None (foundational)
+
+**Exit Criteria**:
+- Can parse a real dbt manifest.json
+- Correctly computes execution waves for a multi-layer DAG
+- Ephemeral models are excluded and dependencies traced through
+
+---
+
+### Phase 2: Selector Resolution and Node Filtering
+
+**PR Scope**: Integration with dbt's selector system.
+
+**Deliverables**:
+- `resolve_selection()` method using `dbt ls`
+- `filter_nodes()` method on ManifestParser
+- Support for graph operators (`+model`, `model+`)
+- Integration tests with selector expressions
+
+**Dependencies**: Phase 1
+
+**Exit Criteria**:
+- `select="marts"`, `select="+stg_users"`, `exclude="stg_legacy_*"` all work correctly
+- Selection matches what `dbt ls` would return
+
+---
+
+### Phase 3: DbtCoreExecutor
+
+**PR Scope**: Executor for running dbt commands via dbtRunner.
+
+**Deliverables**:
+- `DbtExecutor` protocol definition
+- `ExecutionResult` dataclass
+- `DbtCoreExecutor` implementation:
+  - `execute_node()` for single-node execution
+  - `execute_wave()` for batch execution
+  - Support for `--state`, `--defer`, `--favor-state` flags
+- Unit tests with mocked dbtRunner
+
+**Dependencies**: Phase 1
+
+**Exit Criteria**:
+- Can execute a single node via `dbt run --select <node>`
+- Can execute multiple nodes in one invocation
+- Correctly passes through state-based flags
+
+---
+
+### Phase 4: Basic Orchestrator (PER_WAVE mode)
+
+**PR Scope**: Minimal viable orchestrator using per-wave execution.
+
+**Deliverables**:
+- `PrefectDbtOrchestrator` class (basic version)
+- `run_build()` method with PER_WAVE mode only
+- Wave-by-wave execution with proper dependencies
+- Basic result object structure
+- Downstream skipping on wave failure
+- Integration tests against DuckDB project
+
+**Dependencies**: Phases 1, 2, 3
+
+**Exit Criteria**:
+- Can run a full dbt build with waves executing in order
+- Failed wave causes downstream waves to skip
+- Returns result dict with status per node
+
+---
+
+### Phase 5: Per-Node Execution Mode
+
+**PR Scope**: Add PER_NODE execution with retries.
+
+**Deliverables**:
+- `ExecutionMode.PER_NODE` support
+- Individual Prefect tasks per node
+- Per-node retry logic
+- Concurrency limit support (both named and ephemeral)
+- Downstream node skipping on individual failure
+- Performance comparison tests
+
+**Dependencies**: Phase 4
+
+**Exit Criteria**:
+- Each node is a separate Prefect task
+- Failed node retries independently
+- Concurrency limits respected
+- Downstream nodes skip when upstream fails
+
+---
+
+### Phase 6: Cache Policy
+
+**PR Scope**: Cross-run caching for dbt nodes.
+
+**Deliverables**:
+- `DbtNodeCachePolicy` class
+- SQL content hashing
+- Config hashing
+- Upstream cache key propagation
+- Integration with Prefect's cache system
+- `cache_key_storage` and `result_storage` configuration
+- Tests verifying cache hit/miss behavior
+
+**Dependencies**: Phase 5
+
+**Exit Criteria**:
+- Second run with no changes shows cache hits
+- Modified SQL invalidates cache for that node and downstream
+- Cache persists across flow runs (no RUN_ID in key)
+
+---
+
+### Phase 7: Source Freshness Integration
+
+**PR Scope**: Freshness-aware cache expiration.
+
+**Deliverables**:
+- `compute_freshness_expiration()` function
+- `use_source_freshness_expiration` option
+- `only_fresh_sources` parameter on `run_build()`
+- Integration with `dbt source freshness` command
+- Tests with mock freshness data
+
+**Dependencies**: Phase 6
+
+**Exit Criteria**:
+- Can compute expiration from source freshness thresholds
+- `only_fresh_sources=True` skips models with stale sources
+- Expiration correctly passed to task decorator
+
+---
+
+### Phase 8: Test Strategies
+
+**PR Scope**: Configurable test execution behavior.
+
+**Deliverables**:
+- `TestStrategy` enum (IMMEDIATE, DEFERRED, SKIP)
+- Test placement logic for IMMEDIATE mode
+- Deferred test collection and execution
+- Tests verifying all three strategies
+
+**Dependencies**: Phase 5
+
+**Exit Criteria**:
+- IMMEDIATE: tests run right after their parent model
+- DEFERRED: all tests run after all models complete
+- SKIP: no tests executed
+- Multi-model tests wait for all referenced models
+
+---
+
+### Phase 9: Artifacts and Asset Tracking
+
+**PR Scope**: Prefect artifacts and asset lineage.
+
+**Deliverables**:
+- Summary markdown artifact creation
+- `MaterializingTask` integration for asset lineage
+- Asset metadata (timing, row counts)
+- `include_compiled_code` option
+- `write_run_results` option for dbt-compatible output
+
+**Dependencies**: Phase 5
+
+**Exit Criteria**:
+- Summary artifact appears in Prefect UI
+- Asset graph shows model dependencies
+- Compiled SQL included when enabled
+- run_results.json written when enabled
+
+---
+
+### Phase 10: dbt Cloud Executor
+
+**PR Scope**: Execute nodes via dbt Cloud ephemeral jobs.
+
+**Deliverables**:
+- `DbtCloudExecutor` class
+- Ephemeral job creation and cleanup
+- Manifest fetching from job artifacts
+- `generate_manifest()` via compile job
+- Poll-based job completion monitoring
+- Mock API tests + optional live integration test
+
+**Dependencies**: Phase 4 (uses same orchestrator interface)
+
+**Exit Criteria**:
+- Can execute nodes via dbt Cloud API
+- Ephemeral jobs cleaned up after completion
+- Manifest fetched from `defer_to_job_id`
+- Works with PrefectDbtOrchestrator via executor protocol
+
+---
+
+### Phase Dependency Graph
+
+```
+Phase 1 (Manifest Parsing)
+    │
+    ├──▶ Phase 2 (Selectors)
+    │        │
+    │        ▼
+    └──▶ Phase 3 (DbtCoreExecutor)
+             │
+             ▼
+         Phase 4 (Basic Orchestrator - PER_WAVE)
+             │
+             ├──▶ Phase 5 (PER_NODE mode)
+             │        │
+             │        ├──▶ Phase 6 (Cache Policy)
+             │        │        │
+             │        │        ▼
+             │        │    Phase 7 (Source Freshness)
+             │        │
+             │        ├──▶ Phase 8 (Test Strategies)
+             │        │
+             │        └──▶ Phase 9 (Artifacts)
+             │
+             └──▶ Phase 10 (dbt Cloud Executor)
+```
+
+### Recommended PR Order
+
+For fastest path to a working MVP:
+
+1. **PR 1**: Phases 1 + 2 (Manifest + Selectors)
+2. **PR 2**: Phase 3 (DbtCoreExecutor)
+3. **PR 3**: Phase 4 (Basic Orchestrator) — **MVP milestone**
+4. **PR 4**: Phase 5 (PER_NODE mode)
+5. **PR 5**: Phase 6 (Cache Policy)
+6. **PR 6**: Phase 9 (Artifacts) — can parallelize with Phase 7/8
+7. **PR 7**: Phase 8 (Test Strategies)
+8. **PR 8**: Phase 7 (Source Freshness)
+9. **PR 9**: Phase 10 (dbt Cloud Executor)
+
+This order prioritizes getting a working orchestrator (PR 3) that can be tested end-to-end, then layers on advanced features.
+
 ## Testing Plan
 
 ### Unit Tests
