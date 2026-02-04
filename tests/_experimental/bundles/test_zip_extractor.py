@@ -532,9 +532,16 @@ class TestZipExtractorCleanup:
         extractor = ZipExtractor(zip_path)
         extractor.extract(target_dir)
 
-        # Mock unlink to raise OSError
+        # Mock Path.unlink to raise OSError
+        original_unlink = Path.unlink
+
+        def mock_unlink(self, missing_ok=False):
+            if self == zip_path:
+                raise OSError("Permission denied")
+            return original_unlink(self, missing_ok=missing_ok)
+
         with (
-            patch.object(zip_path, "unlink", side_effect=OSError("Permission denied")),
+            patch.object(Path, "unlink", mock_unlink),
             caplog.at_level(logging.WARNING),
         ):
             # Should not raise

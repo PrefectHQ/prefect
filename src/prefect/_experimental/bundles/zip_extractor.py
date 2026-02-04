@@ -97,3 +97,22 @@ class ZipExtractor:
 
         self._extracted = True
         return extracted_paths
+
+    def cleanup(self) -> None:
+        """
+        Delete the zip file after successful extraction.
+
+        Only deletes if extraction was successful.
+        Logs warning if deletion fails.
+        """
+        if not self._extracted:
+            logger.warning(
+                f"Skipping zip cleanup - extraction not completed: {self.zip_path}"
+            )
+            return
+
+        try:
+            self.zip_path.unlink(missing_ok=True)
+            logger.debug(f"Deleted zip file: {self.zip_path}")
+        except OSError as e:
+            logger.warning(f"Failed to delete zip file {self.zip_path}: {e}")
