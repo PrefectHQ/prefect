@@ -29,6 +29,13 @@ export {
 	type TaskRunConcurrencyLimit,
 } from "./concurrency-limits";
 export { createDeployment, type Deployment } from "./deployments";
+export {
+	cleanupFlowRuns,
+	createFlowRun,
+	deleteFlowRun,
+	type FlowRun,
+	listFlowRuns,
+} from "./flow-runs";
 export { createFlow, type Flow } from "./flows";
 export { waitForServerHealth } from "./server";
 export {
