@@ -1097,6 +1097,7 @@ async def azure_blob_storage_container_block_definition(
     )
 
 
+@pytest.mark.clear_db
 class TestStorageConfigure:
     class TestS3:
         @pytest.mark.usefixtures("s3_bucket_block_definition")
