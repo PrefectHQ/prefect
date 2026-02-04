@@ -11,7 +11,7 @@ from pydantic_core import from_json
 
 import prefect.runner
 import prefect_azure.credentials
-from prefect._experimental.bundles.zip_extractor import ZipExtractor
+from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
 logger = logging.getLogger("prefect_azure.experimental.bundles.execute")
 

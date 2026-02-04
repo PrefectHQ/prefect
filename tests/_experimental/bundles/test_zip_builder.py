@@ -20,7 +20,7 @@ class TestZipResult:
 
     def test_dataclass_fields(self) -> None:
         """ZipResult has required fields: zip_path, sha256_hash, storage_key, size_bytes."""
-        from prefect._experimental.bundles.zip_builder import ZipResult
+        from prefect._experimental.bundles._zip_builder import ZipResult
 
         result = ZipResult(
             zip_path=Path("/tmp/test.zip"),
@@ -40,13 +40,15 @@ class TestZipBuilderConstants:
 
     def test_hash_chunk_size(self) -> None:
         """HASH_CHUNK_SIZE is 64KB for chunked reading."""
-        from prefect._experimental.bundles.zip_builder import HASH_CHUNK_SIZE
+        from prefect._experimental.bundles._zip_builder import HASH_CHUNK_SIZE
 
         assert HASH_CHUNK_SIZE == 65536  # 64KB
 
     def test_zip_size_warning_threshold(self) -> None:
         """ZIP_SIZE_WARNING_THRESHOLD is 50MB."""
-        from prefect._experimental.bundles.zip_builder import ZIP_SIZE_WARNING_THRESHOLD
+        from prefect._experimental.bundles._zip_builder import (
+            ZIP_SIZE_WARNING_THRESHOLD,
+        )
 
         assert ZIP_SIZE_WARNING_THRESHOLD == 50 * 1024 * 1024  # 50MB
 
@@ -56,14 +58,14 @@ class TestZipBuilderInit:
 
     def test_stores_resolved_base_dir(self, tmp_path: Path) -> None:
         """ZipBuilder stores resolved base_dir."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         builder = ZipBuilder(tmp_path)
         assert builder.base_dir == tmp_path.resolve()
 
     def test_init_temp_dir_is_none(self, tmp_path: Path) -> None:
         """ZipBuilder initializes _temp_dir to None."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         builder = ZipBuilder(tmp_path)
         assert builder._temp_dir is None
@@ -74,7 +76,7 @@ class TestZipBuilderBuild:
 
     def test_build_empty_file_list(self, tmp_path: Path) -> None:
         """Empty file list produces valid empty zip with hash."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         builder = ZipBuilder(tmp_path)
         result = builder.build([])
@@ -95,7 +97,7 @@ class TestZipBuilderBuild:
 
     def test_build_single_file(self, tmp_path: Path) -> None:
         """Single file is added with relative path as arcname."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Create test file
         data_dir = tmp_path / "data"
@@ -119,7 +121,7 @@ class TestZipBuilderBuild:
 
     def test_build_multiple_files(self, tmp_path: Path) -> None:
         """Multiple files preserve relative structure."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Create test files
         (tmp_path / "config.yaml").write_text("key: value")
@@ -148,7 +150,7 @@ class TestZipBuilderBuild:
 
     def test_build_uses_deflate_compression(self, tmp_path: Path) -> None:
         """Zip uses DEFLATED compression."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Create test file with compressible content
         test_file = tmp_path / "data.txt"
@@ -165,7 +167,7 @@ class TestZipBuilderBuild:
 
     def test_build_deterministic_hash(self, tmp_path: Path) -> None:
         """Same files produce same hash (deterministic)."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Create test files
         (tmp_path / "a.txt").write_text("content a")
@@ -189,7 +191,7 @@ class TestZipBuilderBuild:
 
     def test_build_sorts_files_for_determinism(self, tmp_path: Path) -> None:
         """Files are sorted by relative path for deterministic hash."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Create test files
         (tmp_path / "z.txt").write_text("z content")
@@ -211,7 +213,7 @@ class TestZipBuilderBuild:
 
     def test_build_storage_key_format(self, tmp_path: Path) -> None:
         """Storage key follows format files/{sha256hash}.zip."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("test")
 
@@ -230,7 +232,7 @@ class TestZipBuilderBuild:
 
     def test_build_size_bytes_accurate(self, tmp_path: Path) -> None:
         """size_bytes matches actual zip file size."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("some content here")
 
@@ -245,7 +247,7 @@ class TestZipBuilderBuild:
 
     def test_build_creates_temp_directory(self, tmp_path: Path) -> None:
         """Build creates temp directory with prefect-zip- prefix."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("test")
 
@@ -264,7 +266,7 @@ class TestZipBuilderBuild:
 
     def test_build_windows_path_normalization(self, tmp_path: Path) -> None:
         """Windows-style paths are normalized to forward slashes in zip."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Create nested file
         nested = tmp_path / "sub" / "dir"
@@ -292,7 +294,7 @@ class TestZipBuilderSizeWarning:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """No warning when zip is under 50MB."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "small.txt").write_text("small content")
 
@@ -310,7 +312,7 @@ class TestZipBuilderSizeWarning:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Warning is emitted when zip reaches 50MB threshold."""
-        from prefect._experimental.bundles.zip_builder import (
+        from prefect._experimental.bundles._zip_builder import (
             ZIP_SIZE_WARNING_THRESHOLD,
             ZipBuilder,
         )
@@ -340,7 +342,7 @@ class TestZipBuilderSizeWarning:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Warning message includes total zip size."""
-        from prefect._experimental.bundles.zip_builder import (
+        from prefect._experimental.bundles._zip_builder import (
             ZipBuilder,
         )
 
@@ -376,7 +378,7 @@ class TestZipBuilderSizeWarning:
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Warning message lists largest files contributing to size."""
-        from prefect._experimental.bundles.zip_builder import (
+        from prefect._experimental.bundles._zip_builder import (
             ZIP_SIZE_WARNING_THRESHOLD,
             ZipBuilder,
         )
@@ -423,7 +425,7 @@ class TestZipBuilderCleanup:
 
     def test_cleanup_removes_temp_directory(self, tmp_path: Path) -> None:
         """cleanup() removes the temp directory."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("test")
 
@@ -441,7 +443,7 @@ class TestZipBuilderCleanup:
 
     def test_cleanup_before_build_is_safe(self, tmp_path: Path) -> None:
         """cleanup() is safe to call before build()."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         builder = ZipBuilder(tmp_path)
         # Should not raise
@@ -449,7 +451,7 @@ class TestZipBuilderCleanup:
 
     def test_cleanup_multiple_times_is_safe(self, tmp_path: Path) -> None:
         """cleanup() can be called multiple times safely."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("test")
 
@@ -461,7 +463,7 @@ class TestZipBuilderCleanup:
 
     def test_cleanup_sets_temp_dir_to_none(self, tmp_path: Path) -> None:
         """cleanup() sets _temp_dir to None after removal."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("test")
 
@@ -478,7 +480,7 @@ class TestZipBuilderHashComputation:
 
     def test_hash_is_sha256(self, tmp_path: Path) -> None:
         """Hash is computed using SHA256."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("test content")
 
@@ -495,7 +497,7 @@ class TestZipBuilderHashComputation:
 
     def test_hash_uses_chunked_reading(self, tmp_path: Path) -> None:
         """Hash computation uses chunked reading (64KB chunks)."""
-        from prefect._experimental.bundles.zip_builder import (
+        from prefect._experimental.bundles._zip_builder import (
             HASH_CHUNK_SIZE,
             ZipBuilder,
         )
@@ -517,7 +519,7 @@ class TestZipBuilderHashComputation:
 
     def test_hash_is_lowercase_hex(self, tmp_path: Path) -> None:
         """Hash is returned as lowercase hexadecimal."""
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("test")
 
@@ -537,16 +539,16 @@ class TestZipBuilderExports:
 
     def test_module_exports(self) -> None:
         """Module exports required symbols."""
-        from prefect._experimental.bundles import zip_builder
+        from prefect._experimental.bundles import _zip_builder
 
-        assert hasattr(zip_builder, "ZipBuilder")
-        assert hasattr(zip_builder, "ZipResult")
-        assert hasattr(zip_builder, "HASH_CHUNK_SIZE")
-        assert hasattr(zip_builder, "ZIP_SIZE_WARNING_THRESHOLD")
+        assert hasattr(_zip_builder, "ZipBuilder")
+        assert hasattr(_zip_builder, "ZipResult")
+        assert hasattr(_zip_builder, "HASH_CHUNK_SIZE")
+        assert hasattr(_zip_builder, "ZIP_SIZE_WARNING_THRESHOLD")
 
     def test_all_exports(self) -> None:
         """__all__ includes required exports."""
-        from prefect._experimental.bundles.zip_builder import __all__
+        from prefect._experimental.bundles._zip_builder import __all__
 
         assert "ZipBuilder" in __all__
         assert "ZipResult" in __all__

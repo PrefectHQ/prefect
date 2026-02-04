@@ -11,7 +11,7 @@ import typer
 from botocore.exceptions import ClientError
 from pydantic_core import from_json
 
-from prefect._experimental.bundles.zip_extractor import ZipExtractor
+from prefect._experimental.bundles._zip_extractor import ZipExtractor
 from prefect.runner import Runner
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect_aws.credentials import AwsCredentials

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 
-from prefect._experimental.bundles.ignore_filter import (
+from prefect._experimental.bundles._ignore_filter import (
     FilterResult,
     IgnoreFilter,
     find_project_root,
@@ -514,50 +514,50 @@ class TestSensitivePatterns:
 
     def test_sensitive_patterns_constant_defined(self):
         """Test SENSITIVE_PATTERNS constant is defined and exported."""
-        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+        from prefect._experimental.bundles._ignore_filter import SENSITIVE_PATTERNS
 
         assert isinstance(SENSITIVE_PATTERNS, list)
         assert len(SENSITIVE_PATTERNS) == 7
 
     def test_sensitive_patterns_contains_env_files(self):
         """Test SENSITIVE_PATTERNS contains .env* pattern."""
-        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+        from prefect._experimental.bundles._ignore_filter import SENSITIVE_PATTERNS
 
         assert ".env*" in SENSITIVE_PATTERNS
 
     def test_sensitive_patterns_contains_pem_files(self):
         """Test SENSITIVE_PATTERNS contains *.pem pattern."""
-        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+        from prefect._experimental.bundles._ignore_filter import SENSITIVE_PATTERNS
 
         assert "*.pem" in SENSITIVE_PATTERNS
 
     def test_sensitive_patterns_contains_key_files(self):
         """Test SENSITIVE_PATTERNS contains *.key pattern."""
-        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+        from prefect._experimental.bundles._ignore_filter import SENSITIVE_PATTERNS
 
         assert "*.key" in SENSITIVE_PATTERNS
 
     def test_sensitive_patterns_contains_credentials_files(self):
         """Test SENSITIVE_PATTERNS contains credentials.* pattern."""
-        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+        from prefect._experimental.bundles._ignore_filter import SENSITIVE_PATTERNS
 
         assert "credentials.*" in SENSITIVE_PATTERNS
 
     def test_sensitive_patterns_contains_rsa_keys(self):
         """Test SENSITIVE_PATTERNS contains *_rsa pattern."""
-        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+        from prefect._experimental.bundles._ignore_filter import SENSITIVE_PATTERNS
 
         assert "*_rsa" in SENSITIVE_PATTERNS
 
     def test_sensitive_patterns_contains_p12_files(self):
         """Test SENSITIVE_PATTERNS contains *.p12 pattern."""
-        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+        from prefect._experimental.bundles._ignore_filter import SENSITIVE_PATTERNS
 
         assert "*.p12" in SENSITIVE_PATTERNS
 
     def test_sensitive_patterns_contains_secrets_files(self):
         """Test SENSITIVE_PATTERNS contains secrets.* pattern."""
-        from prefect._experimental.bundles.ignore_filter import SENSITIVE_PATTERNS
+        from prefect._experimental.bundles._ignore_filter import SENSITIVE_PATTERNS
 
         assert "secrets.*" in SENSITIVE_PATTERNS
 
@@ -567,7 +567,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_detects_env_files(self, tmp_path):
         """Test check_sensitive_files detects .env files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         env_file = tmp_path / ".env"
         env_file.touch()
@@ -579,7 +579,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_detects_env_local(self, tmp_path):
         """Test check_sensitive_files detects .env.local files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         env_file = tmp_path / ".env.local"
         env_file.touch()
@@ -591,7 +591,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_detects_pem_files(self, tmp_path):
         """Test check_sensitive_files detects .pem files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         pem_file = tmp_path / "server.pem"
         pem_file.touch()
@@ -603,7 +603,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_detects_key_files(self, tmp_path):
         """Test check_sensitive_files detects .key files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         key_file = tmp_path / "private.key"
         key_file.touch()
@@ -615,7 +615,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_detects_credentials_files(self, tmp_path):
         """Test check_sensitive_files detects credentials.* files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         creds_file = tmp_path / "credentials.json"
         creds_file.touch()
@@ -627,7 +627,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_detects_rsa_keys(self, tmp_path):
         """Test check_sensitive_files detects *_rsa files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         rsa_file = tmp_path / "id_rsa"
         rsa_file.touch()
@@ -639,7 +639,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_detects_p12_files(self, tmp_path):
         """Test check_sensitive_files detects .p12 files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         p12_file = tmp_path / "certificate.p12"
         p12_file.touch()
@@ -651,7 +651,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_detects_secrets_files(self, tmp_path):
         """Test check_sensitive_files detects secrets.* files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         secrets_file = tmp_path / "secrets.yaml"
         secrets_file.touch()
@@ -663,7 +663,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_warning_format(self, tmp_path):
         """Test warning format includes pattern that matched."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         env_file = tmp_path / ".env"
         env_file.touch()
@@ -676,7 +676,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_suggests_prefectignore(self, tmp_path):
         """Test warning suggests adding to .prefectignore."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         key_file = tmp_path / "server.key"
         key_file.touch()
@@ -689,7 +689,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_returns_empty_for_safe_files(self, tmp_path):
         """Test check_sensitive_files returns empty for non-sensitive files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         safe_file = tmp_path / "main.py"
         safe_file.touch()
@@ -700,7 +700,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_multiple_files(self, tmp_path):
         """Test check_sensitive_files handles multiple files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         env_file = tmp_path / ".env"
         key_file = tmp_path / "server.key"
@@ -716,7 +716,7 @@ class TestCheckSensitiveFiles:
 
     def test_check_sensitive_nested_file(self, tmp_path):
         """Test check_sensitive_files handles nested sensitive files."""
-        from prefect._experimental.bundles.ignore_filter import check_sensitive_files
+        from prefect._experimental.bundles._ignore_filter import check_sensitive_files
 
         config_dir = tmp_path / "config"
         config_dir.mkdir()
@@ -735,7 +735,7 @@ class TestEmitExcludedWarning:
 
     def test_emit_excluded_warning_batched(self, tmp_path, caplog):
         """Test emit_excluded_warning batches files into single warning."""
-        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+        from prefect._experimental.bundles._ignore_filter import emit_excluded_warning
 
         caplog.set_level(logging.WARNING)
 
@@ -756,7 +756,7 @@ class TestEmitExcludedWarning:
 
     def test_emit_excluded_warning_includes_file_names(self, tmp_path, caplog):
         """Test emit_excluded_warning includes file names."""
-        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+        from prefect._experimental.bundles._ignore_filter import emit_excluded_warning
 
         caplog.set_level(logging.WARNING)
 
@@ -773,7 +773,7 @@ class TestEmitExcludedWarning:
 
     def test_emit_excluded_warning_truncates_after_10(self, tmp_path, caplog):
         """Test emit_excluded_warning truncates list after 10 files."""
-        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+        from prefect._experimental.bundles._ignore_filter import emit_excluded_warning
 
         caplog.set_level(logging.WARNING)
 
@@ -797,7 +797,7 @@ class TestEmitExcludedWarning:
 
     def test_emit_excluded_warning_mentions_prefectignore(self, tmp_path, caplog):
         """Test emit_excluded_warning mentions .prefectignore."""
-        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+        from prefect._experimental.bundles._ignore_filter import emit_excluded_warning
 
         caplog.set_level(logging.WARNING)
 
@@ -811,7 +811,7 @@ class TestEmitExcludedWarning:
 
     def test_emit_excluded_warning_empty_list_no_warning(self, tmp_path, caplog):
         """Test emit_excluded_warning emits nothing for empty list."""
-        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+        from prefect._experimental.bundles._ignore_filter import emit_excluded_warning
 
         caplog.set_level(logging.WARNING)
 
@@ -822,7 +822,7 @@ class TestEmitExcludedWarning:
 
     def test_emit_excluded_warning_exactly_10_no_truncation(self, tmp_path, caplog):
         """Test emit_excluded_warning shows all 10 files without truncation."""
-        from prefect._experimental.bundles.ignore_filter import emit_excluded_warning
+        from prefect._experimental.bundles._ignore_filter import emit_excluded_warning
 
         caplog.set_level(logging.WARNING)
 

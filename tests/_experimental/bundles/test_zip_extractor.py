@@ -18,7 +18,7 @@ class TestZipExtractorImports:
 
     def test_zip_extractor_importable(self) -> None:
         """ZipExtractor can be imported from module."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         assert ZipExtractor is not None
 
@@ -28,7 +28,7 @@ class TestZipExtractorInit:
 
     def test_init_stores_zip_path(self, tmp_path: Path) -> None:
         """Constructor stores zip_path attribute."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = tmp_path / "test.zip"
         extractor = ZipExtractor(zip_path)
@@ -36,7 +36,7 @@ class TestZipExtractorInit:
 
     def test_init_accepts_path_object(self, tmp_path: Path) -> None:
         """Constructor accepts Path object."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = tmp_path / "test.zip"
         extractor = ZipExtractor(zip_path)
@@ -45,7 +45,7 @@ class TestZipExtractorInit:
 
     def test_init_accepts_string_path(self, tmp_path: Path) -> None:
         """Constructor accepts string path and converts to Path."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = str(tmp_path / "test.zip")
         extractor = ZipExtractor(zip_path)
@@ -54,7 +54,7 @@ class TestZipExtractorInit:
 
     def test_init_extracted_flag_false(self, tmp_path: Path) -> None:
         """_extracted flag is False initially."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = tmp_path / "test.zip"
         extractor = ZipExtractor(zip_path)
@@ -82,7 +82,7 @@ class TestZipExtractorExtract:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Single file is extracted to target directory."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"config.yaml": "key: value"})
         target_dir = tmp_path / "output"
@@ -98,7 +98,7 @@ class TestZipExtractorExtract:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Nested directory structure is preserved (data/input.csv -> ./data/input.csv)."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"data/input.csv": "a,b,c"})
         target_dir = tmp_path / "output"
@@ -114,7 +114,7 @@ class TestZipExtractorExtract:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Creates parent directories as needed."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"deeply/nested/file.txt": "content"})
         target_dir = tmp_path / "output"
@@ -129,7 +129,7 @@ class TestZipExtractorExtract:
         self, tmp_path: Path, create_test_zip: callable, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Uses cwd when no target specified."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"default.txt": "default content"})
         work_dir = tmp_path / "workdir"
@@ -146,7 +146,7 @@ class TestZipExtractorExtract:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Accepts custom target directory."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"custom.txt": "custom content"})
         custom_dir = tmp_path / "custom_output"
@@ -161,7 +161,7 @@ class TestZipExtractorExtract:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Returns list of extracted file paths."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip(
             {"file1.txt": "content1", "dir/file2.txt": "content2"}
@@ -181,7 +181,7 @@ class TestZipExtractorExtract:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Sets _extracted to True after successful extraction."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"file.txt": "content"})
         target_dir = tmp_path / "output"
@@ -196,7 +196,7 @@ class TestZipExtractorExtract:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Multiple files are extracted correctly."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip(
             {
@@ -242,7 +242,7 @@ class TestZipExtractorOverwrite:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Existing file is overwritten by extraction."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"config.yaml": "new content"})
         target_dir = tmp_path / "output"
@@ -266,7 +266,7 @@ class TestZipExtractorOverwrite:
         """Warning is logged when overwriting existing file."""
         import logging
 
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"config.yaml": "new content"})
         target_dir = tmp_path / "output"
@@ -291,7 +291,7 @@ class TestZipExtractorOverwrite:
         """Multiple existing files are overwritten with warnings."""
         import logging
 
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"file1.txt": "new1", "dir/file2.txt": "new2"})
         target_dir = tmp_path / "output"
@@ -323,7 +323,7 @@ class TestZipExtractorOverwrite:
         """No warning when file doesn't exist."""
         import logging
 
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"newfile.txt": "content"})
         target_dir = tmp_path / "output"
@@ -357,7 +357,7 @@ class TestZipExtractorTypeMismatch:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Error when file in zip would overwrite existing directory."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Create zip with a file named "data"
         zip_path = create_test_zip({"data": "file content"})
@@ -378,7 +378,7 @@ class TestZipExtractorTypeMismatch:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Error when directory in zip would overwrite existing file."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Create zip with a directory entry and file inside
         zip_path = tmp_path / "test.zip"
@@ -404,7 +404,7 @@ class TestZipExtractorTypeMismatch:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Error message includes the problematic path."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Create zip with a file named "conflicting_name"
         zip_path = create_test_zip({"conflicting_name": "content"})
@@ -424,7 +424,7 @@ class TestZipExtractorTypeMismatch:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """No files are extracted when type mismatch is detected."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Create zip with multiple files, one will conflict
         zip_path = create_test_zip(
@@ -466,7 +466,7 @@ class TestZipExtractorCleanup:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Zip file is deleted after cleanup."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"file.txt": "content"})
         target_dir = tmp_path / "output"
@@ -483,7 +483,7 @@ class TestZipExtractorCleanup:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Cleanup skips deletion if extraction not completed."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"file.txt": "content"})
 
@@ -503,7 +503,7 @@ class TestZipExtractorCleanup:
         """Warning is logged when cleanup called before extract."""
         import logging
 
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"file.txt": "content"})
 
@@ -523,7 +523,7 @@ class TestZipExtractorCleanup:
         import logging
         from unittest.mock import patch
 
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"file.txt": "content"})
         target_dir = tmp_path / "output"
@@ -553,7 +553,7 @@ class TestZipExtractorCleanup:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """Multiple cleanup calls don't raise."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"file.txt": "content"})
         target_dir = tmp_path / "output"
@@ -571,7 +571,7 @@ class TestZipExtractorCleanup:
         self, tmp_path: Path, create_test_zip: callable
     ) -> None:
         """No error if zip file was already deleted."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = create_test_zip({"file.txt": "content"})
         target_dir = tmp_path / "output"
@@ -592,7 +592,7 @@ class TestZipExtractorErrors:
 
     def test_extract_raises_on_missing_zip(self, tmp_path: Path) -> None:
         """FileNotFoundError for non-existent zip file."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         zip_path = tmp_path / "nonexistent.zip"
         target_dir = tmp_path / "output"
@@ -604,7 +604,7 @@ class TestZipExtractorErrors:
 
     def test_extract_raises_on_corrupted_zip(self, tmp_path: Path) -> None:
         """BadZipFile for invalid/corrupted zip file."""
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Create corrupted zip by writing invalid bytes
         zip_path = tmp_path / "corrupted.zip"
@@ -620,7 +620,7 @@ class TestZipExtractorErrors:
         """Clear error on permission issues when creating directory."""
         from unittest.mock import patch
 
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Create a valid zip
         zip_path = tmp_path / "test.zip"

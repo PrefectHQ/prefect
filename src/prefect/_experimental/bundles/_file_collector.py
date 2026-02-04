@@ -16,12 +16,12 @@ from pathlib import Path
 import pathspec
 import pathspec.util
 
-from prefect._experimental.bundles.ignore_filter import (
+from prefect._experimental.bundles._ignore_filter import (
     IgnoreFilter,
     check_sensitive_files,
     emit_excluded_warning,
 )
-from prefect._experimental.bundles.path_resolver import (
+from prefect._experimental.bundles._path_resolver import (
     PathValidationError,
     normalize_path_separator,
     resolve_with_symlink_check,

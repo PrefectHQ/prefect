@@ -9,7 +9,7 @@ from pydantic_core import from_json
 
 import prefect.runner
 import prefect_gcp.credentials
-from prefect._experimental.bundles.zip_extractor import ZipExtractor
+from prefect._experimental.bundles._zip_extractor import ZipExtractor
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 logger = logging.getLogger("prefect_gcp.experimental.bundles.execute")

@@ -15,11 +15,11 @@ import platform
 
 import pytest
 
-from prefect._experimental.bundles.file_collector import (
+from prefect._experimental.bundles._file_collector import (
     CollectionResult,
     FileCollector,
 )
-from prefect._experimental.bundles.path_resolver import PathValidationError
+from prefect._experimental.bundles._path_resolver import PathValidationError
 
 
 class TestCollectionResult:
@@ -1130,7 +1130,7 @@ class TestLargeFileWarning:
         """Test that files >10MB emit warning via logger."""
         import logging
 
-        from prefect._experimental.bundles.file_collector import LARGE_FILE_THRESHOLD
+        from prefect._experimental.bundles._file_collector import LARGE_FILE_THRESHOLD
 
         caplog.set_level(logging.WARNING)
 
@@ -1153,7 +1153,7 @@ class TestLargeFileWarning:
         """Test that large file warning includes file size."""
         import logging
 
-        from prefect._experimental.bundles.file_collector import LARGE_FILE_THRESHOLD
+        from prefect._experimental.bundles._file_collector import LARGE_FILE_THRESHOLD
 
         caplog.set_level(logging.WARNING)
 
@@ -1174,7 +1174,7 @@ class TestLargeFileWarning:
 
     def test_large_file_still_collected(self, tmp_path):
         """Test that large files are collected despite warning."""
-        from prefect._experimental.bundles.file_collector import LARGE_FILE_THRESHOLD
+        from prefect._experimental.bundles._file_collector import LARGE_FILE_THRESHOLD
 
         large_file = tmp_path / "collected.bin"
         large_file.write_bytes(b"x" * (LARGE_FILE_THRESHOLD + 100))
@@ -1189,7 +1189,7 @@ class TestLargeFileWarning:
 
     def test_large_file_threshold_constant(self):
         """Test LARGE_FILE_THRESHOLD is exported and equals 10MB."""
-        from prefect._experimental.bundles.file_collector import LARGE_FILE_THRESHOLD
+        from prefect._experimental.bundles._file_collector import LARGE_FILE_THRESHOLD
 
         assert LARGE_FILE_THRESHOLD == 10 * 1024 * 1024  # 10 MB
 
@@ -1199,7 +1199,7 @@ class TestCollectionSummary:
 
     def test_format_summary_file_count_and_size(self, tmp_path):
         """Test that summary shows file count and total size."""
-        from prefect._experimental.bundles.file_collector import (
+        from prefect._experimental.bundles._file_collector import (
             format_collection_summary,
         )
 
@@ -1219,7 +1219,7 @@ class TestCollectionSummary:
 
     def test_format_summary_kb_format(self, tmp_path):
         """Test that small sizes show KB format."""
-        from prefect._experimental.bundles.file_collector import (
+        from prefect._experimental.bundles._file_collector import (
             format_collection_summary,
         )
 
@@ -1237,7 +1237,7 @@ class TestCollectionSummary:
 
     def test_format_summary_mb_format(self, tmp_path):
         """Test that large sizes show MB format."""
-        from prefect._experimental.bundles.file_collector import (
+        from prefect._experimental.bundles._file_collector import (
             format_collection_summary,
         )
 
@@ -1255,7 +1255,7 @@ class TestCollectionSummary:
 
     def test_format_summary_human_readable(self, tmp_path):
         """Test that summary is human-readable format."""
-        from prefect._experimental.bundles.file_collector import (
+        from prefect._experimental.bundles._file_collector import (
             format_collection_summary,
         )
 
@@ -1276,7 +1276,7 @@ class TestPreviewCollection:
 
     def test_preview_returns_files_list(self, tmp_path):
         """Test preview_collection returns list of files."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         (tmp_path / "a.json").write_text("{}")
         (tmp_path / "b.json").write_text("{}")
@@ -1289,7 +1289,7 @@ class TestPreviewCollection:
 
     def test_preview_returns_file_count(self, tmp_path):
         """Test preview_collection returns file count."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         (tmp_path / "a.txt").write_text("a")
         (tmp_path / "b.txt").write_text("b")
@@ -1301,7 +1301,7 @@ class TestPreviewCollection:
 
     def test_preview_returns_total_size(self, tmp_path):
         """Test preview_collection returns total size."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         (tmp_path / "data.txt").write_text("hello")  # 5 bytes
 
@@ -1312,7 +1312,7 @@ class TestPreviewCollection:
 
     def test_preview_returns_human_readable_size(self, tmp_path):
         """Test preview_collection returns human-readable size."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         (tmp_path / "file.txt").write_text("content")
 
@@ -1323,7 +1323,7 @@ class TestPreviewCollection:
 
     def test_preview_returns_warnings(self, tmp_path):
         """Test preview_collection returns warnings."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         result = preview_collection(tmp_path, ["*.missing"])
 
@@ -1333,7 +1333,7 @@ class TestPreviewCollection:
 
     def test_preview_returns_patterns_matched(self, tmp_path):
         """Test preview_collection returns pattern match counts."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         (tmp_path / "a.json").write_text("{}")
         (tmp_path / "b.json").write_text("{}")
@@ -1345,7 +1345,7 @@ class TestPreviewCollection:
 
     def test_preview_does_not_modify_state(self, tmp_path):
         """Test preview_collection doesn't modify any state."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         (tmp_path / "file.txt").write_text("content")
 
@@ -1360,7 +1360,7 @@ class TestPreviewCollection:
         """Test preview_collection accepts Path objects."""
         from pathlib import Path
 
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         (tmp_path / "file.txt").write_text("content")
 
@@ -1370,19 +1370,19 @@ class TestPreviewCollection:
 
     def test_preview_exported_in_all(self):
         """Test preview_collection is in __all__."""
-        from prefect._experimental.bundles import file_collector
+        from prefect._experimental.bundles import _file_collector
 
-        assert "preview_collection" in file_collector.__all__
+        assert "preview_collection" in _file_collector.__all__
 
     def test_format_collection_summary_exported_in_all(self):
         """Test format_collection_summary is in __all__."""
-        from prefect._experimental.bundles import file_collector
+        from prefect._experimental.bundles import _file_collector
 
-        assert "format_collection_summary" in file_collector.__all__
+        assert "format_collection_summary" in _file_collector.__all__
 
     def test_preview_collection_returns_excluded_by_ignore(self, tmp_path):
         """Test preview_collection returns excluded_by_ignore list."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: create .prefectignore and files
         (tmp_path / ".prefectignore").write_text("*.log\n")
@@ -1398,7 +1398,7 @@ class TestPreviewCollection:
 
     def test_preview_collection_returns_sensitive_warnings(self, tmp_path):
         """Test preview_collection returns sensitive_warnings list."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: create a sensitive file
         (tmp_path / ".env").write_text("SECRET=value")
@@ -1412,7 +1412,7 @@ class TestPreviewCollection:
 
     def test_preview_collection_sensitive_files_still_collected(self, tmp_path):
         """Test that sensitive files are still included (warning only)."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: create sensitive file
         (tmp_path / ".env").write_text("SECRET=value")
@@ -1426,7 +1426,7 @@ class TestPreviewCollection:
 
     def test_preview_collection_excludes_by_prefectignore(self, tmp_path):
         """Test preview_collection applies .prefectignore filtering."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: create .prefectignore and files
         (tmp_path / ".prefectignore").write_text("*.tmp\n")
@@ -1444,7 +1444,7 @@ class TestPreviewCollection:
 
     def test_preview_collection_file_count_excludes_ignored(self, tmp_path):
         """Test preview_collection file_count reflects filtering."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: create files where some will be ignored
         (tmp_path / ".prefectignore").write_text("*.log\n")
@@ -1459,7 +1459,7 @@ class TestPreviewCollection:
 
     def test_preview_collection_total_size_excludes_ignored(self, tmp_path):
         """Test preview_collection total_size reflects filtering."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: create files with known sizes
         (tmp_path / ".prefectignore").write_text("*.log\n")
@@ -1473,7 +1473,7 @@ class TestPreviewCollection:
 
     def test_preview_collection_warnings_includes_explicit_excludes(self, tmp_path):
         """Test preview_collection warnings includes explicit exclude warnings."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: user explicitly includes a file that's ignored
         (tmp_path / ".prefectignore").write_text("important.log\n")
@@ -1486,7 +1486,7 @@ class TestPreviewCollection:
 
     def test_preview_collection_multiple_sensitive_files(self, tmp_path):
         """Test preview_collection handles multiple sensitive files."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: create multiple sensitive files
         (tmp_path / ".env").write_text("SECRET=1")
@@ -1507,7 +1507,7 @@ class TestPreviewCollection:
         self, tmp_path
     ):
         """Test excluded_by_ignore is empty when no .prefectignore."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: no .prefectignore
         (tmp_path / "file.txt").write_text("content")
@@ -1518,7 +1518,7 @@ class TestPreviewCollection:
 
     def test_preview_collection_sensitive_warnings_empty_for_safe_files(self, tmp_path):
         """Test sensitive_warnings is empty for non-sensitive files."""
-        from prefect._experimental.bundles.file_collector import preview_collection
+        from prefect._experimental.bundles._file_collector import preview_collection
 
         # Setup: only safe files
         (tmp_path / "main.py").write_text("# main")

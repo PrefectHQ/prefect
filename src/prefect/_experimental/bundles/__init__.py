@@ -35,9 +35,9 @@ from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
 
 from .execute import execute_bundle_from_file
-from .file_collector import FileCollector
-from .ignore_filter import IgnoreFilter, check_sensitive_files
-from .zip_builder import ZipBuilder
+from ._file_collector import FileCollector
+from ._ignore_filter import IgnoreFilter, check_sensitive_files
+from ._zip_builder import ZipBuilder
 
 logger: logging.Logger = get_logger(__name__)
 

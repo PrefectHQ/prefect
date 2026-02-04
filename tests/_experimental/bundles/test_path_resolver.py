@@ -12,7 +12,7 @@ import platform
 
 import pytest
 
-from prefect._experimental.bundles.path_resolver import (
+from prefect._experimental.bundles._path_resolver import (
     MAX_SYMLINK_DEPTH,
     PathResolutionError,
     PathResolver,
@@ -680,7 +680,7 @@ class TestResolveSecurePath:
 
     def test_simple_relative_path(self, tmp_path):
         """Test resolving a simple relative path to an existing file."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create a test file
         test_file = tmp_path / "config.yaml"
@@ -695,7 +695,7 @@ class TestResolveSecurePath:
 
     def test_nested_directory_path(self, tmp_path):
         """Test resolving a path in a nested directory."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create nested structure
         data_dir = tmp_path / "data"
@@ -710,7 +710,7 @@ class TestResolveSecurePath:
 
     def test_dot_relative_path(self, tmp_path):
         """Test resolving a path starting with ./"""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create a test file
         test_file = tmp_path / "data" / "file.txt"
@@ -724,7 +724,7 @@ class TestResolveSecurePath:
 
     def test_traversal_single_level_rejected(self, tmp_path):
         """Test that ../config.yaml is rejected as traversal."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create a file outside the base directory
         sibling_dir = tmp_path.parent / "sibling"
@@ -740,7 +740,7 @@ class TestResolveSecurePath:
 
     def test_traversal_nested_rejected(self, tmp_path):
         """Test that data/../../etc/passwd style traversal is rejected."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create directory structure
         data_dir = tmp_path / "data"
@@ -754,7 +754,7 @@ class TestResolveSecurePath:
 
     def test_traversal_with_existing_file_outside(self, tmp_path):
         """Test traversal is rejected even when target file exists."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create file outside base directory
         outside_dir = tmp_path.parent / "outside_test"
@@ -770,7 +770,7 @@ class TestResolveSecurePath:
 
     def test_nonexistent_file_raises_not_found(self, tmp_path):
         """Test that non-existent file raises PathValidationError with not_found."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         with pytest.raises(PathValidationError) as exc_info:
             resolve_secure_path("nonexistent.txt", tmp_path)
@@ -780,7 +780,7 @@ class TestResolveSecurePath:
 
     def test_nonexistent_nested_path(self, tmp_path):
         """Test that path with non-existent parent directory raises not_found."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         with pytest.raises(PathValidationError) as exc_info:
             resolve_secure_path("missing/dir/file.txt", tmp_path)
@@ -789,7 +789,7 @@ class TestResolveSecurePath:
 
     def test_cross_platform_backslash_path(self, tmp_path):
         """Test that Windows-style backslash paths are resolved correctly."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create nested structure
         data_dir = tmp_path / "data"
@@ -804,7 +804,7 @@ class TestResolveSecurePath:
 
     def test_directory_resolution(self, tmp_path):
         """Test resolving a directory path."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create a subdirectory
         sub_dir = tmp_path / "subdir"
@@ -817,7 +817,7 @@ class TestResolveSecurePath:
 
     def test_dotfile_resolution(self, tmp_path):
         """Test resolving a dotfile path."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create a dotfile
         dotfile = tmp_path / ".gitignore"
@@ -829,7 +829,7 @@ class TestResolveSecurePath:
 
     def test_hidden_directory_resolution(self, tmp_path):
         """Test resolving a path in a hidden directory."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create hidden directory structure
         hidden_dir = tmp_path / ".config"
@@ -843,7 +843,7 @@ class TestResolveSecurePath:
 
     def test_traversal_that_returns_to_base(self, tmp_path):
         """Test path that goes up and back down stays in base."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create structure
         data_dir = tmp_path / "data"
@@ -857,7 +857,7 @@ class TestResolveSecurePath:
 
     def test_multiple_traversal_within_base(self, tmp_path):
         """Test multiple parent refs that stay within base directory."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create deep structure
         deep_dir = tmp_path / "a" / "b" / "c"
@@ -871,7 +871,7 @@ class TestResolveSecurePath:
 
     def test_input_validation_still_applied(self, tmp_path):
         """Test that input validation from Plan 01 is still applied."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Empty string should fail input validation
         with pytest.raises(PathValidationError) as exc_info:
@@ -890,7 +890,7 @@ class TestResolveSecurePath:
 
     def test_resolved_path_contains_suggestion(self, tmp_path):
         """Test that traversal errors include helpful suggestion."""
-        from prefect._experimental.bundles.path_resolver import resolve_secure_path
+        from prefect._experimental.bundles._path_resolver import resolve_secure_path
 
         # Create the parent structure to ensure file exists
         outside_dir = tmp_path.parent / "suggestions_test"

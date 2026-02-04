@@ -48,8 +48,8 @@ class TestIncludeFilesIntegration:
         self, project_dir: Path
     ) -> None:
         """FileCollector output feeds correctly into ZipBuilder."""
-        from prefect._experimental.bundles.file_collector import FileCollector
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Collect files
         collector = FileCollector(project_dir)
@@ -79,9 +79,9 @@ class TestIncludeFilesIntegration:
         self, project_dir: Path, tmp_path: Path
     ) -> None:
         """Files packaged by ZipBuilder extract correctly via ZipExtractor."""
-        from prefect._experimental.bundles.file_collector import FileCollector
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Collect and build
         collector = FileCollector(project_dir)
@@ -123,9 +123,9 @@ class TestIncludeFilesIntegration:
         self, project_dir: Path, tmp_path: Path
     ) -> None:
         """Glob patterns collect and extract correctly."""
-        from prefect._experimental.bundles.file_collector import FileCollector
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Add more files for glob testing
         (project_dir / "schema.json").write_text('{"type": "object"}')
@@ -159,10 +159,10 @@ class TestIncludeFilesIntegration:
 
     def test_ignore_filter_integration(self, project_dir: Path, tmp_path: Path) -> None:
         """Files matching .prefectignore are excluded from extraction."""
-        from prefect._experimental.bundles.file_collector import FileCollector
-        from prefect._experimental.bundles.ignore_filter import IgnoreFilter
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._ignore_filter import IgnoreFilter
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Create .prefectignore
         (project_dir / ".prefectignore").write_text("*.json\n")
@@ -205,9 +205,9 @@ class TestIncludeFilesIntegration:
         self, project_dir: Path, tmp_path: Path
     ) -> None:
         """Simulate complete flow: collect -> zip -> 'upload' -> 'download' -> extract."""
-        from prefect._experimental.bundles.file_collector import FileCollector
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # === Development Environment ===
 
@@ -356,9 +356,9 @@ class TestIncludeFilesIntegration:
         flow file in development, it will be available at `./data/input.csv` relative
         to the working directory during execution.
         """
-        from prefect._experimental.bundles.file_collector import FileCollector
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
 
         # Development: files at specific relative paths
         dev_paths = {
@@ -412,8 +412,8 @@ class TestBundleUploadWithSidecar:
     ) -> None:
         """upload_bundle_to_storage uploads both bundle and sidecar."""
         from prefect._experimental.bundles import upload_bundle_to_storage
-        from prefect._experimental.bundles.file_collector import FileCollector
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Create a sidecar zip
         collector = FileCollector(project_with_files)
@@ -535,8 +535,8 @@ shutil.copy2(src, dest)
     def test_upload_bundle_with_sidecar_no_files_key(self, tmp_path: Path) -> None:
         """If zip_path provided but no files_key, sidecar is not uploaded."""
         from prefect._experimental.bundles import upload_bundle_to_storage
-        from prefect._experimental.bundles.file_collector import FileCollector
-        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
 
         # Create files and zip
         (tmp_path / "data.txt").write_text("test")
@@ -715,7 +715,7 @@ def my_flow():
         from unittest.mock import MagicMock, patch
 
         from prefect._experimental.bundles import create_bundle_for_flow_run
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
         from prefect.client.schemas.objects import FlowRun
         from prefect.flows import Flow
 
@@ -802,7 +802,7 @@ def my_flow():
         from unittest.mock import MagicMock, patch
 
         from prefect._experimental.bundles import create_bundle_for_flow_run
-        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
         from prefect.client.schemas.objects import FlowRun
         from prefect.flows import Flow
 
