@@ -134,7 +134,7 @@ jobs:
       - name: Install dependencies (head)
         run: uv sync --group cli-bench --locked
 
-      - name: Run baseline benchmarks (base)
+      - name: Run baseline benchmarks (base, standard CLI)
         run: |
           uv run --group cli-bench cli-bench \
             --config "$RUNNER_TEMP/cli-bench.toml" \
@@ -144,7 +144,7 @@ jobs:
             --category startup \
             --output baseline.json
 
-      - name: Run comparison benchmarks (head)
+      - name: Run comparison benchmarks (head, standard CLI)
         run: |
           uv run --group cli-bench cli-bench \
             --config "$RUNNER_TEMP/cli-bench.toml" \
@@ -154,6 +154,16 @@ jobs:
             --category startup \
             --compare baseline.json \
             --output comparison.json
+
+      - name: Run fast-cli benchmarks (head, cyclopts)
+        run: |
+          uv run --group cli-bench cli-bench \
+            --config "$RUNNER_TEMP/cli-bench.toml" \
+            --project-root "$RUNNER_TEMP/head" \
+            run \
+            --runs 10 \
+            --category fast-cli \
+            --output fast-cli.json
 
       - name: Summarize benchmark results
         run: |
@@ -165,11 +175,14 @@ jobs:
 
           baseline = json.loads(Path("baseline.json").read_text())
           comparison = json.loads(Path("comparison.json").read_text())
+          fast_cli = json.loads(Path("fast-cli.json").read_text()) if Path("fast-cli.json").exists() else None
 
           base_by_cmd = {r["command"]: r for r in baseline["results"]}
           comp_by_cmd = {r["command"]: r for r in comparison["results"]}
 
-          print("| Command | Baseline warm (ms) | Compare warm (ms) | Delta |")
+          print("### Standard CLI: Base vs Head")
+          print("")
+          print("| Command | Base (ms) | Head (ms) | Delta |")
           print("|---|---:|---:|---:|")
 
           for cmd in base_by_cmd:
@@ -184,6 +197,35 @@ jobs:
                   continue
               delta = (c_mean - b_mean) / b_mean * 100
               print(f"| {cmd} | {b_mean:.0f} | {c_mean:.0f} | {delta:+.1f}% |")
+
+          if fast_cli:
+              fast_by_cmd = {r["command"]: r for r in fast_cli["results"]}
+              print("")
+              print("### Fast CLI (cyclopts) Performance")
+              print("")
+              print("| Command | Standard (ms) | Fast CLI (ms) | Improvement |")
+              print("|---|---:|---:|---:|")
+
+              # Map fast-cli commands to their standard equivalents
+              fast_to_standard = {
+                  "prefect --help (fast)": "prefect --help",
+                  "prefect --version (fast)": "prefect --version",
+                  "prefect config --help (fast)": "prefect config --help",
+                  "prefect config view (fast)": "prefect config view",
+              }
+
+              for fast_cmd, std_cmd in fast_to_standard.items():
+                  fast = fast_by_cmd.get(fast_cmd, {})
+                  std = comp_by_cmd.get(std_cmd, {})
+                  fast_warm = fast.get("warm_cache", {}) or {}
+                  std_warm = std.get("warm_cache", {}) or {}
+                  f_mean = fast_warm.get("mean_ms")
+                  s_mean = std_warm.get("mean_ms")
+                  if f_mean is None or s_mean is None:
+                      print(f"| {std_cmd} | - | - | - |")
+                      continue
+                  improvement = (s_mean - f_mean) / s_mean * 100
+                  print(f"| {std_cmd} | {s_mean:.0f} | {f_mean:.0f} | {improvement:+.1f}% |")
           PY
 
       - name: Upload benchmark results
@@ -193,3 +235,4 @@ jobs:
           path: |
             baseline.json
             comparison.json
+            fast-cli.json

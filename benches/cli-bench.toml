@@ -24,3 +24,44 @@ name = "prefect version"
 args = ["prefect", "version"]
 category = "startup"
 description = "version command"
+
+# Fast CLI mode (experimental)
+[[commands]]
+name = "prefect --help (fast)"
+args = ["prefect", "--help"]
+category = "fast-cli"
+description = "fast CLI help output"
+env = { PREFECT_CLI_FAST = "1" }
+
+[[commands]]
+name = "prefect --version (fast)"
+args = ["prefect", "--version"]
+category = "fast-cli"
+description = "fast CLI version flag"
+env = { PREFECT_CLI_FAST = "1" }
+
+[[commands]]
+name = "prefect config --help (fast)"
+args = ["prefect", "config", "--help"]
+category = "fast-cli"
+description = "fast CLI config help"
+env = { PREFECT_CLI_FAST = "1" }
+
+[[commands]]
+name = "prefect config view (fast)"
+args = ["prefect", "config", "view"]
+category = "fast-cli"
+description = "fast CLI config view command"
+env = { PREFECT_CLI_FAST = "1" }
+
+[[commands]]
+name = "prefect config --help"
+args = ["prefect", "config", "--help"]
+category = "startup"
+description = "standard CLI config help"
+
+[[commands]]
+name = "prefect config view"
+args = ["prefect", "config", "view"]
+category = "startup"
+description = "standard CLI config view command"

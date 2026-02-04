@@ -4068,6 +4068,9 @@ docker = [
 email = [
     { name = "prefect-email" },
 ]
+fast-cli = [
+    { name = "cyclopts" },
+]
 gcp = [
     { name = "prefect-gcp" },
 ]
@@ -4188,6 +4191,7 @@ requires-dist = [
     { name = "cloudpickle", specifier = ">=2.0,<4.0" },
     { name = "coolname", specifier = ">=1.0.4,<4.0.0" },
     { name = "cryptography", specifier = ">=36.0.1" },
+    { name = "cyclopts", marker = "extra == 'fast-cli'", specifier = ">=3.0" },
     { name = "dateparser", specifier = ">=1.1.1,<2.0.0" },
     { name = "docker", specifier = ">=4.0,<8.0" },
     { name = "exceptiongroup", specifier = ">=1.0.0" },
@@ -4257,7 +4261,7 @@ requires-dist = [
     { name = "websockets", specifier = ">=15.0.1,<17.0" },
     { name = "whenever", marker = "python_full_version >= '3.13'", specifier = ">=0.7.3,<0.10.0" },
 ]
-provides-extras = ["aws", "azure", "bitbucket", "bundles", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"]
+provides-extras = ["aws", "azure", "bitbucket", "bundles", "dask", "databricks", "dbt", "docker", "email", "fast-cli", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"]
 
 [package.metadata.requires-dev]
 benchmark = [

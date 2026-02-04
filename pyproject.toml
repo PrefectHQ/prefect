@@ -125,6 +125,8 @@ redis = ["prefect-redis>=0.2.0"]
 # Monitoring extras
 email = ["prefect-email>=0.4.0"]
 slack = ["prefect-slack>=0.3.0"]
+# Experimental fast CLI
+fast-cli = ["cyclopts>=3.0"]
 
 [project.scripts]
 prefect = "prefect.cli:app"
