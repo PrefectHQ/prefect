@@ -155,3 +155,47 @@ class TestIncludeFilesIntegration:
             assert not (work_dir / "data" / "input.csv").exists()
         finally:
             builder.cleanup()
+
+    def test_ignore_filter_integration(self, project_dir: Path, tmp_path: Path) -> None:
+        """Files matching .prefectignore are excluded from extraction."""
+        from prefect._experimental.bundles.file_collector import FileCollector
+        from prefect._experimental.bundles.ignore_filter import IgnoreFilter
+        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Create .prefectignore
+        (project_dir / ".prefectignore").write_text("*.json\n")
+
+        # Create sensitive file
+        (project_dir / ".env").write_text("SECRET=value")
+
+        # Collect files
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/", ".env"])
+
+        # Apply ignore filter
+        ignore_filter = IgnoreFilter(project_dir)
+        filtered = ignore_filter.filter(
+            result.files, explicit_patterns=["config.yaml", "data/", ".env"]
+        )
+
+        # Build zip with filtered files
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(filtered.included_files)
+
+        # Extract
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        extractor = ZipExtractor(zip_result.zip_path)
+        extractor.extract(work_dir)
+
+        try:
+            # YAML should be present
+            assert (work_dir / "config.yaml").exists()
+            # CSV should be present (not ignored)
+            assert (work_dir / "data" / "input.csv").exists()
+            # JSON files should be excluded by .prefectignore
+            assert not (work_dir / "data" / "lookup.json").exists()
+        finally:
+            builder.cleanup()
