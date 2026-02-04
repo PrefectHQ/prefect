@@ -77,9 +77,8 @@ test.describe("Dashboard Page", () => {
 			await waitForDashboardReady(page);
 
 			// --- VERIFY: Dashboard header and filters are visible ---
-			await expect(
-				page.getByRole("heading", { name: /dashboard/i }).first(),
-			).toBeVisible();
+			// Dashboard title is in a BreadcrumbItem (li element), not a heading
+			await expect(page.getByText("Dashboard").first()).toBeVisible();
 			await expect(page.getByLabel("Hide subflows")).toBeVisible();
 			await expect(page.getByText("All tags")).toBeVisible();
 
