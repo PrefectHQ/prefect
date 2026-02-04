@@ -1,8 +1,9 @@
 """
-Tests for path resolution input validation.
+Tests for path resolution input validation and symlink handling.
 
 This module tests the path validation functions in path_resolver.py.
-All tests focus on input validation (no filesystem access).
+Includes tests for input validation (no filesystem access) and
+symlink resolution tests (uses tmp_path for filesystem operations).
 """
 
 from __future__ import annotations
@@ -10,12 +11,15 @@ from __future__ import annotations
 import platform
 
 import pytest
+
 from prefect._experimental.bundles.path_resolver import (
+    MAX_SYMLINK_DEPTH,
     PathResolutionError,
     PathValidationError,
     PathValidationResult,
     check_for_duplicates,
     normalize_path_separator,
+    resolve_with_symlink_check,
     validate_path_input,
 )
 
@@ -387,3 +391,279 @@ class TestNormalizePathSeparator:
             normalize_path_separator("src\\prefect\\bundles\\__init__.py")
             == "src/prefect/bundles/__init__.py"
         )
+
+
+# Skip symlink tests on Windows since symlink creation requires admin privileges
+symlink_skip = pytest.mark.skipif(
+    platform.system() == "Windows",
+    reason="Symlink tests require admin privileges on Windows",
+)
+
+
+class TestMaxSymlinkDepth:
+    """Tests for MAX_SYMLINK_DEPTH constant."""
+
+    def test_max_symlink_depth_is_10(self):
+        """Test that MAX_SYMLINK_DEPTH is set to 10."""
+        assert MAX_SYMLINK_DEPTH == 10
+
+
+@symlink_skip
+class TestResolveWithSymlinkCheck:
+    """Tests for resolve_with_symlink_check function."""
+
+    def test_regular_file_no_symlink(self, tmp_path):
+        """Test that regular file without symlink is resolved correctly."""
+        # Setup: create a regular file
+        file = tmp_path / "data" / "config.yaml"
+        file.parent.mkdir(parents=True)
+        file.write_text("config content")
+
+        result = resolve_with_symlink_check(file, tmp_path)
+        assert result == file.resolve()
+
+    def test_symlink_within_base_dir(self, tmp_path):
+        """Test symlink within base dir pointing to file within base dir is resolved."""
+        # Setup: create target file and symlink
+        target = tmp_path / "data" / "actual.txt"
+        target.parent.mkdir(parents=True)
+        target.write_text("actual content")
+
+        link = tmp_path / "link.txt"
+        link.symlink_to(target)
+
+        result = resolve_with_symlink_check(link, tmp_path)
+        assert result == target.resolve()
+
+    def test_symlink_relative_target(self, tmp_path):
+        """Test symlink with relative target path is resolved correctly."""
+        # Setup: create target and symlink with relative path
+        target = tmp_path / "data" / "file.txt"
+        target.parent.mkdir(parents=True)
+        target.write_text("content")
+
+        link = tmp_path / "data" / "link.txt"
+        # Use relative path for symlink target
+        link.symlink_to("file.txt")
+
+        result = resolve_with_symlink_check(link, tmp_path)
+        assert result == target.resolve()
+
+    def test_symlink_pointing_outside_base_dir_raises_traversal(self, tmp_path):
+        """Test symlink pointing outside base dir raises PathValidationError."""
+        # Setup: create base dir and outside target
+        base_dir = tmp_path / "project"
+        base_dir.mkdir()
+
+        outside_target = tmp_path / "outside" / "secret.txt"
+        outside_target.parent.mkdir(parents=True)
+        outside_target.write_text("secret content")
+
+        link = base_dir / "sneaky_link.txt"
+        link.symlink_to(outside_target)
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link, base_dir)
+        assert exc_info.value.error_type == "traversal"
+        assert "outside" in exc_info.value.message.lower()
+
+    def test_symlink_to_absolute_path_outside_raises_traversal(self, tmp_path):
+        """Test symlink to absolute path outside base dir raises error."""
+        # Setup: create link pointing to /etc/passwd equivalent
+        base_dir = tmp_path / "project"
+        base_dir.mkdir()
+
+        outside_target = tmp_path / "outside.txt"
+        outside_target.write_text("outside")
+
+        link = base_dir / "link.txt"
+        link.symlink_to(outside_target.resolve())  # Absolute path
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link, base_dir)
+        assert exc_info.value.error_type == "traversal"
+
+    def test_broken_symlink_raises_error(self, tmp_path):
+        """Test broken symlink (target doesn't exist) raises PathValidationError."""
+        link = tmp_path / "broken_link.txt"
+        link.symlink_to(tmp_path / "nonexistent.txt")
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link, tmp_path)
+        assert exc_info.value.error_type == "broken_symlink"
+        assert "exist" in exc_info.value.message.lower()
+
+    def test_symlink_chain_within_limit(self, tmp_path):
+        """Test chain of symlinks within limit is resolved."""
+        # Setup: create chain of 3 symlinks
+        target = tmp_path / "actual.txt"
+        target.write_text("content")
+
+        link1 = tmp_path / "link1.txt"
+        link1.symlink_to(target)
+
+        link2 = tmp_path / "link2.txt"
+        link2.symlink_to(link1)
+
+        link3 = tmp_path / "link3.txt"
+        link3.symlink_to(link2)
+
+        result = resolve_with_symlink_check(link3, tmp_path)
+        assert result == target.resolve()
+
+    def test_symlink_chain_at_limit(self, tmp_path):
+        """Test chain of exactly MAX_SYMLINK_DEPTH symlinks is resolved."""
+        target = tmp_path / "actual.txt"
+        target.write_text("content")
+
+        prev = target
+        for i in range(MAX_SYMLINK_DEPTH):
+            link = tmp_path / f"link{i}.txt"
+            link.symlink_to(prev)
+            prev = link
+
+        result = resolve_with_symlink_check(prev, tmp_path)
+        assert result == target.resolve()
+
+    def test_symlink_chain_over_limit_raises_error(self, tmp_path):
+        """Test chain exceeding MAX_SYMLINK_DEPTH raises PathValidationError."""
+        target = tmp_path / "actual.txt"
+        target.write_text("content")
+
+        prev = target
+        # Create MAX_SYMLINK_DEPTH + 1 symlinks
+        for i in range(MAX_SYMLINK_DEPTH + 1):
+            link = tmp_path / f"link{i}.txt"
+            link.symlink_to(prev)
+            prev = link
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(prev, tmp_path)
+        assert exc_info.value.error_type == "symlink_loop"
+        assert str(MAX_SYMLINK_DEPTH) in exc_info.value.message
+
+    def test_circular_symlink_detected(self, tmp_path):
+        """Test circular symlink (a -> b -> a) raises PathValidationError."""
+        link_a = tmp_path / "a.txt"
+        link_b = tmp_path / "b.txt"
+
+        # Create circular reference: a -> b -> a
+        link_b.symlink_to(link_a)
+        link_a.symlink_to(link_b)
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link_a, tmp_path)
+        assert exc_info.value.error_type == "symlink_loop"
+        assert "circular" in exc_info.value.message.lower()
+
+    def test_self_referential_symlink(self, tmp_path):
+        """Test self-referential symlink (a -> a) raises PathValidationError."""
+        # Note: Can't create self-ref directly, so we test via a 3-link chain
+        link_a = tmp_path / "a.txt"
+        link_b = tmp_path / "b.txt"
+        link_c = tmp_path / "c.txt"
+
+        # Create chain that loops: a -> b -> c -> a
+        link_c.symlink_to(link_a)
+        link_b.symlink_to(link_c)
+        link_a.symlink_to(link_b)
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link_a, tmp_path)
+        assert exc_info.value.error_type == "symlink_loop"
+
+    def test_custom_max_depth(self, tmp_path):
+        """Test custom max_depth parameter is respected."""
+        target = tmp_path / "actual.txt"
+        target.write_text("content")
+
+        prev = target
+        for i in range(5):
+            link = tmp_path / f"link{i}.txt"
+            link.symlink_to(prev)
+            prev = link
+
+        # With max_depth=3, chain of 5 should fail
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(prev, tmp_path, max_depth=3)
+        assert exc_info.value.error_type == "symlink_loop"
+
+    def test_symlink_to_directory_within_base(self, tmp_path):
+        """Test symlink to directory within base dir is resolved."""
+        target_dir = tmp_path / "data"
+        target_dir.mkdir()
+
+        link = tmp_path / "data_link"
+        link.symlink_to(target_dir)
+
+        result = resolve_with_symlink_check(link, tmp_path)
+        assert result == target_dir.resolve()
+
+    def test_symlink_escape_via_parent_traversal(self, tmp_path):
+        """Test symlink using .. to escape base dir raises error."""
+        base_dir = tmp_path / "project" / "flows"
+        base_dir.mkdir(parents=True)
+
+        outside = tmp_path / "outside.txt"
+        outside.write_text("outside content")
+
+        # Create symlink using relative path with .. to escape
+        link = base_dir / "sneaky.txt"
+        link.symlink_to("../../outside.txt")
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link, base_dir)
+        assert exc_info.value.error_type == "traversal"
+
+    def test_suggestion_provided_for_traversal(self, tmp_path):
+        """Test that traversal error includes suggestion."""
+        base_dir = tmp_path / "project"
+        base_dir.mkdir()
+
+        outside = tmp_path / "outside.txt"
+        outside.write_text("content")
+
+        link = base_dir / "link.txt"
+        link.symlink_to(outside)
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link, base_dir)
+        assert exc_info.value.suggestion is not None
+        assert "within" in exc_info.value.suggestion.lower()
+
+    def test_suggestion_provided_for_broken_symlink(self, tmp_path):
+        """Test that broken symlink error includes suggestion."""
+        link = tmp_path / "broken.txt"
+        link.symlink_to(tmp_path / "nonexistent.txt")
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link, tmp_path)
+        assert exc_info.value.suggestion is not None
+        assert "exist" in exc_info.value.suggestion.lower()
+
+    def test_suggestion_provided_for_symlink_loop(self, tmp_path):
+        """Test that symlink loop error includes suggestion."""
+        link_a = tmp_path / "a.txt"
+        link_b = tmp_path / "b.txt"
+        link_b.symlink_to(link_a)
+        link_a.symlink_to(link_b)
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link_a, tmp_path)
+        assert exc_info.value.suggestion is not None
+        assert "circular" in exc_info.value.suggestion.lower()
+
+    def test_input_path_preserved_in_error(self, tmp_path):
+        """Test that original input path is preserved in error."""
+        base_dir = tmp_path / "project"
+        base_dir.mkdir()
+
+        outside = tmp_path / "outside.txt"
+        outside.write_text("content")
+
+        link = base_dir / "my_link.txt"
+        link.symlink_to(outside)
+
+        with pytest.raises(PathValidationError) as exc_info:
+            resolve_with_symlink_check(link, base_dir)
+        assert str(link) in exc_info.value.input_path
