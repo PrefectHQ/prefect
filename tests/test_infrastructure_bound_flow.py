@@ -739,3 +739,110 @@ class TestInfrastructureBoundFlow:
 
         assert infrastructure_bound_flow.include_files == ["config.yaml", "data.txt"]
         assert isinstance(infrastructure_bound_flow.include_files, list)
+
+    def test_with_options_preserves_include_files_when_not_provided(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options() without include_files preserves original include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt", "b.yaml"],
+        )
+
+        new_flow = original_flow.with_options(name="new-name")
+
+        assert new_flow.include_files == ["a.txt", "b.yaml"]
+        assert new_flow.name == "new-name"
+
+    def test_with_options_replaces_include_files(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[...]) replaces original include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=["b.txt", "c.yaml"])
+
+        assert new_flow.include_files == ["b.txt", "c.yaml"]
+        # Verify original is unchanged
+        assert original_flow.include_files == ["a.txt"]
+
+    def test_with_options_clears_include_files_with_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=None) clears include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=None)
+
+        assert new_flow.include_files is None
+        # Verify original is unchanged
+        assert original_flow.include_files == ["a.txt"]
+
+    def test_with_options_sets_include_files_from_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[...]) sets include_files when original is None."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+        )
+        assert original_flow.include_files is None
+
+        new_flow = original_flow.with_options(include_files=["a.txt"])
+
+        assert new_flow.include_files == ["a.txt"]
+
+    def test_with_options_sets_include_files_to_empty_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[]) sets include_files to empty list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=[])
+
+        assert new_flow.include_files == []
+        # Empty list is different from None
+        assert new_flow.include_files is not None
