@@ -16,9 +16,22 @@ import cyclopts
 config_app = cyclopts.App(name="config", help="View and set Prefect settings.")
 
 
+def _get_console():
+    """Get the shared console from the parent module."""
+    from prefect.cli._cyclopts import console
+
+    return console
+
+
+def _is_interactive() -> bool:
+    """Check if the CLI should prompt for input."""
+    from prefect.cli._cyclopts import is_interactive
+
+    return is_interactive()
+
+
 def _exit_with_error(message: str, code: int = 1) -> None:
     """Print error and exit."""
-    # Import rich only when needed
     from rich.console import Console
 
     Console(stderr=True).print(f"[red]Error:[/red] {message}")
@@ -27,9 +40,7 @@ def _exit_with_error(message: str, code: int = 1) -> None:
 
 def _exit_with_success(message: str) -> None:
     """Print success and exit."""
-    from rich.console import Console
-
-    Console().print(f"[green]{message}[/green]")
+    _get_console().print(f"[green]{message}[/green]")
     sys.exit(0)
 
 
@@ -79,19 +90,17 @@ def set_(
         help_message = ""
         for setting, problem in exc.errors:
             for error in problem.errors():
-                help_message += f"Validation error for {setting.name}: {error['msg']}\n"
+                help_message += f"[bold red]Validation error(s) for setting[/bold red] [blue]{setting.name}[/blue]\n\n - {error['msg']}\n\n"
         _exit_with_error(help_message)
 
-    from rich.console import Console
-
-    console = Console()
+    console = _get_console()
 
     for setting, value in parsed_settings.items():
         console.print(f"Set {setting!r} to {value!r}.")
         if setting in os.environ:
             console.print(
                 f"[yellow]{setting} is also set by an environment variable which will "
-                f"override your config value. Run `unset {setting}` to clear it.[/yellow]"
+                f"override your config value. Run `unset {setting}` to clear it."
             )
 
     _exit_with_success(f"Updated profile {new_profile.name!r}.")
@@ -157,27 +166,27 @@ def unset(
                 f"{setting.name!r} is not set in profile {profile.name!r}."
             )
 
-    if not yes and sys.stdin.isatty():
-        response = input(
-            f"Are you sure you want to unset {listrepr(setting_names)}? [y/N] "
-        )
-        if response.lower() not in ("y", "yes"):
+    if not yes and _is_interactive():
+        from rich.prompt import Confirm
+
+        if not Confirm.ask(
+            f"Are you sure you want to unset the following setting(s): {listrepr(setting_names)}?",
+            console=_get_console(),
+        ):
             _exit_with_error("Unset aborted.")
 
     profiles.update_profile(
         name=profile.name, settings={setting_name: None for setting_name in parsed}
     )
 
-    from rich.console import Console
-
-    console = Console()
+    console = _get_console()
 
     for setting_name in setting_names:
         console.print(f"Unset {setting_name!r}.")
         if setting_name in os.environ:
             console.print(
                 f"[yellow]{setting_name!r} is also set by an environment variable. "
-                f"Use `unset {setting_name}` to clear it.[/yellow]"
+                f"Use `unset {setting_name}` to clear it."
             )
 
     prefect.settings.save_profiles(profiles)
@@ -212,7 +221,6 @@ def view(
     from typing import Literal, cast
 
     from dotenv import dotenv_values
-    from rich.console import Console
 
     import prefect.context
     import prefect.settings
@@ -224,7 +232,7 @@ def view(
     )
     from prefect.utilities.annotations import NotSet
 
-    console = Console()
+    console = _get_console()
     valid_setting_names = _get_valid_setting_names(prefect.settings.Settings)
 
     if show_secrets:

@@ -7,8 +7,8 @@ Focus is on functional parity (exit codes, data output) rather than help text fo
 
 import os
 import re
-import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -21,12 +21,9 @@ def run_cli(args: list[str], fast: bool = False) -> subprocess.CompletedProcess:
     else:
         env.pop("PREFECT_CLI_FAST", None)
 
-    prefect_cmd = shutil.which("prefect")
-    if prefect_cmd is None:
-        pytest.skip("prefect command not found in PATH")
-
+    # Use sys.executable -m prefect to ensure we run the repo code
     return subprocess.run(
-        [prefect_cmd] + args,
+        [sys.executable, "-m", "prefect"] + args,
         capture_output=True,
         text=True,
         env=env,

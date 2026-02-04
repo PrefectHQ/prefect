@@ -7,9 +7,15 @@ Enable with PREFECT_CLI_FAST=1 during the migration period.
 Commands not yet migrated will delegate to the existing typer implementation.
 """
 
+from __future__ import annotations
+
+import asyncio
 import sys
+from typing import Annotated, Optional
 
 import cyclopts
+from rich.console import Console
+from rich.theme import Theme
 
 
 # Lazy version lookup - only imports prefect when needed
@@ -19,11 +25,94 @@ def _get_version() -> str:
     return prefect.__version__
 
 
-app = cyclopts.App(
+_app = cyclopts.App(
     name="prefect",
     help="Prefect CLI for workflow orchestration.",
     version=_get_version,
 )
+
+# Configure meta app group for global options
+_app.meta.group_parameters = cyclopts.Group("Session Parameters", sort_key=0)
+
+# Global console instance, configured by the root callback
+console: Console = Console(
+    highlight=False,
+    theme=Theme({"prompt.choices": "bold blue"}),
+)
+
+# Track whether prompt mode is forced
+_prompt_override: Optional[bool] = None
+
+
+def is_interactive() -> bool:
+    """Check if the CLI should prompt for input."""
+    if _prompt_override is not None:
+        return _prompt_override
+    return console.is_interactive
+
+
+@_app.meta.default
+def _root_callback(
+    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
+    profile: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--profile", alias="-p", help="Select a profile for this CLI run."
+        ),
+    ] = None,
+    prompt: Annotated[
+        Optional[bool],
+        cyclopts.Parameter(
+            "--prompt", negative="--no-prompt", help="Toggle interactive prompts."
+        ),
+    ] = None,
+):
+    """Prefect CLI for workflow orchestration."""
+    global console, _prompt_override
+    import prefect.context
+    from prefect.logging.configuration import setup_logging
+    from prefect.settings import PREFECT_CLI_PROMPT, get_current_settings
+
+    # Handle --profile
+    if profile and prefect.context.get_settings_context().profile.name != profile:
+        try:
+            prefect.context.use_profile(profile, override_environment_variables=True)
+        except KeyError:
+            print(f"Unknown profile {profile!r}.", file=sys.stderr)
+            sys.exit(1)
+
+    settings = get_current_settings()
+
+    # Handle --prompt (default from PREFECT_CLI_PROMPT setting)
+    if prompt is None:
+        _prompt_override = PREFECT_CLI_PROMPT.value()
+    else:
+        _prompt_override = prompt
+
+    # Configure console
+    console = Console(
+        highlight=False,
+        color_system="auto" if settings.cli.colors else None,
+        theme=Theme({"prompt.choices": "bold blue"}),
+        soft_wrap=not settings.cli.wrap_lines,
+        force_interactive=_prompt_override if _prompt_override else None,
+    )
+
+    # Setup logging (skip in test mode)
+    if not settings.testing.test_mode:
+        setup_logging()
+
+    # Windows event loop policy
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+    # Invoke the actual command
+    _app(tokens)
+
+
+def app():
+    """Entry point that invokes the meta app for global option handling."""
+    _app.meta()
 
 
 def _not_implemented(command: str):
@@ -42,7 +131,7 @@ def _not_implemented(command: str):
 
 # --- deploy ---
 deploy_app = cyclopts.App(name="deploy", help="Create and manage deployments.")
-app.command(deploy_app)
+_app.command(deploy_app)
 
 
 @deploy_app.default
@@ -58,7 +147,7 @@ def deploy_default(*tokens: str):
 
 # --- flow-run ---
 flow_run_app = cyclopts.App(name="flow-run", help="Interact with flow runs.")
-app.command(flow_run_app)
+_app.command(flow_run_app)
 
 
 @flow_run_app.default
@@ -72,7 +161,7 @@ def flow_run_default(*tokens: str):
 
 # --- worker ---
 worker_app = cyclopts.App(name="worker", help="Start and interact with workers.")
-app.command(worker_app)
+_app.command(worker_app)
 
 
 @worker_app.default
@@ -86,7 +175,7 @@ def worker_default(*tokens: str):
 
 # --- block ---
 block_app = cyclopts.App(name="block", help="Interact with blocks.")
-app.command(block_app)
+_app.command(block_app)
 
 
 @block_app.default
@@ -101,12 +190,12 @@ def block_default(*tokens: str):
 # --- config (native cyclopts) ---
 from prefect.cli._cyclopts.config import config_app
 
-app.command(config_app)
+_app.command(config_app)
 
 
 # --- profile ---
 profile_app = cyclopts.App(name="profile", help="Manage Prefect profiles.")
-app.command(profile_app)
+_app.command(profile_app)
 
 
 @profile_app.default
@@ -120,7 +209,7 @@ def profile_default(*tokens: str):
 
 # --- server ---
 server_app = cyclopts.App(name="server", help="Start and manage the Prefect server.")
-app.command(server_app)
+_app.command(server_app)
 
 
 @server_app.default
@@ -134,7 +223,7 @@ def server_default(*tokens: str):
 
 # --- cloud ---
 cloud_app = cyclopts.App(name="cloud", help="Interact with Prefect Cloud.")
-app.command(cloud_app)
+_app.command(cloud_app)
 
 
 @cloud_app.default
@@ -148,7 +237,7 @@ def cloud_default(*tokens: str):
 
 # --- work-pool ---
 work_pool_app = cyclopts.App(name="work-pool", help="Manage work pools.")
-app.command(work_pool_app)
+_app.command(work_pool_app)
 
 
 @work_pool_app.default
@@ -162,7 +251,7 @@ def work_pool_default(*tokens: str):
 
 # --- variable ---
 variable_app = cyclopts.App(name="variable", help="Manage Prefect variables.")
-app.command(variable_app)
+_app.command(variable_app)
 
 
 @variable_app.default
@@ -179,91 +268,91 @@ def variable_default(*tokens: str):
 # =============================================================================
 
 
-@app.command(name="api")
+@_app.command(name="api")
 def api_cmd(*tokens: str):
     """Interact with the Prefect API."""
     _not_implemented("api")
 
 
-@app.command(name="artifact")
+@_app.command(name="artifact")
 def artifact_cmd(*tokens: str):
     """Manage artifacts."""
     _not_implemented("artifact")
 
 
-@app.command(name="concurrency-limit")
+@_app.command(name="concurrency-limit")
 def concurrency_limit_cmd(*tokens: str):
     """Manage concurrency limits."""
     _not_implemented("concurrency-limit")
 
 
-@app.command(name="dashboard")
+@_app.command(name="dashboard")
 def dashboard_cmd(*tokens: str):
     """Open the Prefect dashboard."""
     _not_implemented("dashboard")
 
 
-@app.command(name="deployment")
+@_app.command(name="deployment")
 def deployment_cmd(*tokens: str):
     """Manage deployments (legacy)."""
     _not_implemented("deployment")
 
 
-@app.command(name="dev")
+@_app.command(name="dev")
 def dev_cmd(*tokens: str):
     """Development commands."""
     _not_implemented("dev")
 
 
-@app.command(name="events")
+@_app.command(name="events")
 def events_cmd(*tokens: str):
     """Manage events."""
     _not_implemented("events")
 
 
-@app.command(name="flow")
+@_app.command(name="flow")
 def flow_cmd(*tokens: str):
     """Manage flows."""
     _not_implemented("flow")
 
 
-@app.command(name="global-concurrency-limit")
+@_app.command(name="global-concurrency-limit")
 def global_concurrency_limit_cmd(*tokens: str):
     """Manage global concurrency limits."""
     _not_implemented("global-concurrency-limit")
 
 
-@app.command(name="shell")
+@_app.command(name="shell")
 def shell_cmd(*tokens: str):
     """Start an interactive shell."""
     _not_implemented("shell")
 
 
-@app.command(name="task")
+@_app.command(name="task")
 def task_cmd(*tokens: str):
     """Manage tasks."""
     _not_implemented("task")
 
 
-@app.command(name="task-run")
+@_app.command(name="task-run")
 def task_run_cmd(*tokens: str):
     """Manage task runs."""
     _not_implemented("task-run")
 
 
-@app.command(name="work-queue")
+@_app.command(name="work-queue")
 def work_queue_cmd(*tokens: str):
     """Manage work queues."""
     _not_implemented("work-queue")
 
 
-@app.command(name="automations")
+@_app.command(name="automations")
 def automations_cmd(*tokens: str):
     """Manage automations."""
     _not_implemented("automations")
 
 
-@app.command(name="transfer")
+@_app.command(name="transfer")
 def transfer_cmd(*tokens: str):
     """Transfer resources between workspaces."""
     _not_implemented("transfer")
@@ -274,7 +363,7 @@ def transfer_cmd(*tokens: str):
 # =============================================================================
 
 
-@app.command(name="version")
+@_app.command(name="version")
 def version_cmd():
     """Display detailed version information."""
     # This one is common enough to implement directly

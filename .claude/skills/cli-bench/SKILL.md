@@ -10,7 +10,11 @@ Use [python-cli-bench](https://github.com/zzstoatzz/python-cli-bench) for CLI pe
 ## Setup
 
 ```bash
+# install cli-bench tool
 uv sync --group cli-bench
+
+# also install cyclopts for benchmarking the new CLI
+uv sync --group cli-bench --extra fast-cli
 ```
 
 ## Configuration
@@ -64,9 +68,24 @@ uv run cli-bench -C benches/cli-bench.toml imports --top 50
 uv run cli-bench -C benches/cli-bench.toml profile
 ```
 
+## Benchmarking cyclopts CLI
+
+The CLI is being migrated from typer to cyclopts. To benchmark the new CLI:
+
+```bash
+# run cyclopts CLI benchmarks
+uv run cli-bench -C benches/cli-bench.toml run --category fast-cli
+
+# compare typer vs cyclopts
+uv run cli-bench -C benches/cli-bench.toml run --category startup -o typer.json
+uv run cli-bench -C benches/cli-bench.toml run --category fast-cli -o cyclopts.json
+```
+
+Enable the new CLI with `PREFECT_CLI_FAST=1`.
+
 ## CI Integration
 
-Benchmarks run automatically on PRs via `.github/workflows/benchmarks.yaml`. Results are posted as PR comments with statistical comparison.
+Benchmarks run automatically on PRs via `.github/workflows/benchmarks.yaml`. Results are posted as PR comments with statistical comparison. CI benchmarks both typer and cyclopts implementations.
 
 ## When to Add Benchmarks
 
