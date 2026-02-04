@@ -1,10 +1,10 @@
 """
-Experimental fast CLI powered by cyclopts.
+Prefect CLI powered by cyclopts.
 
-Enable with: PREFECT_CLI_FAST=1
+This is the new CLI implementation being migrated from typer to cyclopts.
+Enable with PREFECT_CLI_FAST=1 during the migration period.
 
-This CLI uses lazy imports to speed up --help and discovery commands.
-When a command is executed, it delegates to the real implementation.
+Commands not yet migrated will delegate to the existing typer implementation.
 """
 
 import sys
@@ -21,15 +21,15 @@ def _get_version() -> str:
 
 app = cyclopts.App(
     name="prefect",
-    help="Prefect CLI (fast mode)",
+    help="Prefect CLI for workflow orchestration.",
     version=_get_version,
 )
 
 
 def _not_implemented(command: str):
-    """Show error for commands not yet implemented in fast CLI."""
+    """Show error for commands not yet migrated to cyclopts."""
     print(
-        f"Command '{command}' is not yet available in fast CLI mode.\n"
+        f"Command '{command}' is not yet migrated to the new CLI.\n"
         f"Run without PREFECT_CLI_FAST=1 to use this command.",
         file=sys.stderr,
     )

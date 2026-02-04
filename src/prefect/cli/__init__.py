@@ -1,20 +1,20 @@
 import os
 
-# Check for fast CLI mode before importing anything heavy
-_FAST_CLI = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
+# Check for cyclopts CLI (migration in progress)
+_USE_CYCLOPTS = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
 
-if _FAST_CLI:
-    # Fast CLI mode - use cyclopts with lazy imports
+if _USE_CYCLOPTS:
+    # New CLI implementation using cyclopts
     try:
         from prefect.cli._cyclopts import app
     except ImportError as e:
         if "cyclopts" in str(e):
             raise ImportError(
-                "Fast CLI mode requires cyclopts. Install with: pip install prefect[fast-cli]"
+                "The new CLI requires cyclopts. Install with: pip install prefect[fast-cli]"
             ) from e
         raise
 else:
-    # Standard CLI mode - typer with eager imports
+    # Current CLI implementation using typer
     import prefect.settings
     from prefect.cli.root import app
 

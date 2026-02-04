@@ -123,6 +123,6 @@ Run benchmarks to verify performance:
 uv run cli-bench -C benches/cli-bench.toml run
 ```
 
-Compare fast vs standard CLI:
-- `prefect --help` should be faster (lazy loading benefit)
+Compare cyclopts vs typer CLI:
+- `prefect --help` should be faster with cyclopts (lazy loading benefit)
 - Individual commands should be similar (both do full imports)
