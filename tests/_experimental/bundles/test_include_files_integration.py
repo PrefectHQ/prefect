@@ -393,3 +393,200 @@ class TestIncludeFilesIntegration:
             assert exec_path.read_text() == dev_path.read_text(), (
                 f"Content mismatch: {rel_path}"
             )
+
+
+class TestBundleUploadWithSidecar:
+    """Tests for sidecar zip upload alongside bundle."""
+
+    @pytest.fixture
+    def project_with_files(self, tmp_path: Path) -> Path:
+        """Create a project directory with files."""
+        (tmp_path / "config.yaml").write_text("key: value")
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "input.csv").write_text("a,b\n1,2")
+        return tmp_path
+
+    def test_upload_bundle_with_sidecar(
+        self, project_with_files: Path, tmp_path: Path
+    ) -> None:
+        """upload_bundle_to_storage uploads both bundle and sidecar."""
+        from prefect._experimental.bundles import upload_bundle_to_storage
+        from prefect._experimental.bundles.file_collector import FileCollector
+        from prefect._experimental.bundles.zip_builder import ZipBuilder
+
+        # Create a sidecar zip
+        collector = FileCollector(project_with_files)
+        result = collector.collect(["config.yaml", "data/"])
+
+        builder = ZipBuilder(project_with_files)
+        zip_result = builder.build(result.files)
+
+        # Create bundle with files_key
+        bundle = {
+            "function": "serialized_flow",
+            "context": "serialized_context",
+            "flow_run": {"id": "test-123"},
+            "dependencies": "",
+            "files_key": zip_result.storage_key,
+        }
+
+        # Create a "storage" directory to simulate upload destination
+        storage_dir = tmp_path / "storage"
+        storage_dir.mkdir()
+
+        # Use a script that copies files to storage (simulating cloud upload)
+        # The upload command copies each file to the storage directory
+        import sys
+
+        # Create a helper script that copies files preserving directory structure
+        helper_script = tmp_path / "upload_helper.py"
+        helper_script.write_text(f'''
+import sys
+import shutil
+from pathlib import Path
+
+# Get the key (relative path) as argument
+key = sys.argv[1]
+storage_dir = Path("{storage_dir}")
+
+# Copy the file to storage
+src = Path(key)
+dest = storage_dir / key
+dest.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(src, dest)
+''')
+
+        upload_command = [sys.executable, str(helper_script)]
+
+        # Upload
+        upload_bundle_to_storage(
+            bundle=bundle,  # type: ignore[arg-type]
+            key="bundle.json",
+            upload_command=upload_command,
+            zip_path=zip_result.zip_path,
+        )
+
+        # Verify bundle was uploaded
+        assert (storage_dir / "bundle.json").exists()
+        bundle_content = json.loads((storage_dir / "bundle.json").read_text())
+        assert bundle_content["files_key"] == zip_result.storage_key
+
+        # Verify sidecar zip was uploaded
+        sidecar_path = storage_dir / zip_result.storage_key
+        assert sidecar_path.exists()
+
+        # Verify sidecar contains expected files
+        with zipfile.ZipFile(sidecar_path) as zf:
+            names = set(zf.namelist())
+            assert "config.yaml" in names
+            assert "data/input.csv" in names
+
+        builder.cleanup()
+
+    def test_upload_bundle_without_sidecar(self, tmp_path: Path) -> None:
+        """upload_bundle_to_storage works normally without sidecar (backward compat)."""
+        import sys
+
+        from prefect._experimental.bundles import upload_bundle_to_storage
+
+        bundle = {
+            "function": "serialized_flow",
+            "context": "serialized_context",
+            "flow_run": {"id": "test-123"},
+            "dependencies": "",
+            "files_key": None,
+        }
+
+        storage_dir = tmp_path / "storage"
+        storage_dir.mkdir()
+
+        # Create helper script
+        helper_script = tmp_path / "upload_helper.py"
+        helper_script.write_text(f'''
+import sys
+import shutil
+from pathlib import Path
+
+key = sys.argv[1]
+storage_dir = Path("{storage_dir}")
+src = Path(key)
+dest = storage_dir / key
+dest.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(src, dest)
+''')
+
+        upload_command = [sys.executable, str(helper_script)]
+
+        # Should complete without error - no sidecar to upload
+        upload_bundle_to_storage(
+            bundle=bundle,  # type: ignore[arg-type]
+            key="bundle.json",
+            upload_command=upload_command,
+            zip_path=None,
+        )
+
+        # Verify bundle was uploaded
+        assert (storage_dir / "bundle.json").exists()
+
+        # Verify no sidecar files were created
+        assert not (storage_dir / "files").exists()
+
+    def test_upload_bundle_with_sidecar_no_files_key(self, tmp_path: Path) -> None:
+        """If zip_path provided but no files_key, sidecar is not uploaded."""
+        from prefect._experimental.bundles import upload_bundle_to_storage
+        from prefect._experimental.bundles.file_collector import FileCollector
+        from prefect._experimental.bundles.zip_builder import ZipBuilder
+
+        # Create files and zip
+        (tmp_path / "data.txt").write_text("test")
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data.txt"])
+        builder = ZipBuilder(tmp_path)
+        zip_result = builder.build(result.files)
+
+        # Bundle WITHOUT files_key
+        bundle = {
+            "function": "serialized_flow",
+            "context": "serialized_context",
+            "flow_run": {"id": "test-123"},
+            "dependencies": "",
+            "files_key": None,  # No files_key
+        }
+
+        storage_dir = tmp_path / "storage"
+        storage_dir.mkdir()
+
+        import sys
+
+        helper_script = tmp_path / "upload_helper.py"
+        helper_script.write_text(f'''
+import sys
+import shutil
+from pathlib import Path
+
+key = sys.argv[1]
+storage_dir = Path("{storage_dir}")
+src = Path(key)
+dest = storage_dir / key
+dest.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(src, dest)
+''')
+
+        upload_command = [sys.executable, str(helper_script)]
+
+        # Even with zip_path, sidecar should not be uploaded when no files_key
+        upload_bundle_to_storage(
+            bundle=bundle,  # type: ignore[arg-type]
+            key="bundle.json",
+            upload_command=upload_command,
+            zip_path=zip_result.zip_path,
+        )
+
+        # Bundle uploaded
+        assert (storage_dir / "bundle.json").exists()
+
+        # But no sidecar (no files directory)
+        assert not (storage_dir / "files").exists()
+
+        builder.cleanup()
