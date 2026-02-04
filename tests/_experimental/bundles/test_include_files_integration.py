@@ -280,3 +280,38 @@ class TestIncludeFilesIntegration:
 
         # Zip should be cleaned up
         assert not zip_path.exists()
+
+    def test_decorator_include_files_propagation(self) -> None:
+        """include_files flows from @ecs decorator to InfrastructureBoundFlow."""
+        pytest.importorskip("prefect_aws")
+        from prefect_aws.experimental.decorators import ecs
+
+        from prefect.flows import flow
+
+        @ecs(work_pool="my-pool", include_files=["config.yaml", "data/"])
+        @flow
+        def my_flow():
+            pass
+
+        # Check the bound flow has include_files
+        assert hasattr(my_flow, "include_files")
+        assert my_flow.include_files == ["config.yaml", "data/"]
+
+    def test_with_options_include_files_override(self) -> None:
+        """with_options can override include_files."""
+        pytest.importorskip("prefect_aws")
+        from prefect_aws.experimental.decorators import ecs
+
+        from prefect.flows import flow
+
+        @ecs(work_pool="my-pool", include_files=["config.yaml"])
+        @flow
+        def my_flow():
+            pass
+
+        # Override with with_options
+        updated_flow = my_flow.with_options(include_files=["data/", "models/"])
+
+        assert updated_flow.include_files == ["data/", "models/"]
+        # Original unchanged
+        assert my_flow.include_files == ["config.yaml"]
