@@ -3,7 +3,7 @@ File collection utilities for bundles.
 
 This module provides the FileCollector class for collecting files matching
 user-provided patterns from a base directory. Handles single files, directory
-patterns, and glob patterns with gitignore-style matching.
+patterns, glob patterns, and negation patterns with gitignore-style matching.
 """
 
 from __future__ import annotations
