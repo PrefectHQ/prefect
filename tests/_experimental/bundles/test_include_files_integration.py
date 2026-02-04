@@ -590,3 +590,265 @@ shutil.copy2(src, dest)
         assert not (storage_dir / "files").exists()
 
         builder.cleanup()
+
+
+class TestCreateBundleForFlowRunE2E:
+    """
+    End-to-end tests for create_bundle_for_flow_run with include_files.
+
+    These tests call the actual function (not simulated) to verify the complete
+    integration from decorator attributes through bundle creation to extraction.
+    """
+
+    @pytest.fixture
+    def project_with_flow(self, tmp_path: Path) -> tuple[Path, Path]:
+        """
+        Create a project directory with files and an actual flow module.
+
+        Returns (project_dir, flow_file_path)
+        """
+        # Create files to include
+        (tmp_path / "config.yaml").write_text("database: localhost\nport: 5432")
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "input.csv").write_text("id,name\n1,Alice\n2,Bob")
+        (data_dir / "settings.json").write_text('{"debug": true}')
+
+        # Create nested directory
+        templates_dir = tmp_path / "templates"
+        templates_dir.mkdir()
+        (templates_dir / "email.html").write_text("<h1>Hello</h1>")
+
+        # Create a real flow file
+        flow_file = tmp_path / "my_flow.py"
+        flow_file.write_text('''
+from prefect import flow
+
+@flow
+def my_flow():
+    """A test flow."""
+    return "hello"
+''')
+        return tmp_path, flow_file
+
+    def test_create_bundle_populates_files_key(
+        self, project_with_flow: tuple[Path, Path]
+    ) -> None:
+        """
+        EXEC-01/EXEC-02: create_bundle_for_flow_run populates files_key when
+        flow has include_files attribute.
+
+        This test calls the ACTUAL function, not a simulation.
+        """
+        import shutil
+        from unittest.mock import MagicMock, patch
+
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.flows import Flow
+
+        project_dir, flow_file = project_with_flow
+
+        # Create a flow and set include_files (as @ecs decorator would)
+        @Flow
+        def test_flow():
+            return "result"
+
+        test_flow.include_files = ["config.yaml", "data/", "templates/"]
+
+        # Mock inspect.getfile to return our flow file path
+        with patch(
+            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
+        ):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.model_dump.return_value = {"id": "test-run-123"}
+
+            # Call the ACTUAL function
+            result = create_bundle_for_flow_run(
+                flow=test_flow,
+                flow_run=flow_run,
+            )
+
+        bundle = result["bundle"]
+        zip_path = result["zip_path"]
+
+        try:
+            # CRITICAL VERIFICATION: files_key is NOT None
+            assert bundle["files_key"] is not None, (
+                "files_key should be populated when include_files is set"
+            )
+            assert bundle["files_key"].startswith("files/"), (
+                f"files_key should start with 'files/', got: {bundle['files_key']}"
+            )
+            assert bundle["files_key"].endswith(".zip"), (
+                f"files_key should end with '.zip', got: {bundle['files_key']}"
+            )
+
+            # zip_path should exist
+            assert zip_path is not None
+            assert zip_path.exists(), f"Zip file should exist at {zip_path}"
+
+            # Verify zip content
+            with zipfile.ZipFile(zip_path) as zf:
+                names = set(zf.namelist())
+                assert "config.yaml" in names
+                assert "data/input.csv" in names
+                assert "data/settings.json" in names
+                assert "templates/email.html" in names
+
+        finally:
+            # Cleanup
+            if zip_path and zip_path.exists():
+                zip_path.unlink()
+                if zip_path.parent.exists():
+                    shutil.rmtree(zip_path.parent, ignore_errors=True)
+
+    def test_create_bundle_to_extraction_roundtrip(
+        self, project_with_flow: tuple[Path, Path], tmp_path: Path
+    ) -> None:
+        """
+        Full roundtrip: create_bundle_for_flow_run -> extraction -> file access.
+
+        Proves EXEC-02: Files are accessible at same relative paths.
+        """
+        import shutil
+        from unittest.mock import MagicMock, patch
+
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.flows import Flow
+
+        project_dir, flow_file = project_with_flow
+
+        @Flow
+        def test_flow():
+            return "result"
+
+        test_flow.include_files = ["config.yaml", "data/"]
+
+        with patch(
+            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
+        ):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.model_dump.return_value = {"id": "test-run-456"}
+
+            result = create_bundle_for_flow_run(
+                flow=test_flow,
+                flow_run=flow_run,
+            )
+
+        zip_path = result["zip_path"]
+
+        try:
+            # Simulate execution environment
+            exec_dir = tmp_path / "execution"
+            exec_dir.mkdir()
+
+            # Extract files (as cloud execute functions would)
+            extractor = ZipExtractor(zip_path)
+            extractor.extract(exec_dir)
+
+            # CRITICAL VERIFICATION: Paths match development
+            assert (exec_dir / "config.yaml").exists()
+            assert (exec_dir / "data" / "input.csv").exists()
+            assert (exec_dir / "data" / "settings.json").exists()
+
+            # Content matches
+            assert (exec_dir / "config.yaml").read_text() == (
+                project_dir / "config.yaml"
+            ).read_text()
+            assert (exec_dir / "data" / "input.csv").read_text() == (
+                project_dir / "data" / "input.csv"
+            ).read_text()
+
+        finally:
+            # Cleanup
+            if zip_path and zip_path.exists():
+                zip_path.unlink()
+                if zip_path.parent.exists():
+                    shutil.rmtree(zip_path.parent, ignore_errors=True)
+
+    def test_create_bundle_no_files_key_without_include_files(self) -> None:
+        """files_key remains None when flow has no include_files."""
+        from unittest.mock import MagicMock
+
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.flows import Flow
+
+        @Flow
+        def test_flow():
+            return "result"
+
+        # No include_files attribute set
+
+        flow_run = MagicMock(spec=FlowRun)
+        flow_run.model_dump.return_value = {"id": "test-run-789"}
+
+        result = create_bundle_for_flow_run(
+            flow=test_flow,
+            flow_run=flow_run,
+        )
+
+        assert result["bundle"]["files_key"] is None
+        assert result["zip_path"] is None
+
+    def test_create_bundle_respects_prefectignore(
+        self, project_with_flow: tuple[Path, Path], tmp_path: Path
+    ) -> None:
+        """Files in .prefectignore are excluded from bundle."""
+        import shutil
+        from unittest.mock import MagicMock, patch
+
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.flows import Flow
+
+        project_dir, flow_file = project_with_flow
+
+        # Add .prefectignore
+        (project_dir / ".prefectignore").write_text("*.json\n")
+
+        @Flow
+        def test_flow():
+            return "result"
+
+        test_flow.include_files = ["config.yaml", "data/"]
+
+        with patch(
+            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
+        ):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.model_dump.return_value = {"id": "test-ignore"}
+
+            result = create_bundle_for_flow_run(
+                flow=test_flow,
+                flow_run=flow_run,
+            )
+
+        zip_path = result["zip_path"]
+
+        try:
+            # Extract and verify
+            exec_dir = tmp_path / "execution"
+            exec_dir.mkdir()
+
+            extractor = ZipExtractor(zip_path)
+            extractor.extract(exec_dir)
+
+            # config.yaml should be present (not ignored)
+            assert (exec_dir / "config.yaml").exists()
+
+            # input.csv should be present (not ignored)
+            assert (exec_dir / "data" / "input.csv").exists()
+
+            # settings.json should be EXCLUDED (matches *.json)
+            assert not (exec_dir / "data" / "settings.json").exists()
+
+        finally:
+            if zip_path and zip_path.exists():
+                zip_path.unlink()
+                if zip_path.parent.exists():
+                    shutil.rmtree(zip_path.parent, ignore_errors=True)
