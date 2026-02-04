@@ -345,3 +345,51 @@ class TestIncludeFilesIntegration:
 
         # Default should be None
         assert my_flow.include_files is None
+
+    def test_paths_match_between_dev_and_execution(
+        self, project_dir: Path, tmp_path: Path
+    ) -> None:
+        """
+        EXEC-02: Extracted files are accessible at same relative paths as in development.
+
+        This test verifies that if a file exists at `data/input.csv` relative to the
+        flow file in development, it will be available at `./data/input.csv` relative
+        to the working directory during execution.
+        """
+        from prefect._experimental.bundles.file_collector import FileCollector
+        from prefect._experimental.bundles.zip_builder import ZipBuilder
+        from prefect._experimental.bundles.zip_extractor import ZipExtractor
+
+        # Development: files at specific relative paths
+        dev_paths = {
+            "config.yaml": project_dir / "config.yaml",
+            "data/input.csv": project_dir / "data" / "input.csv",
+            "templates/emails/welcome.html": project_dir
+            / "templates"
+            / "emails"
+            / "welcome.html",
+        }
+
+        # Collect all
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/", "templates/"])
+
+        # Package
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        # Extract to execution directory
+        exec_dir = tmp_path / "execution"
+        exec_dir.mkdir()
+
+        extractor = ZipExtractor(zip_result.zip_path)
+        extractor.extract(exec_dir)
+        builder.cleanup()
+
+        # Verify: execution paths match development relative paths
+        for rel_path, dev_path in dev_paths.items():
+            exec_path = exec_dir / rel_path
+            assert exec_path.exists(), f"Missing: {rel_path}"
+            assert exec_path.read_text() == dev_path.read_text(), (
+                f"Content mismatch: {rel_path}"
+            )
