@@ -7,6 +7,7 @@ through bundle creation, upload, download, extraction, and flow execution.
 
 from __future__ import annotations
 
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -41,3 +42,34 @@ class TestIncludeFilesIntegration:
         flow_file.parent.mkdir(exist_ok=True)
         flow_file.write_text("# Flow definition here")
         return flow_file
+
+    def test_file_collector_and_zip_builder_integration(
+        self, project_dir: Path
+    ) -> None:
+        """FileCollector output feeds correctly into ZipBuilder."""
+        from prefect._experimental.bundles.file_collector import FileCollector
+        from prefect._experimental.bundles.zip_builder import ZipBuilder
+
+        # Collect files
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/"])
+
+        # Build zip
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        try:
+            # Verify zip contains expected files
+            with zipfile.ZipFile(zip_result.zip_path) as zf:
+                names = set(zf.namelist())
+                assert "config.yaml" in names
+                assert "data/input.csv" in names
+                assert "data/lookup.json" in names
+
+                # Verify content
+                assert (
+                    zf.read("config.yaml").decode() == "database: localhost\nport: 5432"
+                )
+                assert "Alice" in zf.read("data/input.csv").decode()
+        finally:
+            builder.cleanup()
