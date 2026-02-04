@@ -539,3 +539,38 @@ class TestExecuteBundleFromS3WithFiles:
         assert len(call_log) == 2
         assert call_log[0]["key"] == "bundle.json"
         assert call_log[1]["key"] == "files/abc123.zip"
+
+    def test_execute_with_files_extracts_to_cwd(
+        self,
+        mock_s3_client: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Files are extracted to working directory before execution."""
+        bundle_data = {
+            "function": "test_function",
+            "context": "test_context",
+            "flow_run": {"id": "test_flow_run"},
+            "files_key": "files/abc123.zip",
+        }
+
+        def mock_download_file(bucket: str, key: str, filename: str):
+            if key.endswith(".zip"):
+                with zipfile.ZipFile(filename, "w") as zf:
+                    zf.writestr("data/config.yaml", "key: value")
+            else:
+                Path(filename).write_text(json.dumps(bundle_data))
+
+        mock_s3_client.download_file.side_effect = mock_download_file
+
+        # Change to tmp_path as working directory
+        monkeypatch.chdir(tmp_path)
+
+        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
+            mock_execute.return_value = None
+            execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
+
+        # File should be extracted to cwd
+        extracted_file = tmp_path / "data" / "config.yaml"
+        assert extracted_file.exists()
+        assert extracted_file.read_text() == "key: value"
