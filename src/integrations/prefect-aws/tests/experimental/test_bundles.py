@@ -483,3 +483,27 @@ class TestExecuteBundle:
             assert exc_info.value.code == 2  # Typer exits with code 2 for usage errors
         finally:
             sys.argv = old_argv
+
+
+class TestExecuteBundleFromS3WithFiles:
+    """Tests for bundle execution with included files."""
+
+    def test_execute_without_files_key_unchanged(
+        self, mock_s3_client: MagicMock, mock_bundle_data: dict[str, Any]
+    ):
+        """Execution without files_key works as before (no extraction)."""
+        # Ensure mock_bundle_data has no files_key
+        assert "files_key" not in mock_bundle_data
+
+        def mock_download_file(bucket: str, key: str, filename: str):
+            Path(filename).write_text(json.dumps(mock_bundle_data))
+
+        mock_s3_client.download_file.side_effect = mock_download_file
+
+        with patch("prefect.runner.Runner.execute_bundle") as mock_execute:
+            mock_execute.return_value = None
+            execute_bundle_from_s3(bucket="test-bucket", key="test-key")
+
+            # Should only download bundle, not files
+            assert mock_s3_client.download_file.call_count == 1
+            mock_execute.assert_called_once()
