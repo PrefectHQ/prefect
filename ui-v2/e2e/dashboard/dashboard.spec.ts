@@ -95,9 +95,12 @@ test.describe("Dashboard Page", () => {
 			await expect(page.getByText("Task Runs")).toBeVisible();
 
 			// --- VERIFY: Work Pools card is visible ---
-			// Note: May show "No active work pools" if none exist, which is fine
+			// Use locator for the card title specifically to avoid matching sidebar nav
+			// The card title has data-slot="card-title" attribute
 			await expect(
-				page.getByText("Active Work Pools").or(page.getByText("Work Pools")),
+				page.locator('[data-slot="card-title"]', {
+					hasText: "Active Work Pools",
+				}),
 			).toBeVisible();
 
 			// --- VERIFY: Clicking state tabs updates the displayed flow runs ---
