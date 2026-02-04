@@ -228,6 +228,71 @@ def normalize_path_separator(path: str) -> str:
     return path.replace("\\", "/")
 
 
+def resolve_secure_path(user_path: str, base_dir: Path) -> Path:
+    """
+    Resolve a user-provided path securely relative to base directory.
+
+    Validates the input path, normalizes path separators, resolves the path,
+    and verifies that the resolved path is within the base directory.
+    This prevents directory traversal attacks (e.g., ../../../etc/passwd).
+
+    Args:
+        user_path: User-provided path string (must be relative)
+        base_dir: Base directory (e.g., flow file's parent directory)
+
+    Returns:
+        Resolved, validated Path
+
+    Raises:
+        PathValidationError: If path fails validation. Error types:
+            - empty: Empty path string
+            - whitespace: Whitespace-only path
+            - null_byte: Path contains null bytes
+            - absolute: Absolute path provided
+            - not_found: Path does not exist
+            - traversal: Path resolves outside base directory
+            - os_error: OS-level error accessing path
+    """
+    # 1. Run input validation first (rejects empty, whitespace, null bytes, absolute)
+    validate_path_input(user_path)
+
+    # 2. Normalize separators for cross-platform (\ -> /)
+    normalized = normalize_path_separator(user_path)
+
+    # 3. Construct target path relative to base directory
+    target = base_dir / normalized
+
+    # 4. Resolve the base directory (must be resolved for comparison)
+    resolved_base = base_dir.resolve()
+
+    # 5. Resolve target path WITHOUT existence check first (to detect traversal)
+    # This normalizes .. and . components without requiring the path to exist
+    resolved = target.resolve(strict=False)
+
+    # 6. Security check BEFORE existence check: resolved path must be within base directory
+    # This ensures traversal attempts are caught even if the target doesn't exist
+    if not resolved.is_relative_to(resolved_base):
+        raise PathValidationError(
+            input_path=user_path,
+            resolved_path=str(resolved),
+            error_type="traversal",
+            message=f"Path traversal detected: {user_path!r} resolves outside base directory",
+            suggestion="Use paths within the flow file's directory",
+        )
+
+    # 7. Now check existence
+    if not resolved.exists():
+        raise PathValidationError(
+            input_path=user_path,
+            resolved_path=str(resolved),
+            error_type="not_found",
+            message=f"Path does not exist: {user_path!r}",
+            suggestion="Check that the file or directory exists",
+        )
+
+    return resolved
+
+
 def resolve_with_symlink_check(
     path: Path,
     base_dir: Path,
