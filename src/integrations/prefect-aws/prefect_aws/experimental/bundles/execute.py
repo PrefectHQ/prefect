@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import tempfile
@@ -10,9 +11,12 @@ import typer
 from botocore.exceptions import ClientError
 from pydantic_core import from_json
 
+from prefect._experimental.bundles.zip_extractor import ZipExtractor
 from prefect.runner import Runner
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect_aws.credentials import AwsCredentials
+
+logger = logging.getLogger(__name__)
 
 
 class DownloadResult(TypedDict):
@@ -74,7 +78,8 @@ def execute_bundle_from_s3(
     This step:
     1. Downloads the bundle from S3
     2. Extracts and deserializes the bundle
-    3. Executes the flow in a subprocess
+    3. Downloads and extracts included files (if present)
+    4. Executes the flow in a subprocess
 
     Args:
         bucket: S3 bucket name
@@ -90,6 +95,27 @@ def execute_bundle_from_s3(
     )
 
     bundle_data = from_json(Path(download_result["local_path"]).read_bytes())
+
+    # Extract included files if present
+    files_key = bundle_data.get("files_key")
+    if files_key:
+        logger.info(f"Downloading included files from {files_key}")
+        try:
+            files_result = download_bundle_from_s3(
+                bucket=bucket,
+                key=files_key,
+                aws_credentials_block_name=aws_credentials_block_name,
+            )
+        except RuntimeError as e:
+            raise RuntimeError(f"Failed to download included files: {e}") from e
+
+        extractor = ZipExtractor(Path(files_result["local_path"]))
+        try:
+            extracted = extractor.extract()
+            logger.info(f"Extracted {len(extracted)} files to working directory")
+            extractor.cleanup()
+        except Exception as e:
+            raise RuntimeError(f"Failed to extract included files: {e}") from e
 
     run_coro_as_sync(Runner().execute_bundle(bundle_data))
 
