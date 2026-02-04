@@ -606,3 +606,56 @@ class TestExecuteBundleFromS3WithFiles:
         # Zip should be deleted after extraction
         assert downloaded_zip_path is not None
         assert not downloaded_zip_path.exists()
+
+    def test_execute_with_files_raises_on_download_failure(
+        self, mock_s3_client: MagicMock
+    ):
+        """Clear error when sidecar zip download fails."""
+        bundle_data = {
+            "function": "test_function",
+            "context": "test_context",
+            "flow_run": {"id": "test_flow_run"},
+            "files_key": "files/abc123.zip",
+        }
+
+        call_count = [0]
+
+        def mock_download_file(bucket: str, key: str, filename: str):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                # First call: bundle download succeeds
+                Path(filename).write_text(json.dumps(bundle_data))
+            else:
+                # Second call: files download fails
+                raise ClientError(
+                    {"Error": {"Code": "NoSuchKey", "Message": "Not found"}},
+                    "download_file",
+                )
+
+        mock_s3_client.download_file.side_effect = mock_download_file
+
+        with pytest.raises(RuntimeError, match="Failed to download"):
+            execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
+
+    def test_execute_with_files_raises_on_corrupted_zip(
+        self, mock_s3_client: MagicMock
+    ):
+        """Clear error when sidecar zip is corrupted."""
+        bundle_data = {
+            "function": "test_function",
+            "context": "test_context",
+            "flow_run": {"id": "test_flow_run"},
+            "files_key": "files/abc123.zip",
+        }
+
+        def mock_download_file(bucket: str, key: str, filename: str):
+            if key.endswith(".zip"):
+                # Write invalid zip data
+                Path(filename).write_bytes(b"not a valid zip file")
+            else:
+                Path(filename).write_text(json.dumps(bundle_data))
+
+        mock_s3_client.download_file.side_effect = mock_download_file
+
+        with pytest.raises(RuntimeError, match="Failed to extract"):
+            execute_bundle_from_s3(bucket="test-bucket", key="bundle.json")
