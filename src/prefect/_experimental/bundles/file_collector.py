@@ -8,6 +8,7 @@ patterns, glob patterns, and negation patterns with gitignore-style matching.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -21,6 +22,11 @@ from prefect._experimental.bundles.path_resolver import (
     resolve_with_symlink_check,
     validate_path_input,
 )
+
+logger = logging.getLogger(__name__)
+
+# Large file threshold - files exceeding this size trigger a warning
+LARGE_FILE_THRESHOLD = 10 * 1024 * 1024  # 10 MB
 
 # Default exclusion patterns - common generated/cached directories and files
 # that users typically don't want bundled. Uses gitignore-style patterns.
@@ -186,13 +192,24 @@ class FileCollector:
                         if file not in self._collected_files:
                             self._collected_files.add(file)
                 else:
-                    # Pattern matched no files - add warning
-                    result.warnings.append(f"Pattern '{pattern}' matched no files")
+                    # Pattern matched no files - add warning and log
+                    warning_msg = f"Pattern '{pattern}' matched no files"
+                    result.warnings.append(warning_msg)
+                    logger.warning(warning_msg)
 
         # Build final file list with sizes
         for file in self._collected_files:
             result.files.append(file)
-            result.total_size += file.stat().st_size
+            file_size = file.stat().st_size
+            result.total_size += file_size
+
+            # Check for large files and emit warning
+            if file_size > LARGE_FILE_THRESHOLD:
+                size_mb = file_size / (1024 * 1024)
+                logger.warning(
+                    f"Large file detected: {file.name} ({size_mb:.1f} MB) exceeds "
+                    f"{LARGE_FILE_THRESHOLD / (1024 * 1024):.0f} MB threshold"
+                )
 
         return result
 
@@ -499,9 +516,75 @@ class FileCollector:
         return [resolved]
 
 
+def format_collection_summary(result: CollectionResult) -> str:
+    """
+    Format a human-readable summary of collection results.
+
+    Args:
+        result: CollectionResult from file collection.
+
+    Returns:
+        Human-readable summary string like "Collected 12 files (2.3 MB)"
+    """
+    size_mb = result.total_size / (1024 * 1024)
+    if size_mb >= 1:
+        size_str = f"{size_mb:.1f} MB"
+    else:
+        size_kb = result.total_size / 1024
+        size_str = f"{size_kb:.1f} KB"
+
+    file_word = "file" if len(result.files) == 1 else "files"
+    return f"Collected {len(result.files)} {file_word} ({size_str})"
+
+
+def preview_collection(
+    base_dir: Path,
+    patterns: list[str],
+) -> dict:
+    """
+    Preview file collection without bundling.
+
+    This function performs file collection but returns a preview dict
+    instead of modifying any state. Useful for CLI preview commands
+    and debugging pattern matching.
+
+    Args:
+        base_dir: Base directory for file collection.
+        patterns: List of file patterns to match.
+
+    Returns:
+        Dictionary containing:
+        - files: List of relative file paths (strings)
+        - file_count: Number of files matched
+        - total_size: Total size in bytes
+        - total_size_human: Human-readable size string
+        - warnings: List of warning messages
+        - patterns_matched: Dict of pattern -> match count
+    """
+    collector = FileCollector(base_dir)
+    result = collector.collect(patterns)
+
+    # Extract human-readable size from summary
+    summary = format_collection_summary(result)
+    # Parse "(X.Y KB)" or "(X.Y MB)" from "Collected N files (X.Y KB)"
+    size_human = summary.split("(")[1].rstrip(")")
+
+    return {
+        "files": [str(f.relative_to(base_dir.resolve())) for f in result.files],
+        "file_count": len(result.files),
+        "total_size": result.total_size,
+        "total_size_human": size_human,
+        "warnings": result.warnings,
+        "patterns_matched": {p: len(fs) for p, fs in result.patterns_matched.items()},
+    }
+
+
 __all__ = [
     "CollectionResult",
     "DEFAULT_EXCLUSIONS",
     "FileCollector",
+    "LARGE_FILE_THRESHOLD",
     "PatternType",
+    "format_collection_summary",
+    "preview_collection",
 ]
