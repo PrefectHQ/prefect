@@ -33,7 +33,9 @@ def project_dir(tmp_path: Path):
 
 @pytest.fixture(autouse=True)
 async def work_pool(project_dir: Path, prefect_client: PrefectClient):
-    await prefect_client.create_work_pool(WorkPoolCreate(name="test-pool", type="test"))
+    pool_name = f"test-pool-{uuid4()}"
+    await prefect_client.create_work_pool(WorkPoolCreate(name=pool_name, type="test"))
+    return pool_name
 
 
 @pytest.fixture
@@ -45,17 +47,20 @@ async def mock_create_deployment():
         yield mock_create
 
 
-async def test_deploy_with_simple_version(mock_create_deployment: mock.AsyncMock):
+async def test_deploy_with_simple_version(
+    mock_create_deployment: mock.AsyncMock, work_pool: str
+):
+    deployment_name = f"test-name-{uuid4()}"
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool} "
             "--version '1.2.3'"
         ),
         expected_code=0,
         expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
+            f"An important name/{deployment_name}",
+            f"prefect worker start --pool '{work_pool}'",
         ],
     )
 
@@ -91,17 +96,19 @@ async def mock_get_inferred_version_info():
 async def test_deploy_with_inferred_version(
     mock_create_deployment: mock.AsyncMock,
     mock_get_inferred_version_info: mock.AsyncMock,
+    work_pool: str,
 ):
+    deployment_name = f"test-name-{uuid4()}"
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool} "
             "--version-type vcs:git"
         ),
         expected_code=0,
         expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
+            f"An important name/{deployment_name}",
+            f"prefect worker start --pool '{work_pool}'",
         ],
     )
 
@@ -124,17 +131,19 @@ async def test_deploy_with_inferred_version(
 async def test_deploy_with_inferred_version_and_version_name(
     mock_create_deployment: mock.AsyncMock,
     mock_get_inferred_version_info: mock.AsyncMock,
+    work_pool: str,
 ):
+    deployment_name = f"test-name-{uuid4()}"
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool} "
             "--version-type vcs:git --version 'my-version-name'"
         ),
         expected_code=0,
         expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
+            f"An important name/{deployment_name}",
+            f"prefect worker start --pool '{work_pool}'",
         ],
     )
 
@@ -157,21 +166,23 @@ async def test_deploy_with_inferred_version_and_version_name(
 async def test_deploy_with_simple_type_and_no_version_uses_flow_version(
     mock_create_deployment: mock.AsyncMock,
     project_dir: Path,
+    work_pool: str,
 ):
     # Calculate the expected version hash
     flow_file = project_dir / "flows" / "hello.py"
     expected_version = file_hash(str(flow_file))
 
+    deployment_name = f"test-name-{uuid4()}"
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=(
-            "deploy ./flows/hello.py:my_flow -n test-name -p test-pool "
+            f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool} "
             "--version-type prefect:simple"
         ),
         expected_code=0,
         expected_output_contains=[
-            "An important name/test-name",
-            "prefect worker start --pool 'test-pool'",
+            f"An important name/{deployment_name}",
+            f"prefect worker start --pool '{work_pool}'",
         ],
     )
 
