@@ -753,7 +753,7 @@ def run_ci_incremental():
 
 ```python
 from prefect_dbt import PrefectDbtOrchestrator, TestStrategy
-from prefect_dbt.core.executors import DbtCloudExecutor
+from prefect_dbt.cloud.executor import DbtCloudExecutor
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 
 @flow
