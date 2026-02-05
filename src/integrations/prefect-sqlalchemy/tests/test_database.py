@@ -44,8 +44,8 @@ class SQLAlchemyAsyncConnectionMock:
         cursor_result.fetchall.side_effect = lambda: [
             (query, params),
         ]
-        cursor_result.fetchmany.side_effect = (
-            lambda size: [
+        cursor_result.fetchmany.side_effect = lambda size: (
+            [
                 (query, params),
             ]
             * size
@@ -80,8 +80,8 @@ class SQLAlchemyConnectionMock:
         cursor_result.fetchall.side_effect = lambda: [
             (query, params),
         ]
-        cursor_result.fetchmany.side_effect = (
-            lambda size: [
+        cursor_result.fetchmany.side_effect = lambda size: (
+            [
                 (query, params),
             ]
             * size

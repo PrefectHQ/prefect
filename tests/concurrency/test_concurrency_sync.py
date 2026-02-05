@@ -79,9 +79,11 @@ def test_concurrency_emits_events(
     for phase in ["acquired", "released"]:
         event = next(
             filter(
-                lambda e: e.event == f"prefect.concurrency-limit.{phase}"
-                and e.resource.id
-                == f"prefect.concurrency-limit.{concurrency_limit.id}",
+                lambda e: (
+                    e.event == f"prefect.concurrency-limit.{phase}"
+                    and e.resource.id
+                    == f"prefect.concurrency-limit.{concurrency_limit.id}"
+                ),
                 asserting_events_worker._client.events,
             )
         )
@@ -108,9 +110,11 @@ def test_concurrency_emits_events(
     for phase in ["acquired", "released"]:
         event = next(
             filter(
-                lambda e: e.event == f"prefect.concurrency-limit.{phase}"
-                and e.resource.id
-                == f"prefect.concurrency-limit.{other_concurrency_limit.id}",
+                lambda e: (
+                    e.event == f"prefect.concurrency-limit.{phase}"
+                    and e.resource.id
+                    == f"prefect.concurrency-limit.{other_concurrency_limit.id}"
+                ),
                 asserting_events_worker._client.events,
             )
         )
@@ -361,8 +365,10 @@ def test_rate_limit_emits_events(
     # Check the event for the `test` concurrency_limit.
     event = next(
         filter(
-            lambda e: e.resource.id
-            == f"prefect.concurrency-limit.{concurrency_limit_with_decay.id}",
+            lambda e: (
+                e.resource.id
+                == f"prefect.concurrency-limit.{concurrency_limit_with_decay.id}"
+            ),
             asserting_events_worker._client.events,
         )
     )
@@ -391,8 +397,10 @@ def test_rate_limit_emits_events(
     # Check the event for the `other` concurrency_limit.
     event = next(
         filter(
-            lambda e: e.resource.id
-            == f"prefect.concurrency-limit.{other_concurrency_limit_with_decay.id}",
+            lambda e: (
+                e.resource.id
+                == f"prefect.concurrency-limit.{other_concurrency_limit_with_decay.id}"
+            ),
             asserting_events_worker._client.events,
         )
     )
