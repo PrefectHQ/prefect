@@ -32,8 +32,11 @@ def prefect_db():
     """
     Sets up test harness for temporary DB during test runs.
     """
+    # Increase timeout for CI environments where multiple xdist workers
+    # start servers simultaneously, which can be slower on Python 3.12
+    # See https://github.com/PrefectHQ/prefect/issues/20247
     with temporary_settings({PREFECT_API_SERVICES_TRIGGERS_ENABLED: False}):
-        with prefect_test_harness():
+        with prefect_test_harness(server_startup_timeout=60):
             yield
 
 
