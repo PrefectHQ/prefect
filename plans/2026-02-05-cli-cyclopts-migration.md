@@ -19,13 +19,13 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 
 ## Plan Summary
 
-We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind a migration toggle. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
+We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind an internal migration toggle. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
 
 ## Migration Toggle (Exact Mechanism)
 
 Toggle: internal environment variable (not user-facing).
 
-Current spike implementation:
+Empirically implemented in the spike PR:
 
 1. `PREFECT_CLI_FAST=1` enables Cyclopts.
 2. Unset uses Typer.
@@ -37,9 +37,11 @@ Wiring (internal-only, not documented for users):
 3. If the toggle is enabled, route to `prefect.cli._cyclopts.app`; otherwise route to `prefect.cli.root.app`.
 4. Routing rule from the spike PR remains in place: help/version/completion and non-migrated commands continue to delegate to Typer until parity is guaranteed.
 
-Routing sketch (empirically implemented in the spike PR):
+Empirical routing code (from the spike PR):
 
 ```python
+_USE_CYCLOPTS = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
+
 def app() -> None:
     if _should_delegate_to_typer(sys.argv[1:]):
         load_typer_commands()
@@ -57,10 +59,28 @@ Notes:
 
 Problem: The Typer root callback currently sets up settings, console configuration, logging, and Windows event loop policy. Cyclopts must honor the same behavior and global flags, or behavior will diverge.
 
-Plan:
+Plan (empirically implemented in the spike PR):
 
-1. Mirror Typer’s root behavior in `src/prefect/cli/_cyclopts/__init__.py` (profile selection, prompt behavior, console setup, logging, Windows event loop policy).
+1. Mirror Typer’s root behavior in `src/prefect/cli/_cyclopts/__init__.py`:
+   - profile selection via `prefect.context.use_profile(...)`
+   - prompt behavior via `PREFECT_CLI_PROMPT`
+   - console setup
+   - logging setup
+   - Windows event loop policy
 2. Ensure `prefect --profile <x>` and `prefect --prompt/--no-prompt` behave identically in Typer and Cyclopts modes (validated by parity tests).
+
+Empirical entrypoint snippet (from the spike PR):
+
+```python
+@_app.meta.default
+def _root_callback(..., profile: Optional[str] = None, prompt: Optional[bool] = None):
+    ...
+    if profile and prefect.context.get_settings_context().profile.name != profile:
+        with prefect.context.use_profile(profile, override_environment_variables=True):
+            _run_with_settings()
+    else:
+        _run_with_settings()
+```
 
 Acceptance:
 
@@ -68,19 +88,27 @@ Acceptance:
 2. Logging setup and console configuration match existing Typer behavior.
 
 Status (Phase 0):
-- [ ] Cyclopts root callback matches Typer behavior (`src/prefect/cli/_cyclopts/__init__.py`).
+- [x] Cyclopts root callback matches Typer behavior (`src/prefect/cli/_cyclopts/__init__.py`).
 - [ ] Parity tests cover `--profile`, `--prompt/--no-prompt`, `--version`.
 
-## Phase 1: Command Registry, Routing, and Lazy Registration
+## Phase 1: Routing and Lazy Registration
 
 Problem: We need a single source of truth for command registration and a safe, incremental migration path that preserves parity.
 
-Plan:
+Plan (empirically implemented in the spike PR):
 
-1. Cyclopts registers command groups explicitly in `src/prefect/cli/_cyclopts/__init__.py` (as in the spike PR).
+1. Cyclopts registers command groups explicitly in `src/prefect/cli/_cyclopts/__init__.py`.
 2. For commands not yet migrated, the Cyclopts handler delegates to Typer with the same arguments.
-3. Routing rule (empirically validated in the spike PR): the entrypoint must delegate to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags should continue to route to Typer until help output parity is guaranteed.
-4. Keep Typer module registration in a single helper at `src/prefect/cli/_typer_loader.py` (used by both entrypoints).
+3. Routing rule: the entrypoint delegates to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags route to Typer until help output parity is guaranteed.
+4. Typer module registration is centralized in `src/prefect/cli/_typer_loader.py` (used by both entrypoints).
+
+Empirical delegation snippet (from the spike PR):
+
+```python
+def _delegate(command: str, tokens: tuple[str, ...]) -> None:
+    load_typer_commands()
+    typer_app([command, *tokens], standalone_mode=False)
+```
 
 Delegation mechanism (empirically implemented in the spike PR):
 
@@ -96,9 +124,9 @@ Acceptance:
 2. Help/version/completion remain routed to Typer until Cyclopts help output parity is guaranteed.
 
 Status (Phase 1):
-- [ ] Keep `src/prefect/cli/_typer_loader.py` as the single Typer registration path.
-- [ ] Route all non-migrated commands to Typer (no “not implemented” gaps).
-- [ ] Add parity tests for top-level help/version routing.
+- [x] Keep `src/prefect/cli/_typer_loader.py` as the single Typer registration path.
+- [x] Route all non-migrated commands to Typer (no “not implemented” gaps).
+- [x] Add parity tests for top-level help/version routing.
 
 ## Phase 2: Incremental Migration of Command Groups
 
@@ -179,12 +207,12 @@ Status (Phase 3):
 2. Use existing CLI test utilities where possible; prefer invoking `python -m prefect` to ensure tests execute the local code.
 3. Keep CLI benchmarks in `benches/cli-bench.toml`, and ensure CI runs both standard and Cyclopts categories.
 
-Parity test sketch (matches spike PR structure):
+Empirical parity test snippet (from the spike PR):
 
 ```python
-def test_config_view_parity():
-    typer = run_cli(["config", "view"], fast=False)
-    cyclopts = run_cli(["config", "view"], fast=True)
+def test_version_output_parity():
+    typer = run_cli(["--version"], fast=False)
+    cyclopts = run_cli(["--version"], fast=True)
     assert typer.returncode == 0
     assert cyclopts.returncode == 0
     assert normalize_output(typer.stdout) == normalize_output(cyclopts.stdout)
