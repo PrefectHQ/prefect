@@ -7,7 +7,7 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 ## Non-Goals
 
 1. Rewriting every command in one PR.
-2. Changing CLI behavior or output format beyond acknowledged help formatting differences.
+2. Changing CLI behavior or output format. Any differences are regressions unless explicitly approved and documented.
 3. Solving the broader import graph problem in this plan. That work is orthogonal and can proceed in parallel.
 
 ## Background
@@ -19,7 +19,7 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 
 ## Plan Summary
 
-We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind an opt-in toggle. A single registry will govern command discovery and lazy registration in Cyclopts. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
+We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind a migration toggle. A single registry will govern command discovery and lazy registration in Cyclopts. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
 
 ## Phase 0: Entrypoint and Global Flags Parity
 
@@ -50,8 +50,8 @@ Plan:
 
 Acceptance:
 
-1. Cyclopts `--help` renders a full command list without importing all modules.
-2. Delegated commands run through Typer and retain current behavior.
+1. Delegated commands run through Typer and retain current behavior.
+2. Help/version/completion remain routed to Typer until Cyclopts help output parity is guaranteed.
 
 ## Phase 2: Incremental Migration of Command Groups
 
@@ -115,5 +115,7 @@ Acceptance:
 ## References
 
 1. FastMCP migration PR: https://github.com/jlowin/fastmcp/pull/1062
-2. CLI benchmarks: `benches/cli-bench.toml`
-3. Draft CLI toggle implementation: `src/prefect/cli/__init__.py`
+2. Spike PR (Cyclopts entrypoint + delegation pattern): https://github.com/PrefectHQ/prefect/pull/20549
+3. Spike PR (Typer lazy-loading): https://github.com/PrefectHQ/prefect/pull/20448
+4. CLI benchmarks: `benches/cli-bench.toml`
+5. Draft CLI toggle implementation: `src/prefect/cli/__init__.py`
