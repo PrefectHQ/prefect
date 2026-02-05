@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from dbt.artifacts.resources.types import NodeType
-from prefect_dbt.core.manifest import DbtNode, ExecutionWave, ManifestParser
+from prefect_dbt.core._manifest import DbtNode, ExecutionWave, ManifestParser
 
 # =============================================================================
 # Test Fixtures
