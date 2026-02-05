@@ -150,7 +150,24 @@ Delete a flow run by flow_run_id, handling concurrency limits if applicable.
 - whether or not the flow run was deleted
 
 
-### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L507" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_flow_runs(db: PrefectDBInterface, session: AsyncSession, flow_run_ids: List[UUID]) -> List[UUID]
+```
+
+
+Delete multiple flow runs by their IDs, handling concurrency limits.
+
+**Args:**
+- `session`: A database session
+- `flow_run_ids`: a list of flow run ids to delete
+
+**Returns:**
+- List[UUID]: the IDs of the flow runs that were deleted
+
+
+### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_flow_run_state(session: AsyncSession, flow_run_id: UUID, state: schemas.states.State, force: bool = False, flow_policy: Optional[Type[FlowRunOrchestrationPolicy]] = None, orchestration_parameters: Optional[Dict[str, Any]] = None, client_version: Optional[str] = None) -> OrchestrationResult
@@ -177,7 +194,7 @@ the state transition. If True, orchestration rules are not applied.
 - OrchestrationResult object
 
 
-### `read_flow_run_graph` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L597" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_flow_run_graph` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L639" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_graph(db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID, since: datetime.datetime = earliest_possible_datetime()) -> Graph
@@ -188,7 +205,7 @@ Given a flow run, return the graph of it's task and subflow runs. If a `since`
 datetime is provided, only return items that may have changed since that time.
 
 
-### `with_system_labels_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_system_labels_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_system_labels_for_flow_run(session: AsyncSession, flow_run: Union[schemas.core.FlowRun, schemas.actions.FlowRunCreate]) -> schemas.core.KeyValueLabels
@@ -199,7 +216,7 @@ Augment user supplied labels with system default labels for a flow
 run.
 
 
-### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L654" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/flow_runs.py#L696" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow_run_labels(db: PrefectDBInterface, session: AsyncSession, flow_run_id: UUID, labels: KeyValueLabels) -> bool
