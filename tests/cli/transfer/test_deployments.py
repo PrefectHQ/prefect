@@ -96,7 +96,7 @@ class TestMigratableDeployment:
         # Create deployment with no work queue, storage, or infrastructure
         deployment = DeploymentResponse(
             id=uuid.uuid4(),
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
             flow_id=transfer_deployment.flow_id,
             schedules=[],
             tags=[],
@@ -152,7 +152,7 @@ class TestMigratableDeployment:
         # Create deployment with work queue
         deployment = DeploymentResponse(
             id=uuid.uuid4(),
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
             flow_id=transfer_deployment.flow_id,
             schedules=[],
             tags=[],
@@ -209,7 +209,7 @@ class TestMigratableDeployment:
         # Create deployment with storage document
         deployment = DeploymentResponse(
             id=uuid.uuid4(),
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
             flow_id=transfer_deployment.flow_id,
             schedules=[],
             tags=[],
@@ -267,7 +267,7 @@ class TestMigratableDeployment:
         # Create deployment with infrastructure document
         deployment = DeploymentResponse(
             id=uuid.uuid4(),
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
             flow_id=transfer_deployment.flow_id,
             schedules=[],
             tags=[],
@@ -341,7 +341,7 @@ class TestMigratableDeployment:
         # Create deployment with all dependencies
         deployment = DeploymentResponse(
             id=uuid.uuid4(),
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
             flow_id=transfer_deployment.flow_id,
             schedules=[],
             tags=[],
@@ -585,7 +585,7 @@ class TestMigratableDeployment:
         # Create deployment with storage document but missing dependency
         deployment = DeploymentResponse(
             id=uuid.uuid4(),
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
             flow_id=transfer_deployment_with_infra.flow_id,
             schedules=[],
             tags=[],
@@ -613,7 +613,7 @@ class TestMigratableDeployment:
         # Create deployment with infrastructure document but missing dependency
         deployment = DeploymentResponse(
             id=uuid.uuid4(),
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
             flow_id=transfer_deployment_with_infra.flow_id,
             schedules=[],
             tags=[],
