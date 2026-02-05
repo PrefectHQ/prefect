@@ -38,14 +38,15 @@ dependencies = [
     "pytz>=2021.1,<2026",
     "readchar>=4.0.0,<5.0.0",
     "sqlalchemy[asyncio]>=2.0,<3.0.0",
-    "typer>=0.16.0,<0.21.0",
+    "typer>=0.16.0,<0.22.0",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
+    "amplitude-analytics>=1.2.1,<2.0.0",
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
-    "cachetools>=5.3,<7.0",
+    "cachetools>=5.3,<8.0",
     "cloudpickle>=2.0,<4.0",
-    "coolname>=1.0.4,<3.0.0",
+    "coolname>=1.0.4,<4.0.0",
     "exceptiongroup>=1.0.0",
     "fastapi>=0.111.0,<1.0.0",
     "fsspec>=2022.5.0",
@@ -81,7 +82,7 @@ dependencies = [
     "whenever>=0.7.3,<0.10.0; python_version>='3.13'",
     "semver>=3.0.4",
     "pluggy>=1.6.0",
-    "pydocket>=0.16.2",
+    "pydocket>=0.17.2",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
@@ -149,7 +150,7 @@ dev = [
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
-    "pytest-mypy-plugins>=3.2.0",
+    "typsht>=0.0.1a4",
     "pytest-timeout>=2.3.1",
     "pytest-xdist>=3.6.1",
     "pyyaml>=6.0.1",
@@ -161,7 +162,7 @@ dev = [
     "watchfiles>=1.0.4",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.14.11",
+    "ruff==0.14.14",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -180,6 +181,8 @@ dev = [
 ]
 
 perf = ["logfire[fastapi,sqlalchemy]>=3.14.0", "pyinstrument>=5.0.0"]
+
+cli-bench = ["python-cli-bench @ git+https://github.com/zzstoatzz/python-cli-bench.git"]
 
 markdown-docs = [
     "pytest-markdown-docs>=0.6.0",
@@ -230,7 +233,7 @@ dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 
 [tool.hatch.build]
-artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
+artifacts = ["src/prefect/_build_info.py", "src/prefect/_internal/analytics/_config.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]
@@ -244,7 +247,7 @@ include = ["src/prefect/_sdk/templates/*.jinja"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-rfEs --mypy-only-local-stub"
+addopts = "-rfEs"
 norecursedirs = [
     "*.egg-info",
     ".git",
@@ -259,6 +262,8 @@ markers = [
     "service(arg): a service integration test. For example 'docker'",
     "enable_api_log_handler: by default, sending logs to the API is disabled. Tests marked with this use the handler.",
     "clear_db: marker to clear the database after test completion",
+    "windows: tests that specifically test Windows-only behavior",
+    "unix: tests that specifically test Unix-only behavior",
 ]
 env = [
     "PREFECT_TESTING_TEST_MODE=1",
@@ -355,6 +360,7 @@ ignore-words-list = [
     "afterall",
     "medias",
     "falso",
+    "aapply",
 ]
 
 check-hidden = true

@@ -19,7 +19,21 @@ interacting with the corresponding external system.
 
 **Methods:**
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1886" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously deletes the block document with the specified name.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected.
+
+
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -101,25 +115,115 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Asynchronously retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- `{"block_document_id": <block_document_id>}`
+- `{"block_document_slug": <block_document_slug>}`
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload_from_ref`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload_from_ref`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1835" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
+```
+
+Asynchronously saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected.
+
+**Returns:**
+- The ID of the saved block document.
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(cls, name: str, client: Optional['PrefectClient'] = None)
+delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
 ```
 
-#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+Deletes the block document with the specified name.
+
+This function will dispatch to `adelete` when called from an async context.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_capabilities(cls) -> FrozenSet[str]
@@ -129,7 +233,7 @@ Returns the block capabilities for this Block. Recursively collects all block
 capabilities of all parent classes into a single frozenset.
 
 
-#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
@@ -138,7 +242,7 @@ get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
 Retrieve the block class implementation given a key.
 
 
-#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
@@ -147,7 +251,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -166,19 +270,19 @@ templating.
 If a block has not been saved, the return value will be `None`.
 
 
-#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_schema_version(cls) -> str
 ```
 
-#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L461" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_name(cls) -> str
 ```
 
-#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_slug(cls) -> str
@@ -197,7 +301,7 @@ a `client_type` keyword argument to get the desired client
 within the service.
 
 
-#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L743" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_code_example(cls) -> Optional[str]
@@ -207,7 +311,7 @@ Returns the code example for the given block. Attempts to parse
 code example from the class docstring if an override is not provided.
 
 
-#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_description(cls) -> Optional[str]
@@ -217,13 +321,13 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -305,7 +409,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -315,18 +419,20 @@ Retrieves data from the block document by given reference for the block type
 that corresponds with the current class and returns an instantiated version of
 the current class with the data stored in the block document.
 
+This function will dispatch to `aload_from_ref` when called from an async context.
+
 Provided reference can be a block document ID, or a reference data in dictionary format.
 Supported dictionary reference formats are:
 - `{"block_document_id": <block_document_id>}`
 - `{"block_document_slug": <block_document_slug>}`
 
 If a block document for a given block type is saved with a different schema
-than the current class calling `load`, a warning will be raised.
+than the current class calling `load_from_ref`, a warning will be raised.
 
 If the current class schema is a subset of the block document schema, the block
 can be loaded as normal using the default `validate = True`.
 
-If the current class schema is a superset of the block document schema, `load`
+If the current class schema is a superset of the block document schema, `load_from_ref`
 must be called with `validate` set to False to prevent a validation error. In
 this case, the block attributes will default to `None` and must be set manually
 and saved to a new block document before the block can be used as expected.
@@ -338,7 +444,8 @@ or one of supported dictionary reference formats.
 validating the block schema. This is useful if the block schema has
 changed client-side since the block document referred to by `name` was saved.
 - `client`: The client to use to load the block document. If not provided, the
-default client will be injected.
+default client will be injected. This is ignored when called from a
+synchronous context.
 
 **Raises:**
 - `ValueError`: If invalid reference format is provided.
@@ -364,13 +471,13 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -379,49 +486,59 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1623" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1970" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 ```
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
 ```
 
 Makes block available for configuration with current Prefect API.
 Recursively registers all nested blocks. Registration is idempotent.
 
+This function will dispatch to `aregister_type_and_schema` when called from an async context.
+
 **Args:**
 - `client`: Optional client to use for registering type and schema with the
 Prefect API. A new client will be created and used if one is not
-provided.
+provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
 ```
 
 Saves the values of a block as a block document.
+
+This function will dispatch to `asave` when called from an async context.
 
 **Args:**
 - `name`: User specified name to give saved block document which can later be used to load the
 block document.
 - `overwrite`: Boolean value specifying if values should be overwritten if a block document with
 the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+**Returns:**
+- The ID of the saved block document.
 
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
 ```
 
-#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_block_type_slug(cls, values: Any) -> Any
@@ -446,7 +563,21 @@ Block that represents a resource in an external system that is able to send noti
 
 **Methods:**
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1886" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously deletes the block document with the specified name.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected.
+
+
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -528,25 +659,115 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Asynchronously retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- `{"block_document_id": <block_document_id>}`
+- `{"block_document_slug": <block_document_slug>}`
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload_from_ref`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload_from_ref`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1835" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
+```
+
+Asynchronously saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected.
+
+**Returns:**
+- The ID of the saved block document.
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(cls, name: str, client: Optional['PrefectClient'] = None)
+delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
 ```
 
-#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+Deletes the block document with the specified name.
+
+This function will dispatch to `adelete` when called from an async context.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_capabilities(cls) -> FrozenSet[str]
@@ -556,7 +777,7 @@ Returns the block capabilities for this Block. Recursively collects all block
 capabilities of all parent classes into a single frozenset.
 
 
-#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
@@ -565,7 +786,7 @@ get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
 Retrieve the block class implementation given a key.
 
 
-#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
@@ -574,7 +795,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -593,25 +814,25 @@ templating.
 If a block has not been saved, the return value will be `None`.
 
 
-#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_schema_version(cls) -> str
 ```
 
-#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L461" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_name(cls) -> str
 ```
 
-#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_slug(cls) -> str
 ```
 
-#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L743" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_code_example(cls) -> Optional[str]
@@ -621,7 +842,7 @@ Returns the code example for the given block. Attempts to parse
 code example from the class docstring if an override is not provided.
 
 
-#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_description(cls) -> Optional[str]
@@ -631,13 +852,13 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -719,7 +940,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -729,18 +950,20 @@ Retrieves data from the block document by given reference for the block type
 that corresponds with the current class and returns an instantiated version of
 the current class with the data stored in the block document.
 
+This function will dispatch to `aload_from_ref` when called from an async context.
+
 Provided reference can be a block document ID, or a reference data in dictionary format.
 Supported dictionary reference formats are:
 - `{"block_document_id": <block_document_id>}`
 - `{"block_document_slug": <block_document_slug>}`
 
 If a block document for a given block type is saved with a different schema
-than the current class calling `load`, a warning will be raised.
+than the current class calling `load_from_ref`, a warning will be raised.
 
 If the current class schema is a subset of the block document schema, the block
 can be loaded as normal using the default `validate = True`.
 
-If the current class schema is a superset of the block document schema, `load`
+If the current class schema is a superset of the block document schema, `load_from_ref`
 must be called with `validate` set to False to prevent a validation error. In
 this case, the block attributes will default to `None` and must be set manually
 and saved to a new block document before the block can be used as expected.
@@ -752,7 +975,8 @@ or one of supported dictionary reference formats.
 validating the block schema. This is useful if the block schema has
 changed client-side since the block document referred to by `name` was saved.
 - `client`: The client to use to load the block document. If not provided, the
-default client will be injected.
+default client will be injected. This is ignored when called from a
+synchronous context.
 
 **Raises:**
 - `ValueError`: If invalid reference format is provided.
@@ -778,13 +1002,13 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -793,7 +1017,7 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1623" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1970" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
@@ -822,43 +1046,53 @@ Context manager that, while active, causes the block to raise errors if it
 encounters a failure sending notifications.
 
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
 ```
 
 Makes block available for configuration with current Prefect API.
 Recursively registers all nested blocks. Registration is idempotent.
 
+This function will dispatch to `aregister_type_and_schema` when called from an async context.
+
 **Args:**
 - `client`: Optional client to use for registering type and schema with the
 Prefect API. A new client will be created and used if one is not
-provided.
+provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
 ```
 
 Saves the values of a block as a block document.
+
+This function will dispatch to `asave` when called from an async context.
 
 **Args:**
 - `name`: User specified name to give saved block document which can later be used to load the
 block document.
 - `overwrite`: Boolean value specifying if values should be overwritten if a block document with
 the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+**Returns:**
+- The ID of the saved block document.
 
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
 ```
 
-#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_block_type_slug(cls, values: Any) -> Any
@@ -920,7 +1154,21 @@ that can trigger a long running execution.
 
 **Methods:**
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1886" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously deletes the block document with the specified name.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected.
+
+
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1002,25 +1250,115 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Asynchronously retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- `{"block_document_id": <block_document_id>}`
+- `{"block_document_slug": <block_document_slug>}`
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload_from_ref`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload_from_ref`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1835" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
+```
+
+Asynchronously saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected.
+
+**Returns:**
+- The ID of the saved block document.
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(cls, name: str, client: Optional['PrefectClient'] = None)
+delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
 ```
 
-#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+Deletes the block document with the specified name.
+
+This function will dispatch to `adelete` when called from an async context.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_capabilities(cls) -> FrozenSet[str]
@@ -1030,7 +1368,7 @@ Returns the block capabilities for this Block. Recursively collects all block
 capabilities of all parent classes into a single frozenset.
 
 
-#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
@@ -1039,7 +1377,7 @@ get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
 Retrieve the block class implementation given a key.
 
 
-#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
@@ -1048,7 +1386,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -1067,25 +1405,25 @@ templating.
 If a block has not been saved, the return value will be `None`.
 
 
-#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_schema_version(cls) -> str
 ```
 
-#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L461" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_name(cls) -> str
 ```
 
-#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_slug(cls) -> str
 ```
 
-#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L743" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_code_example(cls) -> Optional[str]
@@ -1095,7 +1433,7 @@ Returns the code example for the given block. Attempts to parse
 code example from the class docstring if an override is not provided.
 
 
-#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_description(cls) -> Optional[str]
@@ -1105,13 +1443,13 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1193,7 +1531,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -1203,18 +1541,20 @@ Retrieves data from the block document by given reference for the block type
 that corresponds with the current class and returns an instantiated version of
 the current class with the data stored in the block document.
 
+This function will dispatch to `aload_from_ref` when called from an async context.
+
 Provided reference can be a block document ID, or a reference data in dictionary format.
 Supported dictionary reference formats are:
 - `{"block_document_id": <block_document_id>}`
 - `{"block_document_slug": <block_document_slug>}`
 
 If a block document for a given block type is saved with a different schema
-than the current class calling `load`, a warning will be raised.
+than the current class calling `load_from_ref`, a warning will be raised.
 
 If the current class schema is a subset of the block document schema, the block
 can be loaded as normal using the default `validate = True`.
 
-If the current class schema is a superset of the block document schema, `load`
+If the current class schema is a superset of the block document schema, `load_from_ref`
 must be called with `validate` set to False to prevent a validation error. In
 this case, the block attributes will default to `None` and must be set manually
 and saved to a new block document before the block can be used as expected.
@@ -1226,7 +1566,8 @@ or one of supported dictionary reference formats.
 validating the block schema. This is useful if the block schema has
 changed client-side since the block document referred to by `name` was saved.
 - `client`: The client to use to load the block document. If not provided, the
-default client will be injected.
+default client will be injected. This is ignored when called from a
+synchronous context.
 
 **Raises:**
 - `ValueError`: If invalid reference format is provided.
@@ -1252,13 +1593,13 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -1267,43 +1608,53 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1623" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1970" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 ```
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
 ```
 
 Makes block available for configuration with current Prefect API.
 Recursively registers all nested blocks. Registration is idempotent.
 
+This function will dispatch to `aregister_type_and_schema` when called from an async context.
+
 **Args:**
 - `client`: Optional client to use for registering type and schema with the
 Prefect API. A new client will be created and used if one is not
-provided.
+provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
 ```
 
 Saves the values of a block as a block document.
+
+This function will dispatch to `asave` when called from an async context.
 
 **Args:**
 - `name`: User specified name to give saved block document which can later be used to load the
 block document.
 - `overwrite`: Boolean value specifying if values should be overwritten if a block document with
 the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+**Returns:**
+- The ID of the saved block document.
 
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
@@ -1319,7 +1670,7 @@ Triggers a job run in an external service and returns a JobRun object
 to track the execution of the run.
 
 
-#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_block_type_slug(cls, values: Any) -> Any
@@ -1348,7 +1699,21 @@ implementations is recommended.
 
 **Methods:**
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1886" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously deletes the block document with the specified name.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected.
+
+
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1430,23 +1795,113 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Asynchronously retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- `{"block_document_id": <block_document_id>}`
+- `{"block_document_slug": <block_document_slug>}`
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload_from_ref`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload_from_ref`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1835" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
+```
+
+Asynchronously saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected.
+
+**Returns:**
+- The ID of the saved block document.
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(cls, name: str, client: Optional['PrefectClient'] = None)
+delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
 ```
+
+Deletes the block document with the specified name.
+
+This function will dispatch to `adelete` when called from an async context.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
 
 #### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/abstract.py#L293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -1533,7 +1988,7 @@ Fetch a single result from the database.
 where each row is a tuple and each column is a value in the tuple.
 
 
-#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_capabilities(cls) -> FrozenSet[str]
@@ -1543,7 +1998,7 @@ Returns the block capabilities for this Block. Recursively collects all block
 capabilities of all parent classes into a single frozenset.
 
 
-#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
@@ -1552,7 +2007,7 @@ get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
 Retrieve the block class implementation given a key.
 
 
-#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
@@ -1561,7 +2016,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -1580,25 +2035,25 @@ templating.
 If a block has not been saved, the return value will be `None`.
 
 
-#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_schema_version(cls) -> str
 ```
 
-#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L461" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_name(cls) -> str
 ```
 
-#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_slug(cls) -> str
 ```
 
-#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L743" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_code_example(cls) -> Optional[str]
@@ -1608,7 +2063,7 @@ Returns the code example for the given block. Attempts to parse
 code example from the class docstring if an override is not provided.
 
 
-#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_description(cls) -> Optional[str]
@@ -1618,13 +2073,13 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1706,7 +2161,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -1716,18 +2171,20 @@ Retrieves data from the block document by given reference for the block type
 that corresponds with the current class and returns an instantiated version of
 the current class with the data stored in the block document.
 
+This function will dispatch to `aload_from_ref` when called from an async context.
+
 Provided reference can be a block document ID, or a reference data in dictionary format.
 Supported dictionary reference formats are:
 - `{"block_document_id": <block_document_id>}`
 - `{"block_document_slug": <block_document_slug>}`
 
 If a block document for a given block type is saved with a different schema
-than the current class calling `load`, a warning will be raised.
+than the current class calling `load_from_ref`, a warning will be raised.
 
 If the current class schema is a subset of the block document schema, the block
 can be loaded as normal using the default `validate = True`.
 
-If the current class schema is a superset of the block document schema, `load`
+If the current class schema is a superset of the block document schema, `load_from_ref`
 must be called with `validate` set to False to prevent a validation error. In
 this case, the block attributes will default to `None` and must be set manually
 and saved to a new block document before the block can be used as expected.
@@ -1739,7 +2196,8 @@ or one of supported dictionary reference formats.
 validating the block schema. This is useful if the block schema has
 changed client-side since the block document referred to by `name` was saved.
 - `client`: The client to use to load the block document. If not provided, the
-default client will be injected.
+default client will be injected. This is ignored when called from a
+synchronous context.
 
 **Raises:**
 - `ValueError`: If invalid reference format is provided.
@@ -1765,13 +2223,13 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -1780,49 +2238,59 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1623" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1970" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 ```
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
 ```
 
 Makes block available for configuration with current Prefect API.
 Recursively registers all nested blocks. Registration is idempotent.
 
+This function will dispatch to `aregister_type_and_schema` when called from an async context.
+
 **Args:**
 - `client`: Optional client to use for registering type and schema with the
 Prefect API. A new client will be created and used if one is not
-provided.
+provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
 ```
 
 Saves the values of a block as a block document.
+
+This function will dispatch to `asave` when called from an async context.
 
 **Args:**
 - `name`: User specified name to give saved block document which can later be used to load the
 block document.
 - `overwrite`: Boolean value specifying if values should be overwritten if a block document with
 the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+**Returns:**
+- The ID of the saved block document.
 
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
 ```
 
-#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_block_type_slug(cls, values: Any) -> Any
@@ -1842,7 +2310,21 @@ objects.
 
 **Methods:**
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1886" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously deletes the block document with the specified name.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected.
+
+
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1924,23 +2406,113 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Asynchronously retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- `{"block_document_id": <block_document_id>}`
+- `{"block_document_slug": <block_document_slug>}`
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload_from_ref`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload_from_ref`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1835" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
+```
+
+Asynchronously saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected.
+
+**Returns:**
+- The ID of the saved block document.
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(cls, name: str, client: Optional['PrefectClient'] = None)
+delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
 ```
+
+Deletes the block document with the specified name.
+
+This function will dispatch to `adelete` when called from an async context.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
 
 #### `download_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/abstract.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -1994,7 +2566,7 @@ Downloads an object from the object storage service to a path.
 - The path that the object was downloaded to.
 
 
-#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_capabilities(cls) -> FrozenSet[str]
@@ -2004,7 +2576,7 @@ Returns the block capabilities for this Block. Recursively collects all block
 capabilities of all parent classes into a single frozenset.
 
 
-#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
@@ -2013,7 +2585,7 @@ get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
 Retrieve the block class implementation given a key.
 
 
-#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
@@ -2022,7 +2594,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -2041,25 +2613,25 @@ templating.
 If a block has not been saved, the return value will be `None`.
 
 
-#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_schema_version(cls) -> str
 ```
 
-#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L461" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_name(cls) -> str
 ```
 
-#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_slug(cls) -> str
 ```
 
-#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L743" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_code_example(cls) -> Optional[str]
@@ -2069,7 +2641,7 @@ Returns the code example for the given block. Attempts to parse
 code example from the class docstring if an override is not provided.
 
 
-#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_description(cls) -> Optional[str]
@@ -2079,13 +2651,13 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -2167,7 +2739,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -2177,18 +2749,20 @@ Retrieves data from the block document by given reference for the block type
 that corresponds with the current class and returns an instantiated version of
 the current class with the data stored in the block document.
 
+This function will dispatch to `aload_from_ref` when called from an async context.
+
 Provided reference can be a block document ID, or a reference data in dictionary format.
 Supported dictionary reference formats are:
 - `{"block_document_id": <block_document_id>}`
 - `{"block_document_slug": <block_document_slug>}`
 
 If a block document for a given block type is saved with a different schema
-than the current class calling `load`, a warning will be raised.
+than the current class calling `load_from_ref`, a warning will be raised.
 
 If the current class schema is a subset of the block document schema, the block
 can be loaded as normal using the default `validate = True`.
 
-If the current class schema is a superset of the block document schema, `load`
+If the current class schema is a superset of the block document schema, `load_from_ref`
 must be called with `validate` set to False to prevent a validation error. In
 this case, the block attributes will default to `None` and must be set manually
 and saved to a new block document before the block can be used as expected.
@@ -2200,7 +2774,8 @@ or one of supported dictionary reference formats.
 validating the block schema. This is useful if the block schema has
 changed client-side since the block document referred to by `name` was saved.
 - `client`: The client to use to load the block document. If not provided, the
-default client will be injected.
+default client will be injected. This is ignored when called from a
+synchronous context.
 
 **Raises:**
 - `ValueError`: If invalid reference format is provided.
@@ -2226,13 +2801,13 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -2241,43 +2816,53 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1623" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1970" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 ```
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
 ```
 
 Makes block available for configuration with current Prefect API.
 Recursively registers all nested blocks. Registration is idempotent.
 
+This function will dispatch to `aregister_type_and_schema` when called from an async context.
+
 **Args:**
 - `client`: Optional client to use for registering type and schema with the
 Prefect API. A new client will be created and used if one is not
-provided.
+provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
 ```
 
 Saves the values of a block as a block document.
+
+This function will dispatch to `asave` when called from an async context.
 
 **Args:**
 - `name`: User specified name to give saved block document which can later be used to load the
 block document.
 - `overwrite`: Boolean value specifying if values should be overwritten if a block document with
 the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+**Returns:**
+- The ID of the saved block document.
 
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
@@ -2335,7 +2920,7 @@ Uploads an object from a path to the object storage service.
 - The path that the object was uploaded to.
 
 
-#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_block_type_slug(cls, values: Any) -> Any
@@ -2354,7 +2939,21 @@ Block that represents a resource that can store and retrieve secrets.
 
 **Methods:**
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1886" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously deletes the block document with the specified name.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected.
+
+
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1050" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -2436,25 +3035,115 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
+```
+
+Asynchronously retrieves data from the block document by given reference for the block type
+that corresponds with the current class and returns an instantiated version of
+the current class with the data stored in the block document.
+
+Provided reference can be a block document ID, or a reference data in dictionary format.
+Supported dictionary reference formats are:
+- `{"block_document_id": <block_document_id>}`
+- `{"block_document_slug": <block_document_slug>}`
+
+If a block document for a given block type is saved with a different schema
+than the current class calling `aload_from_ref`, a warning will be raised.
+
+If the current class schema is a subset of the block document schema, the block
+can be loaded as normal using the default `validate = True`.
+
+If the current class schema is a superset of the block document schema, `aload_from_ref`
+must be called with `validate` set to False to prevent a validation error. In
+this case, the block attributes will default to `None` and must be set manually
+and saved to a new block document before the block can be used as expected.
+
+**Args:**
+- `ref`: The reference to the block document. This can be a block document ID,
+or one of supported dictionary reference formats.
+- `validate`: If False, the block document will be loaded without Pydantic
+validating the block schema. This is useful if the block schema has
+changed client-side since the block document referred to by `name` was saved.
+- `client`: The client to use to load the block document. If not provided, the
+default client will be injected.
+
+**Raises:**
+- `ValueError`: If invalid reference format is provided.
+- `ValueError`: If the requested block document is not found.
+
+**Returns:**
+- An instance of the current class hydrated with the data stored in the
+- block document with the specified name.
+
+
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L380" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
+```
+
+Asynchronously makes block available for configuration with current Prefect API.
+Recursively registers all nested blocks. Registration is idempotent.
+
+**Args:**
+- `client`: Optional client to use for registering type and schema with the
+Prefect API. A new client will be created and used if one is not
+provided.
+
+
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1835" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
+```
+
+Asynchronously saves the values of a block as a block document.
+
+**Args:**
+- `name`: User specified name to give saved block document which can later be used to load the
+block document.
+- `overwrite`: Boolean value specifying if values should be overwritten if a block document with
+the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected.
+
+**Returns:**
+- The ID of the saved block document.
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete(cls, name: str, client: Optional['PrefectClient'] = None)
+delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
 ```
 
-#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+Deletes the block document with the specified name.
+
+This function will dispatch to `adelete` when called from an async context.
+
+**Args:**
+- `name`: The name of the block document to delete.
+- `client`: The client to use to delete the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+
+#### `get_block_capabilities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L470" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_capabilities(cls) -> FrozenSet[str]
@@ -2464,7 +3153,7 @@ Returns the block capabilities for this Block. Recursively collects all block
 capabilities of all parent classes into a single frozenset.
 
 
-#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
@@ -2473,7 +3162,7 @@ get_block_class_from_key(cls: type[Self], key: str) -> type[Self]
 Retrieve the block class implementation given a key.
 
 
-#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_class_from_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
@@ -2482,7 +3171,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1927" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -2501,25 +3190,25 @@ templating.
 If a block has not been saved, the return value will be `None`.
 
 
-#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_schema_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_schema_version(cls) -> str
 ```
 
-#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L461" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_name(cls) -> str
 ```
 
-#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_type_slug(cls) -> str
 ```
 
-#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_code_example` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L743" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_code_example(cls) -> Optional[str]
@@ -2529,7 +3218,7 @@ Returns the code example for the given block. Attempts to parse
 code example from the class docstring if an override is not provided.
 
 
-#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_description` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_description(cls) -> Optional[str]
@@ -2539,13 +3228,13 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -2627,7 +3316,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -2637,18 +3326,20 @@ Retrieves data from the block document by given reference for the block type
 that corresponds with the current class and returns an instantiated version of
 the current class with the data stored in the block document.
 
+This function will dispatch to `aload_from_ref` when called from an async context.
+
 Provided reference can be a block document ID, or a reference data in dictionary format.
 Supported dictionary reference formats are:
 - `{"block_document_id": <block_document_id>}`
 - `{"block_document_slug": <block_document_slug>}`
 
 If a block document for a given block type is saved with a different schema
-than the current class calling `load`, a warning will be raised.
+than the current class calling `load_from_ref`, a warning will be raised.
 
 If the current class schema is a subset of the block document schema, the block
 can be loaded as normal using the default `validate = True`.
 
-If the current class schema is a superset of the block document schema, `load`
+If the current class schema is a superset of the block document schema, `load_from_ref`
 must be called with `validate` set to False to prevent a validation error. In
 this case, the block attributes will default to `None` and must be set manually
 and saved to a new block document before the block can be used as expected.
@@ -2660,7 +3351,8 @@ or one of supported dictionary reference formats.
 validating the block schema. This is useful if the block schema has
 changed client-side since the block document referred to by `name` was saved.
 - `client`: The client to use to load the block document. If not provided, the
-default client will be injected.
+default client will be injected. This is ignored when called from a
+synchronous context.
 
 **Raises:**
 - `ValueError`: If invalid reference format is provided.
@@ -2686,13 +3378,13 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1995" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1603" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1950" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -2701,7 +3393,7 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1623" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1970" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
@@ -2719,43 +3411,53 @@ Reads the configured secret from the secret storage service.
 - The secret data.
 
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-register_type_and_schema(cls, client: Optional['PrefectClient'] = None)
+register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
 ```
 
 Makes block available for configuration with current Prefect API.
 Recursively registers all nested blocks. Registration is idempotent.
 
+This function will dispatch to `aregister_type_and_schema` when called from an async context.
+
 **Args:**
 - `client`: Optional client to use for registering type and schema with the
 Prefect API. A new client will be created and used if one is not
-provided.
+provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None)
+save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
 ```
 
 Saves the values of a block as a block document.
+
+This function will dispatch to `asave` when called from an async context.
 
 **Args:**
 - `name`: User specified name to give saved block document which can later be used to load the
 block document.
 - `overwrite`: Boolean value specifying if values should be overwritten if a block document with
 the specified name already exists.
+- `client`: The client to use to save the block document. If not provided, the
+default client will be injected. This is ignored when called from a
+synchronous context.
+
+**Returns:**
+- The ID of the saved block document.
 
 
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L424" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
 ```
 
-#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_block_type_slug` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_block_type_slug(cls, values: Any) -> Any

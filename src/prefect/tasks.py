@@ -41,6 +41,7 @@ from typing_extensions import (
 )
 
 import prefect.states
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset
 from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
@@ -69,7 +70,7 @@ from prefect.results import (
 from prefect.settings.context import get_current_settings
 from prefect.states import Pending, Scheduled, State
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
     expand_mapping_parameters,
     get_call_parameters,
@@ -919,7 +920,7 @@ class Task(Generic[P, R]):
 
                 store = await ResultStore(
                     result_storage=await get_or_create_default_task_scheduling_storage()
-                ).update_for_task(self)
+                ).aupdate_for_task(self)
                 context = serialize_context()
                 data: dict[str, Any] = {"context": context}
                 if parameters:
@@ -1024,7 +1025,7 @@ class Task(Generic[P, R]):
 
                 store = await ResultStore(
                     result_storage=await get_or_create_default_task_scheduling_storage()
-                ).update_for_task(self)
+                ).aupdate_for_task(self)
                 context = serialize_context()
                 data: dict[str, Any] = {"context": context}
                 if parameters:
@@ -1797,8 +1798,33 @@ class Task(Generic[P, R]):
         """
         return self.apply_async(args=args, kwargs=kwargs)
 
-    @sync_compatible
-    async def serve(self) -> NoReturn:
+    async def aserve(self) -> NoReturn:
+        """Serve the task using the provided task runner. This method is used to
+        establish a websocket connection with the Prefect server and listen for
+        submitted task runs to execute.
+
+        This is the async version of serve().
+
+        Args:
+            task_runner: The task runner to use for serving the task. If not provided,
+                the default task runner will be used.
+
+        Examples:
+            Serve a task using the default task runner in an async context
+            ```python
+            @task
+            def my_task():
+                return 1
+
+            await my_task.aserve()
+            ```
+        """
+        from prefect.task_worker import aserve
+
+        await aserve(self)
+
+    @async_dispatch(aserve)
+    def serve(self) -> NoReturn:
         """Serve the task using the provided task runner. This method is used to
         establish a websocket connection with the Prefect server and listen for
         submitted task runs to execute.
@@ -1819,7 +1845,7 @@ class Task(Generic[P, R]):
         """
         from prefect.task_worker import serve
 
-        await serve(self)
+        serve(self)
 
 
 @overload

@@ -408,7 +408,10 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    await docket.add(mark_work_queues_ready)(
+    await docket.add(
+        mark_work_queues_ready,
+        key=f"mark_work_queues_ready:work_pool:{work_pool_id}",
+    )(
         polled_work_queue_ids=[
             wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
         ],
@@ -417,7 +420,10 @@ async def get_scheduled_flow_runs(
         ],
     )
 
-    await docket.add(mark_deployments_ready)(
+    await docket.add(
+        mark_deployments_ready,
+        key=f"mark_deployments_ready:work_pool:{work_pool_id}",
+    )(
         work_queue_ids=[wq.id for wq in work_queues],
     )
 

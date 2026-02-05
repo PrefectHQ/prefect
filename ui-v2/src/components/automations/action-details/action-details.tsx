@@ -17,7 +17,6 @@ import {
 import { Icon, type IconId } from "@/components/ui/icons";
 import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { StateBadge } from "@/components/ui/state-badge";
-import { Typography } from "@/components/ui/typography";
 import { capitalize } from "@/utils";
 
 const ACTION_TYPE_TO_STRING = {
@@ -34,7 +33,7 @@ const ACTION_TYPE_TO_STRING = {
 	"resume-work-pool": "Resume work pool",
 	"pause-automation": "Pause automation",
 	"resume-automation": "Resume automation",
-	"call-webhook": "Call a custom webhook notification",
+	"call-webhook": "Call webhook using",
 	/** Default string if `block_type_name` is not found. */
 	"send-notification": "Send a notification using",
 	"do-nothing": "Do nothing",
@@ -86,15 +85,14 @@ const ActionDetailsType = ({
 		case "cancel-flow-run":
 		case "suspend-flow-run":
 		case "resume-flow-run":
-		case "call-webhook": // Not used
-		case "do-nothing": // not used
+		case "do-nothing":
 			return <NoninferredAction label={label} />;
 		// Inferable actions
 		case "run-deployment":
 			if (action.deployment_id && action.source === "selected") {
 				const deployment = deploymentsMap.get(action.deployment_id);
 				if (!deployment) {
-					return <Typography>Deployment not found</Typography>;
+					return <p className="text-base">Deployment not found</p>;
 				}
 				return (
 					<DeploymentActionDetails
@@ -111,7 +109,7 @@ const ActionDetailsType = ({
 			if (action.deployment_id && action.source === "selected") {
 				const deployment = deploymentsMap.get(action.deployment_id);
 				if (!deployment) {
-					return <Typography>Deployment not found</Typography>;
+					return <p className="text-base">Deployment not found</p>;
 				}
 				return (
 					<DeploymentActionDetails label={label} deployment={deployment} />
@@ -123,7 +121,7 @@ const ActionDetailsType = ({
 			if (action.work_queue_id && action.source === "selected") {
 				const workQueue = workQueuesMap.get(action.work_queue_id);
 				if (!workQueue) {
-					return <Typography>Work queue not found</Typography>;
+					return <p className="text-base">Work queue not found</p>;
 				}
 				return <WorkQueueActionDetails label={label} workQueue={workQueue} />;
 			}
@@ -133,7 +131,7 @@ const ActionDetailsType = ({
 			if (action.automation_id && action.source === "selected") {
 				const automation = automationsMap.get(action.automation_id);
 				if (!automation) {
-					return <Typography>Automation not found</Typography>;
+					return <p className="text-base">Automation not found</p>;
 				}
 				return (
 					<AutomationActionDetails label={label} automation={automation} />
@@ -145,7 +143,7 @@ const ActionDetailsType = ({
 			if (action.work_pool_id && action.source === "selected") {
 				const workPool = workPoolsMap.get(action.work_pool_id);
 				if (!workPool) {
-					return <Typography>Workpool not found</Typography>;
+					return <p className="text-base">Workpool not found</p>;
 				}
 				return <WorkPoolActionDetails label={label} workPool={workPool} />;
 			}
@@ -154,13 +152,22 @@ const ActionDetailsType = ({
 		case "send-notification": {
 			const blockDocument = blockDocumentsMap.get(action.block_document_id);
 			if (!blockDocument) {
-				return <Typography>Block document not found</Typography>;
+				return <p className="text-base">Block document not found</p>;
 			}
 			return (
 				<BlockDocumentActionDetails
 					label={label}
 					blockDocument={blockDocument}
 				/>
+			);
+		}
+		case "call-webhook": {
+			const blockDocument = blockDocumentsMap.get(action.block_document_id);
+			if (!blockDocument) {
+				return <p className="text-base">Block document not found</p>;
+			}
+			return (
+				<CallWebhookActionDetails label={label} blockDocument={blockDocument} />
 			);
 		}
 		case "change-flow-run-state":
@@ -194,13 +201,11 @@ const ActionResourceName = ({
 );
 
 const NoninferredAction = ({ label }: { label: ActionLabel }) => (
-	<Typography variant="bodySmall">{label} from the triggering event</Typography>
+	<p className="text-sm">{label} from the triggering event</p>
 );
 
 const InferredAction = ({ label }: { label: ActionLabel }) => (
-	<Typography variant="bodySmall">
-		{label} inferred from the triggering event
-	</Typography>
+	<p className="text-sm">{label} inferred from the triggering event</p>
 );
 
 type ChangeFlowRunStateActionDetailsProps = {
@@ -314,7 +319,7 @@ export const BlockDocumentActionDetails = ({
 	blockDocument,
 }: BlockDocumentActionDetailsProps) => {
 	if (!blockDocument.name) {
-		return <Typography>Block not found</Typography>;
+		return <p className="text-base">Block not found</p>;
 	}
 
 	const _label = blockDocument.block_type_name
@@ -324,6 +329,32 @@ export const BlockDocumentActionDetails = ({
 	return (
 		<ActionResource>
 			<label htmlFor={`${label}-${blockDocument.id}`}>{_label}</label>
+			<Link
+				to="/blocks/block/$id"
+				params={{ id: blockDocument.id }}
+				aria-label={blockDocument.name}
+			>
+				<ActionResourceName iconId="Box" name={blockDocument.name} />
+			</Link>
+		</ActionResource>
+	);
+};
+
+type CallWebhookActionDetailsProps = {
+	label: ActionLabel;
+	blockDocument: BlockDocument;
+};
+export const CallWebhookActionDetails = ({
+	label,
+	blockDocument,
+}: CallWebhookActionDetailsProps) => {
+	if (!blockDocument.name) {
+		return <p className="text-base">Block not found</p>;
+	}
+
+	return (
+		<ActionResource>
+			<label htmlFor={`${label}-${blockDocument.id}`}>{label}</label>
 			<Link
 				to="/blocks/block/$id"
 				params={{ id: blockDocument.id }}

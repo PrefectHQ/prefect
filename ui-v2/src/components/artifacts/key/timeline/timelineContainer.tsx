@@ -1,5 +1,4 @@
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
-import { Typography } from "@/components/ui/typography";
 import { TimelineRow } from "./timelineRow";
 
 export type TimelineContainerProps = {
@@ -28,9 +27,9 @@ export const TimelineContainer = ({ artifacts }: TimelineContainerProps) => {
 					</div>
 				</div>
 				<div style={{ padding: "33px 0 0 5px" }}>
-					<Typography variant="bodyLarge">
+					<p className="text-lg">
 						Created <span className="font-bold">{artifacts[0].key}</span>
-					</Typography>
+					</p>
 				</div>
 			</div>
 		</div>

@@ -2,6 +2,7 @@ import type { SchemaObject } from "openapi-typescript";
 import { SchemaFormInputAllOf } from "./schema-form-input-all-of";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
 import { SchemaFormInputArray } from "./schema-form-input-array";
+import { SchemaFormInputBlockDocument } from "./schema-form-input-block-document";
 import { SchemaFormInputBoolean } from "./schema-form-input-boolean";
 import { SchemaFormInputInteger } from "./schema-form-input-integer";
 import { SchemaFormInputNull } from "./schema-form-input-null";
@@ -73,8 +74,18 @@ export function SchemaFormInput({
 		throw new Error(`Prefect kind not implemented: ${value.__prefect_kind}`);
 	}
 
-	if ("blockTypeSlug" in property) {
-		throw new Error("not implemented");
+	if ("block_type_slug" in property) {
+		const blockTypeSlug = property.block_type_slug;
+		if (typeof blockTypeSlug === "string") {
+			return (
+				<SchemaFormInputBlockDocument
+					value={value as { $ref: string } | undefined}
+					onValueChange={onValueChange}
+					blockTypeSlug={blockTypeSlug}
+					id={id}
+				/>
+			);
+		}
 	}
 
 	if (isAnyOfObject(property)) {

@@ -8,6 +8,7 @@ import prefect.cli.api
 import prefect.cli.artifact
 import prefect.cli.block
 import prefect.cli.cloud
+import prefect.cli.cloud.asset
 import prefect.cli.cloud.ip_allowlist
 import prefect.cli.cloud.webhook
 import prefect.cli.shell
@@ -23,6 +24,7 @@ import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.global_concurrency_limit
 import prefect.cli.profile
+import prefect.cli.sdk
 import prefect.cli.server
 import prefect.cli.task
 import prefect.cli.variable

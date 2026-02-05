@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import shlex
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, Dict, Final, List, Literal, Optional
 from uuid import uuid4
 
 from anyio.abc import TaskStatus
@@ -15,7 +15,14 @@ from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
 from pydantic import Field, PrivateAttr, field_validator
+from tenacity import (
+    Retrying,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
 
+from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
@@ -32,6 +39,9 @@ from prefect_gcp.utilities import slugify_name
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
+
+_CLOUD_RUN_JOB_NAME_MAX_LENGTH: Final[int] = 63
+_CLOUD_RUN_JOB_NAME_UUID_LENGTH: Final[int] = 7
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -164,8 +174,15 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             str: The name of the job.
         """
         if self._job_name is None:
-            base_job_name = slugify_name(self.name)
-            job_name = f"{base_job_name}-{uuid4().hex}"
+            base_job_name = slugify_name(
+                self.name,
+                max_length=_CLOUD_RUN_JOB_NAME_MAX_LENGTH
+                - 1
+                - _CLOUD_RUN_JOB_NAME_UUID_LENGTH,
+            )
+            job_name = (
+                f"{base_job_name}-{uuid4().hex[:_CLOUD_RUN_JOB_NAME_UUID_LENGTH]}"
+            )
             self._job_name = job_name
 
         return self._job_name
@@ -702,27 +719,59 @@ class CloudRunWorkerV2(
     ):
         """
         Creates the Cloud Run job and waits for it to register.
+        Includes retry logic for transient errors (HTTP 500, 503, 429).
 
         Args:
             configuration: The configuration for the job.
             cr_client: The Cloud Run client.
             logger: The logger to use.
         """
-        try:
-            logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+        max_attempts = 3
+        retry_statuses = {500, 503, 429}
 
-            JobV2.create(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_id=configuration.job_name,
-                body=configuration.job_body,
-            )
+        def _is_transient_error(exc: Exception) -> bool:
+            return isinstance(exc, HttpError) and exc.status_code in retry_statuses
+
+        def _log_retry(retry_state) -> None:
+            exc = retry_state.outcome.exception()
+            if isinstance(exc, HttpError):
+                delay = retry_state.next_action.sleep
+                logger.warning(
+                    "Transient error (HTTP %s) when creating Cloud Run job. "
+                    "Retrying in %.2fs... (Attempt %s/%s)",
+                    exc.status_code,
+                    delay,
+                    retry_state.attempt_number,
+                    max_attempts,
+                )
+
+        retrying = Retrying(
+            reraise=True,
+            stop=stop_after_attempt(max_attempts),
+            wait=wait_exponential_jitter(initial=1.0, max=10.0),
+            retry=retry_if_exception(_is_transient_error),
+            before_sleep=_log_retry,
+            sleep=time.sleep,
+        )
+
+        try:
+            for attempt in retrying:
+                with attempt:
+                    logger.info(f"Creating Cloud Run JobV2 {configuration.job_name}")
+
+                    JobV2.create(
+                        cr_client=cr_client,
+                        project=configuration.project,
+                        location=configuration.region,
+                        job_id=configuration.job_name,
+                        body=configuration.job_body,
+                    )
         except HttpError as exc:
             self._create_job_error(
                 exc=exc,
                 configuration=configuration,
             )
+            raise
 
         try:
             self._wait_for_job_creation(
@@ -844,10 +893,11 @@ class CloudRunWorkerV2(
                 execution_id=submission["metadata"]["name"],
             )
 
+            command_list = configuration.job_body["template"]["template"]["containers"][
+                0
+            ].get("command", [])
             command = (
-                " ".join(configuration.command)
-                if configuration.command
-                else "default container command"
+                " ".join(command_list) if command_list else "default container command"
             )
 
             logger.info(
@@ -893,6 +943,14 @@ class CloudRunWorkerV2(
                 configuration=configuration,
                 execution=execution,
                 poll_interval=poll_interval,
+            )
+        except InfrastructureNotFound:
+            logger.info(
+                f"Cloud Run V2 Job {configuration.job_name!r} was deleted. "
+                "The flow run will be marked based on its current state."
+            )
+            return CloudRunWorkerV2Result(
+                identifier=configuration.job_name, status_code=-1
             )
         except Exception as exc:
             logger.critical(
@@ -957,12 +1015,22 @@ class CloudRunWorkerV2(
 
         Returns:
             The execution.
+
+        Raises:
+            InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
         while execution.is_running():
-            execution = ExecutionV2.get(
-                cr_client=cr_client,
-                execution_id=execution.name,
-            )
+            try:
+                execution = ExecutionV2.get(
+                    cr_client=cr_client,
+                    execution_id=execution.name,
+                )
+            except HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run V2 execution {execution.name!r} was deleted."
+                    ) from exc
+                raise
 
             time.sleep(poll_interval)
 
@@ -997,3 +1065,57 @@ class CloudRunWorkerV2(
                 ) from exc
             else:
                 raise exc
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: CloudRunWorkerJobV2Configuration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Cloud Run V2 Job by deleting it.
+
+        Args:
+            infrastructure_pid: The job name.
+            configuration: The job configuration used to connect to GCP.
+            grace_seconds: Not used for Cloud Run V2 (GCP handles graceful shutdown).
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        job_name = infrastructure_pid
+
+        await run_sync_in_worker_thread(self._delete_job, job_name, configuration)
+
+    def _delete_job(
+        self, job_name: str, configuration: CloudRunWorkerJobV2Configuration
+    ) -> None:
+        """
+        Delete a Cloud Run V2 Job.
+
+        Args:
+            job_name: The name of the job to delete.
+            configuration: The job configuration used to connect to GCP.
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        with self._get_client(configuration) as cr_client:
+            try:
+                JobV2.delete(
+                    cr_client=cr_client,
+                    project=configuration.project,
+                    location=configuration.region,
+                    job_name=job_name,
+                )
+                self._logger.info(
+                    f"Deleted Cloud Run V2 Job {job_name!r} in project "
+                    f"{configuration.project!r} region {configuration.region!r}"
+                )
+            except HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run V2 Job {job_name!r} not found in project "
+                        f"{configuration.project!r} region {configuration.region!r}"
+                    )
+                raise

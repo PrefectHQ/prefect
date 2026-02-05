@@ -15,6 +15,7 @@ from prefect._sdk.renderer import (
     JobVariableContext,
     RenderResult,
     WorkPoolContext,
+    _make_optional,
     _process_deployment,
     _process_fields_to_job_variables,
     _process_fields_to_params,
@@ -83,6 +84,34 @@ class TestSanitizeDocstring:
 
     def test_whitespace_stripped(self):
         assert _sanitize_docstring("  hello  ") == "hello"
+
+
+class TestMakeOptional:
+    """Tests for _make_optional function."""
+
+    def test_simple_type(self):
+        """Adds | None to simple types."""
+        assert _make_optional("str") == "str | None"
+        assert _make_optional("int") == "int | None"
+
+    def test_already_nullable(self):
+        """Does not add | None if type already includes None."""
+        assert _make_optional("str | None") == "str | None"
+        assert _make_optional("None | str") == "None | str"
+
+    def test_nullable_in_union(self):
+        """Does not add | None if None is part of a larger union."""
+        assert _make_optional("str | int | None") == "str | int | None"
+        assert _make_optional("str | None | int") == "str | None | int"
+
+    def test_complex_type(self):
+        """Handles complex types correctly."""
+        assert _make_optional("list[str]") == "list[str] | None"
+        assert _make_optional("dict[str, Any]") == "dict[str, Any] | None"
+
+    def test_union_without_none(self):
+        """Adds | None to unions that don't have None."""
+        assert _make_optional("str | int") == "str | int | None"
 
 
 class TestProcessFieldsToParams:

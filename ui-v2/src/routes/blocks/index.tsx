@@ -12,6 +12,8 @@ import {
 } from "@/api/block-documents";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
 import { BlocksPage } from "@/components/blocks/blocks-page";
+import { PrefectLoading } from "@/components/ui/loading";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
@@ -54,9 +56,11 @@ export const Route = createFileRoute("/blocks/")({
 		]);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 function RouteComponent() {
+	usePageTitle("Blocks");
 	const [search, onSearch] = useSearch();
 	const [blockTypeSlugs, onSetBlockTypeSlugs] = useFilterByBlockTypes();
 	const [pagination, onPaginationChange] = usePagination();

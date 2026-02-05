@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
 import type { PrefectSchemaObject } from "@/components/schemas/types/schemas";
+import { createFakeBlockDocument } from "@/mocks";
+import { reactQueryDecorator } from "@/storybook/utils";
 import { TestSchemaForm } from "./utilities";
+
+const MOCK_BLOCK_DOCUMENTS = Array.from({ length: 5 }, (_, i) =>
+	createFakeBlockDocument({ id: `block-${i}`, name: `my-block-${i}` }),
+);
 
 const userDefinition: PrefectSchemaObject = {
 	type: "object",
@@ -23,6 +31,7 @@ const userDefinition: PrefectSchemaObject = {
 const meta = {
 	title: "Components/SchemaForm/Properties",
 	component: TestSchemaForm,
+	decorators: [reactQueryDecorator],
 	parameters: {
 		layout: "fullscreen",
 	},
@@ -129,6 +138,42 @@ export const TypeStringWithFormatDateTime: Story = {
 };
 TypeStringWithFormatDateTime.storyName = "type:string & format:date-time";
 
+export const TypeStringWithFormatTimeDelta: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				duration: {
+					default: "3600",
+					title: "Duration",
+					description: "Duration in seconds",
+					type: "string",
+					format: "time-delta",
+				},
+			},
+		},
+	},
+};
+TypeStringWithFormatTimeDelta.storyName = "type:string & format:time-delta";
+
+export const TypeStringWithFormatTimeDeltaEmpty: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				timeout: {
+					title: "Timeout",
+					description: "Timeout duration in seconds",
+					type: "string",
+					format: "time-delta",
+				},
+			},
+		},
+	},
+};
+TypeStringWithFormatTimeDeltaEmpty.storyName =
+	"type:string & format:time-delta (empty)";
+
 export const TypeStringWithFormatJson: Story = {
 	args: {
 		schema: {
@@ -145,6 +190,23 @@ export const TypeStringWithFormatJson: Story = {
 	},
 };
 TypeStringWithFormatJson.storyName = "type:string & format:json-string";
+
+export const TypeStringWithFormatPassword: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				api_key: {
+					default: "secret-api-key-12345",
+					title: "API Key",
+					type: "string",
+					format: "password",
+				},
+			},
+		},
+	},
+};
+TypeStringWithFormatPassword.storyName = "type:string & format:password";
 
 export const TypeBoolean: Story = {
 	args: {
@@ -619,3 +681,58 @@ export const prefectKindWorkspaceVariableWithValue: Story = {
 };
 prefectKindWorkspaceVariableWithValue.storyName =
 	"prefect_kind:workspace_variable (with value)";
+
+export const blockTypeSlugEmpty: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				credentials: {
+					title: "AWS Credentials",
+					// @ts-expect-error block_type_slug is a custom property not in the schema types
+					block_type_slug: "aws-credentials",
+				},
+			},
+		},
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/block_documents/filter"), () => {
+					return HttpResponse.json(MOCK_BLOCK_DOCUMENTS);
+				}),
+			],
+		},
+	},
+};
+blockTypeSlugEmpty.storyName = "block_type_slug (empty)";
+
+export const blockTypeSlugWithValue: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				credentials: {
+					title: "AWS Credentials",
+					// @ts-expect-error block_type_slug is a custom property not in the schema types
+					block_type_slug: "aws-credentials",
+				},
+			},
+		},
+		values: {
+			credentials: {
+				$ref: "block-0",
+			},
+		},
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/block_documents/filter"), () => {
+					return HttpResponse.json(MOCK_BLOCK_DOCUMENTS);
+				}),
+			],
+		},
+	},
+};
+blockTypeSlugWithValue.storyName = "block_type_slug (with value)";

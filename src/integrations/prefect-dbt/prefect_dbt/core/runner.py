@@ -9,6 +9,7 @@ import threading
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
+import click
 from dbt.artifacts.resources.types import NodeType
 from dbt.artifacts.schemas.results import (
     FreshnessStatus,
@@ -149,6 +150,7 @@ class PrefectDbtRunner:
         self._config: Optional[RuntimeConfig] = None
         self._graph: Optional[Graph] = None
         self._skipped_nodes: set[str] = set()
+        self._started_nodes: set[str] = set()
 
         self._event_queue: Optional[queue.PriorityQueue] = None
         self._callback_thread: Optional[threading.Thread] = None
@@ -497,6 +499,7 @@ class PrefectDbtRunner:
         self._shutdown_event = None
         self._queue_counter = 0
         self._skipped_nodes = set()
+        self._started_nodes = set()
 
     def _callback_worker(self) -> None:
         """Background worker thread that processes queued events."""
@@ -666,12 +669,13 @@ class PrefectDbtRunner:
             enable_assets = (
                 prefect_config.get("enable_assets", True) and not self.disable_assets
             )
+            self._started_nodes.add(node_id)
             self._call_task(task_state, manifest_node, context, enable_assets)
 
         def _process_node_finished_sync(event: EventMsg) -> None:
             """Actual node finished logic - runs in background thread."""
             node_id = self._get_dbt_event_node_id(event)
-            if node_id in self._skipped_nodes:
+            if node_id in self._skipped_nodes and node_id not in self._started_nodes:
                 return
 
             manifest_node, _ = self._get_manifest_node_and_config(node_id)
@@ -1067,13 +1071,20 @@ class PrefectDbtRunner:
 
         # Determine which command is being invoked
         # We need to find a valid dbt command, skipping flag values like "json" in "--log-format json"
+        # For multi-word commands like "source freshness", we need to find the actual
+        # subcommand, not just the parent group
         command_name = None
-        for arg in args_copy:
+        subcommand_name = None
+        for i, arg in enumerate(args_copy):
             if arg.startswith("-"):
                 continue
             # Check if this is a valid dbt command
             if arg in cli.commands:
                 command_name = arg
+                if isinstance(cli.commands[arg], click.Group):
+                    # look one arg ahead for subcommand
+                    if (next_arg := args_copy[i + 1]) in cli.commands[arg].commands:
+                        subcommand_name = next_arg
                 break
 
         # Build invoke_kwargs with only parameters valid for this command
@@ -1082,8 +1093,11 @@ class PrefectDbtRunner:
         # Get valid parameters for the command if we can determine it
         valid_params = None
         if command_name:
-            command = cli.commands.get(command_name)
-            if command:
+            command = cli.commands[command_name]
+            if subcommand_name:
+                subcommand = command.commands[subcommand_name]
+                valid_params = {p.name for p in subcommand.params}
+            else:
                 valid_params = {p.name for p in command.params}
 
         # Add settings to kwargs only if they're valid for the command

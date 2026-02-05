@@ -20,6 +20,7 @@ import subprocess
 import sys
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
+from datetime import timedelta
 from functools import wraps
 from hashlib import sha256
 from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
@@ -558,6 +559,7 @@ def _memoize_block_auto_registration(
     import toml
 
     import prefect.plugins
+    from prefect._internal.compatibility.backports import tomllib
     from prefect.blocks.core import Block
     from prefect.server.models.block_registration import _load_collection_blocks_data
     from prefect.utilities.dispatch import get_registry_for_type
@@ -584,9 +586,9 @@ def _memoize_block_auto_registration(
         memo_store_path = PREFECT_MEMO_STORE_PATH.value()
         try:
             if memo_store_path.exists():
-                saved_blocks_loading_hash = toml.load(memo_store_path).get(
-                    "block_auto_registration"
-                )
+                saved_blocks_loading_hash = tomllib.loads(
+                    memo_store_path.read_text(encoding="utf-8")
+                ).get("block_auto_registration")
                 if (
                     saved_blocks_loading_hash is not None
                     and current_blocks_loading_hash == saved_blocks_loading_hash
@@ -705,7 +707,11 @@ def create_app(
 
         async with AsyncExitStack() as stack:
             docket = await stack.enter_async_context(
-                Docket(name=settings.server.docket.name, url=settings.server.docket.url)
+                Docket(
+                    name=settings.server.docket.name,
+                    url=settings.server.docket.url,
+                    execution_ttl=timedelta(0),
+                )
             )
             await stack.enter_async_context(
                 background_worker(

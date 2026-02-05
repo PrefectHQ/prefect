@@ -3,7 +3,7 @@ name: Docker images
 on:
   # On release events (also when a published release is converted from/to prerelease), push all patterns
   release:
-    types: [released, prereleased]
+    types: [published]
 
   # On workflow_dispatch, allow publishing 3-latest images or a specific tag
   workflow_dispatch:
@@ -22,7 +22,6 @@ jobs:
   publish-docker-images:
     name: Build and publish to DockerHub
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'release' && github.event.release.prerelease && 'pre-release' || github.event_name == 'release' && 'prod' || 'dev' }}
     strategy:
       fail-fast: false
       matrix:
@@ -54,6 +53,7 @@ jobs:
             echo "Error: Tag $TAG_NAME does not match prerelease version pattern."
             exit 1
           fi
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -64,7 +64,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_TOKEN_RW }}
 
       - name: Checkout
         uses: actions/checkout@v6
@@ -72,13 +72,13 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Generate tags for ${{ matrix.image }}-dev
+      - name: Generate tags for ${{ matrix.image }} (dev)
         id: metadata-dev
         uses: docker/metadata-action@v5
         # generate dev tags on pre-releases or when manually triggered with a tag input
         if: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') }}
         with:
-          images: ${{ matrix.image }}-dev
+          images: ${{ matrix.image }}
           tags: |
             type=raw,value=${{ github.event.inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=sha,suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
@@ -128,6 +128,7 @@ jobs:
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
+            VITE_AMPLITUDE_API_KEY=${{ secrets.AMPLITUDE_API_KEY }}
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
             ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[redis,kubernetes]' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}

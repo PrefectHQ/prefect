@@ -117,6 +117,7 @@ async def emit(
     """Emit a single event to Prefect.
 
     Examples:
+        ```bash
         # Simple event with resource ID
         prefect event emit user.logged_in --resource-id user-123
 
@@ -125,6 +126,7 @@ async def emit(
 
         # Event with full resource specification
         prefect event emit customer.subscribed --resource '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp"}'
+        ```
     """
     resource_dict = {}
 

@@ -836,14 +836,14 @@ render_sdk(data: SDKData, output_path: Path) -> None
 - Zero deployments can be processed
 
 **Status**:
-- [ ] Authentication check implemented
-- [ ] Fetcher module created
-- [ ] Deployment listing with pagination
-- [ ] Work pool fetching (parallel/batched)
-- [ ] Graceful handling of missing work pools
-- [ ] Generator orchestrator created
-- [ ] Flow/deployment filtering
-- [ ] Partial failure handling with warnings
+- [x] Authentication check implemented
+- [x] Fetcher module created
+- [x] Deployment listing with pagination
+- [x] Work pool fetching (parallel/batched)
+- [x] Graceful handling of missing work pools
+- [x] Generator orchestrator created
+- [x] Flow/deployment filtering
+- [x] Partial failure handling with warnings
 - [ ] Works against live Prefect API
 - [ ] Generated SDK works end-to-end
 - [ ] **Checkpoint**: Manually verified with real data before proceeding to CLI
@@ -890,28 +890,28 @@ Make sure you have deployed at least one flow:
 ```
 
 **Status**:
-- [ ] CLI module created
-- [ ] CLI registered in prefect.cli
-- [ ] `prefect sdk generate --help` shows documentation
-- [ ] Progress indicator visible during generation
-- [ ] Warnings displayed for partial failures
-- [ ] Clear error message if not authenticated
-- [ ] Clear error message if no deployments found
-- [ ] Overwrites existing files
-- [ ] Creates parent directories
-- [ ] CLI tests pass
+- [x] CLI module created
+- [x] CLI registered in prefect.cli
+- [x] `prefect sdk generate --help` shows documentation
+- [x] Progress indicator visible during generation
+- [x] Warnings displayed for partial failures
+- [x] Clear error message if not authenticated
+- [x] Clear error message if no deployments found
+- [x] Overwrites existing files
+- [x] Creates parent directories
+- [x] CLI tests pass
 
 ---
 
 ## Verification Checklist
 
 ### Automated
-- [ ] All unit tests pass (`uv run pytest tests/_sdk/`)
-- [ ] CLI tests pass (`uv run pytest tests/cli/test_sdk.py`)
-- [ ] Type checker passes (`uv run pyright src/prefect/_sdk/ src/prefect/cli/sdk.py`)
-- [ ] Linter passes (`uv run ruff check src/prefect/_sdk/ src/prefect/cli/sdk.py`)
-- [ ] Generated SDK passes `pyright --strict`
-- [ ] Generated SDK is valid Python (`ast.parse()` succeeds)
+- [x] All unit tests pass (`uv run pytest tests/_sdk/`)
+- [x] CLI tests pass (`uv run pytest tests/cli/test_sdk.py`)
+- [x] Type checker passes (`uv run pyright src/prefect/_sdk/ src/prefect/cli/sdk.py`)
+- [x] Linter passes (`uv run ruff check src/prefect/_sdk/ src/prefect/cli/sdk.py`)
+- [x] Generated SDK passes `pyright --strict`
+- [x] Generated SDK is valid Python (`ast.parse()` succeeds)
 
 ### Manual
 - [ ] Generate SDK against Prefect Cloud workspace

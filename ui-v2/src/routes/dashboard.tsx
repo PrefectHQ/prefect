@@ -49,6 +49,7 @@ import {
 	LayoutWellContent,
 	LayoutWellHeader,
 } from "@/components/ui/layout-well";
+import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 
@@ -112,44 +113,6 @@ function WorkPoolsCardSkeleton() {
 					</div>
 				</div>
 			</div>
-		</div>
-	);
-}
-
-/**
- * Pending component shown while the dashboard loader is running.
- * Displays an animated Prefect logo to indicate loading state.
- */
-function DashboardPending() {
-	return (
-		<div className="flex h-full items-center justify-center">
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 76 76"
-				className="size-16 animate-pulse text-primary"
-				aria-label="Loading Prefect Dashboard"
-			>
-				<title>Loading</title>
-				<path
-					fill="currentColor"
-					fillRule="evenodd"
-					d="M15.89 15.07 38 26.543v22.935l22.104-11.47.007.004V15.068l-.003.001L38 3.598z"
-					clipRule="evenodd"
-				/>
-				<path
-					fill="currentColor"
-					fillRule="evenodd"
-					d="M15.89 15.07 38 26.543v22.935l22.104-11.47.007.004V15.068l-.003.001L38 3.598z"
-					clipRule="evenodd"
-				/>
-				<path
-					fill="currentColor"
-					fillRule="evenodd"
-					d="M37.987 49.464 15.89 38v22.944l.013-.006L38 72.402V49.457z"
-					clipRule="evenodd"
-				/>
-			</svg>
 		</div>
 	);
 }
@@ -404,7 +367,7 @@ const STATE_TYPE_GROUPS = [
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
-	pendingComponent: DashboardPending,
+	pendingComponent: PrefectLoading,
 	pendingMs: 400,
 	pendingMinMs: 400,
 	loaderDeps: ({ search }) => search,
@@ -423,11 +386,11 @@ export const Route = createFileRoute("/dashboard")({
 		const baseFilter = buildFlowRunsFilterFromSearch(deps);
 		const { from, to } = getDateRangeFromSearch(deps);
 
-		// Prefetch all flow runs and extract IDs for enrichment queries
-		// FlowRunsCard uses useSuspenseQuery for this, so we need to ensure it's prefetched
-		const allFlowRuns = await queryClient.ensureQueryData(
-			buildFilterFlowRunsQuery(baseFilter, 30_000),
-		);
+		// Fetch flow runs and work pools in parallel - they're independent
+		const [allFlowRuns, workPools] = await Promise.all([
+			queryClient.ensureQueryData(buildFilterFlowRunsQuery(baseFilter)),
+			queryClient.ensureQueryData(buildFilterWorkPoolsQuery({ offset: 0 })),
+		]);
 
 		// Prefetch flows and deployments enrichment data (used by FlowRunsCard)
 		// Extract unique flow IDs and deployment IDs from flow runs
@@ -502,90 +465,89 @@ export const Route = createFileRoute("/dashboard")({
 			);
 		});
 
-		// Prefetch flow runs for each state type group to minimize loading when switching tabs
-		// Also prefetch task run counts for the first 3 runs of each state type (used by FlowRunCard)
-		STATE_TYPE_GROUPS.forEach((stateTypes) => {
-			const filterWithState: FlowRunsFilter = {
-				...baseFilter,
-				flow_runs: {
-					...baseFilter.flow_runs,
+		// Only prefetch the default state type group (Failed/Crashed) to minimize initial load
+		// Other tabs will load on-demand when user clicks them
+		const defaultStateGroup = STATE_TYPE_GROUPS[0]; // ["FAILED", "CRASHED"]
+		const filterWithState: FlowRunsFilter = {
+			...baseFilter,
+			flow_runs: {
+				...baseFilter.flow_runs,
+				operator: "and_",
+				state: {
 					operator: "and_",
-					state: {
-						operator: "and_",
-						type: {
-							any_: [...stateTypes],
-						},
+					type: {
+						any_: [...defaultStateGroup],
 					},
 				},
-			};
-			void queryClient
-				.fetchQuery(buildFilterFlowRunsQuery(filterWithState, 30_000))
-				.then((flowRuns) => {
-					if (!flowRuns || flowRuns.length === 0) return;
-					// Prefetch task run counts for the first 3 flow runs (matches ITEMS_PER_PAGE in accordion)
-					// Each flow run needs its own prefetch to match the query key used by FlowRunTaskRuns component
-					const flowRunIds = flowRuns
-						.slice(0, 3)
-						.map((run) => run.id)
-						.filter(Boolean);
-					flowRunIds.forEach((flowRunId) => {
+			},
+		};
+		void queryClient
+			.fetchQuery(buildFilterFlowRunsQuery(filterWithState, 30_000))
+			.then((flowRuns) => {
+				if (!flowRuns || flowRuns.length === 0) return;
+				// Prefetch task run counts for the first 3 flow runs (matches ITEMS_PER_PAGE in accordion)
+				// Each flow run needs its own prefetch to match the query key used by FlowRunTaskRuns component
+				const flowRunIds = flowRuns
+					.slice(0, 3)
+					.map((run) => run.id)
+					.filter(Boolean);
+				flowRunIds.forEach((flowRunId) => {
+					void queryClient.prefetchQuery(
+						buildGetFlowRunsTaskRunsCountQuery([flowRunId]),
+					);
+				});
+
+				// Prefetch flows for accordion (used by FlowRunsAccordion)
+				const accordionFlowIds = [
+					...new Set(
+						flowRuns
+							.map((run) => run.flow_id)
+							.filter((id): id is string => Boolean(id)),
+					),
+				];
+				if (accordionFlowIds.length > 0) {
+					void queryClient.prefetchQuery(
+						buildListFlowsQuery({
+							flows: { operator: "and_", id: { any_: accordionFlowIds } },
+							offset: 0,
+							sort: "UPDATED_DESC",
+						}),
+					);
+
+					// Prefetch per-flow count and last run queries (used by FlowRunsAccordionHeader)
+					// This matches the exact filter construction in FlowRunsAccordionHeader component
+					accordionFlowIds.forEach((flowId) => {
+						// Build filter for this specific flow (matches FlowRunsAccordionHeader.flowFilter)
+						const flowFilter: FlowRunsFilter = {
+							...filterWithState,
+							flows: {
+								...(filterWithState.flows ?? {}),
+								operator: "and_",
+								id: { any_: [flowId] },
+							},
+						};
+
+						// Prefetch count of flow runs for this flow
 						void queryClient.prefetchQuery(
-							buildGetFlowRunsTaskRunsCountQuery([flowRunId]),
+							buildCountFlowRunsQuery(flowFilter, 30_000),
+						);
+
+						// Prefetch last flow run for this flow (matches FlowRunsAccordionHeader.lastFlowRunFilter)
+						const lastFlowRunFilter: FlowRunsFilter = {
+							...flowFilter,
+							sort: "START_TIME_DESC",
+							limit: 1,
+							offset: 0,
+						};
+						void queryClient.prefetchQuery(
+							buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
 						);
 					});
-
-					// Prefetch flows for accordion (used by FlowRunsAccordion)
-					const accordionFlowIds = [
-						...new Set(
-							flowRuns
-								.map((run) => run.flow_id)
-								.filter((id): id is string => Boolean(id)),
-						),
-					];
-					if (accordionFlowIds.length > 0) {
-						void queryClient.prefetchQuery(
-							buildListFlowsQuery({
-								flows: { operator: "and_", id: { any_: accordionFlowIds } },
-								offset: 0,
-								sort: "UPDATED_DESC",
-							}),
-						);
-
-						// Prefetch per-flow count and last run queries (used by FlowRunsAccordionHeader)
-						// This matches the exact filter construction in FlowRunsAccordionHeader component
-						accordionFlowIds.forEach((flowId) => {
-							// Build filter for this specific flow (matches FlowRunsAccordionHeader.flowFilter)
-							const flowFilter: FlowRunsFilter = {
-								...filterWithState,
-								flows: {
-									...(filterWithState.flows ?? {}),
-									operator: "and_",
-									id: { any_: [flowId] },
-								},
-							};
-
-							// Prefetch count of flow runs for this flow
-							void queryClient.prefetchQuery(
-								buildCountFlowRunsQuery(flowFilter, 30_000),
-							);
-
-							// Prefetch last flow run for this flow (matches FlowRunsAccordionHeader.lastFlowRunFilter)
-							const lastFlowRunFilter: FlowRunsFilter = {
-								...flowFilter,
-								sort: "START_TIME_DESC",
-								limit: 1,
-								offset: 0,
-							};
-							void queryClient.prefetchQuery(
-								buildFilterFlowRunsQuery(lastFlowRunFilter, 30_000),
-							);
-						});
-					}
-				})
-				.catch(() => {
-					// Swallow errors so a failed prefetch doesn't break the loader
-				});
-		});
+				}
+			})
+			.catch(() => {
+				// Swallow errors so a failed prefetch doesn't break the loader
+			});
 
 		// Prefetch task run count queries (used by TaskRunsCard)
 		// This matches the 4 count queries made by TaskRunsCard component
@@ -601,11 +563,6 @@ export const Route = createFileRoute("/dashboard")({
 		);
 		void queryClient.prefetchQuery(
 			buildCountTaskRunsQuery(taskRunsCountFilters.running, 30_000),
-		);
-
-		// Prefetch work pools data for the dashboard
-		const workPools = await queryClient.ensureQueryData(
-			buildFilterWorkPoolsQuery({ offset: 0 }),
 		);
 
 		// Prefetch nested queries for each active work pool to minimize loading states
@@ -1033,7 +990,7 @@ export function RouteComponent() {
 							<div>
 								<Breadcrumb>
 									<BreadcrumbList>
-										<BreadcrumbItem className="text-2xl font-bold text-foreground">
+										<BreadcrumbItem className="text-xl font-semibold">
 											Dashboard
 										</BreadcrumbItem>
 									</BreadcrumbList>
