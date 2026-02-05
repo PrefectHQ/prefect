@@ -1,7 +1,7 @@
 ---
 title: How to debounce events
 sidebarTitle: Debounce events
-description: Learn how to handle multiple events in quick succession without creating a flow run for each event
+description: Learn how to handle multiple events in quick succession without creating a flow run for each event.
 ---
 
 Prefect allows you to trigger deployment runs based on events. However, when multiple events occur in quick succession, you may want a single flow run to handle all of them rather than spinning up a separate run for each event. For example, when multiple files are uploaded to an S3 bucket simultaneously, or a flurry of [webhook](/v3/concepts/webhooks#webhooks) events are received by Prefect, you typically want to process all files together in one run.
