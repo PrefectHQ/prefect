@@ -39,14 +39,21 @@ class DbtNode:
     original_file_path: Optional[str] = None
     config: dict[str, Any] = field(default_factory=dict)
 
+    # Resource types that produce database objects via `dbt run`/`dbt seed`/`dbt snapshot`.
+    # Tests are excluded because they use `dbt test` and have their own scheduling strategy.
+    _RUNNABLE_TYPES = frozenset({NodeType.Model, NodeType.Seed, NodeType.Snapshot})
+
     @property
     def is_executable(self) -> bool:
-        """Return False for ephemeral models and sources.
+        """Return True only for runnable, non-ephemeral nodes.
 
-        Ephemeral models are compiled inline and don't produce database objects.
-        Sources are external tables and don't need to be executed.
+        Returns False for:
+        - Sources (external tables, not executed)
+        - Tests (executed separately via `dbt test`)
+        - Ephemeral models (compiled inline, no database object)
+        - Exposures, analyses, and other non-run resource types
         """
-        if self.resource_type == NodeType.Source:
+        if self.resource_type not in self._RUNNABLE_TYPES:
             return False
         if self.materialization == "ephemeral":
             return False

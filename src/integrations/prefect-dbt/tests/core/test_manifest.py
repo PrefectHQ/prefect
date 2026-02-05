@@ -263,13 +263,22 @@ class TestDbtNode:
         assert node.is_executable is True
 
     def test_is_executable_test(self):
-        """Test nodes should be executable."""
+        """Test nodes should NOT be executable (they use `dbt test`)."""
         node = DbtNode(
             unique_id="test.test.my_test",
             name="my_test",
             resource_type=NodeType.Test,
         )
-        assert node.is_executable is True
+        assert node.is_executable is False
+
+    def test_is_executable_exposure(self):
+        """Exposure nodes should NOT be executable."""
+        node = DbtNode(
+            unique_id="exposure.test.my_exposure",
+            name="my_exposure",
+            resource_type=NodeType.Exposure,
+        )
+        assert node.is_executable is False
 
     def test_dbt_selector(self):
         """dbt_selector should return the unique_id."""
