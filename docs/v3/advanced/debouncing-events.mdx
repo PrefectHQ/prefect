@@ -108,7 +108,7 @@ When you configure a reactive trigger with both `within` and `schedule_after`:
 
 The `within` parameter implements **eager debouncing**: it fires immediately on the first event, then ignores subsequent events for the specified duration.
 
-The `schedule_after` parameter delays the actual flow run, ensuring all events in the burst have completed before processing begins.
+The `schedule_after` parameter delays the actual flow run, ensuring all events in the burst have completed before processing begins.  This implements the **late debouncing**.
 
 <Tip>
 **Matching time windows**
