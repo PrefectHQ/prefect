@@ -111,7 +111,10 @@ async def locked_concurrency_limit_with_decay(
             name="test_limit_with_decay",
             limit=10,
             active_slots=10,
-            slot_decay_per_second=1.0,
+            # Use a low decay rate to prevent race conditions in tests.
+            # With 0.1 decay/sec, it takes 10 seconds before any slot decays
+            # (since decay uses floor()), giving ample time for test execution.
+            slot_decay_per_second=0.1,
         ),
     )
     await session.commit()
@@ -711,10 +714,10 @@ async def test_increment_concurrency_limit_with_decay_locked_retry_after_header(
     )
     assert response.status_code == 423
 
-    assert locked_concurrency_limit_with_decay.slot_decay_per_second == 1.0
+    assert locked_concurrency_limit_with_decay.slot_decay_per_second == 0.1
     # (1.0 / slot_decay) * (num slots requested + num denied slots)
     # clamped_poisson_interval adds jitter, so check approximate value
-    expected_retry_after = 1.0 * (1.0 + 10)
+    expected_retry_after = 10.0 * (1.0 + 10)
     actual_retry_after = float(response.headers["Retry-After"])
     assert abs(actual_retry_after - expected_retry_after) < expected_retry_after * 0.5
 
@@ -853,6 +856,81 @@ async def test_increment_concurrency_limit_locked_respects_low_avg(
         f"Expected ~2s with jitter, got {retry_after}s. "
         f"avg_slot_occupancy_seconds is {locked_tag_concurrency_limit_low_avg.avg_slot_occupancy_seconds}s, "
         f"should not be forced up to the configured max"
+    )
+
+
+@pytest.fixture
+async def locked_concurrency_limit_moderate_avg(
+    session: AsyncSession,
+) -> ConcurrencyLimitV2:
+    """
+    A locked concurrency limit with moderate avg occupancy but will have
+    very high denied_slots to test the retry-after cap on total wait time.
+    """
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="moderate-avg-limit",
+            limit=30,
+            active_slots=30,
+            avg_slot_occupancy_seconds=10.0,  # 10 seconds - reasonable
+        ),
+    )
+    await session.commit()
+
+    return ConcurrencyLimitV2.model_validate(concurrency_limit)
+
+
+@pytest.mark.parametrize("endpoint", ["increment", "increment-with-lease"])
+async def test_increment_concurrency_limit_caps_retry_after_with_high_denied_slots(
+    endpoint: str,
+    locked_concurrency_limit_moderate_avg: ConcurrencyLimitV2,
+    client: AsyncClient,
+    session: AsyncSession,
+):
+    """
+    Test that retry-after is capped even when denied_slots causes excessive values.
+
+    This is a regression test for the bug where burst traffic would accumulate
+    denied_slots, causing retry-after calculations to produce excessive values
+    (hours instead of seconds) even when avg_slot_occupancy_seconds is reasonable.
+
+    The bug scenario:
+    - slots = 1, denied_slots = 16000, limit = 30
+    - blocking_slots = (1 + 16000) / 30 = 533.7
+    - wait_time_per_slot = 10s (capped from avg_slot_occupancy_seconds)
+    - BUG: retry_after = 10s * 533.7 = 5337s (~89 minutes)
+    - FIX: retry_after = min(10s * 533.7, 30s) = ~30s
+
+    Reference: Nebula PR #10947
+    """
+    # Simulate burst traffic that accumulated many denied requests
+    await bulk_update_denied_slots(
+        session=session,
+        concurrency_limit_ids=[locked_concurrency_limit_moderate_avg.id],
+        slots=16000,  # High denied_slots from burst traffic
+    )
+    await session.commit()
+
+    response = await client.post(
+        f"/v2/concurrency_limits/{endpoint}",
+        json={
+            "names": [locked_concurrency_limit_moderate_avg.name],
+            "slots": 1,
+            "mode": "concurrency",
+        },
+    )
+    assert response.status_code == 423
+
+    retry_after = float(response.headers["Retry-After"])
+
+    # Without the fix, retry_after would be ~5337 seconds (89 minutes)
+    # With the fix, it should be capped at ~30 seconds (max_wait)
+    # Allow for jitter from clamped_poisson_interval
+    assert retry_after < 60, (
+        f"Expected retry_after to be capped at ~30s, got {retry_after}s. "
+        f"This suggests the fix for high denied_slots is not working. "
+        f"Without capping, the value would be ~{10.0 * (1 + 16000) / 30}s"
     )
 
 

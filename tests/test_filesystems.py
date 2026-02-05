@@ -266,6 +266,67 @@ class TestLocalFileSystem:
 
         assert (result_dir / "file.txt").read_text() == "test content"
 
+    async def test_get_directory_preserves_symlinks(self, tmp_path):
+        """Test that get_directory preserves symlinks instead of following them.
+
+        This verifies the fix for issue #7868 where symlinks were being resolved
+        and their target files copied, potentially exposing sensitive files.
+        """
+        # Create source directory structure
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+
+        # Create a real file
+        real_file = src_dir / "real_file.txt"
+        real_file.write_text("real content")
+
+        # Create a symlink within the source directory
+        symlink_file = src_dir / "link_file.txt"
+        symlink_file.symlink_to(real_file)
+
+        # Create a destination directory
+        dst_dir = tmp_path / "dst"
+        dst_dir.mkdir()
+
+        # Use LocalFileSystem to copy
+        fs = LocalFileSystem(basepath=str(src_dir))
+        await fs.get_directory(from_path=str(src_dir), local_path=str(dst_dir))
+
+        # Verify the symlink is preserved as a symlink
+        copied_symlink = dst_dir / "link_file.txt"
+        assert copied_symlink.is_symlink(), "Symlink should be preserved as a symlink"
+
+        # Verify the real file is copied
+        copied_real = dst_dir / "real_file.txt"
+        assert copied_real.exists()
+        assert copied_real.read_text() == "real content"
+
+    def test_get_directory_preserves_symlinks_sync(self, tmp_path):
+        """Test that sync get_directory also preserves symlinks."""
+        # Create source directory structure
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+
+        # Create a real file
+        real_file = src_dir / "real_file.txt"
+        real_file.write_text("real content")
+
+        # Create a symlink within the source directory
+        symlink_file = src_dir / "link_file.txt"
+        symlink_file.symlink_to(real_file)
+
+        # Create a destination directory
+        dst_dir = tmp_path / "dst"
+        dst_dir.mkdir()
+
+        # Use LocalFileSystem to copy
+        fs = LocalFileSystem(basepath=str(src_dir))
+        fs.get_directory(from_path=str(src_dir), local_path=str(dst_dir))
+
+        # Verify the symlink is preserved as a symlink
+        copied_symlink = dst_dir / "link_file.txt"
+        assert copied_symlink.is_symlink(), "Symlink should be preserved as a symlink"
+
 
 class TestRemoteFileSystem:
     def test_must_contain_scheme(self):
@@ -488,7 +549,123 @@ class TestRemoteFileSystem:
         assert (local_path / "test").exists()
 
 
-@pytest.importorskip("fsspec_implementations.smb", reason="requires fsspec[smb]")
+class TestRemoteFileSystemAsyncDispatch:
+    """Tests for the RemoteFileSystem async_dispatch migration."""
+
+    def test_has_async_methods(self):
+        """Verify RemoteFileSystem has async method variants."""
+        assert hasattr(RemoteFileSystem, "aget_directory")
+        assert hasattr(RemoteFileSystem, "aput_directory")
+        assert hasattr(RemoteFileSystem, "aread_path")
+        assert hasattr(RemoteFileSystem, "awrite_path")
+
+    def test_has_aio_attributes(self):
+        """Verify .aio backward compatibility attributes exist."""
+        assert hasattr(RemoteFileSystem.get_directory, "aio")
+        assert hasattr(RemoteFileSystem.put_directory, "aio")
+        assert hasattr(RemoteFileSystem.read_path, "aio")
+        assert hasattr(RemoteFileSystem.write_path, "aio")
+
+    def test_sync_read_write_works(self):
+        """Test sync read/write with memory filesystem."""
+        fs = RemoteFileSystem(basepath="memory://test-sync/")
+        fs.write_path("test.txt", b"hello sync")
+        content = fs.read_path("test.txt")
+        assert content == b"hello sync"
+
+    async def test_async_read_write_works(self):
+        """Test async read/write with memory filesystem."""
+        fs = RemoteFileSystem(basepath="memory://test-async/")
+        await fs.write_path("test.txt", b"hello async")
+        content = await fs.read_path("test.txt")
+        assert content == b"hello async"
+
+    async def test_explicit_async_methods_work(self):
+        """Test explicit async methods (aread_path, awrite_path)."""
+        fs = RemoteFileSystem(basepath="memory://test-explicit/")
+        await fs.awrite_path("test.txt", b"hello explicit")
+        content = await fs.aread_path("test.txt")
+        assert content == b"hello explicit"
+
+    async def test_dispatch_returns_coroutine_in_async_context(self):
+        """Test that sync methods return coroutine in async context."""
+        import inspect
+
+        fs = RemoteFileSystem(basepath="memory://test-dispatch/")
+
+        result = fs.write_path("test.txt", b"dispatch test")
+        assert inspect.iscoroutine(result)
+        await result
+
+        result = fs.read_path("test.txt")
+        assert inspect.iscoroutine(result)
+        content = await result
+        assert content == b"dispatch test"
+
+    def test_sync_get_directory_works(self, tmp_path):
+        """Test sync get_directory with memory filesystem."""
+        fs = RemoteFileSystem(basepath="memory://test-get-dir/")
+        fs.write_path("subdir/test.txt", b"hello")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+
+        fs.get_directory(
+            from_path="memory://test-get-dir/subdir/", local_path=str(local_dir)
+        )
+        assert (local_dir / "test.txt").read_bytes() == b"hello"
+
+    async def test_async_get_directory_works(self, tmp_path):
+        """Test async get_directory with memory filesystem."""
+        fs = RemoteFileSystem(basepath="memory://test-aget-dir/")
+        await fs.write_path("subdir/test.txt", b"hello async")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+
+        await fs.get_directory(
+            from_path="memory://test-aget-dir/subdir/", local_path=str(local_dir)
+        )
+        assert (local_dir / "test.txt").read_bytes() == b"hello async"
+
+    def test_sync_put_directory_works(self, tmp_path):
+        """Test sync put_directory with memory filesystem."""
+        fs = RemoteFileSystem(basepath="memory://test-put-dir/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        (local_dir / "test.txt").write_bytes(b"hello put")
+
+        count = fs.put_directory(local_path=str(local_dir), to_path="uploaded/")
+        assert count == 1
+
+        content = fs.read_path("uploaded/test.txt")
+        assert content == b"hello put"
+
+    async def test_async_put_directory_works(self, tmp_path):
+        """Test async put_directory with memory filesystem."""
+        fs = RemoteFileSystem(basepath="memory://test-aput-dir/")
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        (local_dir / "test.txt").write_bytes(b"hello aput")
+
+        count = await fs.put_directory(local_path=str(local_dir), to_path="uploaded/")
+        assert count == 1
+
+        content = await fs.read_path("uploaded/test.txt")
+        assert content == b"hello aput"
+
+
+try:
+    import fsspec.implementations.smb  # noqa: F401
+
+    HAS_SMB = True
+except ImportError:
+    HAS_SMB = False
+
+
+@pytest.mark.skipif(not HAS_SMB, reason="requires fsspec[smb]")
 class TestSMB:
     @pytest.fixture
     def smb_block(self):

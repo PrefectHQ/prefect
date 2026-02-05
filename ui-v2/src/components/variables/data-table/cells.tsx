@@ -2,6 +2,7 @@ import type { CellContext } from "@tanstack/react-table";
 import { useRef } from "react";
 import { toast } from "sonner";
 import type { components } from "@/api/prefect";
+import { useDeleteVariable } from "@/api/variables";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -16,9 +17,8 @@ import {
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Icon } from "@/components/ui/icons";
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
-import { useDeleteVariable } from "@/hooks/variables";
 
 type ActionsCellProps = CellContext<
 	components["schemas"]["Variable"],

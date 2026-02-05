@@ -386,6 +386,24 @@
         "FlowsSettings": {
             "description": "Settings for controlling flow behavior",
             "properties": {
+                "heartbeat_frequency": {
+                    "anyOf": [
+                        {
+                            "minimum": 30,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.",
+                    "supported_environment_variables": [
+                        "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
+                        "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                    ],
+                    "title": "Heartbeat Frequency"
+                },
                 "default_retries": {
                     "default": 0,
                     "description": "This value sets the default number of retries for all flows.",
@@ -805,22 +823,14 @@
                     "title": "Poll Frequency",
                     "type": "integer"
                 },
-                "heartbeat_frequency": {
-                    "anyOf": [
-                        {
-                            "minimum": 30,
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
+                "crash_on_cancellation_failure": {
+                    "default": false,
+                    "description": "Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.",
                     "supported_environment_variables": [
-                        "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                        "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE"
                     ],
-                    "title": "Heartbeat Frequency"
+                    "title": "Crash On Cancellation Failure",
+                    "type": "boolean"
                 },
                 "server": {
                     "$ref": "#/$defs/RunnerServerSettings",
@@ -2419,6 +2429,15 @@
                     "title": "Enabled",
                     "type": "boolean"
                 },
+                "v2_enabled": {
+                    "default": false,
+                    "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_UI_V2_ENABLED"
+                    ],
+                    "title": "V2 Enabled",
+                    "type": "boolean"
+                },
                 "api_url": {
                     "anyOf": [
                         {
@@ -2727,6 +2746,24 @@
                         "PREFECT_WORKER_PREFETCH_SECONDS"
                     ],
                     "title": "Prefetch Seconds",
+                    "type": "number"
+                },
+                "enable_cancellation": {
+                    "default": false,
+                    "description": "Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_ENABLE_CANCELLATION"
+                    ],
+                    "title": "Enable Cancellation",
+                    "type": "boolean"
+                },
+                "cancellation_poll_seconds": {
+                    "default": 120,
+                    "description": "Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_CANCELLATION_POLL_SECONDS"
+                    ],
+                    "title": "Cancellation Poll Seconds",
                     "type": "number"
                 },
                 "webserver": {

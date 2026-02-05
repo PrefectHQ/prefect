@@ -132,6 +132,7 @@ class DeploymentStatus(AutoEnum):
 
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
+    DISABLED = AutoEnum.auto()  # Prefect Cloud only
 
 
 class WorkQueueStatus(AutoEnum):
@@ -219,6 +220,12 @@ class StateDetails(PrefectBaseModel):
             return TaskRunResult(id=self.task_run_id)
         else:
             return None
+
+
+# Force model rebuild to prevent MockValSer errors when serializing with
+# serialize_as_any=True. PrefectBaseModel has defer_build=True, which can leave
+# nested models incomplete. See: https://github.com/PrefectHQ/prefect/issues/18053
+StateDetails.model_rebuild()
 
 
 def data_discriminator(x: Any) -> str:

@@ -4,6 +4,7 @@ Tests for the PrefectDbtRunner class and related functionality.
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -133,6 +134,11 @@ def mock_settings_context_manager():
     with patch.object(PrefectDbtSettings, "resolve_profiles_yml") as mock_cm:
         mock_cm.return_value.__enter__.return_value = "/profiles/dir"
         yield mock_cm
+
+
+def two_consecutive_items_in_list(item1: Any, item2: Any, list_to_check: list) -> bool:
+    """Helper function to check if a mock was called with a param name and its value"""
+    return (item1, item2) in zip(list_to_check, list_to_check[1:])
 
 
 class TestPrefectDbtRunnerInitialization:
@@ -478,7 +484,7 @@ class TestPrefectDbtRunnerInvoke:
         # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_with_force_nodes_as_tasks(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -497,7 +503,7 @@ class TestPrefectDbtRunnerInvoke:
         # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_sets_log_level_none_in_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -518,7 +524,8 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to "none"
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--log-level", "none" in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list("--log-level", "none", args_list)
 
     def test_invoke_uses_original_log_level_outside_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -535,7 +542,10 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to the original value
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--log-level", str(runner.log_level.value) in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list(
+            "--log-level", str(runner.log_level.value), args_list
+        )
 
     def test_invoke_handles_dbt_exceptions(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -609,8 +619,11 @@ class TestPrefectDbtRunnerInvoke:
         assert result.success is True
         # Verify the CLI flags take precedence (processed after kwargs)
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert "--target-path", "/cli/path" in call_args[0]
-        assert "--target-path", "/kwargs/path" not in call_args[0]
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list("--target-path", "/cli/path", args_list)
+        assert not two_consecutive_items_in_list(
+            "--target-path", "/kwargs/path", args_list
+        )
 
     def test_invoke_uses_resolve_profiles_yml_context_manager(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -653,10 +666,30 @@ class TestPrefectDbtRunnerInvoke:
         )
 
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        args_list = call_args[0][0]
+        args_list = call_args.args[0]
         assert "--target-path" not in args_list, (
             f"--target-path should not be passed to 'deps' command, got: {args_list}"
         )
+
+    def test_invoke_handles_multi_word_commands(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that multi-word commands include all necessary parameters."""
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        result = runner.invoke(["source", "freshness"])
+
+        assert result.success
+        mock_dbt_runner_class.assert_called_once()
+
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        args_list = call_args.args[0]
+        assert "--profiles-dir" in args_list
+        # --project-dir is accepted by `source freshness`, but not by `source`
+        assert "--project-dir" in args_list
 
 
 class TestPrefectDbtRunnerCallbackCreation:
@@ -777,30 +810,37 @@ class TestPrefectDbtRunnerManifestNodeOperations:
 
         assert result == []
 
+    @pytest.mark.parametrize(
+        "depends_on",
+        [
+            # 1 level
+            ["model.test_project.ephemeral_staging"],
+            # 2 levels
+            ["model.test_project.another_ephemeral_staging"],
+            # multiple paths, duplicates
+            [
+                "model.test_project.another_ephemeral_staging",
+                "model.test_project.ephemeral_staging",
+            ],
+            # multiple paths, duplicates, including regular
+            [
+                "model.test_project.another_ephemeral_staging",
+                "model.test_project.ephemeral_staging",
+                "model.test_project.regular_model",
+            ],
+        ],
+    )
     def test_get_upstream_manifest_nodes_and_configs_skips_ephemeral_models(
-        self, mock_manifest, mock_manifest_node
+        self, mock_manifest, mock_manifest_node, depends_on
     ):
-        """Test that ephemeral models (which have relation_name=None) are skipped.
+        """
+        Ephemeral models must be transparent dependency nodes.
 
-        Ephemeral models in dbt are CTEs that get inlined into downstream models.
-        They don't create database objects, so relation_name is None by design.
-        The runner should skip these rather than raising an error.
-
-        See: https://github.com/PrefectHQ/prefect/issues/19706
+        For any depth and any number of paths, only real upstream models
+        should be returned, without duplicates.
         """
         runner = PrefectDbtRunner(manifest=mock_manifest)
 
-        # Create an ephemeral model (relation_name=None is expected for ephemeral)
-        ephemeral_node = Mock(spec=ManifestNode)
-        ephemeral_node.unique_id = "model.test_project.ephemeral_staging"
-        ephemeral_node.config = Mock()
-        ephemeral_node.config.meta = {"prefect": {}}
-        ephemeral_node.config.materialized = "ephemeral"
-        ephemeral_node.relation_name = None  # Expected for ephemeral models
-        ephemeral_node.resource_type = NodeType.Model
-        ephemeral_node.depends_on_nodes = []
-
-        # Create a regular model with relation_name
         regular_node = Mock(spec=ManifestNode)
         regular_node.unique_id = "model.test_project.regular_model"
         regular_node.config = Mock()
@@ -810,20 +850,38 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         regular_node.resource_type = NodeType.Model
         regular_node.depends_on_nodes = []
 
+        ephemeral_node = Mock(spec=ManifestNode)
+        ephemeral_node.unique_id = "model.test_project.ephemeral_staging"
+        ephemeral_node.config = Mock()
+        ephemeral_node.config.meta = {"prefect": {}}
+        ephemeral_node.config.materialized = "ephemeral"
+        ephemeral_node.relation_name = None  # Expected for ephemeral models
+        ephemeral_node.resource_type = NodeType.Model
+        ephemeral_node.depends_on_nodes = ["model.test_project.regular_model"]
+
+        another_ephemeral_node = Mock(spec=ManifestNode)
+        another_ephemeral_node.unique_id = (
+            "model.test_project.another_ephemeral_staging"
+        )
+        another_ephemeral_node.config = Mock()
+        another_ephemeral_node.config.meta = {"prefect": {}}
+        another_ephemeral_node.config.materialized = "ephemeral"
+        another_ephemeral_node.relation_name = None
+        another_ephemeral_node.resource_type = NodeType.Model
+        another_ephemeral_node.depends_on_nodes = [
+            "model.test_project.ephemeral_staging"
+        ]
+
         mock_manifest.nodes = {
+            "model.test_project.another_ephemeral_staging": another_ephemeral_node,
             "model.test_project.ephemeral_staging": ephemeral_node,
             "model.test_project.regular_model": regular_node,
         }
-        # The main node depends on both an ephemeral and a regular model
-        mock_manifest_node.depends_on_nodes = [
-            "model.test_project.ephemeral_staging",
-            "model.test_project.regular_model",
-        ]
 
-        # Should NOT raise - ephemeral models should be skipped
+        mock_manifest_node.depends_on_nodes = depends_on
+
         result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
 
-        # Only the regular model should be returned (ephemeral skipped)
         assert len(result) == 1
         assert result[0][0].unique_id == "model.test_project.regular_model"
 
@@ -1096,7 +1154,7 @@ class TestPrefectDbtRunnerBuildCommands:
         # Verify callbacks were created with add_test_edges=True (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 1
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_retry_build_command_sets_add_test_edges_true(
         self, mock_dbt_runner_class, mock_settings_context_manager, tmp_path: Path
@@ -1386,6 +1444,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         runner._shutdown_event = threading.Event()
         runner._queue_counter = 42
         runner._skipped_nodes = {"node1", "node2"}
+        runner._started_nodes = {"node3", "node4"}
 
         # Stop should reset all state
         runner._stop_callback_processor()
@@ -1395,6 +1454,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         assert runner._shutdown_event is None
         assert runner._queue_counter == 0
         assert runner._skipped_nodes == set()
+        assert runner._started_nodes == set()
 
     def test_multiple_invokes_create_fresh_callback_processors(
         self, mock_dbt_runner_class, mock_settings_context_manager

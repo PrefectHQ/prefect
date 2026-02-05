@@ -4,7 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import type { components } from "@/api/prefect";
-import { getQueryService } from "@/api/service";
+import { getApiUrl, getQueryService } from "@/api/service";
 
 export type Automation = components["schemas"]["Automation"];
 export type AutomationsFilter =
@@ -46,7 +46,7 @@ export const buildListAutomationsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.filter(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/automations/filter", {
+			const res = await (await getQueryService()).POST("/automations/filter", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -60,7 +60,7 @@ export const buildGetAutomationQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/automations/{id}", {
+			const res = await (await getQueryService()).GET("/automations/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -78,7 +78,7 @@ export const buildListAutomationsRelatedQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.relate(resource_id),
 		queryFn: async () => {
-			const res = await getQueryService().GET(
+			const res = await (await getQueryService()).GET(
 				"/automations/related-to/{resource_id}",
 				{ params: { path: { resource_id } } },
 			);
@@ -112,8 +112,8 @@ export const buildListAutomationsRelatedQuery = (
 export const useDeleteAutomation = () => {
 	const queryClient = useQueryClient();
 	const { mutate: deleteAutomation, ...rest } = useMutation({
-		mutationFn: (id: string) =>
-			getQueryService().DELETE("/automations/{id}", {
+		mutationFn: async (id: string) =>
+			(await getQueryService()).DELETE("/automations/{id}", {
 				params: { path: { id } },
 			}),
 		onSuccess: () => {
@@ -153,8 +153,8 @@ export const useDeleteAutomation = () => {
 export const useCreateAutomation = () => {
 	const queryClient = useQueryClient();
 	const { mutate: createAutomation, ...rest } = useMutation({
-		mutationFn: (body: components["schemas"]["AutomationCreate"]) =>
-			getQueryService().POST("/automations/", { body }),
+		mutationFn: async (body: components["schemas"]["AutomationCreate"]) =>
+			(await getQueryService()).POST("/automations/", { body }),
 		onSuccess: () => {
 			// After a successful creation, invalidate the listing queries only to refetch
 			return queryClient.invalidateQueries({
@@ -192,11 +192,11 @@ export const useCreateAutomation = () => {
 export const useUpdateAutomation = () => {
 	const queryClient = useQueryClient();
 	const { mutate: updateAutomation, ...rest } = useMutation({
-		mutationFn: ({
+		mutationFn: async ({
 			id,
 			...body
 		}: components["schemas"]["AutomationPartialUpdate"] & { id: string }) =>
-			getQueryService().PATCH("/automations/{id}", {
+			(await getQueryService()).PATCH("/automations/{id}", {
 				body,
 				params: { path: { id } },
 			}),
@@ -209,6 +209,130 @@ export const useUpdateAutomation = () => {
 	});
 	return {
 		updateAutomation,
+		...rest,
+	};
+};
+
+/**
+ * Hook for fully replacing an automation by ID (PUT request)
+ *
+ * Use this hook when you need to update all fields of an automation (name, description, trigger, actions, etc.)
+ * For partial updates (like toggling enabled), use useUpdateAutomation instead.
+ *
+ * @returns Mutation object for replacing an automation with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { replaceAutomation, isPending } = useReplaceAutomation();
+ *
+ * replaceAutomation({
+ *   id: 'automation-id',
+ *   name: 'Updated Name',
+ *   description: 'Updated description',
+ *   enabled: true,
+ *   trigger: { ... },
+ *   actions: [ ... ],
+ * }, {
+ *   onSuccess: () => {
+ *     console.log('Automation replaced successfully');
+ *   },
+ *   onError: (error) => {
+ *     console.error('Failed to replace automation', error);
+ *   }
+ * });
+ * ```
+ */
+export const useReplaceAutomation = () => {
+	const queryClient = useQueryClient();
+	const { mutate: replaceAutomation, ...rest } = useMutation({
+		mutationFn: async ({
+			id,
+			...body
+		}: components["schemas"]["AutomationUpdate"] & { id: string }) =>
+			(await getQueryService()).PUT("/automations/{id}", {
+				body,
+				params: { path: { id } },
+			}),
+		onSuccess: () => {
+			// After a successful replacement, invalidate all to get an updated list and details
+			return queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.all(),
+			});
+		},
+	});
+	return {
+		replaceAutomation,
+		...rest,
+	};
+};
+
+export type TemplateValidationError = {
+	error: {
+		line: number;
+		message: string;
+		source: string;
+	};
+};
+
+/**
+ * Hook for validating Jinja templates used in automation notifications
+ *
+ * @returns Mutation object for validating a template with loading/error states and trigger function
+ *
+ * @example
+ * ```ts
+ * const { validateTemplate, isPending } = useValidateTemplate();
+ *
+ * validateTemplate('Hello {{ flow.name }}', {
+ *   onSuccess: () => {
+ *     console.log('Template is valid');
+ *   },
+ *   onError: (error) => {
+ *     console.error('Template validation failed:', error);
+ *   }
+ * });
+ * ```
+ */
+export const useValidateTemplate = () => {
+	const { mutateAsync: validateTemplate, ...rest } = useMutation({
+		mutationFn: async (
+			template: string,
+		): Promise<{ valid: true } | { valid: false; error: string }> => {
+			// Use raw fetch to avoid the error-throwing middleware in getQueryService()
+			// since we want to handle 422 responses gracefully as validation errors
+			const baseUrl = await getApiUrl();
+			const response = await fetch(
+				`${baseUrl}/automations/templates/validate`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(template),
+				},
+			);
+
+			if (response.ok) {
+				return { valid: true };
+			}
+
+			try {
+				const errorData =
+					(await response.json()) as TemplateValidationError | null;
+				if (errorData?.error) {
+					return {
+						valid: false,
+						error: `Error on line ${errorData.error.line}: ${errorData.error.message}`,
+					};
+				}
+			} catch {
+				// JSON parsing failed, return generic error
+			}
+			return { valid: false, error: "Template validation failed" };
+		},
+	});
+	return {
+		validateTemplate,
 		...rest,
 	};
 };

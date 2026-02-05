@@ -235,6 +235,37 @@ class TestGitRepository:
         ):
             await repo.pull_code()
 
+    async def test_pull_code_existing_repo_with_embedded_credentials(self, monkeypatch):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/pull/20330
+
+        When a URL with embedded credentials is passed directly (without a
+        separate credentials object), pulling from an existing repo should
+        still work. The git config stores the URL with credentials, which
+        must be compared correctly to the configured URL.
+        """
+
+        # Git config returns URL with credentials (as stored during clone)
+        async def mock_run_process(*args, **kwargs):
+            class Result:
+                stdout = (
+                    "https://x-access-token:ghp_secret@github.com/org/repo.git".encode()
+                )
+
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        # URL passed with embedded credentials (no separate credentials object)
+        repo = GitRepository(
+            url="https://x-access-token:ghp_secret@github.com/org/repo.git"
+        )
+
+        # Should NOT raise - the URLs match (same repo, same credentials)
+        # Before fix: raises ValueError because stripped URL != URL with creds
+        await repo.pull_code()
+
     async def test_pull_code_clone_repo(self, mock_run_process: AsyncMock, monkeypatch):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
 
@@ -940,6 +971,101 @@ class TestGitRepository:
                 ),
             ):
                 repo.to_pull_step()
+
+        def test_to_pull_step_with_custom_name(self):
+            """Test that custom name is included in pull step when it differs from default."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="dev",
+                name="my-custom-name",
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "dev",
+                    "clone_directory_name": "my-custom-name",
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_omits_name_when_matches_default(self):
+            """Test that name is omitted from pull step when it matches the auto-generated default."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="dev",
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "dev",
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+            assert (
+                "clone_directory_name"
+                not in result["prefect.deployments.steps.git_clone"]
+            )
+
+        def test_to_pull_step_with_slashed_branch_name(self):
+            """Test that branch names with slashes are sanitized correctly in default name calculation."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="feature/my-feature",
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "feature/my-feature",
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+            assert (
+                "clone_directory_name"
+                not in result["prefect.deployments.steps.git_clone"]
+            )
+
+        def test_to_pull_step_with_directories(self):
+            """Test that directories parameter is included in pull step when specified."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                directories=["src", "tests"],
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": None,
+                    "directories": ["src", "tests"],
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_with_custom_name_and_directories(self):
+            """Test that both custom name and directories are preserved in pull step."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="dev",
+                name="my-custom-name",
+                directories=["src"],
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "dev",
+                    "clone_directory_name": "my-custom-name",
+                    "directories": ["src"],
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
 
     async def test_clone_repo_with_commit_sha(
         self, mock_run_process: AsyncMock, monkeypatch

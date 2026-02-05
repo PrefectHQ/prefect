@@ -1,18 +1,43 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountWorkPoolsQuery,
 	buildFilterWorkPoolsQuery,
 } from "@/api/work-pools";
 import { SearchInput } from "@/components/ui/input";
+import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 import { WorkPoolsEmptyState } from "@/components/work-pools/empty-state";
 import { WorkPoolsPageHeader } from "@/components/work-pools/header";
 import { WorkPoolCard } from "@/components/work-pools/work-pool-card/work-pool-card";
 import { pluralize } from "@/utils";
 
+function WorkPoolsErrorComponent({ error, reset }: ErrorComponentProps) {
+	const serverError = categorizeError(error, "Failed to load work pools");
+
+	// Only handle API errors (server-error, client-error) at route level
+	// Let network errors and unknown errors bubble up to root error component
+	if (
+		serverError.type !== "server-error" &&
+		serverError.type !== "client-error"
+	) {
+		throw error;
+	}
+
+	return (
+		<div className="flex flex-col gap-4">
+			<WorkPoolsPageHeader />
+			<RouteErrorState error={serverError} onRetry={reset} />
+		</div>
+	);
+}
+
 export const Route = createFileRoute("/work-pools/")({
 	component: RouteComponent,
+	errorComponent: WorkPoolsErrorComponent,
 	loader: ({ context }) => {
 		void context.queryClient.ensureQueryData(buildCountWorkPoolsQuery());
 		void context.queryClient.ensureQueryData(
@@ -23,6 +48,7 @@ export const Route = createFileRoute("/work-pools/")({
 		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 function RouteComponent() {

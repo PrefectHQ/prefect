@@ -1,9 +1,19 @@
-import pytest
-from prefect_gcp.credentials import GcpCredentials
-from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
-from prefect_gcp.utilities import slugify_name
-from prefect_gcp.workers.cloud_run_v2 import CloudRunWorkerJobV2Configuration
+from unittest import mock
+from unittest.mock import MagicMock
 
+import pytest
+from googleapiclient.errors import HttpError
+from prefect_gcp.credentials import GcpCredentials
+from prefect_gcp.models.cloud_run_v2 import ExecutionV2, SecretKeySelector
+from prefect_gcp.utilities import slugify_name
+from prefect_gcp.workers.cloud_run_v2 import (
+    CloudRunWorkerJobV2Configuration,
+    CloudRunWorkerV2,
+    CloudRunWorkerV2Result,
+)
+
+from prefect.exceptions import InfrastructureNotFound
+from prefect.logging.loggers import PrefectLogAdapter
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 
@@ -66,11 +76,11 @@ class TestCloudRunWorkerJobV2Configuration:
         assert cloud_run_worker_v2_job_config.project == "my_project"
 
     def test_job_name(self, cloud_run_worker_v2_job_config):
-        assert cloud_run_worker_v2_job_config.job_name[:-33] == "my-job-name"
+        assert cloud_run_worker_v2_job_config.job_name[:-8] == "my-job-name"
 
     def test_job_name_is_slug(self, cloud_run_worker_v2_job_config_noncompliant_name):
         assert cloud_run_worker_v2_job_config_noncompliant_name.job_name[
-            :-33
+            :-8
         ] == slugify_name("MY_JOB_NAME")
 
     def test_job_name_different_after_retry(self, cloud_run_worker_v2_job_config):
@@ -80,8 +90,22 @@ class TestCloudRunWorkerJobV2Configuration:
 
         job_name_2 = cloud_run_worker_v2_job_config.job_name
 
-        assert job_name_1[:-33] == job_name_2[:-33]
+        assert job_name_1[:-8] == job_name_2[:-8]
         assert job_name_1 != job_name_2
+
+    def test_job_name_preserves_long_base_name(self, service_account_info, job_body):
+        long_name = "a" * 60
+        config = CloudRunWorkerJobV2Configuration(
+            name=long_name,
+            job_body=job_body,
+            credentials=GcpCredentials(service_account_info=service_account_info),
+            region="us-central1",
+            timeout=86400,
+        )
+        job_name = config.job_name
+        assert len(job_name) <= 63
+        base_part = job_name[:-8]  # 7 UUID + 1 hyphen
+        assert len(base_part) == 55  # 63 - 1 - 7
 
     def test_populate_timeout(self, cloud_run_worker_v2_job_config):
         cloud_run_worker_v2_job_config._populate_timeout()
@@ -159,6 +183,31 @@ class TestCloudRunWorkerJobV2Configuration:
         assert cloud_run_worker_v2_job_config.job_body["template"]["template"][
             "containers"
         ][0]["command"] == ["prefect", "flow-run", "execute"]
+
+    def test_command_formats_correctly_for_logging(
+        self, cloud_run_worker_v2_job_config
+    ):
+        """
+        Regression test for command formatting in log messages.
+
+        Previously, the code used `" ".join(configuration.command)` where
+        `configuration.command` was a string. This caused each character to be
+        joined with spaces, producing "p r e f e c t   f l o w - r u n   e x e c u t e"
+        instead of "prefect flow-run execute".
+
+        The fix uses the command list from job_body which is properly formatted.
+        """
+        cloud_run_worker_v2_job_config._populate_or_format_command()
+
+        command_list = cloud_run_worker_v2_job_config.job_body["template"]["template"][
+            "containers"
+        ][0].get("command", [])
+        command_str = (
+            " ".join(command_list) if command_list else "default container command"
+        )
+
+        assert command_str == "prefect flow-run execute"
+        assert "p r e f e c t" not in command_str
 
     def test_format_args_if_present(self, cloud_run_worker_v2_job_config):
         cloud_run_worker_v2_job_config._format_args_if_present()
@@ -275,6 +324,9 @@ class TestCloudRunWorkerJobV2Configuration:
         class MockFlowRun:
             id = "test-id"
             name = "test-run"
+
+            def model_dump(self, mode: str = "python") -> dict:
+                return {"id": self.id, "name": self.name}
 
         cloud_run_worker_v2_job_config.prepare_for_flow_run(
             flow_run=MockFlowRun(), deployment=None, flow=None
@@ -398,3 +450,248 @@ class TestCloudRunWorkerJobV2Configuration:
                 "secretKeyRef": {"secret": "prefect-auth-string", "version": "latest"}
             },
         } in env_vars
+
+
+class TestCloudRunWorkerV2KillInfrastructure:
+    """Tests for CloudRunWorkerV2.kill_infrastructure method."""
+
+    async def test_kill_infrastructure_deletes_job(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        """Test that kill_infrastructure successfully deletes a Cloud Run V2 job."""
+        job_name = "test-job-name"
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = lambda self: mock_client
+        mock_client.__exit__ = lambda self, *args: None
+
+        with mock.patch.object(
+            CloudRunWorkerV2, "_get_client", return_value=mock_client
+        ):
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.JobV2.delete"
+            ) as mock_delete:
+                async with CloudRunWorkerV2("my-work-pool") as worker:
+                    await worker.kill_infrastructure(
+                        infrastructure_pid=job_name,
+                        configuration=cloud_run_worker_v2_job_config,
+                        grace_seconds=30,
+                    )
+
+                mock_delete.assert_called_once_with(
+                    cr_client=mock_client,
+                    project=cloud_run_worker_v2_job_config.project,
+                    location=cloud_run_worker_v2_job_config.region,
+                    job_name=job_name,
+                )
+
+    async def test_kill_infrastructure_raises_not_found(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        """Test that kill_infrastructure raises InfrastructureNotFound for missing job."""
+        job_name = "nonexistent-job"
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = lambda self: mock_client
+        mock_client.__exit__ = lambda self, *args: None
+
+        # Create a proper mock response with status attribute
+        mock_resp = MagicMock()
+        mock_resp.status = 404
+        mock_http_error = HttpError(resp=mock_resp, content=b"Not found")
+
+        with mock.patch.object(
+            CloudRunWorkerV2, "_get_client", return_value=mock_client
+        ):
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.JobV2.delete",
+                side_effect=mock_http_error,
+            ):
+                async with CloudRunWorkerV2("my-work-pool") as worker:
+                    with pytest.raises(InfrastructureNotFound):
+                        await worker.kill_infrastructure(
+                            infrastructure_pid=job_name,
+                            configuration=cloud_run_worker_v2_job_config,
+                            grace_seconds=30,
+                        )
+
+    def test_watch_job_execution_raises_not_found_on_404(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        """Test that _watch_job_execution raises InfrastructureNotFound when execution is deleted."""
+        mock_client = MagicMock()
+
+        # Create a mock execution that is initially running
+        mock_execution = MagicMock(spec=ExecutionV2)
+        mock_execution.is_running.return_value = True
+        mock_execution.name = "projects/test/locations/us-central1/jobs/test-job/executions/test-execution"
+
+        # Create a 404 error for when we try to get the execution
+        mock_resp = MagicMock()
+        mock_resp.status = 404
+        mock_http_error = HttpError(resp=mock_resp, content=b"Execution not found")
+
+        with mock.patch.object(ExecutionV2, "get", side_effect=mock_http_error):
+            with pytest.raises(InfrastructureNotFound) as exc_info:
+                CloudRunWorkerV2._watch_job_execution(
+                    cr_client=mock_client,
+                    configuration=cloud_run_worker_v2_job_config,
+                    execution=mock_execution,
+                    poll_interval=0,
+                )
+
+            assert "was deleted" in str(exc_info.value)
+
+    def test_watch_job_execution_and_get_result_handles_deleted_execution(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        """Test that _watch_job_execution_and_get_result handles InfrastructureNotFound gracefully."""
+        mock_client = MagicMock()
+
+        # Create a mock execution
+        mock_execution = MagicMock(spec=ExecutionV2)
+        mock_execution.is_running.return_value = True
+        mock_execution.name = "projects/test/locations/us-central1/jobs/test-job/executions/test-execution"
+
+        # Create a mock logger
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        worker = CloudRunWorkerV2("my-work-pool")
+
+        # Mock _watch_job_execution on the instance to raise InfrastructureNotFound
+        with mock.patch.object(
+            worker,
+            "_watch_job_execution",
+            side_effect=InfrastructureNotFound("Execution was deleted"),
+        ):
+            result = worker._watch_job_execution_and_get_result(
+                cr_client=mock_client,
+                configuration=cloud_run_worker_v2_job_config,
+                execution=mock_execution,
+                logger=mock_logger,
+                poll_interval=0,
+            )
+
+            # Should return a result with status_code=-1, not raise an exception
+            assert isinstance(result, CloudRunWorkerV2Result)
+            assert result.status_code == -1
+
+            # Should log an info message, not an error/critical
+            mock_logger.info.assert_called_once()
+            assert "was deleted" in mock_logger.info.call_args[0][0]
+
+    def test_watch_job_execution_reraises_non_404_errors(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        """Test that _watch_job_execution re-raises non-404 HTTP errors."""
+        mock_client = MagicMock()
+
+        # Create a mock execution that is initially running
+        mock_execution = MagicMock(spec=ExecutionV2)
+        mock_execution.is_running.return_value = True
+        mock_execution.name = "projects/test/locations/us-central1/jobs/test-job/executions/test-execution"
+
+        # Create a 500 error (not 404)
+        mock_resp = MagicMock()
+        mock_resp.status = 500
+        mock_http_error = HttpError(resp=mock_resp, content=b"Internal server error")
+
+        with mock.patch.object(ExecutionV2, "get", side_effect=mock_http_error):
+            with pytest.raises(HttpError) as exc_info:
+                CloudRunWorkerV2._watch_job_execution(
+                    cr_client=mock_client,
+                    configuration=cloud_run_worker_v2_job_config,
+                    execution=mock_execution,
+                    poll_interval=0,
+                )
+
+            assert exc_info.value.status_code == 500
+
+
+class TestCloudRunWorkerV2CreateJobRetries:
+    def test_create_job_retries_on_transient_error_then_succeeds(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.create",
+            side_effect=[transient_error, None],
+        ) as mock_create:
+            with mock.patch.object(worker, "_wait_for_job_creation"):
+                with mock.patch(
+                    "prefect_gcp.workers.cloud_run_v2.time.sleep"
+                ) as mock_sleep:
+                    worker._create_job_and_wait_for_registration(
+                        configuration=cloud_run_worker_v2_job_config,
+                        cr_client=mock_client,
+                        logger=mock_logger,
+                    )
+
+        assert mock_create.call_count == 2
+        mock_sleep.assert_called_once()
+        mock_logger.warning.assert_called_once()
+
+    def test_create_job_does_not_retry_on_non_transient_error(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        non_transient_error = HttpError(resp=mock_resp, content=b"Bad request")
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.create",
+            side_effect=non_transient_error,
+        ) as mock_create:
+            with mock.patch.object(worker, "_wait_for_job_creation"):
+                with mock.patch(
+                    "prefect_gcp.workers.cloud_run_v2.time.sleep"
+                ) as mock_sleep:
+                    with pytest.raises(HttpError):
+                        worker._create_job_and_wait_for_registration(
+                            configuration=cloud_run_worker_v2_job_config,
+                            cr_client=mock_client,
+                            logger=mock_logger,
+                        )
+
+        assert mock_create.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_create_job_retries_until_max_attempts_then_raises(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.create",
+            side_effect=[transient_error, transient_error, transient_error],
+        ) as mock_create:
+            with mock.patch.object(worker, "_wait_for_job_creation"):
+                with mock.patch(
+                    "prefect_gcp.workers.cloud_run_v2.time.sleep"
+                ) as mock_sleep:
+                    with pytest.raises(HttpError):
+                        worker._create_job_and_wait_for_registration(
+                            configuration=cloud_run_worker_v2_job_config,
+                            cr_client=mock_client,
+                            logger=mock_logger,
+                        )
+
+        assert mock_create.call_count == 3
+        assert mock_sleep.call_count == 2

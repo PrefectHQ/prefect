@@ -2,6 +2,7 @@
 Routes for interacting with flow run objects.
 """
 
+import asyncio
 import csv
 import datetime
 import io
@@ -45,6 +46,9 @@ from prefect.server.orchestration.policies import (
 )
 from prefect.server.schemas.graph import Graph
 from prefect.server.schemas.responses import (
+    FlowRunBulkDeleteResponse,
+    FlowRunBulkSetStateResponse,
+    FlowRunOrchestrationResult,
     FlowRunPaginationResponse,
     OrchestrationResult,
 )
@@ -587,7 +591,10 @@ async def delete_flow_run(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
         )
-    await docket.add(delete_flow_run_logs)(flow_run_id=flow_run_id)
+    await docket.add(
+        delete_flow_run_logs,
+        key=f"delete_flow_run_logs:{flow_run_id}",
+    )(flow_run_id=flow_run_id)
 
 
 async def delete_flow_run_logs(
@@ -603,6 +610,142 @@ async def delete_flow_run_logs(
                 flow_run_id=schemas.filters.LogFilterFlowRunId(any_=[flow_run_id])
             ),
         )
+
+
+BULK_OPERATION_LIMIT = 50
+
+
+@router.post("/bulk_delete")
+async def bulk_delete_flow_runs(
+    docket: dependencies.Docket,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = Body(
+        None, description="Filter criteria for flow runs to delete"
+    ),
+    limit: int = Body(
+        BULK_OPERATION_LIMIT,
+        ge=1,
+        le=BULK_OPERATION_LIMIT,
+        description=f"Maximum number of flow runs to delete. Defaults to {BULK_OPERATION_LIMIT}.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> FlowRunBulkDeleteResponse:
+    """
+    Bulk delete flow runs matching the specified filter criteria.
+
+    Returns the IDs of flow runs that were deleted.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        # Query matching flow runs
+        db_flow_runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=flow_runs,
+            limit=limit,
+        )
+
+        if not db_flow_runs:
+            return FlowRunBulkDeleteResponse(deleted=[])
+
+        flow_run_ids = [fr.id for fr in db_flow_runs]
+
+        # Delete flow runs
+        deleted_ids = await models.flow_runs.delete_flow_runs(
+            session=session,
+            flow_run_ids=flow_run_ids,
+        )
+
+    # Queue log cleanup for each deleted flow run
+    for flow_run_id in deleted_ids:
+        await docket.add(
+            delete_flow_run_logs,
+            key=f"delete_flow_run_logs:{flow_run_id}",
+        )(flow_run_id=flow_run_id)
+
+    return FlowRunBulkDeleteResponse(deleted=deleted_ids)
+
+
+@router.post("/bulk_set_state")
+async def bulk_set_flow_run_state(
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = Body(
+        None, description="Filter criteria for flow runs to update"
+    ),
+    state: schemas.actions.StateCreate = Body(..., description="The state to set"),
+    force: bool = Body(
+        False,
+        description=(
+            "If false, orchestration rules will be applied that may alter or prevent"
+            " the state transition. If True, orchestration rules are not applied."
+        ),
+    ),
+    limit: int = Body(
+        BULK_OPERATION_LIMIT,
+        ge=1,
+        le=BULK_OPERATION_LIMIT,
+        description=f"Maximum number of flow runs to update. Defaults to {BULK_OPERATION_LIMIT}.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+    flow_policy: type[FlowRunOrchestrationPolicy] = Depends(
+        orchestration_dependencies.provide_flow_policy
+    ),
+    orchestration_parameters: Dict[str, Any] = Depends(
+        orchestration_dependencies.provide_flow_orchestration_parameters
+    ),
+    api_version: str = Depends(dependencies.provide_request_api_version),
+    client_version: Optional[str] = Depends(dependencies.get_prefect_client_version),
+) -> FlowRunBulkSetStateResponse:
+    """
+    Bulk set state for flow runs matching the specified filter criteria.
+
+    Returns the orchestration results for each flow run.
+    """
+    orchestration_parameters.update({"api-version": api_version})
+
+    async with db.session_context() as session:
+        # Query matching flow runs
+        db_flow_runs = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=flow_runs,
+            limit=limit,
+        )
+
+    if not db_flow_runs:
+        return FlowRunBulkSetStateResponse(results=[])
+
+    results: List[FlowRunOrchestrationResult] = []
+
+    # Process flow runs sequentially to avoid session conflicts
+    for flow_run in db_flow_runs:
+        async with db.session_context(
+            begin_transaction=True, with_for_update=True
+        ) as session:
+            try:
+                orchestration_result = await models.flow_runs.set_flow_run_state(
+                    session=session,
+                    flow_run_id=flow_run.id,
+                    state=schemas.states.State.model_validate(state),
+                    force=force,
+                    flow_policy=flow_policy,
+                    orchestration_parameters=orchestration_parameters,
+                    client_version=client_version,
+                )
+                results.append(
+                    FlowRunOrchestrationResult(
+                        flow_run_id=flow_run.id,
+                        status=orchestration_result.status,
+                        state=orchestration_result.state,
+                        details=orchestration_result.details,
+                    )
+                )
+            except Exception as e:
+                results.append(
+                    FlowRunOrchestrationResult(
+                        flow_run_id=flow_run.id,
+                        status=schemas.responses.SetStateStatus.ABORT,
+                        state=None,
+                        details=schemas.responses.StateAbortDetails(reason=str(e)),
+                    )
+                )
+
+    return FlowRunBulkSetStateResponse(results=results)
 
 
 @router.post("/{id:uuid}/set_state")
@@ -782,50 +925,53 @@ async def paginate_flow_runs(
     """
     offset = (page - 1) * limit
 
-    async with db.session_context() as session:
-        runs = await models.flow_runs.read_flow_runs(
-            session=session,
-            flow_filter=flows,
-            flow_run_filter=flow_runs,
-            task_run_filter=task_runs,
-            deployment_filter=deployments,
-            work_pool_filter=work_pools,
-            work_queue_filter=work_pool_queues,
-            offset=offset,
-            limit=limit,
-            sort=sort,
-        )
+    async def get_runs():
+        async with db.session_context() as session:
+            return await models.flow_runs.read_flow_runs(
+                session=session,
+                flow_filter=flows,
+                flow_run_filter=flow_runs,
+                task_run_filter=task_runs,
+                deployment_filter=deployments,
+                work_pool_filter=work_pools,
+                work_queue_filter=work_pool_queues,
+                offset=offset,
+                limit=limit,
+                sort=sort,
+            )
 
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_filter=flows,
-            flow_run_filter=flow_runs,
-            task_run_filter=task_runs,
-            deployment_filter=deployments,
-            work_pool_filter=work_pools,
-            work_queue_filter=work_pool_queues,
-        )
+    async def get_count():
+        async with db.session_context() as session:
+            return await models.flow_runs.count_flow_runs(
+                session=session,
+                flow_filter=flows,
+                flow_run_filter=flow_runs,
+                task_run_filter=task_runs,
+                deployment_filter=deployments,
+                work_pool_filter=work_pools,
+                work_queue_filter=work_pool_queues,
+            )
 
-        # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
-        # response to JSON, we do so more efficiently ourselves.
-        # In particular, the FastAPI encoder is very slow for large, nested objects.
-        # See: https://github.com/tiangolo/fastapi/issues/1224
-        results = [
-            schemas.responses.FlowRunResponse.model_validate(
-                run, from_attributes=True
-            ).model_dump(mode="json")
-            for run in runs
-        ]
+    runs, count = await asyncio.gather(get_runs(), get_count())
 
-        response = FlowRunPaginationResponse(
-            results=results,
-            count=count,
-            limit=limit,
-            pages=(count + limit - 1) // limit,
-            page=page,
-        ).model_dump(mode="json")
+    # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
+    # response to JSON, we do so more efficiently ourselves.
+    # In particular, the FastAPI encoder is very slow for large, nested objects.
+    # See: https://github.com/tiangolo/fastapi/issues/1224
+    results = [
+        schemas.responses.FlowRunResponse.model_validate(run, from_attributes=True)
+        for run in runs
+    ]
 
-        return ORJSONResponse(content=response)
+    response = FlowRunPaginationResponse(
+        results=results,
+        count=count,
+        limit=limit,
+        pages=(count + limit - 1) // limit,
+        page=page,
+    ).model_dump(mode="json")
+
+    return ORJSONResponse(content=response)
 
 
 FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT = 1000

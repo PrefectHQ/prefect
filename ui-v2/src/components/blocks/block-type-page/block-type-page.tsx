@@ -1,6 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { BlockType } from "@/api/block-types";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
 import { PythonBlockSnippet } from "@/components/blocks/python-example-snippet";
@@ -13,7 +11,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Typography } from "@/components/ui/typography";
+import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 
 type BlockTypePageProps = {
 	blockType: BlockType;
@@ -63,7 +61,9 @@ function BlockTypeCardDetails({ blockType }: BlockTypePageProps) {
 			<Card className="p-6">
 				<div className="flex items-center gap-4">
 					<BlockTypeLogo size="lg" logoUrl={blockType.logo_url} />
-					<Typography variant="h3">{blockType.name}</Typography>
+					<h3 className="text-2xl font-semibold tracking-tight">
+						{blockType.name}
+					</h3>
 				</div>
 
 				{blockType.description && (
@@ -75,7 +75,7 @@ function BlockTypeCardDetails({ blockType }: BlockTypePageProps) {
 
 				{blockType.code_example && (
 					<div className="flex flex-col gap-4">
-						<Typography variant="h4">Example</Typography>
+						<h4 className="text-xl font-semibold tracking-tight">Example</h4>
 						<PythonBlockSnippet
 							codeExample={blockType.code_example}
 							name={blockType.name}
@@ -113,7 +113,7 @@ function BlockTypeDescription({
 
 	return (
 		<div className="prose max-w-none">
-			<Markdown remarkPlugins={[remarkGfm]}>{retDescription}</Markdown>
+			<LazyMarkdown>{retDescription}</LazyMarkdown>
 		</div>
 	);
 }

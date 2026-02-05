@@ -9,6 +9,8 @@ export const MockJsonInput = React.forwardRef<
 	{
 		value: string;
 		onChange?: (value: string) => void;
+		onBlur?: () => void;
+		className?: string;
 	}
 >((props, ref) => {
 	return (
@@ -18,6 +20,8 @@ export const MockJsonInput = React.forwardRef<
 			onChange={(e) => {
 				props.onChange?.(e.target.value);
 			}}
+			onBlur={props.onBlur}
+			className={props.className}
 			data-testid="mock-json-input"
 		/>
 	);
@@ -27,4 +31,9 @@ MockJsonInput.displayName = "MockJsonInput";
 
 vi.mock("@/components/ui/json-input", () => ({
 	JsonInput: MockJsonInput,
+}));
+
+// Also mock the lazy-loaded version since some components now import from json-input-lazy
+vi.mock("@/components/ui/json-input-lazy", () => ({
+	LazyJsonInput: MockJsonInput,
 }));

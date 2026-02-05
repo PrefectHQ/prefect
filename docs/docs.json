@@ -9,6 +9,9 @@
     "default": "light",
     "strict": false
   },
+  "banner": {
+    "content": "Join us at inaugural PyAI Conf in San Francisco on March 10th! [Learn more](https://pyai.events?utm_source=docs.prefect.io)"
+  },
   "colors": {
     "dark": "#2D6DF6",
     "light": "#5F92FF",
@@ -97,7 +100,8 @@
               "v3/concepts/variables",
               "v3/concepts/blocks",
               "v3/concepts/settings-and-profiles",
-              "v3/concepts/server"
+              "v3/concepts/server",
+              "v3/concepts/telemetry"
             ]
           },
           {
@@ -252,9 +256,15 @@
               "v3/advanced/transactions",
               "v3/advanced/cancel-workflows",
               "v3/advanced/interactive",
-              "v3/advanced/form-building",
               "v3/advanced/results",
               "v3/advanced/background-tasks"
+            ]
+          },
+          {
+            "group": "Deployments",
+            "pages": [
+              "v3/advanced/form-building",
+              "v3/advanced/generate-custom-sdk"
             ]
           },
           {
@@ -308,7 +318,8 @@
               "v3/examples/simple-web-scraper",
               "v3/examples/ai-data-analyst-with-pydantic-ai",
               "v3/examples/ai-database-cleanup-with-approval",
-              "v3/examples/per-worker-task-concurrency"
+              "v3/examples/per-worker-task-concurrency",
+              "v3/examples/resume-flow-run-on-pr-merge"
             ]
           }
         ],
@@ -796,6 +807,7 @@
                   "v3/api-ref/cli/init",
                   "v3/api-ref/cli/profile",
                   "v3/api-ref/cli/profiles",
+                  "v3/api-ref/cli/sdk",
                   "v3/api-ref/cli/server",
                   "v3/api-ref/cli/shell",
                   "v3/api-ref/cli/task-run",
@@ -884,6 +896,7 @@
                       "v3/api-ref/python/prefect-cli-global_concurrency_limit",
                       "v3/api-ref/python/prefect-cli-profile",
                       "v3/api-ref/python/prefect-cli-root",
+                      "v3/api-ref/python/prefect-cli-sdk",
                       "v3/api-ref/python/prefect-cli-server",
                       "v3/api-ref/python/prefect-cli-shell",
                       "v3/api-ref/python/prefect-cli-task",

@@ -42,13 +42,63 @@ Example:
 
 ## Classes
 
-### `ProcessMapEntry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessMapEntry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L143" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Runner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Runner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `add_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aadd_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aadd_deployment(self, deployment: 'RunnerDeployment') -> UUID
+```
+
+Registers the deployment with the Prefect API and will monitor for work once
+the runner is started. Async version.
+
+**Args:**
+- `deployment`: A deployment for the runner to register.
+
+
+#### `aadd_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aadd_flow(self, flow: Flow[Any, Any], name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, datetime.timedelta]], int, float, datetime.timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, enforce_parameter_schema: bool = True, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH) -> UUID
+```
+
+Provides a flow to the runner to be run based on the provided configuration.
+Async version.
+
+Will create a deployment for the provided flow and register the deployment
+with the runner.
+
+**Args:**
+- `flow`: A flow for the runner to run.
+- `name`: The name to give the created deployment. Will default to the name
+of the runner.
+- `interval`: An interval on which to execute the current flow. Accepts either a number
+or a timedelta object. If a number is given, it will be interpreted as seconds.
+- `cron`: A cron schedule of when to execute runs of this flow.
+- `rrule`: An rrule schedule of when to execute runs of this flow.
+- `paused`: Whether or not to set the created deployment as paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this flow.
+Used to define multiple schedules or additional scheduling options like `timezone`.
+- `concurrency_limit`: The maximum number of concurrent runs of this flow to allow.
+- `triggers`: A list of triggers that should kick of a run of this flow.
+- `parameters`: A dictionary of default parameter values to pass to runs of this flow.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `entrypoint_type`: Type of entrypoint to use for the deployment. When using a module path
+entrypoint, ensure that the module will be importable in the execution environment.
+
+
+#### `add_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_deployment(self, deployment: 'RunnerDeployment') -> UUID
@@ -61,7 +111,7 @@ the runner is started.
 - `deployment`: A deployment for the runner to register.
 
 
-#### `add_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L314" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_flow(self, flow: Flow[Any, Any], name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, datetime.timedelta]], int, float, datetime.timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[List[str]] = None, version: Optional[str] = None, enforce_parameter_schema: bool = True, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH) -> UUID
@@ -97,13 +147,22 @@ purposes.
 entrypoint, ensure that the module will be importable in the execution environment.
 
 
-#### `cancel_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L544" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `astop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L637" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+astop(self) -> None
+```
+
+Stops the runner's polling cycle. Async version.
+
+
+#### `cancel_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L621" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cancel_all(self) -> None
 ```
 
-#### `execute_bundle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L651" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute_bundle` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L746" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute_bundle(self, bundle: SerializedBundle, cwd: Path | str | None = None, env: dict[str, str | None] | None = None) -> None
@@ -112,7 +171,7 @@ execute_bundle(self, bundle: SerializedBundle, cwd: Path | str | None = None, en
 Executes a bundle in a subprocess.
 
 
-#### `execute_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L579" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L660" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute_flow_run(self, flow_run_id: UUID, entrypoint: str | None = None, command: str | None = None, cwd: Path | str | None = None, env: dict[str, str | None] | None = None, task_status: anyio.abc.TaskStatus[int] = anyio.TASK_STATUS_IGNORED, stream_output: bool = True) -> anyio.abc.Process | multiprocessing.context.SpawnProcess | None
@@ -127,7 +186,7 @@ the flow run process has exited.
 - The flow run process.
 
 
-#### `execute_in_background` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute_in_background` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute_in_background(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> 'concurrent.futures.Future[Any]'
@@ -136,7 +195,7 @@ execute_in_background(self, func: Callable[..., Any], *args: Any, **kwargs: Any)
 Executes a function in the background.
 
 
-#### `handle_sigterm` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_sigterm` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L512" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_sigterm(self, *args: Any, **kwargs: Any) -> None
@@ -145,7 +204,7 @@ handle_sigterm(self, *args: Any, **kwargs: Any) -> None
 Gracefully shuts down the runner when a SIGTERM is received.
 
 
-#### `has_slots_available` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L1154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `has_slots_available` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L1222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 has_slots_available(self) -> bool
@@ -157,7 +216,7 @@ Determine if the flow run limit has been reached.
 - - bool: True if the limit has not been reached, False otherwise.
 
 
-#### `reschedule_current_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reschedule_current_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L1020" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reschedule_current_flow_runs(self) -> None
@@ -169,7 +228,7 @@ This should only be called when the runner is shutting down because it kill all
 child processes and short-circuit the crash detection logic.
 
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L444" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, run_once: bool = False, webserver: Optional[bool] = None) -> None
@@ -213,7 +272,7 @@ if __name__ == "__main__"
 ```
 
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L561" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L656" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self)

@@ -607,6 +607,59 @@ async def _delete_related_concurrency_limit(
 
 
 @db_injector
+async def delete_deployments(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_ids: list[UUID],
+) -> list[UUID]:
+    """
+    Delete multiple deployments by their IDs.
+
+    Args:
+        session: A database session
+        deployment_ids: a list of deployment ids to delete
+
+    Returns:
+        List[UUID]: the IDs of the deployments that were deleted
+    """
+    if not deployment_ids:
+        return []
+
+    # Get existing deployment IDs
+    result = await session.execute(
+        select(db.Deployment.id).where(db.Deployment.id.in_(deployment_ids))
+    )
+    existing_ids = list(result.scalars().all())
+
+    if not existing_ids:
+        return []
+
+    # Delete scheduled runs for all deployments
+    for deployment_id in existing_ids:
+        await _delete_scheduled_runs(
+            session=session, deployment_id=deployment_id, auto_scheduled_only=False
+        )
+
+    # Delete related concurrency limits
+    await session.execute(
+        delete(db.ConcurrencyLimitV2).where(
+            db.ConcurrencyLimitV2.id.in_(
+                select(db.Deployment.concurrency_limit_id).where(
+                    db.Deployment.id.in_(existing_ids)
+                )
+            )
+        )
+    )
+
+    # Delete all deployments
+    await session.execute(
+        delete(db.Deployment).where(db.Deployment.id.in_(existing_ids))
+    )
+
+    return existing_ids
+
+
+@db_injector
 async def schedule_runs(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -1122,6 +1175,7 @@ async def mark_deployments_ready(
 
         last_polled = now("UTC")
 
+        # keeps `updated` untouched to not trigger recent schedules calculation
         await session.execute(
             sa.update(db.Deployment)
             .where(
@@ -1130,7 +1184,11 @@ async def mark_deployments_ready(
                     db.Deployment.work_queue_id.in_(work_queue_ids),
                 )
             )
-            .values(status=DeploymentStatus.READY, last_polled=last_polled)
+            .values(
+                status=DeploymentStatus.READY,
+                last_polled=last_polled,
+                updated=db.Deployment.updated,
+            )
         )
 
         if not unready_deployments:
@@ -1175,6 +1233,7 @@ async def mark_deployments_not_ready(
             )
             ready_deployments = list(result.scalars().unique().all())
 
+            # keeps `updated` untouched to not trigger recent schedules calculation
             await session.execute(
                 sa.update(db.Deployment)
                 .where(
@@ -1183,7 +1242,9 @@ async def mark_deployments_not_ready(
                         db.Deployment.work_queue_id.in_(work_queue_ids),
                     )
                 )
-                .values(status=DeploymentStatus.NOT_READY)
+                .values(
+                    status=DeploymentStatus.NOT_READY, updated=db.Deployment.updated
+                )
             )
 
             if not ready_deployments:

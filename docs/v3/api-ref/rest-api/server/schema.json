@@ -14640,6 +14640,12 @@
                         ],
                         "title": "Message",
                         "description": "An optional message to associate with the state change"
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "title": "Force",
+                        "description": "Force the state change even if the transition is not allowed",
+                        "default": false
                     }
                 },
                 "type": "object",
@@ -19220,12 +19226,85 @@
                             }
                         ],
                         "description": "Filter criteria for `FlowRun.idempotency_key`"
+                    },
+                    "created_by": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilterCreatedBy"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `FlowRun.created_by`"
                     }
                 },
                 "additionalProperties": false,
                 "type": "object",
                 "title": "FlowRunFilter",
                 "description": "Filter flow runs. Only flow runs matching all criteria will be returned"
+            },
+            "FlowRunFilterCreatedBy": {
+                "properties": {
+                    "operator": {
+                        "$ref": "#/components/schemas/Operator",
+                        "description": "Operator for combining filter criteria. Defaults to 'and_'.",
+                        "default": "and_"
+                    },
+                    "id_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Id",
+                        "description": "A list of creator IDs to include"
+                    },
+                    "type_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Type",
+                        "description": "A list of creator types to include. For example, 'DEPLOYMENT' for scheduled runs or 'AUTOMATION' for runs triggered by automations.",
+                        "examples": [
+                            [
+                                "DEPLOYMENT",
+                                "AUTOMATION"
+                            ]
+                        ]
+                    },
+                    "is_null_": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Is Null",
+                        "description": "If true, only include flow runs without a creator"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "FlowRunFilterCreatedBy",
+                "description": "Filter by `FlowRun.created_by`."
             },
             "FlowRunFilterDeploymentId": {
                 "properties": {
@@ -20618,6 +20697,23 @@
             },
             "FlowsSettings": {
                 "properties": {
+                    "heartbeat_frequency": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 30.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Heartbeat Frequency",
+                        "description": "Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.",
+                        "supported_environment_variables": [
+                            "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
+                            "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                        ]
+                    },
                     "default_retries": {
                         "type": "integer",
                         "minimum": 0.0,
@@ -22488,20 +22584,13 @@
                             "PREFECT_RUNNER_POLL_FREQUENCY"
                         ]
                     },
-                    "heartbeat_frequency": {
-                        "anyOf": [
-                            {
-                                "type": "integer",
-                                "minimum": 30.0
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Heartbeat Frequency",
-                        "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
+                    "crash_on_cancellation_failure": {
+                        "type": "boolean",
+                        "title": "Crash On Cancellation Failure",
+                        "description": "Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.",
+                        "default": false,
                         "supported_environment_variables": [
-                            "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                            "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE"
                         ]
                     },
                     "server": {
@@ -24429,6 +24518,15 @@
                         "supported_environment_variables": [
                             "PREFECT_SERVER_UI_ENABLED",
                             "PREFECT_UI_ENABLED"
+                        ]
+                    },
+                    "v2_enabled": {
+                        "type": "boolean",
+                        "title": "V2 Enabled",
+                        "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_UI_V2_ENABLED"
                         ]
                     },
                     "api_url": {
@@ -28780,6 +28878,24 @@
                         "default": 10,
                         "supported_environment_variables": [
                             "PREFECT_WORKER_PREFETCH_SECONDS"
+                        ]
+                    },
+                    "enable_cancellation": {
+                        "type": "boolean",
+                        "title": "Enable Cancellation",
+                        "description": "Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_WORKER_ENABLE_CANCELLATION"
+                        ]
+                    },
+                    "cancellation_poll_seconds": {
+                        "type": "number",
+                        "title": "Cancellation Poll Seconds",
+                        "description": "Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.",
+                        "default": 120,
+                        "supported_environment_variables": [
+                            "PREFECT_WORKER_CANCELLATION_POLL_SECONDS"
                         ]
                     },
                     "webserver": {

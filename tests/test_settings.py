@@ -306,7 +306,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK": {"test_value": "block"},
     "PREFECT_RESULTS_LOCAL_STORAGE_PATH": {"test_value": Path("/path/to/storage")},
     "PREFECT_RESULTS_PERSIST_BY_DEFAULT": {"test_value": True},
-    "PREFECT_RUNNER_HEARTBEAT_FREQUENCY": {"test_value": 30},
+    "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE": {"test_value": True},
+    "PREFECT_FLOWS_HEARTBEAT_FREQUENCY": {"test_value": 30},
+    "PREFECT_RUNNER_HEARTBEAT_FREQUENCY": {"test_value": 30, "legacy": True},
     "PREFECT_RUNNER_POLL_FREQUENCY": {"test_value": 10},
     "PREFECT_RUNNER_PROCESS_LIMIT": {"test_value": 10},
     "PREFECT_RUNNER_SERVER_ENABLE": {"test_value": True},
@@ -490,6 +492,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_UI_SERVE_BASE": {"test_value": "/base"},
     "PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT": {"test_value": False},
     "PREFECT_SERVER_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static"},
+    "PREFECT_SERVER_UI_V2_ENABLED": {"test_value": True},
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10, "legacy": True},
@@ -539,6 +542,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_UI_URL": {"test_value": "https://ui.prefect.io"},
     "PREFECT_UNIT_TEST_LOOP_DEBUG": {"test_value": True, "legacy": True},
     "PREFECT_UNIT_TEST_MODE": {"test_value": True, "legacy": True},
+    "PREFECT_WORKER_CANCELLATION_POLL_SECONDS": {"test_value": 60.0},
+    "PREFECT_WORKER_ENABLE_CANCELLATION": {"test_value": True},
     "PREFECT_WORKER_HEARTBEAT_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_PREFETCH_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_QUERY_SECONDS": {"test_value": 10.0},
@@ -1135,6 +1140,38 @@ class TestSettingAccess:
 
         assert isinstance(PREFECT_CLIENT_ENABLE_METRICS, Setting)
         assert isinstance(PREFECT_CLIENT_METRICS_ENABLED, Setting)
+
+    def test_heartbeat_frequency_legacy_env_var_alias(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that PREFECT_RUNNER_HEARTBEAT_FREQUENCY still works as an alias."""
+        # Test with legacy env var
+        monkeypatch.setenv("PREFECT_RUNNER_HEARTBEAT_FREQUENCY", "60")
+        settings = Settings()
+        assert settings.flows.heartbeat_frequency == 60
+
+        # Cleanup and test with new env var
+        monkeypatch.delenv("PREFECT_RUNNER_HEARTBEAT_FREQUENCY", raising=False)
+        monkeypatch.setenv("PREFECT_FLOWS_HEARTBEAT_FREQUENCY", "90")
+        settings = Settings()
+        assert settings.flows.heartbeat_frequency == 90
+
+    def test_deprecated_runner_heartbeat_frequency_access(self):
+        """Test that accessing runner.heartbeat_frequency emits deprecation warning."""
+        settings = Settings()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            # Access the deprecated attribute
+            value = settings.runner.heartbeat_frequency
+
+            assert len(w) == 1
+            assert issubclass(w[-1].category, DeprecationWarning)
+            assert "runner.heartbeat_frequency" in str(w[-1].message)
+            assert "flows.heartbeat_frequency" in str(w[-1].message)
+
+        # The value should equal the flows setting
+        assert value == settings.flows.heartbeat_frequency
 
 
 class TestDatabaseSettings:
@@ -2157,13 +2194,13 @@ class TestProfile:
     def test_validate_settings_nested_field_constraints(self):
         """
         Test that nested field constraints are properly validated.
-        Regression test for issue #18258: PREFECT_RUNNER_HEARTBEAT_FREQUENCY validation.
+        Regression test for issue #18258: PREFECT_FLOWS_HEARTBEAT_FREQUENCY validation.
         """
-        from prefect.settings import PREFECT_RUNNER_HEARTBEAT_FREQUENCY
+        from prefect.settings import PREFECT_FLOWS_HEARTBEAT_FREQUENCY
 
         # Test invalid value (< 30)
         profile = Profile(
-            name="test", settings={PREFECT_RUNNER_HEARTBEAT_FREQUENCY: "5"}
+            name="test", settings={PREFECT_FLOWS_HEARTBEAT_FREQUENCY: "5"}
         )
         with pytest.raises(
             ProfileSettingsValidationError,
@@ -2173,7 +2210,7 @@ class TestProfile:
 
         # Test valid value (>= 30)
         profile = Profile(
-            name="test", settings={PREFECT_RUNNER_HEARTBEAT_FREQUENCY: "40"}
+            name="test", settings={PREFECT_FLOWS_HEARTBEAT_FREQUENCY: "40"}
         )
         # Should not raise
         profile.validate_settings()

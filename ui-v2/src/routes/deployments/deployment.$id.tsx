@@ -1,8 +1,10 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildListAutomationsRelatedQuery } from "@/api/automations/automations";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
+import { categorizeError } from "@/api/error-utils";
 import { buildFLowDetailsQuery } from "@/api/flows";
 import { buildWorkQueueDetailsQuery } from "@/api/work-queues";
 import { DeploymentDetailsPage } from "@/components/deployments/deployment-details-page";
@@ -11,6 +13,8 @@ import {
 	FLOW_RUN_STATES_NO_SCHEDULED,
 	SORT_FILTERS,
 } from "@/components/flow-runs/flow-runs-list";
+import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 
 /**
  * Schema for validating URL search parameters for the Deployment Details page
@@ -66,6 +70,18 @@ const searchParams = z.object({
 
 export type DeploymentDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
+function DeploymentErrorComponent({ error, reset }: ErrorComponentProps) {
+	const serverError = categorizeError(error, "Failed to load deployment");
+	return (
+		<div className="flex flex-col gap-4">
+			<div>
+				<h1 className="text-2xl font-semibold">Deployment</h1>
+			</div>
+			<RouteErrorState error={serverError} onRetry={reset} />
+		</div>
+	);
+}
+
 export const Route = createFileRoute("/deployments/deployment/$id")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
@@ -89,6 +105,8 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 		}
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
+	errorComponent: DeploymentErrorComponent,
 });
 
 function RouteComponent() {

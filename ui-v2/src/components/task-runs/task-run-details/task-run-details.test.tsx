@@ -135,7 +135,9 @@ describe("TaskRunDetails", () => {
 		await waitFor(() => {
 			expect(screen.getByText("Result")).toBeInTheDocument();
 		});
-		expect(screen.getByText("Test result description")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getByText("Test result description")).toBeInTheDocument();
+		});
 	});
 
 	it("should not display result section when no artifact exists", async () => {
@@ -203,7 +205,9 @@ describe("TaskRunDetails", () => {
 		await waitFor(() => {
 			expect(screen.getByText("Result")).toBeInTheDocument();
 		});
-		expect(screen.getByText("Bold text")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getByText("Bold text")).toBeInTheDocument();
+		});
 		expect(screen.getByText("italic text")).toBeInTheDocument();
 	});
 });

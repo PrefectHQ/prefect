@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { createContext, type ReactNode, useContext } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { createFakeEvent } from "@/mocks";
+import "@/mocks/mock-json-input";
 import { EventDetailsTabs } from "./event-details-tabs";
 
 const TestChildrenContext = createContext<ReactNode>(null);

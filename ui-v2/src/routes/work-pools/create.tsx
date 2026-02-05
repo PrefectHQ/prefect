@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildListWorkPoolTypesQuery } from "@/api/collections/collections";
+import { PrefectLoading } from "@/components/ui/loading";
 import { WorkPoolCreateWizard } from "@/components/work-pools/create";
 
 export const Route = createFileRoute("/work-pools/create")({
@@ -9,4 +10,5 @@ export const Route = createFileRoute("/work-pools/create")({
 		void queryClient.prefetchQuery(buildListWorkPoolTypesQuery());
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });

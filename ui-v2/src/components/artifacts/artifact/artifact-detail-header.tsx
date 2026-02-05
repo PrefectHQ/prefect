@@ -1,15 +1,13 @@
-import { Link } from "@tanstack/react-router";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
 import {
 	Breadcrumb,
 	BreadcrumbItem,
+	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { DocsLink } from "@/components/ui/docs-link";
-import { Typography } from "@/components/ui/typography";
+import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 
 export type ArtifactDetailHeaderProps = {
 	artifact: ArtifactWithFlowRunAndTaskRun;
@@ -21,16 +19,20 @@ export const ArtifactDetailHeader = ({
 	let header = <></>;
 	if (artifact.key) {
 		header = (
-			<div className="flex items-center ">
+			<div className="flex items-center gap-2">
 				<Breadcrumb>
 					<BreadcrumbList>
-						<BreadcrumbItem className="text-xl text-blue-700 hover:underline">
-							<Link to={"/artifacts/key/$key"} params={{ key: artifact.key }}>
+						<BreadcrumbItem>
+							<BreadcrumbLink
+								to="/artifacts/key/$key"
+								params={{ key: artifact.key }}
+								className="text-xl font-semibold"
+							>
 								{artifact.key}
-							</Link>
+							</BreadcrumbLink>
 						</BreadcrumbItem>
-						<BreadcrumbSeparator>/</BreadcrumbSeparator>
-						<BreadcrumbItem className="text-xl font-bold text-foreground">
+						<BreadcrumbSeparator />
+						<BreadcrumbItem className="text-xl font-semibold">
 							{artifact.id}
 						</BreadcrumbItem>
 					</BreadcrumbList>
@@ -39,46 +41,38 @@ export const ArtifactDetailHeader = ({
 		);
 	} else {
 		header = (
-			<div className="flex items-center ">
+			<div className="flex items-center gap-2">
 				<Breadcrumb>
 					<BreadcrumbList>
 						{artifact.flow_run && (
 							<>
 								<BreadcrumbItem>
-									<Typography
-										variant="bodyLarge"
-										className="text-blue-700 hover:underline"
+									<BreadcrumbLink
+										to="/runs/flow-run/$id"
+										params={{ id: artifact.flow_run_id ?? "" }}
+										className="text-xl font-semibold"
 									>
-										<Link
-											to={"/runs/flow-run/$id"}
-											params={{ id: artifact.flow_run_id ?? "" }}
-										>
-											{artifact.flow_run.name}
-										</Link>
-									</Typography>
+										{artifact.flow_run.name}
+									</BreadcrumbLink>
 								</BreadcrumbItem>
-								<BreadcrumbSeparator>/</BreadcrumbSeparator>
+								<BreadcrumbSeparator />
 							</>
 						)}
 						{artifact.task_run && (
 							<>
 								<BreadcrumbItem>
-									<Typography
-										variant="bodyLarge"
-										className="text-blue-700 hover:underline"
+									<BreadcrumbLink
+										to="/runs/task-run/$id"
+										params={{ id: artifact.task_run_id ?? "" }}
+										className="text-xl font-semibold"
 									>
-										<Link
-											to={"/runs/task-run/$id"}
-											params={{ id: artifact.task_run_id ?? "" }}
-										>
-											{artifact.task_run.name}
-										</Link>
-									</Typography>
+										{artifact.task_run.name}
+									</BreadcrumbLink>
 								</BreadcrumbItem>
-								<BreadcrumbSeparator>/</BreadcrumbSeparator>
+								<BreadcrumbSeparator />
 							</>
 						)}
-						<BreadcrumbItem className="text-xl font-bold text-foreground">
+						<BreadcrumbItem className="text-xl font-semibold">
 							{artifact.id}
 						</BreadcrumbItem>
 					</BreadcrumbList>
@@ -94,11 +88,9 @@ export const ArtifactDetailHeader = ({
 			</div>
 			{artifact.description && (
 				<div className="">
-					<Typography variant="h2" className="my-4 font-bold prose lg:prose-xl">
-						<Markdown remarkPlugins={[remarkGfm]}>
-							{artifact.description}
-						</Markdown>
-					</Typography>
+					<h2 className="text-3xl font-semibold tracking-tight my-4 font-bold prose lg:prose-xl">
+						<LazyMarkdown>{artifact.description}</LazyMarkdown>
+					</h2>
 				</div>
 			)}
 			<hr />

@@ -131,8 +131,9 @@ async def test_events_client_can_emit_when_ephemeral_enabled(example_event_1: Ev
             await events_client.emit(example_event_1)
 
             async for event in events_subscriber:
-                assert event == example_event_1
-                break
+                if event.id == example_event_1.id:
+                    assert event == example_event_1
+                    break
 
 
 def pytest_generate_tests(metafunc: pytest.Metafunc):
@@ -175,6 +176,23 @@ async def test_cloud_client_can_connect_and_emit(
 
     assert recorder.connections == 1
     assert recorder.path == "/accounts/A/workspaces/W/events/in"
+    assert recorder.events == [example_event_1]
+
+
+async def test_cloud_client_does_not_send_auth_handshake(
+    events_cloud_api_url: str, example_event_1: Event, recorder: Recorder
+):
+    """Regression test: PrefectCloudEventsClient authenticates via the
+    Authorization HTTP header, not the "prefect" subprotocol auth handshake.
+    If the client sends an auth handshake message, Prefect Cloud will close
+    the connection because it doesn't expect it."""
+    async with PrefectCloudEventsClient(events_cloud_api_url, "my-token") as client:
+        await client.emit(example_event_1)
+
+    # The recorder only sets the token attribute when the "prefect" subprotocol
+    # auth handshake occurs. If the Cloud client correctly skips the handshake,
+    # the token should never be set.
+    assert not hasattr(recorder, "token")
     assert recorder.events == [example_event_1]
 
 
@@ -443,3 +461,268 @@ async def test_events_subscriber_auth_string(puppeteer: Puppeteer, events_api_ur
             ):
                 async with get_events_subscriber():
                     pass  # Connection should fail during __aenter__
+
+
+async def test_events_client_aexit_handles_failed_connection(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that PrefectEventsClient.__aexit__ doesn't raise AttributeError when
+    the websocket connection was never successfully established.
+
+    This guards against regression of the bug where __aexit__ would unconditionally
+    call self._connect.__aexit__() even when the connection failed during __aenter__,
+    causing an AttributeError because the websockets library only sets the "connection"
+    attribute after a successful connection.
+    """
+
+    class MockConnectFailsOnEnter:
+        async def __aenter__(self):
+            raise ConnectionError("Connection failed")
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            raise AttributeError("'connect' object has no attribute 'connection'")
+
+    def mock_connect(*args, **kwargs):
+        return MockConnectFailsOnEnter()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    with pytest.raises(ConnectionError, match="Connection failed"):
+        async with PrefectEventsClient("ws://localhost"):
+            pass
+
+
+async def test_events_subscriber_aexit_handles_failed_connection(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that PrefectEventSubscriber.__aexit__ doesn't raise AttributeError when
+    the websocket connection was never successfully established.
+
+    This guards against regression of the bug where __aexit__ would unconditionally
+    call self._connect.__aexit__() even when the connection failed during __aenter__,
+    causing an AttributeError because the websockets library only sets the "connection"
+    attribute after a successful connection.
+    """
+    from prefect.events.clients import PrefectEventSubscriber
+
+    class MockConnectFailsOnEnter:
+        async def __aenter__(self):
+            raise ConnectionError("Connection failed")
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            raise AttributeError("'connect' object has no attribute 'connection'")
+
+    def mock_connect(*args, **kwargs):
+        return MockConnectFailsOnEnter()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    with pytest.raises(ConnectionError, match="Connection failed"):
+        async with PrefectEventSubscriber(api_url="http://localhost/api"):
+            pass
+
+
+async def test_initial_connection_retries_and_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+    example_event_1: Event,
+):
+    """Test that initial connection in __aenter__ retries on ConnectionClosed errors
+    and eventually succeeds after a few failures."""
+    attempt_count = [0]
+    max_failures = 2
+
+    class MockPong:
+        def __await__(self):
+            return iter([])
+
+    class MockWebSocket:
+        async def ping(self):
+            return MockPong()
+
+        async def send(self, data):
+            pass
+
+        async def recv(self):
+            return '{"type": "auth_success"}'
+
+    class MockConnect:
+        def __init__(self):
+            self.connection = None
+
+        async def __aenter__(self):
+            attempt_count[0] += 1
+            if attempt_count[0] <= max_failures:
+                raise ConnectionClosedError(None, None)
+            self.connection = MockWebSocket()
+            return self.connection
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_connect(*args, **kwargs):
+        return MockConnect()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    async with PrefectEventsClient("ws://localhost") as client:
+        assert client._websocket is not None
+
+    # Verify we attempted the expected number of times
+    assert attempt_count[0] == max_failures + 1
+
+
+@pytest.mark.parametrize("attempts", [4, 1, 0])
+async def test_initial_connection_exhausts_all_retry_attempts(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    attempts: int,
+):
+    """Test that initial connection in __aenter__ attempts exactly
+    reconnection_attempts + 1 times before giving up."""
+    attempt_count = [0]
+
+    class MockConnect:
+        async def __aenter__(self):
+            attempt_count[0] += 1
+            raise ConnectionClosedError(None, None)
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_connect(*args, **kwargs):
+        return MockConnect()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(ConnectionClosedError):
+            async with PrefectEventsClient(
+                "ws://localhost", reconnection_attempts=attempts
+            ):
+                pass
+
+    # Should have attempted exactly reconnection_attempts + 1 times
+    assert attempt_count[0] == attempts + 1
+
+    # Should have logged a warning on the final failure
+    assert any(
+        "Unable to connect to 'ws" in record.message for record in caplog.records
+    )
+
+
+async def test_initial_connection_non_retryable_exception_propagates_immediately(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that non-retryable exceptions (not ConnectionClosed or TimeoutError)
+    propagate immediately without retry."""
+    attempt_count = [0]
+
+    class MockConnect:
+        async def __aenter__(self):
+            attempt_count[0] += 1
+            raise ValueError("Configuration error")
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_connect(*args, **kwargs):
+        return MockConnect()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    with pytest.raises(ValueError, match="Configuration error"):
+        async with PrefectEventsClient("ws://localhost", reconnection_attempts=5):
+            pass
+
+    # Should have only attempted once - no retries for non-retryable exceptions
+    assert attempt_count[0] == 1
+
+
+async def test_initial_connection_retries_on_timeout_error(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that initial connection in __aenter__ retries on TimeoutError."""
+    attempt_count = [0]
+    max_failures = 2
+
+    class MockPong:
+        def __await__(self):
+            return iter([])
+
+    class MockWebSocket:
+        async def ping(self):
+            return MockPong()
+
+        async def send(self, data):
+            pass
+
+        async def recv(self):
+            return '{"type": "auth_success"}'
+
+    class MockConnect:
+        def __init__(self):
+            self.connection = None
+
+        async def __aenter__(self):
+            attempt_count[0] += 1
+            if attempt_count[0] <= max_failures:
+                raise TimeoutError("Connection timed out")
+            self.connection = MockWebSocket()
+            return self.connection
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_connect(*args, **kwargs):
+        return MockConnect()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    async with PrefectEventsClient("ws://localhost") as client:
+        assert client._websocket is not None
+
+    assert attempt_count[0] == max_failures + 1
+
+
+async def test_initial_connection_backoff_timing(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that initial connection retries follow the correct backoff pattern:
+    no sleep for first 3 attempts (indices 0, 1, 2), 1 second sleep thereafter."""
+    attempt_count = [0]
+    sleep_calls = []
+
+    async def mock_sleep(seconds):
+        sleep_calls.append(seconds)
+        # Don't actually sleep in tests
+
+    monkeypatch.setattr("asyncio.sleep", mock_sleep)
+
+    class MockConnect:
+        async def __aenter__(self):
+            attempt_count[0] += 1
+            raise ConnectionClosedError(None, None)
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    def mock_connect(*args, **kwargs):
+        return MockConnect()
+
+    monkeypatch.setattr("prefect.events.clients.websocket_connect", mock_connect)
+
+    # Use 5 reconnection attempts (6 total attempts: indices 0-5)
+    # Sleep happens after failed attempts where i > 2, but before the next attempt.
+    # So sleep is called after i=3 and i=4 (before attempts 5 and 6).
+    # The final attempt (i=5) fails and raises, so no sleep after it.
+    with pytest.raises(ConnectionClosedError):
+        async with PrefectEventsClient("ws://localhost", reconnection_attempts=5):
+            pass
+
+    assert attempt_count[0] == 6
+
+    # Sleep should be called for attempts where i > 2 (indices 3, 4)
+    # That's 2 sleep calls, each for 1 second
+    assert len(sleep_calls) == 2
+    assert all(s == 1 for s in sleep_calls)

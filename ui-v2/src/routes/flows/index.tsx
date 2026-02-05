@@ -3,6 +3,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
@@ -11,6 +12,7 @@ import type {
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
+import { categorizeError } from "@/api/error-utils";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
 import {
 	buildCountFlowsFilteredQuery,
@@ -20,6 +22,8 @@ import {
 	type FlowsPaginateFilter,
 } from "@/api/flows";
 import FlowsPage from "@/components/flows/flows-page";
+import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 
 // Route for /flows/
 
@@ -74,9 +78,32 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 
 const NUMBER_OF_ACTIVITY_BARS = 16;
 
+function FlowsErrorComponent({ error, reset }: ErrorComponentProps) {
+	const serverError = categorizeError(error, "Failed to load flows");
+
+	// Only handle API errors (server-error, client-error) at route level
+	// Let network errors and unknown errors bubble up to root error component
+	if (
+		serverError.type !== "server-error" &&
+		serverError.type !== "client-error"
+	) {
+		throw error;
+	}
+
+	return (
+		<div className="flex flex-col gap-4">
+			<div>
+				<h1 className="text-2xl font-semibold">Flows</h1>
+			</div>
+			<RouteErrorState error={serverError} onRetry={reset} />
+		</div>
+	);
+}
+
 export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
 	component: FlowsRoute,
+	errorComponent: FlowsErrorComponent,
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: ({ deps, context }) => {
 		// Prefetch current page queries without blocking the loader
@@ -90,8 +117,16 @@ export const Route = createFileRoute("/flows/")({
 				flows: deps.flows ?? undefined,
 			}),
 		);
+		// Prefetch total count for empty state check
+		void context.queryClient.prefetchQuery(
+			buildCountFlowsFilteredQuery({
+				offset: 0,
+				sort: "NAME_ASC",
+			}),
+		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 const usePagination = () => {
@@ -200,6 +235,14 @@ function FlowsRoute() {
 		}),
 	);
 
+	// Get total count of all flows (without filters) to determine if empty state should be shown
+	const { data: totalCount } = useSuspenseQuery(
+		buildCountFlowsFilteredQuery({
+			offset: 0,
+			sort: "NAME_ASC",
+		}),
+	);
+
 	// Use useQuery for paginated flows to leverage placeholderData: keepPreviousData
 	// This prevents the page from suspending when search/filter changes
 	const { data: flowsPage } = useQuery(
@@ -274,6 +317,7 @@ function FlowsRoute() {
 		<FlowsPage
 			flows={flows}
 			count={count ?? 0}
+			totalCount={totalCount ?? 0}
 			pageCount={flowsPage?.pages ?? 0}
 			sort={sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
 			pagination={pagination}

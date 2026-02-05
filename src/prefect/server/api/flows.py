@@ -12,7 +12,10 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
-from prefect.server.schemas.responses import FlowPaginationResponse
+from prefect.server.schemas.responses import (
+    FlowBulkDeleteResponse,
+    FlowPaginationResponse,
+)
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types._datetime import now
 
@@ -162,6 +165,51 @@ async def delete_flow(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
         )
+
+
+BULK_OPERATION_LIMIT = 50
+
+
+@router.post("/bulk_delete")
+async def bulk_delete_flows(
+    flows: Optional[schemas.filters.FlowFilter] = Body(
+        None, description="Filter criteria for flows to delete"
+    ),
+    limit: int = Body(
+        BULK_OPERATION_LIMIT,
+        ge=1,
+        le=BULK_OPERATION_LIMIT,
+        description=f"Maximum number of flows to delete. Defaults to {BULK_OPERATION_LIMIT}.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> FlowBulkDeleteResponse:
+    """
+    Bulk delete flows matching the specified filter criteria.
+
+    This also deletes all associated deployments.
+
+    Returns the IDs of flows that were deleted.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        # Query matching flows
+        db_flows = await models.flows.read_flows(
+            session=session,
+            flow_filter=flows,
+            limit=limit,
+        )
+
+        if not db_flows:
+            return FlowBulkDeleteResponse(deleted=[])
+
+        flow_ids = [f.id for f in db_flows]
+
+        # Delete flows (and their deployments)
+        deleted_ids = await models.flows.delete_flows(
+            session=session,
+            flow_ids=flow_ids,
+        )
+
+    return FlowBulkDeleteResponse(deleted=deleted_ids)
 
 
 @router.post("/paginate")

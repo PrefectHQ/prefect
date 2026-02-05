@@ -1,10 +1,14 @@
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildListArtifactsQuery } from "@/api/artifacts";
+import { categorizeError } from "@/api/error-utils";
 import { buildInfiniteFilterLogsQuery } from "@/api/logs";
 import { buildGetTaskRunDetailsQuery } from "@/api/task-runs";
 import { TaskRunDetailsPage } from "@/components/task-runs/task-run-details-page";
+import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 
 const searchParams = z.object({
 	tab: z
@@ -14,6 +18,18 @@ const searchParams = z.object({
 });
 
 export type TaskRunDetailsTabOptions = z.infer<typeof searchParams>["tab"];
+
+function TaskRunErrorComponent({ error, reset }: ErrorComponentProps) {
+	const serverError = categorizeError(error, "Failed to load task run");
+	return (
+		<div className="flex flex-col gap-4">
+			<div>
+				<h1 className="text-2xl font-semibold">Task Run</h1>
+			</div>
+			<RouteErrorState error={serverError} onRetry={reset} />
+		</div>
+	);
+}
 
 export const Route = createFileRoute("/runs/task-run/$id")({
 	validateSearch: zodValidator(searchParams),
@@ -56,6 +72,8 @@ export const Route = createFileRoute("/runs/task-run/$id")({
 		await queryClient.ensureQueryData(buildGetTaskRunDetailsQuery(params.id));
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
+	errorComponent: TaskRunErrorComponent,
 });
 
 function RouteComponent() {

@@ -824,6 +824,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 parent_task_run_context = TaskRunContext.get()
 
                 try:
+                    _emit_pending = False
                     if not self.task_run:
                         self.task_run = _create_task_run_locally(
                             task=self.task,
@@ -834,14 +835,20 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             wait_for=self.wait_for,
                             extra_task_inputs=dependencies,
                         )
-                        # Emit an event to capture that the task run was in the `PENDING` state.
-                        self._last_event = emit_task_run_state_change_event(
-                            task_run=self.task_run,
-                            initial_state=None,
-                            validated_state=self.task_run.state,
-                        )
+                        _emit_pending = True
 
                     with self.setup_run_context():
+                        # Emit the Pending event inside setup_run_context so that
+                        # copy_context() captures this task's TaskRunContext,
+                        # rather than whatever TaskRunContext may be active from
+                        # an enclosing scope (e.g. a parent task).
+                        if _emit_pending:
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
+
                         # setup_run_context might update the task run name, so log creation here
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
@@ -977,6 +984,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # reenter the run context to ensure it is up to date for every run
         with self.setup_run_context():
             try:
+                # Warn if timeout is set but we're not on the main thread
+                if (
+                    self.task.timeout_seconds is not None
+                    and threading.current_thread() is not threading.main_thread()
+                ):
+                    self.logger.warning(
+                        "Timeout of %s seconds configured for this task, but the task is "
+                        "running in a worker thread. Timeouts in worker threads cannot "
+                        "interrupt blocking operations like `time.sleep()`, network "
+                        "requests, or file I/O. The timeout will only take effect after "
+                        "the blocking operation completes. Consider using an async task "
+                        "with `await` statements for reliable timeout behavior. "
+                        "See https://docs.prefect.io/v3/how-to-guides/workflows/"
+                        "write-and-run#task-timeout-behavior for more information.",
+                        self.task.timeout_seconds,
+                    )
                 with timeout(
                     seconds=self.task.timeout_seconds,
                     timeout_exc_type=TaskRunTimeoutError,
@@ -1379,9 +1402,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=await get_result_store().update_for_task(
-                        self.task, _sync=False
-                    ),
+                    result_store=await get_result_store().aupdate_for_task(self.task),
                     client=client,
                     persist_result=persist_result,
                 )
@@ -1430,6 +1451,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 parent_task_run_context = TaskRunContext.get()
 
                 try:
+                    _emit_pending = False
                     if not self.task_run:
                         self.task_run = await self.task.create_local_run(
                             id=task_run_id,
@@ -1439,14 +1461,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             wait_for=self.wait_for,
                             extra_task_inputs=dependencies,
                         )
-                        # Emit an event to capture that the task run was in the `PENDING` state.
-                        self._last_event = emit_task_run_state_change_event(
-                            task_run=self.task_run,
-                            initial_state=None,
-                            validated_state=self.task_run.state,
-                        )
+                        _emit_pending = True
 
                     async with self.setup_run_context():
+                        # Emit the Pending event inside setup_run_context so that
+                        # copy_context() captures this task's TaskRunContext,
+                        # rather than whatever TaskRunContext may be active from
+                        # an enclosing scope (e.g. a parent task).
+                        if _emit_pending:
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
+
                         # setup_run_context might update the task run name, so log creation here
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"

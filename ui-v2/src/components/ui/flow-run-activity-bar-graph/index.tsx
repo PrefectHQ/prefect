@@ -1,11 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
+import { scaleSymlog } from "d3-scale";
 import { format, formatDistanceStrict } from "date-fns";
-import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
+import { Calendar, ChevronRight, Clock } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, Cell, type TooltipContentProps } from "recharts";
 import type { components } from "@/api/prefect";
+import { DeploymentIconText } from "@/components/deployments/deployment-icon-text";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { cn } from "@/utils";
 import {
@@ -33,16 +35,16 @@ type CustomShapeProps = {
 const barVariants = cva("gap-1 z-1", {
 	variants: {
 		state: {
-			COMPLETED: "fill-green-600",
-			FAILED: "fill-red-600",
-			RUNNING: "fill-blue-700",
-			CANCELLED: "fill-gray-500",
-			CANCELLING: "fill-gray-600",
-			CRASHED: "fill-orange-600",
-			PAUSED: "fill-gray-500",
-			PENDING: "fill-gray-400",
-			SCHEDULED: "fill-yellow-400",
-			NONE: "fill-gray-300",
+			COMPLETED: "fill-state-completed-600",
+			FAILED: "fill-state-failed-700",
+			RUNNING: "fill-state-running-700",
+			CANCELLED: "fill-state-cancelled-500",
+			CANCELLING: "fill-state-cancelling-600",
+			CRASHED: "fill-state-crashed-600",
+			PAUSED: "fill-state-paused-600",
+			PENDING: "fill-state-pending-500",
+			SCHEDULED: "fill-state-scheduled-600",
+			NONE: "fill-state-cancelled-100",
 		} satisfies Record<components["schemas"]["StateType"] | "NONE", string>,
 	},
 	defaultVariants: {
@@ -210,12 +212,36 @@ export const FlowRunActivityBarChart = ({
 		numberOfBars,
 	);
 
-	const data = buckets.map((flowRun, index) => ({
-		value: flowRun?.total_run_time ?? 0,
-		id: flowRun?.id ?? `empty-${index}`,
-		stateType: flowRun?.state_type,
-		flowRun,
-	}));
+	// Calculate max duration for scaling
+	const maxDuration = useMemo(() => {
+		return cappedFlowRuns.reduce((max, flowRun) => {
+			const duration = flowRun.total_run_time ?? 0;
+			return duration > max ? duration : max;
+		}, 0);
+	}, [cappedFlowRuns]);
+
+	// Create symlog scale for logarithmic scaling that handles zero values gracefully
+	// This matches the Vue implementation's use of d3's scaleSymlog
+	const yScale = useMemo(() => {
+		const scale = scaleSymlog();
+		scale.domain([0, maxDuration]);
+		// Range is normalized to [0, 1] since recharts handles the actual pixel scaling
+		scale.range([0, 1]);
+		return scale;
+	}, [maxDuration]);
+
+	const data = buckets.map((flowRun, index) => {
+		const rawValue = flowRun?.total_run_time ?? 0;
+		// Apply symlog scale to the value, then multiply by maxDuration to preserve
+		// the relative scale that recharts expects
+		const scaledValue = maxDuration > 0 ? yScale(rawValue) * maxDuration : 0;
+		return {
+			value: scaledValue,
+			id: flowRun?.id ?? `empty-${index}`,
+			stateType: flowRun?.state_type,
+			flowRun,
+		};
+	});
 
 	return (
 		<ChartContainer
@@ -325,16 +351,10 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 			</CardHeader>
 			<CardContent className="flex flex-col gap-1">
 				{deployment?.id && (
-					<Link
-						to={"/deployments/deployment/$id"}
-						params={{ id: deployment.id }}
-						className="flex items-center gap-1"
-					>
-						<Rocket className="size-4" />
-						<p className="text-sm font-medium whitespace-nowrap">
-							{deployment.name}
-						</p>
-					</Link>
+					<DeploymentIconText
+						deployment={deployment}
+						className="flex items-center gap-1 text-sm font-medium whitespace-nowrap"
+					/>
 				)}
 				<span className="flex items-center gap-1">
 					<Clock className="size-4" />

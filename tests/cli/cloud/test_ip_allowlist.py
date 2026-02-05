@@ -1,4 +1,5 @@
 import ipaddress
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -49,7 +50,7 @@ SAMPLE_ALLOWLIST = IPAllowlist(
 @pytest.fixture
 def workspace_with_logged_in_profile():
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
-    profile_name = "logged-in-profile"
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [

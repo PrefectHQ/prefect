@@ -1,10 +1,13 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useMemo } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountTaskRunsQuery,
 	type TaskRunsCountFilter,
 } from "@/api/task-runs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardErrorState } from "@/components/ui/card-error-state";
+import { TaskRunsCardSkeleton } from "./task-runs-card-skeleton";
 import { TaskRunsTrends } from "./task-runs-trends";
 
 // Re-exports are in a separate file to avoid react-refresh/only-export-components warning
@@ -152,18 +155,62 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 	);
 
 	// Fetch counts using the count endpoint (matching Vue's useTaskRunsCount)
-	const { data: total } = useSuspenseQuery(
-		buildCountTaskRunsQuery(totalFilter, 30_000),
+	const totalQuery = useQuery({
+		...buildCountTaskRunsQuery(totalFilter, 30_000),
+		placeholderData: keepPreviousData,
+	});
+	const completedQuery = useQuery({
+		...buildCountTaskRunsQuery(completedFilter, 30_000),
+		placeholderData: keepPreviousData,
+	});
+	const failedQuery = useQuery({
+		...buildCountTaskRunsQuery(failedFilter, 30_000),
+		placeholderData: keepPreviousData,
+	});
+	const runningQuery = useQuery({
+		...buildCountTaskRunsQuery(runningFilter, 30_000),
+		placeholderData: keepPreviousData,
+	});
+
+	// Combine all query errors - if any critical query fails, show error
+	const criticalQueries = [
+		totalQuery,
+		completedQuery,
+		failedQuery,
+		runningQuery,
+	];
+
+	const failedQueryResult = criticalQueries.find((q) => q.isError);
+	if (failedQueryResult) {
+		return (
+			<CardErrorState
+				error={categorizeError(
+					failedQueryResult.error,
+					"Failed to load task runs",
+				)}
+				onRetry={() => {
+					criticalQueries
+						.filter((q) => q.isError)
+						.forEach((q) => void q.refetch());
+				}}
+				isRetrying={criticalQueries.some((q) => q.isRefetching)}
+			/>
+		);
+	}
+
+	// Only show skeleton on initial load (no data yet), not on refetch
+	const isInitialLoading = criticalQueries.some(
+		(q) => q.isLoading && q.data === undefined,
 	);
-	const { data: completed } = useSuspenseQuery(
-		buildCountTaskRunsQuery(completedFilter, 30_000),
-	);
-	const { data: failed } = useSuspenseQuery(
-		buildCountTaskRunsQuery(failedFilter, 30_000),
-	);
-	const { data: running } = useSuspenseQuery(
-		buildCountTaskRunsQuery(runningFilter, 30_000),
-	);
+	if (isInitialLoading) {
+		return <TaskRunsCardSkeleton />;
+	}
+
+	// Extract data from queries with defaults
+	const total = totalQuery.data ?? 0;
+	const completed = completedQuery.data ?? 0;
+	const failed = failedQuery.data ?? 0;
+	const running = runningQuery.data ?? 0;
 
 	// Calculate failure percentage (matching Vue's percentComparisonTotal logic)
 	// Vue excludes running from the denominator for percentage calculations
@@ -202,9 +249,7 @@ export function TaskRunsCard({ filter }: TaskRunsCardProps) {
 							</div>
 						)}
 					</div>
-					<Suspense fallback={null}>
-						<TaskRunsTrends filter={filter} />
-					</Suspense>
+					<TaskRunsTrends filter={filter} />
 				</div>
 			</CardContent>
 		</Card>

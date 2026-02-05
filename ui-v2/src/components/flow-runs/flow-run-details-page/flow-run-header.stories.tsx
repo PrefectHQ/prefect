@@ -131,3 +131,178 @@ export const Crashed: Story = {
 		}),
 	},
 };
+
+export const WithAllRelationships: Story = {
+	name: "With All Relationships",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-all-relationships",
+			name: "my-flow-run-with-all-relationships",
+			flow_id: "test-flow-id",
+			deployment_id: "test-deployment-id",
+			work_pool_name: "my-work-pool",
+			work_queue_name: "default",
+			parent_task_run_id: "parent-task-run-id",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const WithFlowAndDeploymentOnly: Story = {
+	name: "With Flow and Deployment Only",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-flow-deployment",
+			name: "my-flow-run-flow-deployment",
+			flow_id: "test-flow-id",
+			deployment_id: "test-deployment-id",
+			work_pool_name: null,
+			work_queue_name: null,
+			parent_task_run_id: null,
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const WithWorkPoolNoQueue: Story = {
+	name: "With Work Pool but No Queue",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-work-pool-no-queue",
+			name: "my-flow-run-work-pool-no-queue",
+			flow_id: "test-flow-id",
+			deployment_id: "test-deployment-id",
+			work_pool_name: "my-work-pool",
+			work_queue_name: null,
+			parent_task_run_id: null,
+			state_type: "RUNNING",
+			state_name: "Running",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		}),
+	},
+};
+
+export const WithParentRun: Story = {
+	name: "With Parent Run",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-with-parent",
+			name: "my-subflow-run",
+			flow_id: "test-flow-id",
+			deployment_id: null,
+			work_pool_name: null,
+			work_queue_name: null,
+			parent_task_run_id: "parent-task-run-id",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const MinimalRelationships: Story = {
+	name: "Minimal Relationships (Flow Only)",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-minimal",
+			name: "my-minimal-flow-run",
+			flow_id: "test-flow-id",
+			deployment_id: null,
+			work_pool_name: null,
+			work_queue_name: null,
+			parent_task_run_id: null,
+			state_type: "PENDING",
+			state_name: "Pending",
+			state: createFakeState({
+				type: "PENDING",
+				name: "Pending",
+			}),
+		}),
+	},
+};
+
+export const WithTags: Story = {
+	name: "With Tags",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-with-tags",
+			name: "my-flow-run-with-tags",
+			flow_id: "test-flow-id",
+			tags: ["production", "critical"],
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const WithManyTags: Story = {
+	name: "With Many Tags",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-with-many-tags",
+			name: "my-flow-run-with-many-tags",
+			flow_id: "test-flow-id",
+			tags: ["production", "critical", "etl", "daily", "data-pipeline"],
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const TerminalStateCanChange: Story = {
+	name: "Terminal State (Can Change State)",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-terminal",
+			name: "my-completed-flow-run",
+			flow_id: "test-flow-id",
+			state_type: "COMPLETED",
+			state_name: "Completed",
+			state: createFakeState({
+				type: "COMPLETED",
+				name: "Completed",
+			}),
+		}),
+	},
+};
+
+export const NonTerminalStateCannotChange: Story = {
+	name: "Non-Terminal State (Cannot Change State)",
+	args: {
+		flowRun: createFakeFlowRun({
+			id: "flow-run-non-terminal",
+			name: "my-running-flow-run",
+			flow_id: "test-flow-id",
+			state_type: "RUNNING",
+			state_name: "Running",
+			state: createFakeState({
+				type: "RUNNING",
+				name: "Running",
+			}),
+		}),
+	},
+};

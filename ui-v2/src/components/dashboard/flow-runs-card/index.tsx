@@ -1,6 +1,7 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useState } from "react";
 import { buildFilterDeploymentsQuery } from "@/api/deployments";
+import { categorizeError } from "@/api/error-utils";
 import {
 	buildCountFlowRunsQuery,
 	buildFilterFlowRunsQuery,
@@ -11,9 +12,11 @@ import { buildListFlowsQuery } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { FlowRunsAccordion } from "@/components/dashboard/flow-runs-accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardErrorState } from "@/components/ui/card-error-state";
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Skeleton } from "@/components/ui/skeleton";
 import useDebounce from "@/hooks/use-debounce";
+import { FlowRunsCardSkeleton } from "./flow-runs-card-skeleton";
 import { FlowRunStateTabs, type StateTypeCounts } from "./flow-runs-state-tabs";
 
 type StateType = components["schemas"]["StateType"];
@@ -100,9 +103,10 @@ export function FlowRunsCard({
 		return baseFilter;
 	}, [filter?.startDate, filter?.endDate, filter?.tags, filter?.hideSubflows]);
 
-	const { data: allFlowRuns } = useSuspenseQuery(
-		buildFilterFlowRunsQuery(flowRunsFilter, 30000),
-	);
+	const flowRunsQuery = useQuery({
+		...buildFilterFlowRunsQuery(flowRunsFilter, 30000),
+		placeholderData: keepPreviousData,
+	});
 
 	// Convert the filter to a count filter (without sort/limit/offset)
 	const countFilter = useMemo(
@@ -111,13 +115,14 @@ export function FlowRunsCard({
 	);
 
 	// Fetch total count using the count API (not limited by default API limit)
-	const { data: totalCount } = useSuspenseQuery(
-		buildCountFlowRunsQuery(countFilter, 30000),
-	);
+	const totalCountQuery = useQuery({
+		...buildCountFlowRunsQuery(countFilter, 30000),
+		placeholderData: keepPreviousData,
+	});
 
 	// Fetch counts for each state type group using the count API
-	const { data: failedCrashedCount } = useSuspenseQuery(
-		buildCountFlowRunsQuery(
+	const failedCrashedQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -128,10 +133,11 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
-	const { data: runningPendingCancellingCount } = useSuspenseQuery(
-		buildCountFlowRunsQuery(
+	const runningPendingCancellingQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -145,10 +151,11 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
-	const { data: completedCount } = useSuspenseQuery(
-		buildCountFlowRunsQuery(
+	const completedQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -159,10 +166,11 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
-	const { data: scheduledPausedCount } = useSuspenseQuery(
-		buildCountFlowRunsQuery(
+	const scheduledPausedQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -173,10 +181,11 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
 
-	const { data: cancelledCount } = useSuspenseQuery(
-		buildCountFlowRunsQuery(
+	const cancelledQuery = useQuery({
+		...buildCountFlowRunsQuery(
 			{
 				...countFilter,
 				flow_runs: {
@@ -187,7 +196,17 @@ export function FlowRunsCard({
 			},
 			30000,
 		),
-	);
+		placeholderData: keepPreviousData,
+	});
+
+	// Extract data from queries with defaults
+	const allFlowRuns = flowRunsQuery.data ?? [];
+	const totalCount = totalCountQuery.data ?? 0;
+	const failedCrashedCount = failedCrashedQuery.data ?? 0;
+	const runningPendingCancellingCount = runningPendingCancellingQuery.data ?? 0;
+	const completedCount = completedQuery.data ?? 0;
+	const scheduledPausedCount = scheduledPausedQuery.data ?? 0;
+	const cancelledCount = cancelledQuery.data ?? 0;
 
 	// Build state counts object for FlowRunStateTabs
 	// Note: We distribute counts evenly among grouped states for display purposes
@@ -227,28 +246,26 @@ export function FlowRunsCard({
 	}, [allFlowRuns]);
 
 	// Fetch flows for enrichment
-	const { data: flows, isLoading: isLoadingFlows } = useQuery(
-		buildListFlowsQuery(
-			{
-				flows: { operator: "and_", id: { any_: flowIds } },
-				offset: 0,
-				sort: "CREATED_DESC",
-			},
-			{ enabled: flowIds.length > 0 },
-		),
-	);
+	const { data: flows, isLoading: isLoadingFlows } = useQuery({
+		...buildListFlowsQuery({
+			flows: { operator: "and_", id: { any_: flowIds } },
+			offset: 0,
+			sort: "CREATED_DESC",
+		}),
+		enabled: flowIds.length > 0,
+		placeholderData: keepPreviousData,
+	});
 
 	// Fetch deployments for enrichment
-	const { data: deployments, isLoading: isLoadingDeployments } = useQuery(
-		buildFilterDeploymentsQuery(
-			{
-				deployments: { operator: "and_", id: { any_: deploymentIds } },
-				offset: 0,
-				sort: "CREATED_DESC",
-			},
-			{ enabled: deploymentIds.length > 0 },
-		),
-	);
+	const { data: deployments, isLoading: isLoadingDeployments } = useQuery({
+		...buildFilterDeploymentsQuery({
+			deployments: { operator: "and_", id: { any_: deploymentIds } },
+			offset: 0,
+			sort: "CREATED_DESC",
+		}),
+		enabled: deploymentIds.length > 0,
+		placeholderData: keepPreviousData,
+	});
 
 	// Enrich flow runs with flow and deployment data
 	const enrichedFlowRuns = useMemo(() => {
@@ -281,6 +298,41 @@ export function FlowRunsCard({
 
 		return { startDate: start, endDate: end };
 	}, [filter?.startDate, filter?.endDate]);
+
+	// Combine all query errors - if any critical query fails, show error
+	const criticalQueries = [
+		flowRunsQuery,
+		totalCountQuery,
+		failedCrashedQuery,
+		runningPendingCancellingQuery,
+		completedQuery,
+		scheduledPausedQuery,
+		cancelledQuery,
+	];
+
+	const failedQuery = criticalQueries.find((q) => q.isError);
+	if (failedQuery) {
+		return (
+			<CardErrorState
+				error={categorizeError(failedQuery.error, "Failed to load flow runs")}
+				onRetry={() => {
+					// Refetch all failed queries
+					criticalQueries
+						.filter((q) => q.isError)
+						.forEach((q) => void q.refetch());
+				}}
+				isRetrying={criticalQueries.some((q) => q.isRefetching)}
+			/>
+		);
+	}
+
+	// Only show skeleton on initial load (no data yet), not on refetch
+	const isInitialLoading = criticalQueries.some(
+		(q) => q.isLoading && q.data === undefined,
+	);
+	if (isInitialLoading) {
+		return <FlowRunsCardSkeleton />;
+	}
 
 	// Only show loading state if we have flow runs to enrich
 	const hasFlowRuns = allFlowRuns.length > 0;
@@ -325,12 +377,10 @@ export function FlowRunsCard({
 							selectedStates={selectedStates}
 							onStateChange={handleStateChange}
 						/>
-						<Suspense fallback={<Skeleton className="h-32 w-full" />}>
-							<FlowRunsAccordion
-								filter={flowRunsFilter}
-								stateTypes={selectedStates}
-							/>
-						</Suspense>
+						<FlowRunsAccordion
+							filter={flowRunsFilter}
+							stateTypes={selectedStates}
+						/>
 					</>
 				)}
 			</CardContent>

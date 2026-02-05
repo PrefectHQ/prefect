@@ -1,5 +1,5 @@
 import os
-import sys
+import re
 from pathlib import Path, PurePath, PurePosixPath
 from unittest.mock import patch
 
@@ -109,7 +109,7 @@ def test_push_to_s3(s3_setup, tmp_files, mock_aws_credentials):
     assert set(object_keys) == set(expected_keys)
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="requires Windows")
+@pytest.mark.windows
 def test_push_to_s3_as_posix(s3_setup, tmp_files_win, mock_aws_credentials):
     s3, bucket_name = s3_setup
     folder = "my-project"
@@ -241,12 +241,11 @@ def test_s3_session_with_params():
             "profile_name": "foo",
             "region_name": "us-weast-1",
         }
-        assert all_calls[1].args[0] == "s3"
         assert {
             "api_version": "v1",
-            "endpoint_url": None,
+            "service_name": "s3",
+            "region_name": "us-weast-1",
             "use_ssl": True,
-            "verify": None,
         }.items() <= all_calls[1].kwargs.items()
         assert all_calls[1].kwargs.get("config").connect_timeout == 300
         assert all_calls[1].kwargs.get("config").signature_version is None
@@ -255,28 +254,26 @@ def test_s3_session_with_params():
             "aws_secret_access_key": "SHHH!",
             "aws_session_token": None,
             "profile_name": None,
-            "region_name": "us-west-1",
+            "region_name": None,
         }
-        assert all_calls[3].args[0] == "s3"
         assert {
-            "api_version": None,
-            "endpoint_url": None,
+            "service_name": "s3",
             "use_ssl": True,
-            "verify": None,
         }.items() <= all_calls[3].kwargs.items()
         assert all_calls[3].kwargs.get("config").connect_timeout == 60
         assert all_calls[3].kwargs.get("config").signature_version == "s3v4"
         assert all_calls[4].kwargs == {
             "aws_access_key_id": "BlockKey",
-            "aws_secret_access_key": creds_block.aws_secret_access_key,
+            "aws_secret_access_key": creds_block.aws_secret_access_key.get_secret_value(),
             "aws_session_token": "BlockToken",
             "profile_name": "BlockProfile",
             "region_name": "BlockRegion",
         }
-        assert all_calls[5].args[0] == "s3"
         assert {
             "api_version": "v1",
             "use_ssl": True,
+            "region_name": "BlockRegion",
+            "service_name": "s3",
             "verify": True,
             "endpoint_url": "BlockEndpoint",
         }.items() <= all_calls[5].kwargs.items()
@@ -289,13 +286,42 @@ def test_s3_session_with_params():
             "profile_name": None,
             "region_name": None,
         }
-        assert all_calls[7].args[0] == "s3"
         assert {
-            "api_version": None,
-            "use_ssl": True,
-            "verify": None,
             "endpoint_url": "http://custom.minio.endpoint:9000",
+            "use_ssl": True,
+            "service_name": "s3",
         }.items() <= all_calls[7].kwargs.items()
+
+
+def test_s3_session_assume_role():
+    with patch("boto3.Session") as mock_session:
+        get_s3_client(
+            credentials={
+                "assume_role_arn": "arn:aws:iam::123456789012:role/tests",
+                "assume_role_kwargs": {
+                    "ExternalId": "prefect-test",
+                },
+            }
+        )
+
+        all_calls = mock_session.mock_calls
+
+        assert len(all_calls) == 9
+        assert {
+            "aws_access_key_id": None,
+            "aws_secret_access_key": None,
+            "aws_session_token": None,
+            "profile_name": None,
+            "region_name": None,
+        }.items() <= all_calls[0].kwargs.items()
+        assert all_calls[2][0] == "().client().assume_role"
+        assert {
+            "RoleArn": "arn:aws:iam::123456789012:role/tests",
+            "ExternalId": "prefect-test",
+        }.items() <= all_calls[2].kwargs.items()
+        assert re.fullmatch(
+            r"prefect-session-[a-f0-9]{8}", all_calls[2].kwargs["RoleSessionName"]
+        )
 
 
 def test_custom_credentials_and_client_parameters(s3_setup, tmp_files):

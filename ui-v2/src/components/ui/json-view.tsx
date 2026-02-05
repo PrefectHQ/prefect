@@ -1,6 +1,6 @@
 import type * as React from "react";
 import { cn } from "@/utils";
-import { JsonInput } from "./json-input";
+import { LazyJsonInput as JsonInput } from "./json-input-lazy";
 
 type JsonViewProps = Omit<
 	React.ComponentProps<typeof JsonInput>,

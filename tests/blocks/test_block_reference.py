@@ -27,7 +27,8 @@ class TestBlockReference:
     @pytest.fixture
     def block_document_id(self, prefect_client) -> UUID:
         block = self.ReferencedBlock(a=1, b="foo")
-        block.save("block-reference", client=prefect_client)
+        block_name = f"block-reference-{uuid4()}"
+        block.save(block_name, client=prefect_client)
         return block._block_document_id
 
     def test_block_load_from_reference(
@@ -64,7 +65,8 @@ class TestBlockReference:
 
     def test_block_load_from_similar_block_reference_type(self):
         block = self.SimilarReferencedBlock(a=1, b="foo")
-        block.save("other-block")
+        block_name = f"other-block-{uuid4()}"
+        block.save(block_name)
 
         block = self.ReferencedBlock.load_from_ref(block._block_document_id)
         assert block.a == 1
@@ -72,7 +74,8 @@ class TestBlockReference:
 
     def test_block_load_from_invalid_block_reference_type(self):
         block = self.OtherReferencedBlock(c=1, d="foo")
-        block.save("other-block")
+        block_name = f"other-block-{uuid4()}"
+        block.save(block_name)
 
         with pytest.raises(RuntimeError):
             self.ReferencedBlock.load_from_ref(block._block_document_id)
@@ -84,7 +87,8 @@ class TestBlockReference:
             inner_block: ReferencedBlock
 
         nested_block = NestedReferencedBlock(inner_block=ReferencedBlock(a=1, b="foo"))
-        nested_block.save("nested-block")
+        block_name = f"nested-block-{uuid4()}"
+        nested_block.save(block_name)
 
         loaded_block = NestedReferencedBlock.load_from_ref(
             nested_block._block_document_id
@@ -119,7 +123,8 @@ class TestFlowWithBlockParam:
 
     def test_flow_with_block_params(self, ParamBlock):
         ref_block = ParamBlock(a=10, b="foo")
-        ref_block.save("param-block")
+        block_name = f"param-block-{uuid4()}"
+        ref_block.save(block_name)
 
         @flow
         def flow_with_block_param(block: ParamBlock) -> int:
@@ -138,7 +143,8 @@ class TestFlowWithBlockParam:
 
     def test_flow_with_invalid_block_param_type(self, ParamBlock, OtherParamBlock):
         ref_block = OtherParamBlock(a=10, b="foo")
-        ref_block.save("other-param-block")
+        block_name = f"other-param-block-{uuid4()}"
+        ref_block.save(block_name)
 
         @flow
         def flow_with_block_param(block: ParamBlock) -> int:
@@ -154,7 +160,8 @@ class TestFlowWithBlockParam:
             inner_block: ParamBlock
 
         nested_block = NestedParamBlock(inner_block=ParamBlock(a=12, b="foo"))
-        nested_block.save("nested-block")
+        block_name = f"nested-block-{uuid4()}"
+        nested_block.save(block_name)
 
         @flow
         def flow_with_nested_block_param(block: NestedParamBlock):
@@ -172,7 +179,8 @@ class TestFlowWithBlockParam:
             block: ParamBlock
 
         param_block = ParamBlock(a=12, b="foo")
-        param_block.save("param-block")
+        block_name = f"param-block-{uuid4()}"
+        param_block.save(block_name)
 
         @flow
         def flow_with_block_param_in_basemodel(param: ParamModel):
@@ -193,7 +201,8 @@ class TestFlowWithBlockParam:
 
     def test_async_flow_with_block_params(self, ParamBlock):
         ref_block = ParamBlock(a=10, b="foo")
-        ref_block.save("param-block")
+        block_name = f"param-block-{uuid4()}"
+        ref_block.save(block_name)
 
         @flow
         async def flow_with_block_param(block: ParamBlock) -> int:

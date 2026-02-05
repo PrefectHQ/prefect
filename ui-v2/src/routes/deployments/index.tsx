@@ -1,4 +1,5 @@
 import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
@@ -12,11 +13,14 @@ import {
 	buildPaginateDeploymentsQuery,
 	type DeploymentsPaginationFilter,
 } from "@/api/deployments";
+import { categorizeError } from "@/api/error-utils";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { components } from "@/api/prefect";
 import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
+import { PrefectLoading } from "@/components/ui/loading";
+import { RouteErrorState } from "@/components/ui/route-error-state";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -60,9 +64,30 @@ const buildPaginationBody = (
 	},
 });
 
+function DeploymentsErrorComponent({ error, reset }: ErrorComponentProps) {
+	const serverError = categorizeError(error, "Failed to load deployments");
+
+	// Only handle API errors (server-error, client-error) at route level
+	// Let network errors and unknown errors bubble up to root error component
+	if (
+		serverError.type !== "server-error" &&
+		serverError.type !== "client-error"
+	) {
+		throw error;
+	}
+
+	return (
+		<div className="flex flex-col gap-4">
+			<DeploymentsPageHeader />
+			<RouteErrorState error={serverError} onRetry={reset} />
+		</div>
+	);
+}
+
 export const Route = createFileRoute("/deployments/")({
 	validateSearch: zodValidator(searchParams),
 	component: RouteComponent,
+	errorComponent: DeploymentsErrorComponent,
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: async ({ deps, context }) => {
 		// Get full count of deployments, don't block the UI
@@ -102,6 +127,7 @@ export const Route = createFileRoute("/deployments/")({
 		};
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 /**

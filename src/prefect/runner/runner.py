@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import inspect
 import logging
 import multiprocessing.context
 import os
@@ -56,7 +55,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Coroutine,
     Dict,
     Iterable,
     List,
@@ -77,11 +75,13 @@ from prefect._experimental.bundles import (
     execute_bundle_in_subprocess,
     extract_flow_from_bundle,
 )
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.concurrency.api import (
     create_call,
     from_async,
     from_sync,
 )
+from prefect._observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
@@ -97,7 +97,6 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
-from prefect.runner._observers import FlowRunCancellingObserver
 from prefect.runner.storage import RunnerStorage
 from prefect.schedules import Schedule
 from prefect.settings import (
@@ -113,11 +112,11 @@ from prefect.states import (
 )
 from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
+from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
     is_async_fn,
-    sync_compatible,
 )
 from prefect.utilities.engine import propose_state, propose_state_sync
 from prefect.utilities.processutils import (
@@ -166,9 +165,10 @@ class Runner:
             query_seconds: The number of seconds to wait between querying for
                 scheduled flow runs; defaults to `PREFECT_RUNNER_POLL_FREQUENCY`
             prefetch_seconds: The number of seconds to prefetch flow runs for.
-            heartbeat_seconds: The number of seconds to wait between emitting
-                flow run heartbeats. The runner will not emit heartbeats if the value is None.
-                Defaults to `PREFECT_RUNNER_HEARTBEAT_FREQUENCY`.
+            heartbeat_seconds: The number of seconds between heartbeat events emitted
+                by flow runs managed by this runner. If not provided, the value of
+                `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` will be used. Heartbeats are used
+                to detect crashed flow runs.
             limit: The maximum number of flow runs this runner should be running at. Provide `None` for no limit.
                 If not provided, the runner will use the value of `PREFECT_RUNNER_PROCESS_LIMIT`.
             pause_on_shutdown: A boolean for whether or not to automatically pause
@@ -201,6 +201,8 @@ class Runner:
                     asyncio.run(runner.start())
                 ```
         """
+        self._heartbeat_seconds = heartbeat_seconds
+
         settings = get_current_settings()
 
         if name and ("/" in name or "%" in name):
@@ -220,12 +222,6 @@ class Runner:
 
         self.query_seconds: float = query_seconds or settings.runner.poll_frequency
         self._prefetch_seconds: float = prefetch_seconds
-        self.heartbeat_seconds: float | None = (
-            heartbeat_seconds or settings.runner.heartbeat_frequency
-        )
-        if self.heartbeat_seconds is not None and self.heartbeat_seconds < 30:
-            raise ValueError("Heartbeat must be 30 seconds or greater.")
-        self._heartbeat_task: asyncio.Task[None] | None = None
         self._events_client: EventsClient = get_events_client(checkpoint_every=1)
 
         self._exit_stack = AsyncExitStack()
@@ -283,8 +279,28 @@ class Runner:
                 assert self._cancelling_observer is not None
             self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
 
-    @sync_compatible
-    async def add_deployment(
+    async def aadd_deployment(
+        self,
+        deployment: "RunnerDeployment",
+    ) -> UUID:
+        """
+        Registers the deployment with the Prefect API and will monitor for work once
+        the runner is started. Async version.
+
+        Args:
+            deployment: A deployment for the runner to register.
+        """
+        deployment_id = await deployment.aapply()
+        storage = deployment.storage
+        if storage is not None:
+            storage = self._add_storage(storage)
+            self._deployment_storage_map[deployment_id] = storage
+        self._deployment_ids.add(deployment_id)
+
+        return deployment_id
+
+    @async_dispatch(aadd_deployment)
+    def add_deployment(
         self,
         deployment: "RunnerDeployment",
     ) -> UUID:
@@ -295,23 +311,103 @@ class Runner:
         Args:
             deployment: A deployment for the runner to register.
         """
-        apply_coro = deployment.apply()
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(apply_coro)
-        deployment_id = await apply_coro
-        storage = deployment.storage
-        if storage is not None:
-            add_storage_coro = self._add_storage(storage)
-            if TYPE_CHECKING:
-                assert inspect.isawaitable(add_storage_coro)
-            storage = await add_storage_coro
-            self._deployment_storage_map[deployment_id] = storage
-        self._deployment_ids.add(deployment_id)
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aadd_deployment, deployment)
+        ).result()
 
+    async def aadd_flow(
+        self,
+        flow: Flow[Any, Any],
+        name: Optional[str] = None,
+        interval: Optional[
+            Union[
+                Iterable[Union[int, float, datetime.timedelta]],
+                int,
+                float,
+                datetime.timedelta,
+            ]
+        ] = None,
+        cron: Optional[Union[Iterable[str], str]] = None,
+        rrule: Optional[Union[Iterable[str], str]] = None,
+        paused: Optional[bool] = None,
+        schedule: Optional[Schedule] = None,
+        schedules: Optional["FlexibleScheduleList"] = None,
+        concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None,
+        parameters: Optional[dict[str, Any]] = None,
+        triggers: Optional[List[Union[DeploymentTriggerTypes, TriggerTypes]]] = None,
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        version: Optional[str] = None,
+        enforce_parameter_schema: bool = True,
+        entrypoint_type: EntrypointType = EntrypointType.FILE_PATH,
+    ) -> UUID:
+        """
+        Provides a flow to the runner to be run based on the provided configuration.
+        Async version.
+
+        Will create a deployment for the provided flow and register the deployment
+        with the runner.
+
+        Args:
+            flow: A flow for the runner to run.
+            name: The name to give the created deployment. Will default to the name
+                of the runner.
+            interval: An interval on which to execute the current flow. Accepts either a number
+                or a timedelta object. If a number is given, it will be interpreted as seconds.
+            cron: A cron schedule of when to execute runs of this flow.
+            rrule: An rrule schedule of when to execute runs of this flow.
+            paused: Whether or not to set the created deployment as paused.
+            schedule: A schedule object defining when to execute runs of this deployment.
+                Used to provide additional scheduling options like `timezone` or `parameters`.
+            schedules: A list of schedule objects defining when to execute runs of this flow.
+                Used to define multiple schedules or additional scheduling options like `timezone`.
+            concurrency_limit: The maximum number of concurrent runs of this flow to allow.
+            triggers: A list of triggers that should kick of a run of this flow.
+            parameters: A dictionary of default parameter values to pass to runs of this flow.
+            description: A description for the created deployment. Defaults to the flow's
+                description if not provided.
+            tags: A list of tags to associate with the created deployment for organizational
+                purposes.
+            version: A version for the created deployment. Defaults to the flow's version.
+            entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
+                entrypoint, ensure that the module will be importable in the execution environment.
+        """
+        api = PREFECT_API_URL.value()
+        if any([interval, cron, rrule, schedule, schedules]) and not api:
+            self._logger.warning(
+                "Cannot schedule flows on an ephemeral server; run `prefect server"
+                " start` to start the scheduler."
+            )
+        name = self.name if name is None else name
+
+        deployment = await flow.ato_deployment(
+            name=name,
+            interval=interval,
+            cron=cron,
+            rrule=rrule,
+            schedule=schedule,
+            schedules=schedules,
+            paused=paused,
+            triggers=triggers,
+            parameters=parameters,
+            description=description,
+            tags=tags,
+            version=version,
+            enforce_parameter_schema=enforce_parameter_schema,
+            entrypoint_type=entrypoint_type,
+            concurrency_limit=concurrency_limit,
+        )
+
+        deployment_id = await self.aadd_deployment(deployment)
+
+        # Only add the flow to the map if it is not loaded from storage
+        # Further work is needed to support directly running flows created using `flow.from_source`
+        if not getattr(flow, "_storage", None):
+            self._deployment_flow_map[deployment_id] = flow
         return deployment_id
 
-    @sync_compatible
-    async def add_flow(
+    @async_dispatch(aadd_flow)
+    def add_flow(
         self,
         flow: Flow[Any, Any],
         name: Optional[str] = None,
@@ -367,48 +463,29 @@ class Runner:
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
         """
-        api = PREFECT_API_URL.value()
-        if any([interval, cron, rrule, schedule, schedules]) and not api:
-            self._logger.warning(
-                "Cannot schedule flows on an ephemeral server; run `prefect server"
-                " start` to start the scheduler."
+        return from_sync.call_soon_in_loop_thread(
+            create_call(
+                self.aadd_flow,
+                flow,
+                name=name,
+                interval=interval,
+                cron=cron,
+                rrule=rrule,
+                paused=paused,
+                schedule=schedule,
+                schedules=schedules,
+                concurrency_limit=concurrency_limit,
+                parameters=parameters,
+                triggers=triggers,
+                description=description,
+                tags=tags,
+                version=version,
+                enforce_parameter_schema=enforce_parameter_schema,
+                entrypoint_type=entrypoint_type,
             )
-        name = self.name if name is None else name
+        ).result()
 
-        to_deployment_coro = flow.to_deployment(
-            name=name,
-            interval=interval,
-            cron=cron,
-            rrule=rrule,
-            schedule=schedule,
-            schedules=schedules,
-            paused=paused,
-            triggers=triggers,
-            parameters=parameters,
-            description=description,
-            tags=tags,
-            version=version,
-            enforce_parameter_schema=enforce_parameter_schema,
-            entrypoint_type=entrypoint_type,
-            concurrency_limit=concurrency_limit,
-        )
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(to_deployment_coro)
-        deployment = await to_deployment_coro
-
-        add_deployment_coro = self.add_deployment(deployment)
-        if TYPE_CHECKING:
-            assert inspect.isawaitable(add_deployment_coro)
-        deployment_id = await add_deployment_coro
-
-        # Only add the flow to the map if it is not loaded from storage
-        # Further work is needed to support directly running flows created using `flow.from_source`
-        if not getattr(flow, "_storage", None):
-            self._deployment_flow_map[deployment_id] = flow
-        return deployment_id
-
-    @sync_compatible
-    async def _add_storage(self, storage: RunnerStorage) -> RunnerStorage:
+    def _add_storage(self, storage: RunnerStorage) -> RunnerStorage:
         """
         Adds a storage object to the runner. The storage object will be used to pull
         code to the runner's working directory before the runner starts.
@@ -437,7 +514,7 @@ class Runner:
         Gracefully shuts down the runner when a SIGTERM is received.
         """
         self._logger.info("SIGTERM received, initiating graceful shutdown...")
-        from_sync.call_in_loop_thread(create_call(self.stop))
+        self.stop()
 
         sys.exit(0)
 
@@ -557,9 +634,8 @@ class Runner:
                         exc_info=True,
                     )
 
-    @sync_compatible
-    async def stop(self):
-        """Stops the runner's polling cycle."""
+    async def astop(self) -> None:
+        """Stops the runner's polling cycle. Async version."""
         if not self.started:
             raise RuntimeError(
                 "Runner has not yet started. Please start the runner by calling"
@@ -575,6 +651,11 @@ class Runner:
             self._logger.exception(
                 "Exception encountered while shutting down", exc_info=True
             )
+
+    @async_dispatch(astop)
+    def stop(self):
+        """Stops the runner's polling cycle."""
+        from_sync.call_soon_in_loop_thread(create_call(self.astop)).result()
 
     async def execute_flow_run(
         self,
@@ -605,6 +686,23 @@ class Runner:
             self._submitting_flow_run_ids.add(flow_run_id)
             flow_run = await self._client.read_flow_run(flow_run_id)
 
+            # If the flow run is already cancelling or cancelled, exit early
+            if flow_run.state and flow_run.state.is_cancelling():
+                await self._mark_flow_run_as_cancelled(
+                    flow_run,
+                    state_updates={
+                        "message": "Flow run was cancelled before execution started."
+                    },
+                )
+                self._release_limit_slot(flow_run_id)
+                self._submitting_flow_run_ids.discard(flow_run_id)
+                return
+
+            if flow_run.state and flow_run.state.is_cancelled():
+                self._release_limit_slot(flow_run_id)
+                self._submitting_flow_run_ids.discard(flow_run_id)
+                return
+
             process: (
                 anyio.abc.Process | multiprocessing.context.SpawnProcess | Exception
             ) = await self._runs_task_group.start(
@@ -625,9 +723,6 @@ class Runner:
                 raise RuntimeError("Process has no PID")
 
             task_status.started(process.pid)
-
-            if self.heartbeat_seconds is not None:
-                await self._emit_flow_run_heartbeat(flow_run)
 
             # Only add the process to the map if it is still running
             # The process may be a multiprocessing.context.SpawnProcess, in which case it will have an `exitcode`` attribute
@@ -664,6 +759,11 @@ class Runner:
 
         flow_run = FlowRun.model_validate(bundle["flow_run"])
 
+        # Add heartbeat_seconds to env if configured
+        if self._heartbeat_seconds is not None:
+            env = env or {}
+            env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(int(self._heartbeat_seconds))
+
         async with context:
             if not self._acquire_limit_slot(flow_run.id):
                 return
@@ -676,9 +776,6 @@ class Runner:
                 msg = "Failed to start process for flow execution. No PID returned."
                 await self._propose_crashed_state(flow_run, msg)
                 raise RuntimeError(msg)
-
-            if self.heartbeat_seconds is not None:
-                await self._emit_flow_run_heartbeat(flow_run)
 
             await self._add_flow_run_process_map_entry(
                 flow_run.id, ProcessMapEntry(pid=process.pid, flow_run=flow_run)
@@ -778,7 +875,14 @@ class Runner:
         if flow_run.deployment_id is not None:
             flow = self._deployment_flow_map.get(flow_run.deployment_id)
             if flow:
-                process = run_flow_in_subprocess(flow, flow_run=flow_run)
+                subprocess_env: dict[str, str] = {}
+                if self._heartbeat_seconds is not None:
+                    subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
+                        int(self._heartbeat_seconds)
+                    )
+                process = run_flow_in_subprocess(
+                    flow, flow_run=flow_run, env=subprocess_env or None
+                )
                 task_status.started(process)
                 await anyio.to_thread.run_sync(process.join)
                 return process.exitcode
@@ -811,6 +915,15 @@ class Runner:
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                 },
                 **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
+                **(
+                    {
+                        "PREFECT_FLOWS_HEARTBEAT_FREQUENCY": str(
+                            int(self._heartbeat_seconds)
+                        )
+                    }
+                    if self._heartbeat_seconds is not None
+                    else {}
+                ),
             }
         )
         env.update(**os.environ)  # is this really necessary??
@@ -1031,51 +1144,6 @@ class Runner:
                 flow = None
         return flow, deployment
 
-    async def _emit_flow_run_heartbeats(self):
-        coros: list[Coroutine[Any, Any, Any]] = []
-        for entry in self._flow_run_process_map.values():
-            coros.append(self._emit_flow_run_heartbeat(entry["flow_run"]))
-        await asyncio.gather(*coros)
-
-    async def _emit_flow_run_heartbeat(self, flow_run: "FlowRun"):
-        from prefect import __version__
-
-        related: list[RelatedResource] = []
-        tags: list[str] = []
-
-        flow, deployment = await self._get_flow_and_deployment(flow_run)
-        if deployment:
-            related.append(deployment.as_related_resource())
-            tags.extend(deployment.tags)
-        if flow:
-            related.append(
-                RelatedResource(
-                    {
-                        "prefect.resource.id": f"prefect.flow.{flow.id}",
-                        "prefect.resource.role": "flow",
-                        "prefect.resource.name": flow.name,
-                    }
-                )
-            )
-        tags.extend(flow_run.tags)
-
-        related = [RelatedResource.model_validate(r) for r in related]
-        related += tags_as_related_resources(set(tags))
-
-        await self._events_client.emit(
-            Event(
-                event="prefect.flow-run.heartbeat",
-                resource=Resource(
-                    {
-                        "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
-                        "prefect.resource.name": flow_run.name,
-                        "prefect.version": __version__,
-                    }
-                ),
-                related=related,
-            )
-        )
-
     def _event_resource(self):
         from prefect import __version__
 
@@ -1127,7 +1195,7 @@ class Runner:
                 related=related,
             )
         )
-        self._logger.debug(f"Emitted flow run heartbeat event for {flow_run.id}")
+        self._logger.debug(f"Emitted cancelled-flow-run event for {flow_run.id}")
 
     async def _get_scheduled_flow_runs(
         self,
@@ -1271,9 +1339,6 @@ class Runner:
                     flow_run.id,
                     ProcessMapEntry(pid=readiness_result.pid, flow_run=flow_run),
                 )
-            # Heartbeats are opt-in and only emitted if a heartbeat frequency is set
-            if self.heartbeat_seconds is not None:
-                await self._emit_flow_run_heartbeat(flow_run)
 
             run_logger.info(f"Completed submission of flow run '{flow_run.id}'")
         else:
@@ -1467,6 +1532,51 @@ class Runner:
                 )
         return state
 
+    async def _handle_cancellation_observer_failure(self) -> None:
+        """Handle failure of the cancellation observer.
+
+        This is called when both the websocket and polling mechanisms for detecting
+        cancellation events have failed. Without cancellation observing, flow runs
+        cannot be cancelled and may run indefinitely.
+
+        Behavior depends on the `PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE` setting:
+        - When enabled: kills all in-flight flow run processes, which triggers crash
+          handling when the processes terminate, and stops the runner
+        - When disabled (default): logs an error but allows execution to continue
+        """
+        will_crash = get_current_settings().runner.crash_on_cancellation_failure
+        crash_message = (
+            "Cancellation observing failed - both websocket and polling mechanisms "
+            "are unavailable. Killing flow run process to prevent indefinite execution."
+        )
+        continue_message = (
+            "Cancellation observing failed - both websocket and polling mechanisms "
+            "are unavailable. Flow run will continue executing but cannot be "
+            "cancelled. Set PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE=true to "
+            "crash flow runs and shut down the runner when this occurs."
+        )
+
+        if will_crash:
+            self.stopping = True
+
+        # Copy to list to avoid dictionary size changing during iteration
+        process_entries = list(self._flow_run_process_map.items())
+        for flow_run_id, process_entry in process_entries:
+            flow_run = process_entry["flow_run"]
+            run_logger = self._get_flow_run_logger(flow_run)
+            if will_crash:
+                run_logger.error(crash_message)
+                pid = process_entry.get("pid")
+                if pid:
+                    try:
+                        await self._kill_process(pid)
+                    except Exception:
+                        run_logger.exception(
+                            f"Failed to kill process {pid} for flow run '{flow_run.id}'"
+                        )
+            else:
+                run_logger.warning(continue_message)
+
     async def _mark_flow_run_as_cancelled(
         self, flow_run: "FlowRun", state_updates: Optional[dict[str, Any]] = None
     ) -> None:
@@ -1568,14 +1678,6 @@ class Runner:
         if not hasattr(self, "_loop") or not self._loop:
             self._loop = asyncio.get_event_loop()
 
-        self._cancelling_observer = await self._exit_stack.enter_async_context(
-            FlowRunCancellingObserver(
-                on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
-                    self._cancel_run, flow_run_id
-                ),
-                polling_interval=self.query_seconds,
-            )
-        )
         await self._exit_stack.enter_async_context(self._client)
         await self._exit_stack.enter_async_context(self._events_client)
 
@@ -1583,17 +1685,20 @@ class Runner:
             self._runs_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
         await self._exit_stack.enter_async_context(self._runs_task_group)
 
+        self._cancelling_observer = await self._exit_stack.enter_async_context(
+            FlowRunCancellingObserver(
+                on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
+                    self._cancel_run, flow_run_id
+                ),
+                on_failure=lambda _: self._runs_task_group.start_soon(
+                    self._handle_cancellation_observer_failure
+                ),
+                polling_interval=self.query_seconds,
+            )
+        )
+
         if not hasattr(self, "_loops_task_group") or not self._loops_task_group:
             self._loops_task_group: anyio.abc.TaskGroup = anyio.create_task_group()
-
-        if self.heartbeat_seconds is not None:
-            self._heartbeat_task = asyncio.create_task(
-                critical_service_loop(
-                    workload=self._emit_flow_run_heartbeats,
-                    interval=self.heartbeat_seconds,
-                    jitter_range=0.3,
-                )
-            )
 
         self.started = True
         return self
@@ -1613,13 +1718,6 @@ class Runner:
         shutil.rmtree(str(self._tmp_dir), ignore_errors=True)
         del self._runs_task_group, self._loops_task_group
 
-        if self._heartbeat_task:
-            self._heartbeat_task.cancel()
-            try:
-                await self._heartbeat_task
-            except asyncio.CancelledError:
-                pass
-
     def __repr__(self) -> str:
         return f"Runner(name={self.name!r})"
 
@@ -1637,9 +1735,10 @@ async def _run_hooks(
 ):
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:
+        hook_name = get_hook_name(hook)
         try:
             logger.info(
-                f"Running hook {hook.__name__!r} in response to entering state"
+                f"Running hook {hook_name!r} in response to entering state"
                 f" {state.name!r}"
             )
             if is_async_fn(hook):
@@ -1650,8 +1749,8 @@ async def _run_hooks(
                 )
         except Exception:
             logger.error(
-                f"An error was encountered while running hook {hook.__name__!r}",
+                f"An error was encountered while running hook {hook_name!r}",
                 exc_info=True,
             )
         else:
-            logger.info(f"Hook {hook.__name__!r} finished running successfully")
+            logger.info(f"Hook {hook_name!r} finished running successfully")

@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Tuple
+from typing import Coroutine, Tuple
 from unittest.mock import AsyncMock
 
 import prefect_github
@@ -71,6 +71,34 @@ class TestGitHubRepository:
             "git clone https://XYZ@github.com/PrefectHQ/prefect.git --depth 1"
             in " ".join(mock.await_args[0][0])
         )
+
+    async def test_get_directory_redacts_token_in_error(self, monkeypatch):
+        """Ensure GitHub access tokens are not surfaced in git error messages."""
+
+        class p:
+            returncode = 1
+
+        async def mock(cmd, stream_output=None, **kwargs):
+            if stream_output:
+                _, err_stream = stream_output
+                err_stream.write(
+                    "fatal: Authentication failed for "
+                    "'https://XYZ@github.com/PrefectHQ/prefect.git/'"
+                )
+            return p()
+
+        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
+        credential = GitHubCredentials(token="XYZ")
+        g = GitHubRepository(
+            repository_url="https://github.com/PrefectHQ/prefect.git",
+            credentials=credential,
+        )
+        with pytest.raises(RuntimeError) as excinfo:
+            await g.get_directory()
+
+        message = str(excinfo.value)
+        assert "XYZ" not in message
+        assert "https://github.com/PrefectHQ/prefect.git" in message
 
     def setup_test_directory(
         self, tmp_src: str, sub_dir: str = "puppy"
@@ -188,3 +216,92 @@ class TestGitHubRepository:
 
                 assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+
+    async def test_get_directory_preserves_symlinks(self, monkeypatch):
+        """Test that get_directory preserves symlinks instead of following them.
+
+        This verifies the fix for issue #7868 where symlinks were being resolved
+        and their target files copied, potentially exposing sensitive files.
+        """
+
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
+
+        with TemporaryDirectory() as tmp_src:
+            # Create a real file
+            real_file = Path(tmp_src) / "real_file.txt"
+            real_file.write_text("real content")
+
+            # Create a symlink
+            symlink_file = Path(tmp_src) / "link_file.txt"
+            symlink_file.symlink_to(real_file)
+
+            self.MockTmpDir.dir = tmp_src
+
+            with TemporaryDirectory() as tmp_dst:
+                monkeypatch.setattr(
+                    prefect_github.repository,
+                    "TemporaryDirectory",
+                    self.MockTmpDir,
+                )
+
+                g = GitHubRepository(
+                    repository_url="https://github.com/PrefectHQ/prefect.git",
+                )
+                await g.get_directory(local_path=tmp_dst)
+
+                # Verify the symlink is preserved as a symlink
+                copied_symlink = Path(tmp_dst) / "link_file.txt"
+                assert copied_symlink.is_symlink(), (
+                    "Symlink should be preserved as a symlink"
+                )
+
+                # Verify the real file is copied
+                copied_real = Path(tmp_dst) / "real_file.txt"
+                assert copied_real.exists()
+                assert copied_real.read_text() == "real content"
+
+
+class TestGitHubRepositoryAsyncDispatch:
+    """Tests for GitHubRepository.get_directory migrated from @sync_compatible to @async_dispatch.
+
+    These tests verify the critical behavior from issue #15008 where
+    @sync_compatible would incorrectly return coroutines in sync context.
+    """
+
+    def test_get_directory_sync_context_returns_none_not_coroutine(self, monkeypatch):
+        """get_directory must return None (not coroutine) in sync context.
+
+        This is the critical regression test for issues #14712 and #14625.
+        """
+        import subprocess
+        from unittest.mock import MagicMock
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        monkeypatch.setattr(subprocess, "run", MagicMock(return_value=mock_result))
+
+        g = GitHubRepository(repository_url="prefect")
+        result = g.get_directory()
+
+        assert not isinstance(result, Coroutine), "sync context returned coroutine"
+        assert result is None
+
+    async def test_get_directory_async_context_returns_coroutine(self, monkeypatch):
+        """get_directory should dispatch to async and return coroutine in async context."""
+
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
+
+        g = GitHubRepository(repository_url="prefect")
+        result = g.get_directory()
+
+        assert isinstance(result, Coroutine)
+        await result  # should complete without error

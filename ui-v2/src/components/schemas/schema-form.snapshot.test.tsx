@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import type { SchemaObject } from "openapi-typescript";
 import { describe, expect, test } from "vitest";
+import "@/mocks/mock-json-input";
 import { SchemaForm, type SchemaFormProps } from "./schema-form";
 
 /**
@@ -480,6 +481,84 @@ describe("property.type", () => {
 				},
 			};
 			const { container } = render(<TestSchemaForm schema={schema} />);
+
+			expect(container).toMatchSnapshot();
+		});
+	});
+
+	describe("array", () => {
+		test("base", () => {
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					items: {
+						type: "array",
+						items: { type: "string" },
+					},
+				},
+			};
+			const { container } = render(<TestSchemaForm schema={schema} />);
+
+			expect(container).toMatchSnapshot();
+		});
+
+		test("with values - drag handles visible", () => {
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					items: {
+						type: "array",
+						items: { type: "string" },
+					},
+				},
+			};
+			const { container } = render(
+				<TestSchemaForm
+					schema={schema}
+					values={{ items: ["foo", "bar", "baz"] }}
+				/>,
+			);
+
+			expect(container).toMatchSnapshot();
+		});
+
+		test("with prefixItems - no drag handles on prefix items", () => {
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					items: {
+						type: "array",
+						prefixItems: [
+							{ type: "string", title: "First" },
+							{ type: "boolean", title: "Second" },
+						],
+						items: { type: "string" },
+					},
+				},
+			};
+			const { container } = render(
+				<TestSchemaForm
+					schema={schema}
+					values={{ items: ["prefix1", true, "regular1", "regular2"] }}
+				/>,
+			);
+
+			expect(container).toMatchSnapshot();
+		});
+
+		test("with enum items", () => {
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					items: {
+						type: "array",
+						items: { type: "string", enum: ["foo", "bar", "baz"] },
+					},
+				},
+			};
+			const { container } = render(
+				<TestSchemaForm schema={schema} values={{ items: ["foo", "bar"] }} />,
+			);
 
 			expect(container).toMatchSnapshot();
 		});

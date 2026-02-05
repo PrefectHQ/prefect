@@ -88,6 +88,18 @@ const eventsHandlers = [
 ];
 
 const deploymentsHandlers = [
+	http.get(buildApiUrl("/deployments/:id"), ({ params }) => {
+		const id = params.id as string;
+		return HttpResponse.json({
+			id,
+			name: `Deployment ${id}`,
+			tags: [],
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			flow_id: "flow-1",
+		});
+	}),
+
 	http.post(buildApiUrl("/deployments/filter"), () => {
 		return HttpResponse.json([
 			{ id: "deployment-1", name: "Deployment 1", tags: [] },
@@ -223,8 +235,35 @@ const globalConcurrencyLimitsHandlers = [
 ];
 
 const settingsHandlers = [
-	http.post(buildApiUrl("/admin/settings"), () => {
-		return HttpResponse.json({});
+	http.get(buildApiUrl("/admin/settings"), () => {
+		return HttpResponse.json({
+			server: {
+				analytics_enabled: true,
+			},
+		});
+	}),
+];
+
+// UI Settings handler - note: /ui-settings is at the base URL, not under /api
+// In tests, VITE_API_URL is set to http://localhost:4200/api, so we need to
+// handle the request at the base URL (stripping /api)
+const uiSettingsHandlers = [
+	http.get("http://localhost:4200/ui-settings", () => {
+		return HttpResponse.json({
+			api_url: "http://localhost:4200/api",
+			csrf_enabled: false,
+			auth: null,
+			flags: [],
+		});
+	}),
+	// Also handle the case where the base URL might be different
+	http.get(/\/ui-settings$/, () => {
+		return HttpResponse.json({
+			api_url: "http://localhost:4200/api",
+			csrf_enabled: false,
+			auth: null,
+			flags: [],
+		});
 	}),
 ];
 
@@ -329,6 +368,7 @@ const workPoolQueuesHandlers = [
 ];
 
 export const handlers = [
+	...uiSettingsHandlers,
 	...artifactsHandlers,
 	...automationsHandlers,
 	...blockDocumentsHandlers,
