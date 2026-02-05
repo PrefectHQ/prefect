@@ -509,10 +509,22 @@ def get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]:
     Get the state related to a result object.
 
     `link_state_to_result` must have been called first.
+
+    This function verifies object identity to prevent false positives when
+    Python reuses memory addresses (id()) for new objects after previous
+    objects are garbage collected. See GitHub issue #20558.
     """
     flow_run_context = FlowRunContext.get()
     if flow_run_context:
-        return flow_run_context.run_results.get(id(obj))
+        entry = flow_run_context.run_results.get(id(obj))
+        if entry is None:
+            return None
+        state, run_type, stored_obj = entry
+        # Verify the stored object is the same as the one being looked up
+        # This prevents false dependencies when id() is reused after GC
+        if stored_obj is not obj:
+            return None
+        return (state, run_type)
 
 
 def link_state_to_flow_run_result(state: State, result: Any) -> None:
@@ -557,11 +569,18 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
     - Unrelated equality comparisons can break unexpectedly.
     - The field can be preserved on copy.
     - We cannot set this attribute on Python built-ins.
+
+    We store a reference to the object along with the state to verify object
+    identity when looking up results. This prevents false dependencies when Python
+    reuses memory addresses (id()) for new objects after GC. See GitHub issue #20558.
+
+    Note: Storing a reference to the object prevents it from being garbage collected
+    while it's in run_results. This is intentional - it ensures that id() cannot be
+    reused for a different object while we're still tracking the original.
     """
 
     flow_run_context = FlowRunContext.get()
-    # Drop the data field to avoid holding a strong reference to the result
-    # Holding large user objects in memory can cause memory bloat
+    # Drop the data field from the state to avoid holding a duplicate reference
     linked_state = state.model_copy(update={"data": None})
 
     if flow_run_context:
@@ -581,7 +600,9 @@ def link_state_to_result(state: State, result: Any, run_type: RunType) -> None:
             ):
                 state.state_details.untrackable_result = True
                 return
-            flow_run_context.run_results[id(obj)] = (linked_state, run_type)
+            # Store a reference to the object to verify identity on lookup
+            # This prevents false dependencies when id() is reused after GC
+            flow_run_context.run_results[id(obj)] = (linked_state, run_type, obj)
 
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
 
