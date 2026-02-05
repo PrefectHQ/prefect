@@ -19,20 +19,22 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 
 ## Plan Summary
 
-We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind a migration toggle. A single registry will govern command discovery and lazy registration in Cyclopts. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
+We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind a migration toggle. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
 
 ## Migration Toggle (Exact Mechanism)
 
-Toggle: internal environment variable `PREFECT_CLI_IMPL` with allowed values:
+Toggle: internal environment variable (not user-facing).
 
-1. `typer` (default)
-2. `cyclopts` (opt-in)
+Current spike implementation:
+
+1. `PREFECT_CLI_FAST=1` enables Cyclopts.
+2. Unset uses Typer.
 
 Wiring (internal-only, not documented for users):
 
 1. Implemented in `src/prefect/cli/__init__.py` (the console entrypoint for `prefect`).
 2. The entrypoint reads the env var before importing CLI modules.
-3. If `PREFECT_CLI_IMPL=cyclopts`, route to `prefect.cli._cyclopts.app`; otherwise route to `prefect.cli.root.app`.
+3. If the toggle is enabled, route to `prefect.cli._cyclopts.app`; otherwise route to `prefect.cli.root.app`.
 4. Routing rule from the spike PR remains in place: help/version/completion and non-migrated commands continue to delegate to Typer until parity is guaranteed.
 
 Routing sketch (empirically implemented in the spike PR):
@@ -48,9 +50,8 @@ def app() -> None:
 
 Notes:
 
-1. This replaces any “fast mode” naming; there is no behavior divergence allowed when the toggle is enabled.
-2. The optional dependency group should be renamed accordingly (e.g., `cyclopts-cli`) to avoid “fast” language.
-3. The exact env var name is internal and can change before a user-facing rollout.
+1. This is internal-only and can be renamed before any user-facing rollout.
+2. There is no behavior divergence allowed when the toggle is enabled.
 
 ## Phase 0: Entrypoint and Global Flags Parity
 
@@ -58,21 +59,8 @@ Problem: The Typer root callback currently sets up settings, console configurati
 
 Plan:
 
-1. Extract root startup logic into a shared module at `src/prefect/cli/_entrypoint.py`, with a single public entry that accepts a profile name, prompt override, and a console-like interface.
-2. Implement equivalent global flags in Cyclopts for `--profile`, `--prompt`, and `--version`, and call into the shared entrypoint.
-3. Ensure `prefect --profile <x>` and `prefect --prompt/--no-prompt` behave identically in Typer and Cyclopts modes.
-
-Entrypoint signature sketch (proposed; not yet implemented in spike PR):
-
-```python
-def run_entrypoint(
-    *,
-    profile: str | None,
-    prompt: bool | None,
-    tokens: list[str],
-) -> None:
-    ...
-```
+1. Mirror Typer’s root behavior in `src/prefect/cli/_cyclopts/__init__.py` (profile selection, prompt behavior, console setup, logging, Windows event loop policy).
+2. Ensure `prefect --profile <x>` and `prefect --prompt/--no-prompt` behave identically in Typer and Cyclopts modes (validated by parity tests).
 
 Acceptance:
 
@@ -80,8 +68,7 @@ Acceptance:
 2. Logging setup and console configuration match existing Typer behavior.
 
 Status (Phase 0):
-- [ ] Create `src/prefect/cli/_entrypoint.py` and move shared startup logic from `src/prefect/cli/root.py`.
-- [ ] Cyclopts root callback uses `src/prefect/cli/_entrypoint.py`.
+- [ ] Cyclopts root callback matches Typer behavior (`src/prefect/cli/_cyclopts/__init__.py`).
 - [ ] Parity tests cover `--profile`, `--prompt/--no-prompt`, `--version`.
 
 ## Phase 1: Command Registry, Routing, and Lazy Registration
@@ -90,38 +77,10 @@ Problem: We need a single source of truth for command registration and a safe, i
 
 Plan:
 
-1. Create a command registry module at `src/prefect/cli/_registry.py` that defines command name, help text, and import target.
-2. Cyclopts reads the registry to register commands without importing the modules up front. On invocation, it imports the real implementation and executes it.
-3. For commands not yet migrated, the cyclopts handler delegates to Typer with the same arguments.
-4. The registry defines which commands are “native cyclopts” vs “delegated to typer” per command group.
-5. Routing rule (empirically validated in the spike PR): the entrypoint must delegate to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags should continue to route to Typer until help output parity is guaranteed.
-6. Keep Typer module registration in a single helper at `src/prefect/cli/_typer_loader.py` (used by both entrypoints).
-
-Registry sketch (proposed; not yet implemented in spike PR):
-
-```python
-@dataclass(frozen=True)
-class CommandSpec:
-    name: str
-    help: str
-    cyclopts_module: str | None  # None = delegate to Typer
-    typer_path: str | None       # e.g. "prefect.cli.deploy:deploy_app"
-
-COMMANDS: dict[str, CommandSpec] = {
-    "config": CommandSpec(
-        name="config",
-        help="View and set Prefect settings.",
-        cyclopts_module="prefect.cli._cyclopts.config",
-        typer_path="prefect.cli.config:config_app",
-    ),
-    "deploy": CommandSpec(
-        name="deploy",
-        help="Create and manage deployments.",
-        cyclopts_module=None,
-        typer_path="prefect.cli.deploy:deploy_app",
-    ),
-}
-```
+1. Cyclopts registers command groups explicitly in `src/prefect/cli/_cyclopts/__init__.py` (as in the spike PR).
+2. For commands not yet migrated, the Cyclopts handler delegates to Typer with the same arguments.
+3. Routing rule (empirically validated in the spike PR): the entrypoint must delegate to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags should continue to route to Typer until help output parity is guaranteed.
+4. Keep Typer module registration in a single helper at `src/prefect/cli/_typer_loader.py` (used by both entrypoints).
 
 Delegation mechanism (empirically implemented in the spike PR):
 
@@ -137,8 +96,7 @@ Acceptance:
 2. Help/version/completion remain routed to Typer until Cyclopts help output parity is guaranteed.
 
 Status (Phase 1):
-- [ ] Create `src/prefect/cli/_registry.py`.
-- [ ] Create `src/prefect/cli/_typer_loader.py` for Typer command registration.
+- [ ] Keep `src/prefect/cli/_typer_loader.py` as the single Typer registration path.
 - [ ] Route all non-migrated commands to Typer (no “not implemented” gaps).
 - [ ] Add parity tests for top-level help/version routing.
 
@@ -149,18 +107,18 @@ Problem: We need a repeatable migration pattern and an ordering that reduces ris
 Plan:
 
 1. Migrate in small groups, starting with low-risk and high-impact commands.
-2. For each group, add a native Cyclopts implementation and flip its registry entry to “native.”
+2. For each group, add a native Cyclopts implementation and wire it into `src/prefect/cli/_cyclopts/__init__.py` (pattern proven in the spike PR).
 3. Add parity tests and a benchmark entry for each migrated group.
 
-Migration template for a command group (proposed structure):
+Migration template for a command group (empirically aligned with the spike PR):
 
 1. Create `src/prefect/cli/_cyclopts/<command>.py` with Cyclopts app + commands.
-2. Update `src/prefect/cli/_registry.py` to mark the command as Cyclopts-native.
+2. Import and register the new Cyclopts app in `src/prefect/cli/_cyclopts/__init__.py`.
 3. Ensure delegation still works for any subcommands not migrated.
 4. Add parity tests in `tests/cli/test_cyclopts_parity.py` for exit codes and core output.
 5. Add/update benchmarks in `benches/cli-bench.toml`.
 
-Worked example (Config → Cyclopts, abridged and illustrative):
+Worked example (Config → Cyclopts, abridged from the spike PR):
 
 ```python
 # Typer (today)
