@@ -659,7 +659,15 @@ def upload_bundle_to_storage(
 
             # Upload sidecar if present
             if zip_path and bundle.get("files_key"):
-                sidecar_command = upload_command + [bundle["files_key"]]
+                # Replace --key value so sidecar uploads to its own key,
+                # not the bundle key that was baked into upload_command
+                sidecar_command = list(upload_command)
+                try:
+                    key_idx = sidecar_command.index("--key")
+                    sidecar_command[key_idx + 1] = bundle["files_key"]
+                except ValueError:
+                    pass
+                sidecar_command.append(bundle["files_key"])
                 logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
                 subprocess.check_call(
                     sidecar_command,
@@ -716,7 +724,15 @@ async def aupload_bundle_to_storage(
 
             # Upload sidecar if present
             if zip_path and bundle.get("files_key"):
-                sidecar_command = upload_command + [bundle["files_key"]]
+                # Replace --key value so sidecar uploads to its own key,
+                # not the bundle key that was baked into upload_command
+                sidecar_command = list(upload_command)
+                try:
+                    key_idx = sidecar_command.index("--key")
+                    sidecar_command[key_idx + 1] = bundle["files_key"]
+                except ValueError:
+                    pass
+                sidecar_command.append(bundle["files_key"])
                 logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
                 await anyio.run_process(
                     sidecar_command,
