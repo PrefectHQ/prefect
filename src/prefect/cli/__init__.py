@@ -7,11 +7,11 @@ if _USE_CYCLOPTS:
     # New CLI implementation using cyclopts
     try:
         from prefect.cli._cyclopts import app
-    except ImportError as e:
-        if "cyclopts" in str(e):
+    except ImportError as _cyclopts_import_error:
+        if "cyclopts" in str(_cyclopts_import_error):
             raise ImportError(
                 "The new CLI requires cyclopts. Install with: pip install prefect[fast-cli]"
-            ) from e
+            ) from _cyclopts_import_error
         raise
 else:
     # Current CLI implementation using typer
