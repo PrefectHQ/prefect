@@ -255,7 +255,7 @@ def _infer_parent_task_runs(
             else:
                 res = flow_run_context.run_results.get(id(v))
                 if res:
-                    upstream_state, _ = res
+                    upstream_state, _, _ = res
 
             if upstream_state and upstream_state.is_running():
                 parents.append(

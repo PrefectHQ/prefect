@@ -412,8 +412,10 @@ class EngineContext(RunContext):
 
     # Tracking for result from task runs and sub flows in this flow run for
     # dependency tracking. Holds the ID of the object returned by
-    # the run and state
-    run_results: dict[int, tuple[State, RunType]] = Field(default_factory=dict)
+    # the run and state. The third element is a reference to the object itself
+    # to verify identity on lookup (prevents false dependencies from id() reuse).
+    # See GitHub issue #20558.
+    run_results: dict[int, tuple[State, RunType, Any]] = Field(default_factory=dict)
 
     # Tracking information needed to track asset linage between
     # tasks and materialization
