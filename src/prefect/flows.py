@@ -2679,9 +2679,12 @@ def bind_flow_to_infrastructure(
         worker_cls=worker_cls,
         include_files=include_files,
     )
-    # Copy all attributes from the original flow
+    # Copy attributes from the original flow, but don't overwrite attributes
+    # that were explicitly set by InfrastructureBoundFlow.__init__
+    infra_attrs = {"work_pool", "job_variables", "worker_cls", "include_files"}
     for attr, value in flow.__dict__.items():
-        setattr(new, attr, value)
+        if attr not in infra_attrs:
+            setattr(new, attr, value)
     return new
 
 
