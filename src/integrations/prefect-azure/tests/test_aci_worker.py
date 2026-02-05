@@ -211,8 +211,8 @@ def mock_aci_client(monkeypatch, mock_resource_client):
     container_groups = Mock(name="container_group")
     creation_status_poller = Mock(name="created container groups")
     creation_status_poller_result = Mock(name="created container groups result")
-    container_groups.begin_create_or_update.side_effect = (
-        lambda *args: creation_status_poller
+    container_groups.begin_create_or_update.side_effect = lambda *args: (
+        creation_status_poller
     )
     creation_status_poller.result.side_effect = lambda: creation_status_poller_result
     creation_status_poller_result.provisioning_state = (
