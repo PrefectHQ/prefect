@@ -3,8 +3,7 @@ Asynchronous client implementation for communicating with the [Prefect REST API]
 
 Explore the client by communicating with an in-memory webserver - no setup required:
 
-<div class="termy">
-```
+```python
 $ # start python REPL with native await functionality
 $ python -m asyncio
 from prefect.client.orchestration import get_client
@@ -13,7 +12,6 @@ async with get_client() as client:
     print(response.json())
 👋
 ```
-</div>
 """
 
 from collections.abc import Callable
