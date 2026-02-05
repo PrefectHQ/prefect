@@ -17,15 +17,24 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 3. FastMCP (jlowin/fastmcp) completed a full Typer → Cyclopts migration in https://github.com/jlowin/fastmcp/pull/1062 with comprehensive CLI tests. That project is a useful reference for the shape of a Cyclopts CLI and test coverage, not necessarily for incremental adoption.
 4. Prefect’s CLI surface area is large and heavily tested, so the migration must be incremental and reversible.
 
+## Terminology
+
+Each command in the CLI is in one of two states during the migration:
+
+- **migrated**: reimplemented in cyclopts with its own command handler in `src/prefect/cli/_cyclopts/<command>.py`. Cyclopts handles parsing and execution directly. Example: `config` in #20549.
+- **delegated**: registered as a cyclopts command stub that forwards all arguments to the existing typer implementation via `_delegate()`. Behavior is identical to typer-only mode. Example: `deploy`, `server`, and all other commands in #20549.
+
+A command moves from delegated to migrated by replacing its stub with a real cyclopts implementation and adding parity tests.
+
 ## Plan Summary
 
-We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind an internal migration toggle. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
+We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind an internal migration toggle. Delegated commands will forward to Typer. This provides a safe, incremental path with clear escape hatches.
 
 ## Migration Toggle (Exact Mechanism)
 
 Toggle: internal environment variable (not user-facing).
 
-Empirically implemented in the spike PR:
+Empirically implemented in #20549:
 
 1. `PREFECT_CLI_FAST=1` enables Cyclopts.
 2. Unset uses Typer.
@@ -35,9 +44,9 @@ Wiring (internal-only, not documented for users):
 1. Implemented in `src/prefect/cli/__init__.py` (the console entrypoint for `prefect`).
 2. The entrypoint reads the env var before importing CLI modules.
 3. If the toggle is enabled, route to `prefect.cli._cyclopts.app`; otherwise route to `prefect.cli.root.app`.
-4. Routing rule from the spike PR remains in place: help/version/completion and non-migrated commands continue to delegate to Typer until parity is guaranteed.
+4. Routing rule from #20549 remains in place: help/version/completion and non-migrated commands continue to delegate to Typer until parity is guaranteed.
 
-Empirical routing code (from the spike PR):
+Routing code (from #20549):
 
 ```python
 _USE_CYCLOPTS = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
@@ -59,9 +68,9 @@ Notes:
 
 Problem: The Typer root callback currently sets up settings, console configuration, logging, and Windows event loop policy. Cyclopts must honor the same behavior and global flags, or behavior will diverge.
 
-Plan (empirically implemented in the spike PR):
+Plan (implemented in #20549):
 
-1. Mirror Typer’s root behavior in `src/prefect/cli/_cyclopts/__init__.py`:
+1. Mirror Typer's root behavior in `src/prefect/cli/_cyclopts/__init__.py`:
    - profile selection via `prefect.context.use_profile(...)`
    - prompt behavior via `PREFECT_CLI_PROMPT`
    - console setup
@@ -69,7 +78,7 @@ Plan (empirically implemented in the spike PR):
    - Windows event loop policy
 2. Ensure `prefect --profile <x>` and `prefect --prompt/--no-prompt` behave identically in Typer and Cyclopts modes (validated by parity tests).
 
-Empirical entrypoint snippet (from the spike PR):
+Entrypoint snippet (from #20549):
 
 ```python
 @_app.meta.default
@@ -95,22 +104,14 @@ Status (Phase 0):
 
 Problem: We need a single source of truth for command registration and a safe, incremental migration path that preserves parity.
 
-Plan (empirically implemented in the spike PR):
+Plan (implemented in #20549):
 
 1. Cyclopts registers command groups explicitly in `src/prefect/cli/_cyclopts/__init__.py`.
 2. For commands not yet migrated, the Cyclopts handler delegates to Typer with the same arguments.
-3. Routing rule: the entrypoint delegates to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags route to Typer until help output parity is guaranteed.
+3. Routing rule: the entrypoint delegates to Typer unless the command is migrated. Top-level help/version/completion flags route to Typer until help output parity is guaranteed.
 4. Typer module registration is centralized in `src/prefect/cli/_typer_loader.py` (used by both entrypoints).
 
-Empirical delegation snippet (from the spike PR):
-
-```python
-def _delegate(command: str, tokens: tuple[str, ...]) -> None:
-    load_typer_commands()
-    typer_app([command, *tokens], standalone_mode=False)
-```
-
-Delegation mechanism (empirically implemented in the spike PR):
+Delegation mechanism (from #20549):
 
 ```python
 def _delegate(command: str, tokens: tuple[str, ...]) -> None:
@@ -135,10 +136,10 @@ Problem: We need a repeatable migration pattern and an ordering that reduces ris
 Plan:
 
 1. Migrate in small groups, starting with low-risk and high-impact commands.
-2. For each group, add a native Cyclopts implementation and wire it into `src/prefect/cli/_cyclopts/__init__.py` (pattern proven in the spike PR).
+2. For each group, replace the delegated stub with a migrated cyclopts implementation and wire it into `src/prefect/cli/_cyclopts/__init__.py` (pattern proven in #20549).
 3. Add parity tests and a benchmark entry for each migrated group.
 
-Migration template for a command group (empirically aligned with the spike PR):
+Migration template for a command group (aligned with #20549):
 
 1. Create `src/prefect/cli/_cyclopts/<command>.py` with Cyclopts app + commands.
 2. Import and register the new Cyclopts app in `src/prefect/cli/_cyclopts/__init__.py`.
@@ -146,7 +147,7 @@ Migration template for a command group (empirically aligned with the spike PR):
 4. Add parity tests in `tests/cli/test_cyclopts_parity.py` for exit codes and core output.
 5. Add/update benchmarks in `benches/cli-bench.toml`.
 
-Worked example (Config → Cyclopts, abridged from the spike PR):
+Worked example (Config → Cyclopts, abridged from #20549):
 
 ```python
 # Typer (today)
@@ -187,7 +188,7 @@ Problem: We need a clear path to make Cyclopts the default and retire Typer with
 
 Plan:
 
-1. Once all command groups are native and parity tests pass, flip the default to Cyclopts and keep a legacy opt-out toggle.
+1. Once all command groups are migrated and parity tests pass, flip the default to Cyclopts and keep a legacy opt-out toggle.
 2. Communicate the default flip and timeline for Typer removal.
 3. Remove Typer dependency and legacy code paths after a deprecation period.
 
@@ -207,7 +208,7 @@ Status (Phase 3):
 2. Use existing CLI test utilities where possible; prefer invoking `python -m prefect` to ensure tests execute the local code.
 3. Keep CLI benchmarks in `benches/cli-bench.toml`, and ensure CI runs both standard and Cyclopts categories.
 
-Empirical parity test snippet (from the spike PR):
+Parity test snippet (from #20549):
 
 ```python
 def test_version_output_parity():
@@ -220,9 +221,11 @@ def test_version_output_parity():
 
 ## Benchmarking Strategy
 
-1. Track `--help`, `--version`, and `config` commands in standard and Cyclopts entrypoints.
-2. Add benchmarks for each migrated command group to prevent regressions.
-3. Publish results in CI summaries for standard vs Cyclopts CLI.
+CLI startup benchmarks already run in CI via [python-cli-bench](https://github.com/zzstoatzz/python-cli-bench) (`.github/workflows/benchmarks.yaml`). The workflow uses hyperfine to compare head vs base on every PR, with results posted to the GitHub step summary.
+
+1. Add migrated commands to `benches/cli-bench.toml` as they are migrated (currently tracks `--help`, `--version`, `version`).
+2. Add a `cyclopts` category to `benches/cli-bench.toml` that runs the same commands with `PREFECT_CLI_FAST=1` so CI compares both entrypoints side by side.
+3. Use the existing CI comparison (Welch's t-test, delta %) to catch regressions.
 
 ## Risks and Mitigations
 
@@ -240,7 +243,7 @@ def test_version_output_parity():
 | Unknown command with toggle enabled | Delegate to Typer (error message remains Typer's) |
 | Cyclopts not installed, toggle enabled | Error with install hint |
 | `--help` / `--version` / completion with toggle enabled | Route to Typer until help parity is guaranteed |
-| Partially migrated command group | Route to Typer unless explicitly marked as Cyclopts-native |
+| Partially migrated command group | Delegated commands route to Typer; only migrated commands use cyclopts |
 
 ## Verification Checklist
 
@@ -256,7 +259,9 @@ def test_version_output_parity():
 ## References
 
 1. FastMCP migration PR: https://github.com/jlowin/fastmcp/pull/1062
-2. Spike PR (Cyclopts entrypoint + delegation pattern): https://github.com/PrefectHQ/prefect/pull/20549
-3. Spike PR (Typer lazy-loading): https://github.com/PrefectHQ/prefect/pull/20448
-4. CLI benchmarks: `benches/cli-bench.toml`
-5. Draft CLI toggle implementation: `src/prefect/cli/__init__.py`
+2. Cyclopts entrypoint + delegation spike: #20549
+3. Typer lazy-loading spike: #20448
+4. CLI benchmark config: `benches/cli-bench.toml`
+5. CLI benchmark CI workflow: `.github/workflows/benchmarks.yaml`
+6. Benchmark harness: [python-cli-bench](https://github.com/zzstoatzz/python-cli-bench)
+7. Toggle implementation: `src/prefect/cli/__init__.py`
