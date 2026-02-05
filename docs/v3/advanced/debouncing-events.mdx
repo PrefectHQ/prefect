@@ -4,7 +4,7 @@ sidebarTitle: Debounce events
 description: Learn how to handle multiple events in quick succession without creating a flow run for each event
 ---
 
-When multiple events occur in quick succession, you may want a single deployment run to handle all of them rather than spinning up a separate flow run for each event. For example, when multiple files are uploaded to an S3 bucket simultaneously, you typically want to process all files together in one run.
+Prefect allows you to trigger deployment runs based on events. However, when multiple events occur in quick succession, you may want a single flow run to handle all of them rather than spinning up a separate run for each event. For example, when multiple files are uploaded to an S3 bucket simultaneously, or a flurry of [webhook](/v3/concepts/webhooks#webhooks) events are received by Prefect, you typically want to process all files together in one run.
 
 This pattern is called **debouncing**, and you can implement it using reactive triggers with the `within` parameter of the trigger and the `schedule_after` parameter of the `run-deployment` action.
 
@@ -19,7 +19,7 @@ Automations fire in response to a single event and can only pass that event's co
 **Debouncing solves this** by:
 - Preventing multiple flow runs from being created for rapid events
 - Scheduling a single run after a time window
-- Allowing your deployment to handle all events that occurred during the burst
+- Enabling a single run to process the work from all events in the burst
 
 <Note>
 **Key limitation**
@@ -108,7 +108,9 @@ When you configure a reactive trigger with both `within` and `schedule_after`:
 
 The `within` parameter implements **eager debouncing**: it fires immediately on the first event, then ignores subsequent events for the specified duration.
 
-The `schedule_after` parameter delays the actual flow run, ensuring all events in the burst have completed before processing begins.  This implements the **late debouncing**.
+The `schedule_after` parameter delays the actual flow run, ensuring all events in the burst have completed before processing begins. This implements **late debouncing**.
+
+Using both parameters together prevents duplicate runs while ensuring your flow has access to all events from the burst.
 
 <Tip>
 **Matching time windows**
@@ -220,6 +222,7 @@ This ensures:
 
 Events that arrive during the `within` window are still recorded in Prefect's event system:
 - You can view them in the Event Feed
+- They can be queried at the start of the flow run
 - They're tracked for audit and debugging purposes
 - They don't trigger additional automation actions
 
