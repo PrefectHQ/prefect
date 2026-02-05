@@ -408,7 +408,7 @@ class DbtCoreOperation(ShellOperation):
     def _compile_kwargs(self, **open_kwargs: Dict[str, Any]) -> Dict[str, Any]:
         """
         Helper method to compile the kwargs for `open_process` so it's not repeated
-        across the run and trigger methods.
+        across the run and trigger methods (async version).
         """
         profiles_dir = self._find_valid_profiles_dir()
         commands = self._append_dirs_to_commands(profiles_dir=profiles_dir)
@@ -420,6 +420,21 @@ class DbtCoreOperation(ShellOperation):
         modified_self = self.copy()
         modified_self.commands = commands
         return super(type(self), modified_self)._compile_kwargs(**open_kwargs)
+
+    def _compile_kwargs_sync(self, **open_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Helper method to compile the kwargs for `subprocess.Popen` so it's not repeated
+        across the run and trigger methods (sync version).
+        """
+        profiles_dir = self._find_valid_profiles_dir()
+        commands = self._append_dirs_to_commands(profiles_dir=profiles_dir)
+
+        # _compile_kwargs_sync is called within trigger() and run(), prior to execution.
+        # However _compile_kwargs_sync directly uses self.commands, but here we modified
+        # the commands without saving back to self.commands so we need to create a copy.
+        modified_self = self.copy()
+        modified_self.commands = commands
+        return super(type(self), modified_self)._compile_kwargs_sync(**open_kwargs)
 
 
 @task

@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 import yaml
@@ -466,19 +466,31 @@ def test_trigger_dbt_cli_command_extra_command_args(profiles_dir, dbt_cli_profil
 
 class TestDbtCoreOperation:
     @pytest.fixture
-    def mock_open_process(self, monkeypatch):
-        open_process = MagicMock(name="open_process")
-        open_process.return_value = AsyncMock(name="returned open_process")
-        monkeypatch.setattr("prefect_shell.commands.open_process", open_process)
-        return open_process
+    def mock_shell_operation_run(self, monkeypatch):
+        """
+        Mock the parent ShellOperation._compile_kwargs_sync to capture kwargs
+        without actually running the subprocess.
+        """
+        from prefect_shell.commands import ShellOperation
 
-    @pytest.fixture
-    def mock_shell_process(self, monkeypatch):
-        shell_process = MagicMock()
-        opened_shell_process = AsyncMock()
-        shell_process.return_value = opened_shell_process
-        monkeypatch.setattr("prefect_shell.commands.ShellProcess", shell_process)
-        return shell_process
+        captured_kwargs = {}
+
+        # Save the original method before patching
+        original_compile_kwargs_sync = ShellOperation._compile_kwargs_sync
+
+        def capture_compile_kwargs_sync(self, **open_kwargs):
+            nonlocal captured_kwargs
+            # Call the original method to get the kwargs
+            result = original_compile_kwargs_sync(self, **open_kwargs)
+            captured_kwargs.update(result)
+            # Raise an exception to stop execution before subprocess is called
+            raise StopIteration("Mock stop")
+
+        monkeypatch.setattr(
+            "prefect_shell.commands.ShellOperation._compile_kwargs_sync",
+            capture_compile_kwargs_sync,
+        )
+        return captured_kwargs
 
     @pytest.fixture
     def dbt_cli_profile(self):
@@ -489,47 +501,48 @@ class TestDbtCoreOperation:
         )
 
     def test_find_valid_profiles_dir_default_env(
-        self, tmp_path, mock_open_process, mock_shell_process, monkeypatch
+        self, tmp_path, mock_shell_operation_run, monkeypatch
     ):
         monkeypatch.setenv("DBT_PROFILES_DIR", str(tmp_path))
         (tmp_path / "profiles.yml").write_text("test")
-        DbtCoreOperation(commands=["dbt debug"]).run()
-        actual = str(mock_open_process.call_args_list[0][1]["env"]["DBT_PROFILES_DIR"])
+        with pytest.raises(StopIteration):
+            DbtCoreOperation(commands=["dbt debug"]).run()
+        actual = str(mock_shell_operation_run["env"]["DBT_PROFILES_DIR"])
         expected = str(tmp_path)
         assert actual == expected
 
     def test_find_valid_profiles_dir_input_env(
-        self, tmp_path, mock_open_process, mock_shell_process
+        self, tmp_path, mock_shell_operation_run
     ):
         (tmp_path / "profiles.yml").write_text("test")
-        DbtCoreOperation(
-            commands=["dbt debug"], env={"DBT_PROFILES_DIR": str(tmp_path)}
-        ).run()
-        actual = str(mock_open_process.call_args_list[0][1]["env"]["DBT_PROFILES_DIR"])
+        with pytest.raises(StopIteration):
+            DbtCoreOperation(
+                commands=["dbt debug"], env={"DBT_PROFILES_DIR": str(tmp_path)}
+            ).run()
+        actual = str(mock_shell_operation_run["env"]["DBT_PROFILES_DIR"])
         expected = str(tmp_path)
         assert actual == expected
 
-    def test_find_valid_profiles_dir_overwrite_without_profile(
-        self, tmp_path, mock_open_process, mock_shell_process
-    ):
+    def test_find_valid_profiles_dir_overwrite_without_profile(self, tmp_path):
         with pytest.raises(ValueError, match="Since overwrite_profiles is True"):
             DbtCoreOperation(
                 commands=["dbt debug"], profiles_dir=tmp_path, overwrite_profiles=True
             ).run()
 
     def test_find_valid_profiles_dir_overwrite_with_profile(
-        self, tmp_path, dbt_cli_profile, mock_open_process, mock_shell_process
+        self, tmp_path, dbt_cli_profile, mock_shell_operation_run
     ):
-        DbtCoreOperation(
-            commands=["dbt debug"],
-            profiles_dir=tmp_path,
-            overwrite_profiles=True,
-            dbt_cli_profile=dbt_cli_profile,
-        ).run()
+        with pytest.raises(StopIteration):
+            DbtCoreOperation(
+                commands=["dbt debug"],
+                profiles_dir=tmp_path,
+                overwrite_profiles=True,
+                dbt_cli_profile=dbt_cli_profile,
+            ).run()
         assert (tmp_path / "profiles.yml").exists()
 
     def test_find_valid_profiles_dir_not_overwrite_with_profile(
-        self, tmp_path, dbt_cli_profile, mock_open_process, mock_shell_process
+        self, tmp_path, dbt_cli_profile
     ):
         (tmp_path / "profiles.yml").write_text("test")
         with pytest.raises(ValueError, match="Since overwrite_profiles is False"):
@@ -548,8 +561,6 @@ class TestDbtCoreOperation:
         self,
         tmp_path,
         dbt_cli_profile,
-        mock_open_process,
-        mock_shell_process,
         monkeypatch,
     ):
         mock_named_temporary_file = MagicMock(name="tempfile")
@@ -562,7 +573,7 @@ class TestDbtCoreOperation:
                 dbt_cli_profile=dbt_cli_profile,
             ) as op:
                 op.run()
-        except (FileNotFoundError, TypeError):  # py37 raises TypeError
+        except (FileNotFoundError, TypeError, StopIteration):
             pass  # we're mocking the tempfile; this is expected
 
         mock_write = mock_named_temporary_file.return_value.write
