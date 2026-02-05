@@ -47,7 +47,9 @@ async def fail_expired_pause(
 
 
 @perpetual_service(
-    enabled_getter=lambda: get_current_settings().server.services.pause_expirations.enabled,
+    enabled_getter=lambda: (
+        get_current_settings().server.services.pause_expirations.enabled
+    ),
 )
 async def monitor_expired_pauses(
     docket: Docket = CurrentDocket(),

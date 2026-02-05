@@ -51,8 +51,8 @@ def google_auth_no_quota_project(monkeypatch):
 @pytest.fixture
 def oauth2_credentials(monkeypatch):
     CredentialsMock = MagicMock()
-    CredentialsMock.from_service_account_info.side_effect = (
-        lambda json, scopes: MagicMock(scopes=scopes, **json)
+    CredentialsMock.from_service_account_info.side_effect = lambda json, scopes: (
+        MagicMock(scopes=scopes, **json)
     )
     CredentialsMock.from_service_account_file.side_effect = lambda file, scopes: file
     monkeypatch.setattr("prefect_gcp.credentials.Credentials", CredentialsMock)
@@ -83,8 +83,8 @@ class CloudStorageClient(MagicMock):
     def get_bucket(self, bucket):
         blob_obj = MagicMock()
         blob_obj.download_as_bytes.return_value = b"bytes"
-        blob_obj.download_to_file.side_effect = (
-            lambda file_obj, **kwargs: file_obj.write(b"abcdef")
+        blob_obj.download_to_file.side_effect = lambda file_obj, **kwargs: (
+            file_obj.write(b"abcdef")
         )
         blob_obj.download_to_filename.side_effect = lambda filename, **kwargs: Path(
             filename

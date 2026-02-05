@@ -61,8 +61,8 @@ def mock_docker_client():
     )
     client.__enter__.return_value.images.pull.side_effect = mock_images_pull
     client.__enter__.return_value.containers.create.return_value = MagicMock(id="id_1")
-    client.__enter__.return_value.containers.get.side_effect = (
-        lambda container_id: mock_docker_container(container_id)
+    client.__enter__.return_value.containers.get.side_effect = lambda container_id: (
+        mock_docker_container(container_id)
     )
     return client
 
