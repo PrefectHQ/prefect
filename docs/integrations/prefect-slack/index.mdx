@@ -4,7 +4,16 @@ title: prefect-slack
 
 ## Welcome!
 
-`prefect-slack` is a collection of prebuilt Prefect tasks that can be used to quickly construct Prefect flows.
+`prefect-slack` is a collection of prebuilt Prefect tasks and blocks that can be used to quickly send Slack messages in your Prefect flows.
+
+<Note>
+Prefect also includes a built-in `SlackWebhook` block in `prefect.blocks.notifications` that requires no extra dependencies. The two blocks have different capabilities:
+
+- **`prefect.blocks.notifications.SlackWebhook`** (block type slug: `slack-webhook`): Uses Apprise under the hood. Includes `notify_type` and `allow_private_urls` options. Supports Slack GovCloud.
+- **`prefect_slack.SlackWebhook`** (block type slug: `slack-incoming-webhook`): Uses the official Slack SDK. Provides `get_client()` for advanced Slack SDK access.
+
+These are separate block types with different slugs, so a block created with one class cannot be loaded with the other.
+</Note>
 
 ## Getting started
 
