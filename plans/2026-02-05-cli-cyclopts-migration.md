@@ -19,7 +19,7 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 
 ## Plan Summary
 
-We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing. A single registry will govern command discovery and lazy registration in Cyclopts. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
+We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind an opt-in toggle. A single registry will govern command discovery and lazy registration in Cyclopts. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
 
 ## Phase 0: Entrypoint and Global Flags Parity
 
@@ -36,9 +36,9 @@ Acceptance:
 1. Global flags produce identical behavior and exit codes in both modes.
 2. Logging setup and console configuration match existing Typer behavior.
 
-## Phase 1: Command Registry and Lazy Registration
+## Phase 1: Command Registry, Routing, and Lazy Registration
 
-Problem: We need a single source of truth for command registration and a safe, incremental migration path.
+Problem: We need a single source of truth for command registration and a safe, incremental migration path that preserves parity.
 
 Plan:
 
@@ -46,6 +46,7 @@ Plan:
 2. Cyclopts reads the registry to register commands without importing the modules up front. On invocation, it imports the real implementation and executes it.
 3. For commands not yet migrated, the cyclopts handler delegates to Typer with the same arguments.
 4. The registry defines which commands are “native cyclopts” vs “delegated to typer” per command group.
+5. Routing rule (empirically validated in the spike PR): the entrypoint must delegate to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags should continue to route to Typer until help output parity is guaranteed.
 
 Acceptance:
 
@@ -107,7 +108,7 @@ Acceptance:
 1. Risk: Global flags and startup behavior drift between frameworks.
    Mitigation: Shared entrypoint module and parity tests for `--profile`, `--prompt`, and `--version`.
 2. Risk: Command help text diverges.
-   Mitigation: Treat differences as regressions unless explicitly approved and documented.
+   Mitigation: Route help/version/completion to Typer until parity is guaranteed; treat differences as regressions unless explicitly approved and documented.
 3. Risk: Migration slows due to large surface area.
    Mitigation: Per-group PRs with explicit scope and regression tests.
 
