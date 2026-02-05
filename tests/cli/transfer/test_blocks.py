@@ -268,8 +268,8 @@ class TestMigratableBlockSchema:
         mock_response = MagicMock()
         block_type = BlockType(
             id=block_type_id,
-            name="test-block-type",
-            slug="test-block-type",
+            name=f"test-block-type-{uuid.uuid4()}",
+            slug=f"test-block-type-{uuid.uuid4()}",
             logo_url=None,
             documentation_url=None,
             description=None,
@@ -513,7 +513,7 @@ class TestMigratableBlockDocument:
         referenced_doc_id = uuid.uuid4()
         block_document = BlockDocument(
             id=uuid.uuid4(),
-            name="test-block",
+            name=f"test-block-{uuid.uuid4()}",
             data={"foo": "bar"},
             block_schema_id=uuid.uuid4(),
             block_schema=None,
@@ -543,8 +543,8 @@ class TestMigratableBlockDocument:
         mock_type_response = MagicMock()
         mock_type_response.json.return_value = {
             "id": str(block_document.block_type_id),
-            "name": "test-block-type",
-            "slug": "test-block-type",
+            "name": f"test-block-type-{uuid.uuid4()}",
+            "slug": f"test-block-type-{uuid.uuid4()}",
             "logo_url": None,
             "documentation_url": None,
             "description": None,

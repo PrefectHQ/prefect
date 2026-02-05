@@ -204,7 +204,7 @@ class TestMigratableWorkPool:
         storage_block_id = uuid.uuid4()
         work_pool = WorkPool(
             id=uuid.uuid4(),
-            name="test-work-pool",
+            name=f"test-work-pool-{uuid.uuid4()}",
             type="test-type",
             base_job_template={},
             is_paused=False,
