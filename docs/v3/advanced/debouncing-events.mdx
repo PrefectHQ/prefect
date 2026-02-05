@@ -1,7 +1,7 @@
 ---
 title: How to debounce events
 sidebarTitle: Debounce events
-description: Learn how to handle multiple events in quick succession without creating a flow run for each event.
+description: Learn how to use the within parameter to handle multiple events in quick succession without creating a flow run for each event.
 ---
 
 Prefect allows you to trigger deployment runs based on events. However, when multiple events occur in quick succession, you may want a single flow run to handle all of them rather than spinning up a separate run for each event. For example, when multiple files are uploaded to an S3 bucket simultaneously, or a flurry of [webhook](/v3/concepts/webhooks#webhooks) events are received by Prefect, you typically want to process all files together in one run.
@@ -16,7 +16,7 @@ Automations fire in response to a single event and can only pass that event's co
 - Each run would only have context from one event
 - You'd have multiple runs processing related work simultaneously
 
-**Debouncing** solves this by:
+Debouncing solves this by:
 - Preventing multiple flow runs from being created for rapid events
 - Scheduling a single run after a time window
 - Enabling a single run to process the work from all events in the burst
@@ -106,9 +106,9 @@ When you configure a reactive trigger with both `within` and `schedule_after`:
 3. **Deployment runs after delay**: By the time the run starts (after `schedule_after`), all events from the burst have occurred
 4. **Flow processes everything**: Your flow queries the source system and processes all available items
 
-The `within` parameter implements **eager debouncing**: it fires immediately on the first event, then ignores subsequent events for the specified duration.
+The `within` parameter implements eager debouncing: it fires immediately on the first event, then ignores subsequent events for the specified duration.
 
-The `schedule_after` parameter delays the actual flow run, ensuring all events in the burst have completed before processing begins. This implements **late debouncing**.
+The `schedule_after` parameter delays the actual flow run, ensuring all events in the burst have completed before processing begins. This implements late debouncing.
 
 Using both parameters together prevents duplicate runs while ensuring your flow has access to all events from the burst.
 
