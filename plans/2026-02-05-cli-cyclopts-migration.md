@@ -35,6 +35,17 @@ Wiring (internal-only, not documented for users):
 3. If `PREFECT_CLI_IMPL=cyclopts`, route to `prefect.cli._cyclopts.app`; otherwise route to `prefect.cli.root.app`.
 4. Routing rule from the spike PR remains in place: help/version/completion and non-migrated commands continue to delegate to Typer until parity is guaranteed.
 
+Routing sketch (mirrors the spike PR):
+
+```python
+def app() -> None:
+    if _should_delegate_to_typer(sys.argv[1:]):
+        load_typer_commands()
+        typer_app()
+    else:
+        cyclopts_app()
+```
+
 Notes:
 
 1. This replaces any “fast mode” naming; there is no behavior divergence allowed when the toggle is enabled.
@@ -50,6 +61,18 @@ Plan:
 1. Extract root startup logic into a shared module at `src/prefect/cli/_entrypoint.py`, with a single public entry that accepts a profile name, prompt override, and a console-like interface.
 2. Implement equivalent global flags in Cyclopts for `--profile`, `--prompt`, and `--version`, and call into the shared entrypoint.
 3. Ensure `prefect --profile <x>` and `prefect --prompt/--no-prompt` behave identically in Typer and Cyclopts modes.
+
+Entrypoint signature sketch:
+
+```python
+def run_entrypoint(
+    *,
+    profile: str | None,
+    prompt: bool | None,
+    tokens: list[str],
+) -> None:
+    ...
+```
 
 Acceptance:
 
@@ -74,6 +97,40 @@ Plan:
 5. Routing rule (empirically validated in the spike PR): the entrypoint must delegate to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags should continue to route to Typer until help output parity is guaranteed.
 6. Keep Typer module registration in a single helper at `src/prefect/cli/_typer_loader.py` (used by both entrypoints).
 
+Registry sketch:
+
+```python
+@dataclass(frozen=True)
+class CommandSpec:
+    name: str
+    help: str
+    cyclopts_module: str | None  # None = delegate to Typer
+    typer_path: str | None       # e.g. "prefect.cli.deploy:deploy_app"
+
+COMMANDS: dict[str, CommandSpec] = {
+    "config": CommandSpec(
+        name="config",
+        help="View and set Prefect settings.",
+        cyclopts_module="prefect.cli._cyclopts.config",
+        typer_path="prefect.cli.config:config_app",
+    ),
+    "deploy": CommandSpec(
+        name="deploy",
+        help="Create and manage deployments.",
+        cyclopts_module=None,
+        typer_path="prefect.cli.deploy:deploy_app",
+    ),
+}
+```
+
+Delegation mechanism (tested in spike PR):
+
+```python
+def _delegate(command: str, tokens: tuple[str, ...]) -> None:
+    load_typer_commands()
+    typer_app([command, *tokens], standalone_mode=False)
+```
+
 Acceptance:
 
 1. Delegated commands run through Typer and retain current behavior.
@@ -94,6 +151,29 @@ Plan:
 1. Migrate in small groups, starting with low-risk and high-impact commands.
 2. For each group, add a native Cyclopts implementation and flip its registry entry to “native.”
 3. Add parity tests and a benchmark entry for each migrated group.
+
+Migration template for a command group:
+
+1. Create `src/prefect/cli/_cyclopts/<command>.py` with Cyclopts app + commands.
+2. Update `src/prefect/cli/_registry.py` to mark the command as Cyclopts-native.
+3. Ensure delegation still works for any subcommands not migrated.
+4. Add parity tests in `tests/cli/test_cyclopts_parity.py` for exit codes and core output.
+5. Add/update benchmarks in `benches/cli-bench.toml`.
+
+Worked example (Config → Cyclopts, abridged):
+
+```python
+# Typer (today)
+@config_app.command()
+def view(...): ...
+
+# Cyclopts (target)
+@config_app.command()
+def view(
+    show_defaults: Annotated[bool, cyclopts.Parameter("--show-defaults", negative="--hide-defaults")] = False,
+    ...
+): ...
+```
 
 Suggested order:
 
@@ -140,6 +220,17 @@ Status (Phase 3):
 1. Parity tests for migrated commands should compare exit code and core output fields. If help formatting differs, it must be explicitly approved and documented.
 2. Use existing CLI test utilities where possible; prefer invoking `python -m prefect` to ensure tests execute the local code.
 3. Keep CLI benchmarks in `benches/cli-bench.toml`, and ensure CI runs both standard and Cyclopts categories.
+
+Parity test sketch:
+
+```python
+def test_config_view_parity():
+    typer = run_cli(["config", "view"], fast=False)
+    cyclopts = run_cli(["config", "view"], fast=True)
+    assert typer.returncode == 0
+    assert cyclopts.returncode == 0
+    assert normalize_output(typer.stdout) == normalize_output(cyclopts.stdout)
+```
 
 ## Benchmarking Strategy
 
