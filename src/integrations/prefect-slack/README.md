@@ -10,7 +10,7 @@
 
 Requires an installation of Python 3.10+
 
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
+We recommend using a Python virtual environment manager such as [uv](https://docs.astral.sh/uv/), pipenv, conda, or virtualenv.
 
 These tasks are designed to work with Prefect 3.x. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
 
