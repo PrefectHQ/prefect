@@ -12,7 +12,7 @@ Routes for interacting with Deployment objects.
 
 ## Functions
 
-### `create_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment(deployment: schemas.actions.DeploymentCreate, response: Response, worker_lookups: WorkerLookups = Depends(WorkerLookups), created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by), updated_by: Optional[schemas.core.UpdatedBy] = Depends(dependencies.get_updated_by), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.DeploymentResponse
@@ -28,13 +28,13 @@ When upserting, any scheduled runs from the existing deployment will be deleted.
 For more information, see https://docs.prefect.io/v3/concepts/deployments.
 
 
-### `update_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment(deployment: schemas.actions.DeploymentUpdate, deployment_id: UUID = Path(..., description='The deployment id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `read_deployment_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_deployment_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L376" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_by_name(flow_name: str = Path(..., description='The name of the flow'), deployment_name: str = Path(..., description='The name of the deployment'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.DeploymentResponse
@@ -44,7 +44,7 @@ read_deployment_by_name(flow_name: str = Path(..., description='The name of the 
 Get a deployment using the name of the flow and the deployment.
 
 
-### `read_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L398" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.DeploymentResponse
@@ -54,7 +54,7 @@ read_deployment(deployment_id: UUID = Path(..., description='The deployment id',
 Get a deployment by id.
 
 
-### `read_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L414" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployments(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, work_pools: Optional[schemas.filters.WorkPoolFilter] = None, work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None, sort: schemas.sorting.DeploymentSort = Body(schemas.sorting.DeploymentSort.NAME_ASC), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.DeploymentResponse]
@@ -64,7 +64,7 @@ read_deployments(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge
 Query for deployments.
 
 
-### `paginate_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `paginate_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L458" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 paginate_deployments(limit: int = dependencies.LimitBody(), page: int = Body(1, ge=1), flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, work_pools: Optional[schemas.filters.WorkPoolFilter] = None, work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None, sort: schemas.sorting.DeploymentSort = Body(schemas.sorting.DeploymentSort.NAME_ASC), db: PrefectDBInterface = Depends(provide_database_interface)) -> DeploymentPaginationResponse
@@ -74,7 +74,7 @@ paginate_deployments(limit: int = dependencies.LimitBody(), page: int = Body(1, 
 Pagination query for flow runs.
 
 
-### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L513" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_scheduled_flow_runs_for_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L518" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_scheduled_flow_runs_for_deployments(docket: dependencies.Docket, deployment_ids: list[UUID] = Body(default=..., description='The deployment IDs to get scheduled runs for'), scheduled_before: DateTime = Body(None, description='The maximum time to look for scheduled flow runs'), limit: int = dependencies.LimitBody(), db: PrefectDBInterface = Depends(provide_database_interface)) -> list[schemas.responses.FlowRunResponse]
@@ -84,7 +84,7 @@ get_scheduled_flow_runs_for_deployments(docket: dependencies.Docket, deployment_
 Get scheduled runs for a set of deployments. Used by a runner to poll for work.
 
 
-### `count_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L566" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `count_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L571" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_deployments(flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, work_pools: Optional[schemas.filters.WorkPoolFilter] = None, work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> int
@@ -94,7 +94,7 @@ count_deployments(flows: Optional[schemas.filters.FlowFilter] = None, flow_runs:
 Count deployments.
 
 
-### `delete_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L596" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
@@ -104,7 +104,19 @@ delete_deployment(deployment_id: UUID = Path(..., description='The deployment id
 Delete a deployment by id.
 
 
-### `schedule_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L609" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_delete_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+bulk_delete_deployments(deployments: Optional[schemas.filters.DeploymentFilter] = Body(None, description='Filter criteria for deployments to delete'), limit: int = Body(BULK_OPERATION_LIMIT, ge=1, le=BULK_OPERATION_LIMIT, description=f'Maximum number of deployments to delete. Defaults to {BULK_OPERATION_LIMIT}.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> DeploymentBulkDeleteResponse
+```
+
+
+Bulk delete deployments matching the specified filter criteria.
+
+Returns the IDs of deployments that were deleted.
+
+
+### `schedule_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L657" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_deployment(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), start_time: datetime.datetime = Body(None, description='The earliest date to schedule'), end_time: datetime.datetime = Body(None, description='The latest date to schedule'), min_time: float = Body(None, description='Runs will be scheduled until at least this long after the `start_time`', json_schema_extra={'format': 'time-delta'}), min_runs: int = Body(None, description='The minimum number of runs to schedule'), max_runs: int = Body(None, description='The maximum number of runs to schedule'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
@@ -124,7 +136,7 @@ will be respected.
     - Runs will be generated until at least `start_time + min_time` is reached
 
 
-### `resume_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L657" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resume_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L705" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_deployment(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
@@ -134,7 +146,7 @@ resume_deployment(deployment_id: UUID = Path(..., description='The deployment id
 Set a deployment schedule to active. Runs will be scheduled immediately.
 
 
-### `pause_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L676" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pause_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L724" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_deployment(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
@@ -145,7 +157,7 @@ Set a deployment schedule to inactive. Any auto-scheduled runs still in a Schedu
 state will be deleted.
 
 
-### `create_flow_run_from_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L708" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_flow_run_from_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L756" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_from_deployment(flow_run: schemas.actions.DeploymentFlowRunCreate, deployment_id: UUID = Path(..., description='The deployment id', alias='id'), created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by), db: PrefectDBInterface = Depends(provide_database_interface), worker_lookups: WorkerLookups = Depends(WorkerLookups), response: Response = None) -> schemas.responses.FlowRunResponse
@@ -160,7 +172,22 @@ If tags are not provided, the deployment's tags will be used.
 If no state is provided, the flow run will be created in a SCHEDULED state.
 
 
-### `work_queue_check_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L847" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bulk_create_flow_runs_from_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L897" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+bulk_create_flow_runs_from_deployment(flow_runs: List[schemas.actions.DeploymentFlowRunCreate] = Body(..., description='List of flow run configurations to create'), deployment_id: UUID = Path(..., description='The deployment id', alias='id'), created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by), db: PrefectDBInterface = Depends(provide_database_interface), worker_lookups: WorkerLookups = Depends(WorkerLookups)) -> FlowRunBulkCreateResponse
+```
+
+
+Create multiple flow runs from a deployment.
+
+Any parameters not provided will be inferred from the deployment's parameters.
+If tags are not provided, the deployment's tags will be used.
+
+If no state is provided, the flow runs will be created in a SCHEDULED state.
+
+
+### `work_queue_check_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 work_queue_check_for_deployment(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.core.WorkQueue]
@@ -176,25 +203,25 @@ may be deprecated in the future because there is not a strict relationship
 between work queues and deployments.
 
 
-### `read_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L873" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_schedules(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.core.DeploymentSchedule]
 ```
 
-### `create_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L1160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_deployment_schedules(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), schedules: List[schemas.actions.DeploymentScheduleCreate] = Body(default=..., description='The schedules to create'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.core.DeploymentSchedule]
 ```
 
-### `update_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L930" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L1196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment_schedule(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), schedule_id: UUID = Path(..., description='The schedule id', alias='schedule_id'), schedule: schemas.actions.DeploymentScheduleUpdate = Body(default=..., description='The updated schedule'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
 ```
 
-### `delete_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L969" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/deployments.py#L1235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment_schedule(deployment_id: UUID = Path(..., description='The deployment id', alias='id'), schedule_id: UUID = Path(..., description='The schedule id', alias='schedule_id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None

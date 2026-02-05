@@ -169,7 +169,7 @@ prevents infinite recursion when visiting recursive data structures.
 - The modified collection if `return_data` is `True`, otherwise `None`.
 
 
-### `remove_nested_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `remove_nested_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L558" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 remove_nested_keys(keys_to_remove: list[HashableT], obj: Union[NestedDict[HashableT, VT], Any]) -> Union[NestedDict[HashableT, VT], Any]
@@ -188,13 +188,13 @@ from.
 dictionary. `obj` if `obj` is not a dictionary.
 
 
-### `distinct` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L588" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `distinct` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 distinct(iterable: Iterable[Union[T, HashableT]], key: Optional[Callable[[T], Hashable]] = None) -> Iterator[Union[T, HashableT]]
 ```
 
-### `get_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_from_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L622" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_from_dict(dct: NestedDict[str, VT], keys: Union[str, list[str]], default: Optional[R] = None) -> Union[VT, R, None]
@@ -229,7 +229,7 @@ get_from_dict({'a': {'b': [0, {'c': [1, 2]}]}}, 'a.b.1.c.2', 'default') # 'defau
 ```
 
 
-### `set_in_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_in_dict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L671" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_in_dict(dct: NestedDict[str, VT], keys: Union[str, list[str]], value: VT) -> None
@@ -256,7 +256,7 @@ dot-separated string or a list of keys.
 - `KeyError`: If the key path exists and is not a dictionary.
 
 
-### `deep_merge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L701" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `deep_merge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L705" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deep_merge(dct: NestedDict[str, VT1], merge: NestedDict[str, VT2]) -> NestedDict[str, Union[VT1, VT2]]
@@ -273,7 +273,7 @@ Recursively merges `merge` into `dct`.
 - A new dictionary with the merged contents.
 
 
-### `deep_merge_dicts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L728" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `deep_merge_dicts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/collections.py#L732" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deep_merge_dicts(*dicts: NestedDict[str, Any]) -> NestedDict[str, Any]
