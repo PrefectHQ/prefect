@@ -2125,17 +2125,15 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_sync(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=2)
+        @flow(timeout_seconds=1)
         def expensive_flow():
             with concurrency(concurrency_limit_v2.name):
-                # Use a busy loop instead of time.sleep() because sleep is a
-                # C-level call that cannot be interrupted by
-                # WatcherThreadCancelScope (used when an existing SIGALRM
-                # handler is present from parallel test execution).
-                num = 0
-                while True:
-                    _ = str(num) == str(num)[::-1]
-                    num += 1
+                # Use a time-bounded busy loop instead of time.sleep()
+                # because sleep is a C-level call that cannot be interrupted
+                # by WatcherThreadCancelScope.
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    pass
 
         with pytest.raises(TimeoutError):
             expensive_flow()
@@ -2148,7 +2146,7 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_async(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=2)
+        @flow(timeout_seconds=1)
         async def expensive_flow():
             async with aconcurrency(concurrency_limit_v2.name):
                 await asyncio.sleep(10)
