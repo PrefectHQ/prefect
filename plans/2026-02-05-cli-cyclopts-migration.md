@@ -12,23 +12,23 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 
 ## Background
 
-1. Typer does not provide native lazy-loading, so Prefect uses custom lazy-loading patterns to improve startup time.
+1. Typer does not provide native lazy-loading; any lazy-loading in Typer requires custom implementation.
 2. Cyclopts provides native lazy-loading and a cleaner API for complex commands.
-3. FastMCP (jlowin/fastmcp) completed a full Typer → Cyclopts migration in PR #1062 with comprehensive CLI tests. That project is a useful reference for the shape of a Cyclopts CLI and test coverage, not necessarily for incremental adoption.
+3. FastMCP (jlowin/fastmcp) completed a full Typer → Cyclopts migration in https://github.com/jlowin/fastmcp/pull/1062 with comprehensive CLI tests. That project is a useful reference for the shape of a Cyclopts CLI and test coverage, not necessarily for incremental adoption.
 4. Prefect’s CLI surface area is large and heavily tested, so the migration must be incremental and reversible.
 
 ## Plan Summary
 
-We will keep Typer as the default until parity is established, and introduce Cyclopts behind an opt-in toggle. A single registry will govern command discovery and lazy registration in Cyclopts. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
+We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing. A single registry will govern command discovery and lazy registration in Cyclopts. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
 
-## Phase 0: Bootstrapping and Global Flags Parity
+## Phase 0: Entrypoint and Global Flags Parity
 
-Problem: The Typer root callback currently sets up settings, console configuration, logging, and Windows event loop policy. Cyclopts must honor the same behavior and global flags, or fast mode will diverge.
+Problem: The Typer root callback currently sets up settings, console configuration, logging, and Windows event loop policy. Cyclopts must honor the same behavior and global flags, or behavior will diverge.
 
 Plan:
 
-1. Extract root startup logic into a shared module, e.g. `prefect.cli._bootstrap`, with a single public entry that accepts a profile name, prompt override, and a console-like interface.
-2. Implement equivalent global flags in Cyclopts for `--profile`, `--prompt`, and `--version`, and call into the shared bootstrap.
+1. Extract root startup logic into a shared module, e.g. `prefect.cli._entrypoint`, with a single public entry that accepts a profile name, prompt override, and a console-like interface.
+2. Implement equivalent global flags in Cyclopts for `--profile`, `--prompt`, and `--version`, and call into the shared entrypoint.
 3. Ensure `prefect --profile <x>` and `prefect --prompt/--no-prompt` behave identically in Typer and Cyclopts modes.
 
 Acceptance:
@@ -92,22 +92,22 @@ Acceptance:
 
 ## Testing Strategy
 
-1. Parity tests for migrated commands should compare exit code and core output fields, not help formatting.
+1. Parity tests for migrated commands should compare exit code and core output fields. If help formatting differs, it must be explicitly approved and documented.
 2. Use existing CLI test utilities where possible; prefer invoking `python -m prefect` to ensure tests execute the local code.
-3. Keep CLI benchmarks in `benches/cli-bench.toml`, and ensure CI runs both standard and fast categories.
+3. Keep CLI benchmarks in `benches/cli-bench.toml`, and ensure CI runs both standard and Cyclopts categories.
 
 ## Benchmarking Strategy
 
-1. Track `--help`, `--version`, and `config` commands in standard and fast modes.
+1. Track `--help`, `--version`, and `config` commands in standard and Cyclopts entrypoints.
 2. Add benchmarks for each migrated command group to prevent regressions.
-3. Publish results in CI summaries for standard vs fast CLI.
+3. Publish results in CI summaries for standard vs Cyclopts CLI.
 
 ## Risks and Mitigations
 
 1. Risk: Global flags and startup behavior drift between frameworks.
-   Mitigation: Shared bootstrap module and parity tests for `--profile`, `--prompt`, and `--version`.
+   Mitigation: Shared entrypoint module and parity tests for `--profile`, `--prompt`, and `--version`.
 2. Risk: Command help text diverges.
-   Mitigation: Accept formatting differences but ensure command list coverage and exit code parity.
+   Mitigation: Treat differences as regressions unless explicitly approved and documented.
 3. Risk: Migration slows due to large surface area.
    Mitigation: Per-group PRs with explicit scope and regression tests.
 
