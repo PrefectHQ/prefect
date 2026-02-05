@@ -21,6 +21,25 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 
 We will keep Typer as the default until parity is established, and introduce a parallel Cyclopts entrypoint for migration testing behind a migration toggle. A single registry will govern command discovery and lazy registration in Cyclopts. Non-migrated commands will delegate to Typer. This provides a safe, incremental path with clear escape hatches.
 
+## Migration Toggle (Exact Mechanism)
+
+Toggle: environment variable `PREFECT_CLI_IMPL` with allowed values:
+
+1. `typer` (default)
+2. `cyclopts` (opt-in)
+
+Wiring:
+
+1. Implemented in `src/prefect/cli/__init__.py` (the console entrypoint for `prefect`).
+2. The entrypoint reads the env var before importing CLI modules.
+3. If `PREFECT_CLI_IMPL=cyclopts`, route to `prefect.cli._cyclopts.app`; otherwise route to `prefect.cli.root.app`.
+4. Routing rule from the spike PR remains in place: help/version/completion and non-migrated commands continue to delegate to Typer until parity is guaranteed.
+
+Notes:
+
+1. This replaces any “fast mode” naming; there is no behavior divergence allowed when the toggle is enabled.
+2. The optional dependency group should be renamed accordingly (e.g., `cyclopts-cli`) to avoid “fast” language.
+
 ## Phase 0: Entrypoint and Global Flags Parity
 
 Problem: The Typer root callback currently sets up settings, console configuration, logging, and Windows event loop policy. Cyclopts must honor the same behavior and global flags, or behavior will diverge.
