@@ -32,7 +32,7 @@ from prefect.cache_policies import (
 )
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
-from prefect.client.schemas.objects import StateType, TaskRunResult
+from prefect.client.schemas.objects import RunType, StateType, TaskRunResult
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import (
     ConfigurationError,
@@ -61,7 +61,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
     temporary_settings,
 )
-from prefect.states import State
+from prefect.states import Completed, State
 from prefect.task_worker import read_parameters
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
@@ -75,7 +75,7 @@ from prefect.transactions import (
 from prefect.utilities.annotations import allow_failure, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
-from prefect.utilities.engine import get_state_for_result
+from prefect.utilities.engine import collect_task_run_inputs_sync, get_state_for_result
 
 
 def comparable_inputs(d: dict[str, Any]) -> dict[str, Any]:
@@ -3380,6 +3380,108 @@ class TestTaskInputs:
         assert task_2_run.task_inputs == dict(
             task_2_input=[],
         )
+
+    def test_no_false_dependency_from_id_reuse(self):
+        """Regression test for GitHub issue #20558.
+
+        When a new object has the same id() as a previous task result
+        (due to GC and memory reuse), no dependency should be inferred.
+        """
+
+        @flow
+        def test_flow():
+            ctx = FlowRunContext.get()
+            assert ctx is not None
+
+            fake_task_run_id = UUID("12345678-1234-1234-1234-123456789abc")
+            fake_state = Completed()
+            fake_state.state_details.task_run_id = fake_task_run_id
+
+            old_object = {"data": "old task result"}
+            new_payload = {"data": "new task payload"}
+            payload_id = id(new_payload)
+
+            ctx.run_results[payload_id] = (fake_state, RunType.TASK_RUN, old_object)
+
+            task_inputs = collect_task_run_inputs_sync(new_payload)
+            input_task_ids = [inp.id for inp in task_inputs]
+
+            return {
+                "fake_task_run_id": fake_task_run_id,
+                "collected_input_ids": input_task_ids,
+            }
+
+        result = test_flow()
+        assert result["fake_task_run_id"] not in result["collected_input_ids"]
+
+    def test_no_false_dependency_after_task_completes(self):
+        """Regression test for GitHub issue #20558.
+
+        After a task completes, a new object reusing the same memory
+        address should not be treated as dependent on that task.
+        """
+
+        @task
+        def simple_task(payload: dict) -> dict:
+            return {"processed": True, "input": payload}
+
+        @flow
+        def test_flow():
+            ctx = FlowRunContext.get()
+            assert ctx is not None
+
+            future1 = simple_task.submit({"task": "first"})
+            result1 = future1.result()
+            first_task_id = future1.task_run_id
+
+            assert id(result1) in ctx.run_results
+
+            independent_payload = {"task": "second", "no_relation": True}
+
+            state_entry = ctx.run_results[id(result1)]
+            ctx.run_results[id(independent_payload)] = state_entry
+
+            collected_inputs = collect_task_run_inputs_sync(independent_payload)
+            collected_task_ids = [inp.id for inp in collected_inputs]
+
+            return {
+                "first_task_id": first_task_id,
+                "collected_task_ids": collected_task_ids,
+            }
+
+        result = test_flow()
+        assert result["first_task_id"] not in result["collected_task_ids"]
+
+    def test_legitimate_dependency_still_tracked(self):
+        """Verify that passing a task's actual result object to another
+        task still produces the expected dependency link.
+        """
+
+        @task
+        def simple_task(payload: dict) -> dict:
+            return {"processed": True, "input": payload}
+
+        @flow
+        def test_flow():
+            ctx = FlowRunContext.get()
+            assert ctx is not None
+
+            future1 = simple_task.submit({"task": "first"})
+            result1 = future1.result()
+            first_task_id = future1.task_run_id
+
+            assert id(result1) in ctx.run_results
+
+            collected_inputs = collect_task_run_inputs_sync(result1)
+            collected_task_ids = [inp.id for inp in collected_inputs]
+
+            return {
+                "first_task_id": first_task_id,
+                "collected_task_ids": collected_task_ids,
+            }
+
+        result = test_flow()
+        assert result["first_task_id"] in result["collected_task_ids"]
 
 
 class TestSubflowWaitForTasks:
