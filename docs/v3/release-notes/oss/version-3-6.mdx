@@ -2,6 +2,64 @@
 title: 3.6
 ---
 
+## 3.6.16 - Assets in Bulk
+
+*Released on February 05, 2026*
+
+**New Features 🎉**
+
+* Add `prefect cloud asset` list and delete commands by [@zzstoatzz](https://github.com/zzstoatzz) in [#20524](https://github.com/PrefectHQ/prefect/pull/20524)
+* Add bulk operation endpoints for flow runs, deployments, and flows by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#20469](https://github.com/PrefectHQ/prefect/pull/20469)
+* Add SDK instrumentation module by [@desertaxle](https://github.com/desertaxle) in [#20438](https://github.com/PrefectHQ/prefect/pull/20438)
+
+**Enhancements ➕➕**
+
+* Allow infra name templating with `flow` and `flow_run` by [@Rodrigorm33](https://github.com/Rodrigorm33) in [#20358](https://github.com/PrefectHQ/prefect/pull/20358)
+* Add `max_scheduled_runs`, `parameters`, and `slug` fields to deployment schedule methods by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20556](https://github.com/PrefectHQ/prefect/pull/20556)
+
+**Bug Fixes 🐞**
+
+* Fix `visit_collection` to handle `NamedTuple`s by [@chuqCTC](https://github.com/chuqCTC) in [#20517](https://github.com/PrefectHQ/prefect/pull/20517)
+* Use count endpoint for deployments page empty state check by [@zzstoatzz](https://github.com/zzstoatzz) in [#20404](https://github.com/PrefectHQ/prefect/pull/20404)
+* Validate docker image names in `build_docker_image` by [@Rodrigorm33](https://github.com/Rodrigorm33) in [#20384](https://github.com/PrefectHQ/prefect/pull/20384)
+* Handle non-serializable objects in `JsonFormatter` for logging by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20482](https://github.com/PrefectHQ/prefect/pull/20482)
+* Fix env var template resolution in `deploy --all` console output by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20511](https://github.com/PrefectHQ/prefect/pull/20511)
+* Resolve circular import when plugins import from `prefect` by [@desertaxle](https://github.com/desertaxle) in [#20514](https://github.com/PrefectHQ/prefect/pull/20514)
+* Fix stale `TaskRunContext` leaking into Pending event related resources by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#20536](https://github.com/PrefectHQ/prefect/pull/20536)
+
+**Development & Tidiness 🧹**
+
+* Remove old admin routes by [@desertaxle](https://github.com/desertaxle) in [#20515](https://github.com/PrefectHQ/prefect/pull/20515)
+* Untrack analytics config file to fix build versioning by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20483](https://github.com/PrefectHQ/prefect/pull/20483)
+* Add regression test for fan-out sibling asset dependency isolation by [@chrisguidry](https://github.com/chrisguidry) in [#20478](https://github.com/PrefectHQ/prefect/pull/20478)
+* Fix flaky test: add thread completion check and increase timeout by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20505](https://github.com/PrefectHQ/prefect/pull/20505)
+* Use unique block type slugs in tests to prevent parallel test conflicts by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20496](https://github.com/PrefectHQ/prefect/pull/20496)
+* Exclude 10 test modules from `clear_db` auto-mark by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20487](https://github.com/PrefectHQ/prefect/pull/20487)
+* Add more test modules to `EXCLUDE_FROM_CLEAR_DB_AUTO_MARK` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20490](https://github.com/PrefectHQ/prefect/pull/20490)
+* Add DB-LIGHT test modules to `clear_db` exclusion list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20491](https://github.com/PrefectHQ/prefect/pull/20491)
+* Add `test_flow_runs.py` and `telemetry/` to `clear_db` exclusion list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20492](https://github.com/PrefectHQ/prefect/pull/20492)
+* Add `input/`, `deployment/`, `experimental/` to `clear_db` exclusion list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20493](https://github.com/PrefectHQ/prefect/pull/20493)
+* Add `tests/results` to `clear_db` exclusion list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20495](https://github.com/PrefectHQ/prefect/pull/20495)
+* Add 5 test modules to `EXCLUDE_FROM_CLEAR_DB_AUTO_MARK` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20504](https://github.com/PrefectHQ/prefect/pull/20504)
+* Add `tests/events/client` to `clear_db` exclusion list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20506](https://github.com/PrefectHQ/prefect/pull/20506)
+* Add `tests/infrastructure` to `clear_db` exclusion list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20507](https://github.com/PrefectHQ/prefect/pull/20507)
+* Add `tests/blocks/` to `EXCLUDE_FROM_CLEAR_DB_AUTO_MARK` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20512](https://github.com/PrefectHQ/prefect/pull/20512)
+* Add `tests/test_task_runners.py` and `tests/test_variables.py` to `clear_db` exclusion list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20530](https://github.com/PrefectHQ/prefect/pull/20530)
+* Add `tests/test_futures.py` and `tests/test_logging.py` to `clear_db` exclusion list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20531](https://github.com/PrefectHQ/prefect/pull/20531)
+* Add UUID-based randomization to top-level test files by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20539](https://github.com/PrefectHQ/prefect/pull/20539)
+* Add UUID-based randomization to CLI Cloud test files by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20546](https://github.com/PrefectHQ/prefect/pull/20546)
+* Add UUID-based randomization to CLI Deploy test files by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20552](https://github.com/PrefectHQ/prefect/pull/20552)
+* Add UUID-based randomization to CLI transfer test files by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20563](https://github.com/PrefectHQ/prefect/pull/20563)
+
+**Documentation 📓**
+
+* Add Claude Code marketplace install instructions to MCP docs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#20545](https://github.com/PrefectHQ/prefect/pull/20545)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.15...3.6.16
+
+
+---
+
 ## 3.6.15 - Simply Authful
 
 *Released on January 30, 2026*

@@ -425,6 +425,58 @@
                 }
             }
         },
+        "/api/flows/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Flows"
+                ],
+                "summary": "Bulk Delete Flows",
+                "description": "Bulk delete flows matching the specified filter criteria.\n\nThis also deletes all associated deployments.\n\nReturns the IDs of flows that were deleted.",
+                "operationId": "bulk_delete_flows_flows_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_flows_flows_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/flows/paginate": {
             "post": {
                 "tags": [
@@ -1089,6 +1141,111 @@
                                         "$ref": "#/components/schemas/FlowRunResponse"
                                     },
                                     "title": "Response Read Flow Runs Flow Runs Filter Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/flow_runs/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Flow Runs"
+                ],
+                "summary": "Bulk Delete Flow Runs",
+                "description": "Bulk delete flow runs matching the specified filter criteria.\n\nReturns the IDs of flow runs that were deleted.",
+                "operationId": "bulk_delete_flow_runs_flow_runs_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/flow_runs/bulk_set_state": {
+            "post": {
+                "tags": [
+                    "Flow Runs"
+                ],
+                "summary": "Bulk Set Flow Run State",
+                "description": "Bulk set state for flow runs matching the specified filter criteria.\n\nReturns the orchestration results for each flow run.",
+                "operationId": "bulk_set_flow_run_state_flow_runs_bulk_set_state_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkSetStateResponse"
                                 }
                             }
                         }
@@ -2799,6 +2956,58 @@
                 }
             }
         },
+        "/api/deployments/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Bulk Delete Deployments",
+                "description": "Bulk delete deployments matching the specified filter criteria.\n\nReturns the IDs of deployments that were deleted.",
+                "operationId": "bulk_delete_deployments_deployments_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_deployments_deployments_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/deployments/{id}/schedule": {
             "post": {
                 "tags": [
@@ -3015,6 +3224,76 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/FlowRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/deployments/{id}/create_flow_run/bulk": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Bulk Create Flow Runs From Deployment",
+                "description": "Create multiple flow runs from a deployment.\n\nAny parameters not provided will be inferred from the deployment's parameters.\nIf tags are not provided, the deployment's tags will be used.\n\nIf no state is provided, the flow runs will be created in a SCHEDULED state.",
+                "operationId": "bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The deployment id",
+                            "title": "Id"
+                        },
+                        "description": "The deployment id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/DeploymentFlowRunCreate"
+                                },
+                                "description": "List of flow run configurations to create",
+                                "title": "Flow Runs"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkCreateResponse"
                                 }
                             }
                         }
@@ -9166,141 +9445,6 @@
                 }
             }
         },
-        "/api/admin/database/clear": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Clear Database",
-                "description": "Clear all database tables without dropping them.",
-                "operationId": "clear_database_admin_database_clear_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_clear_database_admin_database_clear_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/database/drop": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Drop Database",
-                "description": "Drop all database objects.",
-                "operationId": "drop_database_admin_database_drop_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_drop_database_admin_database_drop_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/database/create": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Create Database",
-                "description": "Create all database objects.",
-                "operationId": "create_database_admin_database_create_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_create_database_admin_database_create_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/hello": {
             "get": {
                 "tags": [
@@ -12362,6 +12506,81 @@
                 ],
                 "title": "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
             },
+            "Body_bulk_delete_deployments_deployments_bulk_delete_post": {
+                "properties": {
+                    "deployments": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for deployments to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of deployments to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_deployments_deployments_bulk_delete_post"
+            },
+            "Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post": {
+                "properties": {
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flow runs to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flow runs to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"
+            },
+            "Body_bulk_delete_flows_flows_bulk_delete_post": {
+                "properties": {
+                    "flows": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flows to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flows to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_flows_flows_bulk_delete_post"
+            },
             "Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post": {
                 "properties": {
                     "slots": {
@@ -12457,17 +12676,43 @@
                 ],
                 "title": "Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"
             },
-            "Body_clear_database_admin_database_clear_post": {
+            "Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post": {
                 "properties": {
-                    "confirm": {
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flow runs to update"
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/StateCreate",
+                        "description": "The state to set"
+                    },
+                    "force": {
                         "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
+                        "title": "Force",
+                        "description": "If false, orchestration rules will be applied that may alter or prevent the state transition. If True, orchestration rules are not applied.",
                         "default": false
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flow runs to update. Defaults to 50.",
+                        "default": 50
                     }
                 },
                 "type": "object",
-                "title": "Body_clear_database_admin_database_clear_post"
+                "required": [
+                    "state"
+                ],
+                "title": "Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"
             },
             "Body_count_account_events_events_count_by__countable__post": {
                 "properties": {
@@ -12808,18 +13053,6 @@
                 "type": "object",
                 "title": "Body_count_work_pools_work_pools_count_post"
             },
-            "Body_create_database_admin_database_create_post": {
-                "properties": {
-                    "confirm": {
-                        "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
-                        "default": false
-                    }
-                },
-                "type": "object",
-                "title": "Body_create_database_admin_database_create_post"
-            },
             "Body_create_flow_run_input_flow_runs__id__input_post": {
                 "properties": {
                     "key": {
@@ -12876,18 +13109,6 @@
                     "task_run_id"
                 ],
                 "title": "Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post"
-            },
-            "Body_drop_database_admin_database_drop_post": {
-                "properties": {
-                    "confirm": {
-                        "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
-                        "default": false
-                    }
-                },
-                "type": "object",
-                "title": "Body_drop_database_admin_database_drop_post"
             },
             "Body_filter_flow_run_input_flow_runs__id__input_filter_post": {
                 "properties": {
@@ -15670,6 +15891,21 @@
                 ],
                 "title": "DependencyResult"
             },
+            "DeploymentBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "DeploymentBulkDeleteResponse",
+                "description": "Response from bulk deployment deletion."
+            },
             "DeploymentCreate": {
                 "properties": {
                     "name": {
@@ -18173,6 +18409,21 @@
                 "title": "Flow",
                 "description": "An ORM representation of flow data."
             },
+            "FlowBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "FlowBulkDeleteResponse",
+                "description": "Response from bulk flow deletion."
+            },
             "FlowCreate": {
                 "properties": {
                     "name": {
@@ -18340,6 +18591,22 @@
                         ],
                         "title": "Any",
                         "description": "A list of flow ids to include"
+                    },
+                    "not_any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Not Any",
+                        "description": "A list of flow ids to exclude"
                     }
                 },
                 "additionalProperties": false,
@@ -18868,6 +19135,49 @@
                 "title": "FlowRun",
                 "description": "An ORM representation of flow run data."
             },
+            "FlowRunBulkCreateResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunCreateResult"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkCreateResponse",
+                "description": "Response from bulk flow run creation."
+            },
+            "FlowRunBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkDeleteResponse",
+                "description": "Response from bulk flow run deletion."
+            },
+            "FlowRunBulkSetStateResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunOrchestrationResult"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkSetStateResponse",
+                "description": "Response from bulk set state operation."
+            },
             "FlowRunCreate": {
                 "properties": {
                     "state": {
@@ -19065,6 +19375,47 @@
                 ],
                 "title": "FlowRunCreate",
                 "description": "Data used by the Prefect REST API to create a flow run."
+            },
+            "FlowRunCreateResult": {
+                "properties": {
+                    "flow_run_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Id"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "CREATED",
+                            "FAILED"
+                        ],
+                        "title": "Status"
+                    },
+                    "error": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Error"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "status"
+                ],
+                "title": "FlowRunCreateResult",
+                "description": "Per-run result for bulk create operations."
             },
             "FlowRunFilter": {
                 "properties": {
@@ -20016,6 +20367,53 @@
                     "updated"
                 ],
                 "title": "FlowRunInput"
+            },
+            "FlowRunOrchestrationResult": {
+                "properties": {
+                    "flow_run_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Flow Run Id"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SetStateStatus"
+                    },
+                    "state": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "details": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/StateAcceptDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateWaitDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateRejectDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateAbortDetails"
+                            }
+                        ],
+                        "title": "Details"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "flow_run_id",
+                    "status",
+                    "details"
+                ],
+                "title": "FlowRunOrchestrationResult",
+                "description": "Per-run result for bulk state operations."
             },
             "FlowRunPaginationResponse": {
                 "properties": {
