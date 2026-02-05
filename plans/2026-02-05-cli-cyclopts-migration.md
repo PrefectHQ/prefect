@@ -35,7 +35,7 @@ Wiring (internal-only, not documented for users):
 3. If `PREFECT_CLI_IMPL=cyclopts`, route to `prefect.cli._cyclopts.app`; otherwise route to `prefect.cli.root.app`.
 4. Routing rule from the spike PR remains in place: help/version/completion and non-migrated commands continue to delegate to Typer until parity is guaranteed.
 
-Routing sketch (mirrors the spike PR):
+Routing sketch (empirically implemented in the spike PR):
 
 ```python
 def app() -> None:
@@ -62,7 +62,7 @@ Plan:
 2. Implement equivalent global flags in Cyclopts for `--profile`, `--prompt`, and `--version`, and call into the shared entrypoint.
 3. Ensure `prefect --profile <x>` and `prefect --prompt/--no-prompt` behave identically in Typer and Cyclopts modes.
 
-Entrypoint signature sketch:
+Entrypoint signature sketch (proposed; not yet implemented in spike PR):
 
 ```python
 def run_entrypoint(
@@ -97,7 +97,7 @@ Plan:
 5. Routing rule (empirically validated in the spike PR): the entrypoint must delegate to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags should continue to route to Typer until help output parity is guaranteed.
 6. Keep Typer module registration in a single helper at `src/prefect/cli/_typer_loader.py` (used by both entrypoints).
 
-Registry sketch:
+Registry sketch (proposed; not yet implemented in spike PR):
 
 ```python
 @dataclass(frozen=True)
@@ -123,7 +123,7 @@ COMMANDS: dict[str, CommandSpec] = {
 }
 ```
 
-Delegation mechanism (tested in spike PR):
+Delegation mechanism (empirically implemented in the spike PR):
 
 ```python
 def _delegate(command: str, tokens: tuple[str, ...]) -> None:
@@ -152,7 +152,7 @@ Plan:
 2. For each group, add a native Cyclopts implementation and flip its registry entry to “native.”
 3. Add parity tests and a benchmark entry for each migrated group.
 
-Migration template for a command group:
+Migration template for a command group (proposed structure):
 
 1. Create `src/prefect/cli/_cyclopts/<command>.py` with Cyclopts app + commands.
 2. Update `src/prefect/cli/_registry.py` to mark the command as Cyclopts-native.
@@ -160,7 +160,7 @@ Migration template for a command group:
 4. Add parity tests in `tests/cli/test_cyclopts_parity.py` for exit codes and core output.
 5. Add/update benchmarks in `benches/cli-bench.toml`.
 
-Worked example (Config → Cyclopts, abridged):
+Worked example (Config → Cyclopts, abridged and illustrative):
 
 ```python
 # Typer (today)
@@ -221,7 +221,7 @@ Status (Phase 3):
 2. Use existing CLI test utilities where possible; prefer invoking `python -m prefect` to ensure tests execute the local code.
 3. Keep CLI benchmarks in `benches/cli-bench.toml`, and ensure CI runs both standard and Cyclopts categories.
 
-Parity test sketch:
+Parity test sketch (matches spike PR structure):
 
 ```python
 def test_config_view_parity():
