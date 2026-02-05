@@ -21,10 +21,29 @@ Migrate the Prefect CLI from Typer to Cyclopts in an incremental, low-risk way t
 
 Each command in the CLI is in one of two states during the migration:
 
-- **migrated**: reimplemented in cyclopts with its own command handler in `src/prefect/cli/_cyclopts/<command>.py`. Cyclopts handles parsing and execution directly. Example: `config` in #20549.
-- **delegated**: registered as a cyclopts command stub that forwards all arguments to the existing typer implementation via `_delegate()`. Behavior is identical to typer-only mode. Example: `deploy`, `server`, and all other commands in #20549.
+- **migrated**: reimplemented in cyclopts with its own command handler in `src/prefect/cli/_cyclopts/<command>.py`. Cyclopts handles parsing and execution directly.
+- **delegated**: registered as a cyclopts command stub that forwards all arguments to the existing typer implementation via `_delegate()`. Behavior is identical to typer-only mode.
 
 A command moves from delegated to migrated by replacing its stub with a real cyclopts implementation and adding parity tests.
+
+```python
+# delegated (stub that forwards to typer)
+deploy_app = cyclopts.App(name="deploy", help="Create and manage deployments.")
+_app.command(deploy_app)
+
+@deploy_app.default
+def deploy_default(*tokens: str):
+    _delegate("deploy", tokens)
+
+# migrated (real cyclopts implementation)
+@config_app.command()
+def view(
+    *,
+    show_defaults: Annotated[bool, cyclopts.Parameter("--show-defaults", negative="--hide-defaults")] = False,
+    show_sources: Annotated[bool, cyclopts.Parameter("--show-sources", negative="--hide-sources")] = True,
+):
+    ...
+```
 
 ## Plan Summary
 
@@ -96,9 +115,7 @@ Acceptance:
 1. Global flags produce identical behavior and exit codes in both modes.
 2. Logging setup and console configuration match existing Typer behavior.
 
-Status (Phase 0):
-- [x] Cyclopts root callback matches Typer behavior (`src/prefect/cli/_cyclopts/__init__.py`).
-- [ ] Parity tests cover `--profile`, `--prompt/--no-prompt`, `--version`.
+Scope: Root callback, global flags, console/logging setup. Pattern proven in #20549; to be landed as part of this work.
 
 ## Phase 1: Routing and Lazy Registration
 
@@ -124,10 +141,7 @@ Acceptance:
 1. Delegated commands run through Typer and retain current behavior.
 2. Help/version/completion remain routed to Typer until Cyclopts help output parity is guaranteed.
 
-Status (Phase 1):
-- [x] Keep `src/prefect/cli/_typer_loader.py` as the single Typer registration path.
-- [x] Route all non-migrated commands to Typer (no “not implemented” gaps).
-- [x] Add parity tests for top-level help/version routing.
+Scope: Toggle wiring, delegation stubs for all commands, typer loader module. Pattern proven in #20549; to be landed as part of this work.
 
 ## Phase 2: Incremental Migration of Command Groups
 
@@ -162,25 +176,47 @@ def view(
 ): ...
 ```
 
-Suggested order:
+Suggested order (all top-level command groups):
 
-1. config, profile (low risk, minimal network/server interaction; good for proving parity)
-2. server, worker (high-traffic, but still primarily CLI orchestration; strong signal on parity)
-3. deploy, flow-run (complex behavior, larger surface area; migrate after pattern is proven)
-4. work-pool, work-queue, variable (moderate complexity; depends on client/server plumbing)
-5. remaining long-tail commands
+**Wave 1** — low risk, minimal network/server interaction, good for proving parity:
+- `config` (view, set, unset, validate)
+- `profile` (ls, create, delete, rename, populate-defaults, use, inspect)
+- `version`
+
+**Wave 2** — high-traffic, primarily CLI orchestration:
+- `server` (start, services)
+- `worker` (start)
+- `shell` (serve, watch)
+
+**Wave 3** — complex behavior, larger surface area:
+- `deploy` (entrypoint, init)
+- `flow-run` (ls, inspect, cancel, delete, logs, execute)
+- `flow` (ls, serve)
+- `deployment` (ls, inspect, run, schedule, pause, resume, delete, apply, build)
+
+**Wave 4** — moderate complexity, server-backed CRUD:
+- `work-pool` (ls, create, delete, inspect, pause, resume, set-concurrency-limit, clear-concurrency-limit, preview, get-default-base-job-template, update)
+- `work-queue` (ls, create, delete, inspect, pause, resume, set-concurrency-limit, clear-concurrency-limit)
+- `variable` (ls, get, set, unset, inspect)
+- `block` (ls, create, delete, inspect, register)
+- `concurrency-limit` / `global-concurrency-limit`
+
+**Wave 5** — remaining commands:
+- `cloud` (login, logout, workspace ls/set/create, webhook, asset, ip-allowlist)
+- `artifact` (ls, inspect, delete)
+- `automation` (ls, inspect, delete, pause, resume, create)
+- `event` (stream, emit)
+- `task` / `task-run`
+- `api` (raw HTTP verbs)
+- `dashboard` (open)
+- `dev` (start, build-image, container, api-ref)
+- `transfer`
+- `sdk` (generate)
 
 Acceptance:
 
 1. Each migrated group has parity tests that validate exit codes and core output.
 2. Benchmarks demonstrate expected improvements for help and discovery commands.
-
-Status (Phase 2):
-- [ ] Migrate `config` and `profile`.
-- [ ] Migrate `server` and `worker`.
-- [ ] Migrate `deploy` and `flow-run`.
-- [ ] Migrate `work-pool`, `work-queue`, `variable`.
-- [ ] Migrate remaining command groups.
 
 ## Phase 3: Default Flip and Typer Retirement
 
@@ -197,18 +233,60 @@ Acceptance:
 1. Cyclopts is the default CLI and passes the full CLI test suite.
 2. Typer can be removed cleanly without functional regressions.
 
-Status (Phase 3):
-- [ ] Flip default entrypoint to Cyclopts.
-- [ ] Keep a temporary opt-out for one release window.
-- [ ] Remove Typer dependency and legacy code.
+Scope: Flip default, deprecation period, remove typer dependency.
 
 ## Testing Strategy
 
-1. Parity tests for migrated commands should compare exit code and core output fields. If help formatting differs, it must be explicitly approved and documented.
-2. Use existing CLI test utilities where possible; prefer invoking `python -m prefect` to ensure tests execute the local code.
-3. Keep CLI benchmarks in `benches/cli-bench.toml`, and ensure CI runs both standard and Cyclopts categories.
+### Existing test infrastructure: `invoke_and_assert`
 
-Parity test snippet (from #20549):
+The current CLI test suite uses `invoke_and_assert` (`src/prefect/testing/cli.py`), which wraps typer's `CliRunner` to test commands in-process. There are ~950 call sites across 35 test files.
+
+**Key constraint (empirically verified):** `invoke_and_assert` cannot test cyclopts commands through typer's `CliRunner`. With `PREFECT_CLI_FAST=1`, `from prefect.cli import app` returns a plain function (the cyclopts entrypoint), not a `Typer` instance. Typer's `CliRunner` raises `AttributeError: 'function' object has no attribute '_add_completion'`.
+
+**During migration (Phases 0–2):** existing `invoke_and_assert` tests continue to work unchanged — they always test through typer regardless of the toggle. No test changes needed.
+
+**At Phase 3 (typer retirement):** `invoke_and_assert` internals must be updated, but the ~950 call sites should not need to change. Cyclopts apps are invoked directly with `app(["arg1", "arg2"])` and stdout is captured with pytest's `capsys` — no special test runner needed. [FastMCP's migration](https://github.com/jlowin/fastmcp/pull/1062) and [cyclopts' unit testing docs](https://cyclopts.readthedocs.io/en/latest/cookbook/unit_testing.html) both demonstrate this pattern:
+
+```python
+# cyclopts: direct in-process invocation (no CliRunner needed)
+with pytest.raises(SystemExit) as exc_info:
+    app(["config", "set", "PREFECT_API_URL=http://localhost"])
+assert exc_info.value.code == 0
+assert "Set 'PREFECT_API_URL'" in capsys.readouterr().out
+
+# cyclopts: parse without executing
+command, bound, _ = app.parse_args(["config", "view", "--show-defaults"])
+assert bound.arguments["show_defaults"] is True
+```
+
+The `invoke_and_assert` update at Phase 3 involves:
+1. Replace `CliRunner().invoke(app, command)` with direct `app(command)` + `capsys`.
+2. Translate `SystemExit` into the same result interface the call sites expect.
+3. Address the exit code difference: typer/click returns 2 for missing required arguments, cyclopts returns 1. A small number of tests that assert `expected_code=2` will need updating.
+
+### Parity tests: `run_cli`
+
+Parity tests are a migration-time safety net that verify both CLI modes produce identical results. They use a subprocess-based `run_cli` utility (`tests/cli/test_cyclopts_parity.py`):
+
+```python
+def run_cli(args: list[str], fast: bool = False) -> subprocess.CompletedProcess:
+    """Run the prefect CLI as a subprocess."""
+    env = os.environ.copy()
+    if fast:
+        env["PREFECT_CLI_FAST"] = "1"
+    else:
+        env.pop("PREFECT_CLI_FAST", None)
+    return subprocess.run(
+        [sys.executable, "-m", "prefect"] + args,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+```
+
+`run_cli` is subprocess-based because it needs to compare the two entrypoints end-to-end (toggle routing, import paths, process lifecycle). It is not a replacement for `invoke_and_assert` — it exists only to validate parity during the migration and will be removed when typer is retired.
+
+Parity test pattern (from #20549):
 
 ```python
 def test_version_output_parity():
@@ -218,6 +296,13 @@ def test_version_output_parity():
     assert cyclopts.returncode == 0
     assert normalize_output(typer.stdout) == normalize_output(cyclopts.stdout)
 ```
+
+### Testing during migration
+
+For each migrated command group, add parity tests that validate:
+1. Exit codes match between typer and cyclopts modes.
+2. Core output fields match (setting names, data values, error messages).
+3. Help formatting differences, if any, are explicitly documented.
 
 ## Benchmarking Strategy
 
@@ -248,13 +333,14 @@ CLI startup benchmarks already run in CI via [python-cli-bench](https://github.c
 ## Verification Checklist
 
 ### Automated
-- [ ] `uv run pytest tests/cli/` passes
-- [ ] Type checker passes
+- `uv run pytest tests/cli/` passes (existing tests via typer)
+- `uv run pytest tests/cli/test_cyclopts_parity.py` passes (parity tests via subprocess)
+- Type checker passes
 
 ### Manual
-- [ ] `prefect --help` output matches current CLI
-- [ ] `prefect --version` output matches current CLI
-- [ ] `prefect --profile <name> ...` selects the correct profile
+- `prefect --help` output matches current CLI
+- `prefect --version` output matches current CLI
+- `prefect --profile <name> ...` selects the correct profile
 
 ## References
 
