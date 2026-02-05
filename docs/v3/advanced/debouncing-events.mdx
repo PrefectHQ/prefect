@@ -6,7 +6,7 @@ description: Learn how to handle multiple events in quick succession without cre
 
 When multiple events occur in quick succession, you may want a single deployment run to handle all of them rather than spinning up a separate flow run for each event. For example, when multiple files are uploaded to an S3 bucket simultaneously, you typically want to process all files together in one run.
 
-This pattern is called **debouncing**, and you can implement it using reactive triggers with the `within` and `schedule_after` parameters.
+This pattern is called **debouncing**, and you can implement it using reactive triggers with the `within` parameter of the trigger and the `schedule_after` parameter of the `run-deployment` action.
 
 ## Why debounce events?
 
