@@ -1,5 +1,4 @@
 import asyncio
-import time
 from uuid import UUID
 
 import pytest
@@ -26,10 +25,10 @@ async def test_concurrency_context_releases_slots_async(
             assert response.active_slots == [task_run_id]
 
             # Occupy the slot for longer than the timeout
-            await asyncio.sleep(1)
+            await asyncio.sleep(10)
 
     with pytest.raises(TimeoutError):
-        with timeout_async(seconds=0.5):
+        with timeout_async(seconds=2):
             with ConcurrencyContext():
                 await expensive_task()
 
@@ -52,11 +51,17 @@ async def test_concurrency_context_releases_slots_sync(
             )
             assert response and response.active_slots == [task_run_id]
 
-            # Occupy the slot for longer than the timeout
-            time.sleep(1)
+            # Use a busy loop instead of time.sleep() because sleep is a
+            # C-level call that cannot be interrupted by
+            # WatcherThreadCancelScope (used when an existing SIGALRM
+            # handler is present from parallel test execution).
+            num = 0
+            while True:
+                _ = str(num) == str(num)[::-1]
+                num += 1
 
     with pytest.raises(TimeoutError):
-        with timeout(seconds=0.5):
+        with timeout(seconds=2):
             with ConcurrencyContext():
                 expensive_task()
 
