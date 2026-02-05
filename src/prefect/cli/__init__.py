@@ -1,53 +1,78 @@
 import os
+import sys
 
 # Check for cyclopts CLI (migration in progress)
 _USE_CYCLOPTS = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
 
+_DELEGATE_FLAGS = {
+    "--help",
+    "-h",
+    "--version",
+    "-v",
+    "--install-completion",
+    "--show-completion",
+}
+
+_FLAGS_WITH_VALUES = {
+    "--profile",
+    "-p",
+}
+
+_CYCLOPTS_COMMANDS = {
+    "config",
+}
+
+
+def _first_command(args: list[str]) -> str | None:
+    it = iter(args)
+    for token in it:
+        if token == "--":
+            return None
+        if token in _FLAGS_WITH_VALUES:
+            next(it, None)
+            continue
+        if token.startswith("-"):
+            continue
+        return token
+    return None
+
+
+def _should_delegate_to_typer(args: list[str]) -> bool:
+    # No args means default help; keep Typer output until parity is established.
+    if not args:
+        return True
+    if any(flag in args for flag in _DELEGATE_FLAGS):
+        return True
+    command = _first_command(args)
+    return command not in _CYCLOPTS_COMMANDS
+
+
 if _USE_CYCLOPTS:
     # New CLI implementation using cyclopts
     try:
-        from prefect.cli._cyclopts import app
+        from prefect.cli._cyclopts import app as _cyclopts_app
     except ImportError as _cyclopts_import_error:
         if "cyclopts" in str(_cyclopts_import_error):
             raise ImportError(
                 "The new CLI requires cyclopts. Install with: pip install prefect[fast-cli]"
             ) from _cyclopts_import_error
         raise
+
+    def app() -> None:
+        if _should_delegate_to_typer(sys.argv[1:]):
+            import prefect.settings
+            from prefect.cli._typer_loader import load_typer_commands
+            from prefect.cli.root import app as typer_app
+
+            load_typer_commands()
+            typer_app()
+        else:
+            _cyclopts_app()
+
 else:
     # Current CLI implementation using typer
     import prefect.settings
+    from prefect.cli._typer_loader import load_typer_commands
     from prefect.cli.root import app
 
-    # Import CLI submodules to register them to the app
-    # isort: split
-
-    import prefect.cli.api
-    import prefect.cli.artifact
-    import prefect.cli.block
-    import prefect.cli.cloud
-    import prefect.cli.cloud.asset
-    import prefect.cli.cloud.ip_allowlist
-    import prefect.cli.cloud.webhook
-    import prefect.cli.shell
-    import prefect.cli.concurrency_limit
-    import prefect.cli.config
-    import prefect.cli.dashboard
-    import prefect.cli.deploy
-    import prefect.cli.deployment
-    import prefect.cli.dev
-    import prefect.cli.events
-    import prefect.cli.experimental
-    import prefect.cli.flow
-    import prefect.cli.flow_run
-    import prefect.cli.global_concurrency_limit
-    import prefect.cli.profile
-    import prefect.cli.sdk
-    import prefect.cli.server
-    import prefect.cli.task
-    import prefect.cli.variable
-    import prefect.cli.work_pool
-    import prefect.cli.work_queue
-    import prefect.cli.worker
-    import prefect.cli.task_run
-    import prefect.cli.transfer
-    import prefect.events.cli.automations
+    load_typer_commands()

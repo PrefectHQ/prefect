@@ -138,6 +138,22 @@ class TestExitCodeParity:
         assert typer.returncode == 0
         assert cyclopts.returncode == 0
 
+        typer_out = normalize_output(typer.stdout)
+        cyclopts_out = normalize_output(cyclopts.stdout)
+        assert typer_out == cyclopts_out
+
+    @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
+    def test_version_output_parity(self):
+        """--version output should match in both modes."""
+        typer = run_cli(["--version"], fast=False)
+        cyclopts = run_cli(["--version"], fast=True)
+        assert typer.returncode == 0
+        assert cyclopts.returncode == 0
+
+        typer_out = normalize_output(typer.stdout)
+        cyclopts_out = normalize_output(cyclopts.stdout)
+        assert typer_out == cyclopts_out
+
     @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
     def test_invalid_command_exit_code(self):
         """Invalid commands should exit non-zero in both modes."""

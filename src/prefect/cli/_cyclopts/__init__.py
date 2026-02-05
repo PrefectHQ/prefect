@@ -73,41 +73,49 @@ def _root_callback(
     from prefect.logging.configuration import setup_logging
     from prefect.settings import PREFECT_CLI_PROMPT, get_current_settings
 
+    def _run_with_settings() -> None:
+        global console, _prompt_override
+
+        settings = get_current_settings()
+
+        # Handle --prompt (default from PREFECT_CLI_PROMPT setting)
+        if prompt is None:
+            _prompt_override = PREFECT_CLI_PROMPT.value()
+        else:
+            _prompt_override = prompt
+
+        # Configure console
+        console = Console(
+            highlight=False,
+            color_system="auto" if settings.cli.colors else None,
+            theme=Theme({"prompt.choices": "bold blue"}),
+            soft_wrap=not settings.cli.wrap_lines,
+            force_interactive=_prompt_override,
+        )
+
+        # Setup logging (skip in test mode)
+        if not settings.testing.test_mode:
+            setup_logging()
+
+        # Windows event loop policy
+        if sys.platform == "win32":
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+        # Invoke the actual command
+        _app(tokens)
+
     # Handle --profile
     if profile and prefect.context.get_settings_context().profile.name != profile:
         try:
-            prefect.context.use_profile(profile, override_environment_variables=True)
+            with prefect.context.use_profile(
+                profile, override_environment_variables=True
+            ):
+                _run_with_settings()
         except KeyError:
             print(f"Unknown profile {profile!r}.", file=sys.stderr)
             sys.exit(1)
-
-    settings = get_current_settings()
-
-    # Handle --prompt (default from PREFECT_CLI_PROMPT setting)
-    if prompt is None:
-        _prompt_override = PREFECT_CLI_PROMPT.value()
     else:
-        _prompt_override = prompt
-
-    # Configure console
-    console = Console(
-        highlight=False,
-        color_system="auto" if settings.cli.colors else None,
-        theme=Theme({"prompt.choices": "bold blue"}),
-        soft_wrap=not settings.cli.wrap_lines,
-        force_interactive=_prompt_override if _prompt_override else None,
-    )
-
-    # Setup logging (skip in test mode)
-    if not settings.testing.test_mode:
-        setup_logging()
-
-    # Windows event loop policy
-    if sys.platform == "win32":
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
-    # Invoke the actual command
-    _app(tokens)
+        _run_with_settings()
 
 
 def app():
@@ -115,14 +123,13 @@ def app():
     _app.meta()
 
 
-def _not_implemented(command: str):
-    """Show error for commands not yet migrated to cyclopts."""
-    print(
-        f"Command '{command}' is not yet migrated to the new CLI.\n"
-        f"Run without PREFECT_CLI_FAST=1 to use this command.",
-        file=sys.stderr,
-    )
-    sys.exit(1)
+def _delegate(command: str, tokens: tuple[str, ...]) -> None:
+    """Delegate execution to the Typer CLI for parity."""
+    from prefect.cli._typer_loader import load_typer_commands
+    from prefect.cli.root import app as typer_app
+
+    load_typer_commands()
+    typer_app([command, *tokens], standalone_mode=False)
 
 
 # =============================================================================
@@ -137,12 +144,7 @@ _app.command(deploy_app)
 @deploy_app.default
 def deploy_default(*tokens: str):
     """Deploy flows. Run 'prefect deploy --help' for options."""
-    from prefect.cli.deploy import deploy
-
-    # Re-invoke with typer
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["deploy"] + list(tokens), standalone_mode=False)
+    _delegate("deploy", tokens)
 
 
 # --- flow-run ---
@@ -153,10 +155,7 @@ _app.command(flow_run_app)
 @flow_run_app.default
 def flow_run_default(*tokens: str):
     """Manage flow runs."""
-    from prefect.cli.flow_run import flow_run_app as typer_flow_run
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["flow-run"] + list(tokens), standalone_mode=False)
+    _delegate("flow-run", tokens)
 
 
 # --- worker ---
@@ -167,10 +166,7 @@ _app.command(worker_app)
 @worker_app.default
 def worker_default(*tokens: str):
     """Manage workers."""
-    from prefect.cli.worker import worker_app as typer_worker
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["worker"] + list(tokens), standalone_mode=False)
+    _delegate("worker", tokens)
 
 
 # --- block ---
@@ -181,10 +177,7 @@ _app.command(block_app)
 @block_app.default
 def block_default(*tokens: str):
     """Manage blocks."""
-    from prefect.cli.block import block_app as typer_block
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["block"] + list(tokens), standalone_mode=False)
+    _delegate("block", tokens)
 
 
 # --- config (native cyclopts) ---
@@ -201,10 +194,7 @@ _app.command(profile_app)
 @profile_app.default
 def profile_default(*tokens: str):
     """Manage profiles."""
-    from prefect.cli.profile import profile_app as typer_profile
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["profile"] + list(tokens), standalone_mode=False)
+    _delegate("profile", tokens)
 
 
 # --- server ---
@@ -215,10 +205,7 @@ _app.command(server_app)
 @server_app.default
 def server_default(*tokens: str):
     """Manage server."""
-    from prefect.cli.server import server_app as typer_server
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["server"] + list(tokens), standalone_mode=False)
+    _delegate("server", tokens)
 
 
 # --- cloud ---
@@ -229,10 +216,7 @@ _app.command(cloud_app)
 @cloud_app.default
 def cloud_default(*tokens: str):
     """Manage cloud."""
-    from prefect.cli.cloud import cloud_app as typer_cloud
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["cloud"] + list(tokens), standalone_mode=False)
+    _delegate("cloud", tokens)
 
 
 # --- work-pool ---
@@ -243,10 +227,7 @@ _app.command(work_pool_app)
 @work_pool_app.default
 def work_pool_default(*tokens: str):
     """Manage work pools."""
-    from prefect.cli.work_pool import work_pool_app as typer_work_pool
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["work-pool"] + list(tokens), standalone_mode=False)
+    _delegate("work-pool", tokens)
 
 
 # --- variable ---
@@ -257,10 +238,7 @@ _app.command(variable_app)
 @variable_app.default
 def variable_default(*tokens: str):
     """Manage variables."""
-    from prefect.cli.variable import variable_app as typer_variable
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["variable"] + list(tokens), standalone_mode=False)
+    _delegate("variable", tokens)
 
 
 # =============================================================================
@@ -271,91 +249,91 @@ def variable_default(*tokens: str):
 @_app.command(name="api")
 def api_cmd(*tokens: str):
     """Interact with the Prefect API."""
-    _not_implemented("api")
+    _delegate("api", tokens)
 
 
 @_app.command(name="artifact")
 def artifact_cmd(*tokens: str):
     """Manage artifacts."""
-    _not_implemented("artifact")
+    _delegate("artifact", tokens)
 
 
 @_app.command(name="concurrency-limit")
 def concurrency_limit_cmd(*tokens: str):
     """Manage concurrency limits."""
-    _not_implemented("concurrency-limit")
+    _delegate("concurrency-limit", tokens)
 
 
 @_app.command(name="dashboard")
 def dashboard_cmd(*tokens: str):
     """Open the Prefect dashboard."""
-    _not_implemented("dashboard")
+    _delegate("dashboard", tokens)
 
 
 @_app.command(name="deployment")
 def deployment_cmd(*tokens: str):
     """Manage deployments (legacy)."""
-    _not_implemented("deployment")
+    _delegate("deployment", tokens)
 
 
 @_app.command(name="dev")
 def dev_cmd(*tokens: str):
     """Development commands."""
-    _not_implemented("dev")
+    _delegate("dev", tokens)
 
 
 @_app.command(name="events")
 def events_cmd(*tokens: str):
     """Manage events."""
-    _not_implemented("events")
+    _delegate("events", tokens)
 
 
 @_app.command(name="flow")
 def flow_cmd(*tokens: str):
     """Manage flows."""
-    _not_implemented("flow")
+    _delegate("flow", tokens)
 
 
 @_app.command(name="global-concurrency-limit")
 def global_concurrency_limit_cmd(*tokens: str):
     """Manage global concurrency limits."""
-    _not_implemented("global-concurrency-limit")
+    _delegate("global-concurrency-limit", tokens)
 
 
 @_app.command(name="shell")
 def shell_cmd(*tokens: str):
     """Start an interactive shell."""
-    _not_implemented("shell")
+    _delegate("shell", tokens)
 
 
 @_app.command(name="task")
 def task_cmd(*tokens: str):
     """Manage tasks."""
-    _not_implemented("task")
+    _delegate("task", tokens)
 
 
 @_app.command(name="task-run")
 def task_run_cmd(*tokens: str):
     """Manage task runs."""
-    _not_implemented("task-run")
+    _delegate("task-run", tokens)
 
 
 @_app.command(name="work-queue")
 def work_queue_cmd(*tokens: str):
     """Manage work queues."""
-    _not_implemented("work-queue")
+    _delegate("work-queue", tokens)
 
 
 @_app.command(name="automations")
 def automations_cmd(*tokens: str):
     """Manage automations."""
-    _not_implemented("automations")
+    _delegate("automations", tokens)
 
 
 @_app.command(name="transfer")
 def transfer_cmd(*tokens: str):
     """Transfer resources between workspaces."""
-    _not_implemented("transfer")
+    _delegate("transfer", tokens)
 
 
 # =============================================================================
@@ -366,7 +344,4 @@ def transfer_cmd(*tokens: str):
 @_app.command(name="version")
 def version_cmd():
     """Display detailed version information."""
-    # This one is common enough to implement directly
-    from prefect.cli.root import app as typer_app
-
-    typer_app(["version"], standalone_mode=False)
+    _delegate("version", ())
