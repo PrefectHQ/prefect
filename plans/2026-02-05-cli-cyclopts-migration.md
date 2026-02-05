@@ -23,12 +23,12 @@ We will keep Typer as the default until parity is established, and introduce a p
 
 ## Migration Toggle (Exact Mechanism)
 
-Toggle: environment variable `PREFECT_CLI_IMPL` with allowed values:
+Toggle: internal environment variable `PREFECT_CLI_IMPL` with allowed values:
 
 1. `typer` (default)
 2. `cyclopts` (opt-in)
 
-Wiring:
+Wiring (internal-only, not documented for users):
 
 1. Implemented in `src/prefect/cli/__init__.py` (the console entrypoint for `prefect`).
 2. The entrypoint reads the env var before importing CLI modules.
@@ -39,6 +39,7 @@ Notes:
 
 1. This replaces any “fast mode” naming; there is no behavior divergence allowed when the toggle is enabled.
 2. The optional dependency group should be renamed accordingly (e.g., `cyclopts-cli`) to avoid “fast” language.
+3. The exact env var name is internal and can change before a user-facing rollout.
 
 ## Phase 0: Entrypoint and Global Flags Parity
 
@@ -46,7 +47,7 @@ Problem: The Typer root callback currently sets up settings, console configurati
 
 Plan:
 
-1. Extract root startup logic into a shared module, e.g. `prefect.cli._entrypoint`, with a single public entry that accepts a profile name, prompt override, and a console-like interface.
+1. Extract root startup logic into a shared module at `src/prefect/cli/_entrypoint.py`, with a single public entry that accepts a profile name, prompt override, and a console-like interface.
 2. Implement equivalent global flags in Cyclopts for `--profile`, `--prompt`, and `--version`, and call into the shared entrypoint.
 3. Ensure `prefect --profile <x>` and `prefect --prompt/--no-prompt` behave identically in Typer and Cyclopts modes.
 
@@ -55,22 +56,34 @@ Acceptance:
 1. Global flags produce identical behavior and exit codes in both modes.
 2. Logging setup and console configuration match existing Typer behavior.
 
+Status (Phase 0):
+- [ ] Create `src/prefect/cli/_entrypoint.py` and move shared startup logic from `src/prefect/cli/root.py`.
+- [ ] Cyclopts root callback uses `src/prefect/cli/_entrypoint.py`.
+- [ ] Parity tests cover `--profile`, `--prompt/--no-prompt`, `--version`.
+
 ## Phase 1: Command Registry, Routing, and Lazy Registration
 
 Problem: We need a single source of truth for command registration and a safe, incremental migration path that preserves parity.
 
 Plan:
 
-1. Create a command registry module, e.g. `prefect.cli._registry`, that defines command name, help text, and import target.
+1. Create a command registry module at `src/prefect/cli/_registry.py` that defines command name, help text, and import target.
 2. Cyclopts reads the registry to register commands without importing the modules up front. On invocation, it imports the real implementation and executes it.
 3. For commands not yet migrated, the cyclopts handler delegates to Typer with the same arguments.
 4. The registry defines which commands are “native cyclopts” vs “delegated to typer” per command group.
 5. Routing rule (empirically validated in the spike PR): the entrypoint must delegate to Typer unless the command is explicitly marked as Cyclopts-native. Top-level help/version/completion flags should continue to route to Typer until help output parity is guaranteed.
+6. Keep Typer module registration in a single helper at `src/prefect/cli/_typer_loader.py` (used by both entrypoints).
 
 Acceptance:
 
 1. Delegated commands run through Typer and retain current behavior.
 2. Help/version/completion remain routed to Typer until Cyclopts help output parity is guaranteed.
+
+Status (Phase 1):
+- [ ] Create `src/prefect/cli/_registry.py`.
+- [ ] Create `src/prefect/cli/_typer_loader.py` for Typer command registration.
+- [ ] Route all non-migrated commands to Typer (no “not implemented” gaps).
+- [ ] Add parity tests for top-level help/version routing.
 
 ## Phase 2: Incremental Migration of Command Groups
 
@@ -84,16 +97,23 @@ Plan:
 
 Suggested order:
 
-1. config, profile
-2. server, worker
-3. deploy, flow-run
-4. work-pool, work-queue, variable
+1. config, profile (low risk, minimal network/server interaction; good for proving parity)
+2. server, worker (high-traffic, but still primarily CLI orchestration; strong signal on parity)
+3. deploy, flow-run (complex behavior, larger surface area; migrate after pattern is proven)
+4. work-pool, work-queue, variable (moderate complexity; depends on client/server plumbing)
 5. remaining long-tail commands
 
 Acceptance:
 
 1. Each migrated group has parity tests that validate exit codes and core output.
 2. Benchmarks demonstrate expected improvements for help and discovery commands.
+
+Status (Phase 2):
+- [ ] Migrate `config` and `profile`.
+- [ ] Migrate `server` and `worker`.
+- [ ] Migrate `deploy` and `flow-run`.
+- [ ] Migrate `work-pool`, `work-queue`, `variable`.
+- [ ] Migrate remaining command groups.
 
 ## Phase 3: Default Flip and Typer Retirement
 
@@ -109,6 +129,11 @@ Acceptance:
 
 1. Cyclopts is the default CLI and passes the full CLI test suite.
 2. Typer can be removed cleanly without functional regressions.
+
+Status (Phase 3):
+- [ ] Flip default entrypoint to Cyclopts.
+- [ ] Keep a temporary opt-out for one release window.
+- [ ] Remove Typer dependency and legacy code.
 
 ## Testing Strategy
 
@@ -130,6 +155,26 @@ Acceptance:
    Mitigation: Route help/version/completion to Typer until parity is guaranteed; treat differences as regressions unless explicitly approved and documented.
 3. Risk: Migration slows due to large surface area.
    Mitigation: Per-group PRs with explicit scope and regression tests.
+
+## Edge Cases
+
+| Scenario | Behavior |
+|----------|----------|
+| Unknown command with toggle enabled | Delegate to Typer (error message remains Typer's) |
+| Cyclopts not installed, toggle enabled | Error with install hint |
+| `--help` / `--version` / completion with toggle enabled | Route to Typer until help parity is guaranteed |
+| Partially migrated command group | Route to Typer unless explicitly marked as Cyclopts-native |
+
+## Verification Checklist
+
+### Automated
+- [ ] `uv run pytest tests/cli/` passes
+- [ ] Type checker passes
+
+### Manual
+- [ ] `prefect --help` output matches current CLI
+- [ ] `prefect --version` output matches current CLI
+- [ ] `prefect --profile <name> ...` selects the correct profile
 
 ## References
 
