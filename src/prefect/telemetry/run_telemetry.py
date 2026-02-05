@@ -52,7 +52,9 @@ class RunTelemetry:
     )
     span: Span | None = None
     _enabled: bool = field(
-        default_factory=lambda: prefect.settings.get_current_settings().cloud.enable_orchestration_telemetry
+        default_factory=lambda: (
+            prefect.settings.get_current_settings().cloud.enable_orchestration_telemetry
+        )
     )
 
     async def async_start_span(

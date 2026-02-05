@@ -69,8 +69,8 @@ class TestBigQueryTargetConfigs:
             client_secret="my_client_secret",
         )
         seal(google_credentials)
-        gcp_credentials.get_credentials_from_service_account = (
-            lambda: google_credentials
+        gcp_credentials.get_credentials_from_service_account = lambda: (
+            google_credentials
         )
         actual = configs.get_configs()
         expected = {
@@ -95,8 +95,8 @@ class TestBigQueryTargetConfigs:
             token="my_token", refresh=lambda *args, **kwargs: "refreshed"
         )
         seal(google_credentials)
-        gcp_credentials.get_credentials_from_service_account = (
-            lambda: google_credentials
+        gcp_credentials.get_credentials_from_service_account = lambda: (
+            google_credentials
         )
         actual = configs.get_configs()
         expected = {
