@@ -110,7 +110,7 @@ class TestMigratableAutomation:
         deployment_id = uuid.uuid4()
         automation = Automation(
             id=uuid.uuid4(),
-            name="test-automation",
+            name=f"test-automation-{uuid.uuid4()}",
             description="Test automation",
             enabled=True,
             tags=[],
@@ -158,7 +158,7 @@ class TestMigratableAutomation:
         work_pool_id = uuid.uuid4()
         automation = Automation(
             id=uuid.uuid4(),
-            name="test-automation",
+            name=f"test-automation-{uuid.uuid4()}",
             description="Test automation",
             enabled=True,
             tags=[],
@@ -200,7 +200,7 @@ class TestMigratableAutomation:
         work_queue_id = uuid.uuid4()
         automation = Automation(
             id=uuid.uuid4(),
-            name="test-automation",
+            name=f"test-automation-{uuid.uuid4()}",
             description="Test automation",
             enabled=True,
             tags=[],
@@ -243,7 +243,7 @@ class TestMigratableAutomation:
         automation_id = uuid.uuid4()
         automation = Automation(
             id=uuid.uuid4(),
-            name="test-automation",
+            name=f"test-automation-{uuid.uuid4()}",
             description="Test automation",
             enabled=True,
             tags=[],
@@ -286,7 +286,7 @@ class TestMigratableAutomation:
         block_document_id = uuid.uuid4()
         automation = Automation(
             id=uuid.uuid4(),
-            name="test-automation",
+            name=f"test-automation-{uuid.uuid4()}",
             description="Test automation",
             enabled=True,
             tags=[],
@@ -329,7 +329,7 @@ class TestMigratableAutomation:
         block_document_id = uuid.uuid4()
         automation = Automation(
             id=uuid.uuid4(),
-            name="test-automation",
+            name=f"test-automation-{uuid.uuid4()}",
             description="Test automation",
             enabled=True,
             tags=[],
@@ -377,7 +377,7 @@ class TestMigratableAutomation:
         block_document_id = uuid.uuid4()
         automation = Automation(
             id=uuid.uuid4(),
-            name="test-automation",
+            name=f"test-automation-{uuid.uuid4()}",
             description="Test automation",
             enabled=True,
             tags=[],
@@ -531,7 +531,7 @@ class TestMigratableAutomation:
         deployment_id = uuid.uuid4()
         automation = Automation(
             id=uuid.uuid4(),
-            name="test-automation-with-deps",
+            name=f"test-automation-with-deps-{uuid.uuid4()}",
             description="Test automation with dependencies",
             enabled=True,
             tags=["test"],
