@@ -1,8 +1,10 @@
 import hashlib
+import logging
 import os
 import shutil
 import subprocess
 import sys
+import time
 import warnings
 from collections.abc import Generator, Iterable, Iterator
 from contextlib import contextmanager
@@ -131,10 +133,31 @@ class BuildError(Exception):
     """Raised when a Docker build fails"""
 
 
+_TRANSIENT_ERROR_PATTERNS = (
+    "502 Bad Gateway",
+    "503 Service Unavailable",
+    "500 Internal Server Error",
+    "i/o timeout",
+    "TLS handshake timeout",
+    "connection reset",
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _is_transient_build_error(error_message: str) -> bool:
+    error_lower = error_message.lower()
+    return any(pattern.lower() in error_lower for pattern in _TRANSIENT_ERROR_PATTERNS)
+
+
 # Labels to apply to all images built with Prefect
 IMAGE_LABELS = {
     "io.prefect.version": prefect.__version__,
 }
+
+
+_BUILD_MAX_RETRIES = 3
+_BUILD_RETRY_DELAY_BASE = 2
 
 
 @silence_docker_warnings()
@@ -169,6 +192,47 @@ def build_image(
 
     kwargs = {key: kwargs[key] for key in kwargs if key not in ["decode", "labels"]}
 
+    last_error: Optional[BuildError] = None
+    for attempt in range(_BUILD_MAX_RETRIES + 1):
+        try:
+            return _build_image_once(
+                context,
+                dockerfile=dockerfile,
+                tag=tag,
+                pull=pull,
+                platform=platform,
+                stream_progress_to=stream_progress_to,
+                **kwargs,
+            )
+        except BuildError as e:
+            last_error = e
+            if attempt < _BUILD_MAX_RETRIES and _is_transient_build_error(str(e)):
+                delay = _BUILD_RETRY_DELAY_BASE ** (attempt + 1)
+                logger.warning(
+                    "Docker build encountered transient error (attempt"
+                    " %d/%d): %s. Retrying in %ds...",
+                    attempt + 1,
+                    _BUILD_MAX_RETRIES + 1,
+                    e,
+                    delay,
+                )
+                time.sleep(delay)
+            else:
+                raise
+
+    assert last_error is not None
+    raise last_error
+
+
+def _build_image_once(
+    context: Path,
+    dockerfile: str = "Dockerfile",
+    tag: Optional[str] = None,
+    pull: bool = False,
+    platform: Optional[str] = None,
+    stream_progress_to: Optional[TextIO] = None,
+    **kwargs: Any,
+) -> str:
     image_id = None
     with docker_client() as client:
         events = client.api.build(
