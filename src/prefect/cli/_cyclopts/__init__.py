@@ -139,27 +139,14 @@ def deploy_default(
 
 
 # --- flow ---
-flow_app = cyclopts.App(name="flow", help="Manage flows.")
+from prefect.cli._cyclopts.flow import flow_app
+
 _app.command(flow_app)
 
-
-@flow_app.default
-def flow_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("flow", tokens)
-
-
 # --- flow-run ---
-flow_run_app = cyclopts.App(name="flow-run", help="Interact with flow runs.")
+from prefect.cli._cyclopts.flow_run import flow_run_app
+
 _app.command(flow_run_app)
-
-
-@flow_run_app.default
-def flow_run_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("flow-run", tokens)
 
 
 # --- deployment ---
@@ -176,28 +163,28 @@ def deployment_default(
     _delegate("deployment", tokens)
 
 
-# --- server (migrated) ---
+# --- server ---
 from prefect.cli._cyclopts.server import server_app
 
 _app.command(server_app)
 
-# --- worker (migrated) ---
+# --- worker ---
 from prefect.cli._cyclopts.worker import worker_app
 
 _app.command(worker_app)
 
-# --- shell (migrated) ---
+# --- shell ---
 from prefect.cli._cyclopts.shell import shell_app
 
 _app.command(shell_app)
 
 
-# --- config (migrated) ---
+# --- config ---
 from prefect.cli._cyclopts.config import config_app
 
 _app.command(config_app)
 
-# --- profile (migrated) ---
+# --- profile ---
 from prefect.cli._cyclopts.profile import profile_app
 
 _app.command(profile_app)
@@ -394,7 +381,7 @@ def transfer_cmd(
     _delegate("transfer", tokens)
 
 
-# --- version (migrated) ---
+# --- version ---
 from prefect.cli._cyclopts.version import version
 
 _app.command(version, name="version")
