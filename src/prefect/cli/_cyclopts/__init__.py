@@ -177,47 +177,27 @@ def deployment_default(
 
 
 # --- server ---
-server_app = cyclopts.App(name="server", help="Start and manage the Prefect server.")
+from prefect.cli._cyclopts.server import server_app
+
 _app.command(server_app)
 
-
-@server_app.default
-def server_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("server", tokens)
-
-
 # --- worker ---
-worker_app = cyclopts.App(name="worker", help="Start and interact with workers.")
+from prefect.cli._cyclopts.worker import worker_app
+
 _app.command(worker_app)
 
-
-@worker_app.default
-def worker_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("worker", tokens)
-
-
 # --- shell ---
-shell_app = cyclopts.App(name="shell", help="Run shell commands as Prefect flows.")
+from prefect.cli._cyclopts.shell import shell_app
+
 _app.command(shell_app)
 
 
-@shell_app.default
-def shell_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("shell", tokens)
-
-
-# --- config (migrated) ---
+# --- config ---
 from prefect.cli._cyclopts.config import config_app
 
 _app.command(config_app)
 
-# --- profile (migrated) ---
+# --- profile ---
 from prefect.cli._cyclopts.profile import profile_app
 
 _app.command(profile_app)
@@ -414,7 +394,7 @@ def transfer_cmd(
     _delegate("transfer", tokens)
 
 
-# --- version (migrated) ---
+# --- version ---
 from prefect.cli._cyclopts.version import version
 
 _app.command(version, name="version")
