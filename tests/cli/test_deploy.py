@@ -70,12 +70,13 @@ if TYPE_CHECKING:
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
-_DN = f"test-name-{uuid.uuid4()}"
-_DN1 = f"test-name-1-{uuid.uuid4()}"
-_DN2 = f"test-name-2-{uuid.uuid4()}"
-_DN3 = f"test-name-3-{uuid.uuid4()}"
-_DN4 = f"test-name-4-{uuid.uuid4()}"
-_PN = f"test-pool-{uuid.uuid4()}"
+_NS = uuid.uuid5(uuid.NAMESPACE_DNS, "tests.cli.test_deploy")
+_DN = f"test-name-{_NS}"
+_DN1 = f"test-name-1-{uuid.uuid5(_NS, '1')}"
+_DN2 = f"test-name-2-{uuid.uuid5(_NS, '2')}"
+_DN3 = f"test-name-3-{uuid.uuid5(_NS, '3')}"
+_DN4 = f"test-name-4-{uuid.uuid5(_NS, '4')}"
+_PN = f"test-pool-{uuid.uuid5(_NS, 'pool')}"
 
 
 @pytest.fixture
