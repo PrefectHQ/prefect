@@ -200,9 +200,9 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/test_tasks.py",
     "tests/test_waiters.py",
     # Phase 5 - CLI subdirectories with UUID-based randomization
-    "tests/cli/cloud",
-    "tests/cli/deploy",
-    "tests/cli/transfer",
+    "tests/cli/cloud/",
+    "tests/cli/deploy/",
+    "tests/cli/transfer/",
 ]
 
 
