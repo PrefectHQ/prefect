@@ -76,3 +76,43 @@ If your flow or task uses a logger, you can disable the logger to avoid the `Run
         with disable_run_logger():
             assert my_favorite_task.fn() == 42
     ```
+
+### Testing with caplog
+
+To capture and test log output from flows and tasks, use pytest's built-in `caplog` fixture. This is useful for verifying that your flows and tasks log the expected messages during execution.
+
+```python
+from prefect import flow, task
+import logging
+
+@task
+def my_logging_task():
+    logger = logging.getLogger(__name__)
+    logger.info("Task is running")
+    return 42
+
+@flow
+def my_logging_flow():
+    logger = logging.getLogger(__name__)
+    logger.info("Flow is starting")
+    result = my_logging_task()
+    logger.info(f"Flow completed with result: {result}")
+    return result
+
+def test_flow_logs_with_caplog(caplog):
+    with caplog.at_level(logging.INFO):
+        result = my_logging_flow()
+        assert result == 42
+        assert "Flow is starting" in caplog.text
+        assert "Flow completed with result: 42" in caplog.text
+```
+
+You can also filter logs by logger name or level:
+
+```python
+def test_task_logs_with_caplog(caplog):
+    with caplog.at_level(logging.INFO, logger="prefect.task_runs"):
+        result = my_logging_task.fn()
+        assert result == 42
+        assert "Task is running" in caplog.text
+```
