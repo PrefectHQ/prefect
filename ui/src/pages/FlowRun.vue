@@ -74,7 +74,14 @@
   const parameters = computed(() => stringify(flowRun.value?.parameters ?? {}))
 
   const isPending = computed(() => {
-    return flowRun.value?.stateType ? isPendingStateType(flowRun.value.stateType) : true
+    if (!flowRun.value?.stateType) {
+      return true
+    }
+    // AwaitingRetry should show the graph since it has execution data from the failed run
+    if (flowRun.value.stateName === 'AwaitingRetry') {
+      return false
+    }
+    return isPendingStateType(flowRun.value.stateType)
   })
 
   const jobVariables = computed(() => stringify(flowRun.value?.jobVariables ?? {}))
