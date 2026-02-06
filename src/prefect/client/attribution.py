@@ -44,15 +44,15 @@ def get_attribution_headers() -> dict[str, str]:
     if flow_run_ctx and flow_run_ctx.flow_run:
         flow_run = flow_run_ctx.flow_run
 
-        # Flow info
-        if flow_run.flow_id:
-            headers["X-Prefect-Flow-Id"] = str(flow_run.flow_id)
-        if flow_run_ctx.flow and flow_run_ctx.flow.name:
+        # Flow info (use getattr for safety with mock/minimal FlowRun objects)
+        if flow_id := getattr(flow_run, "flow_id", None):
+            headers["X-Prefect-Flow-Id"] = str(flow_id)
+        if flow_run_ctx.flow and getattr(flow_run_ctx.flow, "name", None):
             headers["X-Prefect-Flow-Name"] = flow_run_ctx.flow.name
 
         # Deployment info from flow run
-        if flow_run.deployment_id:
-            headers["X-Prefect-Deployment-Id"] = str(flow_run.deployment_id)
+        if deployment_id := getattr(flow_run, "deployment_id", None):
+            headers["X-Prefect-Deployment-Id"] = str(deployment_id)
         # Deployment name is not on FlowRun, fall back to env var
         if deployment_name := os.environ.get("PREFECT__DEPLOYMENT_NAME"):
             headers["X-Prefect-Deployment-Name"] = deployment_name

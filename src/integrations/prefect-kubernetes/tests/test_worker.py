@@ -281,6 +281,12 @@ from_template_and_values_cases = [
                         exclude_unset=True
                     ),
                     "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    **KubernetesWorkerJobConfiguration._base_attribution_environment(
+                        flow_run=flow_run,
+                        deployment=deployment,
+                        flow=flow,
+                        worker_name=worker_name,
+                    ),
                     "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
                 },
                 labels={
@@ -360,6 +366,15 @@ from_template_and_values_cases = [
                                                 "name": "PREFECT__FLOW_RUN_ID",
                                                 "value": str(flow_run.id),
                                             },
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in KubernetesWorkerJobConfiguration._base_attribution_environment(
+                                                    flow_run=flow_run,
+                                                    deployment=deployment,
+                                                    flow=flow,
+                                                    worker_name=worker_name,
+                                                ).items()
+                                            ],
                                             {
                                                 "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
                                                 "value": "reschedule",
@@ -597,6 +612,12 @@ from_template_and_values_cases = [
                         exclude_unset=True
                     ),
                     "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    **KubernetesWorkerJobConfiguration._base_attribution_environment(
+                        flow_run=flow_run,
+                        deployment=deployment,
+                        flow=flow,
+                        worker_name=worker_name,
+                    ),
                     "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
                 },
                 labels={
@@ -676,6 +697,15 @@ from_template_and_values_cases = [
                                                 "name": "PREFECT__FLOW_RUN_ID",
                                                 "value": str(flow_run.id),
                                             },
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in KubernetesWorkerJobConfiguration._base_attribution_environment(
+                                                    flow_run=flow_run,
+                                                    deployment=deployment,
+                                                    flow=flow,
+                                                    worker_name=worker_name,
+                                                ).items()
+                                            ],
                                             {
                                                 "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
                                                 "value": "reschedule",
@@ -786,6 +816,12 @@ from_template_and_values_cases = [
                         exclude_unset=True
                     ),
                     "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    **KubernetesWorkerJobConfiguration._base_attribution_environment(
+                        flow_run=flow_run,
+                        deployment=deployment,
+                        flow=flow,
+                        worker_name=worker_name,
+                    ),
                     "TEST_ENV": "test",
                 },
                 labels={
@@ -870,6 +906,15 @@ from_template_and_values_cases = [
                                                 "name": "PREFECT__FLOW_RUN_ID",
                                                 "value": str(flow_run.id),
                                             },
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in KubernetesWorkerJobConfiguration._base_attribution_environment(
+                                                    flow_run=flow_run,
+                                                    deployment=deployment,
+                                                    flow=flow,
+                                                    worker_name=worker_name,
+                                                ).items()
+                                            ],
                                             {
                                                 "name": "TEST_ENV",
                                                 "value": "test",
@@ -1107,6 +1152,12 @@ from_template_and_values_cases = [
                         exclude_unset=True
                     ),
                     "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    **KubernetesWorkerJobConfiguration._base_attribution_environment(
+                        flow_run=flow_run,
+                        deployment=deployment,
+                        flow=flow,
+                        worker_name=worker_name,
+                    ),
                     "TEST_ENV": "test",
                 },
                 labels={
@@ -1188,6 +1239,15 @@ from_template_and_values_cases = [
                                                 "name": "PREFECT__FLOW_RUN_ID",
                                                 "value": str(flow_run.id),
                                             },
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in KubernetesWorkerJobConfiguration._base_attribution_environment(
+                                                    flow_run=flow_run,
+                                                    deployment=deployment,
+                                                    flow=flow,
+                                                    worker_name=worker_name,
+                                                ).items()
+                                            ],
                                             {
                                                 "name": "TEST_ENV",
                                                 "value": "test",
@@ -2189,6 +2249,7 @@ class TestKubernetesWorker:
                 for key, value in {
                     **configuration._base_environment(),
                     **configuration._base_flow_run_environment(flow_run),
+                    **configuration._base_attribution_environment(flow_run=flow_run),
                     "foo": "FOO",
                     "bar": "BAR",
                     "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
@@ -2225,6 +2286,7 @@ class TestKubernetesWorker:
                 for key, value in {
                     **configuration._base_environment(),
                     **configuration._base_flow_run_environment(flow_run),
+                    **configuration._base_attribution_environment(flow_run=flow_run),
                     "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "die",
                 }.items()
             ]

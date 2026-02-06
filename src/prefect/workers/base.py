@@ -386,13 +386,18 @@ class BaseJobConfiguration(BaseModel):
             env["PREFECT__WORKER_ID"] = str(worker_id)
         if worker_name is not None:
             env["PREFECT__WORKER_NAME"] = worker_name
-        if flow_run is not None and flow_run.flow_id:
-            env["PREFECT__FLOW_ID"] = str(flow_run.flow_id)
-        if flow is not None:
+        # Use getattr for safety with mock/minimal FlowRun objects
+        if flow_id := (
+            getattr(flow_run, "flow_id", None) if flow_run is not None else None
+        ):
+            env["PREFECT__FLOW_ID"] = str(flow_id)
+        if flow is not None and getattr(flow, "name", None):
             env["PREFECT__FLOW_NAME"] = flow.name
-        if flow_run is not None and flow_run.deployment_id:
-            env["PREFECT__DEPLOYMENT_ID"] = str(flow_run.deployment_id)
-        if deployment is not None:
+        if deployment_id := (
+            getattr(flow_run, "deployment_id", None) if flow_run is not None else None
+        ):
+            env["PREFECT__DEPLOYMENT_ID"] = str(deployment_id)
+        if deployment is not None and getattr(deployment, "name", None):
             env["PREFECT__DEPLOYMENT_NAME"] = deployment.name
         return env
 
