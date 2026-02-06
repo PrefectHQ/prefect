@@ -13,11 +13,13 @@ import multiprocessing.context
 import os
 import subprocess
 import sys
+import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-import tempfile
 from types import ModuleType
 from typing import Any, TypedDict
+
+from typing_extensions import NotRequired
 
 import anyio
 import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
@@ -33,6 +35,9 @@ from prefect.settings.models.root import Settings
 from prefect.utilities.slugify import slugify
 
 from .execute import execute_bundle_from_file
+from ._file_collector import FileCollector
+from ._ignore_filter import IgnoreFilter, check_sensitive_files
+from ._zip_builder import ZipBuilder
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -56,12 +61,36 @@ class SerializedBundle(TypedDict):
     """
     A serialized bundle is a serialized function, context, and flow run that can be
     easily transported for later execution.
+
+    Attributes:
+        function: Serialized (base64-encoded, gzip-compressed, cloudpickled) flow function.
+        context: Serialized context for flow execution.
+        flow_run: Flow run metadata as a dict.
+        dependencies: Newline-separated list of pip dependencies.
+        files_key: Optional storage key for sidecar zip containing included files.
+            Format: "files/{sha256hash}.zip". None when no files are included.
     """
 
     function: str
     context: str
     flow_run: dict[str, Any]
     dependencies: str
+    files_key: NotRequired[str | None]
+
+
+class BundleCreationResult(TypedDict):
+    """
+    Result of creating a bundle, including optional sidecar zip info.
+
+    Attributes:
+        bundle: The serialized bundle.
+        zip_path: Path to sidecar zip file if include_files was specified.
+            None when no files are included. Caller is responsible for
+            uploading this file and calling cleanup.
+    """
+
+    bundle: SerializedBundle
+    zip_path: Path | None
 
 
 def _serialize_bundle_object(obj: Any) -> str:
@@ -336,7 +365,7 @@ def create_bundle_for_flow_run(
     flow: Flow[Any, Any],
     flow_run: FlowRun,
     context: dict[str, Any] | None = None,
-) -> SerializedBundle:
+) -> BundleCreationResult:
     """
     Creates a bundle for a flow run.
 
@@ -346,7 +375,10 @@ def create_bundle_for_flow_run(
         context: The context to use when running the flow.
 
     Returns:
-        A serialized bundle.
+        A BundleCreationResult containing:
+        - bundle: The serialized bundle
+        - zip_path: Path to sidecar zip file if include_files was specified, None otherwise.
+                   Caller is responsible for uploading this file and calling cleanup.
     """
     context = context or serialize_context()
 
@@ -383,14 +415,61 @@ def create_bundle_for_flow_run(
             "\n".join(file_dependencies),
         )
 
+    # Collect and package included files if specified
+    files_key: str | None = None
+    zip_path: Path | None = None
+    include_files = getattr(flow, "include_files", None)
+
+    if include_files:
+        try:
+            # Get base directory from flow file location
+            flow_file = Path(inspect.getfile(flow.fn))
+            base_dir = flow_file.parent.resolve()
+
+            # Pipeline: collect -> filter -> check -> zip
+            collector = FileCollector(base_dir)
+            result = collector.collect(include_files)
+
+            if result.files:
+                # Apply .prefectignore filtering
+                ignore_filter = IgnoreFilter(base_dir)
+                filtered = ignore_filter.filter(
+                    result.files, explicit_patterns=include_files
+                )
+
+                # Warn on sensitive files (but still include them)
+                check_sensitive_files(filtered.included_files, base_dir)
+
+                if filtered.included_files:
+                    # Build sidecar zip
+                    builder = ZipBuilder(base_dir)
+                    zip_result = builder.build(filtered.included_files)
+
+                    files_key = zip_result.storage_key
+                    zip_path = zip_result.zip_path
+
+                    logger.info(
+                        "Created sidecar zip with %d files (key: %s)",
+                        len(filtered.included_files),
+                        files_key,
+                    )
+        except (OSError, TypeError, AttributeError) as e:
+            # Handle cases where flow has no file (dynamic flow) or other IO errors
+            logger.warning(
+                "Could not collect included files: %s. Files will not be bundled.",
+                e,
+            )
+
     # Automatically register local modules for pickle-by-value serialization
     with _pickle_local_modules_by_value(flow):
-        return {
+        bundle: SerializedBundle = {
             "function": _serialize_bundle_object(flow),
             "context": _serialize_bundle_object(context),
             "flow_run": flow_run.model_dump(mode="json"),
             "dependencies": dependencies,
+            "files_key": files_key,
         }
+        return BundleCreationResult(bundle=bundle, zip_path=zip_path)
 
 
 def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
@@ -542,7 +621,11 @@ def convert_step_to_command(
 
 
 def upload_bundle_to_storage(
-    bundle: SerializedBundle, key: str, upload_command: list[str]
+    bundle: SerializedBundle,
+    key: str,
+    upload_command: list[str],
+    zip_path: Path | None = None,
+    upload_step: dict[str, Any] | None = None,
 ) -> None:
     """
     Uploads a bundle to storage.
@@ -551,11 +634,24 @@ def upload_bundle_to_storage(
         bundle: The serialized bundle to upload.
         key: The key to use for the remote file when uploading.
         upload_command: The command to use to upload the bundle as a list of strings.
+        zip_path: Optional path to sidecar zip file. If provided, uploads alongside
+            the bundle using the bundle's files_key as the storage key.
+        upload_step: The upload step dict used to build the upload command. Required
+            when uploading a sidecar zip so a separate command with the correct key
+            can be constructed.
     """
+    import shutil
+
     # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
     # via the upload command
     with tempfile.TemporaryDirectory() as temp_dir:
         Path(temp_dir).joinpath(key).write_bytes(json.dumps(bundle).encode("utf-8"))
+
+        # Copy sidecar zip if present
+        if zip_path and bundle.get("files_key"):
+            sidecar_dest = Path(temp_dir) / bundle["files_key"]
+            sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(zip_path, sidecar_dest)
 
         try:
             full_command = upload_command + [key]
@@ -564,12 +660,36 @@ def upload_bundle_to_storage(
                 full_command,
                 cwd=temp_dir,
             )
+
+            # Upload sidecar if present
+            if zip_path and bundle.get("files_key"):
+                if upload_step is None:
+                    raise ValueError(
+                        "upload_step is required when uploading a sidecar zip"
+                    )
+                sidecar_command = convert_step_to_command(
+                    upload_step, bundle["files_key"], quiet=True
+                )
+                sidecar_command.append(bundle["files_key"])
+                logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
+                subprocess.check_call(
+                    sidecar_command,
+                    cwd=temp_dir,
+                )
+                logger.info(
+                    "Successfully uploaded sidecar zip: %s", bundle["files_key"]
+                )
+
         except subprocess.CalledProcessError as e:
             raise RuntimeError(e.stderr.decode("utf-8")) from e
 
 
 async def aupload_bundle_to_storage(
-    bundle: SerializedBundle, key: str, upload_command: list[str]
+    bundle: SerializedBundle,
+    key: str,
+    upload_command: list[str],
+    zip_path: Path | None = None,
+    upload_step: dict[str, Any] | None = None,
 ) -> None:
     """
     Asynchronously uploads a bundle to storage.
@@ -578,7 +698,14 @@ async def aupload_bundle_to_storage(
         bundle: The serialized bundle to upload.
         key: The key to use for the remote file when uploading.
         upload_command: The command to use to upload the bundle as a list of strings.
+        zip_path: Optional path to sidecar zip file. If provided, uploads alongside
+            the bundle using the bundle's files_key as the storage key.
+        upload_step: The upload step dict used to build the upload command. Required
+            when uploading a sidecar zip so a separate command with the correct key
+            can be constructed.
     """
+    import shutil
+
     # Write the bundle to a temporary directory so it can be uploaded to the bundle storage
     # via the upload command
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -588,6 +715,12 @@ async def aupload_bundle_to_storage(
             .write_bytes(json.dumps(bundle).encode("utf-8"))
         )
 
+        # Copy sidecar zip if present
+        if zip_path and bundle.get("files_key"):
+            sidecar_dest = Path(temp_dir) / bundle["files_key"]
+            sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(zip_path, sidecar_dest)
+
         try:
             full_command = upload_command + [key]
             logger.debug("Uploading execution bundle with command: %s", full_command)
@@ -595,15 +728,36 @@ async def aupload_bundle_to_storage(
                 full_command,
                 cwd=temp_dir,
             )
+
+            # Upload sidecar if present
+            if zip_path and bundle.get("files_key"):
+                if upload_step is None:
+                    raise ValueError(
+                        "upload_step is required when uploading a sidecar zip"
+                    )
+                sidecar_command = convert_step_to_command(
+                    upload_step, bundle["files_key"], quiet=True
+                )
+                sidecar_command.append(bundle["files_key"])
+                logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
+                await anyio.run_process(
+                    sidecar_command,
+                    cwd=temp_dir,
+                )
+                logger.info(
+                    "Successfully uploaded sidecar zip: %s", bundle["files_key"]
+                )
+
         except subprocess.CalledProcessError as e:
             raise RuntimeError(e.stderr.decode("utf-8")) from e
 
 
 __all__ = [
-    "execute_bundle_from_file",
+    "BundleCreationResult",
     "convert_step_to_command",
     "create_bundle_for_flow_run",
-    "extract_flow_from_bundle",
+    "execute_bundle_from_file",
     "execute_bundle_in_subprocess",
+    "extract_flow_from_bundle",
     "SerializedBundle",
 ]
