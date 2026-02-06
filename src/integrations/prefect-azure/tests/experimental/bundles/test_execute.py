@@ -1,3 +1,7 @@
+import io
+import zipfile
+from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -6,7 +10,10 @@ from prefect_azure.credentials import AzureBlobStorageCredentials
 from prefect_azure.experimental.bundles.execute import (
     execute_bundle_from_azure_blob_storage,
 )
+from pydantic_core import to_json
 from pytest import MonkeyPatch
+
+from prefect.runner import Runner
 
 
 @pytest.fixture
@@ -131,3 +138,176 @@ class TestExecuteBundleFromAzureBlobStorage:
                 key=key,
                 azure_blob_storage_credentials_block_name=credentials_block_name,
             )
+
+
+class TestExecuteBundleFromAzureWithFiles:
+    """Tests for Azure bundle execution with included files."""
+
+    @pytest.fixture
+    def mock_bundle_data_with_files(self) -> dict[str, Any]:
+        return {
+            "context": "foo",
+            "serialize_function": "bar",
+            "flow_run": {"name": "buzz", "id": "123"},
+            "files_key": "files/abc123.zip",
+        }
+
+    @pytest.mark.asyncio
+    async def test_execute_with_files_key_downloads_sidecar(
+        self,
+        mock_bundle_data_with_files: dict[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """When files_key present, sidecar zip is downloaded."""
+        download_calls: list[str] = []
+
+        async def mock_download_blob():
+            class MockBlobData:
+                async def content_as_bytes(self):
+                    # Check what's being downloaded based on call count
+                    if len(download_calls) == 0:
+                        download_calls.append("bundle")
+                        return to_json(mock_bundle_data_with_files)
+                    else:
+                        download_calls.append("files")
+                        # Create zip in memory
+                        buf = io.BytesIO()
+                        with zipfile.ZipFile(buf, "w") as zf:
+                            zf.writestr("config.yaml", "key: value")
+                        return buf.getvalue()
+
+            return MockBlobData()
+
+        mock_blob_client = MagicMock()
+        mock_blob_client.download_blob = mock_download_blob
+
+        mock_credentials = MagicMock()
+        mock_credentials.get_blob_client.return_value = mock_blob_client
+
+        monkeypatch.setattr(
+            "prefect_azure.credentials.AzureBlobStorageCredentials.load",
+            AsyncMock(return_value=mock_credentials),
+        )
+
+        mock_runner = MagicMock(spec=Runner)
+        mock_runner.execute_bundle = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.runner.Runner", MagicMock(return_value=mock_runner)
+        )
+
+        monkeypatch.chdir(tmp_path)
+
+        await execute_bundle_from_azure_blob_storage(
+            container="test-container",
+            key="bundle.json",
+            azure_blob_storage_credentials_block_name="test-creds",
+        )
+
+        # Should download both bundle AND sidecar
+        assert len(download_calls) == 2
+        assert download_calls[0] == "bundle"
+        assert download_calls[1] == "files"
+
+    @pytest.mark.asyncio
+    async def test_execute_with_files_extracts_to_cwd(
+        self,
+        mock_bundle_data_with_files: dict[str, Any],
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """Files are extracted to working directory."""
+        call_count = [0]
+
+        async def mock_download_blob():
+            class MockBlobData:
+                async def content_as_bytes(self):
+                    call_count[0] += 1
+                    if call_count[0] == 1:
+                        return to_json(mock_bundle_data_with_files)
+                    else:
+                        buf = io.BytesIO()
+                        with zipfile.ZipFile(buf, "w") as zf:
+                            zf.writestr("data/config.yaml", "key: value")
+                        return buf.getvalue()
+
+            return MockBlobData()
+
+        mock_blob_client = MagicMock()
+        mock_blob_client.download_blob = mock_download_blob
+
+        mock_credentials = MagicMock()
+        mock_credentials.get_blob_client.return_value = mock_blob_client
+
+        monkeypatch.setattr(
+            "prefect_azure.credentials.AzureBlobStorageCredentials.load",
+            AsyncMock(return_value=mock_credentials),
+        )
+
+        mock_runner = MagicMock(spec=Runner)
+        mock_runner.execute_bundle = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.runner.Runner", MagicMock(return_value=mock_runner)
+        )
+
+        monkeypatch.chdir(tmp_path)
+
+        await execute_bundle_from_azure_blob_storage(
+            container="test-container",
+            key="bundle.json",
+            azure_blob_storage_credentials_block_name="test-creds",
+        )
+
+        # File should be extracted to cwd
+        extracted_file = tmp_path / "data" / "config.yaml"
+        assert extracted_file.exists()
+        assert extracted_file.read_text() == "key: value"
+
+    @pytest.mark.asyncio
+    async def test_execute_without_files_key_unchanged(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Execution without files_key works as before."""
+        bundle_data = {
+            "context": "foo",
+            "serialize_function": "bar",
+            "flow_run": {"name": "buzz", "id": "123"},
+        }
+
+        download_calls: list[str] = []
+
+        async def mock_download_blob():
+            download_calls.append("bundle")
+
+            class MockBlobData:
+                async def content_as_bytes(self):
+                    return to_json(bundle_data)
+
+            return MockBlobData()
+
+        mock_blob_client = MagicMock()
+        mock_blob_client.download_blob = mock_download_blob
+
+        mock_credentials = MagicMock()
+        mock_credentials.get_blob_client.return_value = mock_blob_client
+
+        monkeypatch.setattr(
+            "prefect_azure.credentials.AzureBlobStorageCredentials.load",
+            AsyncMock(return_value=mock_credentials),
+        )
+
+        mock_runner = MagicMock(spec=Runner)
+        mock_runner.execute_bundle = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.runner.Runner", MagicMock(return_value=mock_runner)
+        )
+
+        await execute_bundle_from_azure_blob_storage(
+            container="test-container",
+            key="bundle.json",
+            azure_blob_storage_credentials_block_name="test-creds",
+        )
+
+        # Should only download bundle
+        assert len(download_calls) == 1
