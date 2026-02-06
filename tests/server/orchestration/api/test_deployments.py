@@ -2782,7 +2782,9 @@ class TestUpdateDeployment:
 
         response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
         assert response.status_code == 422
-        assert "Cannot rename schedule 'old-slug' to 'existing-slug'" in response.text
+        assert (
+            "Cannot rename schedule from 'old-slug' to 'existing-slug'" in response.text
+        )
         assert "already exists" in response.text
 
 
