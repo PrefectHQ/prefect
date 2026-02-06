@@ -746,8 +746,9 @@ class TestFlowRetries:
     ):
         child_flow_run_count = 0
         flow_run_count = 0
+        child_flow_name = f"child-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=child_flow_name)
         def child_flow():
             nonlocal child_flow_run_count
             child_flow_run_count += 1
@@ -781,7 +782,7 @@ class TestFlowRetries:
             child_state.state_details.flow_run_id
         )
         child_flow_runs = sync_prefect_client.read_flow_runs(
-            flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[child_flow_name])),
             sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
 
@@ -974,14 +975,18 @@ class TestFlowCrashDetection:
     async def test_interrupt_in_flow_function_crashes_flow(
         self, prefect_client, interrupt_type
     ):
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         async def my_flow():
             raise interrupt_type()
 
         with pytest.raises(interrupt_type):
             await my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -994,14 +999,18 @@ class TestFlowCrashDetection:
     async def test_interrupt_in_flow_function_crashes_flow_sync(
         self, prefect_client, interrupt_type
     ):
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         def my_flow():
             raise interrupt_type()
 
         with pytest.raises(interrupt_type):
             my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -1018,14 +1027,18 @@ class TestFlowCrashDetection:
             FlowRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
 
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         def my_flow():
             pass
 
         with pytest.raises(interrupt_type):
             my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -1041,8 +1054,9 @@ class TestFlowCrashDetection:
         Test that a BaseException raised after user code finishes executing
         does not crash the flow run (sync flow).
         """
+        flow_name = f"my-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=flow_name)
         def my_flow():
             return 42
 
@@ -1062,7 +1076,9 @@ class TestFlowCrashDetection:
         result = my_flow()
         assert result == 42
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         # The flow run should be completed, not crashed
@@ -1080,8 +1096,9 @@ class TestFlowCrashDetection:
         Test that a BaseException raised after user code finishes executing
         does not crash the flow run (async flow).
         """
+        flow_name = f"my-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=flow_name)
         async def my_flow():
             return 42
 
@@ -1101,7 +1118,9 @@ class TestFlowCrashDetection:
         result = await my_flow()
         assert result == 42
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         # The flow run should be completed, not crashed
@@ -1119,8 +1138,9 @@ class TestFlowCrashDetection:
         Test that a BaseException raised before user code finishes executing
         still crashes the flow run (sync flow).
         """
+        flow_name = f"my-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=flow_name)
         def my_flow():
             return 42
 
@@ -1134,7 +1154,9 @@ class TestFlowCrashDetection:
         with pytest.raises(BaseException, match="Pre-execution error"):
             my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         # The flow run should be crashed
@@ -1147,8 +1169,9 @@ class TestFlowCrashDetection:
         Test that a BaseException raised before user code finishes executing
         still crashes the flow run (async flow).
         """
+        flow_name = f"my-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=flow_name)
         async def my_flow():
             return 42
 
@@ -1161,7 +1184,9 @@ class TestFlowCrashDetection:
         with pytest.raises(BaseException, match="Pre-execution error"):
             await my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         # The flow run should be crashed
@@ -1173,6 +1198,7 @@ class TestPauseFlowRun:
         self, prefect_client, events_pipeline
     ):
         """Test that calling pause_flow_run from within a task pauses the parent flow."""
+        flow_run_id = None
 
         @task
         async def task_that_pauses():
@@ -1181,6 +1207,9 @@ class TestPauseFlowRun:
 
         @flow
         async def flow_with_pausing_task():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
             return await task_that_pauses()
 
         # The flow should timeout because it gets paused and never resumed
@@ -1188,10 +1217,7 @@ class TestPauseFlowRun:
             await flow_with_pausing_task()
 
         # Verify the flow run was actually paused
-        flow_runs = await prefect_client.read_flow_runs()
-        assert len(flow_runs) >= 1
-        # The most recent flow run should have been paused
-        flow_run = flow_runs[0]
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
         assert flow_run.state.is_paused() or flow_run.state.is_failed()
 
     async def test_pause_flow_run_from_task_with_input(self, prefect_client):
@@ -1299,12 +1325,17 @@ class TestPauseFlowRun:
         assert len(task_runs) == 2, "only two tasks should have completed"
 
     async def test_paused_flows_can_be_resumed(self, prefect_client, events_pipeline):
+        flow_run_id = None
+
         @task
         async def foo():
             return 42
 
         @flow
         async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
             await foo()
             await foo()
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
@@ -1314,16 +1345,22 @@ class TestPauseFlowRun:
             await foo()
 
         async def flow_resumer():
-            await anyio.sleep(3)
-            flow_runs = await prefect_client.read_flow_runs(limit=1)
-            active_flow_run = flow_runs[0]
-            await resume_flow_run(active_flow_run.id)
+            # Wait for the flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait for the flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await anyio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            await resume_flow_run(flow_run_id)
 
         flow_run_state, the_answer = await asyncio.gather(
             pausing_flow(return_state=True),
             flow_resumer(),
         )
-        flow_run_id = flow_run_state.state_details.flow_run_id
         await events_pipeline.process_events()
         task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
@@ -2088,10 +2125,15 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_sync(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=0.5)
+        @flow(timeout_seconds=1)
         def expensive_flow():
             with concurrency(concurrency_limit_v2.name):
-                time.sleep(1)
+                # Use a time-bounded busy loop instead of time.sleep()
+                # because sleep is a C-level call that cannot be interrupted
+                # by WatcherThreadCancelScope.
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    pass
 
         with pytest.raises(TimeoutError):
             expensive_flow()
@@ -2104,10 +2146,10 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_async(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=0.5)
+        @flow(timeout_seconds=1)
         async def expensive_flow():
             async with aconcurrency(concurrency_limit_v2.name):
-                await asyncio.sleep(1)
+                await asyncio.sleep(10)
 
         with pytest.raises(TimeoutError):
             await expensive_flow()

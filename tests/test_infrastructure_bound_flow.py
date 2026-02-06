@@ -86,7 +86,9 @@ class TestInfrastructureBoundFlow:
         }
 
         result_storage_block = FakeResultStorageBlock(place="test-place")
-        maybe_coro = result_storage_block.save(name="my-result-storage-block")
+        maybe_coro = result_storage_block.save(
+            name=f"my-result-storage-block-{uuid.uuid4()}"
+        )
         if inspect.isawaitable(maybe_coro):
             block_document_id = await maybe_coro
         else:

@@ -3000,66 +3000,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/database/clear": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Clear Database
-         * @description Clear all database tables without dropping them.
-         */
-        post: operations["clear_database_admin_database_clear_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/database/drop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Drop Database
-         * @description Drop all database objects.
-         */
-        post: operations["drop_database_admin_database_drop_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/database/create": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Database
-         * @description Create all database objects.
-         */
-        post: operations["create_database_admin_database_create_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/hello": {
         parameters: {
             query?: never;
@@ -4366,15 +4306,6 @@ export interface components {
              */
             limit: number;
         };
-        /** Body_clear_database_admin_database_clear_post */
-        Body_clear_database_admin_database_clear_post: {
-            /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
-             * @default false
-             */
-            confirm: boolean;
-        };
         /** Body_count_account_events_events_count_by__countable__post */
         Body_count_account_events_events_count_by__countable__post: {
             filter: components["schemas"]["EventFilter"];
@@ -4459,15 +4390,6 @@ export interface components {
         Body_count_work_pools_work_pools_count_post: {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
         };
-        /** Body_create_database_admin_database_create_post */
-        Body_create_database_admin_database_create_post: {
-            /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
-             * @default false
-             */
-            confirm: boolean;
-        };
         /** Body_create_flow_run_input_flow_runs__id__input_post */
         Body_create_flow_run_input_flow_runs__id__input_post: {
             /**
@@ -4500,15 +4422,6 @@ export interface components {
              * @description The ID of the task run releasing the slot
              */
             task_run_id: string;
-        };
-        /** Body_drop_database_admin_database_drop_post */
-        Body_drop_database_admin_database_drop_post: {
-            /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
-             * @default false
-             */
-            confirm: boolean;
         };
         /** Body_filter_flow_run_input_flow_runs__id__input_filter_post */
         Body_filter_flow_run_input_flow_runs__id__input_filter_post: {
@@ -18618,105 +18531,6 @@ export interface operations {
                 content: {
                     "application/json": string;
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    clear_database_admin_database_clear_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_clear_database_admin_database_clear_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    drop_database_admin_database_drop_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_drop_database_admin_database_drop_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_database_admin_database_create_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_create_database_admin_database_create_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {

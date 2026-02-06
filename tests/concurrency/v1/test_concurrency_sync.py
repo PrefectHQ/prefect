@@ -73,9 +73,11 @@ def test_concurrency_emits_events(
     for phase in ["acquired", "released"]:
         event = next(
             filter(
-                lambda e: e.event == f"prefect.concurrency-limit.v1.{phase}"
-                and e.resource.id
-                == f"prefect.concurrency-limit.v1.{v1_concurrency_limit.id}",
+                lambda e: (
+                    e.event == f"prefect.concurrency-limit.v1.{phase}"
+                    and e.resource.id
+                    == f"prefect.concurrency-limit.v1.{v1_concurrency_limit.id}"
+                ),
                 asserting_events_worker._client.events,
             )
         )
@@ -98,9 +100,11 @@ def test_concurrency_emits_events(
     for phase in ["acquired", "released"]:
         event = next(
             filter(
-                lambda e: e.event == f"prefect.concurrency-limit.v1.{phase}"
-                and e.resource.id
-                == f"prefect.concurrency-limit.v1.{other_v1_concurrency_limit.id}",
+                lambda e: (
+                    e.event == f"prefect.concurrency-limit.v1.{phase}"
+                    and e.resource.id
+                    == f"prefect.concurrency-limit.v1.{other_v1_concurrency_limit.id}"
+                ),
                 asserting_events_worker._client.events,
             )
         )

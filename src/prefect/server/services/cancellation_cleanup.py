@@ -102,7 +102,9 @@ async def cancel_subflow_run(
 
 # Perpetual monitor for cancelled flow runs with child tasks (find and flood pattern)
 @perpetual_service(
-    enabled_getter=lambda: get_current_settings().server.services.cancellation_cleanup.enabled,
+    enabled_getter=lambda: (
+        get_current_settings().server.services.cancellation_cleanup.enabled
+    ),
 )
 async def monitor_cancelled_flow_runs(
     docket: Docket = CurrentDocket(),
@@ -138,7 +140,9 @@ async def monitor_cancelled_flow_runs(
 
 # Perpetual monitor for subflow runs that need cancellation (find and flood pattern)
 @perpetual_service(
-    enabled_getter=lambda: get_current_settings().server.services.cancellation_cleanup.enabled,
+    enabled_getter=lambda: (
+        get_current_settings().server.services.cancellation_cleanup.enabled
+    ),
 )
 async def monitor_subflow_runs(
     docket: Docket = CurrentDocket(),

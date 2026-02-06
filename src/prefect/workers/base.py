@@ -1033,8 +1033,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             try:
                 self._cancelling_observer = await self._exit_stack.enter_async_context(
                     FlowRunCancellingObserver(
-                        on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
-                            self._cancel_run, flow_run_id
+                        on_cancelling=lambda flow_run_id: (
+                            self._runs_task_group.start_soon(
+                                self._cancel_run, flow_run_id
+                            )
                         ),
                         polling_interval=get_current_settings().worker.cancellation_poll_seconds,
                         event_filter=EventFilter(
