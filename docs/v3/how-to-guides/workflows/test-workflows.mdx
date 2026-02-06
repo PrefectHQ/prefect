@@ -76,3 +76,55 @@ If your flow or task uses a logger, you can disable the logger to avoid the `Run
         with disable_run_logger():
             assert my_favorite_task.fn() == 42
     ```
+
+### Capture run logger output in tests
+
+To test log output from flows and tasks, use pytest's `caplog` fixture to capture log messages:
+
+```python
+import logging
+from typing import Any
+
+import pytest
+from prefect import flow, get_run_logger, task
+from prefect.testing.utilities import prefect_test_harness
+
+
+@task
+def log_message() -> None:
+    logger = get_run_logger()
+    logger.info("Logging from task")
+
+
+@flow
+def parent_flow() -> None:
+    logger = get_run_logger()
+    logger.info("Logging from flow")
+    log_message()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def prefect_test_fixture():
+    with prefect_test_harness():
+        yield
+
+
+def test_flow_log_message(caplog: Any) -> None:
+    caplog.set_level(logging.INFO)
+    parent_flow()
+
+    assert "Logging from flow" in caplog.messages
+
+
+def test_task_log_message(caplog: Any) -> None:
+    caplog.set_level(logging.INFO)
+    parent_flow()
+
+    assert "Logging from task" in caplog.messages
+```
+
+<Note>
+**Caplog requires run logger to be enabled**
+
+The `caplog` fixture only captures logs when the run logger is active. If you disable the run logger with `disable_run_logger()`, `caplog` will not capture any log output from flows or tasks.
+</Note>
