@@ -142,7 +142,7 @@ _TRANSIENT_ERROR_PATTERNS = (
     "connection reset",
 )
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 def _is_transient_build_error(error_message: str) -> bool:
