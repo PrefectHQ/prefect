@@ -81,8 +81,8 @@ from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azure.core.polling import LROPoller
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.containerinstance.models import Container, ContainerGroup, Logs
-from azure.mgmt.resource import ResourceManagementClient
-from azure.mgmt.resource.resources.models import (
+from azure.mgmt.resource.deployments import DeploymentsMgmtClient
+from azure.mgmt.resource.deployments.models import (
     Deployment,
     DeploymentExtended,
     DeploymentMode,
@@ -576,7 +576,7 @@ class AzureContainerWorker(
         aci_client = configuration.aci_credentials.get_container_client(
             configuration.subscription_id.get_secret_value()
         )
-        resource_client = configuration.aci_credentials.get_resource_client(
+        resource_client = configuration.aci_credentials.get_deployments_client(
             configuration.subscription_id.get_secret_value()
         )
 
@@ -681,7 +681,7 @@ class AzureContainerWorker(
     async def _provision_container_group(
         self,
         aci_client: ContainerInstanceManagementClient,
-        resource_client: ResourceManagementClient,
+        resource_client: DeploymentsMgmtClient,
         configuration: AzureContainerJobConfiguration,
         container_group_name: str,
     ):

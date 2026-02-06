@@ -11,6 +11,7 @@ from azure.identity.aio import (
 from azure.identity.aio import DefaultAzureCredential as ADefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.resource import ResourceManagementClient
+from azure.mgmt.resource.deployments import DeploymentsMgmtClient
 from pydantic import Field, PrivateAttr, SecretStr, model_validator
 
 try:
@@ -689,6 +690,23 @@ class AzureContainerInstanceCredentials(Block):
         """
 
         return ResourceManagementClient(
+            credential=self._create_credential(),
+            subscription_id=subscription_id,
+        )
+
+    def get_deployments_client(self, subscription_id: str):
+        """
+        Creates an Azure deployments management client initialized with data
+        from this block's fields and a provided Azure subscription ID.
+
+        Args:
+            subscription_id: A valid Azure subscription ID.
+
+        Returns:
+            An initialized `DeploymentsMgmtClient`
+        """
+
+        return DeploymentsMgmtClient(
             credential=self._create_credential(),
             subscription_id=subscription_id,
         )
