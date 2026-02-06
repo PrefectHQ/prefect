@@ -535,10 +535,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        # Note: We use the same timeout (60s) for both test and production modes
-        # to handle concurrent access, especially under CI load with parallel
-        # test execution where multiple processes access the same SQLite database.
-        cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+        cursor.execute("PRAGMA busy_timeout = 30000;")  # 30s
 
         # `PRAGMA temp_store = memory;` moves temporary tables from disk into RAM
         # this supposedly speeds up reads, but it seems to actually
