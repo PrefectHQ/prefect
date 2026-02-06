@@ -19,6 +19,7 @@ from typing_extensions import Self
 import prefect
 from prefect._internal.compatibility.starlette import status
 from prefect.client import constants
+from prefect.client.attribution import get_attribution_headers
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
@@ -342,8 +343,6 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         These headers help Cloud track which flow runs, deployments, and workers
         are generating API requests for usage attribution and rate limit debugging.
         """
-        from prefect.client.attribution import get_attribution_headers
-
         for header_name, header_value in get_attribution_headers().items():
             request.headers[header_name] = header_value
 
@@ -614,8 +613,6 @@ class PrefectHttpxSyncClient(httpx.Client):
         These headers help Cloud track which flow runs, deployments, and workers
         are generating API requests for usage attribution and rate limit debugging.
         """
-        from prefect.client.attribution import get_attribution_headers
-
         for header_name, header_value in get_attribution_headers().items():
             request.headers[header_name] = header_value
 
