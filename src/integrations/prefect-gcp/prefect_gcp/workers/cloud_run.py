@@ -186,6 +186,8 @@ from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
 from prefect_gcp.utilities import Execution, Job, slugify_name
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
 
@@ -363,7 +365,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
-        **kwargs: Any,
+        worker_id: Optional["UUID"] = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -378,7 +380,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
             flow: The flow associated with the flow run used for preparation.
         """
         super().prepare_for_flow_run(
-            flow_run, deployment, flow, work_pool, worker_name, **kwargs
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
         )
 
         self._populate_envs()

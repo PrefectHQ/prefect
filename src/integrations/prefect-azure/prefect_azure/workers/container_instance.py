@@ -106,6 +106,8 @@ from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.credentials import AzureContainerInstanceCredentials
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
 
@@ -240,13 +242,13 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
-        **kwargs: Any,
+        worker_id: Optional["UUID"] = None,
     ):
         """
         Prepares the job configuration for a flow run.
         """
         super().prepare_for_flow_run(
-            flow_run, deployment, flow, work_pool, worker_name, **kwargs
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
         )
 
         # expectations:

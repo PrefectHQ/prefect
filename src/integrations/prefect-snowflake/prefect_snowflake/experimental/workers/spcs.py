@@ -203,10 +203,13 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         flow_run: "FlowRun",
         deployment: "DeploymentResponse" | None = None,
         flow: "Flow" | None = None,
+        worker_id: UUID | None = None,
         **kwargs: Any,
     ) -> None:
         """Prepares the job configuration for a flow run."""
-        super().prepare_for_flow_run(flow_run, deployment, flow, **kwargs)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, worker_id=worker_id, **kwargs
+        )
 
         # Validate required fields
         if not self.compute_pool:

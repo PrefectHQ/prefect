@@ -37,6 +37,8 @@ from prefect_gcp.models.cloud_run_v2 import ExecutionV2, JobV2, SecretKeySelecto
 from prefect_gcp.utilities import slugify_name
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
 
@@ -211,7 +213,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
-        **kwargs: Any,
+        worker_id: Optional["UUID"] = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -233,7 +235,7 @@ class CloudRunWorkerJobV2Configuration(BaseJobConfiguration):
             flow=flow,
             work_pool=work_pool,
             worker_name=worker_name,
-            **kwargs,
+            worker_id=worker_id,
         )
 
         self._populate_env()

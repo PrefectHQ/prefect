@@ -87,6 +87,8 @@ from prefect_aws.credentials import AwsCredentials
 from prefect_aws.observers.ecs import start_observer, stop_observer
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from mypy_boto3_ecs import ECSClient
     from mypy_boto3_ecs.type_defs import TaskDefinitionTypeDef
 
@@ -358,10 +360,10 @@ class ECSJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
-        **kwargs: Any,
+        worker_id: "UUID | None" = None,
     ) -> None:
         super().prepare_for_flow_run(
-            flow_run, deployment, flow, work_pool, worker_name, **kwargs
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
         )
         if self.prefect_api_key_secret_arn:
             # Remove the PREFECT_API_KEY from the environment variables because it will be provided via a secret
