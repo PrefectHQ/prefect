@@ -27,7 +27,10 @@ _FLAGS_WITH_VALUES = {
 _CYCLOPTS_COMMANDS: set[str] = {
     "config",
     "profile",
+    "server",
+    "shell",
     "version",
+    "worker",
 }
 
 
