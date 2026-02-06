@@ -70,13 +70,12 @@ if TYPE_CHECKING:
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
-_NS = uuid.uuid5(uuid.NAMESPACE_DNS, "tests.cli.test_deploy")
-_DN = f"test-name-{_NS}"
-_DN1 = f"test-name-1-{uuid.uuid5(_NS, '1')}"
-_DN2 = f"test-name-2-{uuid.uuid5(_NS, '2')}"
-_DN3 = f"test-name-3-{uuid.uuid5(_NS, '3')}"
-_DN4 = f"test-name-4-{uuid.uuid5(_NS, '4')}"
-_PN = f"test-pool-{uuid.uuid5(_NS, 'pool')}"
+_DN = f"test-name-{uuid.uuid4()}"
+_DN1 = f"test-name-1-{uuid.uuid4()}"
+_DN2 = f"test-name-2-{uuid.uuid4()}"
+_DN3 = f"test-name-3-{uuid.uuid4()}"
+_DN4 = f"test-name-4-{uuid.uuid4()}"
+_PN = f"test-pool-{uuid.uuid4()}"
 
 
 @pytest.fixture
@@ -1167,7 +1166,7 @@ class TestProjectDeploy:
                     "n" + readchar.key.ENTER
                 ),
                 expected_output_contains=[
-                    f"prefect deployment run f'An important name/{_DN}'"
+                    f"prefect deployment run 'An important name/{_DN}'"
                 ],
             )
 
@@ -1263,7 +1262,7 @@ class TestProjectDeploy:
                         " remote storage location when running this flow?"
                     ),
                     "Is this a private repository?",
-                    f"prefect deployment run f'An important name/{_DN}'",
+                    f"prefect deployment run 'An important name/{_DN}'",
                 ],
             )
 
@@ -1361,7 +1360,7 @@ class TestProjectDeploy:
                         " working directory"
                     ),
                     "What is the path to your flow code in your Dockerfile?",
-                    f"prefect deployment run f'An important name/{_DN}'",
+                    f"prefect deployment run 'An important name/{_DN}'",
                 ],
             )
 
@@ -2118,7 +2117,7 @@ class TestProjectDeploy:
             command=f"deploy ./flows/hello.py:my_flow -n {_DN} -p {work_pool.name}",
             expected_code=0,
             expected_output_contains=[
-                f"Deployment f'An important name/{_DN}' successfully created"
+                f"Deployment 'An important name/{_DN}' successfully created"
             ],
         )
 
@@ -2723,7 +2722,7 @@ class TestSchedules:
             command=f"deploy ./flows/hello.py:my_flow -n {_DN} --cron '* * * * *' --interval 42 --rrule 'FREQ=HOURLY' --pool {work_pool.name}",
             expected_code=0,
             expected_output_contains=[
-                f"Deployment f'An important name/{_DN}' successfully created"
+                f"Deployment 'An important name/{_DN}' successfully created"
             ],
         )
 
@@ -2772,7 +2771,7 @@ class TestSchedules:
             command=f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}",
             expected_code=0,
             expected_output_contains=[
-                f"Deployment f'An important name/{_DN}' successfully created"
+                f"Deployment 'An important name/{_DN}' successfully created"
             ],
         )
 
@@ -2831,7 +2830,7 @@ class TestSchedules:
             command=f"deploy ./flows/hello.py:my_flow -n {_DN} --cron '* * * * *' --cron '0 * * * *' --pool {work_pool.name}",
             expected_code=0,
             expected_output_contains=[
-                f"Deployment f'An important name/{_DN}' successfully created"
+                f"Deployment 'An important name/{_DN}' successfully created"
             ],
         )
 
@@ -3493,20 +3492,11 @@ class TestMultiDeploy:
             command=f"deploy --name {_DN1} --name {_DN2}",
             expected_code=0,
             expected_output_contains=[
-                (
-                    f"Deployment f'An important name/{_DN1}' successfully created"
-                    " with id"
-                ),
-                (
-                    f"Deployment f'An important name/{_DN2}' successfully created"
-                    " with id"
-                ),
+                (f"Deployment 'An important name/{_DN1}' successfully created with id"),
+                (f"Deployment 'An important name/{_DN2}' successfully created with id"),
             ],
             expected_output_does_not_contain=[
-                (
-                    f"Deployment f'An important name/{_DN3}' successfully created"
-                    " with id"
-                ),
+                (f"Deployment 'An important name/{_DN3}' successfully created with id"),
                 (
                     "You have passed options to the deploy command, but you are"
                     " creating or updating multiple deployments. These options"
@@ -3564,10 +3554,7 @@ class TestMultiDeploy:
             command=f"deploy --name {_DN1} --cron '{cron_schedule}'",
             expected_code=0,
             expected_output_contains=[
-                (
-                    f"Deployment f'An important name/{_DN1}' successfully created"
-                    " with id"
-                ),
+                (f"Deployment 'An important name/{_DN1}' successfully created with id"),
             ],
         )
 
@@ -3586,7 +3573,8 @@ class TestMultiDeploy:
             await prefect_client.read_deployment_by_name(f"An important name/{_DN2}")
 
     @pytest.mark.parametrize(
-        "deployment_selector_options", ["--all", f"-n {_DN1} -n {_DN2}"]
+        "deployment_selector_options",
+        ["--all", pytest.param(f"-n {_DN1} -n {_DN2}", id="-n name1 -n name2")],
     )
     async def test_deploy_multiple_with_cli_options(
         self,
@@ -3950,7 +3938,7 @@ class TestMultiDeploy:
             ),
             expected_code=0,
             expected_output_contains=[
-                f"Deployment f'An important name/{_DN}' successfully created with id"
+                f"Deployment 'An important name/{_DN}' successfully created with id"
             ],
         )
 
@@ -4006,10 +3994,12 @@ class TestMultiDeploy:
     @pytest.mark.parametrize(
         "deploy_names",
         [
-            (f"my-flow/{_DN1}", _DN3),
-            (f"my-flow/{_DN1}", f"my-flow/{_DN3}"),
-            (_DN1, f"my-flow/{_DN3}"),
-            (_DN1, _DN3),
+            pytest.param((f"my-flow/{_DN1}", _DN3), id="flow/name1-name3"),
+            pytest.param(
+                (f"my-flow/{_DN1}", f"my-flow/{_DN3}"), id="flow/name1-flow/name3"
+            ),
+            pytest.param((_DN1, f"my-flow/{_DN3}"), id="name1-flow/name3"),
+            pytest.param((_DN1, _DN3), id="name1-name3"),
         ],
     )
     async def test_deploy_existing_deployment_and_nonexistent_deployment_deploys_former(
@@ -4072,13 +4062,15 @@ class TestDeployPattern:
     @pytest.mark.parametrize(
         "deploy_name",
         [
-            ("my-flow/test-name-*", f"my-flow-{_DN2}"),
-            (f"my-f*/{_DN1}", f"my-f*/{_DN2}"),
+            pytest.param(
+                ("my-flow/test-name-*", f"my-flow-{_DN2}"), id="glob-test-name-star"
+            ),
+            pytest.param((f"my-f*/{_DN1}", f"my-f*/{_DN2}"), id="glob-f-name1-name2"),
             "*-name-*",
-            (f"my-*ow/{_DN1}", "test-*-2*"),
+            pytest.param((f"my-*ow/{_DN1}", "test-*-2*"), id="glob-ow-name1-glob2"),
             ("*-flow/*-name-1", "*-name-2"),
             "my-flow/t*",
-            (f"*/{_DN1}", f"*/{_DN2}"),
+            pytest.param((f"*/{_DN1}", f"*/{_DN2}"), id="glob-star-name1-name2"),
             "*/t*",
         ],
     )
@@ -4237,7 +4229,10 @@ class TestDeployPattern:
         "deploy_name",
         [
             ("my-flow/test-name-*", "nonexistent-deployment"),
-            (f"my-f*/{_DN1}", f"my-f*/{_DN2}", "my-f*/nonexistent-deployment"),
+            pytest.param(
+                (f"my-f*/{_DN1}", f"my-f*/{_DN2}", "my-f*/nonexistent-deployment"),
+                id="glob-f-names-nonexist",
+            ),
             ("*-name-4", "*-name-*"),
             ("my-flow/t*", "nonexistent-flow/*"),
         ],
@@ -4319,10 +4314,12 @@ class TestDeployPattern:
     @pytest.mark.parametrize(
         "deploy_names",
         [
-            (f"my-flow/{_DN3}", _DN4),
-            (_DN3, f"my-flow/{_DN4}"),
-            (_DN3, _DN4),
-            (f"my-flow/{_DN3}", f"my-flow/{_DN4}"),
+            pytest.param((f"my-flow/{_DN3}", _DN4), id="flow/name3-name4"),
+            pytest.param((_DN3, f"my-flow/{_DN4}"), id="name3-flow/name4"),
+            pytest.param((_DN3, _DN4), id="name3-name4"),
+            pytest.param(
+                (f"my-flow/{_DN3}", f"my-flow/{_DN4}"), id="flow/name3-flow/name4"
+            ),
         ],
     )
     @pytest.mark.usefixtures("project_dir")
@@ -4381,9 +4378,11 @@ class TestDeployPattern:
     @pytest.mark.parametrize(
         "deploy_names",
         [
-            (f"my-flow/{_DN1}", f"my-flow/{_DN2}"),
-            (_DN1, _DN2),
-            (f"my-flow/{_DN1}", _DN2),
+            pytest.param(
+                (f"my-flow/{_DN1}", f"my-flow/{_DN2}"), id="flow/name1-flow/name2"
+            ),
+            pytest.param((_DN1, _DN2), id="name1-name2"),
+            pytest.param((f"my-flow/{_DN1}", _DN2), id="flow/name1-name2"),
         ],
     )
     async def test_deploy_multiple_existing_deployments_deploys_both(
@@ -4472,8 +4471,8 @@ class TestDeployPattern:
     @pytest.mark.parametrize(
         "deploy_names",
         [
-            _DN1,
-            f"my-flow/{_DN1}",
+            pytest.param(_DN1, id="name1"),
+            pytest.param(f"my-flow/{_DN1}", id="flow/name1"),
         ],
     )
     async def test_deploy_with_single_deployment_with_no_name(
@@ -4599,7 +4598,7 @@ class TestDeployPattern:
             expected_code=0,
             expected_output_contains=[
                 "Deploying flows with selected deployment configurations...",
-                f"f'An important name/{_DN1}' successfully created",
+                f"'An important name/{_DN1}' successfully created",
                 f"f'Second important name/{_DN1}' successfully created",
             ],
         )
@@ -6092,7 +6091,7 @@ class TestDeployDockerBuildSteps:
                 + readchar.key.ENTER
             ),
             expected_output_contains=[
-                f"$ prefect deployment run f'An important name/{_DN}'",
+                f"$ prefect deployment run 'An important name/{_DN}'",
             ],
             expected_output_does_not_contain=[
                 "Would you like to build a custom Docker image?",

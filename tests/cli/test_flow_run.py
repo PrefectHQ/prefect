@@ -41,12 +41,12 @@ from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
-@flow(name=f"hello-{uuid.uuid4()}")
+@flow(name="hello")
 def hello_flow():
     return "Hello!"
 
 
-@flow(name=f"goodbye-{uuid.uuid4()}")
+@flow(name="goodbye")
 def goodbye_flow():
     return "Goodbye"
 
@@ -195,6 +195,7 @@ def test_inspect_flow_run_with_json_output(flow_run: FlowRun):
     assert output_data["id"] == str(flow_run.id)
 
 
+@pytest.mark.clear_db
 def test_ls_no_args(
     scheduled_flow_run: FlowRun,
     completed_flow_run: FlowRun,
@@ -217,6 +218,7 @@ def test_ls_no_args(
     )
 
 
+@pytest.mark.clear_db
 def test_ls_flow_name_filter(
     scheduled_flow_run: FlowRun,
     completed_flow_run: FlowRun,
@@ -235,6 +237,7 @@ def test_ls_flow_name_filter(
     )
 
 
+@pytest.mark.clear_db
 @pytest.mark.parametrize(
     "state_type_1, state_type_2",
     [
@@ -280,6 +283,7 @@ def test_ls_state_type_filter_invalid_raises():
     )
 
 
+@pytest.mark.clear_db
 @pytest.mark.parametrize(
     "state_name",
     [
@@ -320,6 +324,7 @@ def test_ls_state_name_filter_unofficial_state_warns(caplog):
     )
 
 
+@pytest.mark.clear_db
 def test_ls_limit(
     scheduled_flow_run: FlowRun,
     completed_flow_run: FlowRun,
