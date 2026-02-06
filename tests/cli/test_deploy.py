@@ -6693,3 +6693,85 @@ deployments:
         assert action.parameters["event_id"]["template"] == "{{ event.id }}"
         assert action.parameters["event_id"]["__prefect_kind"] == "jinja"
         assert action.parameters["fan_out"] is True
+
+
+class TestDeployAllEnvVarTemplateDisplay:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_resolves_env_var_in_deployment_name(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Regression test: ensure that when using `prefect deploy --all`, the
+        deployment name with environment variable templates is resolved correctly.
+        """
+        monkeypatch.setenv("DEPLOY_ENV", "dev")
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "{{ $DEPLOY_ENV }}-test-flow",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            expected_output_contains=["An important name/dev-test-flow"],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/dev-test-flow"
+        )
+        assert deployment.name == "dev-test-flow"
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_handles_unset_env_var_in_deployment_name(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Test that when an environment variable is not set, the template
+        resolves to an empty string in the deployment name.
+        """
+        monkeypatch.delenv("DEPLOY_ENV", raising=False)
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "{{ $DEPLOY_ENV }}-test-flow",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            expected_output_contains=["An important name/-test-flow"],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/-test-flow"
+        )
+        assert deployment.name == "-test-flow"

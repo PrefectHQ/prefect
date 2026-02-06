@@ -100,7 +100,8 @@
               "v3/concepts/variables",
               "v3/concepts/blocks",
               "v3/concepts/settings-and-profiles",
-              "v3/concepts/server"
+              "v3/concepts/server",
+              "v3/concepts/telemetry"
             ]
           },
           {
@@ -172,6 +173,7 @@
             "group": "Automations",
             "pages": [
               "v3/how-to-guides/automations/creating-automations",
+              "v3/how-to-guides/automations/custom-notifications",
               "v3/how-to-guides/automations/creating-deployment-triggers",
               "v3/how-to-guides/automations/chaining-deployments-with-events",
               "v3/how-to-guides/automations/access-parameters-in-templates",
@@ -269,6 +271,7 @@
           {
             "group": "Automations",
             "pages": [
+              "v3/advanced/debouncing-events",
               "v3/advanced/detect-zombie-flows",
               "v3/advanced/use-custom-event-grammar"
             ]
@@ -511,6 +514,7 @@
                           "v3/api-ref/rest-api/server/flows/count-flows",
                           "v3/api-ref/rest-api/server/flows/read-flow-by-name",
                           "v3/api-ref/rest-api/server/flows/read-flows",
+                          "v3/api-ref/rest-api/server/flows/bulk-delete-flows",
                           "v3/api-ref/rest-api/server/flows/paginate-flows"
                         ]
                       },
@@ -528,6 +532,8 @@
                           "v3/api-ref/rest-api/server/flow-runs/read-flow-run-graph-v2",
                           "v3/api-ref/rest-api/server/flow-runs/resume-flow-run",
                           "v3/api-ref/rest-api/server/flow-runs/read-flow-runs",
+                          "v3/api-ref/rest-api/server/flow-runs/bulk-delete-flow-runs",
+                          "v3/api-ref/rest-api/server/flow-runs/bulk-set-flow-run-state",
                           "v3/api-ref/rest-api/server/flow-runs/set-flow-run-state",
                           "v3/api-ref/rest-api/server/flow-runs/create-flow-run-input",
                           "v3/api-ref/rest-api/server/flow-runs/filter-flow-run-input",
@@ -578,10 +584,12 @@
                           "v3/api-ref/rest-api/server/deployments/paginate-deployments",
                           "v3/api-ref/rest-api/server/deployments/get-scheduled-flow-runs-for-deployments",
                           "v3/api-ref/rest-api/server/deployments/count-deployments",
+                          "v3/api-ref/rest-api/server/deployments/bulk-delete-deployments",
                           "v3/api-ref/rest-api/server/deployments/schedule-deployment",
                           "v3/api-ref/rest-api/server/deployments/resume-deployment",
                           "v3/api-ref/rest-api/server/deployments/pause-deployment",
                           "v3/api-ref/rest-api/server/deployments/create-flow-run-from-deployment",
+                          "v3/api-ref/rest-api/server/deployments/bulk-create-flow-runs-from-deployment",
                           "v3/api-ref/rest-api/server/deployments/work-queue-check-for-deployment",
                           "v3/api-ref/rest-api/server/deployments/read-deployment-schedules",
                           "v3/api-ref/rest-api/server/deployments/create-deployment-schedules",
@@ -778,10 +786,7 @@
                         "group": "Admin",
                         "pages": [
                           "v3/api-ref/rest-api/server/admin/read-settings",
-                          "v3/api-ref/rest-api/server/admin/read-version",
-                          "v3/api-ref/rest-api/server/admin/clear-database",
-                          "v3/api-ref/rest-api/server/admin/drop-database",
-                          "v3/api-ref/rest-api/server/admin/create-database"
+                          "v3/api-ref/rest-api/server/admin/read-version"
                         ]
                       }
                     ]
@@ -821,6 +826,7 @@
               {
                 "group": "Python SDK Reference",
                 "pages": [
+                  "v3/api-ref/python/prefect-analytics",
                   "v3/api-ref/python/prefect-artifacts",
                   "v3/api-ref/python/prefect-automations",
                   "v3/api-ref/python/prefect-cache_policies",
@@ -877,6 +883,7 @@
                         "group": "cloud",
                         "pages": [
                           "v3/api-ref/python/prefect-cli-cloud-__init__",
+                          "v3/api-ref/python/prefect-cli-cloud-asset",
                           "v3/api-ref/python/prefect-cli-cloud-ip_allowlist",
                           "v3/api-ref/python/prefect-cli-cloud-webhook"
                         ]

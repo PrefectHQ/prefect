@@ -41,11 +41,12 @@ dependencies = [
     "typer>=0.16.0,<0.22.0",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
+    "amplitude-analytics>=1.2.1,<2.0.0",
     "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
-    "cachetools>=5.3,<7.0",
+    "cachetools>=5.3,<8.0",
     "cloudpickle>=2.0,<4.0",
-    "coolname>=1.0.4,<3.0.0",
+    "coolname>=1.0.4,<4.0.0",
     "exceptiongroup>=1.0.0",
     "fastapi>=0.111.0,<1.0.0",
     "fsspec>=2022.5.0",
@@ -124,6 +125,8 @@ redis = ["prefect-redis>=0.2.0"]
 # Monitoring extras
 email = ["prefect-email>=0.4.0"]
 slack = ["prefect-slack>=0.3.0"]
+# Experimental fast CLI powered by cyclopts
+fast-cli = ["cyclopts>=3.0"]
 
 [project.scripts]
 prefect = "prefect.cli:app"
@@ -161,7 +164,7 @@ dev = [
     "watchfiles>=1.0.4",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.14.14",
+    "ruff==0.15.0",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -232,7 +235,7 @@ dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
 
 [tool.hatch.build]
-artifacts = ["src/prefect/_build_info.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
+artifacts = ["src/prefect/_build_info.py", "src/prefect/_internal/analytics/_config.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src/prefect", "/README.md", "/LICENSE", "/pyproject.toml"]

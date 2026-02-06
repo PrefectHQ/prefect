@@ -1699,7 +1699,8 @@ class TestRunner:
 
             flow_run = await prefect_client.create_flow_run(simple_flow)
 
-            bundle = create_bundle_for_flow_run(simple_flow, flow_run)
+            result = create_bundle_for_flow_run(simple_flow, flow_run)
+            bundle = result["bundle"]
             await runner.execute_bundle(bundle)
 
             flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
@@ -1727,7 +1728,8 @@ class TestRunner:
                 parameters={"x": 42, "y": "hello"},
             )
 
-            bundle = create_bundle_for_flow_run(flow_with_parameters, flow_run)
+            result = create_bundle_for_flow_run(flow_with_parameters, flow_run)
+            bundle = result["bundle"]
             await runner.execute_bundle(bundle)
 
             flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
@@ -1747,7 +1749,8 @@ class TestRunner:
 
             flow_run = await prefect_client.create_flow_run(total_and_utter_failure)
 
-            bundle = create_bundle_for_flow_run(total_and_utter_failure, flow_run)
+            result = create_bundle_for_flow_run(total_and_utter_failure, flow_run)
+            bundle = result["bundle"]
             await runner.execute_bundle(bundle)
 
             flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
@@ -1771,7 +1774,8 @@ class TestRunner:
 
             flow_run = await prefect_client.create_flow_run(flow_to_cancel)
 
-            bundle = create_bundle_for_flow_run(flow_to_cancel, flow_run)
+            result = create_bundle_for_flow_run(flow_to_cancel, flow_run)
+            bundle = result["bundle"]
             execution_task = asyncio.create_task(runner.execute_bundle(bundle))
 
             flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
@@ -1813,7 +1817,8 @@ class TestRunner:
 
             flow_run = await prefect_client.create_flow_run(crashed_flow)
 
-            bundle = create_bundle_for_flow_run(crashed_flow, flow_run)
+            result = create_bundle_for_flow_run(crashed_flow, flow_run)
+            bundle = result["bundle"]
             await runner.execute_bundle(bundle)
 
             flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)

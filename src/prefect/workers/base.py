@@ -80,6 +80,7 @@ from prefect.states import (
 )
 from prefect.tasks import Task
 from prefect.types import KeyValueLabels
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
@@ -130,7 +131,8 @@ class BaseJobConfiguration(BaseModel):
         default=None,
         description=(
             "Name given to infrastructure created by the worker using this "
-            "job configuration."
+            "job configuration. Supports templates using {{ ctx.flow.* }} and "
+            "{{ ctx.flow_run.* }} when prepared for a flow run."
         ),
     )
 
@@ -301,6 +303,21 @@ class BaseJobConfiguration(BaseModel):
             **self._base_deployment_labels(deployment),
             **self.labels,
         }
+        if self.name:
+            template_values = {
+                "ctx": {
+                    "flow": flow.model_dump(mode="json") if flow is not None else {},
+                    "flow_run": flow_run.model_dump(mode="json") if flow_run else {},
+                },
+            }
+            rendered_name = apply_values(
+                template=self.name,
+                values=template_values,
+                remove_notset=True,
+            )
+            if rendered_name is not NotSet:
+                self.name = rendered_name
+
         self.name = self.name or flow_run.name
         self.command = self.command or self._base_flow_run_command()
 
@@ -934,8 +951,32 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             worker_name=self.name,
         )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-        await aupload_bundle_to_storage(bundle, bundle_key, upload_command)
+        bundle_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        bundle = bundle_result["bundle"]
+        zip_path = bundle_result["zip_path"]
+
+        try:
+            await aupload_bundle_to_storage(
+                bundle,
+                bundle_key,
+                upload_command,
+                zip_path=zip_path,
+                upload_step=self.work_pool.storage_configuration.bundle_upload_step,
+            )
+        finally:
+            # Clean up zip file after upload (success or failure)
+            if zip_path:
+                try:
+                    zip_path.unlink(missing_ok=True)
+                    # Also clean up the temp directory created by ZipBuilder
+                    if zip_path.parent.exists() and zip_path.parent.name.startswith(
+                        "prefect-zip-"
+                    ):
+                        import shutil
+
+                        shutil.rmtree(zip_path.parent, ignore_errors=True)
+                except Exception as cleanup_error:
+                    logger.debug("Failed to clean up zip file: %s", cleanup_error)
 
         logger.debug("Successfully uploaded execution bundle")
 
@@ -992,8 +1033,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             try:
                 self._cancelling_observer = await self._exit_stack.enter_async_context(
                     FlowRunCancellingObserver(
-                        on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
-                            self._cancel_run, flow_run_id
+                        on_cancelling=lambda flow_run_id: (
+                            self._runs_task_group.start_soon(
+                                self._cancel_run, flow_run_id
+                            )
                         ),
                         polling_interval=get_current_settings().worker.cancellation_poll_seconds,
                         event_filter=EventFilter(

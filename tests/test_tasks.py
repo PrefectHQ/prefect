@@ -3664,11 +3664,12 @@ class TestTaskRunLogs:
         @flow
         def my_flow():
             my_task()
+            return FlowRunContext.get().flow_run.id
 
-        my_flow()
+        flow_run_id = my_flow()
 
         # Logs don't always show up immediately with the new engine
-        logs = await _wait_for_logs(prefect_client)
+        logs = await _wait_for_logs(prefect_client, flow_run_id=flow_run_id)
         assert "Hello world!" in {log.message for log in logs}
 
     async def test_tracebacks_are_logged(self, prefect_client):
@@ -3683,10 +3684,11 @@ class TestTaskRunLogs:
         @flow
         def my_flow():
             my_task()
+            return FlowRunContext.get().flow_run.id
 
-        my_flow()
+        flow_run_id = my_flow()
 
-        logs = await _wait_for_logs(prefect_client)
+        logs = await _wait_for_logs(prefect_client, flow_run_id=flow_run_id)
         error_log = [log.message for log in logs if log.level == 40].pop()
         assert "NameError" in error_log
         assert "x + y" in error_log
@@ -3700,10 +3702,11 @@ class TestTaskRunLogs:
         @flow
         def my_flow():
             my_task()
+            return FlowRunContext.get().flow_run.id
 
-        my_flow()
+        flow_run_id = my_flow()
 
-        logs = await _wait_for_logs(prefect_client)
+        logs = await _wait_for_logs(prefect_client, flow_run_id=flow_run_id)
         assert "Hello world!" not in {log.message for log in logs}
 
     async def test_logs_are_given_correct_ids(self, prefect_client):

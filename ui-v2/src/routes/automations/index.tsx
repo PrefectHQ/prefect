@@ -4,6 +4,7 @@ import { buildListAutomationsQuery } from "@/api/automations";
 import { categorizeError } from "@/api/error-utils";
 import { AutomationsHeader } from "@/components/automations/automations-header";
 import { AutomationsPage } from "@/components/automations/automations-page";
+import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
 function AutomationsErrorComponent({ error, reset }: ErrorComponentProps) {
@@ -33,4 +34,5 @@ export const Route = createFileRoute("/automations/")({
 	loader: ({ context }) =>
 		context.queryClient.ensureQueryData(buildListAutomationsQuery()),
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });

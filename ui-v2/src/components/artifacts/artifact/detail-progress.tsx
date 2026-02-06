@@ -1,13 +1,11 @@
-import { Typography } from "@/components/ui/typography";
-
 export type DetailProgressProps = {
 	progress: number;
 };
 
 export const DetailProgress = ({ progress }: DetailProgressProps) => {
 	return (
-		<Typography data-testid="progress-display" variant="bodyLarge">
+		<p data-testid="progress-display" className="text-lg">
 			Progress: {progress}%
-		</Typography>
+		</p>
 	);
 };

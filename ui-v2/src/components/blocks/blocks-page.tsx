@@ -61,17 +61,19 @@ export const BlocksPage = ({
 							count={allCount}
 						/>
 						<div className="flex items-center gap-2">
-							<BlockTypesMultiSelect
-								selectedBlockTypesSlugs={blockTypeSlugsFilter}
-								onToggleBlockTypeSlug={onToggleBlockTypeSlug}
-								onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
-							/>
 							<div className="min-w-56">
 								<SearchInput
 									aria-label="search blocks"
 									placeholder="Search blocks"
 									value={search}
 									onChange={(e) => onSearch(e.target.value)}
+								/>
+							</div>
+							<div className="min-w-64">
+								<BlockTypesMultiSelect
+									selectedBlockTypesSlugs={blockTypeSlugsFilter}
+									onToggleBlockTypeSlug={onToggleBlockTypeSlug}
+									onRemoveBlockTypeSlug={onRemoveBlockTypeSlug}
 								/>
 							</div>
 						</div>

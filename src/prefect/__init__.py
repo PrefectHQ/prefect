@@ -127,8 +127,24 @@ def _initialize_plugins() -> None:
             print(f"Failed to initialize plugins: {e}", file=sys.stderr)
 
 
-# Initialize plugins on import if enabled
-_initialize_plugins()
+def _initialize_sdk_analytics() -> None:
+    """
+    Initialize SDK analytics for telemetry.
+
+    This runs automatically when Prefect is imported. Errors are silently
+    ignored to ensure analytics never impacts normal Prefect operation.
+    """
+    try:
+        from prefect._internal.analytics import initialize_analytics
+
+        initialize_analytics()
+    except Exception:
+        # Never let analytics initialization impact Prefect
+        pass
+
+
+# Initialize SDK analytics on import
+_initialize_sdk_analytics()
 
 _public_api: dict[str, tuple[Optional[str], str]] = {
     "allow_failure": (__spec__.parent, ".main"),
@@ -194,3 +210,8 @@ def __getattr__(attr_name: str) -> Any:
         mname, _, attr = (ex.name or "").rpartition(".")
         ctx = {"name": mname, "obj": attr} if sys.version_info >= (3, 10) else {}
         raise AttributeError(f"module {mname} has no attribute {attr}", **ctx) from ex
+
+
+# Initialize plugins on import if enabled
+# Must be after __getattr__ so lazy imports work when plugins import from prefect
+_initialize_plugins()

@@ -166,6 +166,19 @@ The profile to use is determined with the following precedence
 - Profiles file via the 'active' key
 
 
+### `refresh_global_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+refresh_global_settings_context() -> None
+```
+
+
+Refresh the global settings context to pick up environment variable changes.
+
+This is called after plugins run to ensure any environment variables they set
+are reflected in get_current_settings().
+
+
 ## Classes
 
 ### `ContextModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

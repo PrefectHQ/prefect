@@ -3014,6 +3014,154 @@ class TestPrefectClientDeploymentSchedules:
                 deployment.id, nonexistent_schedule_id
             )
 
+    async def test_create_deployment_schedule_with_parameters(
+        self, prefect_client, deployment
+    ):
+        deployment_id = str(deployment.id)
+        cron_schedule = CronSchedule(cron="* * * * *")
+        schedules = [(cron_schedule, True)]
+        result = await prefect_client.create_deployment_schedules(
+            deployment_id,
+            schedules,
+            parameters={"object_id": "12345"},
+        )
+
+        assert len(result) == 1
+        assert result[0].schedule == cron_schedule
+        assert result[0].active is True
+        assert result[0].parameters == {"object_id": "12345"}
+
+    async def test_create_deployment_schedule_with_slug(
+        self, prefect_client, deployment
+    ):
+        deployment_id = str(deployment.id)
+        cron_schedule = CronSchedule(cron="* * * * *")
+        schedules = [(cron_schedule, True)]
+        result = await prefect_client.create_deployment_schedules(
+            deployment_id,
+            schedules,
+            slug="my-custom-schedule",
+        )
+
+        assert len(result) == 1
+        assert result[0].schedule == cron_schedule
+        assert result[0].slug == "my-custom-schedule"
+
+    async def test_create_deployment_schedule_with_max_scheduled_runs(
+        self, prefect_client, deployment
+    ):
+        deployment_id = str(deployment.id)
+        cron_schedule = CronSchedule(cron="* * * * *")
+        schedules = [(cron_schedule, True)]
+        result = await prefect_client.create_deployment_schedules(
+            deployment_id,
+            schedules,
+            max_scheduled_runs=5,
+        )
+
+        assert len(result) == 1
+        assert result[0].schedule == cron_schedule
+        assert result[0].max_scheduled_runs == 5
+
+    async def test_create_deployment_schedule_with_all_new_fields(
+        self, prefect_client, deployment
+    ):
+        deployment_id = str(deployment.id)
+        cron_schedule = CronSchedule(cron="* * * * *")
+        schedules = [(cron_schedule, True)]
+        result = await prefect_client.create_deployment_schedules(
+            deployment_id,
+            schedules,
+            parameters={"key": "value"},
+            slug="full-schedule",
+            max_scheduled_runs=10,
+        )
+
+        assert len(result) == 1
+        assert result[0].schedule == cron_schedule
+        assert result[0].parameters == {"key": "value"}
+        assert result[0].slug == "full-schedule"
+        assert result[0].max_scheduled_runs == 10
+
+    async def test_create_deployment_schedule_with_deployment_schedule_create_objects(
+        self, prefect_client, deployment
+    ):
+        deployment_id = str(deployment.id)
+        cron_schedule = CronSchedule(cron="* * * * *")
+        schedule_create = DeploymentScheduleCreate(
+            schedule=cron_schedule,
+            active=True,
+            parameters={"from_object": "yes"},
+            slug="object-schedule",
+            max_scheduled_runs=3,
+        )
+        result = await prefect_client.create_deployment_schedules(
+            deployment_id,
+            [schedule_create],
+        )
+
+        assert len(result) == 1
+        assert result[0].schedule == cron_schedule
+        assert result[0].parameters == {"from_object": "yes"}
+        assert result[0].slug == "object-schedule"
+        assert result[0].max_scheduled_runs == 3
+
+    async def test_update_deployment_schedule_with_parameters(
+        self, deployment, prefect_client
+    ):
+        await prefect_client.update_deployment_schedule(
+            deployment.id,
+            deployment.schedules[0].id,
+            parameters={"updated_key": "updated_value"},
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].parameters == {"updated_key": "updated_value"}
+
+    async def test_update_deployment_schedule_with_slug(
+        self, deployment, prefect_client
+    ):
+        await prefect_client.update_deployment_schedule(
+            deployment.id,
+            deployment.schedules[0].id,
+            slug="updated-slug",
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].slug == "updated-slug"
+
+    async def test_update_deployment_schedule_with_max_scheduled_runs(
+        self, deployment, prefect_client
+    ):
+        await prefect_client.update_deployment_schedule(
+            deployment.id,
+            deployment.schedules[0].id,
+            max_scheduled_runs=7,
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].max_scheduled_runs == 7
+
+    async def test_update_deployment_schedule_with_all_new_fields(
+        self, deployment, prefect_client
+    ):
+        await prefect_client.update_deployment_schedule(
+            deployment.id,
+            deployment.schedules[0].id,
+            parameters={"new_param": "new_value"},
+            slug="new-slug",
+            max_scheduled_runs=15,
+        )
+
+        result = await prefect_client.read_deployment_schedules(deployment.id)
+        assert len(result) == 1
+        assert result[0].parameters == {"new_param": "new_value"}
+        assert result[0].slug == "new-slug"
+        assert result[0].max_scheduled_runs == 15
+
 
 class TestPrefectClientCsrfSupport:
     def test_enabled_ephemeral(self, enable_ephemeral_server):

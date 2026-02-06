@@ -2,11 +2,17 @@ import pytest
 
 from prefect.events import Event
 from prefect.events.clients import AssertingEventsClient
+from prefect.events.related import RESOURCE_CACHE
 
 
 @pytest.fixture(autouse=True)
 def reset_asserting_events_client():
     AssertingEventsClient.reset()
+
+
+@pytest.fixture(autouse=True)
+def reset_resource_cache():
+    RESOURCE_CACHE.clear()
 
 
 @pytest.fixture(autouse=True)

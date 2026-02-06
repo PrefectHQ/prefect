@@ -25,12 +25,15 @@ from prefect.utilities.filesystem import tmpchdir
 
 @pytest.fixture
 async def variables(prefect_client: PrefectClient):
+    var1_name = f"test_variable_1_{uuid.uuid4()}"
+    var2_name = f"test_variable_2_{uuid.uuid4()}"
     await prefect_client._client.post(
-        "/variables/", json={"name": "test_variable_1", "value": "test_value_1"}
+        "/variables/", json={"name": var1_name, "value": "test_value_1"}
     )
     await prefect_client._client.post(
-        "/variables/", json={"name": "test_variable_2", "value": "test_value_2"}
+        "/variables/", json={"name": var2_name, "value": "test_value_2"}
     )
+    return var1_name, var2_name
 
 
 @pytest.fixture(scope="session")
@@ -67,12 +70,13 @@ class TestRunStep:
             )
 
     async def test_run_step_resolves_block_document_references_before_running(self):
-        await Secret(value="echo 'I am a secret!'").save(name="test-secret")
+        secret_name = f"test-secret-{uuid.uuid4()}"
+        await Secret(value="echo 'I am a secret!'").save(name=secret_name)
 
         output = await run_step(
             {
                 "prefect.deployments.steps.run_shell_script": {
-                    "script": "{{ prefect.blocks.secret.test-secret }}",
+                    "script": f"{{{{ prefect.blocks.secret.{secret_name} }}}}",
                 }
             }
         )
@@ -100,12 +104,13 @@ class TestRunStep:
         }
 
     async def test_run_step_resolves_variables_before_running(self, variables):
+        var1_name, var2_name = variables
         output = await run_step(
             {
                 "prefect.deployments.steps.run_shell_script": {
                     "script": (
-                        "echo '{{ prefect.variables.test_variable_1 }}:{{"
-                        " prefect.variables.test_variable_2 }}'"
+                        f"echo '{{{{ prefect.variables.{var1_name} }}}}:{{{{"
+                        f" prefect.variables.{var2_name} }}}}'"
                     ),
                 }
             }
@@ -466,11 +471,14 @@ class TestRunSteps:
             AssertingEventsClient,
         )
 
-        await Secret(value="my-secret-api-key").save(name="api-key")
+        api_key_name = f"api-key-{uuid.uuid4()}"
+        await Secret(value="my-secret-api-key").save(name=api_key_name)
 
+        db_password_name = f"db_password_{uuid.uuid4()}"
         async with get_client() as client:
             await client._client.post(
-                "/variables/", json={"name": "db_password", "value": "secret-password"}
+                "/variables/",
+                json={"name": db_password_name, "value": "secret-password"},
             )
 
         def fake_step(
@@ -490,8 +498,8 @@ class TestRunSteps:
             {
                 "prefect.deployments.steps.run_shell_script": {
                     "script": "echo 'test'",
-                    "api_key": "{{ prefect.blocks.secret.api-key }}",
-                    "password": "{{ prefect.variables.db_password }}",
+                    "api_key": f"{{{{ prefect.blocks.secret.{api_key_name} }}}}",
+                    "password": f"{{{{ prefect.variables.{db_password_name} }}}}",
                     "env_secret": "{{ $SECRET_ENV_VAR }}",
                     "id": "step-with-secrets",
                 }
@@ -519,8 +527,12 @@ class TestRunSteps:
         assert payload["id"] == "step-with-secrets"
 
         step_inputs = payload["inputs"]
-        assert step_inputs["api_key"] == "{{ prefect.blocks.secret.api-key }}"
-        assert step_inputs["password"] == "{{ prefect.variables.db_password }}"
+        assert (
+            step_inputs["api_key"] == f"{{{{ prefect.blocks.secret.{api_key_name} }}}}"
+        )
+        assert (
+            step_inputs["password"] == f"{{{{ prefect.variables.{db_password_name} }}}}"
+        )
         assert step_inputs["env_secret"] == "{{ $SECRET_ENV_VAR }}"
 
         assert "my-secret-api-key" not in str(payload)
@@ -829,12 +841,13 @@ class TestGitCloneStep:
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
     async def test_git_clone_with_access_token(self, git_repository_mock):
-        await Secret(value="my-access-token").save(name="my-access-token")
+        token_name = f"my-access-token-{uuid.uuid4()}"
+        await Secret(value="my-access-token").save(name=token_name)
         await run_step(
             {
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://github.com/org/repo.git",
-                    "access_token": "{{ prefect.blocks.secret.my-access-token }}",
+                    "access_token": f"{{{{ prefect.blocks.secret.{token_name} }}}}",
                 }
             }
         )
@@ -850,20 +863,22 @@ class TestGitCloneStep:
         git_repository_mock.return_value.pull_code.assert_awaited_once()
 
     async def test_git_clone_with_credentials(self, git_repository_mock):
+        slug = f"mockgitcredentials-{uuid.uuid4().hex[:8]}"
+
         class MockGitCredentials(Block):
+            _block_type_slug = slug
             username: str
             password: str
 
+        creds_name = f"my-credentials-{uuid.uuid4()}"
         await MockGitCredentials(username="marvin42", password="hunter2").save(
-            name="my-credentials"
+            name=creds_name
         )
         await run_step(
             {
                 "prefect.deployments.steps.git_clone": {
                     "repository": "https://github.com/org/repo.git",
-                    "credentials": (
-                        "{{ prefect.blocks.mockgitcredentials.my-credentials }}"
-                    ),
+                    "credentials": (f"{{{{ prefect.blocks.{slug}.{creds_name} }}}}"),
                 }
             }
         )
@@ -1443,6 +1458,7 @@ class TestPullWithBlock:
     @pytest.fixture
     async def test_block(self, monkeypatch, tmp_path):
         monkeypatch.chdir(str(tmp_path))  # ensures never writes to active directory
+        doc_name = f"test-block-{uuid.uuid4().hex[:8]}"
 
         class FakeStorageBlock(Block):
             _block_type_slug = "fake-storage-block"
@@ -1461,7 +1477,7 @@ class TestPullWithBlock:
                 (Path(local_path) / "flows.py").write_text(self.code)
 
         block = FakeStorageBlock()
-        await block.save("test-block")
+        await block.save(doc_name)
         return block
 
     async def test_normal_operation(self, test_block: Block):
@@ -1517,12 +1533,15 @@ class TestPullWithBlock:
         have a `get_directory` method, `run_step` should raise and log
         a message.
         """
+        slug = f"wrong-{uuid.uuid4().hex[:8]}"
+        doc_name = f"test-block-{uuid.uuid4().hex[:8]}"
 
         class Wrong(Block):
+            _block_type_slug = slug
             square_peg: str = "round_hole"
 
         block = Wrong()
-        await block.save("test-block")
+        await block.save(doc_name)
 
         with pytest.raises(ValueError):
             await run_step(

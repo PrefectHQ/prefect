@@ -4,7 +4,7 @@ import { buildCountFilterBlockDocumentsQuery } from "@/api/block-documents";
 import { buildGetBlockTypeQuery } from "@/api/block-types";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
 import { BlockDocumentCombobox } from "@/components/blocks/block-document-combobox";
-import { BlockDocumentCreateDialog } from "@/components/blocks/block-document-create-dialog";
+import { BlockDocumentCreateDialog } from "@/components/blocks/block-document-create-dialog/block-document-create-dialog";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";

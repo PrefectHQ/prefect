@@ -92,6 +92,9 @@ class FlowFilterId(PrefectFilterBaseModel):
     any_: Optional[list[UUID]] = Field(
         default=None, description="A list of flow ids to include"
     )
+    not_any_: Optional[list[UUID]] = Field(
+        default=None, description="A list of flow ids to exclude"
+    )
 
     def _get_filter_list(
         self, db: "PrefectDBInterface"
@@ -99,6 +102,8 @@ class FlowFilterId(PrefectFilterBaseModel):
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.any_ is not None:
             filters.append(db.Flow.id.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(db.Flow.id.not_in(self.not_any_))
         return filters
 
 
