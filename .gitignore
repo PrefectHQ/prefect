@@ -94,3 +94,6 @@ src/integrations/*/**/_version.py
 # Pyright type analysis report
 prefect-analysis.json
 CLAUDE.md
+
+# Local planning artifacts
+.planning/

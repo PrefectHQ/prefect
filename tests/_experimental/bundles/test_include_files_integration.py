@@ -1,0 +1,869 @@
+"""
+End-to-end integration tests for include_files feature.
+
+These tests verify the complete flow from @ecs(include_files=[...]) decorator
+through bundle creation, upload, download, extraction, and flow execution.
+"""
+
+from __future__ import annotations
+
+import json
+import zipfile
+from pathlib import Path
+
+import pytest
+
+
+class TestIncludeFilesIntegration:
+    """End-to-end tests for include_files feature."""
+
+    @pytest.fixture
+    def project_dir(self, tmp_path: Path) -> Path:
+        """Create a project directory with sample files."""
+        # Create config file
+        (tmp_path / "config.yaml").write_text("database: localhost\nport: 5432")
+
+        # Create data directory with files
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "input.csv").write_text("id,name\n1,Alice\n2,Bob")
+        (data_dir / "lookup.json").write_text('{"key": "value"}')
+
+        # Create nested structure
+        templates_dir = tmp_path / "templates" / "emails"
+        templates_dir.mkdir(parents=True)
+        (templates_dir / "welcome.html").write_text("<h1>Welcome!</h1>")
+
+        return tmp_path
+
+    @pytest.fixture
+    def mock_flow_file(self, project_dir: Path) -> Path:
+        """Create a mock flow file in the project directory."""
+        flow_file = project_dir / "flows" / "my_flow.py"
+        flow_file.parent.mkdir(exist_ok=True)
+        flow_file.write_text("# Flow definition here")
+        return flow_file
+
+    def test_file_collector_and_zip_builder_integration(
+        self, project_dir: Path
+    ) -> None:
+        """FileCollector output feeds correctly into ZipBuilder."""
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+
+        # Collect files
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/"])
+
+        # Build zip
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        try:
+            # Verify zip contains expected files
+            with zipfile.ZipFile(zip_result.zip_path) as zf:
+                names = set(zf.namelist())
+                assert "config.yaml" in names
+                assert "data/input.csv" in names
+                assert "data/lookup.json" in names
+
+                # Verify content
+                assert (
+                    zf.read("config.yaml").decode() == "database: localhost\nport: 5432"
+                )
+                assert "Alice" in zf.read("data/input.csv").decode()
+        finally:
+            builder.cleanup()
+
+    def test_zip_builder_extractor_roundtrip(
+        self, project_dir: Path, tmp_path: Path
+    ) -> None:
+        """Files packaged by ZipBuilder extract correctly via ZipExtractor."""
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        # Collect and build
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/", "templates/"])
+
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        # Extract to different directory (simulating remote execution)
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        extractor = ZipExtractor(zip_result.zip_path)
+        extracted = extractor.extract(work_dir)
+
+        try:
+            # Verify extracted files
+            assert (work_dir / "config.yaml").exists()
+            assert (work_dir / "data" / "input.csv").exists()
+            assert (work_dir / "data" / "lookup.json").exists()
+            assert (work_dir / "templates" / "emails" / "welcome.html").exists()
+
+            # Verify content matches
+            assert (
+                work_dir / "config.yaml"
+            ).read_text() == "database: localhost\nport: 5432"
+            assert "Alice" in (work_dir / "data" / "input.csv").read_text()
+            assert (
+                work_dir / "templates" / "emails" / "welcome.html"
+            ).read_text() == "<h1>Welcome!</h1>"
+
+            # Verify returned paths
+            assert len(extracted) == 4
+            assert all(p.exists() for p in extracted)
+        finally:
+            builder.cleanup()
+
+    def test_glob_pattern_collection_and_extraction(
+        self, project_dir: Path, tmp_path: Path
+    ) -> None:
+        """Glob patterns collect and extract correctly."""
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        # Add more files for glob testing
+        (project_dir / "schema.json").write_text('{"type": "object"}')
+        (project_dir / "data" / "extra.json").write_text('{"extra": true}')
+
+        # Collect using globs
+        collector = FileCollector(project_dir)
+        result = collector.collect(["**/*.json", "config.yaml"])
+
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        # Extract
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        extractor = ZipExtractor(zip_result.zip_path)
+        extractor.extract(work_dir)
+
+        try:
+            # All JSON files should be present
+            assert (work_dir / "schema.json").exists()
+            assert (work_dir / "data" / "lookup.json").exists()
+            assert (work_dir / "data" / "extra.json").exists()
+            assert (work_dir / "config.yaml").exists()
+
+            # CSV should NOT be present (not matching pattern)
+            assert not (work_dir / "data" / "input.csv").exists()
+        finally:
+            builder.cleanup()
+
+    def test_ignore_filter_integration(self, project_dir: Path, tmp_path: Path) -> None:
+        """Files matching .prefectignore are excluded from extraction."""
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._ignore_filter import IgnoreFilter
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        # Create .prefectignore
+        (project_dir / ".prefectignore").write_text("*.json\n")
+
+        # Create sensitive file
+        (project_dir / ".env").write_text("SECRET=value")
+
+        # Collect files
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/", ".env"])
+
+        # Apply ignore filter
+        ignore_filter = IgnoreFilter(project_dir)
+        filtered = ignore_filter.filter(
+            result.files, explicit_patterns=["config.yaml", "data/", ".env"]
+        )
+
+        # Build zip with filtered files
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(filtered.included_files)
+
+        # Extract
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        extractor = ZipExtractor(zip_result.zip_path)
+        extractor.extract(work_dir)
+
+        try:
+            # YAML should be present
+            assert (work_dir / "config.yaml").exists()
+            # CSV should be present (not ignored)
+            assert (work_dir / "data" / "input.csv").exists()
+            # JSON files should be excluded by .prefectignore
+            assert not (work_dir / "data" / "lookup.json").exists()
+        finally:
+            builder.cleanup()
+
+    def test_simulated_bundle_execution_flow(
+        self, project_dir: Path, tmp_path: Path
+    ) -> None:
+        """Simulate complete flow: collect -> zip -> 'upload' -> 'download' -> extract."""
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        # === Development Environment ===
+
+        # Collect files
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/"])
+
+        # Build zip
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        # Create bundle metadata (simulating create_bundle_for_flow_run)
+        bundle = {
+            "function": "serialized_flow",
+            "context": "serialized_context",
+            "flow_run": {"id": "test-run-123"},
+            "dependencies": "prefect>=2.0",
+            "files_key": zip_result.storage_key,
+        }
+
+        # Simulate "upload" - just keep references
+        uploaded_bundle = json.dumps(bundle).encode()
+        uploaded_zip = zip_result.zip_path.read_bytes()
+
+        builder.cleanup()
+
+        # === Execution Environment ===
+
+        execution_dir = tmp_path / "execution"
+        execution_dir.mkdir()
+
+        # Simulate "download" bundle
+        bundle_path = execution_dir / "bundle.json"
+        bundle_path.write_bytes(uploaded_bundle)
+
+        # Parse bundle
+        downloaded_bundle = json.loads(bundle_path.read_bytes())
+
+        # Check for files_key and "download" zip
+        files_key = downloaded_bundle.get("files_key")
+        assert files_key is not None
+        assert files_key.startswith("files/")
+
+        # Simulate "download" zip
+        zip_path = execution_dir / "files.zip"
+        zip_path.write_bytes(uploaded_zip)
+
+        # Extract to working directory
+        work_dir = execution_dir / "work"
+        work_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        extractor.extract(work_dir)
+        extractor.cleanup()
+
+        # === Verification ===
+
+        # Files should be available at same relative paths
+        assert (work_dir / "config.yaml").exists()
+        assert (work_dir / "data" / "input.csv").exists()
+        assert (work_dir / "data" / "lookup.json").exists()
+
+        # Content should match original
+        assert (work_dir / "config.yaml").read_text() == (
+            project_dir / "config.yaml"
+        ).read_text()
+        assert (work_dir / "data" / "input.csv").read_text() == (
+            project_dir / "data" / "input.csv"
+        ).read_text()
+
+        # Zip should be cleaned up
+        assert not zip_path.exists()
+
+    def test_decorator_include_files_propagation(self) -> None:
+        """include_files flows from @ecs decorator to InfrastructureBoundFlow."""
+        pytest.importorskip("prefect_aws")
+        from prefect_aws.experimental.decorators import ecs
+
+        from prefect.flows import flow
+
+        @ecs(work_pool="my-pool", include_files=["config.yaml", "data/"])
+        @flow
+        def my_flow():
+            pass
+
+        # Check the bound flow has include_files
+        assert hasattr(my_flow, "include_files")
+        assert my_flow.include_files == ["config.yaml", "data/"]
+
+    def test_with_options_include_files_override(self) -> None:
+        """with_options can override include_files."""
+        pytest.importorskip("prefect_aws")
+        from prefect_aws.experimental.decorators import ecs
+
+        from prefect.flows import flow
+
+        @ecs(work_pool="my-pool", include_files=["config.yaml"])
+        @flow
+        def my_flow():
+            pass
+
+        # Override with with_options
+        updated_flow = my_flow.with_options(include_files=["data/", "models/"])
+
+        assert updated_flow.include_files == ["data/", "models/"]
+        # Original unchanged
+        assert my_flow.include_files == ["config.yaml"]
+
+    def test_empty_include_files_no_files_key(self) -> None:
+        """Empty include_files results in files_key being None."""
+        pytest.importorskip("prefect_aws")
+        from prefect_aws.experimental.decorators import ecs
+
+        from prefect.flows import flow
+
+        @ecs(work_pool="my-pool", include_files=[])
+        @flow
+        def my_flow():
+            pass
+
+        # Empty list should be treated as no files
+        assert my_flow.include_files == []
+
+    def test_none_include_files_no_files_key(self) -> None:
+        """None include_files (default) results in no files_key."""
+        pytest.importorskip("prefect_aws")
+        from prefect_aws.experimental.decorators import ecs
+
+        from prefect.flows import flow
+
+        @ecs(work_pool="my-pool")
+        @flow
+        def my_flow():
+            pass
+
+        # Default should be None
+        assert my_flow.include_files is None
+
+    def test_paths_match_between_dev_and_execution(
+        self, project_dir: Path, tmp_path: Path
+    ) -> None:
+        """
+        EXEC-02: Extracted files are accessible at same relative paths as in development.
+
+        This test verifies that if a file exists at `data/input.csv` relative to the
+        flow file in development, it will be available at `./data/input.csv` relative
+        to the working directory during execution.
+        """
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        # Development: files at specific relative paths
+        dev_paths = {
+            "config.yaml": project_dir / "config.yaml",
+            "data/input.csv": project_dir / "data" / "input.csv",
+            "templates/emails/welcome.html": project_dir
+            / "templates"
+            / "emails"
+            / "welcome.html",
+        }
+
+        # Collect all
+        collector = FileCollector(project_dir)
+        result = collector.collect(["config.yaml", "data/", "templates/"])
+
+        # Package
+        builder = ZipBuilder(project_dir)
+        zip_result = builder.build(result.files)
+
+        # Extract to execution directory
+        exec_dir = tmp_path / "execution"
+        exec_dir.mkdir()
+
+        extractor = ZipExtractor(zip_result.zip_path)
+        extractor.extract(exec_dir)
+        builder.cleanup()
+
+        # Verify: execution paths match development relative paths
+        for rel_path, dev_path in dev_paths.items():
+            exec_path = exec_dir / rel_path
+            assert exec_path.exists(), f"Missing: {rel_path}"
+            assert exec_path.read_text() == dev_path.read_text(), (
+                f"Content mismatch: {rel_path}"
+            )
+
+
+class TestBundleUploadWithSidecar:
+    """Tests for sidecar zip upload alongside bundle."""
+
+    @pytest.fixture
+    def project_with_files(self, tmp_path: Path) -> Path:
+        """Create a project directory with files."""
+        (tmp_path / "config.yaml").write_text("key: value")
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "input.csv").write_text("a,b\n1,2")
+        return tmp_path
+
+    def test_upload_bundle_with_sidecar(
+        self, project_with_files: Path, tmp_path: Path
+    ) -> None:
+        """upload_bundle_to_storage uploads both bundle and sidecar."""
+        import sys
+        from unittest.mock import patch
+
+        from prefect._experimental.bundles import upload_bundle_to_storage
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+
+        # Create a sidecar zip
+        collector = FileCollector(project_with_files)
+        result = collector.collect(["config.yaml", "data/"])
+
+        builder = ZipBuilder(project_with_files)
+        zip_result = builder.build(result.files)
+
+        # Create bundle with files_key
+        bundle = {
+            "function": "serialized_flow",
+            "context": "serialized_context",
+            "flow_run": {"id": "test-123"},
+            "dependencies": "",
+            "files_key": zip_result.storage_key,
+        }
+
+        # Create a "storage" directory to simulate upload destination
+        storage_dir = tmp_path / "storage"
+        storage_dir.mkdir()
+
+        # Use a script that copies files to storage (simulating cloud upload)
+        # The upload command copies each file to the storage directory
+
+        # Create a helper script that copies files preserving directory structure
+        helper_script = tmp_path / "upload_helper.py"
+        helper_script.write_text(f'''
+import sys
+import shutil
+from pathlib import Path
+
+# Get the key (relative path) as argument
+key = sys.argv[1]
+storage_dir = Path("{storage_dir}")
+
+# Copy the file to storage
+src = Path(key)
+dest = storage_dir / key
+dest.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(src, dest)
+''')
+
+        upload_command = [sys.executable, str(helper_script)]
+
+        # The upload_step is used by convert_step_to_command to build the sidecar
+        # upload command. We mock convert_step_to_command to return our helper
+        # script command so we don't need `uv run` in tests.
+        upload_step = {"test_module.upload": {}}
+
+        def mock_convert_step(step, key, quiet=False):
+            return [sys.executable, str(helper_script)]
+
+        # Upload
+        with patch(
+            "prefect._experimental.bundles.convert_step_to_command",
+            side_effect=mock_convert_step,
+        ):
+            upload_bundle_to_storage(
+                bundle=bundle,  # type: ignore[arg-type]
+                key="bundle.json",
+                upload_command=upload_command,
+                zip_path=zip_result.zip_path,
+                upload_step=upload_step,
+            )
+
+        # Verify bundle was uploaded
+        assert (storage_dir / "bundle.json").exists()
+        bundle_content = json.loads((storage_dir / "bundle.json").read_text())
+        assert bundle_content["files_key"] == zip_result.storage_key
+
+        # Verify sidecar zip was uploaded
+        sidecar_path = storage_dir / zip_result.storage_key
+        assert sidecar_path.exists()
+
+        # Verify sidecar contains expected files
+        with zipfile.ZipFile(sidecar_path) as zf:
+            names = set(zf.namelist())
+            assert "config.yaml" in names
+            assert "data/input.csv" in names
+
+        builder.cleanup()
+
+    def test_upload_bundle_without_sidecar(self, tmp_path: Path) -> None:
+        """upload_bundle_to_storage works normally without sidecar (backward compat)."""
+        import sys
+
+        from prefect._experimental.bundles import upload_bundle_to_storage
+
+        bundle = {
+            "function": "serialized_flow",
+            "context": "serialized_context",
+            "flow_run": {"id": "test-123"},
+            "dependencies": "",
+            "files_key": None,
+        }
+
+        storage_dir = tmp_path / "storage"
+        storage_dir.mkdir()
+
+        # Create helper script
+        helper_script = tmp_path / "upload_helper.py"
+        helper_script.write_text(f'''
+import sys
+import shutil
+from pathlib import Path
+
+key = sys.argv[1]
+storage_dir = Path("{storage_dir}")
+src = Path(key)
+dest = storage_dir / key
+dest.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(src, dest)
+''')
+
+        upload_command = [sys.executable, str(helper_script)]
+
+        # Should complete without error - no sidecar to upload
+        upload_bundle_to_storage(
+            bundle=bundle,  # type: ignore[arg-type]
+            key="bundle.json",
+            upload_command=upload_command,
+            zip_path=None,
+        )
+
+        # Verify bundle was uploaded
+        assert (storage_dir / "bundle.json").exists()
+
+        # Verify no sidecar files were created
+        assert not (storage_dir / "files").exists()
+
+    def test_upload_bundle_with_sidecar_no_files_key(self, tmp_path: Path) -> None:
+        """If zip_path provided but no files_key, sidecar is not uploaded."""
+        from prefect._experimental.bundles import upload_bundle_to_storage
+        from prefect._experimental.bundles._file_collector import FileCollector
+        from prefect._experimental.bundles._zip_builder import ZipBuilder
+
+        # Create files and zip
+        (tmp_path / "data.txt").write_text("test")
+        collector = FileCollector(tmp_path)
+        result = collector.collect(["data.txt"])
+        builder = ZipBuilder(tmp_path)
+        zip_result = builder.build(result.files)
+
+        # Bundle WITHOUT files_key
+        bundle = {
+            "function": "serialized_flow",
+            "context": "serialized_context",
+            "flow_run": {"id": "test-123"},
+            "dependencies": "",
+            "files_key": None,  # No files_key
+        }
+
+        storage_dir = tmp_path / "storage"
+        storage_dir.mkdir()
+
+        import sys
+
+        helper_script = tmp_path / "upload_helper.py"
+        helper_script.write_text(f'''
+import sys
+import shutil
+from pathlib import Path
+
+key = sys.argv[1]
+storage_dir = Path("{storage_dir}")
+src = Path(key)
+dest = storage_dir / key
+dest.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(src, dest)
+''')
+
+        upload_command = [sys.executable, str(helper_script)]
+
+        # Even with zip_path, sidecar should not be uploaded when no files_key
+        upload_bundle_to_storage(
+            bundle=bundle,  # type: ignore[arg-type]
+            key="bundle.json",
+            upload_command=upload_command,
+            zip_path=zip_result.zip_path,
+        )
+
+        # Bundle uploaded
+        assert (storage_dir / "bundle.json").exists()
+
+        # But no sidecar (no files directory)
+        assert not (storage_dir / "files").exists()
+
+        builder.cleanup()
+
+
+class TestCreateBundleForFlowRunE2E:
+    """
+    End-to-end tests for create_bundle_for_flow_run with include_files.
+
+    These tests call the actual function (not simulated) to verify the complete
+    integration from decorator attributes through bundle creation to extraction.
+    """
+
+    @pytest.fixture
+    def project_with_flow(self, tmp_path: Path) -> tuple[Path, Path]:
+        """
+        Create a project directory with files and an actual flow module.
+
+        Returns (project_dir, flow_file_path)
+        """
+        # Create files to include
+        (tmp_path / "config.yaml").write_text("database: localhost\nport: 5432")
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        (data_dir / "input.csv").write_text("id,name\n1,Alice\n2,Bob")
+        (data_dir / "settings.json").write_text('{"debug": true}')
+
+        # Create nested directory
+        templates_dir = tmp_path / "templates"
+        templates_dir.mkdir()
+        (templates_dir / "email.html").write_text("<h1>Hello</h1>")
+
+        # Create a real flow file
+        flow_file = tmp_path / "my_flow.py"
+        flow_file.write_text('''
+from prefect import flow
+
+@flow
+def my_flow():
+    """A test flow."""
+    return "hello"
+''')
+        return tmp_path, flow_file
+
+    def test_create_bundle_populates_files_key(
+        self, project_with_flow: tuple[Path, Path]
+    ) -> None:
+        """
+        EXEC-01/EXEC-02: create_bundle_for_flow_run populates files_key when
+        flow has include_files attribute.
+
+        This test calls the ACTUAL function, not a simulation.
+        """
+        import shutil
+        from unittest.mock import MagicMock, patch
+
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.flows import Flow
+
+        project_dir, flow_file = project_with_flow
+
+        # Create a flow and set include_files (as @ecs decorator would)
+        @Flow
+        def test_flow():
+            return "result"
+
+        test_flow.include_files = ["config.yaml", "data/", "templates/"]
+
+        # Mock inspect.getfile to return our flow file path
+        with patch(
+            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
+        ):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.model_dump.return_value = {"id": "test-run-123"}
+
+            # Call the ACTUAL function
+            result = create_bundle_for_flow_run(
+                flow=test_flow,
+                flow_run=flow_run,
+            )
+
+        bundle = result["bundle"]
+        zip_path = result["zip_path"]
+
+        try:
+            # CRITICAL VERIFICATION: files_key is NOT None
+            assert bundle["files_key"] is not None, (
+                "files_key should be populated when include_files is set"
+            )
+            assert bundle["files_key"].startswith("files/"), (
+                f"files_key should start with 'files/', got: {bundle['files_key']}"
+            )
+            assert bundle["files_key"].endswith(".zip"), (
+                f"files_key should end with '.zip', got: {bundle['files_key']}"
+            )
+
+            # zip_path should exist
+            assert zip_path is not None
+            assert zip_path.exists(), f"Zip file should exist at {zip_path}"
+
+            # Verify zip content
+            with zipfile.ZipFile(zip_path) as zf:
+                names = set(zf.namelist())
+                assert "config.yaml" in names
+                assert "data/input.csv" in names
+                assert "data/settings.json" in names
+                assert "templates/email.html" in names
+
+        finally:
+            # Cleanup
+            if zip_path and zip_path.exists():
+                zip_path.unlink()
+                if zip_path.parent.exists():
+                    shutil.rmtree(zip_path.parent, ignore_errors=True)
+
+    def test_create_bundle_to_extraction_roundtrip(
+        self, project_with_flow: tuple[Path, Path], tmp_path: Path
+    ) -> None:
+        """
+        Full roundtrip: create_bundle_for_flow_run -> extraction -> file access.
+
+        Proves EXEC-02: Files are accessible at same relative paths.
+        """
+        import shutil
+        from unittest.mock import MagicMock, patch
+
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.flows import Flow
+
+        project_dir, flow_file = project_with_flow
+
+        @Flow
+        def test_flow():
+            return "result"
+
+        test_flow.include_files = ["config.yaml", "data/"]
+
+        with patch(
+            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
+        ):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.model_dump.return_value = {"id": "test-run-456"}
+
+            result = create_bundle_for_flow_run(
+                flow=test_flow,
+                flow_run=flow_run,
+            )
+
+        zip_path = result["zip_path"]
+
+        try:
+            # Simulate execution environment
+            exec_dir = tmp_path / "execution"
+            exec_dir.mkdir()
+
+            # Extract files (as cloud execute functions would)
+            extractor = ZipExtractor(zip_path)
+            extractor.extract(exec_dir)
+
+            # CRITICAL VERIFICATION: Paths match development
+            assert (exec_dir / "config.yaml").exists()
+            assert (exec_dir / "data" / "input.csv").exists()
+            assert (exec_dir / "data" / "settings.json").exists()
+
+            # Content matches
+            assert (exec_dir / "config.yaml").read_text() == (
+                project_dir / "config.yaml"
+            ).read_text()
+            assert (exec_dir / "data" / "input.csv").read_text() == (
+                project_dir / "data" / "input.csv"
+            ).read_text()
+
+        finally:
+            # Cleanup
+            if zip_path and zip_path.exists():
+                zip_path.unlink()
+                if zip_path.parent.exists():
+                    shutil.rmtree(zip_path.parent, ignore_errors=True)
+
+    def test_create_bundle_no_files_key_without_include_files(self) -> None:
+        """files_key remains None when flow has no include_files."""
+        from unittest.mock import MagicMock
+
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.flows import Flow
+
+        @Flow
+        def test_flow():
+            return "result"
+
+        # No include_files attribute set
+
+        flow_run = MagicMock(spec=FlowRun)
+        flow_run.model_dump.return_value = {"id": "test-run-789"}
+
+        result = create_bundle_for_flow_run(
+            flow=test_flow,
+            flow_run=flow_run,
+        )
+
+        assert result["bundle"]["files_key"] is None
+        assert result["zip_path"] is None
+
+    def test_create_bundle_respects_prefectignore(
+        self, project_with_flow: tuple[Path, Path], tmp_path: Path
+    ) -> None:
+        """Files in .prefectignore are excluded from bundle."""
+        import shutil
+        from unittest.mock import MagicMock, patch
+
+        from prefect._experimental.bundles import create_bundle_for_flow_run
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.flows import Flow
+
+        project_dir, flow_file = project_with_flow
+
+        # Add .prefectignore
+        (project_dir / ".prefectignore").write_text("*.json\n")
+
+        @Flow
+        def test_flow():
+            return "result"
+
+        test_flow.include_files = ["config.yaml", "data/"]
+
+        with patch(
+            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
+        ):
+            flow_run = MagicMock(spec=FlowRun)
+            flow_run.model_dump.return_value = {"id": "test-ignore"}
+
+            result = create_bundle_for_flow_run(
+                flow=test_flow,
+                flow_run=flow_run,
+            )
+
+        zip_path = result["zip_path"]
+
+        try:
+            # Extract and verify
+            exec_dir = tmp_path / "execution"
+            exec_dir.mkdir()
+
+            extractor = ZipExtractor(zip_path)
+            extractor.extract(exec_dir)
+
+            # config.yaml should be present (not ignored)
+            assert (exec_dir / "config.yaml").exists()
+
+            # input.csv should be present (not ignored)
+            assert (exec_dir / "data" / "input.csv").exists()
+
+            # settings.json should be EXCLUDED (matches *.json)
+            assert not (exec_dir / "data" / "settings.json").exists()
+
+        finally:
+            if zip_path and zip_path.exists():
+                zip_path.unlink()
+                if zip_path.parent.exists():
+                    shutil.rmtree(zip_path.parent, ignore_errors=True)

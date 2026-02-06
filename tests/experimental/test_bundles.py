@@ -67,7 +67,8 @@ class TestExecuteBundleInSubprocess:
             flow=simple_flow,
         )
 
-        bundle = create_bundle_for_flow_run(simple_flow, flow_run)
+        result = create_bundle_for_flow_run(simple_flow, flow_run)
+        bundle = result["bundle"]
 
         assert bundle["dependencies"] == "the-whole-enchilada==0.5.3"
 
@@ -110,7 +111,8 @@ class TestExecuteBundleInSubprocess:
 
         flow_run = await prefect_client.create_flow_run(flow=foo)
 
-        bundle = create_bundle_for_flow_run(foo, flow_run)
+        result = create_bundle_for_flow_run(foo, flow_run)
+        bundle = result["bundle"]
         process = execute_bundle_in_subprocess(bundle)
 
         process.join()
@@ -145,7 +147,8 @@ class TestExecuteBundleInSubprocess:
             parameters={"x": 42, "y": "hello"},
         )
 
-        bundle = create_bundle_for_flow_run(flow_with_parameters, flow_run)
+        result = create_bundle_for_flow_run(flow_with_parameters, flow_run)
+        bundle = result["bundle"]
         process = execute_bundle_in_subprocess(bundle)
 
         process.join()
@@ -182,9 +185,10 @@ class TestExecuteBundleInSubprocess:
             flow=context_flow,
         )
 
-        bundle = create_bundle_for_flow_run(
+        result = create_bundle_for_flow_run(
             flow=context_flow, flow_run=flow_run, context=context
         )
+        bundle = result["bundle"]
         process = execute_bundle_in_subprocess(bundle)
         process.join()
         assert process.exitcode == 0
@@ -216,7 +220,8 @@ class TestExecuteBundleInSubprocess:
 
         flow_run = await prefect_client.create_flow_run(flow=foo)
 
-        bundle = create_bundle_for_flow_run(foo, flow_run)
+        result = create_bundle_for_flow_run(foo, flow_run)
+        bundle = result["bundle"]
         process = execute_bundle_in_subprocess(bundle)
         process.join()
         assert process.exitcode == 0
@@ -248,7 +253,8 @@ class TestExecuteBundleInSubprocess:
 
         flow_run = await prefect_client.create_flow_run(flow=foo)
 
-        bundle = create_bundle_for_flow_run(foo, flow_run)
+        result = create_bundle_for_flow_run(foo, flow_run)
+        bundle = result["bundle"]
         process = execute_bundle_in_subprocess(bundle)
         process.join()
         assert process.exitcode == 1
@@ -279,7 +285,8 @@ class TestExecuteBundleInSubprocess:
 
         flow_run = await prefect_client.create_flow_run(flow=foo)
 
-        bundle = create_bundle_for_flow_run(foo, flow_run)
+        result = create_bundle_for_flow_run(foo, flow_run)
+        bundle = result["bundle"]
         process = execute_bundle_in_subprocess(bundle)
         process.join()
         assert process.exitcode == -9
@@ -315,7 +322,8 @@ class TestExecuteBundleInSubprocess:
                 return "test"
 
         flow_run = await prefect_client.create_flow_run(flow=simple_flow)
-        bundle = create_bundle_for_flow_run(simple_flow, flow_run)
+        result = create_bundle_for_flow_run(simple_flow, flow_run)
+        bundle = result["bundle"]
 
         # Verify that local file dependencies are filtered out
         assert (
