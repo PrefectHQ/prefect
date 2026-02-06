@@ -24,7 +24,11 @@ _FLAGS_WITH_VALUES = {
 # Commands that have been migrated to cyclopts.
 # As commands are migrated, add them here so the router sends them
 # to cyclopts instead of delegating to typer.
-_CYCLOPTS_COMMANDS: set[str] = set()
+_CYCLOPTS_COMMANDS: set[str] = {
+    "config",
+    "profile",
+    "version",
+}
 
 
 def _should_delegate_to_typer(args: list[str]) -> bool:

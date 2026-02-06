@@ -213,27 +213,14 @@ def shell_default(
 
 
 # --- config ---
-config_app = cyclopts.App(name="config", help="View and set Prefect settings.")
+from prefect.cli._cyclopts.config import config_app
+
 _app.command(config_app)
 
-
-@config_app.default
-def config_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("config", tokens)
-
-
 # --- profile ---
-profile_app = cyclopts.App(name="profile", help="Select and manage Prefect profiles.")
+from prefect.cli._cyclopts.profile import profile_app
+
 _app.command(profile_app)
-
-
-@profile_app.default
-def profile_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("profile", tokens)
 
 
 # --- cloud ---
@@ -439,9 +426,7 @@ def transfer_cmd(
     _delegate("transfer", tokens)
 
 
-@_app.command(name="version")
-def version_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Display detailed version information."""
-    _delegate("version", tokens)
+# --- version ---
+from prefect.cli._cyclopts.version import version
+
+_app.command(version, name="version")
