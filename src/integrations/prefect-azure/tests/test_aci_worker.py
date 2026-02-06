@@ -11,6 +11,7 @@ import pytest
 from anyio.abc import TaskStatus
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
+from azure.mgmt.resource import ResourceManagementClient
 from prefect_azure import AzureContainerInstanceCredentials
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.workers.container_instance import (
@@ -254,11 +255,17 @@ def mock_prefect_client(monkeypatch, worker_flow):
 
 @pytest.fixture()
 def mock_resource_client(monkeypatch):
-    mock_resource_client = MagicMock()
+    mock_resource_client = MagicMock(spec=ResourceManagementClient)
+
+    def return_group(name: str):
+        client = ResourceManagementClient
+        return client.models().ResourceGroup(name=name, location="useast")
+
+    mock_resource_client.resource_groups.get = Mock(side_effect=return_group)
 
     monkeypatch.setattr(
         AzureContainerInstanceCredentials,
-        "get_deployments_client",
+        "get_resource_client",
         MagicMock(return_value=mock_resource_client),
     )
 
@@ -330,7 +337,7 @@ async def test_worker_container_client_creation(
     mock_resource_client_constructor = Mock()
     monkeypatch.setattr(
         prefect_azure.credentials,
-        "DeploymentsMgmtClient",
+        "ResourceManagementClient",
         mock_resource_client_constructor,
     )
 
