@@ -622,6 +622,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             name="TimedOut",
         )
         self.set_state(state)
+        if self.state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {self.state.name!r} when proposing final"
+                f" state {state.name!r} and will attempt to run again..."
+            )
+            self.set_state(Running())
+            return
         self._raised = exc
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(message)
@@ -1213,6 +1220,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             name="TimedOut",
         )
         await self.set_state(state)
+        if self.state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {self.state.name!r} when proposing final"
+                f" state {state.name!r} and will attempt to run again..."
+            )
+            await self.set_state(Running())
+            return
         self._raised = exc
 
         self._telemetry.record_exception(exc)
