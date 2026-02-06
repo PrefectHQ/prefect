@@ -163,6 +163,8 @@ from prefect_kubernetes.utilities import (
 )
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
 
@@ -369,6 +371,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
+        worker_id: "UUID | None" = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -394,7 +397,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                     original_env[item["name"]] = item.get("value")
             self.env = original_env
 
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
+        )
 
         self._configure_eviction_handling()
         self._update_prefect_api_url_if_local_server()

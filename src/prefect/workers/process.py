@@ -47,6 +47,8 @@ from prefect.workers.base import (
 )
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.flows import Flow
@@ -72,8 +74,16 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
+        worker_id: "UUID | None" = None,
     ) -> None:
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run,
+            deployment,
+            flow,
+            work_pool,
+            worker_name,
+            worker_id=worker_id,
+        )
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
         self.command: str | None = (
