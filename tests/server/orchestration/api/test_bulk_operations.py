@@ -164,7 +164,7 @@ class TestFlowRunBulkDelete:
         self,
         session,
         flow,
-        ephemeral_client_with_lifespan,
+        hosted_api_client,
     ):
         """Test bulk deletion with no filter."""
         # Create flow runs
@@ -179,7 +179,7 @@ class TestFlowRunBulkDelete:
         await session.commit()
 
         # Bulk delete with no filter - should delete up to limit
-        response = await ephemeral_client_with_lifespan.post(
+        response = await hosted_api_client.post(
             "/flow_runs/bulk_delete",
             json={"limit": 2},
         )
