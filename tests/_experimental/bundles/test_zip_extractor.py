@@ -587,6 +587,146 @@ class TestZipExtractorCleanup:
         extractor.cleanup()
 
 
+class TestZipExtractorPathTraversal:
+    """Tests for path traversal rejection."""
+
+    def _create_zip_with_member(self, zip_path: Path, member_name: str) -> Path:
+        """Create a zip file with a single member using a crafted name."""
+        import io
+        import struct
+
+        # Build a minimal zip archive manually so we can use arbitrary member names
+        # that zipfile.ZipFile.writestr would otherwise reject or normalise.
+        buf = io.BytesIO()
+        encoded = member_name.encode("utf-8")
+        content = b"malicious"
+
+        # Local file header
+        local_header = (
+            b"PK\x03\x04"  # signature
+            + struct.pack("<H", 20)  # version needed
+            + struct.pack("<H", 0)  # flags
+            + struct.pack("<H", 0)  # compression
+            + struct.pack("<H", 0)  # mod time
+            + struct.pack("<H", 0)  # mod date
+            + struct.pack("<I", 0)  # crc32 (filled later)
+            + struct.pack("<I", len(content))  # compressed size
+            + struct.pack("<I", len(content))  # uncompressed size
+            + struct.pack("<H", len(encoded))  # filename length
+            + struct.pack("<H", 0)  # extra length
+            + encoded
+            + content
+        )
+
+        # Fix CRC
+        import binascii
+
+        crc = binascii.crc32(content) & 0xFFFFFFFF
+        local_header = local_header[:14] + struct.pack("<I", crc) + local_header[18:]
+
+        buf.write(local_header)
+        central_offset = 0
+        central_start = buf.tell()
+
+        # Central directory header
+        central = (
+            b"PK\x01\x02"
+            + struct.pack("<H", 20)  # version made by
+            + struct.pack("<H", 20)  # version needed
+            + struct.pack("<H", 0)  # flags
+            + struct.pack("<H", 0)  # compression
+            + struct.pack("<H", 0)  # mod time
+            + struct.pack("<H", 0)  # mod date
+            + struct.pack("<I", crc)
+            + struct.pack("<I", len(content))
+            + struct.pack("<I", len(content))
+            + struct.pack("<H", len(encoded))
+            + struct.pack("<H", 0)  # extra length
+            + struct.pack("<H", 0)  # comment length
+            + struct.pack("<H", 0)  # disk number
+            + struct.pack("<H", 0)  # internal attrs
+            + struct.pack("<I", 0)  # external attrs
+            + struct.pack("<I", central_offset)  # local header offset
+            + encoded
+        )
+        buf.write(central)
+        central_end = buf.tell()
+
+        # End of central directory
+        eocd = (
+            b"PK\x05\x06"
+            + struct.pack("<H", 0)  # disk number
+            + struct.pack("<H", 0)  # disk with central dir
+            + struct.pack("<H", 1)  # entries on disk
+            + struct.pack("<H", 1)  # total entries
+            + struct.pack("<I", central_end - central_start)
+            + struct.pack("<I", central_start)
+            + struct.pack("<H", 0)  # comment length
+        )
+        buf.write(eocd)
+
+        zip_path.write_bytes(buf.getvalue())
+        return zip_path
+
+    def test_extract_rejects_absolute_path(self, tmp_path: Path) -> None:
+        """Zip with absolute path member raises ValueError."""
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        zip_path = self._create_zip_with_member(tmp_path / "evil.zip", "/etc/passwd")
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(ValueError, match="absolute path"):
+            extractor.extract(target_dir)
+
+    def test_extract_rejects_dot_dot_traversal(self, tmp_path: Path) -> None:
+        """Zip with ../../ traversal raises ValueError."""
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        zip_path = self._create_zip_with_member(
+            tmp_path / "evil.zip", "../../etc/passwd"
+        )
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(ValueError, match="path traversal"):
+            extractor.extract(target_dir)
+
+    def test_extract_rejects_nested_dot_dot(self, tmp_path: Path) -> None:
+        """Zip with data/../../escape.txt raises ValueError."""
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        zip_path = self._create_zip_with_member(
+            tmp_path / "evil.zip", "data/../../escape.txt"
+        )
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(ValueError, match="path traversal"):
+            extractor.extract(target_dir)
+
+    def test_extract_no_files_extracted_on_traversal(self, tmp_path: Path) -> None:
+        """No files are written when traversal is detected."""
+        from prefect._experimental.bundles._zip_extractor import ZipExtractor
+
+        zip_path = self._create_zip_with_member(
+            tmp_path / "evil.zip", "../../escape.txt"
+        )
+        target_dir = tmp_path / "output"
+        target_dir.mkdir()
+
+        extractor = ZipExtractor(zip_path)
+        with pytest.raises(ValueError):
+            extractor.extract(target_dir)
+
+        # Verify nothing was extracted
+        assert list(target_dir.iterdir()) == []
+        assert extractor._extracted is False
+
+
 class TestZipExtractorErrors:
     """Tests for error handling scenarios."""
 

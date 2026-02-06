@@ -44,6 +44,21 @@ class ZipExtractor:
         self.zip_path = Path(zip_path)
         self._extracted = False
 
+    def _validate_members(self, members: list[str], target_dir: Path) -> None:
+        """Reject zip members with absolute paths or '..' traversal."""
+        resolved_target = target_dir.resolve()
+        for member in members:
+            member_path = Path(member)
+            if member_path.is_absolute():
+                raise ValueError(f"Zip member has absolute path: {member!r}")
+            if ".." in member_path.parts:
+                raise ValueError(f"Zip member contains path traversal: {member!r}")
+            resolved = (target_dir / member).resolve()
+            if not resolved.is_relative_to(resolved_target):
+                raise ValueError(
+                    f"Zip member resolves outside target directory: {member!r}"
+                )
+
     def _check_type_mismatch(self, member: str, target_dir: Path) -> None:
         """Check if extraction would cause file/dir type mismatch."""
         dest_path = target_dir / member
@@ -73,6 +88,7 @@ class ZipExtractor:
             List of extracted file paths.
 
         Raises:
+            ValueError: If zip contains path traversal or absolute paths.
             RuntimeError: If file/directory type mismatch.
             zipfile.BadZipFile: If zip is corrupted.
             FileNotFoundError: If zip_path doesn't exist.
@@ -81,12 +97,15 @@ class ZipExtractor:
         extracted_paths: list[Path] = []
 
         with zipfile.ZipFile(self.zip_path, "r") as zf:
+            members = zf.namelist()
+            self._validate_members(members, target_dir)
+
             # Pre-check for type mismatches
-            for member in zf.namelist():
+            for member in members:
                 self._check_type_mismatch(member, target_dir)
 
             # Log overwrites before extraction
-            for member in zf.namelist():
+            for member in members:
                 dest_path = target_dir / member
                 if dest_path.exists() and dest_path.is_file():
                     logger.warning(f"Overwriting existing file: {member}")
@@ -95,7 +114,7 @@ class ZipExtractor:
             zf.extractall(target_dir)
 
             # Build extracted paths list
-            for member in zf.namelist():
+            for member in members:
                 if not member.endswith("/"):  # Skip directories
                     extracted_paths.append(target_dir / member)
 
