@@ -5,6 +5,8 @@ This module provides:
 - DbtNode: Immutable representation of a dbt node
 - ExecutionWave: A group of nodes that can execute in parallel
 - ManifestParser: Parser for dbt manifest.json with dependency resolution
+- resolve_selection: Resolve dbt selectors to node IDs via `dbt ls`
+- DbtLsError: Exception raised when `dbt ls` fails
 """
 
 import json
@@ -13,6 +15,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from dbt.artifacts.resources.types import NodeType
+from dbt.cli.main import dbtRunner
 
 
 @dataclass(frozen=True)
@@ -276,12 +279,19 @@ class ManifestParser:
             raise KeyError(f"Node not found: {node_id}")
         return list(nodes[node_id].depends_on)
 
-    def compute_execution_waves(self) -> list[ExecutionWave]:
+    def compute_execution_waves(
+        self,
+        nodes: Optional[dict[str, DbtNode]] = None,
+    ) -> list[ExecutionWave]:
         """Compute execution waves using Kahn's algorithm.
 
         Each wave contains nodes that can be executed in parallel.
         Wave 0 contains nodes with no dependencies. Wave N contains
         nodes whose dependencies are all in waves 0 through N-1.
+
+        Args:
+            nodes: Pre-filtered node dict to compute waves for. If None,
+                all executable nodes are used.
 
         Returns:
             List of ExecutionWave objects in execution order
@@ -289,7 +299,8 @@ class ManifestParser:
         Raises:
             ValueError: If the dependency graph contains cycles
         """
-        nodes = self.get_executable_nodes()
+        if nodes is None:
+            nodes = self.get_executable_nodes()
 
         if not nodes:
             return []
@@ -343,21 +354,75 @@ class ManifestParser:
 
     def filter_nodes(
         self,
-        select: Optional[list[str]] = None,
-        exclude: Optional[list[str]] = None,
+        selected_node_ids: Optional[set[str]] = None,
     ) -> dict[str, DbtNode]:
-        """Filter nodes by selection criteria.
-
-        Note: This is a stub for Phase 2. Currently returns all executable nodes.
-        Phase 2 will implement proper dbt selector syntax via `dbt ls` delegation.
+        """Filter executable nodes by a set of unique IDs.
 
         Args:
-            select: Node selectors to include (Phase 2)
-            exclude: Node selectors to exclude (Phase 2)
+            selected_node_ids: Set of unique_ids to keep. If None, returns all
+                executable nodes.
 
         Returns:
-            Dictionary of filtered executable nodes
+            Dictionary of filtered executable nodes with resolved dependencies.
         """
-        # Stub: return all executable nodes
-        # Phase 2 will implement proper filtering via dbt ls
-        return self.get_executable_nodes()
+        nodes = self.get_executable_nodes()
+        if selected_node_ids is None:
+            return nodes
+        return {uid: node for uid, node in nodes.items() if uid in selected_node_ids}
+
+
+class DbtLsError(Exception):
+    """Raised when `dbt ls` fails during selector resolution."""
+
+
+def resolve_selection(
+    project_dir: Path,
+    profiles_dir: Path,
+    select: Optional[str] = None,
+    exclude: Optional[str] = None,
+    target_path: Optional[Path] = None,
+) -> set[str]:
+    """Resolve dbt selectors to a set of node unique_ids.
+
+    Uses `dbt ls` under the hood, so all of dbt's selector syntax is
+    supported: graph operators (`+model`, `model+`), tags (`tag:daily`),
+    paths, wildcards, and indirect selection.
+
+    Args:
+        project_dir: Path to dbt project directory
+        profiles_dir: Path to dbt profiles directory
+        select: dbt selector expression (e.g., `"marts"`, `"tag:daily"`,
+            `"+stg_users"`)
+        exclude: dbt exclude expression
+        target_path: Optional override for dbt target directory
+
+    Returns:
+        Set of unique_ids matching the selection criteria
+
+    Raises:
+        DbtLsError: If `dbt ls` fails
+    """
+    args: list[str] = [
+        "ls",
+        "--resource-type",
+        "all",
+        "--project-dir",
+        str(project_dir),
+        "--profiles-dir",
+        str(profiles_dir),
+    ]
+
+    if select is not None:
+        args.extend(["--select", select])
+    if exclude is not None:
+        args.extend(["--exclude", exclude])
+    if target_path is not None:
+        args.extend(["--target-path", str(target_path)])
+
+    result = dbtRunner().invoke(args)
+
+    if not result.success:
+        raise DbtLsError(f"dbt ls failed: {result.exception or 'unknown error'}")
+
+    # result.result is a list of unique_id strings
+    return set(result.result or [])

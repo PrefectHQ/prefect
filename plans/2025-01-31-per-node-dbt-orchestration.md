@@ -922,7 +922,7 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 2: Selector Resolution and Node Filtering
+### Phase 2: Selector Resolution and Node Filtering ✅
 
 **PR Scope**: Integration with dbt's selector system.
 
@@ -937,6 +937,13 @@ This implementation is designed to be delivered across multiple PRs, with each p
 **Exit Criteria**:
 - `select="marts"`, `select="+stg_users"`, `exclude="stg_legacy_*"` all work correctly
 - Selection matches what `dbt ls` would return
+
+**Implementation notes**:
+- `resolve_selection()` is a standalone function rather than a method on `ManifestParser`, to keep the parser as a pure JSON parser with no dbt CLI dependency.
+- `filter_nodes(selected_node_ids)` takes a pre-resolved `set[str]` of IDs rather than raw selector strings. The orchestrator (Phase 4) will wire `resolve_selection` → `filter_nodes` together.
+- `compute_execution_waves(nodes)` gained an optional `nodes` parameter so it can accept filtered output directly.
+- Added `DbtLsError` exception class for `dbt ls` failures.
+- Tests for `resolve_selection` mock `dbtRunner` rather than using a real dbt project (integration tests deferred to Phase 4).
 
 ---
 

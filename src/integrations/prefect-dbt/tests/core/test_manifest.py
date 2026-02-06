@@ -5,10 +5,17 @@ Tests for DbtNode, ExecutionWave, and ManifestParser.
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 from dbt.artifacts.resources.types import NodeType
-from prefect_dbt.core._manifest import DbtNode, ExecutionWave, ManifestParser
+from prefect_dbt.core._manifest import (
+    DbtLsError,
+    DbtNode,
+    ExecutionWave,
+    ManifestParser,
+    resolve_selection,
+)
 
 # =============================================================================
 # Test Fixtures
@@ -490,19 +497,17 @@ class TestManifestParser:
         with pytest.raises(KeyError, match="Node not found"):
             parser.get_node_dependencies("model.test_project.nonexistent")
 
-    def test_filter_nodes_stub(
+    def test_filter_nodes_none_returns_all(
         self, tmp_path: Path, minimal_manifest_data: dict[str, Any]
     ):
-        """filter_nodes stub should return all executable nodes."""
+        """filter_nodes(None) returns all executable nodes."""
         manifest_path = write_manifest(tmp_path, minimal_manifest_data)
         parser = ManifestParser(manifest_path)
 
-        # With no filters, should return all nodes
         filtered = parser.filter_nodes()
         assert filtered == parser.get_executable_nodes()
 
-        # With filters (not yet implemented), should still return all nodes
-        filtered = parser.filter_nodes(select=["tag:important"], exclude=["test"])
+        filtered = parser.filter_nodes(selected_node_ids=None)
         assert filtered == parser.get_executable_nodes()
 
 
@@ -840,3 +845,329 @@ class TestManifestParserEdgeCases:
         nodes2 = parser.get_executable_nodes()
 
         assert nodes1 is nodes2  # Same object (cached)
+
+
+# =============================================================================
+# Filter Nodes Tests
+# =============================================================================
+
+
+class TestFilterNodes:
+    """Tests for ManifestParser.filter_nodes()."""
+
+    def test_filter_none_returns_all(
+        self, tmp_path: Path, diamond_dependency_manifest: dict[str, Any]
+    ):
+        """filter_nodes(None) returns all executable nodes."""
+        manifest_path = write_manifest(tmp_path, diamond_dependency_manifest)
+        parser = ManifestParser(manifest_path)
+
+        filtered = parser.filter_nodes(selected_node_ids=None)
+        assert filtered == parser.get_executable_nodes()
+
+    def test_filter_subset(
+        self, tmp_path: Path, diamond_dependency_manifest: dict[str, Any]
+    ):
+        """filter_nodes with a subset of IDs returns only those nodes."""
+        manifest_path = write_manifest(tmp_path, diamond_dependency_manifest)
+        parser = ManifestParser(manifest_path)
+
+        subset = {"model.test_project.root", "model.test_project.left"}
+        filtered = parser.filter_nodes(selected_node_ids=subset)
+
+        assert set(filtered.keys()) == subset
+        assert "model.test_project.right" not in filtered
+        assert "model.test_project.leaf" not in filtered
+
+    def test_filter_empty_set(
+        self, tmp_path: Path, diamond_dependency_manifest: dict[str, Any]
+    ):
+        """filter_nodes with empty set returns empty dict."""
+        manifest_path = write_manifest(tmp_path, diamond_dependency_manifest)
+        parser = ManifestParser(manifest_path)
+
+        filtered = parser.filter_nodes(selected_node_ids=set())
+        assert filtered == {}
+
+    def test_filter_nonexistent_ids_ignored(
+        self, tmp_path: Path, minimal_manifest_data: dict[str, Any]
+    ):
+        """IDs not in manifest are silently ignored."""
+        manifest_path = write_manifest(tmp_path, minimal_manifest_data)
+        parser = ManifestParser(manifest_path)
+
+        filtered = parser.filter_nodes(
+            selected_node_ids={"model.test_project.my_model", "model.fake.not_real"}
+        )
+        assert set(filtered.keys()) == {"model.test_project.my_model"}
+
+    def test_filter_preserves_resolved_dependencies(
+        self, tmp_path: Path, manifest_with_ephemeral: dict[str, Any]
+    ):
+        """Filtered nodes retain their resolved (through-ephemeral) deps."""
+        manifest_path = write_manifest(tmp_path, manifest_with_ephemeral)
+        parser = ManifestParser(manifest_path)
+
+        # final_model depends on source_model (through ephemeral)
+        filtered = parser.filter_nodes(
+            selected_node_ids={
+                "model.test_project.source_model",
+                "model.test_project.final_model",
+            }
+        )
+
+        final = filtered["model.test_project.final_model"]
+        # Resolved dependency through ephemeral should be preserved
+        assert "model.test_project.source_model" in final.depends_on
+
+    def test_filter_with_diamond_pattern(
+        self, tmp_path: Path, diamond_dependency_manifest: dict[str, Any]
+    ):
+        """Filter a subset of the diamond graph."""
+        manifest_path = write_manifest(tmp_path, diamond_dependency_manifest)
+        parser = ManifestParser(manifest_path)
+
+        # Select only right and leaf — root and left are excluded
+        filtered = parser.filter_nodes(
+            selected_node_ids={
+                "model.test_project.right",
+                "model.test_project.leaf",
+            }
+        )
+
+        assert set(filtered.keys()) == {
+            "model.test_project.right",
+            "model.test_project.leaf",
+        }
+        # leaf still has its original deps (root, left, right) in depends_on
+        # but only right is in the filtered set
+        leaf = filtered["model.test_project.leaf"]
+        assert "model.test_project.left" in leaf.depends_on
+        assert "model.test_project.right" in leaf.depends_on
+
+
+# =============================================================================
+# Filtered Execution Waves Tests
+# =============================================================================
+
+
+class TestComputeExecutionWavesFiltered:
+    """Tests for ManifestParser.compute_execution_waves() with filtered nodes."""
+
+    def test_waves_from_filtered_nodes(
+        self, tmp_path: Path, diamond_dependency_manifest: dict[str, Any]
+    ):
+        """Compute waves from a filtered subset."""
+        manifest_path = write_manifest(tmp_path, diamond_dependency_manifest)
+        parser = ManifestParser(manifest_path)
+
+        # Only root and left
+        filtered = parser.filter_nodes(
+            selected_node_ids={
+                "model.test_project.root",
+                "model.test_project.left",
+            }
+        )
+        waves = parser.compute_execution_waves(nodes=filtered)
+
+        assert len(waves) == 2
+        assert {n.name for n in waves[0].nodes} == {"root"}
+        assert {n.name for n in waves[1].nodes} == {"left"}
+
+    def test_waves_filtered_recomputes_dependencies(
+        self, tmp_path: Path, diamond_dependency_manifest: dict[str, Any]
+    ):
+        """Wave computation only considers in-set dependencies."""
+        manifest_path = write_manifest(tmp_path, diamond_dependency_manifest)
+        parser = ManifestParser(manifest_path)
+
+        # Select leaf and right, but NOT root (which right depends on).
+        # Since root is not in the set, right has 0 in-set deps → wave 0.
+        # leaf depends on left (not in set) and right (in set) → wave 1.
+        filtered = parser.filter_nodes(
+            selected_node_ids={
+                "model.test_project.right",
+                "model.test_project.leaf",
+            }
+        )
+        waves = parser.compute_execution_waves(nodes=filtered)
+
+        assert len(waves) == 2
+        wave0_names = {n.name for n in waves[0].nodes}
+        wave1_names = {n.name for n in waves[1].nodes}
+        assert wave0_names == {"right"}
+        assert wave1_names == {"leaf"}
+
+    def test_waves_with_none_uses_all_nodes(
+        self, tmp_path: Path, diamond_dependency_manifest: dict[str, Any]
+    ):
+        """Passing nodes=None uses get_executable_nodes."""
+        manifest_path = write_manifest(tmp_path, diamond_dependency_manifest)
+        parser = ManifestParser(manifest_path)
+
+        waves_default = parser.compute_execution_waves()
+        waves_none = parser.compute_execution_waves(nodes=None)
+
+        assert len(waves_default) == len(waves_none)
+        for w1, w2 in zip(waves_default, waves_none):
+            assert {n.unique_id for n in w1.nodes} == {n.unique_id for n in w2.nodes}
+
+
+# =============================================================================
+# resolve_selection Tests
+# =============================================================================
+
+
+class TestResolveSelection:
+    """Tests for the resolve_selection() standalone function."""
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_with_select(self, mock_runner_cls: MagicMock, tmp_path: Path):
+        """Invokes dbt ls with --select flag."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = [
+            "model.proj.stg_users",
+            "model.proj.stg_orders",
+        ]
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        result = resolve_selection(
+            project_dir=tmp_path / "project",
+            profiles_dir=tmp_path / "profiles",
+            select="marts",
+        )
+
+        assert result == {"model.proj.stg_users", "model.proj.stg_orders"}
+
+        args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        assert "--select" in args
+        assert "marts" in args
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_with_exclude(self, mock_runner_cls: MagicMock, tmp_path: Path):
+        """Invokes dbt ls with --exclude flag."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = ["model.proj.stg_users"]
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        result = resolve_selection(
+            project_dir=tmp_path / "project",
+            profiles_dir=tmp_path / "profiles",
+            exclude="stg_legacy_*",
+        )
+
+        assert result == {"model.proj.stg_users"}
+
+        args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        assert "--exclude" in args
+        assert "stg_legacy_*" in args
+        assert "--select" not in args
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_with_both(self, mock_runner_cls: MagicMock, tmp_path: Path):
+        """Invokes dbt ls with both --select and --exclude."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = ["model.proj.dim_users"]
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        result = resolve_selection(
+            project_dir=tmp_path / "project",
+            profiles_dir=tmp_path / "profiles",
+            select="marts",
+            exclude="dim_legacy_*",
+        )
+
+        assert result == {"model.proj.dim_users"}
+
+        args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        assert "--select" in args
+        assert "--exclude" in args
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_no_selectors_returns_all(
+        self, mock_runner_cls: MagicMock, tmp_path: Path
+    ):
+        """No select/exclude still invokes dbt ls for all nodes."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = [
+            "model.proj.a",
+            "model.proj.b",
+            "seed.proj.c",
+        ]
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        result = resolve_selection(
+            project_dir=tmp_path / "project",
+            profiles_dir=tmp_path / "profiles",
+        )
+
+        assert result == {"model.proj.a", "model.proj.b", "seed.proj.c"}
+
+        args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        assert "--select" not in args
+        assert "--exclude" not in args
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_failure_raises_error(
+        self, mock_runner_cls: MagicMock, tmp_path: Path
+    ):
+        """Failed dbt ls raises DbtLsError."""
+        mock_result = MagicMock()
+        mock_result.success = False
+        mock_result.exception = RuntimeError("compilation error")
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        with pytest.raises(DbtLsError, match="dbt ls failed"):
+            resolve_selection(
+                project_dir=tmp_path / "project",
+                profiles_dir=tmp_path / "profiles",
+                select="nonexistent_model",
+            )
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_passes_project_and_profiles_dir(
+        self, mock_runner_cls: MagicMock, tmp_path: Path
+    ):
+        """Verifies correct CLI args are passed to dbtRunner."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = []
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        project = tmp_path / "my_project"
+        profiles = tmp_path / "my_profiles"
+
+        resolve_selection(project_dir=project, profiles_dir=profiles)
+
+        args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        assert "ls" in args
+        assert "--resource-type" in args
+        assert "all" in args
+        assert "--project-dir" in args
+        assert str(project) in args
+        assert "--profiles-dir" in args
+        assert str(profiles) in args
+
+    @patch("prefect_dbt.core._manifest.dbtRunner")
+    def test_resolve_with_target_path(self, mock_runner_cls: MagicMock, tmp_path: Path):
+        """target_path is passed when provided."""
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = ["model.proj.a"]
+        mock_runner_cls.return_value.invoke.return_value = mock_result
+
+        target = tmp_path / "custom_target"
+
+        resolve_selection(
+            project_dir=tmp_path / "project",
+            profiles_dir=tmp_path / "profiles",
+            target_path=target,
+        )
+
+        args = mock_runner_cls.return_value.invoke.call_args[0][0]
+        assert "--target-path" in args
+        assert str(target) in args
