@@ -400,6 +400,51 @@ class TestTriggerDbtCloudJobRunAndWaitForCompletion:
                     retry_filtered_models_attempts=0,
                 )
 
+    async def test_timeout_seconds_override_extends_max_wait(
+        self, dbt_cloud_credentials
+    ):
+        with respx.mock(using="httpx") as respx_mock:
+            respx_mock.route(host="127.0.0.1").pass_through()
+            respx_mock.post(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/jobs/1/run/",
+                headers=HEADERS,
+            ).mock(
+                return_value=Response(
+                    200, json={"data": {"id": 10000, "project_id": 12345}}
+                )
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/",
+                headers=HEADERS,
+            ).mock(
+                side_effect=[
+                    Response(200, json={"data": {"id": 10000, "status": 1}}),
+                    Response(200, json={"data": {"id": 10000, "status": 3}}),
+                    Response(200, json={"data": {"id": 10000, "status": 3}}),
+                    Response(200, json={"data": {"id": 10000, "status": 10}}),
+                ]
+            )
+            respx_mock.get(
+                "https://cloud.getdbt.com/api/v2/accounts/123456789/runs/10000/artifacts/",
+                headers=HEADERS,
+            ).mock(return_value=Response(200, json={"data": ["manifest.json"]}))
+
+            result = await trigger_dbt_cloud_job_run_and_wait_for_completion(
+                dbt_cloud_credentials=dbt_cloud_credentials,
+                job_id=1,
+                trigger_job_run_options=TriggerJobRunOptions(
+                    timeout_seconds_override=5,
+                ),
+                poll_frequency_seconds=1,
+                max_wait_seconds=2,
+                retry_filtered_models_attempts=0,
+            )
+            assert result == {
+                "id": 10000,
+                "status": 10,
+                "artifact_paths": ["manifest.json"],
+            }
+
     async def test_run_success_failed_artifacts(self, dbt_cloud_credentials):
         with respx.mock(using="httpx") as respx_mock:
             respx_mock.route(host="127.0.0.1").pass_through()

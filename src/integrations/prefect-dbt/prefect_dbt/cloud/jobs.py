@@ -473,6 +473,14 @@ async def trigger_dbt_cloud_job_run_and_wait_for_completion(
     """  # noqa
     logger = get_run_logger()
 
+    if (
+        trigger_job_run_options is not None
+        and trigger_job_run_options.timeout_seconds_override is not None
+    ):
+        max_wait_seconds = max(
+            max_wait_seconds, trigger_job_run_options.timeout_seconds_override
+        )
+
     triggered_run_data_future = await trigger_dbt_cloud_job_run(
         dbt_cloud_credentials=dbt_cloud_credentials,
         job_id=job_id,
