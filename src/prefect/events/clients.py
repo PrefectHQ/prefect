@@ -741,14 +741,10 @@ class PrefectEventSubscriber:
 
     async def __anext__(self) -> Event:
         assert self._reconnection_attempts >= 0
-        for i in range(self._reconnection_attempts + 1):  # pragma: no branch
+        consecutive_failures = 0
+        while consecutive_failures <= self._reconnection_attempts:
             try:
-                # If we're here and the websocket is None, then we've had a failure in a
-                # previous reconnection attempt.
-                #
-                # Otherwise, after the first time through this loop, we're recovering
-                # from a ConnectionClosed, so reconnect now.
-                if not self._websocket or i > 0:
+                if not self._websocket or consecutive_failures > 0:
                     try:
                         await self._reconnect()
                     finally:
@@ -756,6 +752,7 @@ class PrefectEventSubscriber:
                             self.client_name, "out", "reconnect"
                         ).inc()
                     assert self._websocket
+                    consecutive_failures = 0
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
@@ -773,19 +770,16 @@ class PrefectEventSubscriber:
                 logger.debug('Connection closed with "OK" status')
                 raise StopAsyncIteration
             except RETRYABLE_EXCEPTIONS:
+                consecutive_failures += 1
                 logger.debug(
                     "Retryable error with %s/%s attempts",
-                    i + 1,
+                    consecutive_failures,
                     self._reconnection_attempts,
                 )
-                if i == self._reconnection_attempts:
-                    # this was our final chance, raise the most recent error
+                if consecutive_failures > self._reconnection_attempts:
                     raise
 
-                if i > 2:
-                    # let the first two attempts happen quickly in case this is just
-                    # a standard load balancer timeout, but after that, just take a
-                    # beat to let things come back around.
+                if consecutive_failures > 2:
                     await asyncio.sleep(1)
         raise StopAsyncIteration
 
