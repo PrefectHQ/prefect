@@ -440,7 +440,11 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         cache_key = (loop, self.connection_url, self.echo, self.timeout)
         if cache_key not in ENGINES:
             # apply database timeout
-            if self.timeout is not None:
+            # In test mode, use a higher timeout to handle lock contention during
+            # parallel test execution. This should match the PRAGMA busy_timeout.
+            if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
+                kwargs["connect_args"] = dict(timeout=30.0)  # 30s for tests
+            elif self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
 
             # use `named` paramstyle for sqlite instead of `qmark` in very rare
