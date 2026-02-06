@@ -897,7 +897,9 @@ Asset metadata (execution details like timing, row counts) is added via `AssetCo
 
 This implementation is designed to be delivered across multiple PRs, with each phase building on the previous one.
 
-### Phase 1: Core Data Structures and Manifest Parsing
+### Phase 1: Core Data Structures and Manifest Parsing ✅
+
+**Status**: Complete — [PR #20561](https://github.com/PrefectHQ/prefect/pull/20561)
 
 **PR Scope**: Foundation classes for representing dbt nodes and parsing manifests.
 
