@@ -240,11 +240,14 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
+        **kwargs: Any,
     ):
         """
         Prepares the job configuration for a flow run.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, **kwargs
+        )
 
         # expectations:
         # - the first resource in the template is the container group

@@ -324,8 +324,11 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
+        **kwargs: Any,
     ):
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, **kwargs
+        )
 
         self._inject_formatted_env_vars()
         self._inject_formatted_command()

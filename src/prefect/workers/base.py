@@ -294,8 +294,12 @@ class BaseJobConfiguration(BaseModel):
         env = {
             **self._base_environment(),
             **self._base_flow_run_environment(flow_run),
-            **self._base_worker_environment(
-                worker_id=worker_id, worker_name=worker_name
+            **self._base_attribution_environment(
+                flow_run=flow_run,
+                deployment=deployment,
+                flow=flow,
+                worker_id=worker_id,
+                worker_name=worker_name,
             ),
             **(self.env if isinstance(self.env, dict) else {}),  # pyright: ignore[reportUnnecessaryIsInstance]
         }
@@ -364,12 +368,15 @@ class BaseJobConfiguration(BaseModel):
         return {"PREFECT__FLOW_RUN_ID": str(flow_run.id)}
 
     @staticmethod
-    def _base_worker_environment(
+    def _base_attribution_environment(
+        flow_run: "FlowRun | None" = None,
+        deployment: "DeploymentResponse | None" = None,
+        flow: "APIFlow | None" = None,
         worker_id: "UUID | None" = None,
         worker_name: str | None = None,
     ) -> dict[str, str]:
         """
-        Generate a dictionary of environment variables for worker attribution.
+        Generate environment variables for attribution headers.
 
         These variables allow the flow run process to include attribution headers
         in API requests, enabling usage tracking and rate limit debugging.
@@ -379,6 +386,14 @@ class BaseJobConfiguration(BaseModel):
             env["PREFECT__WORKER_ID"] = str(worker_id)
         if worker_name is not None:
             env["PREFECT__WORKER_NAME"] = worker_name
+        if flow_run is not None and flow_run.flow_id:
+            env["PREFECT__FLOW_ID"] = str(flow_run.flow_id)
+        if flow is not None:
+            env["PREFECT__FLOW_NAME"] = flow.name
+        if flow_run is not None and flow_run.deployment_id:
+            env["PREFECT__DEPLOYMENT_ID"] = str(flow_run.deployment_id)
+        if deployment is not None:
+            env["PREFECT__DEPLOYMENT_NAME"] = deployment.name
         return env
 
     @staticmethod

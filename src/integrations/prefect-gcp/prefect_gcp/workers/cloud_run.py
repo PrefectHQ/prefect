@@ -363,6 +363,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
+        **kwargs: Any,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -376,7 +377,9 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
                 preparation.
             flow: The flow associated with the flow run used for preparation.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, **kwargs
+        )
 
         self._populate_envs()
         self._warn_about_plaintext_credentials(flow_run, worker_name, work_pool)

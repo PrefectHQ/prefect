@@ -266,12 +266,15 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: "str | None" = None,
+        **kwargs: Any,
     ):
         """
         Prepares the flow run by setting the image, labels, and name
         attributes.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, **kwargs
+        )
 
         self.image = self.image or get_prefect_image_name()
         self.labels = self._convert_labels_to_docker_format(

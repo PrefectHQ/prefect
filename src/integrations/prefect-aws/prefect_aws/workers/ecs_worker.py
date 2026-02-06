@@ -358,8 +358,11 @@ class ECSJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
+        **kwargs: Any,
     ) -> None:
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, **kwargs
+        )
         if self.prefect_api_key_secret_arn:
             # Remove the PREFECT_API_KEY from the environment variables because it will be provided via a secret
             del self.env["PREFECT_API_KEY"]

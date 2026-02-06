@@ -35,7 +35,7 @@ def get_attribution_headers() -> dict[str, str]:
     if worker_name := os.environ.get("PREFECT__WORKER_NAME"):
         headers["X-Prefect-Worker-Name"] = worker_name
 
-    # Flow run context - try to get from context first, fall back to env vars
+    # Flow and deployment context - try to get from context first, fall back to env vars
     # Import here to avoid circular imports
     from prefect.context import FlowRunContext
 
@@ -43,21 +43,28 @@ def get_attribution_headers() -> dict[str, str]:
 
     if flow_run_ctx and flow_run_ctx.flow_run:
         flow_run = flow_run_ctx.flow_run
-        headers["X-Prefect-Flow-Run-Id"] = str(flow_run.id)
-        headers["X-Prefect-Flow-Run-Name"] = flow_run.name
+
+        # Flow info
+        if flow_run.flow_id:
+            headers["X-Prefect-Flow-Id"] = str(flow_run.flow_id)
+        if flow_run_ctx.flow and flow_run_ctx.flow.name:
+            headers["X-Prefect-Flow-Name"] = flow_run_ctx.flow.name
 
         # Deployment info from flow run
         if flow_run.deployment_id:
             headers["X-Prefect-Deployment-Id"] = str(flow_run.deployment_id)
+        # Deployment name is not on FlowRun, fall back to env var
+        if deployment_name := os.environ.get("PREFECT__DEPLOYMENT_NAME"):
+            headers["X-Prefect-Deployment-Name"] = deployment_name
     else:
-        # Fall back to environment variable for flow run ID
-        if flow_run_id := os.environ.get("PREFECT__FLOW_RUN_ID"):
-            headers["X-Prefect-Flow-Run-Id"] = flow_run_id
-
-    # Note: We intentionally don't look up deployment name here to avoid:
-    # 1. Potential circular imports
-    # 2. API calls that could slow down every request
-    # 3. Complexity with caching
-    # The deployment_id is sufficient for Cloud to resolve the name.
+        # Fall back to environment variables
+        if flow_id := os.environ.get("PREFECT__FLOW_ID"):
+            headers["X-Prefect-Flow-Id"] = flow_id
+        if flow_name := os.environ.get("PREFECT__FLOW_NAME"):
+            headers["X-Prefect-Flow-Name"] = flow_name
+        if deployment_id := os.environ.get("PREFECT__DEPLOYMENT_ID"):
+            headers["X-Prefect-Deployment-Id"] = deployment_id
+        if deployment_name := os.environ.get("PREFECT__DEPLOYMENT_NAME"):
+            headers["X-Prefect-Deployment-Name"] = deployment_name
 
     return headers
