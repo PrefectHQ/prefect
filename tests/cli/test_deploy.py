@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
@@ -68,6 +69,13 @@ if TYPE_CHECKING:
     from prefect.server.schemas.core import BlockDocument
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
+
+_DN = f"test-name-{uuid.uuid4()}"
+_DN1 = f"test-name-1-{uuid.uuid4()}"
+_DN2 = f"test-name-2-{uuid.uuid4()}"
+_DN3 = f"test-name-3-{uuid.uuid4()}"
+_DN4 = f"test-name-4-{uuid.uuid4()}"
+_PN = f"test-pool-{uuid.uuid4()}"
 
 
 @pytest.fixture
@@ -273,27 +281,25 @@ class TestProjectDeploy:
     async def test_project_deploy(
         self, project_dir: Path, prefect_client: PrefectClient
     ):
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
+        await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p {_PN} --version"
                 " 1.0.0 -jv env=prod -t foo-bar"
             ),
             expected_code=0,
             expected_output_contains=[
-                "An important name/test-name",
-                "prefect worker start --pool 'test-pool'",
+                f"An important name/{_DN}",
+                f"prefect worker start --pool '{_PN}'",
             ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-pool"
+        assert deployment.name == _DN
+        assert deployment.work_pool_name == _PN
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
@@ -304,14 +310,14 @@ class TestProjectDeploy:
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow --no-enforce-parameter-schema -n test-name -p {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow --no-enforce-parameter-schema -n {_DN} -p {work_pool.name}",
             expected_code=0,
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
+        assert deployment.name == _DN
         assert deployment.work_pool_name == work_pool.name
         assert deployment.tags == []
         assert deployment.job_variables == {}
@@ -348,7 +354,7 @@ class TestProjectDeploy:
             ],
             "deployments": [
                 {
-                    "name": "test-name",
+                    "name": _DN,
                     "work_pool": {
                         "job_variables": {
                             "image": "{{ this-is-the-wrong-placeholder }}"
@@ -362,12 +368,12 @@ class TestProjectDeploy:
             yaml.dump(prefect_yaml, f)
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} -p {work_pool.name}",
             expected_code=0,
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.job_variables == {}
 
@@ -403,7 +409,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped_flow_project/flow.py:test_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/flow.py:test_flow -n {_DN} -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=[
@@ -417,20 +423,18 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped_flow_project/flow.py:test_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/flow.py:test_flow -n {_DN} -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=["test-flow"],
             expected_output_contains=[
-                "wrapped-flow/test-name",
+                f"wrapped-flow/{_DN}",
                 f"prefect worker start --pool '{work_pool.name}'",
             ],
         )
 
-        deployment = await prefect_client.read_deployment_by_name(
-            "wrapped-flow/test-name"
-        )
-        assert deployment.name == "test-name"
+        deployment = await prefect_client.read_deployment_by_name(f"wrapped-flow/{_DN}")
+        assert deployment.name == _DN
         assert deployment.work_pool_name == work_pool.name
 
     async def test_deploy_with_missing_imports(
@@ -439,47 +443,43 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./wrapped_flow_project/missing_imports.py:bloop_flow -n test-name -p {work_pool.name}"
+                f"deploy ./wrapped_flow_project/missing_imports.py:bloop_flow -n {_DN} -p {work_pool.name}"
             ),
             expected_code=0,
             expected_output_does_not_contain=["test-flow"],
             expected_output_contains=[
-                "wrapped-flow/test-name",
+                f"wrapped-flow/{_DN}",
                 f"prefect worker start --pool '{work_pool.name}'",
             ],
         )
 
-        deployment = await prefect_client.read_deployment_by_name(
-            "wrapped-flow/test-name"
-        )
-        assert deployment.name == "test-name"
+        deployment = await prefect_client.read_deployment_by_name(f"wrapped-flow/{_DN}")
+        assert deployment.name == _DN
         assert deployment.work_pool_name == work_pool.name
 
     async def test_project_deploy_with_default_work_pool(
         self, project_dir: Path, prefect_client: PrefectClient
     ):
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
-        with temporary_settings(updates={PREFECT_DEFAULT_WORK_POOL_NAME: "test-pool"}):
+        await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
+        with temporary_settings(updates={PREFECT_DEFAULT_WORK_POOL_NAME: _PN}):
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name --version"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} --version"
                     " 1.0.0 -jv env=prod -t foo-bar"
                 ),
                 expected_code=0,
                 expected_output_contains=[
-                    "An important name/test-name",
-                    "prefect worker start --pool 'test-pool'",
+                    f"An important name/{_DN}",
+                    f"prefect worker start --pool '{_PN}'",
                 ],
             )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-pool"
+        assert deployment.name == _DN
+        assert deployment.work_pool_name == _PN
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
@@ -488,13 +488,11 @@ class TestProjectDeploy:
     async def test_project_deploy_with_no_deployment_file(
         self, project_dir: Path, prefect_client: PrefectClient
     ):
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
+        await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p {_PN} --version"
                 " 1.0.0 -jv env=prod -t foo-bar --enforce-parameter-schema"
             ),
         )
@@ -502,10 +500,10 @@ class TestProjectDeploy:
         assert "An important name/test" in result.output
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-pool"
+        assert deployment.name == _DN
+        assert deployment.work_pool_name == _PN
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {"env": "prod"}
@@ -519,7 +517,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                 f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
             ),
             expected_code=0,
@@ -550,7 +548,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                 f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                 " --interval 60"
             ),
@@ -592,13 +590,11 @@ class TestProjectDeploy:
         expected_limit: Optional[int],
         expected_strategy: Optional[str],
     ):
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
+        await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-deploy-concurrency-limit -p test-pool "
+                f"deploy ./flows/hello.py:my_flow -n test-deploy-concurrency-limit -p {_PN} "
                 + "--interval 60 "
                 + cli_options
                 # "-cl 42 --collision-strategy CANCEL_NEW"
@@ -639,7 +635,7 @@ class TestProjectDeploy:
             "An important name/test-deploy-concurrency-limit"
         )
         assert deployment.name == "test-deploy-concurrency-limit"
-        assert deployment.work_pool_name == "test-pool"
+        assert deployment.work_pool_name == _PN
 
         if expected_limit is not None:
             assert deployment.global_concurrency_limit is not None
@@ -662,9 +658,7 @@ class TestProjectDeploy:
         prefect_client: PrefectClient,
     ):
         """Test that grace_period_seconds is properly parsed from prefect.yaml."""
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
+        await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
 
         # Create a prefect.yaml with grace_period_seconds
         prefect_yaml_content = {
@@ -672,7 +666,7 @@ class TestProjectDeploy:
                 {
                     "name": "test-grace-period",
                     "entrypoint": "flows/hello.py:my_flow",
-                    "work_pool": {"name": "test-pool"},
+                    "work_pool": {"name": _PN},
                     "schedule": {"interval": 60},
                     "concurrency_limit": {
                         "limit": 5,
@@ -720,14 +714,14 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy flows/hello.py:my_flow -n test-name -p"
+                    f"deploy flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --interval 60"
                 ),
                 expected_code=0,
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -746,7 +740,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -754,7 +748,7 @@ class TestProjectDeploy:
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -774,7 +768,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -785,7 +779,7 @@ class TestProjectDeploy:
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -806,7 +800,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -838,7 +832,7 @@ class TestProjectDeploy:
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -870,7 +864,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -912,7 +906,7 @@ class TestProjectDeploy:
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -936,7 +930,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -971,7 +965,7 @@ class TestProjectDeploy:
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -979,14 +973,14 @@ class TestProjectDeploy:
                         "repository": "https://example.com/org/repo.git",
                         "branch": "main",
                         "access_token": (
-                            "{{ prefect.blocks.secret.deployment-test-name-an-important-name-repo-token }}"
+                            f"{{{{ prefect.blocks.secret.deployment-{_DN}-an-important-name-repo-token }}}}"
                         ),
                     }
                 }
             ]
 
             token_block = await Secret.load(
-                "deployment-test-name-an-important-name-repo-token"
+                f"deployment-{_DN}-an-important-name-repo-token"
             )
             assert token_block.get() == "my-token"
 
@@ -1010,7 +1004,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -1039,7 +1033,7 @@ class TestProjectDeploy:
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
 
             assert deployment.pull_steps == [
@@ -1074,7 +1068,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -1112,7 +1106,7 @@ class TestProjectDeploy:
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
 
             assert deployment.pull_steps == [
@@ -1162,7 +1156,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -1172,12 +1166,12 @@ class TestProjectDeploy:
                     "n" + readchar.key.ENTER
                 ),
                 expected_output_contains=[
-                    "prefect deployment run 'An important name/test-name'"
+                    f"prefect deployment run f'An important name/{_DN}'"
                 ],
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -1237,7 +1231,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -1268,12 +1262,12 @@ class TestProjectDeploy:
                         " remote storage location when running this flow?"
                     ),
                     "Is this a private repository?",
-                    "prefect deployment run 'An important name/test-name'",
+                    f"prefect deployment run f'An important name/{_DN}'",
                 ],
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -1335,7 +1329,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -1366,12 +1360,12 @@ class TestProjectDeploy:
                         " working directory"
                     ),
                     "What is the path to your flow code in your Dockerfile?",
-                    "prefect deployment run 'An important name/test-name'",
+                    f"prefect deployment run f'An important name/{_DN}'",
                 ],
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -1431,7 +1425,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                     f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
                     " --interval 60"
                 ),
@@ -1487,7 +1481,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN}"
                     f" -p {work_pool.name} --interval 60"
                 ),
                 expected_code=0,
@@ -1522,7 +1516,7 @@ class TestProjectDeploy:
             )
 
             deployment = await prefect_client.read_deployment_by_name(
-                "An important name/test-name"
+                f"An important name/{_DN}"
             )
             assert deployment.pull_steps == [
                 {
@@ -1543,7 +1537,7 @@ class TestProjectDeploy:
         with deployment_file.open(mode="w") as f:
             f.write("{}")
 
-        deployment_name = f"test-name-{uuid4()}"
+        deployment_name = _DN
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool.name}",
@@ -1563,7 +1557,7 @@ class TestProjectDeploy:
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
 
-        contents["deployments"][0]["name"] = "test-name"
+        contents["deployments"][0]["name"] = _DN
         contents["deployments"][0]["version"] = "{{ input }}"
         contents["deployments"][0]["tags"] = "{{ output2 }}"
         contents["deployments"][0]["description"] = "{{ output3 }}"
@@ -1586,7 +1580,7 @@ class TestProjectDeploy:
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(prefect_config, f)
 
-        deployment_name = f"test-name-{uuid4()}"
+        deployment_name = _DN
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"deploy ./flows/hello.py:my_flow -n {deployment_name} -p {work_pool.name}",
@@ -1615,7 +1609,7 @@ class TestProjectDeploy:
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
 
-        deployment_name = f"test-name-{uuid4()}"
+        deployment_name = _DN
         contents["deployments"][0]["name"] = deployment_name
         contents["deployments"][0]["version"] = "{{ $MY_VERSION }}"
         contents["deployments"][0]["tags"] = "{{ $MY_TAGS }}"
@@ -1681,7 +1675,7 @@ class TestProjectDeploy:
             "number": 1,
             "message": "hello",
         }
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
         deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
@@ -1690,13 +1684,13 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name",
+            command=f"deploy -n {_DN}",
             expected_code=0,
-            expected_output_contains="An important name/test-name",
+            expected_output_contains=f"An important name/{_DN}",
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.parameters == {"number": 1, "message": "hello"}
 
@@ -1714,7 +1708,7 @@ class TestProjectDeploy:
             "number": 1,
             "message": "hello",
         }
-        config["deployments"][0]["name"] = "test-name"
+        config["deployments"][0]["name"] = _DN
         config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
         config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
@@ -1723,13 +1717,13 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy -n test-name {option}",
+            command=f"deploy -n {_DN} {option}",
             expected_code=0,
-            expected_output_contains="An important name/test-name",
+            expected_output_contains=f"An important name/{_DN}",
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.parameters == {"number": 2, "message": "hello"}
 
@@ -1778,13 +1772,13 @@ class TestProjectDeploy:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} -p {work_pool.name}",
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.pull_steps == [
             {
@@ -1847,13 +1841,13 @@ class TestProjectDeploy:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} -p {work_pool.name}",
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.pull_steps == [
             {
@@ -1879,7 +1873,7 @@ class TestProjectDeploy:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["entrypoint"] = "flows/hello.py:my_flow"
         deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
@@ -1888,9 +1882,9 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name",
+            command=f"deploy -n {_DN}",
             expected_code=0,
-            expected_output_contains="An important name/test-name",
+            expected_output_contains=f"An important name/{_DN}",
         )
 
     @pytest.mark.usefixtures("project_dir")
@@ -1901,7 +1895,7 @@ class TestProjectDeploy:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["work_pool"]["name"] = work_pool.name
 
         with prefect_file.open(mode="w") as f:
@@ -1909,7 +1903,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name",
+            command=f"deploy -n {_DN}",
             expected_code=1,
             expected_output_contains="An entrypoint must be provided:",
         )
@@ -1951,7 +1945,7 @@ class TestProjectDeploy:
     async def test_deploy_without_work_pool_non_interactive(self):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN}",
             expected_code=1,
             expected_output_contains=[
                 "A work pool is required to deploy this flow. Please specify a"
@@ -1965,7 +1959,7 @@ class TestProjectDeploy:
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600",
             expected_code=0,
             user_input=(
                 # Select only existing work pool
@@ -1983,9 +1977,9 @@ class TestProjectDeploy:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
+        assert deployment.name == _DN
         assert deployment.work_pool_name == work_pool.name
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
@@ -1996,8 +1990,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p"
-                f" {default_agent_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p {default_agent_pool.name}"
             ),
             expected_code=1,
             expected_output_contains=(
@@ -2017,7 +2010,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                 f" {default_agent_pool.name} --interval 3600"
             ),
             expected_code=0,
@@ -2041,9 +2034,9 @@ class TestProjectDeploy:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
+        assert deployment.name == _DN
         assert deployment.work_pool_name == work_pool.name
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
@@ -2054,7 +2047,7 @@ class TestProjectDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                 f" {push_work_pool.name} --interval 3600"
             ),
             expected_code=0,
@@ -2077,7 +2070,7 @@ class TestProjectDeploy:
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name --interval 3600",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600",
             expected_code=0,
             user_input=(
                 # Accept creating a new work pool
@@ -2108,9 +2101,9 @@ class TestProjectDeploy:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
+        assert deployment.name == _DN
         assert deployment.work_pool_name == "test-created-via-deploy"
         assert deployment.entrypoint == "./flows/hello.py:my_flow"
 
@@ -2121,10 +2114,10 @@ class TestProjectDeploy:
         Path(".prefect").rmdir()
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name -p {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} -p {work_pool.name}",
             expected_code=0,
             expected_output_contains=[
-                "Deployment 'An important name/test-name' successfully created"
+                f"Deployment f'An important name/{_DN}' successfully created"
             ],
         )
 
@@ -2139,7 +2132,7 @@ class TestProjectDeploy:
 
         deploy_config["deployments"] = [
             {
-                "name": "test-name",
+                "name": _DN,
                 "entrypoint": "flows/hello.py:my_flow",
                 "work_pool": {
                     "name": work_pool.name,
@@ -2153,7 +2146,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name",
+            command=f"deploy -n {_DN}",
             user_input=(
                 # Decline remote storage
                 "n"
@@ -2166,7 +2159,7 @@ class TestProjectDeploy:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert len(deployment.schedules) == 0
 
@@ -2181,7 +2174,7 @@ class TestProjectDeploy:
 
         deploy_config["deployments"] = [
             {
-                "name": "test-name",
+                "name": _DN,
                 "entrypoint": "flows/hello.py:my_flow",
                 "work_pool": {
                     "name": work_pool.name,
@@ -2196,7 +2189,7 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name",
+            command=f"deploy -n {_DN}",
             user_input=(
                 # Decline remote storage
                 "n"
@@ -2209,9 +2202,7 @@ class TestProjectDeploy:
             expected_output_does_not_contain="Would you like to build a Docker image?",
         )
 
-        assert await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
-        )
+        assert await prefect_client.read_deployment_by_name(f"An important name/{_DN}")
 
     async def test_deploy_with_bad_run_shell_script_raises(
         self, project_dir: Path, work_pool: WorkPool
@@ -2241,8 +2232,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name --pool"
-                    f" {work_pool.name}"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
                 ),
             )
 
@@ -2339,7 +2329,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *' -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} --cron '0 4 * * *' -p"
                     " test-docker-work-pool"
                 ),
                 expected_code=0,
@@ -2383,7 +2373,7 @@ class TestProjectDeploy:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *' -p"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} --cron '0 4 * * *' -p"
                     " test-docker-work-pool"
                 ),
                 expected_code=0,
@@ -2421,7 +2411,7 @@ class TestProjectDeploy:
 
         deploy_config["deployments"] = [
             {
-                "name": "test-name",
+                "name": _DN,
                 "entrypoint": "flows/hello.py:my_flow",
                 "work_pool": {
                     "name": work_pool.name,
@@ -2435,12 +2425,12 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name",
+            command=f"deploy -n {_DN}",
             expected_code=0,
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert not deployment.enforce_parameter_schema
 
@@ -2455,7 +2445,7 @@ class TestProjectDeploy:
 
         deploy_config["deployments"] = [
             {
-                "name": "test-name",
+                "name": _DN,
                 "entrypoint": "flows/hello.py:my_flow",
                 "work_pool": {
                     "name": work_pool.name,
@@ -2469,11 +2459,11 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name",
+            command=f"deploy -n {_DN}",
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert not deployment.enforce_parameter_schema
         assert deployment.parameter_openapi_schema
@@ -2485,7 +2475,7 @@ class TestProjectDeploy:
 
         deploy_config["deployments"] = [
             {
-                "name": "test-name",
+                "name": _DN,
                 "entrypoint": "flows/hello.py:my_flow",
                 "work_pool": {
                     "name": work_pool.name,
@@ -2498,11 +2488,11 @@ class TestProjectDeploy:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name",
+            command=f"deploy -n {_DN}",
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert not deployment.enforce_parameter_schema
         assert deployment.parameter_openapi_schema == parameter_openapi_schema
@@ -2516,14 +2506,14 @@ class TestSchedules:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --cron '0 4 * * *'"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --cron '0 4 * * *'"
                 f" --timezone 'Europe/Berlin' --pool {work_pool.name}"
             ),
         )
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         schedule = deployment.schedules[0].schedule
@@ -2538,7 +2528,7 @@ class TestSchedules:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
         deploy_config["deployments"][0]["schedule"]["parameters"] = {
@@ -2552,13 +2542,13 @@ class TestSchedules:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
         )
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         schedule = deployment.schedules[0].schedule
         assert schedule.cron == "0 4 * * *"
@@ -2574,7 +2564,7 @@ class TestSchedules:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
 
@@ -2584,14 +2574,14 @@ class TestSchedules:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name "
+                f"deploy ./flows/hello.py:my_flow -n {_DN} "
                 f"--timezone 'Europe/Berlin' --pool {work_pool.name}"
             ),
         )
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert len(deployment.schedules) == 1
         schedule = deployment.schedules[0].schedule
@@ -2605,7 +2595,7 @@ class TestSchedules:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 42"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 42"
                 " --anchor-date 2040-02-02 --timezone 'America/New_York' --pool"
                 f" {work_pool.name}"
             ),
@@ -2613,7 +2603,7 @@ class TestSchedules:
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert len(deployment.schedules) == 1
         schedule = deployment.schedules[0].schedule
@@ -2631,7 +2621,7 @@ class TestSchedules:
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["schedule"]["interval"] = 42
         deploy_config["deployments"][0]["schedule"]["anchor_date"] = "2040-02-02"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
@@ -2646,13 +2636,13 @@ class TestSchedules:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
         )
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert len(deployment.schedules) == 1
         schedule = deployment.schedules[0].schedule
@@ -2669,7 +2659,7 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --rrule"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --rrule"
                 " 'DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17'"
                 f" --pool {work_pool.name}"
             ),
@@ -2677,7 +2667,7 @@ class TestSchedules:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         schedule = deployment.schedules[0].schedule
         assert (
@@ -2707,13 +2697,13 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name  --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN}  --pool {work_pool.name}"
             ),
             expected_code=0,
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         schedule = deployment.schedules[0].schedule
         assert (
@@ -2729,15 +2719,15 @@ class TestSchedules:
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name --cron '* * * * *' --interval 42 --rrule 'FREQ=HOURLY' --pool {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --cron '* * * * *' --interval 42 --rrule 'FREQ=HOURLY' --pool {work_pool.name}",
             expected_code=0,
             expected_output_contains=[
-                "Deployment 'An important name/test-name' successfully created"
+                f"Deployment f'An important name/{_DN}' successfully created"
             ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         schedule_config = {}
@@ -2766,7 +2756,7 @@ class TestSchedules:
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["schedules"] = [
             {"interval": 42},
             {"cron": "* * * * *"},
@@ -2778,15 +2768,15 @@ class TestSchedules:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}",
             expected_code=0,
             expected_output_contains=[
-                "Deployment 'An important name/test-name' successfully created"
+                f"Deployment f'An important name/{_DN}' successfully created"
             ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         schedule_config = {}
@@ -2815,7 +2805,7 @@ class TestSchedules:
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["schedule"]["interval"] = 42
         deploy_config["deployments"][0]["schedules"] = [{"interval": 42}]
 
@@ -2825,7 +2815,7 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
             expected_code=1,
             expected_output_contains="Both 'schedule' and 'schedules' keys are present in the deployment configuration. Please use only use `schedules`.",
@@ -2837,15 +2827,15 @@ class TestSchedules:
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name --cron '* * * * *' --cron '0 * * * *' --pool {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --cron '* * * * *' --cron '0 * * * *' --pool {work_pool.name}",
             expected_code=0,
             expected_output_contains=[
-                "Deployment 'An important name/test-name' successfully created"
+                f"Deployment f'An important name/{_DN}' successfully created"
             ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         schedules: set[str] = set()
@@ -2866,7 +2856,7 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
             user_input=(
                 # Confirm schedule creation
@@ -2899,7 +2889,7 @@ class TestSchedules:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.schedules[0].schedule.interval == timedelta(seconds=42)
 
@@ -2910,7 +2900,7 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
             user_input=(
                 # Confirm schedule creation
@@ -2934,7 +2924,7 @@ class TestSchedules:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.schedules[0].schedule.interval == timedelta(seconds=3600)
 
@@ -2945,7 +2935,7 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
             user_input=(
                 # Confirm schedule creation
@@ -2982,7 +2972,7 @@ class TestSchedules:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.schedules[0].schedule.cron == "* * * * *"
 
@@ -2993,7 +2983,7 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
             user_input=(
                 # Confirm schedule creation
@@ -3025,7 +3015,7 @@ class TestSchedules:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert (
             deployment.schedules[0].schedule.rrule
@@ -3039,7 +3029,7 @@ class TestSchedules:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
             user_input=(
                 # Decline schedule creation
@@ -3056,7 +3046,7 @@ class TestSchedules:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert len(deployment.schedules) == 0
 
@@ -3068,7 +3058,7 @@ class TestSchedules:
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["schedule"]["cron"] = "0 4 * * *"
         deploy_config["deployments"][0]["schedule"]["timezone"] = "America/Chicago"
         deploy_config["deployments"][0]["schedule"]["active"] = False
@@ -3079,13 +3069,13 @@ class TestSchedules:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}"
             ),
         )
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         deployment_schedule = deployment.schedules[0]
@@ -3102,7 +3092,7 @@ class TestSchedules:
             deploy_config = yaml.safe_load(f)
 
         # Create a deployment with a schedule that is not active
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["schedules"] = [
             {
                 "cron": "0 4 * * *",
@@ -3117,13 +3107,13 @@ class TestSchedules:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}",
         )
 
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         deployment_schedule = deployment.schedules[0]
@@ -3152,13 +3142,13 @@ class TestSchedules:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}",
         )
 
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         assert len(deployment.schedules) == 2
@@ -3174,7 +3164,7 @@ class TestSchedules:
     ):
         prefect_yaml_content = f"""
         deployments:
-          - name: test-name
+          - name: {_DN}
             entrypoint: flows/hello.py:my_flow
             work_pool:
               name: {work_pool.name}
@@ -3191,7 +3181,7 @@ class TestSchedules:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         assert deployment.schedules == []
@@ -3207,7 +3197,7 @@ class TestSchedules:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name",
+                "name": _DN,
                 "work_pool": {"name": work_pool.name},
                 "build": [
                     {
@@ -3237,7 +3227,7 @@ class TestSchedules:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.schedules[0].active is False
 
@@ -3261,7 +3251,7 @@ class TestSchedules:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name",
+                "name": _DN,
                 "work_pool": {"name": work_pool.name},
                 "schedules": [
                     {
@@ -3278,12 +3268,12 @@ class TestSchedules:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy --name test-name",
+            command=f"deploy --name {_DN}",
             expected_code=0,
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.schedules[0].active is schedule_is_active
 
@@ -3296,7 +3286,7 @@ class TestSchedules:
             deploy_config = yaml.safe_load(f)
 
         # Create a deployment with a schedule that is not active
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["schedules"] = [
             {
                 "cron": "0 4 * * *",
@@ -3310,14 +3300,14 @@ class TestSchedules:
 
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}",
         )
 
         assert result.exit_code == 0
 
         # Check that the schedule is active
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         deployment_schedule = deployment.schedules[0]
@@ -3335,7 +3325,7 @@ class TestSchedules:
 
         # Check that the schedule is inactive
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         deployment_schedule = deployment.schedules[0]
@@ -3346,14 +3336,14 @@ class TestSchedules:
         # Redeploy the deployment
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy ./flows/hello.py:my_flow -n test-name --pool {work_pool.name}",
+            command=f"deploy ./flows/hello.py:my_flow -n {_DN} --pool {work_pool.name}",
         )
 
         assert result.exit_code == 0
 
         # Check that the schedule is still inactive
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         deployment_schedule = deployment.schedules[0]
@@ -3373,12 +3363,12 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
             },
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-2",
+                "name": _DN2,
                 "work_pool": {"name": work_pool.name},
             },
         ]
@@ -3391,8 +3381,8 @@ class TestMultiDeploy:
             command="deploy --all",
             expected_code=0,
             expected_output_contains=[
-                "An important name/test-name-1",
-                "An important name/test-name-2",
+                f"An important name/{_DN1}",
+                f"An important name/{_DN2}",
             ],
             expected_output_does_not_contain=[
                 "You have passed options to the deploy command, but you are"
@@ -3403,15 +3393,15 @@ class TestMultiDeploy:
 
         # Check if deployments were created correctly
         deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
         deployment2 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
+            f"An important name/{_DN2}"
         )
 
-        assert deployment1.name == "test-name-1"
+        assert deployment1.name == _DN1
         assert deployment1.work_pool_name == work_pool.name
-        assert deployment2.name == "test-name-2"
+        assert deployment2.name == _DN2
         assert deployment2.work_pool_name == work_pool.name
 
     @pytest.mark.usefixtures("project_dir")
@@ -3425,13 +3415,13 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "schedule": {"interval": 60.0, "active": True},
                 "work_pool": {"name": work_pool.name},
             },
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-2",
+                "name": _DN2,
                 "schedule": {"interval": 60.0, "active": False},
                 "work_pool": {"name": work_pool.name},
             },
@@ -3445,8 +3435,8 @@ class TestMultiDeploy:
             command="deploy --all",
             expected_code=0,
             expected_output_contains=[
-                "An important name/test-name-1",
-                "An important name/test-name-2",
+                f"An important name/{_DN1}",
+                f"An important name/{_DN2}",
             ],
             expected_output_does_not_contain=[
                 "You have passed options to the deploy command, but you are"
@@ -3456,15 +3446,15 @@ class TestMultiDeploy:
         )
 
         deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
         deployment2 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
+            f"An important name/{_DN2}"
         )
 
-        assert deployment1.name == "test-name-1"
+        assert deployment1.name == _DN1
         assert deployment1.schedules[0].active is True
-        assert deployment2.name == "test-name-2"
+        assert deployment2.name == _DN2
         assert deployment2.schedules[0].active is False
 
     async def test_deploy_selected_deployments(
@@ -3477,18 +3467,18 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
                 "enforce_parameter_schema": True,
             },
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-2",
+                "name": _DN2,
                 "work_pool": {"name": work_pool.name},
             },
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-3",
+                "name": _DN3,
                 "work_pool": {"name": work_pool.name},
             },
         ]
@@ -3499,21 +3489,21 @@ class TestMultiDeploy:
         # Deploy only two deployments by name
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy --name test-name-1 --name test-name-2",
+            command=f"deploy --name {_DN1} --name {_DN2}",
             expected_code=0,
             expected_output_contains=[
                 (
-                    "Deployment 'An important name/test-name-1' successfully created"
+                    f"Deployment f'An important name/{_DN1}' successfully created"
                     " with id"
                 ),
                 (
-                    "Deployment 'An important name/test-name-2' successfully created"
+                    f"Deployment f'An important name/{_DN2}' successfully created"
                     " with id"
                 ),
             ],
             expected_output_does_not_contain=[
                 (
-                    "Deployment 'An important name/test-name-3' successfully created"
+                    f"Deployment f'An important name/{_DN3}' successfully created"
                     " with id"
                 ),
                 (
@@ -3526,24 +3516,22 @@ class TestMultiDeploy:
 
         # Check if the two deployments were created correctly
         deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
         deployment2 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
+            f"An important name/{_DN2}"
         )
 
-        assert deployment1.name == "test-name-1"
+        assert deployment1.name == _DN1
         assert deployment1.work_pool_name == work_pool.name
         assert deployment1.enforce_parameter_schema is True
-        assert deployment2.name == "test-name-2"
+        assert deployment2.name == _DN2
         assert deployment2.work_pool_name == work_pool.name
         assert deployment2.enforce_parameter_schema
 
         # Check if the third deployment was not created
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-3"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN3}")
 
     async def test_deploy_single_with_cron_schedule(
         self, project_dir: Path, prefect_client: PrefectClient, work_pool: WorkPool
@@ -3556,12 +3544,12 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
             },
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-2",
+                "name": _DN2,
                 "work_pool": {"name": work_pool.name},
             },
         ]
@@ -3572,11 +3560,11 @@ class TestMultiDeploy:
         cron_schedule = "0 * * * *"
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=f"deploy --name test-name-1 --cron '{cron_schedule}'",
+            command=f"deploy --name {_DN1} --cron '{cron_schedule}'",
             expected_code=0,
             expected_output_contains=[
                 (
-                    "Deployment 'An important name/test-name-1' successfully created"
+                    f"Deployment f'An important name/{_DN1}' successfully created"
                     " with id"
                 ),
             ],
@@ -3584,22 +3572,20 @@ class TestMultiDeploy:
 
         # Check if the deployment was created correctly
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
 
-        assert deployment.name == "test-name-1"
+        assert deployment.name == _DN1
         assert deployment.work_pool_name == work_pool.name
         assert len(deployment.schedules) == 1
         assert deployment.schedules[0].schedule == CronSchedule(cron="0 * * * *")
 
         # Check if the second deployment was not created
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-2"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN2}")
 
     @pytest.mark.parametrize(
-        "deployment_selector_options", ["--all", "-n test-name-1 -n test-name-2"]
+        "deployment_selector_options", ["--all", f"-n {_DN1} -n {_DN2}"]
     )
     async def test_deploy_multiple_with_cli_options(
         self,
@@ -3616,12 +3602,12 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
             },
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-2",
+                "name": _DN2,
                 "work_pool": {"name": work_pool.name},
             },
         ]
@@ -3635,8 +3621,8 @@ class TestMultiDeploy:
             command=f"deploy {deployment_selector_options} --cron '0 * * * *'",
             expected_code=0,
             expected_output_contains=[
-                "An important name/test-name-1",
-                "An important name/test-name-2",
+                f"An important name/{_DN1}",
+                f"An important name/{_DN2}",
                 (
                     "You have passed options to the deploy command, but you are"
                     " creating or updating multiple deployments. These options will be"
@@ -3647,17 +3633,17 @@ class TestMultiDeploy:
 
         # Check if deployments were created correctly and without the provided CLI options
         deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
         deployment2 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
+            f"An important name/{_DN2}"
         )
 
-        assert deployment1.name == "test-name-1"
+        assert deployment1.name == _DN1
         assert deployment1.work_pool_name == work_pool.name
         assert len(deployment1.schedules) == 0
 
-        assert deployment2.name == "test-name-2"
+        assert deployment2.name == _DN2
         assert deployment2.work_pool_name == work_pool.name
         assert len(deployment2.schedules) == 0
 
@@ -3671,7 +3657,7 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
             }
         ]
@@ -3693,9 +3679,7 @@ class TestMultiDeploy:
 
         # Check name from deployment.yaml was not used
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-1"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN1}")
 
         deployment = await prefect_client.read_deployment_by_name(
             "An important name/from-cli-name"
@@ -3714,7 +3698,7 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
                 "schedule": {"interval": 3600},
             },
@@ -3738,9 +3722,7 @@ class TestMultiDeploy:
         )
 
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-2"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN2}")
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_name_in_prefect_yaml_interactive(
@@ -3754,7 +3736,7 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
                 "schedule": {"interval": 3600},
             },
@@ -3778,7 +3760,7 @@ class TestMultiDeploy:
                 # accept naming deployment
                 readchar.key.ENTER
                 # enter deployment name
-                + "test-name-2"
+                + _DN2
                 + readchar.key.ENTER
                 # decline remote storage
                 + "n"
@@ -3787,9 +3769,7 @@ class TestMultiDeploy:
             expected_output_contains=["Discovered unnamed deployment."],
         )
 
-        assert await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
-        )
+        assert await prefect_client.read_deployment_by_name(f"An important name/{_DN2}")
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_without_name_in_prefect_yaml_interactive_user_skips(
@@ -3803,7 +3783,7 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
                 "schedule": {"interval": 3600},
             },
@@ -3853,12 +3833,12 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
             },
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-2",
+                "name": _DN2,
                 "work_pool": {"name": work_pool.name},
             },
         ]
@@ -3869,26 +3849,24 @@ class TestMultiDeploy:
         # Attempt to deploy all
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name-2 -n test-name-3",
+            command=f"deploy -n {_DN2} -n {_DN3}",
             expected_code=0,
             expected_output_contains=[
                 (
                     "The following deployment(s) could not be found and will not be"
-                    " deployed: test-name-3"
+                    f" deployed: {_DN3}"
                 ),
             ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
+            f"An important name/{_DN2}"
         )
-        assert deployment.name == "test-name-2"
+        assert deployment.name == _DN2
         assert deployment.work_pool_name == work_pool.name
 
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-3"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN3}")
 
     async def test_deploy_with_single_deployment_with_name_in_file(
         self, project_dir: Path, prefect_client: PrefectClient, work_pool: WorkPool
@@ -3900,7 +3878,7 @@ class TestMultiDeploy:
         contents["deployments"] = [
             {
                 "entrypoint": "./flows/hello.py:my_flow",
-                "name": "test-name-1",
+                "name": _DN1,
                 "work_pool": {"name": work_pool.name},
             }
         ]
@@ -3910,18 +3888,18 @@ class TestMultiDeploy:
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name-1",
+            command=f"deploy -n {_DN1}",
             expected_code=0,
             expected_output_contains=[
-                "An important name/test-name-1",
+                f"An important name/{_DN1}",
             ],
         )
 
         # Check if the deployment was created correctly
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
-        assert deployment.name == "test-name-1"
+        assert deployment.name == _DN1
         assert deployment.work_pool_name == work_pool.name
 
     async def test_deploy_errors_with_empty_deployments_list_and_no_cli_options(
@@ -3955,7 +3933,7 @@ class TestMultiDeploy:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
             }
         ]
 
@@ -3966,19 +3944,19 @@ class TestMultiDeploy:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p"
                 f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
             ),
             expected_code=0,
             expected_output_contains=[
-                "Deployment 'An important name/test-name' successfully created with id"
+                f"Deployment f'An important name/{_DN}' successfully created with id"
             ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
+        assert deployment.name == _DN
         assert deployment.work_pool_name == work_pool.name
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
@@ -3993,12 +3971,12 @@ class TestMultiDeploy:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4010,27 +3988,27 @@ class TestMultiDeploy:
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name-1",
+            command=f"deploy -n {_DN1}",
             expected_code=0,
             expected_output_contains=[
-                "An important name/test-name-1",
+                f"An important name/{_DN1}",
             ],
         )
 
         # Check if the deployment was created correctly
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
-        assert deployment.name == "test-name-1"
+        assert deployment.name == _DN1
         assert deployment.work_pool_name == work_pool.name
 
     @pytest.mark.parametrize(
         "deploy_names",
         [
-            ("my-flow/test-name-1", "test-name-3"),
-            ("my-flow/test-name-1", "my-flow/test-name-3"),
-            ("test-name-1", "my-flow/test-name-3"),
-            ("test-name-1", "test-name-3"),
+            (f"my-flow/{_DN1}", _DN3),
+            (f"my-flow/{_DN1}", f"my-flow/{_DN3}"),
+            (_DN1, f"my-flow/{_DN3}"),
+            (_DN1, _DN3),
         ],
     )
     async def test_deploy_existing_deployment_and_nonexistent_deployment_deploys_former(
@@ -4046,12 +4024,12 @@ class TestMultiDeploy:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4071,37 +4049,35 @@ class TestMultiDeploy:
                     "The following deployment(s) could not be found and will not be"
                     f" deployed: {deploy_names[1].split('/')[-1]}"
                 ),
-                "An important name/test-name-1",
+                f"An important name/{_DN1}",
             ],
             expected_output_does_not_contain=[
-                "An important name/test-name-3",
+                f"An important name/{_DN3}",
             ],
         )
 
         # Check if the deployment was created correctly
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
-        assert deployment.name == "test-name-1"
+        assert deployment.name == _DN1
         assert deployment.work_pool_name == work_pool.name
 
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-3"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN3}")
 
 
 class TestDeployPattern:
     @pytest.mark.parametrize(
         "deploy_name",
         [
-            ("my-flow/test-name-*", "my-flow-test-name-2"),
-            ("my-f*/test-name-1", "my-f*/test-name-2"),
+            ("my-flow/test-name-*", f"my-flow-{_DN2}"),
+            (f"my-f*/{_DN1}", f"my-f*/{_DN2}"),
             "*-name-*",
-            ("my-*ow/test-name-1", "test-*-2"),
+            (f"my-*ow/{_DN1}", "test-*-2*"),
             ("*-flow/*-name-1", "*-name-2"),
             "my-flow/t*",
-            ("*/test-name-1", "*/test-name-2"),
+            (f"*/{_DN1}", f"*/{_DN2}"),
             "*/t*",
         ],
     )
@@ -4118,12 +4094,12 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4150,8 +4126,8 @@ class TestDeployPattern:
             expected_code=0,
             expected_output_contains=[
                 "Deploying flows with selected deployment configurations...",
-                "An important name/test-name-1",
-                "An important name/test-name-2",
+                f"An important name/{_DN1}",
+                f"An important name/{_DN2}",
             ],
             expected_output_does_not_contain=[
                 "An important name/dont-deploy-me",
@@ -4160,15 +4136,15 @@ class TestDeployPattern:
 
         # Check if the deployment was created correctly
         deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
-        assert deployment1.name == "test-name-1"
+        assert deployment1.name == _DN1
         assert deployment1.work_pool_name == work_pool.name
 
         deployment2 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
+            f"An important name/{_DN2}"
         )
-        assert deployment2.name == "test-name-2"
+        assert deployment2.name == _DN2
         assert deployment2.work_pool_name == work_pool.name
 
         with pytest.raises(ObjectNotFound):
@@ -4218,12 +4194,12 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4244,27 +4220,23 @@ class TestDeployPattern:
                 ),
             ],
             expected_output_does_not_contain=[
-                "An important name/test-name-1",
-                "An important name/test-name-2",
+                f"An important name/{_DN1}",
+                f"An important name/{_DN2}",
             ],
         )
 
         # Check if the deployments were not created
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-1"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN1}")
 
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-2"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN2}")
 
     @pytest.mark.parametrize(
         "deploy_name",
         [
             ("my-flow/test-name-*", "nonexistent-deployment"),
-            ("my-f*/test-name-1", "my-f*/test-name-2", "my-f*/nonexistent-deployment"),
+            (f"my-f*/{_DN1}", f"my-f*/{_DN2}", "my-f*/nonexistent-deployment"),
             ("*-name-4", "*-name-*"),
             ("my-flow/t*", "nonexistent-flow/*"),
         ],
@@ -4282,12 +4254,12 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4313,8 +4285,8 @@ class TestDeployPattern:
             expected_code=0,
             expected_output_contains=[
                 "Deploying flows with selected deployment configurations...",
-                "An important name/test-name-1",
-                "An important name/test-name-2",
+                f"An important name/{_DN1}",
+                f"An important name/{_DN2}",
             ],
             expected_output_does_not_contain=[
                 (
@@ -4328,15 +4300,15 @@ class TestDeployPattern:
 
         # Check if the deployment was created correctly
         deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
-        assert deployment1.name == "test-name-1"
+        assert deployment1.name == _DN1
         assert deployment1.work_pool_name == work_pool.name
 
         deployment2 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
+            f"An important name/{_DN2}"
         )
-        assert deployment2.name == "test-name-2"
+        assert deployment2.name == _DN2
 
         with pytest.raises(ObjectNotFound):
             await prefect_client.read_deployment_by_name(
@@ -4346,10 +4318,10 @@ class TestDeployPattern:
     @pytest.mark.parametrize(
         "deploy_names",
         [
-            ("my-flow/test-name-3", "test-name-4"),
-            ("test-name-3", "my-flow/test-name-4"),
-            ("test-name-3", "test-name-4"),
-            ("my-flow/test-name-3", "my-flow/test-name-4"),
+            (f"my-flow/{_DN3}", _DN4),
+            (_DN3, f"my-flow/{_DN4}"),
+            (_DN3, _DN4),
+            (f"my-flow/{_DN3}", f"my-flow/{_DN4}"),
         ],
     )
     @pytest.mark.usefixtures("project_dir")
@@ -4365,12 +4337,12 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4400,21 +4372,17 @@ class TestDeployPattern:
         )
 
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-3"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN3}")
 
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-4"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN4}")
 
     @pytest.mark.parametrize(
         "deploy_names",
         [
-            ("my-flow/test-name-1", "my-flow/test-name-2"),
-            ("test-name-1", "test-name-2"),
-            ("my-flow/test-name-1", "test-name-2"),
+            (f"my-flow/{_DN1}", f"my-flow/{_DN2}"),
+            (_DN1, _DN2),
+            (f"my-flow/{_DN1}", _DN2),
         ],
     )
     async def test_deploy_multiple_existing_deployments_deploys_both(
@@ -4426,12 +4394,12 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4448,22 +4416,22 @@ class TestDeployPattern:
             expected_code=0,
             expected_output_contains=[
                 "Deploying flows with selected deployment configurations...",
-                "An important name/test-name-1",
-                "An important name/test-name-2",
+                f"An important name/{_DN1}",
+                f"An important name/{_DN2}",
             ],
         )
 
         # Check if the deployment was created correctly
         deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
-        assert deployment1.name == "test-name-1"
+        assert deployment1.name == _DN1
         assert deployment1.work_pool_name == work_pool.name
 
         deployment2 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-2"
+            f"An important name/{_DN2}"
         )
-        assert deployment2.name == "test-name-2"
+        assert deployment2.name == _DN2
         assert deployment2.work_pool_name == work_pool.name
 
     async def test_deploy_exits_with_multiple_deployments_with_no_name(
@@ -4475,11 +4443,11 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "entrypoint": "./flows/hello.py:my_flow",
             },
         ]
@@ -4503,8 +4471,8 @@ class TestDeployPattern:
     @pytest.mark.parametrize(
         "deploy_names",
         [
-            "test-name-1",
-            "my-flow/test-name-1",
+            _DN1,
+            f"my-flow/{_DN1}",
         ],
     )
     async def test_deploy_with_single_deployment_with_no_name(
@@ -4552,12 +4520,12 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow2",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4568,7 +4536,7 @@ class TestDeployPattern:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n 'test-name-1'",
+            command=f"deploy -n f'{_DN1}'",
             user_input=(
                 # select 2nd flow named my_flow2
                 readchar.key.DOWN
@@ -4585,22 +4553,20 @@ class TestDeployPattern:
             ),
             expected_code=0,
             expected_output_contains=[
-                "Found multiple deployment configurations with the name test-name-1",
-                "'Second important name/test-name-1' successfully created",
+                f"Found multiple deployment configurations with the name {_DN1}",
+                f"f'Second important name/{_DN1}' successfully created",
             ],
         )
 
         # Check if the deployment was created correctly
         deployment = await prefect_client.read_deployment_by_name(
-            "Second important name/test-name-1"
+            f"Second important name/{_DN1}"
         )
-        assert deployment.name == "test-name-1"
+        assert deployment.name == _DN1
         assert deployment.work_pool_name == work_pool.name
 
         with pytest.raises(ObjectNotFound):
-            await prefect_client.read_deployment_by_name(
-                "An important name/test-name-1"
-            )
+            await prefect_client.read_deployment_by_name(f"An important name/{_DN1}")
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_two_deployments_with_same_name_noninteractive_deploys_both(
@@ -4612,12 +4578,12 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow2",
                 "work_pool": {"name": work_pool.name},
             },
@@ -4628,26 +4594,26 @@ class TestDeployPattern:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n 'test-name-1'",
+            command=f"deploy -n f'{_DN1}'",
             expected_code=0,
             expected_output_contains=[
                 "Deploying flows with selected deployment configurations...",
-                "'An important name/test-name-1' successfully created",
-                "'Second important name/test-name-1' successfully created",
+                f"f'An important name/{_DN1}' successfully created",
+                f"f'Second important name/{_DN1}' successfully created",
             ],
         )
 
         # Check if the deployments were created correctly
         deployment1 = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
-        assert deployment1.name == "test-name-1"
+        assert deployment1.name == _DN1
         assert deployment1.work_pool_name == work_pool.name
 
         deployment2 = await prefect_client.read_deployment_by_name(
-            "Second important name/test-name-1"
+            f"Second important name/{_DN1}"
         )
-        assert deployment2.name == "test-name-1"
+        assert deployment2.name == _DN1
         assert deployment2.work_pool_name == work_pool.name
 
     async def test_deploy_warns_with_single_deployment_and_multiple_names(
@@ -4659,7 +4625,7 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             }
@@ -4671,12 +4637,12 @@ class TestDeployPattern:
         # Deploy the deployment with a name
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy -n test-name-1 -n test-name-2",
+            command=f"deploy -n {_DN1} -n {_DN2}",
             expected_code=0,
             expected_output_contains=[
                 (
                     "The following deployment(s) could not be found and will not be"
-                    " deployed: test-name-2"
+                    f" deployed: {_DN2}"
                 ),
             ],
         )
@@ -4691,7 +4657,7 @@ class TestDeployPattern:
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["concurrency_limit"] = concurrency_limit_config
 
         with prefect_yaml.open(mode="w") as f:
@@ -4704,7 +4670,7 @@ class TestDeployPattern:
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         assert deployment.global_concurrency_limit is not None
@@ -4733,7 +4699,7 @@ class TestDeployPattern:
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["concurrency_limit"] = concurrency_limit_config
 
         with prefect_yaml.open(mode="w") as f:
@@ -4746,7 +4712,7 @@ class TestDeployPattern:
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         assert deployment.global_concurrency_limit is not None
@@ -4785,7 +4751,7 @@ class TestDeployPattern:
         with prefect_yaml.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
 
-        deploy_config["deployments"][0]["name"] = "test-name"
+        deploy_config["deployments"][0]["name"] = _DN
         deploy_config["deployments"][0]["concurrency_limit"] = concurrency_limit_config
 
         with prefect_yaml.open(mode="w") as f:
@@ -4798,7 +4764,7 @@ class TestDeployPattern:
         assert result.exit_code == 0
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
 
         assert deployment.global_concurrency_limit is not None
@@ -4822,14 +4788,14 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "description": "test-description-1",
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
                 "schedule": {"interval": 3600},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "description": "test-description-2",
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
@@ -4855,17 +4821,17 @@ class TestDeployPattern:
             ),
             expected_output_contains=[
                 "Would you like to use an existing deployment configuration?",
-                "test-name-1",
-                "test-name-2",
+                _DN1,
+                _DN2,
                 "test-description-1",
                 "test-description-2",
             ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name-1"
+            f"An important name/{_DN1}"
         )
-        assert deployment.name == "test-name-1"
+        assert deployment.name == _DN1
 
     @pytest.mark.usefixtures("interactive_console", "project_dir")
     async def test_deploy_opt_out_of_existing_deployments(
@@ -4883,13 +4849,13 @@ class TestDeployPattern:
 
         contents["deployments"] = [
             {
-                "name": "test-name-1",
+                "name": _DN1,
                 "description": "test-description-1",
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
             },
             {
-                "name": "test-name-2",
+                "name": _DN2,
                 "description": "test-description-2",
                 "entrypoint": "./flows/hello.py:my_flow",
                 "work_pool": {"name": work_pool.name},
@@ -4937,7 +4903,7 @@ class TestDeployPattern:
         deployments = await prefect_client.read_deployments()
         deployment_by_name = {d.name: d for d in deployments}
 
-        # Should have created "new-deployment", not "test-name-1"
+        # Should have created "new-deployment", not _DN1
         assert "new-deployment" in deployment_by_name, (
             f"Expected 'new-deployment' to be created, but found: {list(deployment_by_name.keys())}"
         )
@@ -4946,7 +4912,7 @@ class TestDeployPattern:
         # The bug would cause test-description-1 to be inherited
         # The fix ensures we get a fresh deployment without inheriting from test-name-1
         assert new_deployment.description != "test-description-1", (
-            "Bug detected: new deployment inherited description from test-name-1"
+            f"Bug detected: new deployment inherited description from {_DN1}"
         )
 
 
@@ -5228,9 +5194,7 @@ class TestDeploymentTrigger:
         async def test_automation_creation(
             self, project_dir, prefect_client: PrefectClient
         ):
-            await prefect_client.create_work_pool(
-                WorkPoolCreate(name="test-pool", type="test")
-            )
+            await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
             trigger_spec = {
                 "name": "unique-id",
                 "enabled": True,
@@ -5244,14 +5208,14 @@ class TestDeploymentTrigger:
             await run_sync_in_worker_thread(
                 invoke_and_assert,
                 command=(
-                    "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                    f"deploy ./flows/hello.py:my_flow -n {_DN} -p {_PN} --version"
                     " 1.0.0 -jv env=prod -t foo-bar"
                     f" --trigger '{json.dumps(trigger_spec)}'"
                 ),
                 expected_code=0,
                 expected_output_contains=[
-                    "An important name/test-name",
-                    "prefect worker start --pool 'test-pool'",
+                    f"An important name/{_DN}",
+                    f"prefect worker start --pool '{_PN}'",
                 ],
             )
 
@@ -5379,7 +5343,7 @@ class TestDeploymentTrigger:
 
             contents["deployments"] = [
                 {
-                    "name": "test-name-1",
+                    "name": _DN1,
                     "work_pool": {
                         "name": work_pool.name,
                     },
@@ -5399,7 +5363,7 @@ class TestDeploymentTrigger:
             ]
 
             expected_triggers = _initialize_deployment_triggers(
-                "test-name-1", contents["deployments"][0]["triggers"]
+                _DN1, contents["deployments"][0]["triggers"]
             )
 
             with prefect_file.open(mode="w") as f:
@@ -5411,7 +5375,7 @@ class TestDeploymentTrigger:
             ) as create_triggers:
                 await run_sync_in_worker_thread(
                     invoke_and_assert,
-                    command="deploy ./flows/hello.py:my_flow -n test-name-1",
+                    command=f"deploy ./flows/hello.py:my_flow -n {_DN1}",
                     expected_code=0,
                 )
 
@@ -5441,9 +5405,7 @@ class TestDeploymentTrigger:
                 "threshold": 2,
             }
 
-            expected_triggers = _initialize_deployment_triggers(
-                "test-name-1", [trigger_spec]
-            )
+            expected_triggers = _initialize_deployment_triggers(_DN1, [trigger_spec])
 
             with mock.patch(
                 "prefect.cli.deploy._core._create_deployment_triggers",
@@ -5452,7 +5414,7 @@ class TestDeploymentTrigger:
                 await run_sync_in_worker_thread(
                     invoke_and_assert,
                     command=(
-                        "deploy ./flows/hello.py:my_flow -n test-name-1 --trigger"
+                        f"deploy ./flows/hello.py:my_flow -n {_DN1} --trigger"
                         f" '{json.dumps(trigger_spec)}' -p {docker_work_pool.name}"
                     ),
                     expected_code=0,
@@ -5482,9 +5444,7 @@ class TestDeploymentTrigger:
             with open("triggers.json", "w") as f:
                 json.dump({"triggers": [trigger_spec]}, f)
 
-            expected_triggers = _initialize_deployment_triggers(
-                "test-name-1", [trigger_spec]
-            )
+            expected_triggers = _initialize_deployment_triggers(_DN1, [trigger_spec])
 
             with mock.patch(
                 "prefect.cli.deploy._core._create_deployment_triggers",
@@ -5493,7 +5453,7 @@ class TestDeploymentTrigger:
                 await run_sync_in_worker_thread(
                     invoke_and_assert,
                     command=(
-                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f"deploy ./flows/hello.py:my_flow -n {_DN1}"
                         f" --trigger triggers.json -p {docker_work_pool.name}"
                     ),
                     expected_code=0,
@@ -5523,9 +5483,7 @@ class TestDeploymentTrigger:
             with open("triggers.yaml", "w") as f:
                 yaml.safe_dump({"triggers": [trigger_spec]}, f)
 
-            expected_triggers = _initialize_deployment_triggers(
-                "test-name-1", [trigger_spec]
-            )
+            expected_triggers = _initialize_deployment_triggers(_DN1, [trigger_spec])
 
             with mock.patch(
                 "prefect.cli.deploy._core._create_deployment_triggers",
@@ -5534,7 +5492,7 @@ class TestDeploymentTrigger:
                 await run_sync_in_worker_thread(
                     invoke_and_assert,
                     command=(
-                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f"deploy ./flows/hello.py:my_flow -n {_DN1}"
                         f" --trigger triggers.yaml -p {docker_work_pool.name}"
                     ),
                     expected_code=0,
@@ -5565,9 +5523,7 @@ class TestDeploymentTrigger:
             with open(triggers_file, "w") as f:
                 yaml.safe_dump({"triggers": [trigger_spec]}, f)
 
-            expected_triggers = _initialize_deployment_triggers(
-                "test-name-1", [trigger_spec]
-            )
+            expected_triggers = _initialize_deployment_triggers(_DN1, [trigger_spec])
 
             with mock.patch(
                 "prefect.cli.deploy._core._create_deployment_triggers",
@@ -5576,7 +5532,7 @@ class TestDeploymentTrigger:
                 await run_sync_in_worker_thread(
                     invoke_and_assert,
                     command=(
-                        "deploy ./flows/hello.py:my_flow -n test-name-1"
+                        f"deploy ./flows/hello.py:my_flow -n {_DN1}"
                         f" --trigger my_stuff/triggers.yaml -p {docker_work_pool.name}"
                     ),
                     expected_code=0,
@@ -5612,7 +5568,7 @@ class TestDeploymentTrigger:
                 yaml.safe_dump({"triggers": [trigger_spec_2]}, f)
 
             expected_triggers = _initialize_deployment_triggers(
-                "test-name-1", [trigger_spec_1, trigger_spec_2]
+                _DN1, [trigger_spec_1, trigger_spec_2]
             )
 
             with mock.patch(
@@ -5622,7 +5578,7 @@ class TestDeploymentTrigger:
                 await run_sync_in_worker_thread(
                     invoke_and_assert,
                     command=(
-                        "deploy ./flows/hello.py:my_flow -n test-name-1 --trigger"
+                        f"deploy ./flows/hello.py:my_flow -n {_DN1} --trigger"
                         f" '{json.dumps(trigger_spec_1)}' --trigger triggers.yaml -p"
                         f" {docker_work_pool.name}"
                     ),
@@ -5650,7 +5606,7 @@ class TestDeploymentTrigger:
             }
 
             expected_triggers = _initialize_deployment_triggers(
-                "test-name-1", [cli_trigger_spec]
+                _DN1, [cli_trigger_spec]
             )
 
             prefect_file = Path("prefect.yaml")
@@ -5659,7 +5615,7 @@ class TestDeploymentTrigger:
 
             contents["deployments"] = [
                 {
-                    "name": "test-name-1",
+                    "name": _DN1,
                     "work_pool": {
                         "name": docker_work_pool.name,
                     },
@@ -5679,7 +5635,7 @@ class TestDeploymentTrigger:
                     await run_sync_in_worker_thread(
                         invoke_and_assert,
                         command=(
-                            "deploy ./flows/hello.py:my_flow -n test-name-1"
+                            f"deploy ./flows/hello.py:my_flow -n {_DN1}"
                             f" --trigger '{json.dumps(cli_trigger_spec)}'"
                         ),
                         expected_code=0,
@@ -5708,7 +5664,7 @@ class TestDeploymentTrigger:
                     await run_sync_in_worker_thread(
                         invoke_and_assert,
                         command=(
-                            "deploy ./flows/hello.py:my_flow -n test-name-1"
+                            f"deploy ./flows/hello.py:my_flow -n {_DN1}"
                             f" -p {docker_work_pool.name} --trigger '{invalid_trigger}'"
                         ),
                         expected_code=1,
@@ -5749,7 +5705,7 @@ class TestDeployDockerBuildSteps:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600 -p"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600 -p"
                 f" {docker_work_pool.name}"
             ),
             user_input=(
@@ -5796,7 +5752,7 @@ class TestDeployDockerBuildSteps:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -5816,7 +5772,7 @@ class TestDeployDockerBuildSteps:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -5838,7 +5794,7 @@ class TestDeployDockerBuildSteps:
         # assert not config["deployments"][1].get("build")
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
         assert deployment.schedules and len(deployment.schedules) == 1
         assert getattr(deployment.schedules[0].schedule, "interval") == timedelta(
@@ -5854,7 +5810,7 @@ class TestDeployDockerBuildSteps:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -5881,7 +5837,7 @@ class TestDeployDockerBuildSteps:
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
                 "Would you like to use the Dockerfile in the current directory?",
-                "Image prefecthq/prefect/test-name:latest will be built",
+                f"Image prefecthq/prefect/{_DN}:latest will be built",
                 "Would you like to push this image to a remote registry?",
             ],
             expected_output_does_not_contain=["Is this a private registry?"],
@@ -5899,7 +5855,7 @@ class TestDeployDockerBuildSteps:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -5937,7 +5893,7 @@ class TestDeployDockerBuildSteps:
                 "Would you like to build a custom Docker image",
                 "Would you like to use the Dockerfile in the current directory?",
                 "A Dockerfile exists. You chose not to use it.",
-                "Image prefecthq/prefect/test-name:latest will be built",
+                f"Image prefecthq/prefect/{_DN}:latest will be built",
                 "Would you like to push this image to a remote registry?",
             ],
             expected_output_does_not_contain=["Is this a private registry?"],
@@ -5954,7 +5910,7 @@ class TestDeployDockerBuildSteps:
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -5989,7 +5945,7 @@ class TestDeployDockerBuildSteps:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -6012,7 +5968,7 @@ class TestDeployDockerBuildSteps:
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
-                "Image prefecthq/prefect/test-name:latest will be built",
+                f"Image prefecthq/prefect/{_DN}:latest will be built",
                 "Would you like to push this image to a remote registry?",
             ],
             expected_output_does_not_contain=["Is this a private registry?"],
@@ -6029,7 +5985,7 @@ class TestDeployDockerBuildSteps:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -6055,7 +6011,7 @@ class TestDeployDockerBuildSteps:
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
-                "Image prefecthq/prefect/test-name:latest will be built",
+                f"Image prefecthq/prefect/{_DN}:latest will be built",
                 "Would you like to push this image to a remote registry?",
             ],
             expected_output_does_not_contain=["Is this a private registry?"],
@@ -6081,7 +6037,7 @@ class TestDeployDockerBuildSteps:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -6104,16 +6060,16 @@ class TestDeployDockerBuildSteps:
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
-                "Image prefecthq/prefect/test-name:latest will be built",
+                f"Image prefecthq/prefect/{_DN}:latest will be built",
                 "Would you like to push this image to a remote registry?",
             ],
             expected_output_does_not_contain=["Is this a private registry?"],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
+        assert deployment.name == _DN
         assert deployment.work_pool_name == docker_work_pool.name
         assert deployment.job_variables.get("image") is not None
 
@@ -6123,7 +6079,7 @@ class TestDeployDockerBuildSteps:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {managed_work_pool.name}"
             ),
             user_input=(
@@ -6135,7 +6091,7 @@ class TestDeployDockerBuildSteps:
                 + readchar.key.ENTER
             ),
             expected_output_contains=[
-                "$ prefect deployment run 'An important name/test-name'",
+                f"$ prefect deployment run f'An important name/{_DN}'",
             ],
             expected_output_does_not_contain=[
                 "Would you like to build a custom Docker image?",
@@ -6146,9 +6102,7 @@ class TestDeployDockerBuildSteps:
 class TestDeployInfraOverrides:
     @pytest.fixture
     async def work_pool(self, prefect_client):
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
+        await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
 
     async def test_uses_job_variables(
         self,
@@ -6159,22 +6113,22 @@ class TestDeployInfraOverrides:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p {_PN} --version"
                 " 1.0.0 -jv env=prod -t foo-bar --job-variable"
                 ' \'{"resources":{"limits":{"cpu": 1}}}\''
             ),
             expected_code=0,
             expected_output_contains=[
-                "An important name/test-name",
-                "prefect worker start --pool 'test-pool'",
+                f"An important name/{_DN}",
+                f"prefect worker start --pool '{_PN}'",
             ],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
-        assert deployment.work_pool_name == "test-pool"
+        assert deployment.name == _DN
+        assert deployment.work_pool_name == _PN
         assert deployment.version == "1.0.0"
         assert deployment.tags == ["foo-bar"]
         assert deployment.job_variables == {
@@ -6187,7 +6141,7 @@ class TestDeployInfraOverrides:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p {_PN} --version"
                 " 1.0.0 -jv env=prod -t foo-bar --job-variable 'my-variable'"
             ),
             expected_code=1,
@@ -6201,7 +6155,7 @@ class TestDeployInfraOverrides:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p {_PN} --version"
                 " 1.0.0 -jv env=prod -t foo-bar --job-variable ['my-variable']"
             ),
             expected_code=1,
@@ -6215,7 +6169,7 @@ class TestDeployInfraOverrides:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} -p {_PN} --version"
                 " 1.0.0 -jv env=prod -t foo-bar --job-variable "
                 ' \'{"resources":{"limits":{"cpu"}\''
             ),
@@ -6238,7 +6192,7 @@ class TestDeployDockerPushSteps:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -6258,16 +6212,16 @@ class TestDeployDockerPushSteps:
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
-                "Image prefecthq/prefect/test-name:latest will be built",
+                f"Image prefecthq/prefect/{_DN}:latest will be built",
                 "Would you like to push this image to a remote registry?",
             ],
             expected_output_does_not_contain=["Is this a private registry?"],
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
+        assert deployment.name == _DN
         assert deployment.work_pool_name == docker_work_pool.name
 
     async def test_prompt_push_custom_docker_image_accepted_public_registry(
@@ -6280,7 +6234,7 @@ class TestDeployDockerPushSteps:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=(
-                "deploy ./flows/hello.py:my_flow -n test-name --interval 3600"
+                f"deploy ./flows/hello.py:my_flow -n {_DN} --interval 3600"
                 f" -p {docker_work_pool.name}"
             ),
             user_input=(
@@ -6306,7 +6260,7 @@ class TestDeployDockerPushSteps:
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
-                "Image prefecthq/prefect/test-name:latest will be built",
+                f"Image prefecthq/prefect/{_DN}:latest will be built",
                 "Would you like to push this image to a remote registry?",
                 "Is this a private registry?",
             ],
@@ -6317,9 +6271,9 @@ class TestDeployDockerPushSteps:
         )
 
         deployment = await prefect_client.read_deployment_by_name(
-            "An important name/test-name"
+            f"An important name/{_DN}"
         )
-        assert deployment.name == "test-name"
+        assert deployment.name == _DN
         assert deployment.work_pool_name == docker_work_pool.name
 
 
@@ -6512,9 +6466,7 @@ class TestDeploymentTriggerTemplating:
         these runtime event templates should be preserved in the automation action,
         not removed because they're not in the build step outputs.
         """
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
+        await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
 
         # Create a flow file
         flow_file = project_dir / "flow.py"
@@ -6533,7 +6485,7 @@ deployments:
   - name: say-hello
     entrypoint: flow.py:say_hello
     work_pool:
-      name: test-pool
+      name: {_PN}
     triggers:
       - type: event
         enabled: true
@@ -6574,9 +6526,7 @@ deployments:
         This tests the case where parameters are structured as:
         {"event_id": {"template": "{{ event.id }}", "__prefect_kind": "jinja"}}
         """
-        await prefect_client.create_work_pool(
-            WorkPoolCreate(name="test-pool", type="test")
-        )
+        await prefect_client.create_work_pool(WorkPoolCreate(name=_PN, type="test"))
 
         # Create a flow file
         flow_file = project_dir / "flow.py"
@@ -6595,7 +6545,7 @@ deployments:
   - name: process-event
     entrypoint: flow.py:process_event
     work_pool:
-      name: test-pool
+      name: {_PN}
     triggers:
       - type: event
         enabled: true

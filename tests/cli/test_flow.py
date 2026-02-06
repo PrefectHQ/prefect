@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -41,6 +42,7 @@ class TestFlowServe:
     async def test_flow_serve_cli_creates_deployment(
         self, prefect_client: PrefectClient, mock_runner_start: AsyncMock
     ):
+        deployment_name = f"test-{uuid.uuid4()}"
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -48,20 +50,22 @@ class TestFlowServe:
                 "serve",
                 f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
-                "test",
+                deployment_name,
             ],
             expected_code=0,
             expected_output_contains=[
                 "Your flow 'hello' is being served and polling for scheduled runs!",
                 "To trigger a run for this flow, use the following command",
-                "$ prefect deployment run 'hello/test'",
+                f"$ prefect deployment run 'hello/{deployment_name}'",
             ],
         )
 
-        deployment = await prefect_client.read_deployment_by_name(name="hello/test")
+        deployment = await prefect_client.read_deployment_by_name(
+            name=f"hello/{deployment_name}"
+        )
 
         assert deployment is not None
-        assert deployment.name == "test"
+        assert deployment.name == deployment_name
         assert (
             deployment.entrypoint
             == f"{__development_base_path__}/tests/cli/test_flow.py:hello"
@@ -72,6 +76,7 @@ class TestFlowServe:
     async def test_flow_serve_cli_accepts_interval(
         self, prefect_client: PrefectClient, mock_runner_start
     ):
+        deployment_name = f"test-{uuid.uuid4()}"
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -79,14 +84,16 @@ class TestFlowServe:
                 "serve",
                 f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
-                "test",
+                deployment_name,
                 "--interval",
                 "3600",
             ],
             expected_code=0,
         )
 
-        deployment = await prefect_client.read_deployment_by_name(name="hello/test")
+        deployment = await prefect_client.read_deployment_by_name(
+            name=f"hello/{deployment_name}"
+        )
 
         assert len(deployment.schedules) == 1
         schedule = deployment.schedules[0].schedule
@@ -95,6 +102,7 @@ class TestFlowServe:
     async def test_flow_serve_cli_accepts_cron(
         self, prefect_client: PrefectClient, mock_runner_start
     ):
+        deployment_name = f"test-{uuid.uuid4()}"
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -102,20 +110,23 @@ class TestFlowServe:
                 "serve",
                 f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
-                "test",
+                deployment_name,
                 "--cron",
                 "* * * * *",
             ],
             expected_code=0,
         )
 
-        deployment = await prefect_client.read_deployment_by_name(name="hello/test")
+        deployment = await prefect_client.read_deployment_by_name(
+            name=f"hello/{deployment_name}"
+        )
         assert len(deployment.schedules) == 1
         assert deployment.schedules[0].schedule.cron == "* * * * *"
 
     async def test_flow_serve_cli_accepts_rrule(
         self, prefect_client: PrefectClient, mock_runner_start
     ):
+        deployment_name = f"test-{uuid.uuid4()}"
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -123,14 +134,16 @@ class TestFlowServe:
                 "serve",
                 f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
-                "test",
+                deployment_name,
                 "--rrule",
                 "FREQ=MINUTELY;COUNT=5",
             ],
             expected_code=0,
         )
 
-        deployment = await prefect_client.read_deployment_by_name(name="hello/test")
+        deployment = await prefect_client.read_deployment_by_name(
+            name=f"hello/{deployment_name}"
+        )
         assert len(deployment.schedules) == 1
         assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY;COUNT=5"
 
@@ -150,6 +163,7 @@ class TestFlowServe:
 
         monkeypatch.setattr(Runner, "__init__", runner_spy_init)
 
+        deployment_name = f"test-{uuid.uuid4()}"
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -157,7 +171,7 @@ class TestFlowServe:
                 "serve",
                 f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
-                "test",
+                deployment_name,
                 "--limit",
                 "5",
                 "--global-limit",
@@ -166,7 +180,9 @@ class TestFlowServe:
             expected_code=0,
         )
 
-        deployment = await prefect_client.read_deployment_by_name(name="hello/test")
+        deployment = await prefect_client.read_deployment_by_name(
+            name=f"hello/{deployment_name}"
+        )
         assert deployment.global_concurrency_limit is not None
         assert deployment.global_concurrency_limit.limit == 13
         assert runner_init_args["limit"] == 5
@@ -174,6 +190,7 @@ class TestFlowServe:
     async def test_flow_serve_cli_accepts_metadata_fields(
         self, prefect_client: PrefectClient, mock_runner_start
     ):
+        deployment_name = f"test-{uuid.uuid4()}"
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
@@ -181,21 +198,23 @@ class TestFlowServe:
                 "serve",
                 f"{__development_base_path__}/tests/cli/test_flow.py:hello",
                 "--name",
-                "test",
+                deployment_name,
                 "--description",
                 "test description",
                 "--tag",
-                "test",
+                "test-tag",
                 "--tag",
-                "test2",
+                "test-tag2",
                 "--version",
                 "1.0.0",
             ],
             expected_code=0,
         )
 
-        deployment = await prefect_client.read_deployment_by_name(name="hello/test")
+        deployment = await prefect_client.read_deployment_by_name(
+            name=f"hello/{deployment_name}"
+        )
 
         assert deployment.description == "test description"
-        assert deployment.tags == ["test", "test2"]
+        assert deployment.tags == ["test-tag", "test-tag2"]
         assert deployment.version == "1.0.0"

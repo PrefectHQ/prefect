@@ -1,4 +1,5 @@
 import sys
+import uuid
 from typing import Generator, List
 from unittest import mock
 from uuid import UUID
@@ -370,7 +371,7 @@ def test_disable_gcl_not_found():
 @pytest.fixture
 async def global_concurrency_limit(session):
     gcl_schema = ConcurrencyLimitV2(
-        name="test",
+        name=f"test-{uuid.uuid4()}",
         limit=1,
         active_slots=1,
         slot_decay_per_second=0.1,
@@ -567,12 +568,13 @@ def test_update_gcl_no_fields():
 async def test_create_gcl(
     prefect_client,
 ):
+    gcl_name = f"test-{uuid.uuid4()}"
     await run_sync_in_worker_thread(
         invoke_and_assert,
         [
             "global-concurrency-limit",
             "create",
-            "test",
+            gcl_name,
             "--limit",
             "10",
             "--active-slots",
@@ -580,14 +582,16 @@ async def test_create_gcl(
             "--slot-decay-per-second",
             "0.5",
         ],
-        expected_output_contains="Created global concurrency limit with name 'test' and ID",
+        expected_output_contains=f"Created global concurrency limit with name '{gcl_name}' and ID",
         expected_code=0,
     )
 
-    client_res = await prefect_client.read_global_concurrency_limit_by_name(name="test")
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=gcl_name
+    )
 
-    assert client_res.name == "test", (
-        f"Expected name to be 'test', got {client_res.name}"
+    assert client_res.name == gcl_name, (
+        f"Expected name to be '{gcl_name}', got {client_res.name}"
     )
     assert client_res.limit == 10, f"Expected limit to be 10, got {client_res.limit}"
     assert client_res.active_slots == 10, (
@@ -685,12 +689,13 @@ async def test_create_gcl_duplicate_name(
 async def test_create_gcl_succeeds(
     prefect_client,
 ):
+    gcl_name = f"test-{uuid.uuid4()}"
     await run_sync_in_worker_thread(
         invoke_and_assert,
         [
             "global-concurrency-limit",
             "create",
-            "test",
+            gcl_name,
             "--limit",
             "10",
             "--active-slots",
@@ -698,14 +703,16 @@ async def test_create_gcl_succeeds(
             "--slot-decay-per-second",
             "0.5",
         ],
-        expected_output_contains="Created global concurrency limit with name 'test' and ID",
+        expected_output_contains=f"Created global concurrency limit with name '{gcl_name}' and ID",
         expected_code=0,
     )
 
-    client_res = await prefect_client.read_global_concurrency_limit_by_name(name="test")
+    client_res = await prefect_client.read_global_concurrency_limit_by_name(
+        name=gcl_name
+    )
 
-    assert client_res.name == "test", (
-        f"Expected name to be 'test', got {client_res.name}"
+    assert client_res.name == gcl_name, (
+        f"Expected name to be '{gcl_name}', got {client_res.name}"
     )
     assert client_res.limit == 10, f"Expected limit to be 10, got {client_res.limit}"
     assert client_res.active_slots == 10, (

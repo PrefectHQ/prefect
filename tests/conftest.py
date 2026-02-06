@@ -203,6 +203,19 @@ EXCLUDE_FROM_CLEAR_DB_AUTO_MARK = [
     "tests/cli/cloud/",
     "tests/cli/deploy/",
     "tests/cli/transfer/",
+    # Phase 5 - CLI root test files (Part 1)
+    "tests/cli/test_api_command.py",
+    "tests/cli/test_artifact.py",
+    "tests/cli/test_block.py",
+    "tests/cli/test_dashboard.py",
+    "tests/cli/test_deploy.py",
+    "tests/cli/test_dev.py",
+    "tests/cli/test_events.py",
+    "tests/cli/test_flow_run_watching.py",
+    "tests/cli/test_flow_run.py",
+    "tests/cli/test_flow.py",
+    "tests/cli/test_global_concurrency_limit.py",
+    "tests/cli/test_prompts.py",
 ]
 
 

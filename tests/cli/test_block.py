@@ -268,6 +268,7 @@ def test_register_fails_on_multiple_options():
     )
 
 
+@pytest.mark.clear_db
 def test_listing_blocks_when_none_are_registered():
     invoke_and_assert(
         ["block", "ls"],
@@ -281,7 +282,8 @@ def test_listing_blocks_when_none_are_registered():
 
 
 async def test_listing_blocks_after_saving_a_block():
-    block_id = await system.Secret(value="a casual test block").save("wildblock")
+    block_name = f"wildblock-{uuid.uuid4()}"
+    block_id = await system.Secret(value="a casual test block").save(block_name)
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -293,12 +295,13 @@ async def test_listing_blocks_after_saving_a_block():
             "Slug",
             str(block_id),
             "Secret",
-            "wildblock",
-            "secret/wildblock",
+            block_name,
+            f"secret/{block_name}",
         ],
     )
 
 
+@pytest.mark.clear_db
 def test_listing_blocks_when_none_are_registered_not_json_output():
     invoke_and_assert(
         ["block", "ls", "-o", "xml"],
@@ -307,6 +310,7 @@ def test_listing_blocks_when_none_are_registered_not_json_output():
     )
 
 
+@pytest.mark.clear_db
 def test_listing_blocks_when_none_are_registered_json_output():
     invoke_and_assert(
         ["block", "ls", "-o", "json"],
@@ -316,7 +320,8 @@ def test_listing_blocks_when_none_are_registered_json_output():
 
 
 async def test_listing_blocks_after_saving_a_block_json_output():
-    block_id = await system.Secret(value="a casual test block").save("wildblock")
+    block_name = f"wildblock-{uuid.uuid4()}"
+    block_id = await system.Secret(value="a casual test block").save(block_name)
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -328,7 +333,7 @@ async def test_listing_blocks_after_saving_a_block_json_output():
             "slug",
             str(block_id),
             "secret",
-            "wildblock",
+            block_name,
         ],
     )
 
@@ -380,13 +385,14 @@ def test_listing_system_block_types_json_output(register_block_types):
 
 
 async def test_inspecting_a_block():
-    await system.Secret(value="sk-1234567890").save("secretblob")
+    block_name = f"secretblob-{uuid.uuid4()}"
+    await system.Secret(value="sk-1234567890").save(block_name)
 
     expected_output = ("Block Type", "Block id", "value", "********")
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        ["block", "inspect", "secret/secretblob"],
+        ["block", "inspect", f"secret/{block_name}"],
         expected_code=0,
         expected_output_contains=expected_output,
     )
@@ -401,18 +407,19 @@ def test_inspecting_a_block_malformed_slug():
 
 
 async def test_deleting_a_block():
-    await system.Secret(value="don't delete me please").save("pleasedonterase")
+    block_name = f"pleasedonterase-{uuid.uuid4()}"
+    await system.Secret(value="don't delete me please").save(block_name)
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        ["block", "delete", "secret/pleasedonterase"],
+        ["block", "delete", f"secret/{block_name}"],
         user_input="y",
         expected_code=0,
     )
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        ["block", "inspect", "secret/pleasedonterase"],
+        ["block", "inspect", f"secret/{block_name}"],
         expected_code=1,
     )
 

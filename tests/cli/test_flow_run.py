@@ -4,6 +4,7 @@ import json
 import os
 import signal
 import subprocess
+import uuid
 from time import sleep
 from typing import Any, Awaitable, Callable
 from unittest.mock import MagicMock
@@ -40,12 +41,12 @@ from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
-@flow(name="hello")
+@flow(name=f"hello-{uuid.uuid4()}")
 def hello_flow():
     return "Hello!"
 
 
-@flow(name="goodbye")
+@flow(name=f"goodbye-{uuid.uuid4()}")
 def goodbye_flow():
     return "Goodbye"
 
@@ -97,28 +98,28 @@ def assert_flow_runs_in_result(result: Any, expected: Any, unexpected: Any = Non
 @pytest.fixture
 async def scheduled_flow_run(prefect_client: PrefectClient) -> FlowRun:
     return await prefect_client.create_flow_run(
-        name="scheduled_flow_run", flow=hello_flow, state=Scheduled()
+        name=f"scheduled_flow_run-{uuid.uuid4()}", flow=hello_flow, state=Scheduled()
     )
 
 
 @pytest.fixture
 async def completed_flow_run(prefect_client: PrefectClient) -> FlowRun:
     return await prefect_client.create_flow_run(
-        name="completed_flow_run", flow=hello_flow, state=Completed()
+        name=f"completed_flow_run-{uuid.uuid4()}", flow=hello_flow, state=Completed()
     )
 
 
 @pytest.fixture
 async def running_flow_run(prefect_client: PrefectClient) -> FlowRun:
     return await prefect_client.create_flow_run(
-        name="running_flow_run", flow=goodbye_flow, state=Running()
+        name=f"running_flow_run-{uuid.uuid4()}", flow=goodbye_flow, state=Running()
     )
 
 
 @pytest.fixture
 async def late_flow_run(prefect_client: PrefectClient) -> FlowRun:
     return await prefect_client.create_flow_run(
-        name="late_flow_run", flow=goodbye_flow, state=Late()
+        name=f"late_flow_run-{uuid.uuid4()}", flow=goodbye_flow, state=Late()
     )
 
 
@@ -223,7 +224,7 @@ def test_ls_flow_name_filter(
     late_flow_run: FlowRun,
 ):
     result = invoke_and_assert(
-        command=["flow-run", "ls", "--flow-name", "goodbye"],
+        command=["flow-run", "ls", "--flow-name", goodbye_flow.name],
         expected_code=0,
     )
 
@@ -367,6 +368,7 @@ def test_ls_json_output(
     assert str(running_flow_run.id) in output_ids
 
 
+@pytest.mark.clear_db
 def test_ls_json_output_empty():
     """Test flow-run ls with JSON output when no flow runs exist."""
     result = invoke_and_assert(
@@ -426,7 +428,7 @@ class TestCancelFlowRun:
         states, because they should be set to Cancelled instead.
         """
         before = await prefect_client.create_flow_run(
-            name="scheduled_flow_run", flow=hello_flow, state=state()
+            name=f"scheduled_flow_run-{uuid.uuid4()}", flow=hello_flow, state=state()
         )
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -458,7 +460,7 @@ class TestCancelFlowRun:
     ):
         """Should set the state of the flow run to Cancelled."""
         before = await prefect_client.create_flow_run(
-            name="scheduled_flow_run", flow=hello_flow, state=state()
+            name=f"scheduled_flow_run-{uuid.uuid4()}", flow=hello_flow, state=state()
         )
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -482,7 +484,7 @@ class TestCancelFlowRun:
         self, prefect_client: PrefectClient, state: State
     ):
         before = await prefect_client.create_flow_run(
-            name="scheduled_flow_run", flow=hello_flow, state=state()
+            name=f"scheduled_flow_run-{uuid.uuid4()}", flow=hello_flow, state=state()
         )
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -543,12 +545,13 @@ class TestGetFlowRunByIdOrName:
         flow_id = await prefect_client.create_flow(hello_flow)
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
         )
 
+        flow_run_name = f"not-a-uuid-but-similar-{uuid.uuid4()}"
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id,
-            name="not-a-uuid-but-similar",
+            name=flow_run_name,
         )
         await prefect_client.set_flow_run_state(
             flow_run_id=flow_run.id, state=Failed(), force=True
@@ -556,7 +559,7 @@ class TestGetFlowRunByIdOrName:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=["flow-run", "retry", "not-a-uuid-but-similar"],
+            command=["flow-run", "retry", flow_run_name],
             expected_code=0,
             expected_output_contains="scheduled for retry",
         )
@@ -566,12 +569,13 @@ class TestGetFlowRunByIdOrName:
         flow_id = await prefect_client.create_flow(hello_flow)
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
-            name="test-deployment-case",
+            name=f"test-deployment-case-{uuid.uuid4()}",
         )
 
+        flow_run_name = f"MyFlowRunName-{uuid.uuid4()}"
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id,
-            name="MyFlowRunName",
+            name=flow_run_name,
         )
         await prefect_client.set_flow_run_state(
             flow_run_id=flow_run.id, state=Failed(), force=True
@@ -580,7 +584,7 @@ class TestGetFlowRunByIdOrName:
         # Exact case should work
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=["flow-run", "retry", "MyFlowRunName"],
+            command=["flow-run", "retry", flow_run_name],
             expected_code=0,
             expected_output_contains="scheduled for retry",
         )
@@ -621,13 +625,14 @@ class TestFlowRunRetry:
         flow_id = await prefect_client.create_flow(hello_flow)
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
-            name="test-deployment",
+            name=f"test-deployment-{uuid.uuid4()}",
         )
 
         # Create a flow run with a unique name and deployment, then set to failed state
+        flow_run_name = f"unique-test-flow-run-{uuid.uuid4()}"
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id,
-            name="unique-test-flow-run",
+            name=flow_run_name,
         )
         # Set to terminal state for retry
         await prefect_client.set_flow_run_state(
@@ -636,7 +641,7 @@ class TestFlowRunRetry:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=["flow-run", "retry", "unique-test-flow-run"],
+            command=["flow-run", "retry", flow_run_name],
             expected_code=0,
             expected_output_contains="scheduled for retry",
         )
@@ -651,13 +656,14 @@ class TestFlowRunRetry:
         flow_id = await prefect_client.create_flow(hello_flow)
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
-            name="test-deployment-multi",
+            name=f"test-deployment-multi-{uuid.uuid4()}",
         )
 
         # Create two flow runs with the same name
+        duplicate_name = f"duplicate-name-{uuid.uuid4()}"
         flow_run1 = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id,
-            name="duplicate-name",
+            name=duplicate_name,
         )
         await prefect_client.set_flow_run_state(
             flow_run_id=flow_run1.id, state=Failed(), force=True
@@ -665,7 +671,7 @@ class TestFlowRunRetry:
 
         flow_run2 = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id,
-            name="duplicate-name",
+            name=duplicate_name,
         )
         await prefect_client.set_flow_run_state(
             flow_run_id=flow_run2.id, state=Completed(), force=True
@@ -673,7 +679,7 @@ class TestFlowRunRetry:
 
         await run_sync_in_worker_thread(
             invoke_and_assert,
-            command=["flow-run", "retry", "duplicate-name"],
+            command=["flow-run", "retry", duplicate_name],
             expected_code=1,
             expected_output_contains=[
                 "Multiple flow runs found",
@@ -724,7 +730,7 @@ class TestFlowRunRetry:
         flow_id = await prefect_client.create_flow(hello_flow)
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
-            name="test-deployment-retry",
+            name=f"test-deployment-retry-{uuid.uuid4()}",
         )
 
         # Create a flow run with deployment
@@ -756,7 +762,7 @@ class TestFlowRunRetry:
         flow_id = await prefect_client.create_flow(hello_flow)
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
-            name=f"test-deployment-{state.__name__}",
+            name=f"test-deployment-{state.__name__}-{uuid.uuid4()}",
         )
 
         # Create a flow run with deployment
@@ -1005,7 +1011,7 @@ def infra_test_flow():
         flow_id = await prefect_client.create_flow(hello_flow)
         deployment_id = await prefect_client.create_deployment(
             flow_id=flow_id,
-            name="test-deployment-message",
+            name=f"test-deployment-message-{uuid.uuid4()}",
         )
 
         # Create a flow run with deployment
@@ -1036,7 +1042,7 @@ def flow_run_factory(
 ) -> Callable[[int], Awaitable[FlowRun]]:
     async def create_flow_run(num_logs: int) -> FlowRun:
         flow_run = await prefect_client.create_flow_run(
-            name="scheduled_flow_run", flow=hello_flow
+            name=f"scheduled_flow_run-{uuid.uuid4()}", flow=hello_flow
         )
 
         logs = [

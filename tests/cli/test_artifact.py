@@ -34,7 +34,10 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture
 async def artifact(session: "AsyncSession"):
     artifact_schema = schemas.core.Artifact(
-        key="voltaic", data={"a": 1}, type="table", description="opens many doors"
+        key=f"voltaic-{uuid4()}",
+        data={"a": 1},
+        type="table",
+        description="opens many doors",
     )
     model = (
         await models.artifacts.create_artifact(
@@ -50,7 +53,7 @@ async def artifact(session: "AsyncSession"):
 @pytest.fixture
 async def artifact_null_field(session: "AsyncSession"):
     artifact_schema = schemas.core.Artifact(
-        key="voltaic", data=1, metadata_={"description": "opens many doors"}
+        key=f"voltaic-{uuid4()}", data=1, metadata_={"description": "opens many doors"}
     )
     model = (
         await models.artifacts.create_artifact(
@@ -65,22 +68,24 @@ async def artifact_null_field(session: "AsyncSession"):
 
 @pytest.fixture
 async def artifacts(session: "AsyncSession"):
+    voltaic_key = f"voltaic-{uuid4()}"
+    lotus_key = f"lotus-{uuid4()}"
     model1 = await models.artifacts.create_artifact(
         session=session,
         artifact=schemas.core.Artifact(
-            key="voltaic", data=1, description="opens many doors", type="table"
+            key=voltaic_key, data=1, description="opens many doors", type="table"
         ),
     )
     model2 = await models.artifacts.create_artifact(
         session=session,
         artifact=schemas.core.Artifact(
-            key="voltaic", data=2, description="opens many doors", type="table"
+            key=voltaic_key, data=2, description="opens many doors", type="table"
         ),
     )
     model3 = await models.artifacts.create_artifact(
         session=session,
         artifact=schemas.core.Artifact(
-            key="lotus", data=3, description="opens many doors", type="markdown"
+            key=lotus_key, data=3, description="opens many doors", type="markdown"
         ),
     )
 
@@ -89,6 +94,7 @@ async def artifacts(session: "AsyncSession"):
     return [model1, model2, model3]
 
 
+@pytest.mark.clear_db
 def test_listing_artifacts_when_none_exist():
     invoke_and_assert(
         ["artifact", "ls"],
@@ -191,6 +197,7 @@ def test_listing_artifacts_with_all_set_to_false(
     )
 
 
+@pytest.mark.clear_db
 def test_listing_artifacts_when_none_exist_output_json():
     invoke_and_assert(
         ["artifact", "ls", "-o", "json"],
@@ -353,12 +360,13 @@ def test_inspecting_artifact_with_limit(
 def test_deleting_artifact_by_key_succeeds(
     artifacts: list[models.artifacts.Artifact],
 ):
+    key = artifacts[0].key
     invoke_and_assert(
-        ["artifact", "delete", str(artifacts[0].key)],
+        ["artifact", "delete", str(key)],
         prompts_and_responses=[
-            ("Are you sure you want to delete 2 artifact(s) with key 'voltaic'?", "y"),
+            (f"Are you sure you want to delete 2 artifact(s) with key '{key}'?", "y"),
         ],
-        expected_output_contains="Deleted 2 artifact(s) with key 'voltaic'.",
+        expected_output_contains=f"Deleted 2 artifact(s) with key '{key}'.",
         expected_code=0,
     )
 
