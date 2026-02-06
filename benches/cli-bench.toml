@@ -24,3 +24,21 @@ name = "prefect version"
 args = ["prefect", "version"]
 category = "startup"
 description = "version command"
+
+[[commands]]
+name = "prefect config view (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "config", "view"]
+category = "startup"
+description = "config view via cyclopts"
+
+[[commands]]
+name = "prefect version (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "version"]
+category = "startup"
+description = "version command via cyclopts"
+
+[[commands]]
+name = "prefect profile ls (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "profile", "ls"]
+category = "startup"
+description = "profile ls via cyclopts"
