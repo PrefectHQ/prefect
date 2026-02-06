@@ -2257,7 +2257,7 @@ class TestCachePolicy:
             second_val = my_random_task(x, cmplx_input=thread, return_state=True)
             return first_val, second_val
 
-        first, second = my_param_flow(4200)
+        first, second = my_param_flow(1_000_000_000)
         assert first.name == "Completed"
         assert second.name == "Completed"
 
