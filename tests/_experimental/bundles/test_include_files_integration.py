@@ -411,6 +411,9 @@ class TestBundleUploadWithSidecar:
         self, project_with_files: Path, tmp_path: Path
     ) -> None:
         """upload_bundle_to_storage uploads both bundle and sidecar."""
+        import sys
+        from unittest.mock import patch
+
         from prefect._experimental.bundles import upload_bundle_to_storage
         from prefect._experimental.bundles._file_collector import FileCollector
         from prefect._experimental.bundles._zip_builder import ZipBuilder
@@ -437,7 +440,6 @@ class TestBundleUploadWithSidecar:
 
         # Use a script that copies files to storage (simulating cloud upload)
         # The upload command copies each file to the storage directory
-        import sys
 
         # Create a helper script that copies files preserving directory structure
         helper_script = tmp_path / "upload_helper.py"
@@ -459,13 +461,26 @@ shutil.copy2(src, dest)
 
         upload_command = [sys.executable, str(helper_script)]
 
+        # The upload_step is used by convert_step_to_command to build the sidecar
+        # upload command. We mock convert_step_to_command to return our helper
+        # script command so we don't need `uv run` in tests.
+        upload_step = {"test_module.upload": {}}
+
+        def mock_convert_step(step, key, quiet=False):
+            return [sys.executable, str(helper_script)]
+
         # Upload
-        upload_bundle_to_storage(
-            bundle=bundle,  # type: ignore[arg-type]
-            key="bundle.json",
-            upload_command=upload_command,
-            zip_path=zip_result.zip_path,
-        )
+        with patch(
+            "prefect._experimental.bundles.convert_step_to_command",
+            side_effect=mock_convert_step,
+        ):
+            upload_bundle_to_storage(
+                bundle=bundle,  # type: ignore[arg-type]
+                key="bundle.json",
+                upload_command=upload_command,
+                zip_path=zip_result.zip_path,
+                upload_step=upload_step,
+            )
 
         # Verify bundle was uploaded
         assert (storage_dir / "bundle.json").exists()

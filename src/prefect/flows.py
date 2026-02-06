@@ -2595,7 +2595,13 @@ class InfrastructureBoundFlow(Flow[P, R]):
             )
 
             result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-            upload_bundle_to_storage(result["bundle"], bundle_key, upload_command)
+            upload_bundle_to_storage(
+                result["bundle"],
+                bundle_key,
+                upload_command,
+                zip_path=result["zip_path"],
+                upload_step=work_pool.storage_configuration.bundle_upload_step,
+            )
 
             # Set flow run to scheduled now that the bundle is uploaded and ready to be executed
             client.set_flow_run_state(flow_run.id, state=Scheduled())

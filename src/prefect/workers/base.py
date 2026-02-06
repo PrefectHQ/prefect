@@ -957,7 +957,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         try:
             await aupload_bundle_to_storage(
-                bundle, bundle_key, upload_command, zip_path=zip_path
+                bundle,
+                bundle_key,
+                upload_command,
+                zip_path=zip_path,
+                upload_step=self.work_pool.storage_configuration.bundle_upload_step,
             )
         finally:
             # Clean up zip file after upload (success or failure)

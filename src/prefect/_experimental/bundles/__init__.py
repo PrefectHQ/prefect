@@ -625,6 +625,7 @@ def upload_bundle_to_storage(
     key: str,
     upload_command: list[str],
     zip_path: Path | None = None,
+    upload_step: dict[str, Any] | None = None,
 ) -> None:
     """
     Uploads a bundle to storage.
@@ -635,6 +636,9 @@ def upload_bundle_to_storage(
         upload_command: The command to use to upload the bundle as a list of strings.
         zip_path: Optional path to sidecar zip file. If provided, uploads alongside
             the bundle using the bundle's files_key as the storage key.
+        upload_step: The upload step dict used to build the upload command. Required
+            when uploading a sidecar zip so a separate command with the correct key
+            can be constructed.
     """
     import shutil
 
@@ -659,7 +663,14 @@ def upload_bundle_to_storage(
 
             # Upload sidecar if present
             if zip_path and bundle.get("files_key"):
-                sidecar_command = upload_command + [bundle["files_key"]]
+                if upload_step is None:
+                    raise ValueError(
+                        "upload_step is required when uploading a sidecar zip"
+                    )
+                sidecar_command = convert_step_to_command(
+                    upload_step, bundle["files_key"], quiet=True
+                )
+                sidecar_command.append(bundle["files_key"])
                 logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
                 subprocess.check_call(
                     sidecar_command,
@@ -678,6 +689,7 @@ async def aupload_bundle_to_storage(
     key: str,
     upload_command: list[str],
     zip_path: Path | None = None,
+    upload_step: dict[str, Any] | None = None,
 ) -> None:
     """
     Asynchronously uploads a bundle to storage.
@@ -688,6 +700,9 @@ async def aupload_bundle_to_storage(
         upload_command: The command to use to upload the bundle as a list of strings.
         zip_path: Optional path to sidecar zip file. If provided, uploads alongside
             the bundle using the bundle's files_key as the storage key.
+        upload_step: The upload step dict used to build the upload command. Required
+            when uploading a sidecar zip so a separate command with the correct key
+            can be constructed.
     """
     import shutil
 
@@ -716,7 +731,14 @@ async def aupload_bundle_to_storage(
 
             # Upload sidecar if present
             if zip_path and bundle.get("files_key"):
-                sidecar_command = upload_command + [bundle["files_key"]]
+                if upload_step is None:
+                    raise ValueError(
+                        "upload_step is required when uploading a sidecar zip"
+                    )
+                sidecar_command = convert_step_to_command(
+                    upload_step, bundle["files_key"], quiet=True
+                )
+                sidecar_command.append(bundle["files_key"])
                 logger.debug("Uploading sidecar zip with command: %s", sidecar_command)
                 await anyio.run_process(
                     sidecar_command,
