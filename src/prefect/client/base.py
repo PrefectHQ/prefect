@@ -19,6 +19,7 @@ from typing_extensions import Self
 import prefect
 from prefect._internal.compatibility.starlette import status
 from prefect.client import constants
+from prefect.client.attribution import get_attribution_headers
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
@@ -335,6 +336,16 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         # We ran out of retries, return the failed response
         return response
 
+    def _add_attribution_headers(self, request: Request) -> None:
+        """
+        Add attribution headers to identify the source of API requests.
+
+        These headers help Cloud track which flow runs, deployments, and workers
+        are generating API requests for usage attribution and rate limit debugging.
+        """
+        for header_name, header_value in get_attribution_headers().items():
+            request.headers[header_name] = header_value
+
     async def send(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Send a request with automatic retry behavior for the following status codes:
@@ -346,6 +357,8 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         - 503 Service unavailable
         - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
         """
+        # Add attribution headers for usage tracking
+        self._add_attribution_headers(request)
 
         # Base exceptions that are always retried
         retry_exceptions: tuple[type[Exception], ...] = (
@@ -593,6 +606,16 @@ class PrefectHttpxSyncClient(httpx.Client):
         # We ran out of retries, return the failed response
         return response
 
+    def _add_attribution_headers(self, request: Request) -> None:
+        """
+        Add attribution headers to identify the source of API requests.
+
+        These headers help Cloud track which flow runs, deployments, and workers
+        are generating API requests for usage attribution and rate limit debugging.
+        """
+        for header_name, header_value in get_attribution_headers().items():
+            request.headers[header_name] = header_value
+
     def send(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Send a request with automatic retry behavior for the following status codes:
@@ -604,6 +627,8 @@ class PrefectHttpxSyncClient(httpx.Client):
         - 503 Service unavailable
         - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
         """
+        # Add attribution headers for usage tracking
+        self._add_attribution_headers(request)
 
         # Base exceptions that are always retried
         retry_exceptions: tuple[type[Exception], ...] = (
