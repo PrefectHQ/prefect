@@ -1838,7 +1838,7 @@
       "source": "/v3/manage/cloud/workspaces"
     },
     {
-      "destination": "/integrations/prefect-aws/ecs_guide",
+      "destination": "/integrations/prefect-aws/ecs-worker",
       "source": "/latest/integrations/prefect-aws/ecs_guide"
     },
     {
@@ -1858,7 +1858,7 @@
       "source": "/latest/integrations/prefect-dbt"
     },
     {
-      "destination": "/integrations/prefect-aws/ecs_guide",
+      "destination": "/integrations/prefect-aws/ecs-worker",
       "source": "/latest/integrations/prefect-aws/ecs_worker"
     },
     {
