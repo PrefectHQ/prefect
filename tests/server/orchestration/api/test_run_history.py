@@ -852,7 +852,7 @@ async def test_last_bin_contains_end_date(client, route):
     assert parsed[1].interval_end == dt + timedelta(days=2)
 
 
-async def test_flow_run_lateness(client, session):
+async def test_flow_run_lateness(client, session, start_of_test):
     await session.execute(sa.text("delete from flow where true;"))
 
     f = await models.flows.create_flow(session=session, flow=core.Flow(name="lateness"))
@@ -968,12 +968,12 @@ async def test_flow_run_lateness(client, session):
     # SQLite does not store microseconds. Hence each of the two
     # Scheduled runs estimated lateness can be 'off' by up to
     # a second based on how we estimate the 'current' time used by the api.
-    # Calculate tolerance based on API request latency to avoid flakes.
-    # We multiply test_elapsed by 2 because there are 2 scheduled runs,
-    # and each one's lateness is affected by the API latency.
+    # Use both start_of_test and request_time for a more stable tolerance:
+    # - total_elapsed: total time from test start to now (captures all variability)
+    # - fudge_seconds: compensates for SQLite's lack of microseconds (2 runs * 1s each)
     fudge_seconds = 2.0  # Compensates for SQLite's lack of microseconds
-    test_elapsed = (datetime.now(timezone.utc) - request_time).total_seconds()
-    tolerance = fudge_seconds + 2 * test_elapsed  # SQLite precision + 2x API latency
+    total_elapsed = (datetime.now(timezone.utc) - start_of_test).total_seconds()
+    tolerance = fudge_seconds + total_elapsed
 
     assert (
         abs(
