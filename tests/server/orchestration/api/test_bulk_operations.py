@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from starlette import status
 
+from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
 
 
@@ -309,19 +310,21 @@ class TestFlowRunBulkDelete:
         )
         await session.commit()
 
-        # Delete only PENDING runs
-        response = await hosted_api_client.post(
-            "/flow_runs/bulk_delete",
-            json={
-                "flow_runs": {"state": {"type": {"any_": ["PENDING"]}}},
-            },
-        )
-        assert response.status_code == status.HTTP_200_OK
-        result = response.json()
-        assert len(result["deleted"]) == 1
-        assert str(pending_run.id) in result["deleted"]
-        assert str(running_run.id) not in result["deleted"]
-        assert str(completed_run.id) not in result["deleted"]
+        # Delete only PENDING runs (retry to handle transient SQLite lock 503s)
+        async for attempt in retry_asserts(max_attempts=3, delay=1.0):
+            with attempt:
+                response = await hosted_api_client.post(
+                    "/flow_runs/bulk_delete",
+                    json={
+                        "flow_runs": {"state": {"type": {"any_": ["PENDING"]}}},
+                    },
+                )
+                assert response.status_code == status.HTTP_200_OK
+                result = response.json()
+                assert len(result["deleted"]) == 1
+                assert str(pending_run.id) in result["deleted"]
+                assert str(running_run.id) not in result["deleted"]
+                assert str(completed_run.id) not in result["deleted"]
 
 
 class TestFlowRunBulkSetState:
