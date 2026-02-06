@@ -32,6 +32,7 @@ from typing import (
     NoReturn,
     Optional,
     Protocol,
+    Sequence,
     Tuple,
     Type,
     TypeVar,
@@ -2259,12 +2260,16 @@ class InfrastructureBoundFlow(Flow[P, R]):
         work_pool: str,
         job_variables: dict[str, Any],
         worker_cls: type["BaseWorker[Any, Any, Any]"],
+        include_files: Sequence[str] | None = None,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
         self.work_pool = work_pool
         self.job_variables = job_variables
         self.worker_cls = worker_cls
+        self.include_files: list[str] | None = (
+            list(include_files) if include_files is not None else None
+        )
 
     @overload
     def __call__(self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs) -> None:
@@ -2589,8 +2594,14 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 parent_task_run_id=getattr(parent_task_run, "id", None),
             )
 
-            bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-            upload_bundle_to_storage(bundle, bundle_key, upload_command)
+            result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+            upload_bundle_to_storage(
+                result["bundle"],
+                bundle_key,
+                upload_command,
+                zip_path=result["zip_path"],
+                upload_step=work_pool.storage_configuration.bundle_upload_step,
+            )
 
             # Set flow run to scheduled now that the bundle is uploaded and ready to be executed
             client.set_flow_run_state(flow_run.id, state=Scheduled())
@@ -2623,6 +2634,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         on_crashed: Optional[list[FlowStateHook[P, R]]] = None,
         on_running: Optional[list[FlowStateHook[P, R]]] = None,
         job_variables: Optional[dict[str, Any]] = None,
+        include_files: Optional[list[str]] = NotSet,  # type: ignore
     ) -> "InfrastructureBoundFlow[P, R]":
         new_flow = super().with_options(
             name=name,
@@ -2652,6 +2664,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
             job_variables=job_variables
             if job_variables is not None
             else self.job_variables,
+            include_files=include_files
+            if include_files is not NotSet
+            else self.include_files,
         )
         return new_infrastructure_bound_flow
 
@@ -2661,12 +2676,14 @@ def bind_flow_to_infrastructure(
     work_pool: str,
     worker_cls: type["BaseWorker[Any, Any, Any]"],
     job_variables: dict[str, Any] | None = None,
+    include_files: Sequence[str] | None = None,
 ) -> InfrastructureBoundFlow[P, R]:
     new = InfrastructureBoundFlow[P, R](
         flow.fn,
         work_pool=work_pool,
         job_variables=job_variables or {},
         worker_cls=worker_cls,
+        include_files=include_files,
     )
     # Copy all attributes from the original flow
     for attr, value in flow.__dict__.items():

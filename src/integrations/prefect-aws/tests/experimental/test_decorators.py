@@ -190,3 +190,102 @@ def test_runtime_error_when_work_pool_is_missing_storage_configuration(
         "Please configure storage for the work pool by running `prefect work-pool storage configure`.",
     ):
         test_flow()
+
+
+# Tests for include_files parameter
+
+
+class TestEcsDecoratorIncludeFiles:
+    """Tests for the include_files parameter of the @ecs decorator"""
+
+    def test_include_files_none_passes_none_to_bound_flow(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        """Test that include_files=None passes None to the bound flow"""
+
+        @ecs(work_pool="test-pool")
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        # Verify the include_files attribute is None
+        assert test_flow.include_files is None
+
+    def test_include_files_empty_list_passes_empty_list(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        """Test that include_files=[] passes empty list to the bound flow"""
+
+        @ecs(work_pool="test-pool", include_files=[])
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == []
+
+    def test_include_files_with_valid_strings(self, mock_submit: AsyncMock) -> None:
+        """Test that include_files with valid strings is stored correctly"""
+
+        @ecs(work_pool="test-pool", include_files=["config.yaml", "data/"])
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == ["config.yaml", "data/"]
+
+    def test_include_files_tuple_converted_to_list(
+        self, mock_submit: AsyncMock
+    ) -> None:
+        """Test that include_files tuple is converted to list"""
+
+        @ecs(work_pool="test-pool", include_files=("a.txt", "b.txt"))
+        @prefect.flow
+        def test_flow():
+            return "test"
+
+        assert test_flow.include_files == ["a.txt", "b.txt"]
+        assert isinstance(test_flow.include_files, list)
+
+    def test_include_files_non_string_item_raises_value_error(self) -> None:
+        """Test that non-string items in include_files raise ValueError"""
+        with pytest.raises(
+            ValueError, match=r"include_files\[1\] must be a string, got int"
+        ):
+
+            @ecs(work_pool="test-pool", include_files=["valid", 123])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_empty_string_raises_value_error(self) -> None:
+        """Test that empty string in include_files raises ValueError"""
+        with pytest.raises(
+            ValueError, match=r"include_files\[0\] cannot be empty or whitespace-only"
+        ):
+
+            @ecs(work_pool="test-pool", include_files=[""])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_whitespace_only_raises_value_error(self) -> None:
+        """Test that whitespace-only string in include_files raises ValueError"""
+        with pytest.raises(
+            ValueError, match=r"include_files\[1\] cannot be empty or whitespace-only"
+        ):
+
+            @ecs(work_pool="test-pool", include_files=["valid", "  "])
+            @prefect.flow
+            def test_flow():
+                return "test"
+
+    def test_include_files_none_type_item_raises_value_error(self) -> None:
+        """Test that None item in include_files raises ValueError"""
+        with pytest.raises(
+            ValueError, match=r"include_files\[0\] must be a string, got NoneType"
+        ):
+
+            @ecs(work_pool="test-pool", include_files=[None])  # type: ignore[list-item]
+            @prefect.flow
+            def test_flow():
+                return "test"

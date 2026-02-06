@@ -584,7 +584,8 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             worker_name=self.name,
         )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        creation_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        bundle = creation_result["bundle"]
 
         await (
             anyio.Path(self._tmp_dir)

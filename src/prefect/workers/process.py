@@ -313,12 +313,12 @@ class ProcessWorker(
             worker_name=self.name,
         )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
         logger.debug("Executing flow run bundle in subprocess...")
         try:
             await self._runner.execute_bundle(
-                bundle=bundle,
+                bundle=result["bundle"],
                 cwd=configuration.working_dir,
                 env=configuration.env,
             )
