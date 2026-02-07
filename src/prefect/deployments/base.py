@@ -50,66 +50,35 @@ def create_default_prefect_yaml(
     contents["prefect-version"] = prefect.__version__
     contents["name"] = name
 
+    # Configure YAML writer to conform to common linting standards
+    yl = YAML()
+    yl.indent(mapping=2, sequence=4, offset=2)
+    yl.width = 80
+
+    # Build the complete document structure
+    document = {
+        "name": contents["name"],
+        "prefect-version": contents["prefect-version"],
+        "build": contents.get("build", default_contents.get("build")),
+        "push": contents.get("push", default_contents.get("push")),
+        "pull": contents.get("pull", default_contents.get("pull")),
+        "deployments": contents.get(
+            "deployments", default_contents.get("deployments")
+        ),
+    }
+
     with prefect_file.open(mode="w") as f:
         # write header
         f.write(
-            "# Welcome to your prefect.yaml file! You can use this file for storing and"
-            " managing\n# configuration for deploying your flows. We recommend"
-            " committing this file to source\n# control along with your flow code.\n\n"
+            "# Welcome to your prefect.yaml file! You can use this file for\n"
+            "# storing and managing configuration for deploying your flows. We\n"
+            "# recommend committing this file to source control along with your\n"
+            "# flow code.\n\n"
         )
 
         f.write("# Generic metadata about this project\n")
-        yaml.dump({"name": contents["name"]}, f, sort_keys=False)
-        yaml.dump({"prefect-version": contents["prefect-version"]}, f, sort_keys=False)
-        f.write("\n")
-
-        # build
-        f.write("# build section allows you to manage and build docker images\n")
-        yaml.dump(
-            {"build": contents.get("build", default_contents.get("build"))},
-            f,
-            sort_keys=False,
-        )
-        f.write("\n")
-
-        # push
-        f.write(
-            "# push section allows you to manage if and how this project is uploaded to"
-            " remote locations\n"
-        )
-        yaml.dump(
-            {"push": contents.get("push", default_contents.get("push"))},
-            f,
-            sort_keys=False,
-        )
-        f.write("\n")
-
-        # pull
-        f.write(
-            "# pull section allows you to provide instructions for cloning this project"
-            " in remote locations\n"
-        )
-        yaml.dump(
-            {"pull": contents.get("pull", default_contents.get("pull"))},
-            f,
-            sort_keys=False,
-        )
-        f.write("\n")
-
-        # deployments
-        f.write(
-            "# the deployments section allows you to provide configuration for"
-            " deploying flows\n"
-        )
-        yaml.dump(
-            {
-                "deployments": contents.get(
-                    "deployments", default_contents.get("deployments")
-                )
-            },
-            f,
-            sort_keys=False,
-        )
+        f.write("---\n")
+        yl.dump(document, f)
 
     return True
 
