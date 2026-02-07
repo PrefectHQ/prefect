@@ -1,8 +1,11 @@
 import asyncio
 import time
 import uuid
+from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from websockets.exceptions import ConnectionClosedError
 
 import prefect.client.schemas as client_schemas
 from prefect import flow
@@ -241,3 +244,42 @@ class TestSuspendFlowRunAsyncDispatch:
             RuntimeError, match="Flow runs can only be suspended from within a flow run"
         ):
             suspend_flow_run()
+
+
+class TestWaitForFlowRunWebsocketReconnection:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/18428"""
+
+    async def test_wait_for_flow_run_reconnects_on_connection_error(
+        self, prefect_client: PrefectClient
+    ):
+        @flow(name=f"foo_{uuid.uuid4()}")
+        def foo():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(foo, state=Pending())
+        flow_run_id = flow_run.id
+
+        call_count = 0
+
+        @asynccontextmanager
+        async def mock_subscriber(filter=None):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                yield AsyncMock(__aiter__=lambda self: self, __anext__=_raise_closed)
+            else:
+                await prefect_client.set_flow_run_state(
+                    flow_run_id, Completed(), force=True
+                )
+                yield AsyncMock()
+
+        async def _raise_closed(self):
+            raise ConnectionClosedError(None, None)
+
+        with patch("prefect.flow_runs.get_events_subscriber", mock_subscriber):
+            result = await wait_for_flow_run(flow_run_id, timeout=30)
+
+        assert call_count == 2
+        assert result.id == flow_run_id
+        assert result.state is not None
+        assert result.state.is_completed()
