@@ -763,3 +763,69 @@ class TestPrefectFutureList:
 
         with pytest.raises(TimeoutError, match="oops"):
             futures.result()
+
+    def test_result_fail_fast(self):
+        """A fast failure should be raised even when a slow future precedes it."""
+        import threading
+
+        slow_future = Future()
+        fast_failing_future = Future()
+        fast_failing_future.set_exception(ValueError("fast fail"))
+
+        futures_list: List[PrefectFuture] = [
+            PrefectConcurrentFuture(uuid.uuid4(), slow_future),
+            PrefectConcurrentFuture(uuid.uuid4(), fast_failing_future),
+        ]
+        futures = PrefectFutureList(futures_list)
+
+        # Resolve the slow future in the background so as_completed can finish
+        def resolve_slow():
+            import time
+
+            time.sleep(0.1)
+            slow_future.set_result(Completed(data=1))
+
+        t = threading.Thread(target=resolve_slow)
+        t.start()
+
+        with pytest.raises(ValueError, match="fast fail"):
+            futures.result()
+
+        t.join()
+
+    def test_result_preserves_order(self):
+        """Results should be returned in the original list order, not completion order."""
+        import threading
+
+        f1 = Future()
+        f2 = Future()
+
+        # f2 completes before f1
+        f2.set_result(Completed(data="second"))
+
+        futures_list: List[PrefectFuture] = [
+            PrefectConcurrentFuture(uuid.uuid4(), f1),
+            PrefectConcurrentFuture(uuid.uuid4(), f2),
+        ]
+        futures = PrefectFutureList(futures_list)
+
+        def resolve_f1():
+            import time
+
+            time.sleep(0.05)
+            f1.set_result(Completed(data="first"))
+
+        t = threading.Thread(target=resolve_f1)
+        t.start()
+
+        result = futures.result()
+        assert result == ["first", "second"]
+
+        t.join()
+
+    def test_result_with_duplicate_futures(self):
+        """Duplicate future objects should produce the same result at each position."""
+        mock_future = MockFuture(data=42)
+        futures = PrefectFutureList([mock_future, MockFuture(data=1), mock_future])
+        result = futures.result()
+        assert result == [42, 1, 42]
