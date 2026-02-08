@@ -56,6 +56,7 @@ async def agit_clone(
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
     clone_directory_name: Optional[str] = None,
+    fallback_branch: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Asynchronously clones a git repository into the current working directory.
@@ -71,6 +72,9 @@ async def agit_clone(
             credentials to use for cloning the repository.
         clone_directory_name: the name of the local directory to clone into; if not provided,
             the name will be inferred from the repository URL and branch
+        fallback_branch: an optional fallback branch to use if the primary branch does not exist
+            during flow run execution; useful when a feature branch is deleted after merging.
+            Note: fallback only applies at runtime, not during deployment definition with from_source()
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -93,6 +97,7 @@ async def agit_clone(
         include_submodules=include_submodules,
         directories=directories,
         name=clone_directory_name,
+        fallback_branch=fallback_branch,
     )
 
     await _pull_git_repository_with_retries(storage)
@@ -110,6 +115,7 @@ def git_clone(
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
     clone_directory_name: Optional[str] = None,
+    fallback_branch: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
@@ -126,6 +132,9 @@ def git_clone(
         directories: Specify directories you want to be included (uses git sparse-checkout)
         clone_directory_name: the name of the local directory to clone into; if not provided,
             the name will be inferred from the repository URL and branch
+        fallback_branch: an optional fallback branch to use if the primary branch does not exist
+            during flow run execution; useful when a feature branch is deleted after merging.
+            Note: fallback only applies at runtime, not during deployment definition with from_source()
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -200,6 +209,15 @@ def git_clone(
                 branch: dev
                 clone_directory_name: my-custom-name
         ```
+
+        Clone a repository with a fallback branch (useful when feature branches are deleted after merging):
+        ```yaml
+        pull:
+            - prefect.deployments.steps.git_clone:
+                repository: https://github.com/org/repo.git
+                branch: feature/my-feature
+                fallback_branch: main
+        ```
     """
     if access_token and credentials:
         raise ValueError(
@@ -216,6 +234,7 @@ def git_clone(
         include_submodules=include_submodules,
         directories=directories,
         name=clone_directory_name,
+        fallback_branch=fallback_branch,
     )
 
     run_coro_as_sync(_pull_git_repository_with_retries(storage))

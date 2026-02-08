@@ -1,5 +1,6 @@
 import re
 import shutil
+import subprocess
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
@@ -9,6 +10,7 @@ from urllib.parse import urlparse, urlunparse
 import pytest
 from pydantic import SecretStr
 
+from prefect._internal.uuid7 import uuid7
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.deployments.steps.core import run_step
@@ -206,6 +208,172 @@ class TestGitRepository:
         )
         assert repo._name == "repo-feature-test-branch"
 
+    def test_init_with_fallback_branch(self):
+        """Test that fallback_branch can be provided with a primary branch."""
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            branch="feature/my-feature",
+            fallback_branch="main",
+        )
+        assert repo._branch == "feature/my-feature"
+        assert repo._fallback_branch == "main"
+
+    def test_init_fallback_branch_without_primary_branch_raises(self):
+        """Test that fallback_branch requires a primary branch."""
+        with pytest.raises(
+            ValueError,
+            match="A fallback_branch can only be specified when a primary branch is also provided.",
+        ):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                fallback_branch="main",
+            )
+
+    def test_init_fallback_branch_same_as_primary_raises(self):
+        """Test that fallback_branch cannot be the same as the primary branch."""
+        with pytest.raises(
+            ValueError,
+            match="The fallback_branch cannot be the same as the primary branch.",
+        ):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="main",
+                fallback_branch="main",
+            )
+
+    async def test_clone_with_fallback_branch_success_on_primary(self, monkeypatch):
+        """Test that primary branch is used when clone succeeds (runtime execution)."""
+        mock_run_process = AsyncMock()
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        # Mock runtime context to simulate flow run execution
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(uuid7()))
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            branch="feature/exists",
+            fallback_branch="main",
+        )
+        await repo.pull_code()
+
+        # Should only call clone once with the primary branch
+        assert mock_run_process.await_count == 1
+        clone_cmd = mock_run_process.call_args_list[0][0][0]
+        assert "--branch" in clone_cmd
+        assert clone_cmd[clone_cmd.index("--branch") + 1] == "feature/exists"
+
+        # Branch should remain as primary
+        assert repo._branch == "feature/exists"
+
+    async def test_clone_with_fallback_branch_both_fail(self, monkeypatch):
+        """Test that error is raised when both primary and fallback branches fail (runtime execution)."""
+
+        async def mock_run_process(cmd, **kwargs):
+            raise subprocess.CalledProcessError(128, cmd)
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        # Mock runtime context to simulate flow run execution
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(uuid7()))
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            branch="feature/deleted",
+            fallback_branch="also-deleted",
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match=r"Failed to clone repository .* on branch 'also-deleted'",
+        ):
+            await repo.pull_code()
+
+    async def test_clone_with_fallback_branch_fails_without_runtime_context(
+        self, monkeypatch
+    ):
+        """Test that fallback is NOT used during deployment definition (no runtime context)."""
+
+        async def mock_run_process(cmd, **kwargs):
+            # Always fail to simulate deleted branch
+            raise subprocess.CalledProcessError(128, cmd)
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        # Do NOT set PREFECT__FLOW_RUN_ID - simulates deployment definition time
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            branch="feature/deleted",
+            fallback_branch="main",
+        )
+
+        # Should fail immediately on primary branch without trying fallback
+        with pytest.raises(
+            RuntimeError,
+            match=r"Failed to clone repository .* on branch 'feature/deleted'",
+        ):
+            await repo.pull_code()
+
+        # Verify fallback was not used (branch should still be the primary)
+        assert repo._branch == "feature/deleted"
+        assert repo._fallback_branch == "main"
+
+    async def test_pull_uses_updated_branch_after_fallback(self, monkeypatch):
+        """Test that subsequent pulls use the fallback branch after it was used for cloning (runtime execution)."""
+        is_first_clone = True
+        pull_called = False
+
+        async def mock_run_process(cmd, **kwargs):
+            nonlocal is_first_clone, pull_called
+            if "clone" in cmd:
+                if is_first_clone:
+                    is_first_clone = False
+                    # First clone (primary branch) fails
+                    raise subprocess.CalledProcessError(128, cmd)
+                # Second clone (fallback) succeeds
+                return MagicMock()
+            elif "pull" in cmd:
+                pull_called = True
+                # Verify pull is using the fallback branch
+                assert "main" in cmd
+                assert "feature/deleted" not in cmd
+                return MagicMock()
+            elif "config" in cmd:
+                # Mock git config check
+                class Result:
+                    stdout = b"https://github.com/org/repo.git"
+
+                return Result()
+            return MagicMock()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+
+        # Mock runtime context to simulate flow run execution
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(uuid7()))
+
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            branch="feature/deleted",
+            fallback_branch="main",
+        )
+
+        # First pull will trigger clone with fallback
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        await repo.pull_code()
+        assert repo._branch == "main"
+        assert repo._fallback_branch is None  # Fallback cleared after use
+
+        # Second pull should use the updated branch
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+        await repo.pull_code()
+
+        assert pull_called
+        assert repo._branch == "main"
+        assert repo._fallback_branch is None
+
     def test_destination_property(self, monkeypatch):
         monkeypatch.chdir("/tmp")
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
@@ -399,6 +567,17 @@ class TestGitRepository:
         assert (
             repr(repo) == "GitRepository(name='repo'"
             " repository='https://github.com/org/repo.git', branch=None)"
+        )
+
+    def test_repr_with_fallback_branch(self):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            branch="feature/my-feature",
+            fallback_branch="main",
+        )
+        assert (
+            repr(repo) == "GitRepository(name='repo-feature-my-feature'"
+            " repository='https://github.com/org/repo.git', branch='feature/my-feature', fallback_branch='main')"
         )
 
     async def test_include_submodules_property(
@@ -906,6 +1085,44 @@ class TestGitRepository:
 
             result = repo.to_pull_step()
             assert result == expected_output
+
+        def test_to_pull_step_with_fallback_branch(self):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="feature/my-feature",
+                fallback_branch="main",
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "feature/my-feature",
+                    "fallback_branch": "main",
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+
+        def test_to_pull_step_after_fallback_clears_fallback_branch(self):
+            """Test that fallback_branch is not serialized when set to None after fallback."""
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                branch="main",
+                fallback_branch=None,  # Simulates state after fallback was used
+            )
+            expected_output = {
+                "prefect.deployments.steps.git_clone": {
+                    "repository": "https://github.com/org/repo.git",
+                    "branch": "main",
+                    # Note: fallback_branch should NOT be in output
+                }
+            }
+
+            result = repo.to_pull_step()
+            assert result == expected_output
+            assert (
+                "fallback_branch" not in result["prefect.deployments.steps.git_clone"]
+            )
 
         def test_to_pull_step_with_unsaved_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")

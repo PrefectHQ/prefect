@@ -131,6 +131,9 @@ class GitRepository:
             remote storage to local storage. If None, remote storage will perform
             a one-time sync.
         directories: The directories to pull from the Git repository (uses git sparse-checkout)
+        fallback_branch: An optional fallback branch to use if the primary branch
+            does not exist during flow run execution. Useful when a feature branch is deleted after merging.
+            Note: fallback only applies at runtime, not during deployment definition with from_source().
 
     Examples:
         Pull the contents of a private git repository to the local filesystem:
@@ -157,6 +160,7 @@ class GitRepository:
         include_submodules: bool = False,
         pull_interval: int | None = 60,
         directories: list[str] | None = None,
+        fallback_branch: str | None = None,
     ):
         if credentials is None:
             credentials = {}
@@ -176,11 +180,22 @@ class GitRepository:
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
 
+        if fallback_branch:
+            if fallback_branch == branch:
+                raise ValueError(
+                    "The fallback_branch cannot be the same as the primary branch."
+                )
+            if not branch:
+                raise ValueError(
+                    "A fallback_branch can only be specified when a primary branch is also provided."
+                )
+
         self._url = url
         self._branch = branch
         self._commit_sha = commit_sha
         self._credentials = credentials
         self._include_submodules = include_submodules
+        self._fallback_branch = fallback_branch
         repo_name = urlparse(url).path.split("/")[-1].replace(".git", "")
         safe_branch = branch.replace("/", "-") if branch else None
         default_name = f"{repo_name}-{safe_branch}" if safe_branch else repo_name
@@ -416,11 +431,17 @@ class GitRepository:
         else:
             await self._clone_repo()
 
-    async def _clone_repo(self):
+    async def _clone_repo(self, branch_override: str | None = None):
         """
         Clones the repository into the local destination.
+
+        Args:
+            branch_override: Optional branch to use instead of self._branch
         """
-        self._logger.debug("Cloning repository %s", self._url)
+        branch_to_use = branch_override or self._branch
+        self._logger.debug(
+            "Cloning repository %s (branch: %s)", self._url, branch_to_use or "default"
+        )
 
         repository_url = self._repository_url_with_credentials
         cmd = ["git"]
@@ -440,8 +461,8 @@ class GitRepository:
             cmd += ["--filter=blob:none", "--no-checkout"]
 
         else:
-            if self._branch:
-                cmd += ["--branch", self._branch]
+            if branch_to_use:
+                cmd += ["--branch", branch_to_use]
 
             # Limit git history
             cmd += ["--depth", "1"]
@@ -452,6 +473,30 @@ class GitRepository:
         try:
             await run_process(cmd)
         except subprocess.CalledProcessError as exc:
+            # Try fallback branch only during runtime execution (not during deployment definition)
+            is_first_attempt = branch_override is None
+
+            if is_first_attempt and self._fallback_branch:
+                from prefect.runtime import flow_run
+
+                is_runtime_execution = flow_run.id is not None
+
+                if is_runtime_execution:
+                    self._logger.warning(
+                        "Failed to clone branch %r, attempting fallback branch %r",
+                        self._branch,
+                        self._fallback_branch,
+                    )
+                    await self._clone_repo(branch_override=self._fallback_branch)
+                    self._logger.info(
+                        "Successfully cloned fallback branch %r, all future operations will use this branch",
+                        self._fallback_branch,
+                    )
+                    # Update state: primary branch becomes fallback, fallback no longer needed
+                    self._branch = self._fallback_branch
+                    self._fallback_branch = None
+                    return
+
             # Hide the command used to avoid leaking the access token
             parsed_url = urlparse(self._url)
             exc_chain = (
@@ -459,9 +504,10 @@ class GitRepository:
                 if self._credentials or parsed_url.password or parsed_url.username
                 else exc
             )
+            branch_info = f" on branch {branch_to_use!r}" if branch_to_use else ""
             raise RuntimeError(
-                f"Failed to clone repository {strip_auth_from_url(self._url)!r} with exit code"
-                f" {exc.returncode}."
+                f"Failed to clone repository {strip_auth_from_url(self._url)!r}"
+                f"{branch_info} with exit code {exc.returncode}."
             ) from exc_chain
 
         if self._commit_sha:
@@ -491,14 +537,19 @@ class GitRepository:
                 self._url == __value._url
                 and self._branch == __value._branch
                 and self._name == __value._name
+                and self._fallback_branch == __value._fallback_branch
             )
         return False
 
     def __repr__(self) -> str:
-        return (
+        repr_str = (
             f"GitRepository(name={self._name!r} repository={self._url!r},"
-            f" branch={self._branch!r})"
+            f" branch={self._branch!r}"
         )
+        if self._fallback_branch:
+            repr_str += f", fallback_branch={self._fallback_branch!r}"
+        repr_str += ")"
+        return repr_str
 
     def to_pull_step(self) -> dict[str, Any]:
         pull_step: dict[str, Any] = {
@@ -530,6 +581,10 @@ class GitRepository:
         if self._commit_sha:
             pull_step["prefect.deployments.steps.git_clone"]["commit_sha"] = (
                 self._commit_sha
+            )
+        if self._fallback_branch:
+            pull_step["prefect.deployments.steps.git_clone"]["fallback_branch"] = (
+                self._fallback_branch
             )
         if isinstance(self._credentials, Block):
             pull_step["prefect.deployments.steps.git_clone"]["credentials"] = (
