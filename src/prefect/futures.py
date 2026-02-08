@@ -517,12 +517,16 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         results: list[R] = [None] * len(self)  # type: ignore[list-item]
 
         try:
-            # as_completed de-duplicates internally; each unique future is
-            # yielded exactly once, in completion order.
-            for future in as_completed(list(self), timeout=timeout):
-                result = future.result(raise_on_failure=raise_on_failure)
-                for i in future_to_indices[future]:
-                    results[i] = result
+            # Wrap the entire loop in timeout_context so that both the wait
+            # for futures *and* any slow result retrieval (e.g. large data
+            # deserialization) are bounded by the caller's timeout.
+            with timeout_context(timeout):
+                # as_completed de-duplicates internally; each unique future
+                # is yielded exactly once, in completion order.
+                for future in as_completed(list(self), timeout=timeout):
+                    result = future.result(raise_on_failure=raise_on_failure)
+                    for i in future_to_indices[future]:
+                        results[i] = result
         except TimeoutError as exc:
             # timeout came from inside the task
             if "Scope timed out after {timeout} second(s)." not in str(exc):
