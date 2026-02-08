@@ -1,3 +1,4 @@
+---
 prefect-version: null
 name: null
 description: "Store code within an Azure Blob Storage container"
@@ -7,7 +8,7 @@ required_inputs:
 
 build: null
 
-push: 
+push:
   - prefect_azure.deployments.steps.push_to_azure_blob_storage:
       id: "push_code"
       requires: "prefect-azure[blob_storage]>=0.2.8"
