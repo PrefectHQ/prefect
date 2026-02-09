@@ -1,6 +1,6 @@
-# Agents Guide for Prefect Documentation
+# Prefect Documentation Guide
 
-This file guides AI agents when creating and updating documentation in this directory.
+Guidelines for creating and updating documentation in this directory.
 
 ## Platform
 
