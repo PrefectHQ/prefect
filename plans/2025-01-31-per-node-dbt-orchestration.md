@@ -1015,7 +1015,7 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ### Phase 5: Per-Node Execution Mode ✅
 
-**Status**: Complete — PR #TBD
+**Status**: Complete — [PR #20608](https://github.com/PrefectHQ/prefect/pull/20608)
 
 **PR Scope**: Add PER_NODE execution with retries.
 
