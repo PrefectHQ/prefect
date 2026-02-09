@@ -8,13 +8,11 @@ import { router } from "@/router";
 
 const renderDashboardPage = async () => {
 	const user = userEvent.setup();
-	const result = await waitFor(() =>
-		render(<RouterProvider router={router} />, {
-			wrapper: createWrapper(),
-		}),
-	);
+	const view = render(<RouterProvider router={router} />, {
+		wrapper: createWrapper(),
+	});
 	await user.click(screen.getByRole("link", { name: "Dashboard" }));
-	return result;
+	return view;
 };
 
 describe("Dashboard page", () => {
