@@ -8,6 +8,8 @@ on:
 jobs:
   nightly-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -79,4 +81,4 @@ jobs:
           draft: false
           prerelease: true
           generate_release_notes: true
-          token: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}
+          token: ${{ secrets.GITHUB_TOKEN }}
