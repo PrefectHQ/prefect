@@ -5,20 +5,18 @@ import { useState } from "react";
 import { Input, type InputProps } from "@/components/ui/input";
 
 const verifyCronValue = (cronValue: string) => {
-	let description = "";
-	let isCronValid = false;
 	try {
 		CronExpressionParser.parse(cronValue);
-		description = cronstrue.toString(cronValue);
-		isCronValid = true;
+		return {
+			description: cronstrue.toString(cronValue),
+			isCronValid: true,
+		};
 	} catch {
-		isCronValid = false;
-		description = "Invalid expression";
+		return {
+			description: "Invalid expression",
+			isCronValid: false,
+		};
 	}
-	return {
-		description,
-		isCronValid,
-	};
 };
 
 export type CronInputProps = InputProps;

@@ -2,15 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import "@/mocks/mock-json-input";
 import { RouterProvider } from "@tanstack/react-router";
-import {
-	getByLabelText,
-	getByTestId,
-	getByText,
-	render,
-	screen,
-	waitFor,
-	within,
-} from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
@@ -28,14 +20,11 @@ import { router } from "@/router";
 
 const renderVariablesPage = async () => {
 	const user = userEvent.setup();
-	// Render with router provider
-	const result = await waitFor(() =>
-		render(<RouterProvider router={router} />, {
-			wrapper: createWrapper(),
-		}),
-	);
-	await user.click(screen.getByRole("link", { name: "Variables" }));
-	return result;
+	const view = render(<RouterProvider router={router} />, {
+		wrapper: createWrapper(),
+	});
+	await user.click(await screen.findByRole("link", { name: "Variables" }));
+	return view;
 };
 
 describe("Variables page", () => {
@@ -55,12 +44,10 @@ describe("Variables page", () => {
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 			const dialog = screen.getByRole("dialog");
 			expect(dialog).toBeVisible();
-			// Get the footer close button for the dialog (the one inside the form, not the X icon in the corner)
-			const form = dialog.querySelector("form");
-			const closeButton = within(form as HTMLElement).getByRole("button", {
+			const closeButtons = within(dialog).getAllByRole("button", {
 				name: "Close",
 			});
-			await user.click(closeButton);
+			await user.click(closeButtons[closeButtons.length - 1]);
 			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 		});
 
@@ -72,12 +59,10 @@ describe("Variables page", () => {
 			const dialog = screen.getByRole("dialog");
 			await user.type(screen.getByLabelText("Name"), "my-variable");
 			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
-			// Get the footer close button for the dialog (the one inside the form, not the X icon in the corner)
-			const form = dialog.querySelector("form");
-			const closeButton = within(form as HTMLElement).getByRole("button", {
+			const closeButtons = within(dialog).getAllByRole("button", {
 				name: "Close",
 			});
-			await user.click(closeButton);
+			await user.click(closeButtons[closeButtons.length - 1]);
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 
 			expect(screen.getByLabelText("Name")).toHaveValue("");
@@ -190,16 +175,16 @@ describe("Variables page", () => {
 
 			await renderVariablesPage();
 
-			await user.click(screen.getByRole("button", { expanded: false }));
+			await user.click(await screen.findByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Edit"));
 			expect(screen.getByText("Edit Variable")).toBeVisible();
 
 			const dialog = screen.getByRole("dialog");
-			expect(getByLabelText(dialog, "Name")).toHaveValue("my-variable");
-			expect(getByTestId(dialog, "mock-json-input")).toHaveValue("123");
-			expect(getByText(dialog, "tag1")).toBeVisible();
+			expect(within(dialog).getByLabelText("Name")).toHaveValue("my-variable");
+			expect(within(dialog).getByTestId("mock-json-input")).toHaveValue("123");
+			expect(within(dialog).getByText("tag1")).toBeVisible();
 
-			await user.type(getByLabelText(dialog, "Name"), "new_name");
+			await user.type(within(dialog).getByLabelText("Name"), "new_name");
 			await user.click(screen.getByRole("button", { name: "Save" }));
 			await waitFor(() => {
 				expect(screen.getByText("Variable updated")).toBeVisible();
@@ -235,14 +220,14 @@ describe("Variables page", () => {
 
 			await renderVariablesPage();
 
-			await user.click(screen.getByRole("button", { expanded: false }));
+			await user.click(await screen.findByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Edit"));
 			expect(screen.getByText("Edit Variable")).toBeVisible();
 
 			const dialog = screen.getByRole("dialog");
-			expect(getByLabelText(dialog, "Name")).toHaveValue("my-variable");
+			expect(within(dialog).getByLabelText("Name")).toHaveValue("my-variable");
 
-			await user.type(getByLabelText(dialog, "Name"), "new_name");
+			await user.type(within(dialog).getByLabelText("Name"), "new_name");
 			await user.click(screen.getByRole("button", { name: "Save" }));
 			expect(
 				screen.getByText("Failed to update variable. Here's some detail..."),
@@ -279,13 +264,13 @@ describe("Variables page", () => {
 
 		await renderVariablesPage();
 
-		await user.click(screen.getByRole("button", { expanded: false }));
+		await user.click(await screen.findByRole("button", { expanded: false }));
 		await user.click(screen.getByText("Edit"));
 
 		const dialog = screen.getByRole("dialog");
-		expect(getByLabelText(dialog, "Name")).toHaveValue("my-variable");
+		expect(within(dialog).getByLabelText("Name")).toHaveValue("my-variable");
 
-		await user.type(getByLabelText(dialog, "Name"), "new_name");
+		await user.type(within(dialog).getByLabelText("Name"), "new_name");
 		await user.click(screen.getByRole("button", { name: "Save" }));
 		expect(screen.getByText("Unknown error", { exact: false })).toBeVisible();
 	});
@@ -456,7 +441,7 @@ describe("Variables page", () => {
 				{ wrapper: createWrapper() },
 			);
 
-			await user.click(screen.getByRole("button", { expanded: false }));
+			await user.click(await screen.findByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Copy ID"));
 			expect(await navigator.clipboard.readText()).toBe("1");
 		});
@@ -488,7 +473,7 @@ describe("Variables page", () => {
 				{ wrapper: createWrapper() },
 			);
 
-			await user.click(screen.getByRole("button", { expanded: false }));
+			await user.click(await screen.findByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Copy Name"));
 			expect(await navigator.clipboard.readText()).toBe("my-variable");
 		});
@@ -520,7 +505,7 @@ describe("Variables page", () => {
 				{ wrapper: createWrapper() },
 			);
 
-			await user.click(screen.getByRole("button", { expanded: false }));
+			await user.click(await screen.findByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Copy Value"));
 			expect(await navigator.clipboard.readText()).toBe("123");
 		});
@@ -555,7 +540,7 @@ describe("Variables page", () => {
 				{ wrapper: createWrapper() },
 			);
 
-			await user.click(screen.getByRole("button", { expanded: false }));
+			await user.click(await screen.findByRole("button", { expanded: false }));
 			await user.click(screen.getByText("Delete"));
 			await waitFor(() => {
 				expect(screen.getByText("Variable deleted")).toBeVisible();

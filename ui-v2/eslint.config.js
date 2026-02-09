@@ -43,8 +43,6 @@ export default tseslint.config(
 			...react.configs.recommended.rules,
 			...react.configs["jsx-runtime"].rules,
 			"react/prop-types": "off",
-			"no-useless-assignment": "off",
-			"preserve-caught-error": "off",
 		},
 	},
 	...pluginQuery.configs["flat/recommended"],
@@ -54,10 +52,6 @@ export default tseslint.config(
 		plugins: testingLibrary.configs["flat/react"].plugins,
 		rules: {
 			...testingLibrary.configs["flat/react"].rules,
-			"testing-library/no-wait-for-side-effects": "off",
-			"testing-library/no-manual-cleanup": "off",
-			"testing-library/no-node-access": "off",
-			"testing-library/prefer-screen-queries": "off",
 		},
 	},
 );

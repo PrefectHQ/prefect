@@ -1,6 +1,5 @@
 /// <reference lib="dom" />
 import * as matchers from "@testing-library/jest-dom/matchers";
-import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, expect, vi } from "vitest";
 import "@testing-library/jest-dom";
 import { uiSettings } from "../src/api/ui-settings";
@@ -23,10 +22,6 @@ afterEach(() => {
 afterAll(() => server.close());
 
 expect.extend(matchers);
-
-afterEach(() => {
-	cleanup();
-});
 
 // Mock matchMedia
 Object.defineProperty(window, "matchMedia", {
