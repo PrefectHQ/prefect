@@ -102,3 +102,36 @@ jobs:
         working-directory: src/integrations/${{ matrix.package }}
         run: >
           uv run pytest tests
+
+  run-prefect-dbt-integration-tests:
+    timeout-minutes: 20
+
+    name: Run prefect-dbt integration tests (DuckDB, Python ${{ matrix.python-version }})
+    needs: prepare-matrix
+    if: contains(toJSON(needs.prepare-matrix.outputs.matrix), 'prefect-dbt')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+          cache-dependency-glob: "src/integrations/prefect-dbt/pyproject.toml"
+
+      - name: Run integration tests
+        env:
+          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        working-directory: src/integrations/prefect-dbt
+        run: >
+          uv run --group integration pytest
+          -m integration
+          --verbose

@@ -199,7 +199,7 @@ class TestExecuteNode:
         assert result.error is None
         args = _invoked_args(mock_runner)
         assert args[0] == command
-        assert unique_id in args
+        assert name in args
 
     def test_full_refresh(self, mock_dbt):
         _, mock_runner = mock_dbt
@@ -351,9 +351,10 @@ class TestExecuteWave:
         assert result.success is True
         assert set(result.node_ids) == {"model.test.a", "model.test.b", "model.test.c"}
         args = _invoked_args(mock_runner)
-        assert "model.test.a" in args
-        assert "model.test.b" in args
-        assert "model.test.c" in args
+        # CLI args contain node names (dbt selectors), not unique_ids
+        assert "a" in args
+        assert "b" in args
+        assert "c" in args
 
     def test_mixed_resource_types(self, mock_dbt):
         _, mock_runner = mock_dbt
