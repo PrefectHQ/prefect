@@ -287,14 +287,46 @@ class TestDbtNode:
         )
         assert node.is_executable is False
 
-    def test_dbt_selector(self):
-        """dbt_selector should return the unique_id."""
+    def test_dbt_selector_uses_path(self):
+        """dbt_selector should return path:<file> when original_file_path is set."""
+        node = DbtNode(
+            unique_id="model.analytics.stg_users",
+            name="stg_users",
+            resource_type=NodeType.Model,
+            fqn=("analytics", "staging", "stg_users"),
+            original_file_path="models/staging/stg_users.sql",
+        )
+        assert node.dbt_selector == "path:models/staging/stg_users.sql"
+
+    def test_dbt_selector_falls_back_to_fqn(self):
+        """dbt_selector should fall back to FQN when file path is absent."""
+        node = DbtNode(
+            unique_id="model.analytics.stg_users",
+            name="stg_users",
+            resource_type=NodeType.Model,
+            fqn=("analytics", "staging", "stg_users"),
+        )
+        assert node.dbt_selector == "analytics.staging.stg_users"
+
+    def test_dbt_selector_falls_back_to_name(self):
+        """dbt_selector should fall back to name when FQN and path are empty."""
         node = DbtNode(
             unique_id="model.analytics.stg_users",
             name="stg_users",
             resource_type=NodeType.Model,
         )
-        assert node.dbt_selector == "model.analytics.stg_users"
+        assert node.dbt_selector == "stg_users"
+
+    def test_dbt_selector_skips_path_for_non_runnable_types(self):
+        """Test nodes share YAML files, so path: would over-select; fall back to FQN."""
+        node = DbtNode(
+            unique_id="test.analytics.not_null_stg_users_id",
+            name="not_null_stg_users_id",
+            resource_type=NodeType.Test,
+            fqn=("analytics", "not_null_stg_users_id"),
+            original_file_path="models/staging/schema.yml",
+        )
+        assert node.dbt_selector == "analytics.not_null_stg_users_id"
 
     def test_hashability(self):
         """DbtNode should be hashable (usable in sets/dicts)."""
@@ -1027,8 +1059,8 @@ class TestResolveSelection:
         mock_result = MagicMock()
         mock_result.success = True
         mock_result.result = [
-            "model.proj.stg_users",
-            "model.proj.stg_orders",
+            json.dumps({"unique_id": "model.proj.stg_users"}),
+            json.dumps({"unique_id": "model.proj.stg_orders"}),
         ]
         mock_runner_cls.return_value.invoke.return_value = mock_result
 
@@ -1049,7 +1081,9 @@ class TestResolveSelection:
         """Invokes dbt ls with --exclude flag."""
         mock_result = MagicMock()
         mock_result.success = True
-        mock_result.result = ["model.proj.stg_users"]
+        mock_result.result = [
+            json.dumps({"unique_id": "model.proj.stg_users"}),
+        ]
         mock_runner_cls.return_value.invoke.return_value = mock_result
 
         result = resolve_selection(
@@ -1070,7 +1104,9 @@ class TestResolveSelection:
         """Invokes dbt ls with both --select and --exclude."""
         mock_result = MagicMock()
         mock_result.success = True
-        mock_result.result = ["model.proj.dim_users"]
+        mock_result.result = [
+            json.dumps({"unique_id": "model.proj.dim_users"}),
+        ]
         mock_runner_cls.return_value.invoke.return_value = mock_result
 
         result = resolve_selection(
@@ -1094,9 +1130,9 @@ class TestResolveSelection:
         mock_result = MagicMock()
         mock_result.success = True
         mock_result.result = [
-            "model.proj.a",
-            "model.proj.b",
-            "seed.proj.c",
+            json.dumps({"unique_id": "model.proj.a"}),
+            json.dumps({"unique_id": "model.proj.b"}),
+            json.dumps({"unique_id": "seed.proj.c"}),
         ]
         mock_runner_cls.return_value.invoke.return_value = mock_result
 
@@ -1157,7 +1193,7 @@ class TestResolveSelection:
         """target_path is passed when provided."""
         mock_result = MagicMock()
         mock_result.success = True
-        mock_result.result = ["model.proj.a"]
+        mock_result.result = [json.dumps({"unique_id": "model.proj.a"})]
         mock_runner_cls.return_value.invoke.return_value = mock_result
 
         target = tmp_path / "custom_target"

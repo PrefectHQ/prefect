@@ -85,7 +85,11 @@ class DbtCoreExecutor:
         self._favor_state = favor_state
 
     def _invoke(
-        self, command: str, select: list[str], full_refresh: bool = False
+        self,
+        command: str,
+        node_ids: list[str],
+        selectors: list[str],
+        full_refresh: bool = False,
     ) -> ExecutionResult:
         """Build CLI args and invoke dbt.
 
@@ -93,13 +97,19 @@ class DbtCoreExecutor:
         resolves profiles, and runs dbt via a fresh dbtRunner instance.
 
         Errors are captured as data — this method does NOT raise.
+
+        Args:
+            command: dbt command to run (e.g. "build", "run", "seed")
+            node_ids: List of node unique_ids for tracking in the result
+            selectors: List of dbt selectors for ``--select``
+            full_refresh: Whether to pass --full-refresh
         """
         invoke_kwargs: dict[str, Any] = {
             "project_dir": str(self._settings.project_dir),
             "target_path": str(self._settings.target_path),
             "log_level": "none",
             "log_level_file": str(self._settings.log_level.value),
-            "select": select,
+            "select": selectors,
         }
 
         if self._threads is not None:
@@ -123,24 +133,24 @@ class DbtCoreExecutor:
 
             artifacts = self._extract_artifacts(res)
             # Union of requested nodes and actually-executed nodes.  The
-            # select list is always included so callers can rely on every
-            # requested node appearing in node_ids.  Artifacts may add
+            # node_ids list is always included so callers can rely on every
+            # requested node appearing in the result.  Artifacts may add
             # extra entries (e.g. tests attached to selected models).
             if artifacts:
-                node_ids = list(dict.fromkeys(select + list(artifacts)))
+                result_ids = list(dict.fromkeys(node_ids + list(artifacts)))
             else:
-                node_ids = list(select)
+                result_ids = list(node_ids)
 
             return ExecutionResult(
                 success=res.success,
-                node_ids=node_ids,
+                node_ids=result_ids,
                 error=res.exception if not res.success else None,
                 artifacts=artifacts,
             )
         except Exception as exc:
             return ExecutionResult(
                 success=False,
-                node_ids=list(select),
+                node_ids=list(node_ids),
                 error=exc,
             )
 
@@ -154,6 +164,9 @@ class DbtCoreExecutor:
         artifacts: dict[str, Any] = {}
         for node_result in res.result.results:
             uid = getattr(node_result, "unique_id", None)
+            if uid is None:
+                node = getattr(node_result, "node", None)
+                uid = getattr(node, "unique_id", None) if node else None
             if uid is None:
                 continue
             artifacts[uid] = {
@@ -177,7 +190,12 @@ class DbtCoreExecutor:
         Returns:
             ExecutionResult with success/failure status and artifacts
         """
-        return self._invoke(command, [node.unique_id], full_refresh=full_refresh)
+        return self._invoke(
+            command,
+            node_ids=[node.unique_id],
+            selectors=[node.dbt_selector],
+            full_refresh=full_refresh,
+        )
 
     def execute_wave(
         self, nodes: list[DbtNode], full_refresh: bool = False
@@ -199,5 +217,8 @@ class DbtCoreExecutor:
         if not nodes:
             raise ValueError("Cannot execute an empty wave")
 
-        select = [node.unique_id for node in nodes]
-        return self._invoke("build", select, full_refresh=full_refresh)
+        node_ids = [node.unique_id for node in nodes]
+        selectors = [node.dbt_selector for node in nodes]
+        return self._invoke(
+            "build", node_ids=node_ids, selectors=selectors, full_refresh=full_refresh
+        )
