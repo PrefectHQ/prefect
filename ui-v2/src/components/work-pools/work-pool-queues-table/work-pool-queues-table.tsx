@@ -35,12 +35,8 @@ export const WorkPoolQueuesTable = ({
 }: WorkPoolQueuesTableProps) => {
 	const handleSortingChange: OnChangeFn<SortingState> = useCallback(
 		(updater) => {
-			let newSorting = sortState;
-			if (typeof updater === "function") {
-				newSorting = updater(sortState);
-			} else {
-				newSorting = updater;
-			}
+			const newSorting =
+				typeof updater === "function" ? updater(sortState) : updater;
 			onSortingChange(newSorting);
 		},
 		[sortState, onSortingChange],

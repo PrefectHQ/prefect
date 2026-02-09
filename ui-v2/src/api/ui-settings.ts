@@ -68,6 +68,7 @@ class UiSettingsService {
 				throw new Error(
 					categorized.message +
 						(categorized.details ? `: ${categorized.details}` : ""),
+					{ cause: error },
 				);
 			}
 

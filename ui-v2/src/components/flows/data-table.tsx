@@ -88,12 +88,8 @@ export default function FlowsTable({
 
 	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
 		(updater) => {
-			let newPagination = pagination;
-			if (typeof updater === "function") {
-				newPagination = updater(pagination);
-			} else {
-				newPagination = updater;
-			}
+			const newPagination =
+				typeof updater === "function" ? updater(pagination) : updater;
 			onPaginationChange(newPagination);
 		},
 		[pagination, onPaginationChange],
