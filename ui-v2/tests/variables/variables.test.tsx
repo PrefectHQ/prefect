@@ -23,7 +23,7 @@ const renderVariablesPage = async () => {
 	const view = render(<RouterProvider router={router} />, {
 		wrapper: createWrapper(),
 	});
-	await user.click(screen.getByRole("link", { name: "Variables" }));
+	await user.click(await screen.findByRole("link", { name: "Variables" }));
 	return view;
 };
 
@@ -44,10 +44,10 @@ describe("Variables page", () => {
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 			const dialog = screen.getByRole("dialog");
 			expect(dialog).toBeVisible();
-			const closeButton = within(dialog).getByRole("button", {
+			const closeButtons = within(dialog).getAllByRole("button", {
 				name: "Close",
 			});
-			await user.click(closeButton);
+			await user.click(closeButtons[closeButtons.length - 1]);
 			expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 		});
 
@@ -59,10 +59,10 @@ describe("Variables page", () => {
 			const dialog = screen.getByRole("dialog");
 			await user.type(screen.getByLabelText("Name"), "my-variable");
 			await userEvent.type(screen.getByTestId("mock-json-input"), "123");
-			const closeButton = within(dialog).getByRole("button", {
+			const closeButtons = within(dialog).getAllByRole("button", {
 				name: "Close",
 			});
-			await user.click(closeButton);
+			await user.click(closeButtons[closeButtons.length - 1]);
 			await user.click(screen.getByRole("button", { name: "Add Variable" }));
 
 			expect(screen.getByLabelText("Name")).toHaveValue("");

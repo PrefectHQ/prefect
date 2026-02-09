@@ -11,7 +11,7 @@ const renderDashboardPage = async () => {
 	const view = render(<RouterProvider router={router} />, {
 		wrapper: createWrapper(),
 	});
-	await user.click(screen.getByRole("link", { name: "Dashboard" }));
+	await user.click(await screen.findByRole("link", { name: "Dashboard" }));
 	return view;
 };
 
