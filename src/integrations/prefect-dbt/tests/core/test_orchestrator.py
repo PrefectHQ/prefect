@@ -3,6 +3,7 @@ Tests for PrefectDbtOrchestrator (PER_WAVE mode).
 """
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -62,6 +63,16 @@ def _make_mock_settings(**overrides: object) -> MagicMock:
     settings.target_path = overrides.get("target_path", Path("target"))
     # model_copy() is called in __init__ to avoid mutating the caller's object
     settings.model_copy.return_value = settings
+
+    # resolve_profiles_yml() is a context manager that yields a resolved
+    # temp directory path string (see PrefectDbtSettings.resolve_profiles_yml).
+    resolved_dir = str(overrides.get("resolved_profiles_dir", "/resolved/profiles"))
+
+    @contextmanager
+    def _resolve():
+        yield resolved_dir
+
+    settings.resolve_profiles_yml = _resolve
     return settings
 
 
@@ -698,10 +709,11 @@ class TestRunBuildWithSelectors:
 
         orch.run_build(select="tag:nightly")
 
-        # manifest_path is absolute, so target_path is its parent directly
+        # manifest_path is absolute, so target_path is its parent directly.
+        # profiles_dir comes from resolve_profiles_yml(), not raw settings.
         mock_resolve.assert_called_once_with(
             project_dir=Path("/my/project"),
-            profiles_dir=Path("/my/profiles"),
+            profiles_dir=Path("/resolved/profiles"),
             select="tag:nightly",
             exclude=None,
             target_path=tmp_path,
@@ -724,10 +736,10 @@ class TestRunBuildWithSelectors:
 
         orch.run_build(select="tag:daily", exclude="model.test.leaf")
 
-        # manifest_path is absolute, so target_path is its parent directly
+        # profiles_dir comes from resolve_profiles_yml(), not raw settings.
         mock_resolve.assert_called_once_with(
             project_dir=settings.project_dir,
-            profiles_dir=settings.profiles_dir,
+            profiles_dir=Path("/resolved/profiles"),
             select="tag:daily",
             exclude="model.test.leaf",
             target_path=tmp_path,

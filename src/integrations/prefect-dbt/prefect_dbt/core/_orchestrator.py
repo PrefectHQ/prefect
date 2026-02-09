@@ -178,13 +178,14 @@ class PrefectDbtOrchestrator:
         # 2. Resolve selectors if provided
         selected_ids: Optional[set[str]] = None
         if select is not None or exclude is not None:
-            selected_ids = resolve_selection(
-                project_dir=self._settings.project_dir,
-                profiles_dir=self._settings.profiles_dir,
-                select=select,
-                exclude=exclude,
-                target_path=self._resolve_target_path(),
-            )
+            with self._settings.resolve_profiles_yml() as resolved_profiles_dir:
+                selected_ids = resolve_selection(
+                    project_dir=self._settings.project_dir,
+                    profiles_dir=Path(resolved_profiles_dir),
+                    select=select,
+                    exclude=exclude,
+                    target_path=self._resolve_target_path(),
+                )
 
         # 3. Filter nodes and compute waves
         filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
