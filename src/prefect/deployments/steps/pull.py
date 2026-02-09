@@ -44,26 +44,41 @@ def set_working_directory(directory: str) -> dict[str, str]:
     operation_name="git_clone",
 )
 async def _pull_git_repository_with_retries(repo: GitRepository):
-    await repo.pull_code()
+    # Store original branch list for restoration on retry (only needed for lists)
+    original_branch_list = (
+        repo._branch.copy() if isinstance(repo._branch, list) else None
+    )
+
+    try:
+        await repo.pull_code()
+    except:
+        # Restore original branch list before retry (so all branches are tried again)
+        if original_branch_list:
+            repo._branch = original_branch_list.copy()
+        raise
 
 
 async def agit_clone(
     repository: str,
-    branch: Optional[str] = None,
+    branch: Optional[str | list[str]] = None,
     commit_sha: Optional[str] = None,
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
     clone_directory_name: Optional[str] = None,
-    fallback_branch: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Asynchronously clones a git repository into the current working directory.
 
     Args:
         repository: the URL of the repository to clone
-        branch: the branch to clone; if not provided, the default branch will be used
+        branch: the branch to clone. Can be a single branch name, a list of branches
+            for automatic fallback, or None to use the repository's default branch.
+            When a list is provided, the first branch is attempted first; if it fails,
+            the next branch is tried, and so on. Failed branches are removed from the list.
+            This fallback mechanism only activates during flow run execution, not during
+            deployment definition.
         commit_sha: the commit SHA to clone; if not provided, the default branch will be used
         include_submodules (bool): whether to include git submodules when cloning the repository
         access_token: an access token to use for cloning the repository; if not provided
@@ -72,15 +87,21 @@ async def agit_clone(
             credentials to use for cloning the repository.
         clone_directory_name: the name of the local directory to clone into; if not provided,
             the name will be inferred from the repository URL and branch
-        fallback_branch: an optional fallback branch to use if the primary branch does not exist
-            during flow run execution; useful when a feature branch is deleted after merging.
-            Note: fallback only applies at runtime, not during deployment definition with from_source()
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
 
     Raises:
         subprocess.CalledProcessError: if the git clone command fails for any reason
+
+    Examples:
+        Clone with automatic branch fallback (useful for deleted feature branches):
+        ```python
+        await agit_clone(
+            repository="https://github.com/org/repo.git",
+            branch=["feature/my-feature", "develop", "main"]  # Try feature first, fallback to develop, then main
+        )
+        ```
     """
     if access_token and credentials:
         raise ValueError(
@@ -97,7 +118,6 @@ async def agit_clone(
         include_submodules=include_submodules,
         directories=directories,
         name=clone_directory_name,
-        fallback_branch=fallback_branch,
     )
 
     await _pull_git_repository_with_retries(storage)
@@ -108,21 +128,25 @@ async def agit_clone(
 @async_dispatch(agit_clone)
 def git_clone(
     repository: str,
-    branch: Optional[str] = None,
+    branch: Optional[str | list[str]] = None,
     commit_sha: Optional[str] = None,
     include_submodules: bool = False,
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
     clone_directory_name: Optional[str] = None,
-    fallback_branch: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
 
     Args:
         repository: the URL of the repository to clone
-        branch: the branch to clone; if not provided, the default branch will be used
+        branch: the branch to clone. Can be a single branch name, a list of branches
+            for automatic fallback, or None to use the repository's default branch.
+            When a list is provided, the first branch is attempted first; if it fails,
+            the next branch is tried, and so on. Failed branches are removed from the list.
+            This fallback mechanism only activates during flow run execution, not during
+            deployment definition.
         commit_sha: the commit SHA to clone; if not provided, the default branch will be used
         include_submodules (bool): whether to include git submodules when cloning the repository
         access_token: an access token to use for cloning the repository; if not provided
@@ -132,9 +156,6 @@ def git_clone(
         directories: Specify directories you want to be included (uses git sparse-checkout)
         clone_directory_name: the name of the local directory to clone into; if not provided,
             the name will be inferred from the repository URL and branch
-        fallback_branch: an optional fallback branch to use if the primary branch does not exist
-            during flow run execution; useful when a feature branch is deleted after merging.
-            Note: fallback only applies at runtime, not during deployment definition with from_source()
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -210,13 +231,15 @@ def git_clone(
                 clone_directory_name: my-custom-name
         ```
 
-        Clone a repository with a fallback branch (useful when feature branches are deleted after merging):
+        Clone with automatic branch fallback (useful for deleted feature branches):
         ```yaml
         pull:
             - prefect.deployments.steps.git_clone:
                 repository: https://github.com/org/repo.git
-                branch: feature/my-feature
-                fallback_branch: main
+                branch:
+                  - feature/my-feature  # Try feature first
+                  - develop              # Fallback to develop if feature fails
+                  - main                 # Fallback to main if develop fails
         ```
     """
     if access_token and credentials:
@@ -234,7 +257,6 @@ def git_clone(
         include_submodules=include_submodules,
         directories=directories,
         name=clone_directory_name,
-        fallback_branch=fallback_branch,
     )
 
     run_coro_as_sync(_pull_git_repository_with_retries(storage))
