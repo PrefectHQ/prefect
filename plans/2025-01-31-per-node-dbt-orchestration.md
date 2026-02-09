@@ -1013,7 +1013,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 5: Per-Node Execution Mode
+### Phase 5: Per-Node Execution Mode ✅
+
+**Status**: Complete — PR #TBD
 
 **PR Scope**: Add PER_NODE execution with retries.
 
@@ -1032,6 +1034,18 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Failed node retries independently
 - Concurrency limits respected
 - Downstream nodes skip when upstream fails
+
+**Implementation notes**:
+- **`ExecutionMode` class** — Added as a simple namespace class (not an enum) with `PER_WAVE` and `PER_NODE` string constants, consistent with the plan's `ExecutionMode` interface.
+- **`_NODE_COMMAND` mapping** — Maps `NodeType.Model → "run"`, `NodeType.Seed → "seed"`, `NodeType.Snapshot → "snapshot"`. In PER_NODE mode each node is executed with its specific dbt command rather than `dbt build`.
+- **`_DbtNodeError` exception** — Raised inside Prefect task functions to trigger Prefect's built-in retry mechanism. Carries `execution_result`, `timing`, and `invocation` data so the orchestrator can build a proper error result after all retries are exhausted.
+- **Concurrency control** — `threading.Semaphore` for int-based limits (closure-captured by the task function, thread-safe). Named string limits use `prefect.concurrency.sync.concurrency` context manager, lazily imported only when needed.
+- **Prefect task creation** — A single `@prefect_task`-decorated `run_dbt_node` function is defined once, then customized per node via `.with_options(name=..., retries=..., retry_delay_seconds=...)`. Tasks are submitted with `.submit()` for concurrent execution within a wave.
+- **Wave-by-wave execution** — Waves are processed sequentially. Within each wave, nodes are submitted concurrently via `task.submit()`. Failed nodes are tracked in a `failed_nodes` set; downstream nodes in later waves check this set and are marked `skipped` with `reason="upstream failure"`.
+- **Refactored `run_build()`** — Extracted existing wave logic into `_execute_per_wave()` and added `_execute_per_node()`. `run_build()` dispatches based on `self._execution_mode`.
+- **Performance comparison tests** — Deferred. DuckDB's single-writer limitation prevents meaningful concurrent execution benchmarks. The unit tests verify concurrency mechanics via mocked executors instead.
+- **DuckDB limitation in integration tests** — All PER_NODE integration tests use `concurrency=1` because DuckDB file-based storage only supports a single writer. Production databases (Postgres, Snowflake, etc.) do not have this limitation.
+- New symbols (`ExecutionMode`, `PrefectDbtOrchestrator`) are not exported from `prefect_dbt.core.__init__` — the orchestrator remains accessible via the private `prefect_dbt.core._orchestrator` path. Public API exposure deferred to a later phase.
 
 ---
 

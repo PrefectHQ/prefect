@@ -17,7 +17,10 @@ pytest.importorskip(
     "dbt.adapters.duckdb", reason="dbt-duckdb required for integration tests"
 )
 
-from prefect_dbt.core._orchestrator import PrefectDbtOrchestrator  # noqa: E402
+from prefect_dbt.core._orchestrator import (  # noqa: E402
+    ExecutionMode,
+    PrefectDbtOrchestrator,
+)
 from prefect_dbt.core.settings import PrefectDbtSettings  # noqa: E402
 
 pytestmark = pytest.mark.integration
@@ -254,3 +257,211 @@ class TestOrchestratorIntegration:
         results = orchestrator.run_build()
 
         assert INT_ORDERS_ENRICHED not in results
+
+
+class TestPerNodeIntegration:
+    """Integration tests for PER_NODE execution mode against DuckDB.
+
+    All tests use ``concurrency=1`` because DuckDB's file-based storage
+    only supports a single writer at a time.  Without this, concurrent
+    ``dbt run`` invocations within the same wave would conflict on the
+    database write lock.  Production databases (Postgres, Snowflake, etc.)
+    do not have this limitation.
+    """
+
+    def test_per_node_full_build(self, dbt_project):
+        """PER_NODE run_build() executes all 5 executable nodes successfully."""
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build()
+
+        results = test_flow()
+
+        assert set(results.keys()) == ALL_EXECUTABLE
+        for node_id, result in results.items():
+            assert result["status"] == "success", (
+                f"{node_id} failed: {result.get('error')}"
+            )
+
+    def test_per_node_wave_ordering(self, dbt_project):
+        """PER_NODE builds respect wave ordering: seeds -> staging -> marts."""
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build()
+
+        results = test_flow()
+
+        seed_started = max(
+            results[SEED_CUSTOMERS]["timing"]["started_at"],
+            results[SEED_ORDERS]["timing"]["started_at"],
+        )
+        staging_started = min(
+            results[STG_CUSTOMERS]["timing"]["started_at"],
+            results[STG_ORDERS]["timing"]["started_at"],
+        )
+        mart_started = results[CUSTOMER_SUMMARY]["timing"]["started_at"]
+
+        assert seed_started <= staging_started
+        assert staging_started <= mart_started
+
+    def test_per_node_with_select(self, dbt_project):
+        """PER_NODE run_build(select='staging') returns only staging models."""
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build(select="staging")
+
+        results = test_flow()
+
+        assert set(results.keys()) == {STG_CUSTOMERS, STG_ORDERS}
+        for result in results.values():
+            assert result["status"] == "success"
+
+    def test_per_node_uses_correct_commands(self, dbt_project):
+        """PER_NODE uses 'seed' for seeds and 'run' for models."""
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build()
+
+        results = test_flow()
+
+        # Seeds should use 'seed' command
+        assert results[SEED_CUSTOMERS]["invocation"]["command"] == "seed"
+        assert results[SEED_ORDERS]["invocation"]["command"] == "seed"
+        # Models should use 'run' command
+        assert results[STG_CUSTOMERS]["invocation"]["command"] == "run"
+        assert results[STG_ORDERS]["invocation"]["command"] == "run"
+        assert results[CUSTOMER_SUMMARY]["invocation"]["command"] == "run"
+
+    def test_per_node_each_node_has_individual_timing(self, dbt_project):
+        """Each node has its own timing, not shared with the wave."""
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build()
+
+        results = test_flow()
+
+        for node_id, result in results.items():
+            timing = result["timing"]
+            assert "started_at" in timing
+            assert "completed_at" in timing
+            assert "duration_seconds" in timing
+            assert isinstance(timing["duration_seconds"], float)
+            # Each node's invocation should list only its own unique_id
+            assert result["invocation"]["args"] == [node_id]
+
+    def test_per_node_ephemeral_not_in_results(self, dbt_project):
+        """Ephemeral models are not executed in PER_NODE mode."""
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build()
+
+        results = test_flow()
+        assert INT_ORDERS_ENRICHED not in results
+
+    def test_per_node_creates_database_objects(self, dbt_project):
+        """PER_NODE mode produces the same database objects as PER_WAVE."""
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build()
+
+        results = test_flow()
+
+        for node_id, result in results.items():
+            assert result["status"] == "success", (
+                f"{node_id} failed: {result.get('error')}"
+            )
+
+        db_path = dbt_project["project_dir"] / "warehouse.duckdb"
+        conn = duckdb.connect(str(db_path))
+        try:
+            customers = conn.execute("select count(*) from main.customers").fetchone()
+            assert customers[0] == 5
+
+            summary = conn.execute(
+                "select count(*) from main.customer_summary"
+            ).fetchone()
+            assert summary[0] == 5
+        finally:
+            conn.close()
+
+    def test_per_node_with_concurrency_limit(self, dbt_project):
+        """PER_NODE with an explicit concurrency limit still succeeds.
+
+        Uses concurrency=1 because DuckDB only supports a single writer.
+        The unit tests cover higher concurrency values.
+        """
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build()
+
+        results = test_flow()
+
+        assert set(results.keys()) == ALL_EXECUTABLE
+        for node_id, result in results.items():
+            assert result["status"] == "success", (
+                f"{node_id} failed: {result.get('error')}"
+            )
