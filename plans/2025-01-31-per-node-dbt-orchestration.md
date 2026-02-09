@@ -947,7 +947,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 3: DbtCoreExecutor
+### Phase 3: DbtCoreExecutor ✅
+
+**Status**: Complete — [PR #20589](https://github.com/PrefectHQ/prefect/pull/20589)
 
 **PR Scope**: Executor for running dbt commands via dbtRunner.
 
@@ -966,6 +968,12 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Can execute a single node via `dbt run --select <node>`
 - Can execute multiple nodes in one invocation
 - Correctly passes through state-based flags
+
+**Implementation notes**:
+- `--full-refresh` is only passed for commands that support it (`run`, `build`, `seed`). Passing `full_refresh=True` to `execute_node(..., command="test")` or `command="snapshot"` silently ignores the flag rather than forwarding an invalid CLI arg.
+- `node_ids` in `ExecutionResult` is the union of the requested select list and the keys from actual dbt results. This handles `dbt build` executing additional nodes (e.g. tests attached to selected models) while ensuring every explicitly requested node always appears.
+- `_extract_artifacts` guards against `res.result.results` being `None` (not just missing), avoiding a `TypeError` when iterating.
+- New symbols are not exported from `prefect_dbt.core.__init__` — the module is experimental and only accessible via the private `prefect_dbt.core._executor` path. Public API exposure deferred to a later phase.
 
 ---
 
