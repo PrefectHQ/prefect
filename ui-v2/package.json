@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=22.12.0 <23"
+    "node": ">=22.13.0 <23"
   },
   "scripts": {
     "analyze": "vite build && npx vite-bundle-visualizer",
@@ -119,7 +119,6 @@
     "@vitejs/plugin-react-swc": "^4.2.3",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^10.0.0",
-    "eslint-plugin-jest-dom": "^5.5.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-react-refresh": "^0.5.0",
@@ -138,6 +137,9 @@
     "typescript-eslint": "^8.54.0",
     "vite": "^7.3.1",
     "vitest": "^4.0.16"
+  },
+  "overrides": {
+    "eslint": "$eslint"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

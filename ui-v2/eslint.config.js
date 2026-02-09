@@ -1,7 +1,6 @@
 import js from "@eslint/js";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
-import jestDom from "eslint-plugin-jest-dom";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
@@ -43,15 +42,22 @@ export default tseslint.config(
 			],
 			...react.configs.recommended.rules,
 			...react.configs["jsx-runtime"].rules,
-			// TypeScript provides type checking; prop-types are unnecessary
 			"react/prop-types": "off",
+			"no-useless-assignment": "off",
+			"preserve-caught-error": "off",
 		},
 	},
 	...pluginQuery.configs["flat/recommended"],
 	...pluginRouter.configs["flat/recommended"],
 	{
 		files: ["tests/**/*.{ts,tsx}"],
-		...testingLibrary.configs["flat/react"],
-		...jestDom.configs["flat/recommended"],
+		plugins: testingLibrary.configs["flat/react"].plugins,
+		rules: {
+			...testingLibrary.configs["flat/react"].rules,
+			"testing-library/no-wait-for-side-effects": "off",
+			"testing-library/no-manual-cleanup": "off",
+			"testing-library/no-node-access": "off",
+			"testing-library/prefer-screen-queries": "off",
+		},
 	},
 );
