@@ -110,12 +110,31 @@ def app():
 
 
 def _delegate(command: str, tokens: tuple[str, ...]) -> None:
-    """Delegate execution to the Typer CLI for commands not yet migrated."""
+    """Delegate execution to the Typer CLI for commands not yet migrated.
+
+    With standalone_mode=False, Click/Typer returns the exit code instead
+    of calling sys.exit, and raises exceptions for usage errors (missing
+    args, unknown options) instead of printing and exiting.  We catch those
+    and convert them to SystemExit with the correct code so the caller
+    (and our test runner) sees the right exit behavior.
+    """
+    import click
+
     from prefect.cli._typer_loader import load_typer_commands
     from prefect.cli.root import app as typer_app
 
     load_typer_commands()
-    typer_app([command, *tokens], standalone_mode=False)
+    try:
+        exit_code = typer_app([command, *tokens], standalone_mode=False)
+    except click.exceptions.Exit as exc:
+        raise SystemExit(exc.code)
+    except click.ClickException as exc:
+        exc.show()
+        raise SystemExit(exc.exit_code)
+    except click.Abort:
+        raise SystemExit(1)
+    if exit_code:
+        raise SystemExit(exit_code)
 
 
 # =============================================================================
