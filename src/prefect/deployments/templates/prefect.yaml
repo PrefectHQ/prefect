@@ -7,7 +7,7 @@ push: null
 pull: null
 
 deployments:
-  - # base metadata
+  -  # base metadata
     name: null
     version: null
     tags: []
