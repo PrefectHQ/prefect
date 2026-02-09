@@ -2,8 +2,6 @@ import shutil
 from pathlib import Path
 
 import pytest
-
-yamllint = pytest.importorskip("yamllint", reason="yamllint is not installed")
 from yamllint import linter
 from yamllint.config import YamlLintConfig
 
