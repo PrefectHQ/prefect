@@ -50,6 +50,7 @@ SKIP_FILES = {
     "docs/v3/develop/write-flows.mdx": "Needs Debugging in CI",
     # --- Below this line are files that need a release of a new Prefect integration ---
     "docs/v3/advanced/submit-flows-directly-to-dynamic-infrastructure.mdx": "Needs a release of prefect-docker",
+    "docs/AGENTS.md": "Not a documentation page; contains raw code examples for agent guidance",
 }
 
 
