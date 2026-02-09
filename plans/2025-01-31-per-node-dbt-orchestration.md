@@ -977,7 +977,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 4: Basic Orchestrator (PER_WAVE mode)
+### Phase 4: Basic Orchestrator (PER_WAVE mode) ✅
+
+**Status**: Complete — [PR #20591](https://github.com/PrefectHQ/prefect/pull/20591)
 
 **PR Scope**: Minimal viable orchestrator using per-wave execution.
 
@@ -995,6 +997,19 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Can run a full dbt build with waves executing in order
 - Failed wave causes downstream waves to skip
 - Returns result dict with status per node
+
+**Implementation notes**:
+- **Bugs fixed in earlier phases** — Integration testing exposed three bugs in Phase 2/3 code:
+  1. `resolve_selection()` used default `dbt ls` output (selector-format FQNs) instead of unique_ids. Fixed by adding `--output json` and parsing `unique_id` from JSON rows. Defensive parsing handles both `str` and `dict` rows depending on dbt version.
+  2. `_extract_artifacts()` failed on dbt-core 1.11 because `RunResult.unique_id` doesn't exist as a direct attribute — it's on `result.node.unique_id`. Added fallback chain: `getattr(result, "unique_id")` → `getattr(result.node, "unique_id")`.
+  3. Executor passed `unique_id` strings (e.g. `seed.test_project.customers`) to `--select`, but dbt expects FQN-style selectors. `unique_id` prefixes like `seed.` aren't valid selector syntax.
+- **Selector strategy** — `DbtNode.dbt_selector` now returns `path:<original_file_path>` for runnable types (models, seeds, snapshots), which is globally unique across resource types. Tests are excluded from `path:` selection since multiple test nodes share a single YAML schema file. Falls back to dot-joined FQN, then bare node name. This required adding an `fqn` field to `DbtNode`.
+- **Separated tracking from selection** — `DbtCoreExecutor._invoke()` now takes separate `node_ids` (for result tracking) and `selectors` (for `--select` CLI args), since unique_ids and dbt selectors are different formats.
+- **Settings defensiveness** — `PrefectDbtOrchestrator.__init__` calls `settings.model_copy()` to avoid mutating a caller-provided `PrefectDbtSettings` instance when aligning `target_path` with an explicit `manifest_path`.
+- **Target path alignment** — When `manifest_path` is explicitly provided, the orchestrator derives `target_path` from the manifest's parent directory and updates its internal settings copy. This ensures `resolve_selection()` and the executor both reference the same target directory.
+- **CI job** — Added a dedicated `run-prefect-dbt-integration-tests` job in `.github/workflows/integration-package-tests.yaml` that installs the `integration` dependency group (`dbt-duckdb`, `duckdb`) and runs `pytest -m integration` across Python 3.10–3.13. The existing test job skips integration tests via `pytest.importorskip` guards.
+- **Test project** — Created a minimal dbt project at `tests/dbt_test_project/` with seeds (customers, orders), staging views, an ephemeral intermediate model, and a mart table. This provides a 3-wave execution graph for integration testing.
+- New symbols are not exported from `prefect_dbt.core.__init__` — the orchestrator is accessible via the private `prefect_dbt.core._orchestrator` path. Public API exposure deferred to a later phase.
 
 ---
 

@@ -37,6 +37,7 @@ class DbtNode:
     name: str
     resource_type: NodeType
     depends_on: tuple[str, ...] = field(default_factory=tuple)
+    fqn: tuple[str, ...] = field(default_factory=tuple)
     materialization: Optional[str] = None
     relation_name: Optional[str] = None
     original_file_path: Optional[str] = None
@@ -64,11 +65,23 @@ class DbtNode:
 
     @property
     def dbt_selector(self) -> str:
-        """Return the dbt selector string for this node.
+        """Return a precise dbt selector string for this node.
 
-        This can be used with `dbt run --select <selector>`.
+        For runnable resource types (models, seeds, snapshots) each node
+        has a dedicated file, so ``path:<original_file_path>`` is both
+        globally unique and selects exactly one node.
+
+        Tests are excluded from ``path:`` selection because multiple test
+        nodes can be defined in a single YAML schema file — using
+        ``path:`` would over-select.
+
+        Falls back to dot-joined FQN, then bare node name.
         """
-        return self.unique_id
+        if self.original_file_path and self.resource_type in self._RUNNABLE_TYPES:
+            return f"path:{self.original_file_path}"
+        if self.fqn:
+            return ".".join(self.fqn)
+        return self.name
 
     def __hash__(self) -> int:
         return hash(self.unique_id)
@@ -166,6 +179,7 @@ class ManifestParser:
             name=node_data.get("name", ""),
             resource_type=resource_type,
             depends_on=tuple(depends_on_nodes),
+            fqn=tuple(node_data.get("fqn", [])),
             materialization=materialization,
             relation_name=node_data.get("relation_name"),
             original_file_path=node_data.get("original_file_path"),
@@ -181,6 +195,7 @@ class ManifestParser:
             name=source_data.get("name", ""),
             resource_type=NodeType.Source,
             depends_on=tuple(),  # Sources have no dependencies
+            fqn=tuple(source_data.get("fqn", [])),
             materialization=None,
             relation_name=source_data.get("relation_name"),
             original_file_path=source_data.get("original_file_path"),
@@ -253,6 +268,7 @@ class ManifestParser:
                 name=node.name,
                 resource_type=node.resource_type,
                 depends_on=resolved_deps,
+                fqn=node.fqn,
                 materialization=node.materialization,
                 relation_name=node.relation_name,
                 original_file_path=node.original_file_path,
@@ -406,6 +422,8 @@ def resolve_selection(
         "ls",
         "--resource-type",
         "all",
+        "--output",
+        "json",
         "--project-dir",
         str(project_dir),
         "--profiles-dir",
@@ -424,5 +442,12 @@ def resolve_selection(
     if not result.success:
         raise DbtLsError(f"dbt ls failed: {result.exception or 'unknown error'}")
 
-    # result.result is a list of unique_id strings
-    return set(result.result or [])
+    # With --output json, result.result is a list of JSON strings (or dicts
+    # depending on the dbt version / runner implementation).
+    if not result.result:
+        return set()
+    unique_ids: set[str] = set()
+    for row in result.result:
+        parsed = json.loads(row) if isinstance(row, str) else row
+        unique_ids.add(parsed["unique_id"])
+    return unique_ids

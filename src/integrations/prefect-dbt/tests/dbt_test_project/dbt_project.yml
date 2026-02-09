@@ -1,0 +1,13 @@
+name: test_project
+version: "1.0.0"
+config-version: 2
+profile: test
+
+models:
+  test_project:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: ephemeral
+    marts:
+      +materialized: table
