@@ -329,6 +329,7 @@ extend-select = ["I"]
 "main.py" = ["E402", "F401", "I"]
 "src/prefect/utilities/compat.py" = ["F401", "I"]
 "tests/conftest.py" = ["F405", "E402", "F403"]
+"tests/deployment/test_yamllint.py" = ["E402"]
 "src/prefect/runtime/*" = ["F822"]
 "src/prefect/server/database/migrations/**/*" = ["E501"]
 
