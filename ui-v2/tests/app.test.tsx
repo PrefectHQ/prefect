@@ -24,8 +24,8 @@ describe("Navigation tests", () => {
 		["/settings", "Settings"],
 	])("can navigate to %s", async (path, text) => {
 		const user = userEvent.setup();
-		await waitFor(() => render(<App />));
-		await user.click(screen.getByRole("link", { name: text }));
+		render(<App />);
+		await user.click(await screen.findByRole("link", { name: text }));
 		await waitFor(() => expect(router.state.location.pathname).toBe(path));
 	});
 });
