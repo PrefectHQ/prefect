@@ -2,6 +2,8 @@ import shutil
 from pathlib import Path
 
 import pytest
+
+yamllint = pytest.importorskip("yamllint", reason="yamllint is not installed")
 from yamllint import linter
 from yamllint.config import YamlLintConfig
 
@@ -16,19 +18,11 @@ from prefect.utilities.filesystem import tmpchdir
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 RECIPES_DIR = (
-    prefect.__development_base_path__
-    / "src"
-    / "prefect"
-    / "deployments"
-    / "recipes"
+    prefect.__development_base_path__ / "src" / "prefect" / "deployments" / "recipes"
 )
 
 TEMPLATES_DIR = (
-    prefect.__development_base_path__
-    / "src"
-    / "prefect"
-    / "deployments"
-    / "templates"
+    prefect.__development_base_path__ / "src" / "prefect" / "deployments" / "templates"
 )
 
 # yamllint configuration for static template and recipe files: extends default
@@ -36,10 +30,7 @@ TEMPLATES_DIR = (
 # sequence styles, since Python's yaml.dump() does not indent list items by
 # default.
 YAMLLINT_CONFIG = YamlLintConfig(
-    "extends: default\n"
-    "rules:\n"
-    "  indentation:\n"
-    "    indent-sequences: whatever\n"
+    "extends: default\nrules:\n  indentation:\n    indent-sequences: whatever\n"
 )
 
 # yamllint configuration for generated files: same as above but with
@@ -64,8 +55,7 @@ def _assert_yamllint_passes(
     problems = list(linter.run(content, config))
     if problems:
         details = "\n".join(
-            f"  line {p.line}: [{p.level}] {p.message} ({p.rule})"
-            for p in problems
+            f"  line {p.line}: [{p.level}] {p.message} ({p.rule})" for p in problems
         )
         pytest.fail(f"yamllint found issues in {filepath}:\n{details}")
 
@@ -83,11 +73,7 @@ class TestRecipeYamlFilesPassYamllint:
 
     @pytest.mark.parametrize(
         "recipe",
-        [
-            d.name
-            for d in sorted(RECIPES_DIR.iterdir())
-            if d.is_dir()
-        ],
+        [d.name for d in sorted(RECIPES_DIR.iterdir()) if d.is_dir()],
     )
     def test_recipe_yaml_passes_yamllint(self, recipe):
         yaml_path = RECIPES_DIR / recipe / "prefect.yaml"
@@ -100,10 +86,7 @@ class TestTemplateYamlFilesPassYamllint:
 
     @pytest.mark.parametrize(
         "template",
-        [
-            f.name
-            for f in sorted(TEMPLATES_DIR.glob("*.yaml"))
-        ],
+        [f.name for f in sorted(TEMPLATES_DIR.glob("*.yaml"))],
     )
     def test_template_yaml_passes_yamllint(self, template):
         yaml_path = TEMPLATES_DIR / template
@@ -124,9 +107,7 @@ class TestGeneratedYamlPassesYamllint:
         contents = configure_project_by_recipe(
             "local", directory="/tmp/test", name="test"
         )
-        create_default_prefect_yaml(
-            ".", name="test-project", contents=contents
-        )
+        create_default_prefect_yaml(".", name="test-project", contents=contents)
 
         generated = Path("prefect.yaml").read_text()
         _assert_yamllint_passes(
@@ -137,11 +118,7 @@ class TestGeneratedYamlPassesYamllint:
 
     @pytest.mark.parametrize(
         "recipe",
-        [
-            d.name
-            for d in sorted(RECIPES_DIR.iterdir())
-            if d.is_dir()
-        ],
+        [d.name for d in sorted(RECIPES_DIR.iterdir()) if d.is_dir()],
     )
     def test_initialized_project_yaml_passes_yamllint(self, recipe):
         files = initialize_project(name="test-project", recipe=recipe)
@@ -160,11 +137,7 @@ class TestYamlLintRules:
 
     @pytest.mark.parametrize(
         "recipe",
-        [
-            d.name
-            for d in sorted(RECIPES_DIR.iterdir())
-            if d.is_dir()
-        ],
+        [d.name for d in sorted(RECIPES_DIR.iterdir()) if d.is_dir()],
     )
     def test_recipe_has_document_start_marker(self, recipe):
         yaml_path = RECIPES_DIR / recipe / "prefect.yaml"
@@ -182,11 +155,7 @@ class TestYamlLintRules:
 
     @pytest.mark.parametrize(
         "recipe",
-        [
-            d.name
-            for d in sorted(RECIPES_DIR.iterdir())
-            if d.is_dir()
-        ],
+        [d.name for d in sorted(RECIPES_DIR.iterdir()) if d.is_dir()],
     )
     def test_recipe_no_lines_exceed_80_chars(self, recipe):
         yaml_path = RECIPES_DIR / recipe / "prefect.yaml"
@@ -199,11 +168,7 @@ class TestYamlLintRules:
 
     @pytest.mark.parametrize(
         "recipe",
-        [
-            d.name
-            for d in sorted(RECIPES_DIR.iterdir())
-            if d.is_dir()
-        ],
+        [d.name for d in sorted(RECIPES_DIR.iterdir()) if d.is_dir()],
     )
     def test_recipe_no_trailing_whitespace(self, recipe):
         yaml_path = RECIPES_DIR / recipe / "prefect.yaml"
@@ -217,12 +182,9 @@ class TestYamlLintRules:
         contents = configure_project_by_recipe(
             "local", directory="/tmp/test", name="test"
         )
-        create_default_prefect_yaml(
-            ".", name="test-project", contents=contents
-        )
+        create_default_prefect_yaml(".", name="test-project", contents=contents)
 
         generated = Path("prefect.yaml").read_text()
         assert generated.startswith("---"), (
-            "Generated prefect.yaml is missing the '---' document start"
-            " marker"
+            "Generated prefect.yaml is missing the '---' document start marker"
         )
