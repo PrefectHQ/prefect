@@ -330,17 +330,10 @@ def print_as_log(*args: Any, **kwargs: Any) -> None:
 
     msg = buffer.getvalue().rstrip()
 
-    caller = sys._getframe(1)
-    fn = caller.f_code.co_filename
-    lno = caller.f_lineno
-    func = caller.f_code.co_name
-
-    underlying = logger.logger if isinstance(logger, logging.LoggerAdapter) else logger
-    extra = logger.extra if isinstance(logger, logging.LoggerAdapter) else None
-    record = underlying.makeRecord(
-        underlying.name, logging.INFO, fn, lno, msg, (), None, func, extra
-    )
-    underlying.handle(record)
+    if isinstance(logger, logging.LoggerAdapter) and sys.version_info < (3, 11):
+        logger.logger._log(logging.INFO, msg, (), extra=logger.extra, stacklevel=1)
+    else:
+        logger.info(msg, stacklevel=2)
 
 
 @contextmanager
