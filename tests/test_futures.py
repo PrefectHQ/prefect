@@ -1,4 +1,6 @@
 import asyncio
+import threading
+import time
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
@@ -64,9 +66,6 @@ class TestUtilityFunctions:
 
     def test_wait_monitors_all_futures_concurrently_with_timeout(self):
         """Test that wait() with timeout monitors all futures concurrently, not sequentially."""
-        import threading
-        import time
-
         # Create a slow future first, then fast ones
         # If wait() is sequential, it will timeout on the slow one and miss the fast ones
         futures = []
@@ -124,8 +123,6 @@ class TestUtilityFunctions:
     def test_as_completed_yields_correct_order(self):
         @task
         def my_test_task(seconds):
-            import time
-
             time.sleep(seconds)
             return seconds
 
@@ -147,8 +144,6 @@ class TestUtilityFunctions:
     def test_as_completed_timeout(self):
         @task
         def my_test_task(seconds):
-            import time
-
             time.sleep(seconds)
             return seconds
 
@@ -170,8 +165,6 @@ class TestUtilityFunctions:
     async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task
         async def my_task(seconds):
-            import time
-
             time.sleep(seconds)
             return seconds
 
@@ -766,8 +759,6 @@ class TestPrefectFutureList:
 
     def test_result_fail_fast(self):
         """A fast failure should be raised even when a slow future precedes it."""
-        import threading
-
         slow_future = Future()
         fast_failing_future = Future()
         fast_failing_future.set_exception(ValueError("fast fail"))
@@ -780,8 +771,6 @@ class TestPrefectFutureList:
 
         # Resolve the slow future in the background so as_completed can finish
         def resolve_slow():
-            import time
-
             time.sleep(0.1)
             slow_future.set_result(Completed(data=1))
 
@@ -795,8 +784,6 @@ class TestPrefectFutureList:
 
     def test_result_preserves_order(self):
         """Results should be returned in the original list order, not completion order."""
-        import threading
-
         f1 = Future()
         f2 = Future()
 
@@ -810,8 +797,6 @@ class TestPrefectFutureList:
         futures = PrefectFutureList(futures_list)
 
         def resolve_f1():
-            import time
-
             time.sleep(0.05)
             f1.set_result(Completed(data="first"))
 

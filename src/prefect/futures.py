@@ -492,7 +492,7 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         """
         Get the results of all task runs associated with the futures in the list.
 
-        Uses ``as_completed`` internally so that failures are raised as soon as
+        Uses `as_completed` internally so that failures are raised as soon as
         they occur rather than waiting for earlier, still-running futures to
         finish first.
 
