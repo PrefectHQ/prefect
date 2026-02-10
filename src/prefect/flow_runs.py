@@ -24,7 +24,7 @@ from prefect.context import (
     FlowRunContext,
     TaskRunContext,
 )
-from prefect.events.clients import RETRYABLE_EXCEPTIONS, get_events_subscriber
+from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter, EventResourceFilter
 from prefect.exceptions import (
     Abort,
@@ -132,33 +132,25 @@ async def wait_for_flow_run(
     )
 
     with anyio.move_on_after(timeout):
-        while True:
-            try:
-                async with get_events_subscriber(filter=event_filter) as subscriber:
-                    flow_run = await client.read_flow_run(flow_run_id)
-                    if flow_run.state and flow_run.state.is_final():
-                        if log_states:
-                            logger.info(f"Flow run is in state {flow_run.state.name!r}")
-                        return flow_run
+        async with get_events_subscriber(filter=event_filter) as subscriber:
+            flow_run = await client.read_flow_run(flow_run_id)
+            if flow_run.state and flow_run.state.is_final():
+                if log_states:
+                    logger.info(f"Flow run is in state {flow_run.state.name!r}")
+                return flow_run
 
-                    async for event in subscriber:
-                        if not (state_type := event.resource.get("prefect.state-type")):
-                            logger.debug(f"Received {event.event!r} event")
-                            continue
-                        state_type = StateType(state_type)
-                        state = State(type=state_type)
+            async for event in subscriber:
+                if not (state_type := event.resource.get("prefect.state-type")):
+                    logger.debug(f"Received {event.event!r} event")
+                    continue
+                state_type = StateType(state_type)
+                state = State(type=state_type)
 
-                        if log_states:
-                            logger.info(f"Flow run is in state {state.name!r}")
+                if log_states:
+                    logger.info(f"Flow run is in state {state.name!r}")
 
-                        if state.is_final():
-                            return await client.read_flow_run(flow_run_id)
-            except RETRYABLE_EXCEPTIONS:
-                logger.debug(
-                    "Event subscriber connection lost, reconnecting...",
-                    exc_info=True,
-                )
-            await anyio.sleep(1)
+                if state.is_final():
+                    return await client.read_flow_run(flow_run_id)
 
     raise FlowRunWaitTimeout(
         f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
