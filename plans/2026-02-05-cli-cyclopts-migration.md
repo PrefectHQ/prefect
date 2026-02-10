@@ -243,26 +243,43 @@ The current CLI test suite uses `invoke_and_assert` (`src/prefect/testing/cli.py
 
 **Key constraint (empirically verified):** `invoke_and_assert` cannot test cyclopts commands through typer's `CliRunner`. With `PREFECT_CLI_FAST=1`, `from prefect.cli import app` returns a plain function (the cyclopts entrypoint), not a `Typer` instance. Typer's `CliRunner` raises `AttributeError: 'function' object has no attribute '_add_completion'`.
 
-**During migration (Phases 0–2):** existing `invoke_and_assert` tests continue to work unchanged — they always test through typer regardless of the toggle. No test changes needed.
+**During migration (Phases 0–2) and beyond:** `invoke_and_assert` now supports both frameworks via an internal `CycloptsCliRunner`. When `PREFECT_CLI_FAST=1`, it uses the cyclopts runner; otherwise it uses typer's `CliRunner`. The ~950 call sites do not need to change.
 
-**At Phase 3 (typer retirement):** `invoke_and_assert` internals must be updated, but the ~950 call sites should not need to change. Cyclopts apps are invoked directly with `app(["arg1", "arg2"])` and stdout is captured with pytest's `capsys` — no special test runner needed. [FastMCP's migration](https://github.com/jlowin/fastmcp/pull/1062) and [cyclopts' unit testing docs](https://cyclopts.readthedocs.io/en/latest/cookbook/unit_testing.html) both demonstrate this pattern:
+### `CycloptsCliRunner` (`src/prefect/testing/cli.py`)
+
+Analogous to Click's `CliRunner`, this provides in-process invocation of the cyclopts CLI with proper I/O isolation. Cyclopts does not ship a built-in test runner ([issue #238](https://github.com/BrianPugh/cyclopts/issues/238) was closed by design), so we maintain our own.
+
+**Design:**
+
+1. **TTY-emulating StringIO** — a `StringIO` subclass with `isatty() -> True`. Rich Console resolves `sys.stdout` dynamically via its `file` property, so redirecting sys.stdout to this buffer means all Console output is captured. The TTY emulation makes `Console.is_interactive` return True, enabling `Confirm.ask()` / `Prompt.ask()` to work correctly — matching real terminal behavior.
+
+2. **State isolation** — saves and restores `sys.stdout`, `sys.stderr`, `sys.stdin`, `os.environ["COLUMNS"]`, and the global `_cli.console` in a `try/finally` block. Not thread-safe (mutates interpreter globals), but safe with pytest-xdist which forks separate worker processes.
+
+3. **Exit code handling** — catches `SystemExit` to extract exit codes. For delegated commands, `_delegate()` converts Click exceptions (`ClickException`, `Exit`, `Abort`) to `SystemExit` with the correct code.
+
+4. **Wide terminal** — sets `COLUMNS=500` to prevent Rich from wrapping long lines, which would cause brittle output assertions.
+
+**Usage:**
 
 ```python
-# cyclopts: direct in-process invocation (no CliRunner needed)
-with pytest.raises(SystemExit) as exc_info:
-    app(["config", "set", "PREFECT_API_URL=http://localhost"])
-assert exc_info.value.code == 0
-assert "Set 'PREFECT_API_URL'" in capsys.readouterr().out
+from prefect.testing.cli import CycloptsCliRunner
 
-# cyclopts: parse without executing
-command, bound, _ = app.parse_args(["config", "view", "--show-defaults"])
-assert bound.arguments["show_defaults"] is True
+runner = CycloptsCliRunner()
+result = runner.invoke(["config", "view"])
+assert result.exit_code == 0
+assert "PREFECT_API_URL" in result.stdout
+
+# With interactive input
+result = runner.invoke(["profile", "create", "my-profile"], input="y\n")
+assert result.exit_code == 0
 ```
 
-The `invoke_and_assert` update at Phase 3 involves:
-1. Replace `CliRunner().invoke(app, command)` with direct `app(command)` + `capsys`.
-2. Translate `SystemExit` into the same result interface the call sites expect.
-3. Address the exit code difference: typer/click returns 2 for missing required arguments, cyclopts returns 1. A small number of tests that assert `expected_code=2` will need updating.
+The `CycloptsResult` returned by `invoke()` is compatible with typer's `Result` (has `.stdout`, `.stderr`, `.output`, `.exit_code`, `.exception`), so `invoke_and_assert` and `check_contains` work without changes.
+
+**Known limitations:**
+
+1. Exit code 2 vs 1: typer/click returns 2 for missing required arguments; cyclopts returns 1. Tests asserting `expected_code=2` will need updating when commands are migrated.
+2. Async tests using `run_sync_in_worker_thread`: the runner redirects process-global `sys.stdout`, which can interact poorly with multi-threaded async test patterns. A small number of delegated-command tests may need adjustment.
 
 ### Parity tests: `run_cli`
 
