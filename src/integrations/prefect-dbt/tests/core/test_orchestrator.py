@@ -17,6 +17,29 @@ from prefect_dbt.core._orchestrator import (
     PrefectDbtOrchestrator,
 )
 
+
+class _ThreadDelegatingRunner:
+    """A stand-in for ProcessPoolTaskRunner that delegates to task.submit().
+
+    In unit tests we can't use real subprocesses because the mock executor
+    (MagicMock) isn't picklable.  This runner implements the same context-
+    manager + submit interface but dispatches via Prefect's default
+    ThreadPoolTaskRunner (used by ``task.submit()``).
+    """
+
+    def __init__(self, **kwargs):
+        self._kwargs = kwargs
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def submit(self, task, parameters, **kwargs):
+        return task.submit(**parameters)
+
+
 # =============================================================================
 # Helpers
 # =============================================================================
@@ -1100,6 +1123,21 @@ def mixed_resource_manifest_data() -> dict[str, Any]:
     }
 
 
+@pytest.fixture(autouse=True)
+def _use_thread_runner_for_per_node(monkeypatch):
+    """Replace ProcessPoolTaskRunner with a thread-delegating stand-in.
+
+    Unit tests use MagicMock executors that aren't picklable, so we can't
+    send them to real subprocesses.  This fixture swaps in a lightweight
+    runner that delegates to Prefect's default ThreadPoolTaskRunner via
+    ``task.submit()``.
+    """
+    monkeypatch.setattr(
+        "prefect.task_runners.ProcessPoolTaskRunner",
+        _ThreadDelegatingRunner,
+    )
+
+
 # =============================================================================
 # TestPerNodeInit
 # =============================================================================
@@ -1128,7 +1166,7 @@ class TestPerNodeInit:
         assert orch._retries == 3
         assert orch._retry_delay_seconds == 60
 
-    def test_int_concurrency_creates_semaphore(self, tmp_path):
+    def test_int_concurrency_stored(self, tmp_path):
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
@@ -1136,10 +1174,9 @@ class TestPerNodeInit:
             executor=_make_mock_executor(),
             concurrency=4,
         )
-        assert orch._semaphore is not None
         assert orch._concurrency == 4
 
-    def test_str_concurrency_no_semaphore(self, tmp_path):
+    def test_str_concurrency_stored(self, tmp_path):
         manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
@@ -1147,7 +1184,6 @@ class TestPerNodeInit:
             executor=_make_mock_executor(),
             concurrency="dbt-warehouse",
         )
-        assert orch._semaphore is None
         assert orch._concurrency == "dbt-warehouse"
 
     def test_no_concurrency_default(self, tmp_path):
@@ -1157,7 +1193,6 @@ class TestPerNodeInit:
             manifest_path=manifest,
             executor=_make_mock_executor(),
         )
-        assert orch._semaphore is None
         assert orch._concurrency is None
 
     def test_default_execution_mode_is_per_wave(self, tmp_path):
@@ -1990,11 +2025,8 @@ class TestPerNodeRetries:
 
 
 class TestPerNodeConcurrency:
-    def test_int_concurrency_limits_parallel_execution(self, tmp_path):
-        """With concurrency=2, at most 2 nodes execute simultaneously."""
-        import threading
-        import time
-
+    def test_int_concurrency_sets_max_workers(self, monkeypatch, tmp_path):
+        """With concurrency=2, ProcessPoolTaskRunner is created with max_workers=2."""
         from prefect import flow
 
         data = {
@@ -2010,24 +2042,19 @@ class TestPerNodeConcurrency:
             "sources": {},
         }
         manifest = write_manifest(tmp_path, data)
+        executor = _make_mock_executor_per_node()
 
-        max_concurrent = 0
-        current_concurrent = 0
-        lock = threading.Lock()
+        # Track the max_workers passed to the runner
+        captured_kwargs: list[dict] = []
 
-        def _execute_node(node, command, full_refresh=False):
-            nonlocal max_concurrent, current_concurrent
-            with lock:
-                current_concurrent += 1
-                if current_concurrent > max_concurrent:
-                    max_concurrent = current_concurrent
-            time.sleep(0.05)  # Small delay to allow overlap
-            with lock:
-                current_concurrent -= 1
-            return ExecutionResult(success=True, node_ids=[node.unique_id])
+        class _TrackingRunner(_ThreadDelegatingRunner):
+            def __init__(self, **kwargs):
+                captured_kwargs.append(kwargs)
+                super().__init__(**kwargs)
 
-        executor = MagicMock(spec=DbtExecutor)
-        executor.execute_node = MagicMock(side_effect=_execute_node)
+        monkeypatch.setattr(
+            "prefect.task_runners.ProcessPoolTaskRunner", _TrackingRunner
+        )
 
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
@@ -2043,12 +2070,78 @@ class TestPerNodeConcurrency:
 
         result = test_flow()
 
-        # All should succeed
+        # ProcessPoolTaskRunner should have been created with max_workers=2
+        assert len(captured_kwargs) == 1
+        assert captured_kwargs[0]["max_workers"] == 2
+
+        # All nodes should succeed
         for node_id in data["nodes"]:
             assert result[node_id]["status"] == "success"
 
-        # The semaphore should have limited concurrency to 2
-        assert max_concurrent <= 2
+    def test_no_concurrency_uses_wave_size(self, monkeypatch, tmp_path):
+        """Without int concurrency, max_workers = max wave size."""
+        from prefect import flow
+
+        # Diamond: wave sizes are 1, 2, 1 -> max_workers should be 2
+        data = {
+            "nodes": {
+                "model.test.root": {
+                    "name": "root",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.left": {
+                    "name": "left",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.right": {
+                    "name": "right",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.root"]},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.leaf": {
+                    "name": "leaf",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": ["model.test.left", "model.test.right"]},
+                    "config": {"materialized": "table"},
+                },
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        executor = _make_mock_executor_per_node()
+
+        captured_kwargs: list[dict] = []
+
+        class _TrackingRunner(_ThreadDelegatingRunner):
+            def __init__(self, **kwargs):
+                captured_kwargs.append(kwargs)
+                super().__init__(**kwargs)
+
+        monkeypatch.setattr(
+            "prefect.task_runners.ProcessPoolTaskRunner", _TrackingRunner
+        )
+
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            execution_mode=ExecutionMode.PER_NODE,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+
+        # max wave size is 2 (left + right)
+        assert len(captured_kwargs) == 1
+        assert captured_kwargs[0]["max_workers"] == 2
 
 
 # =============================================================================

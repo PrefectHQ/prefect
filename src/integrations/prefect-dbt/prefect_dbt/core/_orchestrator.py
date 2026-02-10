@@ -6,8 +6,7 @@ This module provides:
 - PrefectDbtOrchestrator: Executes dbt builds with wave or per-node execution
 """
 
-import threading
-from contextlib import contextmanager, nullcontext
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -93,8 +92,8 @@ class PrefectDbtOrchestrator:
         retries: Number of retries per node (PER_NODE mode only)
         retry_delay_seconds: Delay between retries in seconds
         concurrency: Concurrency limit.  A string names an existing Prefect
-            global concurrency limit; an int creates a local semaphore that
-            limits how many nodes execute simultaneously.
+            global concurrency limit; an int sets the max_workers on the
+            ProcessPoolTaskRunner used for parallel node execution.
 
     Example::
 
@@ -129,9 +128,6 @@ class PrefectDbtOrchestrator:
         self._retries = retries
         self._retry_delay_seconds = retry_delay_seconds
         self._concurrency = concurrency
-        self._semaphore: Optional[threading.Semaphore] = (
-            threading.Semaphore(concurrency) if isinstance(concurrency, int) else None
-        )
 
         # When the caller provides an explicit manifest_path that lives
         # outside the default target dir, align settings.target_path so
@@ -367,72 +363,40 @@ class PrefectDbtOrchestrator:
     # PER_NODE execution
     # ------------------------------------------------------------------
 
-    @staticmethod
-    @contextmanager
-    def _patch_adapter_management():
-        """Replace dbt's adapter_management with a no-op during concurrent execution.
-
-        dbt's ``adapter_management()`` context manager is entered on every
-        ``dbtRunner.invoke()`` call.  It calls ``reset_adapters()`` on entry
-        (clears ALL adapters and closes ALL connections) and
-        ``cleanup_connections()`` on exit (wipes the connection pool for ALL
-        threads).  Both are destructive when multiple ``dbtRunner.invoke()``
-        calls run concurrently in PER_NODE mode.
-
-        Adapter registration happens inside dbt's command processing (during
-        ``yield``), not inside ``adapter_management()``, so a no-op
-        replacement still allows adapters to register — it just prevents the
-        destructive reset/cleanup from racing across threads.
-        """
-        import dbt.adapters.factory as factory
-
-        original = factory.adapter_management
-
-        @contextmanager
-        def _noop():
-            yield
-
-        factory.adapter_management = _noop
-        try:
-            yield
-        finally:
-            factory.adapter_management = original
-            factory.cleanup_connections()
-
     def _execute_per_node(self, waves, full_refresh):
         """Execute each node as an individual Prefect task.
 
         Creates a separate Prefect task per node with individual retries.
-        Nodes within a wave are submitted concurrently; waves are processed
-        sequentially.  Failed nodes cause their downstream dependents to be
-        skipped.
+        Nodes within a wave are submitted concurrently via a
+        ``ProcessPoolTaskRunner``; waves are processed sequentially.  Failed
+        nodes cause their downstream dependents to be skipped.
+
+        Each subprocess gets its own dbt adapter registry (``FACTORY``
+        singleton), so there is no shared mutable state and no need to
+        monkey-patch ``adapter_management``.
 
         Requires an active Prefect flow run context (call inside a ``@flow``).
         """
         from prefect import task as prefect_task
-
-        # Warm up the adapter and cache the manifest before concurrent
-        # execution.  This ensures register_adapter() completes once
-        # (single-threaded) and subsequent dbtRunner invocations skip
-        # parse_manifest() entirely — avoiding thread-safety issues in
-        # dbt-core's manifest parser.
-        if isinstance(self._executor, DbtCoreExecutor):
-            self._executor.warm_up_manifest()
+        from prefect.task_runners import ProcessPoolTaskRunner
 
         executor = self._executor
-        semaphore = self._semaphore
         concurrency_name = (
             self._concurrency if isinstance(self._concurrency, str) else None
         )
         build_result = self._build_node_result
 
+        # Compute max_workers for the process pool.
+        if isinstance(self._concurrency, int):
+            max_workers = self._concurrency
+        else:
+            max_workers = max((len(wave.nodes) for wave in waves), default=1)
+
         # Define the task function once; .with_options() customizes per node.
         @prefect_task
         def run_dbt_node(node, command, full_refresh):
-            # Acquire concurrency slot if configured
-            if semaphore is not None:
-                ctx = semaphore
-            elif concurrency_name:
+            # Acquire named concurrency slot if configured
+            if concurrency_name:
                 from prefect.concurrency.sync import (
                     concurrency as prefect_concurrency,
                 )
@@ -468,13 +432,22 @@ class PrefectDbtOrchestrator:
                         ]
                 return node_result
 
-            # Raise to trigger Prefect retries
+            # Ensure the error is pickle-safe before raising across processes.
+            # dbt exceptions may not be picklable, so convert to RuntimeError.
+            if result.error:
+                safe_error = RuntimeError(str(result.error))
+                result = ExecutionResult(
+                    success=result.success,
+                    node_ids=result.node_ids,
+                    error=safe_error,
+                    artifacts=result.artifacts,
+                )
             raise _DbtNodeError(result, timing, invocation)
 
         results: dict[str, Any] = {}
         failed_nodes: set[str] = set()
 
-        with self._patch_adapter_management():
+        with ProcessPoolTaskRunner(max_workers=max_workers) as runner:
             for wave in waves:
                 futures: dict[str, Any] = {}
 
@@ -498,8 +471,13 @@ class PrefectDbtOrchestrator:
                         retries=self._retries,
                         retry_delay_seconds=self._retry_delay_seconds,
                     )
-                    future = node_task.submit(
-                        node=node, command=command, full_refresh=full_refresh
+                    future = runner.submit(
+                        node_task,
+                        parameters={
+                            "node": node,
+                            "command": command,
+                            "full_refresh": full_refresh,
+                        },
                     )
                     futures[node.unique_id] = future
 
