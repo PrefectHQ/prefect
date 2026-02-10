@@ -263,6 +263,14 @@ deployment can be active at once. To enable this behavior, deployments have the 
   slot is released. This is useful for deployments with slow-starting infrastructure. Must be between 60 and
   86400 seconds. If not set, falls back to the server setting (default 300 seconds / 5 minutes).
 
+<Note>
+In `prefect.yaml`, `collision_strategy` and `grace_period_seconds` are nested under the `concurrency_limit`
+field alongside `limit`. The CLI decomposes these into the separate `concurrency_limit` and
+`concurrency_options` fields shown above when sending the deployment to the API. See the
+[`prefect.yaml` concurrency limit fields](/v3/how-to-guides/deployments/prefect-yaml#concurrency-limit-fields)
+for the YAML input format.
+</Note>
+
 <CodeGroup>
 
 ```sh prefect deploy
