@@ -346,7 +346,9 @@ class TestPull:
 
         pull_from_azure_blob_storage(container, folder, credentials)
 
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with=folder, include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"
@@ -376,7 +378,9 @@ class TestPull:
             credential=ANY,
         )
 
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with=folder, include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"
@@ -420,7 +424,9 @@ class TestPull:
 
         pull_from_azure_blob_storage(container, folder, credentials)
 
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with=folder, include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_files / "sample_file.txt"
@@ -448,7 +454,7 @@ class TestPull:
 
         # Assert that the trailing slash is properly handled
         mock_context_client.list_blobs.assert_called_once_with(
-            name_starts_with="test-folder/"
+            name_starts_with="test-folder/", include=["metadata"]
         )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
@@ -475,7 +481,9 @@ class TestPull:
         pull_from_azure_blob_storage(container, "", credentials)
 
         # Assert that the files are downloaded from the root of the container
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with="")
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with="", include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"
@@ -695,7 +703,9 @@ class TestPullWithSPN:
             credential=client_secret_credential_mock.return_value,
         )
 
-        mock_context_client.list_blobs.assert_called_once_with(name_starts_with=folder)
+        mock_context_client.list_blobs.assert_called_once_with(
+            name_starts_with=folder, include=["metadata"]
+        )
         mock_context_client.download_blob.assert_called_once_with(blob_mock)
 
         expected_file = tmp_path / "sample_file.txt"

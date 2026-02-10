@@ -213,7 +213,7 @@ def pull_from_azure_blob_storage(
         )
 
     with container_client as client:
-        for blob in client.list_blobs(name_starts_with=folder):
+        for blob in client.list_blobs(name_starts_with=folder, include=["metadata"]):
             if blob.name.endswith("/"):
                 continue
             blob_metadata = blob.metadata or {}
