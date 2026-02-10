@@ -266,6 +266,85 @@ class TestApplyValues:
             "Value for placeholder 'name' not found in provided values." in caplog.text
         )
 
+    def test_apply_values_skip_prefixes_single_placeholder(self):
+        """Skipped placeholder as entire value is left intact."""
+        template = "{{ ctx.flow.name }}"
+        result = apply_values(
+            template, values={}, remove_notset=True, skip_prefixes=["ctx."]
+        )
+        assert result == "{{ ctx.flow.name }}"
+
+    def test_apply_values_skip_prefixes_embedded_placeholder(self):
+        """Skipped placeholder embedded in text is left intact."""
+        template = "job-{{ ctx.flow.name }}/{{ ctx.flow_run.name }}"
+        result = apply_values(
+            template, values={}, remove_notset=True, skip_prefixes=["ctx."]
+        )
+        assert result == "job-{{ ctx.flow.name }}/{{ ctx.flow_run.name }}"
+
+    def test_apply_values_skip_prefixes_mixed_placeholders(self):
+        """Skipped and non-skipped placeholders coexist correctly."""
+        template = "{{ ctx.flow.name }}-{{ version }}"
+        result = apply_values(
+            template,
+            values={"version": "1.0"},
+            remove_notset=True,
+            skip_prefixes=["ctx."],
+        )
+        assert result == "{{ ctx.flow.name }}-1.0"
+
+    def test_apply_values_skip_prefixes_does_not_affect_other_placeholders(self):
+        """Non-matching placeholders are still resolved or removed normally."""
+        template = {"name": "{{ ctx.flow.name }}", "image": "{{ build.image }}"}
+        result = apply_values(
+            template,
+            values={"build": {"image": "my-image:latest"}},
+            remove_notset=True,
+            skip_prefixes=["ctx."],
+        )
+        assert result == {"name": "{{ ctx.flow.name }}", "image": "my-image:latest"}
+
+    def test_apply_values_skip_prefixes_in_nested_structures(self):
+        """skip_prefixes works recursively through dicts and lists."""
+        template = {
+            "work_pool": {
+                "job_variables": {
+                    "name": "{{ ctx.flow.name }}",
+                    "image": "{{ build-image.image }}",
+                }
+            },
+            "tags": ["{{ ctx.flow_run.name }}", "{{ version }}"],
+        }
+        result = apply_values(
+            template,
+            values={"build-image": {"image": "img:latest"}, "version": "v1"},
+            remove_notset=True,
+            skip_prefixes=["ctx."],
+        )
+        assert result == {
+            "work_pool": {
+                "job_variables": {
+                    "name": "{{ ctx.flow.name }}",
+                    "image": "img:latest",
+                }
+            },
+            "tags": ["{{ ctx.flow_run.name }}", "v1"],
+        }
+
+    def test_apply_values_skip_prefixes_warns_only_for_non_skipped(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """Skipped placeholders do not produce warnings."""
+        template = {"a": "{{ ctx.flow.name }}", "b": "{{ missing }}"}
+        apply_values(
+            template,
+            values={},
+            warn_on_notset=True,
+            skip_prefixes=["ctx."],
+        )
+        assert "ctx.flow.name" not in caplog.text
+        assert "missing" in caplog.text
+
 
 class TestResolveBlockDocumentReferences:
     @pytest.fixture(autouse=True)
