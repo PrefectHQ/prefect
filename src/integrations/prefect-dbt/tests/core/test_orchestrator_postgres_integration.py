@@ -129,12 +129,30 @@ def pg_dbt_project(tmp_path_factory):
     result = runner.invoke(["parse", *dbt_args])
     assert result.success, f"dbt parse failed: {result.exception}"
 
-    # Warm up the dbt adapter registry so concurrent dbtRunner invocations
-    # don't race on adapter registration (observed as KeyError on Python 3.12).
-    runner.invoke(["debug", *dbt_args])
+    # Seed the adapter registry with a single-threaded invocation that
+    # creates a full Profile (with project_name, unlike ``dbt debug``).
+    runner.invoke(["compile", *dbt_args])
 
     manifest_path = project_dir / "target" / "manifest.json"
     assert manifest_path.exists(), "manifest.json not generated"
+
+    # Prevent concurrent dbtRunner.invoke() calls from clearing each
+    # other's adapter registrations.  dbt-core's adapter_management()
+    # context manager calls reset_adapters() on EVERY invoke(), which
+    # wipes the process-wide FACTORY.adapters dict.  When two threads
+    # enter invoke() simultaneously, Thread A's reset can delete the
+    # adapter that Thread B is about to look up, causing KeyError.
+    #
+    # We replace the destructive reset (clear dict) with a non-destructive
+    # cleanup (close connections only).  This is safe because:
+    #   - The adapter was registered by the compile invocation above
+    #   - register_adapter() returns early if the adapter already exists
+    #   - cleanup_connections() still runs normally on context exit
+    #   - All invocations share the same project/profiles config
+    import dbt.adapters.factory as _dbt_factory
+
+    _original_reset = _dbt_factory.reset_adapters
+    _dbt_factory.reset_adapters = _dbt_factory.cleanup_connections
 
     yield {
         "project_dir": project_dir,
@@ -142,6 +160,8 @@ def pg_dbt_project(tmp_path_factory):
         "manifest_path": manifest_path,
         "schema": schema_name,
     }
+
+    _dbt_factory.reset_adapters = _original_reset
 
     conn = _pg_connect()
     conn.autocommit = True
