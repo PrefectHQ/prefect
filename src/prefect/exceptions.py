@@ -4,6 +4,8 @@ Prefect-specific exceptions.
 
 import inspect
 import traceback
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from collections.abc import Iterable
 from types import ModuleType, TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Optional
@@ -363,6 +365,41 @@ class PrefectHTTPStatusError(HTTPStatusError):
         return cls(
             new_message, request=httpx_error.request, response=httpx_error.response
         )
+
+    def is_rate_limited(self) -> bool:
+        """
+        Determine if the response indicates the client is rate limited.
+        """
+        return bool(self.response) and self.response.status_code == 429
+
+    def retry_after_seconds(self) -> float | None:
+        """
+        Return the retry delay in seconds from a Retry-After header, if present.
+        """
+        if not self.response:
+            return None
+
+        retry_after = self.response.headers.get("Retry-After")
+        if not retry_after:
+            return None
+
+        try:
+            seconds = float(retry_after)
+        except ValueError:
+            try:
+                retry_at = parsedate_to_datetime(retry_after)
+            except (TypeError, ValueError):
+                return None
+
+            if retry_at is None:
+                return None
+
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+
+            seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+
+        return max(0.0, seconds)
 
 
 class MappingLengthMismatch(PrefectException):
