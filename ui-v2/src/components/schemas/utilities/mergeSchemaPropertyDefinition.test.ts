@@ -1,4 +1,4 @@
-import type { SchemaObject } from "openapi-typescript";
+import type { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { describe, expect, test } from "vitest";
 import {
 	getSchemaDefinition,
@@ -7,12 +7,12 @@ import {
 
 describe("getSchemaDefinition", () => {
 	test("resolves a definition from #/definitions/", () => {
-		const schema: SchemaObject = {
+		const schema = {
 			type: "object",
 			definitions: {
 				MyType: { type: "string", title: "My Type" },
 			},
-		};
+		} as unknown as SchemaObject;
 
 		const result = getSchemaDefinition(schema, "#/definitions/MyType");
 		expect(result).toEqual({ type: "string", title: "My Type" });
@@ -31,12 +31,12 @@ describe("getSchemaDefinition", () => {
 	});
 
 	test("throws when definition key is not found in definitions", () => {
-		const schema: SchemaObject = {
+		const schema = {
 			type: "object",
 			definitions: {
 				MyType: { type: "string" },
 			},
-		};
+		} as unknown as SchemaObject;
 
 		expect(() => getSchemaDefinition(schema, "#/definitions/Missing")).toThrow(
 			"Definition not found for #/definitions/Missing",
@@ -44,12 +44,12 @@ describe("getSchemaDefinition", () => {
 	});
 
 	test("returns empty object when schema has no definitions or $defs", () => {
-		const schema: SchemaObject = {
+		const schema = {
 			type: "object",
 			properties: {
 				value: { type: "string" },
 			},
-		};
+		} as unknown as SchemaObject;
 
 		const result = getSchemaDefinition(schema, "#/definitions/JsonValue");
 		expect(result).toEqual({});
@@ -68,7 +68,7 @@ describe("mergeSchemaPropertyDefinition", () => {
 			definitions: {
 				MyType: { type: "string" },
 			},
-		} as SchemaObject;
+		} as unknown as SchemaObject & ObjectSubtype;
 
 		const result = mergeSchemaPropertyDefinition(property, schema);
 		expect(result).toEqual({ type: "string", title: "Custom Title" });
@@ -82,7 +82,7 @@ describe("mergeSchemaPropertyDefinition", () => {
 		const schema = {
 			type: "object",
 			properties: {},
-		} as SchemaObject;
+		} as unknown as SchemaObject & ObjectSubtype;
 
 		const result = mergeSchemaPropertyDefinition(property, schema);
 		expect(result).toEqual({ title: "JSON" });
@@ -93,7 +93,7 @@ describe("mergeSchemaPropertyDefinition", () => {
 		const schema = {
 			type: "object",
 			properties: {},
-		} as SchemaObject;
+		} as unknown as SchemaObject & ObjectSubtype;
 
 		const result = mergeSchemaPropertyDefinition(property, schema);
 		expect(result).toEqual({ type: "string", title: "Name" });

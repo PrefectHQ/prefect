@@ -25,7 +25,7 @@ describe("getSchemaObjectLabel", () => {
 	});
 
 	test("returns 'Field' when no title, format, or type", () => {
-		const property: SchemaObject = {};
+		const property = {} as SchemaObject;
 		const schema: SchemaObject = { type: "object" };
 
 		expect(getSchemaObjectLabel(property, schema)).toBe("Field");
@@ -33,24 +33,24 @@ describe("getSchemaObjectLabel", () => {
 
 	test("resolves $ref and returns definition title", () => {
 		const property = { $ref: "#/definitions/MyType" };
-		const schema: SchemaObject = {
+		const schema = {
 			type: "object",
 			definitions: {
 				MyType: { type: "string", title: "Resolved Title" },
 			},
-		};
+		} as unknown as SchemaObject;
 
 		expect(getSchemaObjectLabel(property, schema)).toBe("Resolved Title");
 	});
 
 	test("preserves sibling title from $ref when definition has no title", () => {
 		const property = { $ref: "#/definitions/MyType", title: "Sibling Title" };
-		const schema: SchemaObject = {
+		const schema = {
 			type: "object",
 			definitions: {
 				MyType: { type: "string" },
 			},
-		};
+		} as unknown as SchemaObject;
 
 		expect(getSchemaObjectLabel(property, schema)).toBe("Sibling Title");
 	});
@@ -80,12 +80,12 @@ describe("getSchemaObjectLabel", () => {
 			$ref: "#/definitions/MyType",
 			title: "Sibling",
 		};
-		const schema: SchemaObject = {
+		const schema = {
 			type: "object",
 			definitions: {
 				MyType: { type: "string", title: "Definition" },
 			},
-		};
+		} as unknown as SchemaObject;
 
 		expect(getSchemaObjectLabel(property, schema)).toBe("Sibling");
 	});
