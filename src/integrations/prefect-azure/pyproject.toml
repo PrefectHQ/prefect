@@ -29,7 +29,7 @@ dependencies = [
   "azure-mgmt-resource>=21.2,<25",
   "prefect>=3.3.5",
   "prefect-docker>=0.6.2",
-  "setuptools",                         #required in 3.12 to get pkg_resources (used by azureml.core)
+  "setuptools<81",                      #required in 3.12 to get pkg_resources (used by azureml.core)
 ]
 dynamic = ["version"]
 
