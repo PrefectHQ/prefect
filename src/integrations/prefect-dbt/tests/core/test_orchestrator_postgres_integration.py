@@ -143,16 +143,21 @@ def pg_dbt_project(tmp_path_factory):
     # enter invoke() simultaneously, Thread A's reset can delete the
     # adapter that Thread B is about to look up, causing KeyError.
     #
-    # We replace the destructive reset (clear dict) with a non-destructive
-    # cleanup (close connections only).  This is safe because:
+    # Additionally, cleanup_connections() (which closes the connection
+    # pool) cannot be used as a replacement either — if Thread A enters
+    # adapter_management() and closes connections, Thread B may lose its
+    # active database connections mid-query.
+    #
+    # We replace reset_adapters with a complete no-op.  This is safe
+    # because:
     #   - The adapter was registered by the compile invocation above
     #   - register_adapter() returns early if the adapter already exists
-    #   - cleanup_connections() still runs normally on context exit
+    #   - cleanup_connections() still runs on context exit (separate call)
     #   - All invocations share the same project/profiles config
     import dbt.adapters.factory as _dbt_factory
 
     _original_reset = _dbt_factory.reset_adapters
-    _dbt_factory.reset_adapters = _dbt_factory.cleanup_connections
+    _dbt_factory.reset_adapters = lambda: None
 
     yield {
         "project_dir": project_dir,
