@@ -1,6 +1,5 @@
 import builtins
 import logging
-import sys
 
 import pytest
 
@@ -281,12 +280,8 @@ def test_flow_log_prints_reports_caller_location(caplog):
 
     print_records = [r for r in caplog.records if r.message == "hello from flow"]
     assert len(print_records) == 1
-    if sys.version_info >= (3, 11):
-        assert print_records[0].funcName == "my_flow_with_print"
-        assert print_records[0].filename == "test_log_prints.py"
-    else:
-        assert print_records[0].funcName == "call_with_parameters"
-        assert print_records[0].filename == "callables.py"
+    assert print_records[0].funcName == "my_flow_with_print"
+    assert print_records[0].filename == "test_log_prints.py"
 
 
 def test_task_log_prints_reports_caller_location(caplog):
@@ -303,9 +298,5 @@ def test_task_log_prints_reports_caller_location(caplog):
 
     print_records = [r for r in caplog.records if r.message == "hello from task"]
     assert len(print_records) == 1
-    if sys.version_info >= (3, 11):
-        assert print_records[0].funcName == "my_task_with_print"
-        assert print_records[0].filename == "test_log_prints.py"
-    else:
-        assert print_records[0].funcName == "call_with_parameters"
-        assert print_records[0].filename == "callables.py"
+    assert print_records[0].funcName == "my_task_with_print"
+    assert print_records[0].filename == "test_log_prints.py"
