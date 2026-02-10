@@ -9,7 +9,7 @@ type BlockTypeDetailsProps = {
 
 export function BlockTypeDetails({ blockType }: BlockTypeDetailsProps) {
 	return (
-		<Card className="p-6 max-h-60">
+		<Card className="p-6 self-start">
 			<div className="flex items-center gap-4">
 				<BlockTypeLogo size="lg" logoUrl={blockType.logo_url} />
 				<h4 className="text-xl font-semibold tracking-tight">
@@ -18,7 +18,7 @@ export function BlockTypeDetails({ blockType }: BlockTypeDetailsProps) {
 			</div>
 
 			{blockType.description && (
-				<div className="prose max-w-none overflow-y-scroll text-sm">
+				<div className="prose max-w-none overflow-y-auto text-sm">
 					<LazyMarkdown>{blockType.description}</LazyMarkdown>
 				</div>
 			)}
