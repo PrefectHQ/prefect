@@ -1,11 +1,7 @@
 import {
-	type BlockSchema,
-	type BlockType,
 	cleanupBlockDocuments,
-	createBlockDocument,
 	expect,
-	listBlockSchemas,
-	listBlockTypes,
+	listBlockDocuments,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -73,25 +69,27 @@ test.describe("Block Catalog", () => {
 	}) => {
 		const blockName = `${TEST_PREFIX}secret-${Date.now()}`;
 
-		const blockTypes = await listBlockTypes(apiClient);
-		const secretBlockType = blockTypes.find(
-			(bt: BlockType) => bt.slug === "secret",
-		);
-		const blockType = secretBlockType ?? blockTypes[0];
-		const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
-		const blockSchema: BlockSchema = blockSchemas[0];
+		await page.goto("/blocks/catalog/secret/create");
 
-		const block = await createBlockDocument(apiClient, {
-			name: blockName,
-			blockTypeId: blockType.id,
-			blockSchemaId: blockSchema.id,
-			data: { value: "test-secret-value" },
+		const form = page.locator("form");
+		await form.getByLabel("Name").fill(blockName);
+		await form.locator('input[type="password"]').fill("test-secret-value");
+
+		await form.getByRole("button", { name: /save/i }).click();
+
+		await expect(page).toHaveURL(/\/blocks\/block\/[a-f0-9-]+$/, {
+			timeout: 10000,
 		});
-
-		expect(block.id).toBeDefined();
-		expect(block.name).toBe(blockName);
-
-		await page.goto(`/blocks/block/${block.id}`);
 		await expect(page.getByText(blockName)).toBeVisible({ timeout: 10000 });
+
+		await expect
+			.poll(
+				async () => {
+					const docs = await listBlockDocuments(apiClient);
+					return docs.find((d) => d.name === blockName);
+				},
+				{ timeout: 10000 },
+			)
+			.toBeDefined();
 	});
 });
