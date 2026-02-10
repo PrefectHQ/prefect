@@ -13,6 +13,24 @@ import prefect.exceptions
 from prefect.client.orchestration import PrefectClient
 
 
+class ThreadSafeCounter:
+    """MagicMock.call_count is not thread-safe; this provides an atomic counter
+    so threaded lifespan tests do not lose increments."""
+
+    def __init__(self) -> None:
+        self._count = 0
+        self._lock = threading.Lock()
+
+    def __call__(self) -> None:
+        with self._lock:
+            self._count += 1
+
+    @property
+    def call_count(self) -> int:
+        with self._lock:
+            return self._count
+
+
 def make_lifespan(startup, shutdown) -> Callable:
     async def lifespan(app):
         try:
@@ -25,7 +43,7 @@ def make_lifespan(startup, shutdown) -> Callable:
 
 
 def test_client_context_lifespan_is_robust_to_threaded_concurrency():
-    startup, shutdown = MagicMock(), MagicMock()
+    startup, shutdown = ThreadSafeCounter(), ThreadSafeCounter()
     app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
     async def enter_client(context):
@@ -75,7 +93,7 @@ async def test_client_context_lifespan_is_robust_to_high_async_concurrency():
 
 
 async def test_client_context_lifespan_is_robust_to_mixed_concurrency():
-    startup, shutdown = MagicMock(), MagicMock()
+    startup, shutdown = ThreadSafeCounter(), ThreadSafeCounter()
     app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
     async def enter_client():
