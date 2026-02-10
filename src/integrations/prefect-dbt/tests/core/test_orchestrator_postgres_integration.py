@@ -118,17 +118,20 @@ def pg_dbt_project(tmp_path_factory):
     finally:
         conn.close()
 
+    dbt_args = [
+        "--project-dir",
+        str(project_dir),
+        "--profiles-dir",
+        str(project_dir),
+    ]
+
     runner = dbtRunner()
-    result = runner.invoke(
-        [
-            "parse",
-            "--project-dir",
-            str(project_dir),
-            "--profiles-dir",
-            str(project_dir),
-        ]
-    )
+    result = runner.invoke(["parse", *dbt_args])
     assert result.success, f"dbt parse failed: {result.exception}"
+
+    # Warm up the dbt adapter registry so concurrent dbtRunner invocations
+    # don't race on adapter registration (observed as KeyError on Python 3.12).
+    runner.invoke(["debug", *dbt_args])
 
     manifest_path = project_dir / "target" / "manifest.json"
     assert manifest_path.exists(), "manifest.json not generated"

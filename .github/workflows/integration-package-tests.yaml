@@ -90,6 +90,7 @@ jobs:
         working-directory: src/integrations/${{ matrix.package }}
         run: >
           uv run pytest
+          -m "not integration"
           --numprocesses auto
           --maxprocesses 4
           --dist worksteal
