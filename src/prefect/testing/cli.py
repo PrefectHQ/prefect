@@ -104,6 +104,9 @@ class CycloptsCliRunner:
 
         if isinstance(args, str):
             args = args.split()
+        else:
+            # Ensure all args are strings (tests may pass integers).
+            args = [str(a) for a in args]
 
         stdout_buf = _TTYStringIO()
         stderr_buf = _TTYStringIO()
