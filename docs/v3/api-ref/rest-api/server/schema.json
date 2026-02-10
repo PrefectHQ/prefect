@@ -8,7 +8,7 @@
         }
     },
     "paths": {
-        "/api/health": {
+        "/health": {
             "get": {
                 "tags": [
                     "Root"
@@ -30,7 +30,7 @@
                 }
             }
         },
-        "/api/version": {
+        "/version": {
             "get": {
                 "tags": [
                     "Root"
@@ -52,7 +52,7 @@
                 }
             }
         },
-        "/api/flows/": {
+        "/flows/": {
             "post": {
                 "tags": [
                     "Flows"
@@ -105,7 +105,7 @@
                 }
             }
         },
-        "/api/flows/{id}": {
+        "/flows/{id}": {
             "patch": {
                 "tags": [
                     "Flows"
@@ -262,7 +262,7 @@
                 }
             }
         },
-        "/api/flows/count": {
+        "/flows/count": {
             "post": {
                 "tags": [
                     "Flows"
@@ -315,7 +315,7 @@
                 }
             }
         },
-        "/api/flows/name/{name}": {
+        "/flows/name/{name}": {
             "get": {
                 "tags": [
                     "Flows"
@@ -369,7 +369,7 @@
                 }
             }
         },
-        "/api/flows/filter": {
+        "/flows/filter": {
             "post": {
                 "tags": [
                     "Flows"
@@ -425,7 +425,7 @@
                 }
             }
         },
-        "/api/flows/bulk_delete": {
+        "/flows/bulk_delete": {
             "post": {
                 "tags": [
                     "Flows"
@@ -477,7 +477,7 @@
                 }
             }
         },
-        "/api/flows/paginate": {
+        "/flows/paginate": {
             "post": {
                 "tags": [
                     "Flows"
@@ -529,7 +529,7 @@
                 }
             }
         },
-        "/api/flow_runs/": {
+        "/flow_runs/": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -582,7 +582,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}": {
+        "/flow_runs/{id}": {
             "patch": {
                 "tags": [
                     "Flow Runs"
@@ -739,7 +739,7 @@
                 }
             }
         },
-        "/api/flow_runs/count": {
+        "/flow_runs/count": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -792,7 +792,7 @@
                 }
             }
         },
-        "/api/flow_runs/lateness": {
+        "/flow_runs/lateness": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -852,7 +852,7 @@
                 }
             }
         },
-        "/api/flow_runs/history": {
+        "/flow_runs/history": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -909,7 +909,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/graph": {
+        "/flow_runs/{id}/graph": {
             "get": {
                 "tags": [
                     "Flow Runs",
@@ -969,7 +969,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/graph-v2": {
+        "/flow_runs/{id}/graph-v2": {
             "get": {
                 "tags": [
                     "Flow Runs",
@@ -1038,7 +1038,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/resume": {
+        "/flow_runs/{id}/resume": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1102,7 +1102,7 @@
                 }
             }
         },
-        "/api/flow_runs/filter": {
+        "/flow_runs/filter": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1158,7 +1158,7 @@
                 }
             }
         },
-        "/api/flow_runs/bulk_delete": {
+        "/flow_runs/bulk_delete": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1210,7 +1210,7 @@
                 }
             }
         },
-        "/api/flow_runs/bulk_set_state": {
+        "/flow_runs/bulk_set_state": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1263,7 +1263,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/set_state": {
+        "/flow_runs/{id}/set_state": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1328,7 +1328,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input": {
+        "/flow_runs/{id}/input": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1391,7 +1391,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input/filter": {
+        "/flow_runs/{id}/input/filter": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1460,7 +1460,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input/{key}": {
+        "/flow_runs/{id}/input/{key}": {
             "get": {
                 "tags": [
                     "Flow Runs"
@@ -1581,7 +1581,7 @@
                 }
             }
         },
-        "/api/flow_runs/paginate": {
+        "/flow_runs/paginate": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1633,7 +1633,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/logs/download": {
+        "/flow_runs/{id}/logs/download": {
             "get": {
                 "tags": [
                     "Flow Runs"
@@ -1686,7 +1686,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/labels": {
+        "/flow_runs/{id}/labels": {
             "patch": {
                 "tags": [
                     "Flow Runs"
@@ -1747,7 +1747,7 @@
                 }
             }
         },
-        "/api/task_runs/": {
+        "/task_runs/": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1800,7 +1800,7 @@
                 }
             }
         },
-        "/api/task_runs/{id}": {
+        "/task_runs/{id}": {
             "patch": {
                 "tags": [
                     "Task Runs"
@@ -1957,7 +1957,7 @@
                 }
             }
         },
-        "/api/task_runs/count": {
+        "/task_runs/count": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2010,7 +2010,7 @@
                 }
             }
         },
-        "/api/task_runs/history": {
+        "/task_runs/history": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2067,7 +2067,7 @@
                 }
             }
         },
-        "/api/task_runs/filter": {
+        "/task_runs/filter": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2123,7 +2123,7 @@
                 }
             }
         },
-        "/api/task_runs/paginate": {
+        "/task_runs/paginate": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2175,7 +2175,7 @@
                 }
             }
         },
-        "/api/task_runs/{id}/set_state": {
+        "/task_runs/{id}/set_state": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2240,7 +2240,7 @@
                 }
             }
         },
-        "/api/flow_run_states/{id}": {
+        "/flow_run_states/{id}": {
             "get": {
                 "tags": [
                     "Flow Run States"
@@ -2295,7 +2295,7 @@
                 }
             }
         },
-        "/api/flow_run_states/": {
+        "/flow_run_states/": {
             "get": {
                 "tags": [
                     "Flow Run States"
@@ -2352,7 +2352,7 @@
                 }
             }
         },
-        "/api/task_run_states/{id}": {
+        "/task_run_states/{id}": {
             "get": {
                 "tags": [
                     "Task Run States"
@@ -2407,7 +2407,7 @@
                 }
             }
         },
-        "/api/task_run_states/": {
+        "/task_run_states/": {
             "get": {
                 "tags": [
                     "Task Run States"
@@ -2464,7 +2464,7 @@
                 }
             }
         },
-        "/api/deployments/": {
+        "/deployments/": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2517,7 +2517,7 @@
                 }
             }
         },
-        "/api/deployments/{id}": {
+        "/deployments/{id}": {
             "patch": {
                 "tags": [
                     "Deployments"
@@ -2673,7 +2673,7 @@
                 }
             }
         },
-        "/api/deployments/name/{flow_name}/{deployment_name}": {
+        "/deployments/name/{flow_name}/{deployment_name}": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -2738,7 +2738,7 @@
                 }
             }
         },
-        "/api/deployments/filter": {
+        "/deployments/filter": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2794,7 +2794,7 @@
                 }
             }
         },
-        "/api/deployments/paginate": {
+        "/deployments/paginate": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2846,7 +2846,7 @@
                 }
             }
         },
-        "/api/deployments/get_scheduled_flow_runs": {
+        "/deployments/get_scheduled_flow_runs": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2903,7 +2903,7 @@
                 }
             }
         },
-        "/api/deployments/count": {
+        "/deployments/count": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2956,7 +2956,7 @@
                 }
             }
         },
-        "/api/deployments/bulk_delete": {
+        "/deployments/bulk_delete": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -3008,7 +3008,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedule": {
+        "/deployments/{id}/schedule": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -3070,7 +3070,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/resume_deployment": {
+        "/deployments/{id}/resume_deployment": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -3123,7 +3123,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/pause_deployment": {
+        "/deployments/{id}/pause_deployment": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -3176,7 +3176,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/create_flow_run": {
+        "/deployments/{id}/create_flow_run": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -3241,7 +3241,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/create_flow_run/bulk": {
+        "/deployments/{id}/create_flow_run/bulk": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -3311,7 +3311,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/work_queue_check": {
+        "/deployments/{id}/work_queue_check": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -3371,7 +3371,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedules": {
+        "/deployments/{id}/schedules": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -3500,7 +3500,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedules/{schedule_id}": {
+        "/deployments/{id}/schedules/{schedule_id}": {
             "patch": {
                 "tags": [
                     "Deployments"
@@ -3627,7 +3627,7 @@
                 }
             }
         },
-        "/api/saved_searches/": {
+        "/saved_searches/": {
             "put": {
                 "tags": [
                     "SavedSearches"
@@ -3680,7 +3680,7 @@
                 }
             }
         },
-        "/api/saved_searches/{id}": {
+        "/saved_searches/{id}": {
             "get": {
                 "tags": [
                     "SavedSearches"
@@ -3781,7 +3781,7 @@
                 }
             }
         },
-        "/api/saved_searches/filter": {
+        "/saved_searches/filter": {
             "post": {
                 "tags": [
                     "SavedSearches"
@@ -3837,7 +3837,7 @@
                 }
             }
         },
-        "/api/logs/": {
+        "/logs/": {
             "post": {
                 "tags": [
                     "Logs"
@@ -3892,7 +3892,7 @@
                 }
             }
         },
-        "/api/logs/filter": {
+        "/logs/filter": {
             "post": {
                 "tags": [
                     "Logs"
@@ -3948,7 +3948,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/": {
+        "/concurrency_limits/": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4001,7 +4001,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/{id}": {
+        "/concurrency_limits/{id}": {
             "get": {
                 "tags": [
                     "Concurrency Limits"
@@ -4106,7 +4106,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/tag/{tag}": {
+        "/concurrency_limits/tag/{tag}": {
             "get": {
                 "tags": [
                     "Concurrency Limits"
@@ -4209,7 +4209,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/filter": {
+        "/concurrency_limits/filter": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4265,7 +4265,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/tag/{tag}/reset": {
+        "/concurrency_limits/tag/{tag}/reset": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4325,7 +4325,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/increment": {
+        "/concurrency_limits/increment": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4382,7 +4382,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/decrement": {
+        "/concurrency_limits/decrement": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4439,7 +4439,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/": {
+        "/v2/concurrency_limits/": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4492,7 +4492,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/{id_or_name}": {
+        "/v2/concurrency_limits/{id_or_name}": {
             "get": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4667,7 +4667,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/filter": {
+        "/v2/concurrency_limits/filter": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4722,7 +4722,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/increment": {
+        "/v2/concurrency_limits/increment": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4778,7 +4778,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/increment-with-lease": {
+        "/v2/concurrency_limits/increment-with-lease": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4830,7 +4830,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/decrement": {
+        "/v2/concurrency_limits/decrement": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4886,7 +4886,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/decrement-with-lease": {
+        "/v2/concurrency_limits/decrement-with-lease": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4931,7 +4931,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/leases/{lease_id}/renew": {
+        "/v2/concurrency_limits/leases/{lease_id}/renew": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4987,7 +4987,7 @@
                 }
             }
         },
-        "/api/block_types/": {
+        "/block_types/": {
             "post": {
                 "tags": [
                     "Block types"
@@ -5040,7 +5040,7 @@
                 }
             }
         },
-        "/api/block_types/{id}": {
+        "/block_types/{id}": {
             "get": {
                 "tags": [
                     "Block types"
@@ -5196,7 +5196,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}": {
+        "/block_types/slug/{slug}": {
             "get": {
                 "tags": [
                     "Block types"
@@ -5250,7 +5250,7 @@
                 }
             }
         },
-        "/api/block_types/filter": {
+        "/block_types/filter": {
             "post": {
                 "tags": [
                     "Block types"
@@ -5306,7 +5306,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}/block_documents": {
+        "/block_types/slug/{slug}/block_documents": {
             "get": {
                 "tags": [
                     "Block types",
@@ -5377,7 +5377,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
+        "/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
             "get": {
                 "tags": [
                     "Block types",
@@ -5455,7 +5455,7 @@
                 }
             }
         },
-        "/api/block_types/install_system_block_types": {
+        "/block_types/install_system_block_types": {
             "post": {
                 "tags": [
                     "Block types"
@@ -5495,7 +5495,7 @@
                 }
             }
         },
-        "/api/block_documents/": {
+        "/block_documents/": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5548,7 +5548,7 @@
                 }
             }
         },
-        "/api/block_documents/filter": {
+        "/block_documents/filter": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5604,7 +5604,7 @@
                 }
             }
         },
-        "/api/block_documents/count": {
+        "/block_documents/count": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5657,7 +5657,7 @@
                 }
             }
         },
-        "/api/block_documents/{id}": {
+        "/block_documents/{id}": {
             "get": {
                 "tags": [
                     "Block documents"
@@ -5823,7 +5823,7 @@
                 }
             }
         },
-        "/api/work_pools/": {
+        "/work_pools/": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5876,7 +5876,7 @@
                 }
             }
         },
-        "/api/work_pools/{name}": {
+        "/work_pools/{name}": {
             "get": {
                 "tags": [
                     "Work Pools"
@@ -6030,7 +6030,7 @@
                 }
             }
         },
-        "/api/work_pools/filter": {
+        "/work_pools/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6086,7 +6086,7 @@
                 }
             }
         },
-        "/api/work_pools/count": {
+        "/work_pools/count": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6139,7 +6139,7 @@
                 }
             }
         },
-        "/api/work_pools/{name}/get_scheduled_flow_runs": {
+        "/work_pools/{name}/get_scheduled_flow_runs": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6206,7 +6206,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues": {
+        "/work_pools/{work_pool_name}/queues": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6270,7 +6270,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues/{name}": {
+        "/work_pools/{work_pool_name}/queues/{name}": {
             "get": {
                 "tags": [
                     "Work Pools"
@@ -6457,7 +6457,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues/filter": {
+        "/work_pools/{work_pool_name}/queues/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6524,7 +6524,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/heartbeat": {
+        "/work_pools/{work_pool_name}/workers/heartbeat": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6580,7 +6580,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/filter": {
+        "/work_pools/{work_pool_name}/workers/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6647,7 +6647,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/{name}": {
+        "/work_pools/{work_pool_name}/workers/{name}": {
             "delete": {
                 "tags": [
                     "Work Pools"
@@ -6705,7 +6705,7 @@
                 }
             }
         },
-        "/api/task_workers/filter": {
+        "/task_workers/filter": {
             "post": {
                 "tags": [
                     "Task Workers"
@@ -6761,7 +6761,7 @@
                 }
             }
         },
-        "/api/work_queues/": {
+        "/work_queues/": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -6814,7 +6814,7 @@
                 }
             }
         },
-        "/api/work_queues/{id}": {
+        "/work_queues/{id}": {
             "patch": {
                 "tags": [
                     "Work Queues"
@@ -6971,7 +6971,7 @@
                 }
             }
         },
-        "/api/work_queues/name/{name}": {
+        "/work_queues/name/{name}": {
             "get": {
                 "tags": [
                     "Work Queues"
@@ -7025,7 +7025,7 @@
                 }
             }
         },
-        "/api/work_queues/{id}/get_runs": {
+        "/work_queues/{id}/get_runs": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -7112,7 +7112,7 @@
                 }
             }
         },
-        "/api/work_queues/filter": {
+        "/work_queues/filter": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -7168,7 +7168,7 @@
                 }
             }
         },
-        "/api/work_queues/{id}/status": {
+        "/work_queues/{id}/status": {
             "get": {
                 "tags": [
                     "Work Queues"
@@ -7223,7 +7223,7 @@
                 }
             }
         },
-        "/api/artifacts/": {
+        "/artifacts/": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7276,7 +7276,7 @@
                 }
             }
         },
-        "/api/artifacts/{id}": {
+        "/artifacts/{id}": {
             "get": {
                 "tags": [
                     "Artifacts"
@@ -7433,7 +7433,7 @@
                 }
             }
         },
-        "/api/artifacts/{key}/latest": {
+        "/artifacts/{key}/latest": {
             "get": {
                 "tags": [
                     "Artifacts"
@@ -7487,7 +7487,7 @@
                 }
             }
         },
-        "/api/artifacts/filter": {
+        "/artifacts/filter": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7543,7 +7543,7 @@
                 }
             }
         },
-        "/api/artifacts/latest/filter": {
+        "/artifacts/latest/filter": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7599,7 +7599,7 @@
                 }
             }
         },
-        "/api/artifacts/count": {
+        "/artifacts/count": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7652,7 +7652,7 @@
                 }
             }
         },
-        "/api/artifacts/latest/count": {
+        "/artifacts/latest/count": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7705,7 +7705,7 @@
                 }
             }
         },
-        "/api/block_schemas/": {
+        "/block_schemas/": {
             "post": {
                 "tags": [
                     "Block schemas"
@@ -7758,7 +7758,7 @@
                 }
             }
         },
-        "/api/block_schemas/{id}": {
+        "/block_schemas/{id}": {
             "delete": {
                 "tags": [
                     "Block schemas"
@@ -7859,7 +7859,7 @@
                 }
             }
         },
-        "/api/block_schemas/filter": {
+        "/block_schemas/filter": {
             "post": {
                 "tags": [
                     "Block schemas"
@@ -7915,7 +7915,7 @@
                 }
             }
         },
-        "/api/block_schemas/checksum/{checksum}": {
+        "/block_schemas/checksum/{checksum}": {
             "get": {
                 "tags": [
                     "Block schemas"
@@ -7986,7 +7986,7 @@
                 }
             }
         },
-        "/api/block_capabilities/": {
+        "/block_capabilities/": {
             "get": {
                 "tags": [
                     "Block capabilities"
@@ -8033,7 +8033,7 @@
                 }
             }
         },
-        "/api/collections/views/{view}": {
+        "/collections/views/{view}": {
             "get": {
                 "tags": [
                     "Collections"
@@ -8087,7 +8087,7 @@
                 }
             }
         },
-        "/api/variables/": {
+        "/variables/": {
             "post": {
                 "tags": [
                     "Variables"
@@ -8140,7 +8140,7 @@
                 }
             }
         },
-        "/api/variables/{id}": {
+        "/variables/{id}": {
             "get": {
                 "tags": [
                     "Variables"
@@ -8288,7 +8288,7 @@
                 }
             }
         },
-        "/api/variables/name/{name}": {
+        "/variables/name/{name}": {
             "get": {
                 "tags": [
                     "Variables"
@@ -8433,7 +8433,7 @@
                 }
             }
         },
-        "/api/variables/filter": {
+        "/variables/filter": {
             "post": {
                 "tags": [
                     "Variables"
@@ -8488,7 +8488,7 @@
                 }
             }
         },
-        "/api/variables/count": {
+        "/variables/count": {
             "post": {
                 "tags": [
                     "Variables"
@@ -8540,7 +8540,7 @@
                 }
             }
         },
-        "/api/csrf-token": {
+        "/csrf-token": {
             "get": {
                 "summary": "Create Csrf Token",
                 "description": "Create or update a CSRF token for a client",
@@ -8591,7 +8591,7 @@
                 }
             }
         },
-        "/api/events": {
+        "/events": {
             "post": {
                 "tags": [
                     "Events"
@@ -8641,7 +8641,7 @@
                 }
             }
         },
-        "/api/events/filter": {
+        "/events/filter": {
             "post": {
                 "tags": [
                     "Events"
@@ -8693,7 +8693,7 @@
                 }
             }
         },
-        "/api/events/filter/next": {
+        "/events/filter/next": {
             "get": {
                 "tags": [
                     "Events"
@@ -8745,7 +8745,7 @@
                 }
             }
         },
-        "/api/events/count-by/{countable}": {
+        "/events/count-by/{countable}": {
             "post": {
                 "tags": [
                     "Events"
@@ -8810,7 +8810,7 @@
                 }
             }
         },
-        "/api/automations/": {
+        "/automations/": {
             "post": {
                 "tags": [
                     "Automations"
@@ -8863,7 +8863,7 @@
                 }
             }
         },
-        "/api/automations/{id}": {
+        "/automations/{id}": {
             "put": {
                 "tags": [
                     "Automations"
@@ -9064,7 +9064,7 @@
                 }
             }
         },
-        "/api/automations/filter": {
+        "/automations/filter": {
             "post": {
                 "tags": [
                     "Automations"
@@ -9119,7 +9119,7 @@
                 }
             }
         },
-        "/api/automations/count": {
+        "/automations/count": {
             "post": {
                 "tags": [
                     "Automations"
@@ -9162,7 +9162,7 @@
                 }
             }
         },
-        "/api/automations/related-to/{resource_id}": {
+        "/automations/related-to/{resource_id}": {
             "get": {
                 "tags": [
                     "Automations"
@@ -9217,7 +9217,7 @@
                 }
             }
         },
-        "/api/automations/owned-by/{resource_id}": {
+        "/automations/owned-by/{resource_id}": {
             "delete": {
                 "tags": [
                     "Automations"
@@ -9266,7 +9266,7 @@
                 }
             }
         },
-        "/api/templates/validate": {
+        "/templates/validate": {
             "post": {
                 "tags": [
                     "Automations"
@@ -9312,7 +9312,7 @@
                 }
             }
         },
-        "/api/automations/templates/validate": {
+        "/automations/templates/validate": {
             "post": {
                 "tags": [
                     "Automations"
@@ -9358,7 +9358,7 @@
                 }
             }
         },
-        "/api/admin/settings": {
+        "/admin/settings": {
             "get": {
                 "tags": [
                     "Admin"
@@ -9401,7 +9401,7 @@
                 }
             }
         },
-        "/api/admin/version": {
+        "/admin/version": {
             "get": {
                 "tags": [
                     "Admin"
@@ -9445,7 +9445,7 @@
                 }
             }
         },
-        "/api/hello": {
+        "/hello": {
             "get": {
                 "tags": [
                     "Root"
@@ -9489,7 +9489,7 @@
                 }
             }
         },
-        "/api/ready": {
+        "/ready": {
             "get": {
                 "tags": [
                     "Root"
