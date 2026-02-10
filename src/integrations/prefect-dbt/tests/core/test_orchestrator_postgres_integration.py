@@ -17,7 +17,6 @@ Run locally:
 
 import os
 import shutil
-from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -54,6 +53,7 @@ SEED_ORDERS = "seed.test_project.orders"
 STG_CUSTOMERS = "model.test_project.stg_customers"
 STG_ORDERS = "model.test_project.stg_orders"
 CUSTOMER_SUMMARY = "model.test_project.customer_summary"
+INT_ORDERS_ENRICHED = "model.test_project.int_orders_enriched"
 
 ALL_EXECUTABLE = {
     SEED_CUSTOMERS,
@@ -130,38 +130,8 @@ def pg_dbt_project(tmp_path_factory):
     result = runner.invoke(["parse", *dbt_args])
     assert result.success, f"dbt parse failed: {result.exception}"
 
-    # Seed the adapter registry with a single-threaded invocation that
-    # creates a full Profile (with project_name, unlike ``dbt debug``).
-    runner.invoke(["compile", *dbt_args])
-
     manifest_path = project_dir / "target" / "manifest.json"
     assert manifest_path.exists(), "manifest.json not generated"
-
-    # Prevent concurrent dbtRunner.invoke() calls from interfering with
-    # each other's adapter state.  dbt-core's adapter_management() context
-    # manager (entered on every invoke()) calls:
-    #   - reset_adapters() on ENTRY: clears the process-wide FACTORY.adapters
-    #     dict AND closes all connections.  Concurrent threads race on this.
-    #   - cleanup_connections() on EXIT: calls thread_connections.clear(),
-    #     wiping the connection pool for ALL threads — including those still
-    #     running queries in concurrent invocations.
-    #
-    # We replace the entire adapter_management context manager with a no-op.
-    # This is safe because:
-    #   - The adapter was registered by the compile invocation above
-    #   - register_adapter() returns early if the adapter already exists
-    #   - Each thread opens its own connection on first use
-    #   - All invocations share the same project/profiles config
-    #   - Connections accumulate but are cleaned up at session teardown
-    import dbt.adapters.factory as _dbt_factory
-
-    _original_adapter_management = _dbt_factory.adapter_management
-
-    @contextmanager
-    def _noop_adapter_management():
-        yield
-
-    _dbt_factory.adapter_management = _noop_adapter_management
 
     yield {
         "project_dir": project_dir,
@@ -169,8 +139,6 @@ def pg_dbt_project(tmp_path_factory):
         "manifest_path": manifest_path,
         "schema": schema_name,
     }
-
-    _dbt_factory.adapter_management = _original_adapter_management
 
     conn = _pg_connect()
     conn.autocommit = True
@@ -219,11 +187,16 @@ class TestPerNodePostgresConcurrency:
             )
 
     def test_concurrent_nodes_overlap_in_time(self, pg_dbt_project):
-        """Nodes within the same wave have overlapping timing windows.
+        """With concurrency=4, same-wave nodes finish near-simultaneously.
 
-        With concurrency=4, the two seeds and two staging models should
-        overlap since they are submitted concurrently within their waves.
+        The orchestrator records ``started_at`` before semaphore acquisition,
+        so overlap-based checks are vacuous.  Instead we verify concurrency
+        via ``completed_at`` spread: concurrent nodes finish near the same
+        time, so the spread of ``completed_at`` within a wave should be
+        small relative to each node's execution time.
         """
+        from datetime import datetime
+
         from prefect import flow
 
         orchestrator = _make_orchestrator(
@@ -238,23 +211,27 @@ class TestPerNodePostgresConcurrency:
 
         results = test_flow()
 
-        seed_a = results[SEED_CUSTOMERS]["timing"]
-        seed_b = results[SEED_ORDERS]["timing"]
-        stg_a = results[STG_CUSTOMERS]["timing"]
-        stg_b = results[STG_ORDERS]["timing"]
+        def _completion_spread_is_concurrent(node_ids):
+            """Check if nodes finished near-simultaneously (concurrent)."""
+            timings = [results[nid]["timing"] for nid in node_ids]
+            ends = sorted(datetime.fromisoformat(t["completed_at"]) for t in timings)
+            durations = [t["duration_seconds"] for t in timings]
+            spread = (ends[-1] - ends[0]).total_seconds()
+            min_duration = min(durations)
+            # Concurrent: spread is small relative to each node's duration
+            return spread < min_duration * 0.5
 
-        def _overlaps(t1, t2):
-            return (
-                t1["started_at"] < t2["completed_at"]
-                and t2["started_at"] < t1["completed_at"]
-            )
+        seeds_concurrent = _completion_spread_is_concurrent(
+            [SEED_CUSTOMERS, SEED_ORDERS]
+        )
+        staging_concurrent = _completion_spread_is_concurrent(
+            [STG_CUSTOMERS, STG_ORDERS]
+        )
 
-        seeds_overlap = _overlaps(seed_a, seed_b)
-        staging_overlap = _overlaps(stg_a, stg_b)
-
-        assert seeds_overlap or staging_overlap, (
-            "Expected at least one pair of same-wave nodes to overlap in time. "
-            f"Seeds: {seed_a} vs {seed_b}, Staging: {stg_a} vs {stg_b}"
+        assert seeds_concurrent or staging_concurrent, (
+            "Expected at least one pair of same-wave nodes to execute concurrently. "
+            f"Seed timings: {results[SEED_CUSTOMERS]['timing']} vs {results[SEED_ORDERS]['timing']}, "
+            f"Staging timings: {results[STG_CUSTOMERS]['timing']} vs {results[STG_ORDERS]['timing']}"
         )
 
     def test_concurrency_limit_serializes(self, pg_dbt_project):
@@ -363,3 +340,20 @@ class TestPerNodePostgresConcurrency:
                 assert alice[1] == 300  # 100 + 200
         finally:
             conn.close()
+
+    def test_per_node_ephemeral_not_in_results(self, pg_dbt_project):
+        """Ephemeral models are not executed in PER_NODE mode."""
+        from prefect import flow
+
+        orchestrator = _make_orchestrator(
+            pg_dbt_project,
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=4,
+        )
+
+        @flow
+        def test_flow():
+            return orchestrator.run_build()
+
+        results = test_flow()
+        assert INT_ORDERS_ENRICHED not in results

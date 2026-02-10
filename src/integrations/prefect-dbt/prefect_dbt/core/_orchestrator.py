@@ -7,7 +7,7 @@ This module provides:
 """
 
 import threading
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -367,6 +367,38 @@ class PrefectDbtOrchestrator:
     # PER_NODE execution
     # ------------------------------------------------------------------
 
+    @staticmethod
+    @contextmanager
+    def _patch_adapter_management():
+        """Replace dbt's adapter_management with a no-op during concurrent execution.
+
+        dbt's ``adapter_management()`` context manager is entered on every
+        ``dbtRunner.invoke()`` call.  It calls ``reset_adapters()`` on entry
+        (clears ALL adapters and closes ALL connections) and
+        ``cleanup_connections()`` on exit (wipes the connection pool for ALL
+        threads).  Both are destructive when multiple ``dbtRunner.invoke()``
+        calls run concurrently in PER_NODE mode.
+
+        Adapter registration happens inside dbt's command processing (during
+        ``yield``), not inside ``adapter_management()``, so a no-op
+        replacement still allows adapters to register — it just prevents the
+        destructive reset/cleanup from racing across threads.
+        """
+        import dbt.adapters.factory as factory
+
+        original = factory.adapter_management
+
+        @contextmanager
+        def _noop():
+            yield
+
+        factory.adapter_management = _noop
+        try:
+            yield
+        finally:
+            factory.adapter_management = original
+            factory.cleanup_connections()
+
     def _execute_per_node(self, waves, full_refresh):
         """Execute each node as an individual Prefect task.
 
@@ -434,62 +466,63 @@ class PrefectDbtOrchestrator:
         results: dict[str, Any] = {}
         failed_nodes: set[str] = set()
 
-        for wave in waves:
-            futures: dict[str, Any] = {}
+        with self._patch_adapter_management():
+            for wave in waves:
+                futures: dict[str, Any] = {}
 
-            for node in wave.nodes:
-                # Check if any upstream dependency has failed or been skipped
-                upstream_failures = [
-                    dep for dep in node.depends_on if dep in failed_nodes
-                ]
-                if upstream_failures:
-                    results[node.unique_id] = build_result(
-                        status="skipped",
-                        reason="upstream failure",
-                        failed_upstream=upstream_failures,
-                    )
-                    failed_nodes.add(node.unique_id)
-                    continue
+                for node in wave.nodes:
+                    # Check if any upstream dependency has failed or been skipped
+                    upstream_failures = [
+                        dep for dep in node.depends_on if dep in failed_nodes
+                    ]
+                    if upstream_failures:
+                        results[node.unique_id] = build_result(
+                            status="skipped",
+                            reason="upstream failure",
+                            failed_upstream=upstream_failures,
+                        )
+                        failed_nodes.add(node.unique_id)
+                        continue
 
-                command = _NODE_COMMAND.get(node.resource_type, "run")
-                node_task = run_dbt_node.with_options(
-                    name=f"dbt_{command}_{node.name}",
-                    retries=self._retries,
-                    retry_delay_seconds=self._retry_delay_seconds,
-                )
-                future = node_task.submit(
-                    node=node, command=command, full_refresh=full_refresh
-                )
-                futures[node.unique_id] = future
+                    command = _NODE_COMMAND.get(node.resource_type, "run")
+                    node_task = run_dbt_node.with_options(
+                        name=f"dbt_{command}_{node.name}",
+                        retries=self._retries,
+                        retry_delay_seconds=self._retry_delay_seconds,
+                    )
+                    future = node_task.submit(
+                        node=node, command=command, full_refresh=full_refresh
+                    )
+                    futures[node.unique_id] = future
 
-            # Collect results for this wave
-            for node_id, future in futures.items():
-                try:
-                    results[node_id] = future.result()
-                except _DbtNodeError as exc:
-                    error_info = {
-                        "message": str(exc.execution_result.error)
-                        if exc.execution_result.error
-                        else "unknown error",
-                        "type": type(exc.execution_result.error).__name__
-                        if exc.execution_result.error
-                        else "UnknownError",
-                    }
-                    results[node_id] = build_result(
-                        status="error",
-                        timing=exc.timing,
-                        invocation=exc.invocation,
-                        error=error_info,
-                    )
-                    failed_nodes.add(node_id)
-                except Exception as exc:
-                    results[node_id] = build_result(
-                        status="error",
-                        error={
-                            "message": str(exc),
-                            "type": type(exc).__name__,
-                        },
-                    )
-                    failed_nodes.add(node_id)
+                # Collect results for this wave
+                for node_id, future in futures.items():
+                    try:
+                        results[node_id] = future.result()
+                    except _DbtNodeError as exc:
+                        error_info = {
+                            "message": str(exc.execution_result.error)
+                            if exc.execution_result.error
+                            else "unknown error",
+                            "type": type(exc.execution_result.error).__name__
+                            if exc.execution_result.error
+                            else "UnknownError",
+                        }
+                        results[node_id] = build_result(
+                            status="error",
+                            timing=exc.timing,
+                            invocation=exc.invocation,
+                            error=error_info,
+                        )
+                        failed_nodes.add(node_id)
+                    except Exception as exc:
+                        results[node_id] = build_result(
+                            status="error",
+                            error={
+                                "message": str(exc),
+                                "type": type(exc).__name__,
+                            },
+                        )
+                        failed_nodes.add(node_id)
 
         return results
