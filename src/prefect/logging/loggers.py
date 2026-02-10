@@ -328,8 +328,12 @@ def print_as_log(*args: Any, **kwargs: Any) -> None:
     kwargs["file"] = buffer
     print(*args, **kwargs)
 
-    # Remove trailing whitespace to prevent duplicates
-    logger.info(buffer.getvalue().rstrip(), stacklevel=2)
+    msg = buffer.getvalue().rstrip()
+
+    if isinstance(logger, logging.LoggerAdapter):
+        logger.logger._log(logging.INFO, msg, (), extra=logger.extra, stacklevel=2)
+    else:
+        logger.info(msg, stacklevel=2)
 
 
 @contextmanager
