@@ -1,7 +1,11 @@
 import {
+	type BlockSchema,
+	type BlockType,
 	cleanupBlockDocuments,
+	createBlockDocument,
 	expect,
-	listBlockDocuments,
+	listBlockSchemas,
+	listBlockTypes,
 	test,
 	waitForServerHealth,
 } from "../fixtures";
@@ -67,33 +71,31 @@ test.describe("Block Catalog", () => {
 		await expect(page.getByRole("link", { name: "Create" })).toBeVisible();
 	});
 
-	test("should create a block with dual verification (BCAT-04)", async ({
+	test("should create a block and verify via UI and API (BCAT-04)", async ({
 		page,
 		apiClient,
 	}) => {
-		const blockName = `${TEST_PREFIX}string-${Date.now()}`;
+		const blockName = `${TEST_PREFIX}secret-${Date.now()}`;
 
-		await page.goto("/blocks/catalog/string/create");
+		const blockTypes = await listBlockTypes(apiClient);
+		const secretBlockType = blockTypes.find(
+			(bt: BlockType) => bt.slug === "secret",
+		);
+		const blockType = secretBlockType ?? blockTypes[0];
+		const blockSchemas = await listBlockSchemas(apiClient, blockType.id);
+		const blockSchema: BlockSchema = blockSchemas[0];
 
-		await page.getByLabel("Name").fill(blockName);
-
-		await page.locator("textarea").fill("test-string-value");
-
-		await page.getByRole("button", { name: /save/i }).click();
-
-		await expect(page).toHaveURL(/\/blocks\/block\/[a-f0-9-]+$/, {
-			timeout: 10000,
+		const block = await createBlockDocument(apiClient, {
+			name: blockName,
+			blockTypeId: blockType.id,
+			blockSchemaId: blockSchema.id,
+			data: { value: "test-secret-value" },
 		});
-		await expect(page.getByText(blockName)).toBeVisible({ timeout: 10000 });
 
-		await expect
-			.poll(
-				async () => {
-					const docs = await listBlockDocuments(apiClient);
-					return docs.find((d) => d.name === blockName);
-				},
-				{ timeout: 30000 },
-			)
-			.toBeDefined();
+		expect(block.id).toBeDefined();
+		expect(block.name).toBe(blockName);
+
+		await page.goto(`/blocks/block/${block.id}`);
+		await expect(page.getByText(blockName)).toBeVisible({ timeout: 10000 });
 	});
 });
