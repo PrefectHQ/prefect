@@ -73,6 +73,51 @@ Guides for contributors: how to set up the dev environment, write docs, develop 
 - Before creating a category, check whether the content fits in an existing one. For example, a guide about running flows on a new cloud platform belongs in `deployment_infra/`, not a new category named after that platform.
 - New categories must also be added as a group in the `navigation.tabs` section of `docs/docs.json`, with an `index.mdx` page for the group overview.
 
+## Page templates
+
+Starter templates live in this skill directory. Copy one as the basis for a new page and fill in the bracketed placeholders:
+
+- **How-to guide** — `template-howto.mdx`
+- **Concept page** — `template-concept.mdx`
+
+Adjust headings and sections to fit the content — the templates show the expected shape, not a rigid format.
+
+### Keywords for searchability
+
+Every page should include a `keywords` array in its frontmatter. Keywords feed Mintlify's search index and help readers find pages using terms that don't appear in the title or description.
+
+```yaml
+keywords: ["retry", "retries", "error handling", "fault tolerance"]
+```
+
+- Include 3-5 lowercase terms a reader might search for.
+- Use synonyms and shorthand readers would actually type (e.g., "k8s" is wrong in prose but useful as a keyword alongside "Kubernetes").
+- Don't repeat words already in `title` or `description` — those are indexed automatically.
+
+## Registering pages in navigation
+
+Every new page must be added to `docs/docs.json` under `navigation.tabs` or it won't appear in the sidebar. Add the page path (without `.mdx`) to the appropriate group:
+
+```json
+{
+  "tab": "How-to Guides",
+  "pages": [
+    "v3/how-to-guides/index",
+    {
+      "group": "Workflows",
+      "pages": [
+        "v3/how-to-guides/workflows/write-and-run",
+        "v3/how-to-guides/workflows/retries"
+      ]
+    }
+  ]
+}
+```
+
+- Each tab has a `"tab"` display name and either `"pages"` or `"groups"`.
+- Groups can nest: a group's `"pages"` array can contain strings (page paths) or nested `{"group": ..., "pages": [...]}` objects.
+- Place new pages at a logical position within the existing group — typically at the end, unless ordering matters for the reader.
+
 ## Mintlify components
 
 Use these components (not standard Markdown admonition syntax):
@@ -263,6 +308,22 @@ Or manually: `vale --glob='**/*.{md,mdx}' .`
 - Be direct and concise. Shorter sentences are easier to scan.
 - Follow the [Google developer documentation style guide](https://developers.google.com/style) as the baseline.
 
+Examples of preferred phrasing:
+
+| Instead of | Write |
+|---|---|
+| "We recommend configuring..." | "Configure..." |
+| "You'll want to make sure to..." | "Make sure to..." or just state the instruction |
+| "This powerful feature allows you to..." | "Use [feature] to..." |
+| "I'll show you how to set up..." | "To set up..., do the following:" |
+| "It should be noted that..." | State the fact directly |
+| "In order to" | "To" |
+
+When introducing a concept, lead with what the reader can *do*, not what the feature *is*:
+
+- Before: "The retry mechanism is a configurable system that allows flows to recover from transient failures."
+- After: "Add retries to your flow to recover automatically from transient failures."
+
 ## Quality checklist
 
 Before considering a page complete, verify:
@@ -271,4 +332,18 @@ Before considering a page complete, verify:
 2. Prerequisites (tools, access, prior knowledge) are called out up front.
 3. The page includes at least one cross-link to a related Concept or How-to page.
 4. All code blocks are runnable and tested, or explicitly marked with `{/* pmd-metadata: notest */}` with a reason.
-5. The page is registered in `docs/docs.json` navigation.
+5. Frontmatter includes `keywords` with 3-5 search terms not already in the title or description.
+6. The page is registered in `docs/docs.json` navigation.
+
+## Common mistakes
+
+- Using `#` (H1) in the body — the frontmatter `title` already renders as H1.
+- Using relative links or including `.mdx` in link paths.
+- Using Markdown admonitions (`> **Note:**`) instead of Mintlify components (`<Note>`).
+- Inconsistent heading hierarchy (jumping from H2 to H4).
+- Missing `description` or `keywords` in frontmatter — both improve search discoverability.
+- First-person pronouns ("I", "we") — use "you" or imperative voice.
+- Wrong terminology casing: "Prefect cloud" (should be "Prefect Cloud"), "Prefect Server" (should be "Prefect server"), "k8s" (should be "Kubernetes"), "infra" (should be "infrastructure").
+- Forgetting to register a new page in `docs/docs.json` — the page won't appear in nav.
+- Forgetting to add a redirect in `docs/docs.json` when moving or renaming a page.
+- Overusing `<Note>`/`<Tip>`/`<Warning>` — reserve for genuinely important callouts, not every paragraph.
