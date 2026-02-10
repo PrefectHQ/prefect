@@ -300,7 +300,15 @@ async def _run_single_deploy(
     # Save triggers before templating to preserve event template parameters
     _triggers = deploy_config.pop("triggers", None)
 
-    deploy_config = apply_values(deploy_config, step_outputs, warn_on_notset=True)
+    # Preserve {{ ctx.* }} placeholders during deploy-time templating.
+    # These are runtime templates resolved by the worker's
+    # prepare_for_flow_run() and must not be stripped here.
+    deploy_config = apply_values(
+        deploy_config,
+        step_outputs,
+        warn_on_notset=True,
+        skip_prefixes=["ctx."],
+    )
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedules"] = _schedules
 
