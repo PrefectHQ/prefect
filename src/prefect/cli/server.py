@@ -19,7 +19,6 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import orjson
 import typer
 import uvicorn
 from rich.table import Table
@@ -32,6 +31,7 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import prompt_select_from_list
 from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import get_client
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
@@ -73,6 +73,8 @@ server_app.add_typer(services_app)
 app.add_typer(server_app)
 
 logger: "logging.Logger" = get_logger(__name__)
+
+_monotonic = time.monotonic
 
 SERVER_PID_FILE_NAME = "server.pid"
 SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
@@ -538,7 +540,7 @@ async def status(
             "A value of 0 means wait indefinitely."
         ),
     ),
-    output: "str | None" = typer.Option(
+    output: str | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -546,19 +548,23 @@ async def status(
     ),
 ):
     """Check the status of the Prefect server."""
-    from prefect.client.orchestration import get_client
+    import json as json_mod
 
     if output is not None and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
+
+    is_json = output is not None
 
     api_url = get_current_settings().api.url
     if api_url is None:
         exit_with_error(
             "No API URL configured. Set PREFECT_API_URL to the address of your server."
         )
-    app.console.print(f"Connecting to server at {api_url}...")
 
-    start_time = time.monotonic()
+    if not is_json:
+        app.console.print(f"Connecting to server at {api_url}...")
+
+    start_time = _monotonic()
 
     async with get_client() as client:
         while True:
@@ -570,25 +576,21 @@ async def status(
                 except Exception:
                     server_version = None
 
-                result = {
+                result: dict[str, object] = {
                     "status": "available",
                     "api_url": api_url,
                 }
                 if server_version is not None:
                     result["server_version"] = server_version
 
-                if output is not None and output.lower() == "json":
-                    json_output = orjson.dumps(
-                        result, option=orjson.OPT_INDENT_2
-                    ).decode()
-                    app.console.print(json_output)
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
                 else:
                     app.console.print("Server is available.")
                     app.console.print(f"  API URL: {api_url}")
                     if server_version is not None:
                         app.console.print(f"  Server version: {server_version}")
-
-                raise typer.Exit(0)
+                return
 
             if not wait:
                 result = {
@@ -596,19 +598,14 @@ async def status(
                     "api_url": api_url,
                     "error": str(healthcheck_exc),
                 }
-                if output is not None and output.lower() == "json":
-                    json_output = orjson.dumps(
-                        result, option=orjson.OPT_INDENT_2
-                    ).decode()
-                    app.console.print(json_output)
-                else:
-                    exit_with_error(
-                        f"Server is not available at {api_url}. "
-                        f"Error: {healthcheck_exc}"
-                    )
-                raise typer.Exit(1)
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                    raise typer.Exit(1)
+                exit_with_error(
+                    f"Server is not available at {api_url}. Error: {healthcheck_exc}"
+                )
 
-            elapsed = time.monotonic() - start_time
+            elapsed = _monotonic() - start_time
             if timeout > 0 and elapsed >= timeout:
                 result = {
                     "status": "timed_out",
@@ -616,17 +613,13 @@ async def status(
                     "timeout": timeout,
                     "error": str(healthcheck_exc),
                 }
-                if output is not None and output.lower() == "json":
-                    json_output = orjson.dumps(
-                        result, option=orjson.OPT_INDENT_2
-                    ).decode()
-                    app.console.print(json_output)
-                else:
-                    exit_with_error(
-                        f"Timed out after {timeout} seconds waiting for server "
-                        f"at {api_url}."
-                    )
-                raise typer.Exit(1)
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                    raise typer.Exit(1)
+                exit_with_error(
+                    f"Timed out after {timeout} seconds waiting for server "
+                    f"at {api_url}."
+                )
 
             await asyncio.sleep(1)
 

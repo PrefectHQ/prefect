@@ -14,21 +14,6 @@ def set_api_url():
         yield
 
 
-def _extract_json(stdout: str) -> str:
-    lines = stdout.strip().split("\n")
-    json_lines = []
-    in_json = False
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("{"):
-            in_json = True
-        if in_json:
-            json_lines.append(line)
-        if in_json and stripped.startswith("}"):
-            break
-    return "\n".join(json_lines)
-
-
 def _mock_client(healthy: bool = True, server_version: str = "3.0.0"):
     mock = AsyncMock()
     if healthy:
@@ -43,7 +28,7 @@ def _mock_client(healthy: bool = True, server_version: str = "3.0.0"):
 
 def _patch_get_client(mock):
     return patch(
-        "prefect.client.orchestration.get_client",
+        "prefect.cli.server.get_client",
         return_value=AsyncMock(
             __aenter__=AsyncMock(return_value=mock),
             __aexit__=AsyncMock(return_value=False),
@@ -81,8 +66,7 @@ class TestServerStatus:
                 command=["server", "status", "--output", "json"],
                 expected_code=0,
             )
-            json_str = _extract_json(result.stdout)
-            output = json.loads(json_str)
+            output = json.loads(result.stdout.strip())
             assert output["status"] == "available"
             assert output["api_url"] == "http://localhost:4200/api"
             assert output["server_version"] == "3.0.0"
@@ -94,8 +78,7 @@ class TestServerStatus:
                 command=["server", "status", "--output", "json"],
                 expected_code=1,
             )
-            json_str = _extract_json(result.stdout)
-            output = json.loads(json_str)
+            output = json.loads(result.stdout.strip())
             assert output["status"] == "unavailable"
             assert "error" in output
 
@@ -140,29 +123,33 @@ class TestServerStatus:
 
     def test_status_wait_timeout(self):
         mock = _mock_client(healthy=False)
+        monotonic_values = iter([0.0, 0.5, 5.1])
 
         async def fake_sleep(seconds):
             pass
 
         with (
             _patch_get_client(mock),
-            patch("asyncio.sleep", side_effect=fake_sleep),
+            patch("prefect.cli.server.asyncio.sleep", side_effect=fake_sleep),
+            patch("prefect.cli.server._monotonic", side_effect=monotonic_values),
         ):
             invoke_and_assert(
-                command=["server", "status", "--wait", "--timeout", "1"],
-                expected_output_contains="Timed out after 1 seconds",
+                command=["server", "status", "--wait", "--timeout", "5"],
+                expected_output_contains="Timed out after 5 seconds",
                 expected_code=1,
             )
 
     def test_status_wait_timeout_json_output(self):
         mock = _mock_client(healthy=False)
+        monotonic_values = iter([0.0, 0.5, 5.1])
 
         async def fake_sleep(seconds):
             pass
 
         with (
             _patch_get_client(mock),
-            patch("asyncio.sleep", side_effect=fake_sleep),
+            patch("prefect.cli.server.asyncio.sleep", side_effect=fake_sleep),
+            patch("prefect.cli.server._monotonic", side_effect=monotonic_values),
         ):
             result = invoke_and_assert(
                 command=[
@@ -170,16 +157,15 @@ class TestServerStatus:
                     "status",
                     "--wait",
                     "--timeout",
-                    "1",
+                    "5",
                     "--output",
                     "json",
                 ],
                 expected_code=1,
             )
-            json_str = _extract_json(result.stdout)
-            output = json.loads(json_str)
+            output = json.loads(result.stdout.strip())
             assert output["status"] == "timed_out"
-            assert output["timeout"] == 1
+            assert output["timeout"] == 5
 
     def test_status_version_fetch_failure(self):
         mock = _mock_client(healthy=True)
@@ -190,4 +176,16 @@ class TestServerStatus:
                 expected_output_contains="Server is available",
                 expected_output_does_not_contain="Server version",
                 expected_code=0,
+            )
+
+    def test_status_no_api_url_configured(self):
+        mock = _mock_client(healthy=True)
+        with (
+            _patch_get_client(mock),
+            temporary_settings({PREFECT_API_URL: None}),
+        ):
+            invoke_and_assert(
+                command=["server", "status"],
+                expected_output_contains="No API URL configured",
+                expected_code=1,
             )
