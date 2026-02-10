@@ -18,16 +18,11 @@ from rich.theme import Theme
 _THEME = Theme({"prompt.choices": "bold blue"})
 
 
-def _get_version() -> str:
-    import prefect
-
-    return prefect.__version__
-
-
 _app = cyclopts.App(
     name="prefect",
     help="Prefect CLI for workflow orchestration.",
-    version=_get_version,
+    help_flags=["--help"],
+    version_flags=[],
 )
 
 _app.meta.group_parameters = cyclopts.Group("Session Parameters", sort_key=0)
@@ -110,12 +105,31 @@ def app():
 
 
 def _delegate(command: str, tokens: tuple[str, ...]) -> None:
-    """Delegate execution to the Typer CLI for commands not yet migrated."""
+    """Delegate execution to the Typer CLI for commands not yet migrated.
+
+    With standalone_mode=False, Click/Typer returns the exit code instead
+    of calling sys.exit, and raises exceptions for usage errors (missing
+    args, unknown options) instead of printing and exiting.  We catch those
+    and convert them to SystemExit with the correct code so the caller
+    (and our test runner) sees the right exit behavior.
+    """
+    import click
+
     from prefect.cli._typer_loader import load_typer_commands
     from prefect.cli.root import app as typer_app
 
     load_typer_commands()
-    typer_app([command, *tokens], standalone_mode=False)
+    try:
+        exit_code = typer_app([command, *tokens], standalone_mode=False)
+    except click.exceptions.Exit as exc:
+        raise SystemExit(exc.code)
+    except click.ClickException as exc:
+        exc.show()
+        raise SystemExit(exc.exit_code)
+    except click.Abort:
+        raise SystemExit(1)
+    if exit_code:
+        raise SystemExit(exit_code)
 
 
 # =============================================================================
@@ -126,8 +140,20 @@ def _delegate(command: str, tokens: tuple[str, ...]) -> None:
 # implementation.
 # =============================================================================
 
+
+def _delegated_app(name: str, help: str) -> cyclopts.App:
+    """Create a cyclopts App for a delegated command.
+
+    Uses help_flags=["--help"] (not ["-h", "--help"]) so that short flags
+    like ``-h`` pass through to the typer implementation instead of being
+    intercepted as help requests.  version_flags=[] prevents cyclopts from
+    intercepting ``--version`` which some subcommands use as a value flag.
+    """
+    return cyclopts.App(name=name, help=help, help_flags=["--help"], version_flags=[])
+
+
 # --- deploy ---
-deploy_app = cyclopts.App(name="deploy", help="Create and manage deployments.")
+deploy_app = _delegated_app("deploy", "Create and manage deployments.")
 _app.command(deploy_app)
 
 
@@ -139,7 +165,7 @@ def deploy_default(
 
 
 # --- flow ---
-flow_app = cyclopts.App(name="flow", help="Manage flows.")
+flow_app = _delegated_app("flow", "Manage flows.")
 _app.command(flow_app)
 
 
@@ -151,7 +177,7 @@ def flow_default(
 
 
 # --- flow-run ---
-flow_run_app = cyclopts.App(name="flow-run", help="Interact with flow runs.")
+flow_run_app = _delegated_app("flow-run", "Interact with flow runs.")
 _app.command(flow_run_app)
 
 
@@ -163,9 +189,7 @@ def flow_run_default(
 
 
 # --- deployment ---
-deployment_app = cyclopts.App(
-    name="deployment", help="Manage deployments (legacy commands)."
-)
+deployment_app = _delegated_app("deployment", "Manage deployments (legacy commands).")
 _app.command(deployment_app)
 
 
@@ -177,7 +201,7 @@ def deployment_default(
 
 
 # --- server ---
-server_app = cyclopts.App(name="server", help="Start and manage the Prefect server.")
+server_app = _delegated_app("server", "Start and manage the Prefect server.")
 _app.command(server_app)
 
 
@@ -189,7 +213,7 @@ def server_default(
 
 
 # --- worker ---
-worker_app = cyclopts.App(name="worker", help="Start and interact with workers.")
+worker_app = _delegated_app("worker", "Start and interact with workers.")
 _app.command(worker_app)
 
 
@@ -201,7 +225,7 @@ def worker_default(
 
 
 # --- shell ---
-shell_app = cyclopts.App(name="shell", help="Run shell commands as Prefect flows.")
+shell_app = _delegated_app("shell", "Run shell commands as Prefect flows.")
 _app.command(shell_app)
 
 
@@ -224,7 +248,7 @@ _app.command(profile_app)
 
 
 # --- cloud ---
-cloud_app = cyclopts.App(name="cloud", help="Interact with Prefect Cloud.")
+cloud_app = _delegated_app("cloud", "Interact with Prefect Cloud.")
 _app.command(cloud_app)
 
 
@@ -236,7 +260,7 @@ def cloud_default(
 
 
 # --- work-pool ---
-work_pool_app = cyclopts.App(name="work-pool", help="Manage work pools.")
+work_pool_app = _delegated_app("work-pool", "Manage work pools.")
 _app.command(work_pool_app)
 
 
@@ -248,7 +272,7 @@ def work_pool_default(
 
 
 # --- work-queue ---
-work_queue_app = cyclopts.App(name="work-queue", help="Manage work queues.")
+work_queue_app = _delegated_app("work-queue", "Manage work queues.")
 _app.command(work_queue_app)
 
 
@@ -260,7 +284,7 @@ def work_queue_default(
 
 
 # --- variable ---
-variable_app = cyclopts.App(name="variable", help="Manage Prefect variables.")
+variable_app = _delegated_app("variable", "Manage Prefect variables.")
 _app.command(variable_app)
 
 
@@ -272,7 +296,7 @@ def variable_default(
 
 
 # --- block ---
-block_app = cyclopts.App(name="block", help="Interact with blocks.")
+block_app = _delegated_app("block", "Interact with blocks.")
 _app.command(block_app)
 
 
@@ -284,8 +308,8 @@ def block_default(
 
 
 # --- concurrency-limit ---
-concurrency_limit_app = cyclopts.App(
-    name="concurrency-limit", help="Manage task-level concurrency limits."
+concurrency_limit_app = _delegated_app(
+    "concurrency-limit", "Manage task-level concurrency limits."
 )
 _app.command(concurrency_limit_app)
 
@@ -298,8 +322,8 @@ def concurrency_limit_default(
 
 
 # --- global-concurrency-limit ---
-global_concurrency_limit_app = cyclopts.App(
-    name="global-concurrency-limit", help="Manage global concurrency limits."
+global_concurrency_limit_app = _delegated_app(
+    "global-concurrency-limit", "Manage global concurrency limits."
 )
 _app.command(global_concurrency_limit_app)
 
@@ -312,7 +336,7 @@ def global_concurrency_limit_default(
 
 
 # --- artifact ---
-artifact_app = cyclopts.App(name="artifact", help="Manage artifacts.")
+artifact_app = _delegated_app("artifact", "Manage artifacts.")
 _app.command(artifact_app)
 
 
@@ -324,7 +348,7 @@ def artifact_default(
 
 
 # --- automation ---
-automation_app = cyclopts.App(name="automation", help="Manage automations.")
+automation_app = _delegated_app("automation", "Manage automations.")
 _app.command(automation_app)
 
 
@@ -336,7 +360,7 @@ def automation_default(
 
 
 # --- experimental ---
-experimental_app = cyclopts.App(name="experimental", help="Experimental commands.")
+experimental_app = _delegated_app("experimental", "Experimental commands.")
 _app.command(experimental_app)
 
 
@@ -348,7 +372,7 @@ def experimental_default(
 
 
 # --- events ---
-events_app = cyclopts.App(name="events", help="Manage events.")
+events_app = _delegated_app("events", "Manage events.")
 _app.command(events_app)
 
 
@@ -360,7 +384,7 @@ def events_default(
 
 
 # --- task ---
-task_app = cyclopts.App(name="task", help="Manage tasks.")
+task_app = _delegated_app("task", "Manage tasks.")
 _app.command(task_app)
 
 
@@ -372,7 +396,7 @@ def task_default(
 
 
 # --- task-run ---
-task_run_app = cyclopts.App(name="task-run", help="Manage task runs.")
+task_run_app = _delegated_app("task-run", "Manage task runs.")
 _app.command(task_run_app)
 
 
