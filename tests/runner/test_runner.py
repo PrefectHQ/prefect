@@ -62,6 +62,7 @@ from prefect.schedules import Cron, Interval
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_FLOWS_HEARTBEAT_FREQUENCY,
     PREFECT_RUNNER_POLL_FREQUENCY,
     PREFECT_RUNNER_PROCESS_LIMIT,
     PREFECT_RUNNER_SERVER_ENABLE,
@@ -301,6 +302,24 @@ class TestInit:
         with temporary_settings({PREFECT_RUNNER_POLL_FREQUENCY: 100}):
             runner = Runner()
             assert runner.query_seconds == 100
+
+    async def test_runner_respects_heartbeat_setting(self):
+        """
+        Regression test for PR #19641: Runner must default heartbeat_seconds
+        to PREFECT_FLOWS_HEARTBEAT_FREQUENCY when not explicitly provided.
+
+        This ensures heartbeats are emitted by the flow engine to prevent
+        zombie flow detection from incorrectly marking flows as CRASHED.
+        """
+        runner = Runner()
+        assert runner._heartbeat_seconds == PREFECT_FLOWS_HEARTBEAT_FREQUENCY.value()
+
+        runner = Runner(heartbeat_seconds=50)
+        assert runner._heartbeat_seconds == 50
+
+        with temporary_settings({PREFECT_FLOWS_HEARTBEAT_FREQUENCY: 100}):
+            runner = Runner()
+            assert runner._heartbeat_seconds == 100
 
 
 class TestServe:

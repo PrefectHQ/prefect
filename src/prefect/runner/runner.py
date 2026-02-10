@@ -201,9 +201,12 @@ class Runner:
                     asyncio.run(runner.start())
                 ```
         """
-        self._heartbeat_seconds = heartbeat_seconds
-
         settings = get_current_settings()
+        self._heartbeat_seconds = (
+            heartbeat_seconds
+            if heartbeat_seconds is not None
+            else settings.flows.heartbeat_frequency
+        )
 
         if name and ("/" in name or "%" in name):
             raise ValueError("Runner name cannot contain '/' or '%'")
