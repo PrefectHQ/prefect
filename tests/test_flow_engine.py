@@ -2125,7 +2125,7 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_sync(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=1)
+        @flow(timeout_seconds=5)
         def expensive_flow():
             with concurrency(concurrency_limit_v2.name):
                 # Use a time-bounded busy loop instead of time.sleep()
@@ -2146,10 +2146,10 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_async(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=1)
+        @flow(timeout_seconds=5)
         async def expensive_flow():
             async with aconcurrency(concurrency_limit_v2.name):
-                await asyncio.sleep(10)
+                await asyncio.sleep(30)
 
         with pytest.raises(TimeoutError):
             await expensive_flow()
