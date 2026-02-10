@@ -162,11 +162,9 @@ jobs:
           --publish 6379:6379
           redis:latest
 
-      - name: Enable cyclopts CLI
-        if: ${{ matrix.cyclopts }}
-        run: echo "PREFECT_CLI_FAST=1" >> $GITHUB_ENV
-
       - name: Run tests
+        env:
+          PREFECT_CLI_FAST: ${{ matrix.cyclopts && '1' || '' }}
         run: |
           uv run pytest ${{ matrix.test-type.modules }} \
           -m "not windows" \

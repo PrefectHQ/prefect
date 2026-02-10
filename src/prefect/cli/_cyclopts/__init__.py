@@ -57,6 +57,22 @@ def _root_callback(
     ] = None,
 ):
     """Prefect CLI for workflow orchestration."""
+    _setup_and_run(tokens, profile=profile, prompt=prompt)
+
+
+def _setup_and_run(
+    tokens: tuple[str, ...],
+    *,
+    profile: Optional[str] = None,
+    prompt: Optional[bool] = None,
+    delegate: bool = False,
+) -> None:
+    """Shared environment setup and command dispatch.
+
+    Called from both the cyclopts meta callback (for native commands and
+    ``--help``) and from ``_dispatch`` (for delegated commands that must
+    bypass cyclopts argument parsing).
+    """
     global console
     import prefect.context
     from prefect.logging.configuration import setup_logging
@@ -82,7 +98,10 @@ def _root_callback(
         if sys.platform == "win32":
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-        _app(tokens)
+        if delegate:
+            _delegate(tokens[0], tokens[1:])
+        else:
+            _app(tokens)
 
     if profile and prefect.context.get_settings_context().profile.name != profile:
         try:
@@ -128,9 +147,81 @@ def _normalize_top_level_flags(args: list[str]) -> list[str]:
     return result
 
 
+def _parse_global_options(
+    args: list[str],
+) -> tuple[Optional[str], Optional[bool], list[str]]:
+    """Extract ``--profile`` and ``--prompt``/``--no-prompt`` from *args*.
+
+    Returns ``(profile, prompt, remaining)`` where *remaining* has the
+    global flags removed but subcommand tokens left untouched.
+    """
+    profile: Optional[str] = None
+    prompt: Optional[bool] = None
+    remaining: list[str] = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--profile" and i + 1 < len(args):
+            profile = args[i + 1]
+            i += 2
+        elif args[i] == "--prompt":
+            prompt = True
+            i += 1
+        elif args[i] == "--no-prompt":
+            prompt = False
+            i += 1
+        else:
+            remaining.append(args[i])
+            i += 1
+    return profile, prompt, remaining
+
+
+def _dispatch(args: list[str]) -> None:
+    """Route *args* to either a delegated Typer command or cyclopts.
+
+    Delegated commands are dispatched **before** cyclopts processes the
+    tokens, avoiding cyclopts splitting combined short flags like ``-jv``
+    into ``-j``, ``-v``.  Native commands go through ``_app.meta()`` as
+    usual.
+    """
+    profile, prompt, remaining = _parse_global_options(args)
+    if remaining and remaining[0] in _DELEGATED_COMMANDS:
+        _setup_and_run(tuple(remaining), profile=profile, prompt=prompt, delegate=True)
+    else:
+        _app.meta(args)
+
+
 def app():
     """Entry point that invokes the meta app for global option handling."""
-    _app.meta(_normalize_top_level_flags(sys.argv[1:]))
+    _dispatch(_normalize_top_level_flags(sys.argv[1:]))
+
+
+# Commands that delegate to the Typer CLI.  Dispatched from _root_callback
+# *before* cyclopts parses subcommand args (cyclopts would otherwise mangle
+# combined short flags like "-jv" into "-j", "-v").
+_DELEGATED_COMMANDS: set[str] = {
+    "api",
+    "artifact",
+    "automation",
+    "block",
+    "cloud",
+    "concurrency-limit",
+    "dashboard",
+    "deploy",
+    "deployment",
+    "dev",
+    "events",
+    "experimental",
+    "flow",
+    "flow-run",
+    "global-concurrency-limit",
+    "sdk",
+    "task",
+    "task-run",
+    "transfer",
+    "variable",
+    "work-pool",
+    "work-queue",
+}
 
 
 def _delegate(command: str, tokens: tuple[str, ...]) -> None:

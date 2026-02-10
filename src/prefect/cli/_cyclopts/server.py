@@ -117,6 +117,7 @@ def start(
         _run_in_foreground,
         _validate_multi_worker,
         generate_welcome_blurb,
+        is_interactive,
         prestart_check,
     )
     from prefect.settings import (
@@ -151,7 +152,7 @@ def start(
 
     base_url = f"http://{_format_host_for_url(host)}:{port}"
 
-    if _cli.is_interactive():
+    if is_interactive():
         try:
             prestart_check(base_url)
         except Exception:
