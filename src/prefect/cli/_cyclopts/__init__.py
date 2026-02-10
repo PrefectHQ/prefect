@@ -18,12 +18,6 @@ from rich.theme import Theme
 _THEME = Theme({"prompt.choices": "bold blue"})
 
 
-def _get_version() -> str:
-    import prefect
-
-    return prefect.__version__
-
-
 _app = cyclopts.App(
     name="prefect",
     help="Prefect CLI for workflow orchestration.",

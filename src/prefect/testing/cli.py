@@ -214,7 +214,7 @@ def invoke_and_assert(
     expected_code: int | None = 0,
     echo: bool = True,
     temp_dir: str | None = None,
-) -> Result:
+) -> Result | CycloptsResult:
     """
     Test utility for the Prefect CLI application.
 
@@ -243,15 +243,29 @@ def invoke_and_assert(
         if isinstance(command, str):
             command = [command]
 
+        if user_input and prompts_and_responses:
+            raise ValueError("Cannot provide both user_input and prompts_and_responses")
+
         cyclopts_input = user_input
         if not cyclopts_input and prompts_and_responses:
             cyclopts_input = (
                 "\n".join(response for (_, response, *_) in prompts_and_responses)
                 + "\n"
             )
+            cyclopts_input = cyclopts_input.replace("↓", readchar.key.DOWN).replace(
+                "↑", readchar.key.UP
+            )
+
+        saved_cwd = os.getcwd()
+        if temp_dir:
+            os.chdir(temp_dir)
 
         runner = CycloptsCliRunner()
-        result = runner.invoke(command, input=cyclopts_input)
+        try:
+            result = runner.invoke(command, input=cyclopts_input)
+        finally:
+            if temp_dir:
+                os.chdir(saved_cwd)
 
     else:
         prompts_and_responses = prompts_and_responses or []
