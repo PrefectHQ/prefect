@@ -498,17 +498,23 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should show correct page count", async ({ page }) => {
-			await page.goto("/variables");
-
-			// With 15 variables and 10 per page, should have 2 pages
-			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+			// Use toPass to handle eventual consistency with parallel test execution
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText("Page 1 of 2")).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 		});
 
 		test("should navigate to next page", async ({ page }) => {
-			await page.goto("/variables");
-
-			// Wait for initial load
-			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+			// Use toPass to handle eventual consistency with parallel test execution
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText("Page 1 of 2")).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// Click next page
 			await page.getByRole("button", { name: "Go to next page" }).click();
@@ -519,10 +525,13 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should navigate to previous page", async ({ page }) => {
-			// Start on page 2
-			await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
-
-			await expect(page.getByText("Page 2 of 2")).toBeVisible();
+			// Use toPass to handle eventual consistency with parallel test execution
+			await expect(async () => {
+				await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
+				await expect(page.getByText("Page 2 of 2")).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// Click previous page
 			await page.getByRole("button", { name: "Go to previous page" }).click();
@@ -533,10 +542,13 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should change items per page", async ({ page }) => {
-			await page.goto("/variables");
-
-			// Wait for initial load with 10 items per page
-			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+			// Use toPass to handle eventual consistency with parallel test execution
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText("Page 1 of 2")).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// Change to 25 items per page
 			await page.getByRole("combobox", { name: "Items per page" }).click();
@@ -548,10 +560,13 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should disable previous buttons on first page", async ({ page }) => {
-			await page.goto("/variables");
-
-			// Wait for page to load
-			await expect(page.getByText("Page 1 of 2")).toBeVisible();
+			// Use toPass to handle eventual consistency with parallel test execution
+			await expect(async () => {
+				await page.goto("/variables");
+				await expect(page.getByText("Page 1 of 2")).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// On first page, previous buttons should be disabled
 			await expect(
@@ -571,11 +586,13 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should disable next buttons on last page", async ({ page }) => {
-			// Navigate directly to page 2 (last page) via URL
-			await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
-
-			// Wait for page to load
-			await expect(page.getByText("Page 2 of 2")).toBeVisible();
+			// Use toPass to handle eventual consistency with parallel test execution
+			await expect(async () => {
+				await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
+				await expect(page.getByText("Page 2 of 2")).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// On last page, next buttons should be disabled
 			await expect(
