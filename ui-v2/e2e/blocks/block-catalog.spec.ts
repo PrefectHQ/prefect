@@ -25,7 +25,7 @@ test.describe("Block Catalog", () => {
 		await cleanupBlockDocuments(apiClient, TEST_PREFIX);
 	});
 
-	test("should view block types with names and descriptions (BCAT-01)", async ({
+	test("should view block types with names and descriptions", async ({
 		page,
 	}) => {
 		await page.goto("/blocks/catalog");
@@ -42,9 +42,7 @@ test.describe("Block Catalog", () => {
 		await expect(createLinks.first()).toBeVisible();
 	});
 
-	test("should search block types and filter results (BCAT-02)", async ({
-		page,
-	}) => {
+	test("should search block types and filter results", async ({ page }) => {
 		await page.goto("/blocks/catalog");
 
 		await expect(page.getByText(/\d+ Blocks?/)).toBeVisible();
@@ -57,9 +55,7 @@ test.describe("Block Catalog", () => {
 		).toBeVisible();
 	});
 
-	test("should navigate to block type details page (BCAT-03)", async ({
-		page,
-	}) => {
+	test("should navigate to block type details page", async ({ page }) => {
 		await page.goto("/blocks/catalog/secret");
 
 		await expect(
@@ -71,7 +67,7 @@ test.describe("Block Catalog", () => {
 		await expect(page.getByRole("link", { name: "Create" })).toBeVisible();
 	});
 
-	test("should create a block and verify via UI and API (BCAT-04)", async ({
+	test("should create a block and verify via UI and API", async ({
 		page,
 		apiClient,
 	}) => {
