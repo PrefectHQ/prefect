@@ -17,6 +17,7 @@ Run locally:
 
 import os
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -136,28 +137,31 @@ def pg_dbt_project(tmp_path_factory):
     manifest_path = project_dir / "target" / "manifest.json"
     assert manifest_path.exists(), "manifest.json not generated"
 
-    # Prevent concurrent dbtRunner.invoke() calls from clearing each
-    # other's adapter registrations.  dbt-core's adapter_management()
-    # context manager calls reset_adapters() on EVERY invoke(), which
-    # wipes the process-wide FACTORY.adapters dict.  When two threads
-    # enter invoke() simultaneously, Thread A's reset can delete the
-    # adapter that Thread B is about to look up, causing KeyError.
+    # Prevent concurrent dbtRunner.invoke() calls from interfering with
+    # each other's adapter state.  dbt-core's adapter_management() context
+    # manager (entered on every invoke()) calls:
+    #   - reset_adapters() on ENTRY: clears the process-wide FACTORY.adapters
+    #     dict AND closes all connections.  Concurrent threads race on this.
+    #   - cleanup_connections() on EXIT: calls thread_connections.clear(),
+    #     wiping the connection pool for ALL threads — including those still
+    #     running queries in concurrent invocations.
     #
-    # Additionally, cleanup_connections() (which closes the connection
-    # pool) cannot be used as a replacement either — if Thread A enters
-    # adapter_management() and closes connections, Thread B may lose its
-    # active database connections mid-query.
-    #
-    # We replace reset_adapters with a complete no-op.  This is safe
-    # because:
+    # We replace the entire adapter_management context manager with a no-op.
+    # This is safe because:
     #   - The adapter was registered by the compile invocation above
     #   - register_adapter() returns early if the adapter already exists
-    #   - cleanup_connections() still runs on context exit (separate call)
+    #   - Each thread opens its own connection on first use
     #   - All invocations share the same project/profiles config
+    #   - Connections accumulate but are cleaned up at session teardown
     import dbt.adapters.factory as _dbt_factory
 
-    _original_reset = _dbt_factory.reset_adapters
-    _dbt_factory.reset_adapters = lambda: None
+    _original_adapter_management = _dbt_factory.adapter_management
+
+    @contextmanager
+    def _noop_adapter_management():
+        yield
+
+    _dbt_factory.adapter_management = _noop_adapter_management
 
     yield {
         "project_dir": project_dir,
@@ -166,7 +170,7 @@ def pg_dbt_project(tmp_path_factory):
         "schema": schema_name,
     }
 
-    _dbt_factory.reset_adapters = _original_reset
+    _dbt_factory.adapter_management = _original_adapter_management
 
     conn = _pg_connect()
     conn.autocommit = True
