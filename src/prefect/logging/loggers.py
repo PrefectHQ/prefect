@@ -329,7 +329,7 @@ def print_as_log(*args: Any, **kwargs: Any) -> None:
     print(*args, **kwargs)
 
     # Remove trailing whitespace to prevent duplicates
-    logger.info(buffer.getvalue().rstrip())
+    logger.info(buffer.getvalue().rstrip(), stacklevel=2)
 
 
 @contextmanager
