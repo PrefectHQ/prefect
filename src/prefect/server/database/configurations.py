@@ -37,7 +37,6 @@ from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
     PREFECT_API_DATABASE_TIMEOUT,
-    PREFECT_TESTING_UNIT_TEST_MODE,
     get_current_settings,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
@@ -536,10 +535,11 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # before returning and raising an error
         # setting the value very high allows for more 'concurrency'
         # without running into errors, but may result in slow api calls
-        if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
-            cursor.execute("PRAGMA busy_timeout = 5000;")  # 5s
-        else:
-            cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
+        # Note: We use the same timeout for both test and production modes
+        # because parallel test execution (pytest-xdist) causes significant
+        # SQLite lock contention between test fixtures and the hosted API
+        # server subprocess, requiring the longer timeout to avoid failures.
+        cursor.execute("PRAGMA busy_timeout = 60000;")  # 60s
 
         # `PRAGMA temp_store = memory;` moves temporary tables from disk into RAM
         # this supposedly speeds up reads, but it seems to actually
