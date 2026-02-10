@@ -18,7 +18,7 @@ export function BlockTypeDetails({ blockType }: BlockTypeDetailsProps) {
 			</div>
 
 			{blockType.description && (
-				<div className="prose max-w-none overflow-y-scroll text-sm">
+				<div className="prose max-w-none overflow-y-auto text-sm">
 					<LazyMarkdown>{blockType.description}</LazyMarkdown>
 				</div>
 			)}
