@@ -411,6 +411,14 @@ class PrefectDbtOrchestrator:
         """
         from prefect import task as prefect_task
 
+        # Warm up the adapter and cache the manifest before concurrent
+        # execution.  This ensures register_adapter() completes once
+        # (single-threaded) and subsequent dbtRunner invocations skip
+        # parse_manifest() entirely — avoiding thread-safety issues in
+        # dbt-core's manifest parser.
+        if isinstance(self._executor, DbtCoreExecutor):
+            self._executor.warm_up_manifest()
+
         executor = self._executor
         semaphore = self._semaphore
         concurrency_name = (

@@ -83,6 +83,32 @@ class DbtCoreExecutor:
         self._defer = defer
         self._defer_state_path = defer_state_path
         self._favor_state = favor_state
+        self._dbt_manifest = None
+
+    def warm_up_manifest(self):
+        """Run a single-threaded ``dbt parse`` to register the adapter and cache the manifest.
+
+        When running in PER_NODE mode, concurrent ``dbtRunner.invoke()`` calls
+        each re-parse the manifest (heavy, not thread-safe on some Python
+        versions).  Calling this method first ensures the adapter is registered
+        and caches the dbt ``Manifest`` object so concurrent invocations can
+        skip ``parse_manifest()`` entirely.
+        """
+        if self._dbt_manifest is not None:
+            return
+        with self._settings.resolve_profiles_yml() as profiles_dir:
+            args = kwargs_to_args(
+                {
+                    "project_dir": str(self._settings.project_dir),
+                    "profiles_dir": profiles_dir,
+                    "target_path": str(self._settings.target_path),
+                    "log_level": "none",
+                },
+                ["parse"],
+            )
+            result = dbtRunner().invoke(args)
+            if result.success and result.result is not None:
+                self._dbt_manifest = result.result
 
     def _invoke(
         self,
@@ -129,7 +155,7 @@ class DbtCoreExecutor:
             with self._settings.resolve_profiles_yml() as profiles_dir:
                 invoke_kwargs["profiles_dir"] = profiles_dir
                 args = kwargs_to_args(invoke_kwargs, [command])
-                res = dbtRunner().invoke(args)
+                res = dbtRunner(manifest=self._dbt_manifest).invoke(args)
 
             artifacts = self._extract_artifacts(res)
             # Union of requested nodes and actually-executed nodes.  The
