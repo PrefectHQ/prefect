@@ -6,25 +6,24 @@ import { describe, expect, test, vi } from "vitest";
 import "@/mocks/mock-json-input";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
 import { SchemaFormProvider } from "./schema-form-provider";
+import type { PrefectSchemaObject } from "./types/schemas";
 
-const SECRET_LIKE_SCHEMA: SchemaObject = {
+const SECRET_LIKE_SCHEMA = {
 	type: "object",
 	properties: {
 		value: {
 			anyOf: [{ type: "string", format: "password" }, { type: "string" }, {}],
 		},
 	},
-};
+} as unknown as PrefectSchemaObject;
 
-const SECRET_LIKE_PROPERTY: SchemaObject & {
-	anyOf: SchemaObject[];
-} = {
+const SECRET_LIKE_PROPERTY = {
 	anyOf: [{ type: "string", format: "password" }, { type: "string" }, {}],
-};
+} as unknown as SchemaObject & { anyOf: SchemaObject[] };
 
 function renderWithSchemaContext(
 	ui: React.ReactElement,
-	schema: SchemaObject = SECRET_LIKE_SCHEMA,
+	schema = SECRET_LIKE_SCHEMA,
 ) {
 	return render(
 		<SchemaFormProvider schema={schema} kinds={[]}>
