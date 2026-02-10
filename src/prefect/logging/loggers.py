@@ -331,7 +331,8 @@ def print_as_log(*args: Any, **kwargs: Any) -> None:
     msg = buffer.getvalue().rstrip()
 
     if isinstance(logger, logging.LoggerAdapter) and sys.version_info < (3, 11):
-        logger.logger._log(logging.INFO, msg, (), extra=logger.extra, stacklevel=1)
+        if logger.isEnabledFor(logging.INFO):
+            logger.logger._log(logging.INFO, msg, (), extra=logger.extra, stacklevel=1)
     else:
         logger.info(msg, stacklevel=2)
 
