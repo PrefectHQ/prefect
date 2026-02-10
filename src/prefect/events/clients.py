@@ -785,6 +785,9 @@ class PrefectEventSubscriber:
                     raise
 
                 if consecutive_failures > 2:
+                    # let the first two attempts happen quickly in case this is just
+                    # a standard load balancer timeout, but after that, just take a
+                    # beat to let things come back around.
                     await asyncio.sleep(1)
         raise StopAsyncIteration
 
