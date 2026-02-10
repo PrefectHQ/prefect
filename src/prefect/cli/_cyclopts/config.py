@@ -14,7 +14,7 @@ from dotenv import dotenv_values
 import prefect.context
 import prefect.settings
 from prefect._internal.compatibility.backports import tomllib
-from prefect.cli._cyclopts import _is_interactive, console
+from prefect.cli._cyclopts import console, is_interactive
 from prefect.cli._cyclopts._utilities import exit_with_error, exit_with_success
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import Settings
@@ -129,7 +129,7 @@ def unset(
         if setting not in profile.settings:
             exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
 
-    if not yes and _is_interactive():
+    if not yes and is_interactive():
         from rich.prompt import Confirm
 
         if not Confirm.ask(

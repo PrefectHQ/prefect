@@ -14,6 +14,7 @@ import uv
 from typer import Exit
 
 import prefect
+import prefect.cli.worker
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.settings import (

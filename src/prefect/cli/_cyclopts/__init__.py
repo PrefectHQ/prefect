@@ -32,7 +32,7 @@ _app.meta.group_parameters = cyclopts.Group("Session Parameters", sort_key=0)
 console: Console = Console(highlight=False, theme=_THEME)
 
 
-def _is_interactive() -> bool:
+def is_interactive() -> bool:
     """Check if the CLI should prompt for input.
 
     After the root callback runs, console.is_interactive reflects
@@ -47,9 +47,7 @@ def _root_callback(
     *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
     profile: Annotated[
         Optional[str],
-        cyclopts.Parameter(
-            "--profile", alias="-p", help="Select a profile for this CLI run."
-        ),
+        cyclopts.Parameter("--profile", help="Select a profile for this CLI run."),
     ] = None,
     prompt: Annotated[
         Optional[bool],
@@ -99,9 +97,40 @@ def _root_callback(
         _run_with_settings()
 
 
+# Short flags that need rewriting before cyclopts meta parses them.
+# Cyclopts meta processes ALL tokens, so a short flag like -p would be
+# greedily consumed as --profile even when it appears after a subcommand
+# (where it means --pool).  We rewrite top-level short flags to their
+# long form before cyclopts sees them; subcommand flags pass through.
+_TOP_LEVEL_SHORT_FLAGS = {"-p": "--profile"}
+
+
+def _normalize_top_level_flags(args: list[str]) -> list[str]:
+    """Rewrite short flags to long form when they appear before the command.
+
+    Only rewrites flags that appear before the first non-flag token (the
+    command name).  After the command, all tokens pass through unchanged
+    so subcommand flags like ``worker start -p pool`` are not affected.
+    """
+    result = []
+    seen_command = False
+    it = iter(args)
+    for token in it:
+        if seen_command:
+            result.append(token)
+        elif token in _TOP_LEVEL_SHORT_FLAGS:
+            result.append(_TOP_LEVEL_SHORT_FLAGS[token])
+        elif not token.startswith("-"):
+            seen_command = True
+            result.append(token)
+        else:
+            result.append(token)
+    return result
+
+
 def app():
     """Entry point that invokes the meta app for global option handling."""
-    _app.meta()
+    _app.meta(_normalize_top_level_flags(sys.argv[1:]))
 
 
 def _delegate(command: str, tokens: tuple[str, ...]) -> None:
@@ -201,40 +230,19 @@ def deployment_default(
 
 
 # --- server ---
-server_app = _delegated_app("server", "Start and manage the Prefect server.")
+from prefect.cli._cyclopts.server import server_app
+
 _app.command(server_app)
 
-
-@server_app.default
-def server_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("server", tokens)
-
-
 # --- worker ---
-worker_app = _delegated_app("worker", "Start and interact with workers.")
+from prefect.cli._cyclopts.worker import worker_app
+
 _app.command(worker_app)
 
-
-@worker_app.default
-def worker_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("worker", tokens)
-
-
 # --- shell ---
-shell_app = _delegated_app("shell", "Run shell commands as Prefect flows.")
+from prefect.cli._cyclopts.shell import shell_app
+
 _app.command(shell_app)
-
-
-@shell_app.default
-def shell_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("shell", tokens)
-
 
 # --- config ---
 from prefect.cli._cyclopts.config import config_app

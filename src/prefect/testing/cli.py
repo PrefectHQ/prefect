@@ -100,7 +100,7 @@ class CycloptsCliRunner:
             any exception that occurred.
         """
         import prefect.cli._cyclopts as _cli
-        from prefect.cli._cyclopts import _app
+        from prefect.cli._cyclopts import _app, _normalize_top_level_flags
 
         if isinstance(args, str):
             args = args.split()
@@ -129,7 +129,7 @@ class CycloptsCliRunner:
             # would cause brittle assertions on output content.
             os.environ["COLUMNS"] = "500"
 
-            _app.meta(args)
+            _app.meta(_normalize_top_level_flags(args))
 
         except SystemExit as exc:
             exit_code = (

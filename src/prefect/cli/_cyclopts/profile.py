@@ -17,7 +17,7 @@ from rich.table import Table
 
 import prefect.context
 import prefect.settings
-from prefect.cli._cyclopts import _is_interactive, console
+from prefect.cli._cyclopts import console, is_interactive
 from prefect.cli._cyclopts._utilities import (
     exit_with_error,
     exit_with_success,
@@ -199,7 +199,7 @@ def delete(name: str):
             f"Profile {name!r} is the active profile. You must switch profiles before"
             " it can be deleted."
         )
-    if _is_interactive():
+    if is_interactive():
         if not Confirm.ask(
             f"Are you sure you want to delete profile with name {name!r}?",
             console=console,
@@ -309,7 +309,7 @@ def populate_defaults():
         if not _show_profile_changes(user_profiles, default_profiles):
             return
 
-        if _is_interactive():
+        if is_interactive():
             if Confirm.ask(
                 f"\nBack up existing profiles to {user_path}.bak?",
                 console=console,
@@ -323,7 +323,7 @@ def populate_defaults():
         )
         _show_profile_changes(user_profiles, default_profiles)
 
-    if _is_interactive():
+    if is_interactive():
         if not Confirm.ask(
             f"\nUpdate profiles at {user_path}?",
             console=console,
