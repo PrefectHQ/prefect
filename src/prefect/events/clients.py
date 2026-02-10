@@ -744,6 +744,11 @@ class PrefectEventSubscriber:
         consecutive_failures = 0
         while consecutive_failures <= self._reconnection_attempts:
             try:
+                # If we're here and the websocket is None, then we've had a failure in a
+                # previous reconnection attempt.
+                #
+                # Otherwise, after the first time through this loop, we're recovering
+                # from a ConnectionClosed, so reconnect now.
                 if not self._websocket or consecutive_failures > 0:
                     try:
                         await self._reconnect()
