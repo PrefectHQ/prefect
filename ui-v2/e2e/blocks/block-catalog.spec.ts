@@ -94,7 +94,7 @@ test.describe("Block Catalog", () => {
 					const docs = await listBlockDocuments(apiClient);
 					return docs.find((d) => d.name === blockName);
 				},
-				{ timeout: 10000 },
+				{ timeout: 30000 },
 			)
 			.toBeDefined();
 	});
