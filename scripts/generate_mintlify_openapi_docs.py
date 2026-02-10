@@ -82,7 +82,7 @@ def generate_schema_documentation(version: str, server_docs_path: Path) -> Navig
     # Omit UI routes from the OpenAPI to avoid including them in the docs.
     # UI routes are not intended to be used by users.
     for path in list(openapi_schema["paths"].keys()):
-        if path.startswith("/api/ui/"):
+        if path.startswith("/ui/"):
             print("Dropping UI route:", path)
             del openapi_schema["paths"][path]
 
