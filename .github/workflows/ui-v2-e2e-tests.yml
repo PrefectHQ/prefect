@@ -32,6 +32,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: prefect
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U prefect -d prefect"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
       - uses: actions/checkout@v6
 
@@ -49,6 +64,8 @@ jobs:
         run: |
           uv run prefect server start --analytics-off --host 0.0.0.0 > server.log 2>&1 &
           echo "Server PID: $!"
+        env:
+          PREFECT_SERVER_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost:5432/prefect"
 
       - name: Wait for server health
         run: uv run python scripts/wait-for-server.py

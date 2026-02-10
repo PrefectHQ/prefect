@@ -49,12 +49,20 @@ test.describe("Concurrency Limits Page", () => {
 		await expect(page.getByText(limitName)).toBeVisible();
 
 		// Verify create via API
-		let limits = await listGlobalConcurrencyLimits(apiClient);
-		const created = limits.find((l) => l.name === limitName);
-		expect(created?.limit).toBe(5);
+		await expect
+			.poll(
+				async () => {
+					const limits = await listGlobalConcurrencyLimits(apiClient);
+					return limits.find((l) => l.name === limitName)?.limit;
+				},
+				{ timeout: 5000 },
+			)
+			.toBe(5);
+
+		const row = page.getByRole("row", { name: new RegExp(limitName) });
 
 		// Edit
-		await page.getByRole("button", { name: /open menu/i }).click();
+		await row.getByRole("button", { name: /open menu/i }).click();
 		await page.getByRole("menuitem", { name: /edit/i }).click();
 		await expect(
 			page.getByRole("dialog", {
@@ -68,21 +76,35 @@ test.describe("Concurrency Limits Page", () => {
 		await expect(page.getByRole("dialog")).not.toBeVisible();
 
 		// Verify edit via API
-		limits = await listGlobalConcurrencyLimits(apiClient);
-		expect(limits.find((l) => l.name === limitName)?.limit).toBe(10);
+		await expect
+			.poll(
+				async () => {
+					const limits = await listGlobalConcurrencyLimits(apiClient);
+					return limits.find((l) => l.name === limitName)?.limit;
+				},
+				{ timeout: 5000 },
+			)
+			.toBe(10);
 
 		// Toggle active
-		const activeSwitch = page.getByRole("switch", { name: /toggle active/i });
+		const activeSwitch = row.getByRole("switch", { name: /toggle active/i });
 		await expect(activeSwitch).toBeChecked();
 		await activeSwitch.click();
 		await expect(activeSwitch).not.toBeChecked();
 
 		// Verify toggle via API
-		limits = await listGlobalConcurrencyLimits(apiClient);
-		expect(limits.find((l) => l.name === limitName)?.active).toBe(false);
+		await expect
+			.poll(
+				async () => {
+					const limits = await listGlobalConcurrencyLimits(apiClient);
+					return limits.find((l) => l.name === limitName)?.active;
+				},
+				{ timeout: 5000 },
+			)
+			.toBe(false);
 
 		// Delete
-		await page.getByRole("button", { name: /open menu/i }).click();
+		await row.getByRole("button", { name: /open menu/i }).click();
 		await page.getByRole("menuitem", { name: /delete/i }).click();
 		await expect(
 			page.getByRole("dialog", { name: /delete concurrency limit/i }),
@@ -96,7 +118,7 @@ test.describe("Concurrency Limits Page", () => {
 		).toBeVisible();
 
 		// Verify delete via API
-		limits = await listGlobalConcurrencyLimits(apiClient);
+		const limits = await listGlobalConcurrencyLimits(apiClient);
 		expect(limits.find((l) => l.name === limitName)).toBeUndefined();
 	});
 
@@ -139,8 +161,10 @@ test.describe("Concurrency Limits Page", () => {
 			)
 			.toBe(10);
 
+		const row = page.getByRole("row", { name: new RegExp(tagName) });
+
 		// Reset
-		await page.getByRole("button", { name: /open menu/i }).click();
+		await row.getByRole("button", { name: /open menu/i }).click();
 		await page.getByRole("menuitem", { name: /reset/i }).click();
 		await expect(
 			page.getByRole("dialog", { name: new RegExp(`reset.*${tagName}`, "i") }),
@@ -150,7 +174,7 @@ test.describe("Concurrency Limits Page", () => {
 		await expect(page.getByText(tagName)).toBeVisible(); // Still exists after reset
 
 		// Delete
-		await page.getByRole("button", { name: /open menu/i }).click();
+		await row.getByRole("button", { name: /open menu/i }).click();
 		await page.getByRole("menuitem", { name: /delete/i }).click();
 		await expect(
 			page.getByRole("dialog", { name: /delete concurrency limit/i }),
