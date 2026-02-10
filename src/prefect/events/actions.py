@@ -292,6 +292,7 @@ ActionTypes: TypeAlias = Union[
     RunDeployment,
     PauseDeployment,
     ResumeDeployment,
+    ResumeFlowRun,
     CancelFlowRun,
     ChangeFlowRunState,
     PauseWorkQueue,
