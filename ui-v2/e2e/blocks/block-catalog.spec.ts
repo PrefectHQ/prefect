@@ -71,15 +71,13 @@ test.describe("Block Catalog", () => {
 		page,
 		apiClient,
 	}) => {
-		const blockName = `${TEST_PREFIX}json-${Date.now()}`;
+		const blockName = `${TEST_PREFIX}string-${Date.now()}`;
 
-		await page.goto("/blocks/catalog/json/create");
+		await page.goto("/blocks/catalog/string/create");
 
 		await page.getByLabel("Name").fill(blockName);
 
-		const jsonInput = page.locator(".cm-content");
-		await jsonInput.click();
-		await page.keyboard.type('"test-json-value"');
+		await page.locator("textarea").fill("test-string-value");
 
 		await page.getByRole("button", { name: /save/i }).click();
 
