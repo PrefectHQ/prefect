@@ -15,6 +15,7 @@ import cyclopts
 
 import prefect.cli._cyclopts as _cli
 from prefect.cli._cyclopts._utilities import (
+    exit_with_error,
     with_cli_exception_handling,
 )
 
@@ -121,8 +122,6 @@ async def start(
 
             work_pool_name = Prompt.ask("Work pool name", console=_cli.console)
         else:
-            from prefect.cli._cyclopts._utilities import exit_with_error
-
             exit_with_error("Missing required option '--pool' / '-p'.")
 
     # Resolve settings-backed defaults

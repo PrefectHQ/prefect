@@ -9,7 +9,10 @@ from typing import Annotated, Optional
 import cyclopts
 
 import prefect.cli._cyclopts as _cli
-from prefect.cli._cyclopts._utilities import with_cli_exception_handling
+from prefect.cli._cyclopts._utilities import (
+    exit_with_error,
+    with_cli_exception_handling,
+)
 
 shell_app = cyclopts.App(
     name="shell", help="Serve and watch shell commands as Prefect flows."
@@ -111,8 +114,6 @@ async def serve(
     Create and serve a deployment that runs a shell command.
     """
     if concurrency_limit is not None and concurrency_limit < 1:
-        from prefect.cli._cyclopts._utilities import exit_with_error
-
         exit_with_error("--concurrency-limit must be >= 1.")
 
     from prefect.cli.shell import run_shell_process
