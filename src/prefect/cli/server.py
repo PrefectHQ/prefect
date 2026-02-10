@@ -14,10 +14,12 @@ import socket
 import subprocess
 import sys
 import textwrap
+import time
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import orjson
 import typer
 import uvicorn
 from rich.table import Table
@@ -518,6 +520,111 @@ def _run_in_foreground(
 
     finally:
         app.console.print("Server stopped!")
+
+
+@server_app.command()
+async def status(
+    wait: bool = typer.Option(
+        False,
+        "--wait",
+        help="Wait for the server to become available before returning.",
+    ),
+    timeout: int = typer.Option(
+        0,
+        "--timeout",
+        "-t",
+        help=(
+            "Maximum number of seconds to wait when using --wait. "
+            "A value of 0 means wait indefinitely."
+        ),
+    ),
+    output: "str | None" = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
+    """Check the status of the Prefect server."""
+    from prefect.client.orchestration import get_client
+
+    if output is not None and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    api_url = str(PREFECT_API_URL.value())
+    app.console.print(f"Connecting to server at {api_url}...")
+
+    start_time = time.monotonic()
+
+    async with get_client() as client:
+        while True:
+            healthcheck_exc = await client.api_healthcheck()
+
+            if healthcheck_exc is None:
+                try:
+                    server_version = await client.api_version()
+                except Exception:
+                    server_version = None
+
+                result = {
+                    "status": "available",
+                    "api_url": api_url,
+                }
+                if server_version is not None:
+                    result["server_version"] = server_version
+
+                if output is not None and output.lower() == "json":
+                    json_output = orjson.dumps(
+                        result, option=orjson.OPT_INDENT_2
+                    ).decode()
+                    app.console.print(json_output)
+                else:
+                    app.console.print("Server is available.")
+                    app.console.print(f"  API URL: {api_url}")
+                    if server_version is not None:
+                        app.console.print(f"  Server version: {server_version}")
+
+                raise typer.Exit(0)
+
+            if not wait:
+                result = {
+                    "status": "unavailable",
+                    "api_url": api_url,
+                    "error": str(healthcheck_exc),
+                }
+                if output is not None and output.lower() == "json":
+                    json_output = orjson.dumps(
+                        result, option=orjson.OPT_INDENT_2
+                    ).decode()
+                    app.console.print(json_output)
+                else:
+                    exit_with_error(
+                        f"Server is not available at {api_url}. "
+                        f"Error: {healthcheck_exc}"
+                    )
+                raise typer.Exit(1)
+
+            elapsed = time.monotonic() - start_time
+            if timeout > 0 and elapsed >= timeout:
+                result = {
+                    "status": "timed_out",
+                    "api_url": api_url,
+                    "timeout": timeout,
+                    "error": str(healthcheck_exc),
+                }
+                if output is not None and output.lower() == "json":
+                    json_output = orjson.dumps(
+                        result, option=orjson.OPT_INDENT_2
+                    ).decode()
+                    app.console.print(json_output)
+                else:
+                    exit_with_error(
+                        f"Timed out after {timeout} seconds waiting for server "
+                        f"at {api_url}."
+                    )
+                raise typer.Exit(1)
+
+            await asyncio.sleep(1)
 
 
 @server_app.command()
