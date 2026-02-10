@@ -551,7 +551,11 @@ async def status(
     if output is not None and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
-    api_url = str(PREFECT_API_URL.value())
+    api_url = get_current_settings().api.url
+    if api_url is None:
+        exit_with_error(
+            "No API URL configured. Set PREFECT_API_URL to the address of your server."
+        )
     app.console.print(f"Connecting to server at {api_url}...")
 
     start_time = time.monotonic()
