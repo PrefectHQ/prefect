@@ -1,5 +1,6 @@
 import builtins
 import logging
+import sys
 
 import pytest
 
@@ -270,7 +271,7 @@ def test_flow_log_prints_updated_by_with_options(value):
 # Check log records report the caller's location, not print_as_log ----------------------
 
 
-def test_flow_log_prints_does_not_report_print_as_log(caplog):
+def test_flow_log_prints_reports_caller_location(caplog):
     @flow(log_prints=True)
     def my_flow_with_print():
         print("hello from flow")
@@ -280,11 +281,15 @@ def test_flow_log_prints_does_not_report_print_as_log(caplog):
 
     print_records = [r for r in caplog.records if r.message == "hello from flow"]
     assert len(print_records) == 1
-    assert print_records[0].funcName != "print_as_log"
-    assert print_records[0].filename != "loggers.py"
+    if sys.version_info >= (3, 11):
+        assert print_records[0].funcName == "my_flow_with_print"
+        assert print_records[0].filename == "test_log_prints.py"
+    else:
+        assert print_records[0].funcName == "call_with_parameters"
+        assert print_records[0].filename == "callables.py"
 
 
-def test_task_log_prints_does_not_report_print_as_log(caplog):
+def test_task_log_prints_reports_caller_location(caplog):
     @task(log_prints=True)
     def my_task_with_print():
         print("hello from task")
@@ -298,5 +303,9 @@ def test_task_log_prints_does_not_report_print_as_log(caplog):
 
     print_records = [r for r in caplog.records if r.message == "hello from task"]
     assert len(print_records) == 1
-    assert print_records[0].funcName != "print_as_log"
-    assert print_records[0].filename != "loggers.py"
+    if sys.version_info >= (3, 11):
+        assert print_records[0].funcName == "my_task_with_print"
+        assert print_records[0].filename == "test_log_prints.py"
+    else:
+        assert print_records[0].funcName == "call_with_parameters"
+        assert print_records[0].filename == "callables.py"
