@@ -5,7 +5,7 @@ test.describe("Settings Page", () => {
 		await waitForServerHealth(apiClient);
 	});
 
-	test("should navigate to settings page and see all sections (SETT-01, SETT-02)", async ({
+	test("should navigate to settings page and see all sections", async ({
 		page,
 	}) => {
 		await page.goto("/settings");
@@ -22,7 +22,7 @@ test.describe("Settings Page", () => {
 		await expect(page.getByText("Server Settings")).toBeVisible();
 	});
 
-	test("should toggle theme to dark and persist after reload (SETT-03)", async ({
+	test("should toggle theme to dark and persist after reload", async ({
 		page,
 	}) => {
 		await page.goto("/settings");
@@ -39,7 +39,7 @@ test.describe("Settings Page", () => {
 		await page.locator("label[for='system']").click();
 	});
 
-	test("should toggle theme to light and persist after reload (SETT-03)", async ({
+	test("should toggle theme to light and persist after reload", async ({
 		page,
 	}) => {
 		await page.goto("/settings");
