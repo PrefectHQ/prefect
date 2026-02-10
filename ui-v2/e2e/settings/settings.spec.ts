@@ -10,12 +10,14 @@ test.describe("Settings Page", () => {
 	}) => {
 		await page.goto("/settings");
 
-		await expect(page.getByText("Settings")).toBeVisible();
+		await expect(
+			page.getByLabel("breadcrumb").getByText("Settings"),
+		).toBeVisible();
 		await expect(page.getByText("Version")).toBeVisible();
 		await expect(page.getByText("Theme")).toBeVisible();
-		await expect(page.getByLabel("Light")).toBeVisible();
-		await expect(page.getByLabel("Dark")).toBeVisible();
-		await expect(page.getByLabel("System")).toBeVisible();
+		await expect(page.locator("label[for='light']")).toBeVisible();
+		await expect(page.locator("label[for='dark']")).toBeVisible();
+		await expect(page.locator("label[for='system']")).toBeVisible();
 		await expect(page.getByText("Color Mode")).toBeVisible();
 		await expect(page.getByText("Server Settings")).toBeVisible();
 	});
@@ -25,14 +27,16 @@ test.describe("Settings Page", () => {
 	}) => {
 		await page.goto("/settings");
 
-		await page.getByLabel("Dark").click();
+		await page.locator("label[for='dark']").click();
 		await expect(page.locator("html")).toHaveClass(/dark/);
 
 		await page.reload();
-		await expect(page.getByText("Settings")).toBeVisible();
+		await expect(
+			page.getByLabel("breadcrumb").getByText("Settings"),
+		).toBeVisible();
 		await expect(page.locator("html")).toHaveClass(/dark/);
 
-		await page.getByLabel("System").click();
+		await page.locator("label[for='system']").click();
 	});
 
 	test("should toggle theme to light and persist after reload (SETT-03)", async ({
@@ -40,13 +44,15 @@ test.describe("Settings Page", () => {
 	}) => {
 		await page.goto("/settings");
 
-		await page.getByLabel("Light").click();
+		await page.locator("label[for='light']").click();
 		await expect(page.locator("html")).not.toHaveClass(/dark/);
 
 		await page.reload();
-		await expect(page.getByText("Settings")).toBeVisible();
+		await expect(
+			page.getByLabel("breadcrumb").getByText("Settings"),
+		).toBeVisible();
 		await expect(page.locator("html")).not.toHaveClass(/dark/);
 
-		await page.getByLabel("System").click();
+		await page.locator("label[for='system']").click();
 	});
 });
