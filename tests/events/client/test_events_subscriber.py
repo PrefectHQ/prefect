@@ -1,5 +1,7 @@
 from typing import Optional, Type
+from unittest.mock import AsyncMock
 
+import orjson
 import pytest
 from websockets.exceptions import ConnectionClosed, ConnectionClosedError
 
@@ -491,3 +493,54 @@ async def test_subscriber_initial_connection_does_not_retry_on_other_exceptions(
 
     # Should have only tried once since ValueError is not retried
     assert call_count == 1
+
+
+async def test_subscriber_resets_retry_counter_after_successful_reconnect(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    example_event_1: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """Test that the retry counter resets after each successful reconnection,
+    allowing the subscriber to survive more total disconnections than
+    reconnection_attempts.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/18428
+    """
+    puppeteer.token = token
+    puppeteer.outgoing_events = [example_event_1]
+
+    filter = EventFilter(event=EventNameFilter(name=["example.event"]))
+
+    async with Subscriber(
+        filter=filter,
+        reconnection_attempts=2,
+    ) as subscriber:
+        reconnect_count = 0
+        event_json = orjson.dumps(
+            {"type": "event", "event": example_event_1.model_dump(mode="json")}
+        )
+
+        async def mock_reconnect():
+            nonlocal reconnect_count
+            reconnect_count += 1
+            mock_ws = AsyncMock()
+            if reconnect_count <= 3:
+                mock_ws.recv = AsyncMock(side_effect=ConnectionClosedError(None, None))
+            else:
+                mock_ws.recv = AsyncMock(return_value=event_json)
+            subscriber._websocket = mock_ws
+
+        subscriber._reconnect = mock_reconnect
+        subscriber._websocket = AsyncMock()
+        subscriber._websocket.recv = AsyncMock(
+            side_effect=ConnectionClosedError(None, None)
+        )
+
+        event = await subscriber.__anext__()
+        recorder.events.append(event)
+
+    assert reconnect_count == 4
+    assert recorder.events == [example_event_1]
