@@ -17,6 +17,9 @@ from prefect.events.actions import (
 )
 from prefect.events.schemas.automations import Automation, EventTrigger, Posture
 from prefect.events.schemas.events import ResourceSpecification
+from prefect.exceptions import ObjectNotFound
+
+_http_exc = Exception("404 Not Found")
 
 
 def create_test_trigger() -> EventTrigger:
@@ -598,3 +601,185 @@ class TestMigratableAutomation:
         # Verify destination_automation is set
         assert migratable.destination_automation == expected_automation
         assert migratable.destination_id == created_automation_id
+
+    @patch("prefect.cli.transfer._migratable_resources.automations.get_client")
+    async def test_get_dependencies_missing_deployment_skipped(
+        self, mock_get_client: MagicMock
+    ):
+        """Test that a missing deployment is skipped gracefully."""
+        deployment_id = uuid.uuid4()
+        automation = Automation(
+            id=uuid.uuid4(),
+            name=f"test-automation-{uuid.uuid4()}",
+            description="Test automation",
+            enabled=True,
+            tags=[],
+            trigger=create_test_trigger(),
+            actions=[
+                RunDeployment(
+                    deployment_id=deployment_id,
+                    source="selected",
+                    parameters=None,
+                    job_variables=None,
+                ),
+            ],
+            actions_on_trigger=[],
+            actions_on_resolve=[],
+        )
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+        mock_client.read_deployment.side_effect = ObjectNotFound(_http_exc)
+
+        migratable = await MigratableAutomation.construct(automation)
+        dependencies = await migratable.get_dependencies()
+
+        assert len(dependencies) == 0
+        assert deployment_id not in migratable._dependencies
+        mock_client.read_deployment.assert_called_once_with(deployment_id)
+
+    @patch("prefect.cli.transfer._migratable_resources.automations.get_client")
+    async def test_get_dependencies_missing_work_queue_skipped(
+        self, mock_get_client: MagicMock
+    ):
+        """Test that a missing work queue is skipped gracefully."""
+        work_queue_id = uuid.uuid4()
+        automation = Automation(
+            id=uuid.uuid4(),
+            name=f"test-automation-{uuid.uuid4()}",
+            description="Test automation",
+            enabled=True,
+            tags=[],
+            trigger=create_test_trigger(),
+            actions=[
+                PauseWorkQueue(work_queue_id=work_queue_id, source="selected"),
+            ],
+            actions_on_trigger=[],
+            actions_on_resolve=[],
+        )
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+        mock_client.read_work_queue.side_effect = ObjectNotFound(_http_exc)
+
+        migratable = await MigratableAutomation.construct(automation)
+        dependencies = await migratable.get_dependencies()
+
+        assert len(dependencies) == 0
+        assert work_queue_id not in migratable._dependencies
+        mock_client.read_work_queue.assert_called_once_with(work_queue_id)
+
+    @patch("prefect.cli.transfer._migratable_resources.automations.get_client")
+    async def test_get_dependencies_missing_block_document_call_webhook_skipped(
+        self, mock_get_client: MagicMock
+    ):
+        """Test that a missing block document for CallWebhook is skipped gracefully."""
+        block_document_id = uuid.uuid4()
+        automation = Automation(
+            id=uuid.uuid4(),
+            name=f"test-automation-{uuid.uuid4()}",
+            description="Test automation",
+            enabled=True,
+            tags=[],
+            trigger=create_test_trigger(),
+            actions=[
+                CallWebhook(block_document_id=block_document_id),
+            ],
+            actions_on_trigger=[],
+            actions_on_resolve=[],
+        )
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+        mock_client.read_block_document.side_effect = ObjectNotFound(_http_exc)
+
+        migratable = await MigratableAutomation.construct(automation)
+        dependencies = await migratable.get_dependencies()
+
+        assert len(dependencies) == 0
+        assert block_document_id not in migratable._dependencies
+        mock_client.read_block_document.assert_called_once_with(block_document_id)
+
+    @patch("prefect.cli.transfer._migratable_resources.automations.get_client")
+    async def test_get_dependencies_missing_block_document_send_notification_skipped(
+        self, mock_get_client: MagicMock
+    ):
+        """Test that a missing block document for SendNotification is skipped gracefully."""
+        block_document_id = uuid.uuid4()
+        automation = Automation(
+            id=uuid.uuid4(),
+            name=f"test-automation-{uuid.uuid4()}",
+            description="Test automation",
+            enabled=True,
+            tags=[],
+            trigger=create_test_trigger(),
+            actions=[
+                SendNotification(
+                    block_document_id=block_document_id,
+                    subject="Test notification",
+                    body="Test body",
+                ),
+            ],
+            actions_on_trigger=[],
+            actions_on_resolve=[],
+        )
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+        mock_client.read_block_document.side_effect = ObjectNotFound(_http_exc)
+
+        migratable = await MigratableAutomation.construct(automation)
+        dependencies = await migratable.get_dependencies()
+
+        assert len(dependencies) == 0
+        assert block_document_id not in migratable._dependencies
+        mock_client.read_block_document.assert_called_once_with(block_document_id)
+
+    @patch("prefect.cli.transfer._migratable_resources.automations.get_client")
+    @patch(
+        "prefect.cli.transfer._migratable_resources.automations.construct_migratable_resource"
+    )
+    async def test_get_dependencies_partial_missing_resources(
+        self, mock_construct_resource: AsyncMock, mock_get_client: MagicMock
+    ):
+        """Test that existing deps are kept when some resources are missing."""
+        deployment_id = uuid.uuid4()
+        missing_block_document_id = uuid.uuid4()
+        automation = Automation(
+            id=uuid.uuid4(),
+            name=f"test-automation-{uuid.uuid4()}",
+            description="Test automation",
+            enabled=True,
+            tags=[],
+            trigger=create_test_trigger(),
+            actions=[
+                RunDeployment(
+                    deployment_id=deployment_id,
+                    source="selected",
+                    parameters=None,
+                    job_variables=None,
+                ),
+                CallWebhook(block_document_id=missing_block_document_id),
+            ],
+            actions_on_trigger=[],
+            actions_on_resolve=[],
+        )
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+
+        mock_deployment = MagicMock()
+        mock_deployment.id = deployment_id
+        mock_client.read_deployment.return_value = mock_deployment
+        mock_client.read_block_document.side_effect = ObjectNotFound(_http_exc)
+
+        mock_migratable_deployment = MagicMock()
+        mock_construct_resource.return_value = mock_migratable_deployment
+
+        migratable = await MigratableAutomation.construct(automation)
+        dependencies = await migratable.get_dependencies()
+
+        assert len(dependencies) == 1
+        assert dependencies[0] == mock_migratable_deployment
+        assert deployment_id in migratable._dependencies
+        assert missing_block_document_id not in migratable._dependencies
