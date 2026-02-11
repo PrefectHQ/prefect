@@ -119,3 +119,6 @@ export const ChangeStateDialog = ({
 		</Dialog>
 	);
 };
+
+export type { UseChangeStateDialogResult } from "./use-change-state-dialog";
+export { useChangeStateDialog } from "./use-change-state-dialog";
