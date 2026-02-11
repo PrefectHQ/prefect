@@ -221,6 +221,53 @@ describe("property.type", () => {
 			expect(screen.getByTestId("mock-json-input")).toBeInTheDocument();
 		});
 
+		test("preserves existing dict values in edit flows", async () => {
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState<Record<string, unknown>>({
+					config: {
+						__prefect_kind: "json",
+						value: '{"region_name": "us-east-1"}',
+					},
+				});
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				const schema: SchemaObject = {
+					type: "object",
+					properties: {
+						config: { type: "object" },
+					},
+				};
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+						kinds={["json"]}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			const overwroteWithEmptyJson = spy.mock.calls.some((call: unknown[]) => {
+				const val = call[0] as Record<string, unknown> | undefined;
+				if (!val?.config || typeof val.config !== "object") return false;
+				const config = val.config as Record<string, unknown>;
+				return config.__prefect_kind === "json" && !("value" in config);
+			});
+			expect(overwroteWithEmptyJson).toBe(false);
+		});
+
 		test("does not auto-switch for object with defined properties", async () => {
 			const spy = vi.fn();
 

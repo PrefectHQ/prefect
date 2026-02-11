@@ -36,12 +36,12 @@ export function SchemaFormInputObject({
 	const patches = useRef<{ key: string; value: unknown }[]>([]);
 
 	useEffect(() => {
-		if (isOpenObject && nested) {
+		if (isOpenObject && nested && !values) {
 			onValuesChange({
 				__prefect_kind: "json",
 			} as Record<string, unknown>);
 		}
-	}, [isOpenObject, nested, onValuesChange]);
+	}, [isOpenObject, nested, values, onValuesChange]);
 
 	const flush = useDebounceCallback(
 		useCallback(() => {
