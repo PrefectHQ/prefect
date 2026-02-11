@@ -38,7 +38,7 @@ export default tseslint.config(
 			...reactHooks.configs.recommended.rules,
 			"react-refresh/only-export-components": [
 				"warn",
-				{ allowConstantExport: true },
+				{ allowConstantExport: true, allowExportNames: ["Route"] },
 			],
 			...react.configs.recommended.rules,
 			...react.configs["jsx-runtime"].rules,
@@ -47,6 +47,12 @@ export default tseslint.config(
 	},
 	...pluginQuery.configs["flat/recommended"],
 	...pluginRouter.configs["flat/recommended"],
+	{
+		files: ["src/routes/**/*.{ts,tsx}"],
+		rules: {
+			"react-refresh/only-export-components": "off",
+		},
+	},
 	{
 		files: ["tests/**/*.{ts,tsx}"],
 		plugins: testingLibrary.configs["flat/react"].plugins,

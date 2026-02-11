@@ -15,7 +15,7 @@ export const router = createRouter({
 	routeTree,
 	context: {
 		queryClient: queryClient,
-		auth: undefined!, // Will be provided by App
+		auth: undefined as unknown as AuthState, // Will be provided by App
 	},
 	defaultPreload: "intent",
 	// Since we're using React Query, we don't want loader calls to ever be stale
