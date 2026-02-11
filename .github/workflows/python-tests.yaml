@@ -100,13 +100,13 @@ jobs:
         include:
           # Run CLI tests through cyclopts (PREFECT_CLI_FAST=1) on one matrix leg
           - test-type:
-              name: Runner, Worker, Settings, Input, and CLI Tests (Cyclopts)
-              modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
+              name: CLI Tests (Cyclopts)
+              modules: tests/cli/
             database: "postgres:14"
             python-version: "3.12"
             cyclopts: true
 
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Display current test matrix
