@@ -184,16 +184,24 @@ class TestMultipleWorkerServer:
                 expected_code=1,
             )
 
-    @patch("prefect.cli._cyclopts.server._validate_multi_worker")
     @patch("prefect.cli.server._validate_multi_worker")
     async def test_multi_worker_in_background(
         self,
         mock_validate_typer,
-        mock_validate_cyclopts,
         unused_tcp_port: int,
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Test starting the server with multiple workers in the background."""
+        # Patch the cyclopts copy too, but only when running in cyclopts mode
+        # to avoid importing the cyclopts module on Python 3.14 where
+        # asyncio.iscoroutinefunction triggers a DeprecationWarning.
+        if os.environ.get("PREFECT_CLI_FAST") == "1":
+            import prefect.cli._cyclopts.server as _cyclopts_server
+
+            monkeypatch.setattr(
+                _cyclopts_server, "_validate_multi_worker", mock_validate_typer
+            )
+
         # Disable migrations and block registration to avoid race conditions
         # when multiple workers start concurrently. Each worker would try to
         # run migrations/block registration at the same time, causing database
@@ -253,7 +261,7 @@ class TestMultipleWorkerServer:
                 await anyio.sleep(1)  # Wait a bit more before retrying
 
             assert len(pids) == 2, f"Expected 2 worker PIDs but got {len(pids)}: {pids}"
-            assert mock_validate_typer.called or mock_validate_cyclopts.called
+            assert mock_validate_typer.called
 
         finally:
             await run_sync_in_worker_thread(
