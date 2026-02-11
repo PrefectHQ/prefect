@@ -57,6 +57,7 @@ export function SchemaFormInputAnyOf({
 
 			<TabsContent value={selectedIndex.toString()}>
 				<SchemaFormProperty
+					key={selectedIndex}
 					value={value}
 					property={property.anyOf[selectedIndex]}
 					onValueChange={onValueChange}
