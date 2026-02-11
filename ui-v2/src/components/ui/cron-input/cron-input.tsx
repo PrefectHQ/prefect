@@ -3,23 +3,20 @@ import { CronExpressionParser } from "cron-parser";
 import cronstrue from "cronstrue";
 import { useState } from "react";
 import { Input, type InputProps } from "@/components/ui/input";
-import { Typography } from "@/components/ui/typography";
 
 const verifyCronValue = (cronValue: string) => {
-	let description = "";
-	let isCronValid = false;
 	try {
 		CronExpressionParser.parse(cronValue);
-		description = cronstrue.toString(cronValue);
-		isCronValid = true;
+		return {
+			description: cronstrue.toString(cronValue),
+			isCronValid: true,
+		};
 	} catch {
-		isCronValid = false;
-		description = "Invalid expression";
+		return {
+			description: "Invalid expression",
+			isCronValid: false,
+		};
 	}
-	return {
-		description,
-		isCronValid,
-	};
 };
 
 export type CronInputProps = InputProps;
@@ -43,12 +40,14 @@ export const CronInput = ({ onChange, ...props }: CronInputProps) => {
 	return (
 		<div className="flex flex-col gap-1">
 			<Input {...props} onChange={handleChange} />
-			<Typography
-				variant="bodySmall"
-				className={clsx(isCronValid ? "text-muted-foreground" : "text-red-500")}
+			<p
+				className={clsx(
+					"text-sm",
+					isCronValid ? "text-muted-foreground" : "text-red-500",
+				)}
 			>
 				{description}
-			</Typography>
+			</p>
 		</div>
 	);
 };

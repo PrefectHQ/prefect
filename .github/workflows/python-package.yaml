@@ -45,6 +45,8 @@ jobs:
 
       - name: Build UI v2
         working-directory: ui-v2
+        env:
+          VITE_AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
         run: |
           npm ci
           npm run build
@@ -55,6 +57,8 @@ jobs:
           git diff --exit-code
 
       - name: Build a binary wheel and a source tarball
+        env:
+          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
         run: |
           uv build --sdist --wheel --out-dir dist
 

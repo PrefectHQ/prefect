@@ -25,9 +25,13 @@ export function getSchemaObjectLabel(
 	schema: SchemaObject,
 ): string {
 	if (isReferenceObject(property)) {
-		const definition = getSchemaDefinition(schema, property.$ref);
+		const { $ref, ...rest } = property;
+		const definition = getSchemaDefinition(schema, $ref);
+		const merged = { ...definition, ...rest } as SchemaObject;
 
-		return getSchemaObjectLabel(definition, schema);
+		const fallback = getSchemaObjectTypeLabel(merged) ?? "Field";
+
+		return merged.title ?? merged.format ?? fallback;
 	}
 
 	const fallback = getSchemaObjectTypeLabel(property) ?? "Field";

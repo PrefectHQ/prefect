@@ -8,7 +8,7 @@
         }
     },
     "paths": {
-        "/api/health": {
+        "/health": {
             "get": {
                 "tags": [
                     "Root"
@@ -30,7 +30,7 @@
                 }
             }
         },
-        "/api/version": {
+        "/version": {
             "get": {
                 "tags": [
                     "Root"
@@ -52,7 +52,7 @@
                 }
             }
         },
-        "/api/flows/": {
+        "/flows/": {
             "post": {
                 "tags": [
                     "Flows"
@@ -105,7 +105,7 @@
                 }
             }
         },
-        "/api/flows/{id}": {
+        "/flows/{id}": {
             "patch": {
                 "tags": [
                     "Flows"
@@ -262,7 +262,7 @@
                 }
             }
         },
-        "/api/flows/count": {
+        "/flows/count": {
             "post": {
                 "tags": [
                     "Flows"
@@ -315,7 +315,7 @@
                 }
             }
         },
-        "/api/flows/name/{name}": {
+        "/flows/name/{name}": {
             "get": {
                 "tags": [
                     "Flows"
@@ -369,7 +369,7 @@
                 }
             }
         },
-        "/api/flows/filter": {
+        "/flows/filter": {
             "post": {
                 "tags": [
                     "Flows"
@@ -425,7 +425,59 @@
                 }
             }
         },
-        "/api/flows/paginate": {
+        "/flows/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Flows"
+                ],
+                "summary": "Bulk Delete Flows",
+                "description": "Bulk delete flows matching the specified filter criteria.\n\nThis also deletes all associated deployments.\n\nReturns the IDs of flows that were deleted.",
+                "operationId": "bulk_delete_flows_flows_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_flows_flows_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/flows/paginate": {
             "post": {
                 "tags": [
                     "Flows"
@@ -477,7 +529,7 @@
                 }
             }
         },
-        "/api/flow_runs/": {
+        "/flow_runs/": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -530,7 +582,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}": {
+        "/flow_runs/{id}": {
             "patch": {
                 "tags": [
                     "Flow Runs"
@@ -687,7 +739,7 @@
                 }
             }
         },
-        "/api/flow_runs/count": {
+        "/flow_runs/count": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -740,7 +792,7 @@
                 }
             }
         },
-        "/api/flow_runs/lateness": {
+        "/flow_runs/lateness": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -800,7 +852,7 @@
                 }
             }
         },
-        "/api/flow_runs/history": {
+        "/flow_runs/history": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -857,7 +909,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/graph": {
+        "/flow_runs/{id}/graph": {
             "get": {
                 "tags": [
                     "Flow Runs",
@@ -917,7 +969,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/graph-v2": {
+        "/flow_runs/{id}/graph-v2": {
             "get": {
                 "tags": [
                     "Flow Runs",
@@ -986,7 +1038,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/resume": {
+        "/flow_runs/{id}/resume": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1050,7 +1102,7 @@
                 }
             }
         },
-        "/api/flow_runs/filter": {
+        "/flow_runs/filter": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1106,7 +1158,112 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/set_state": {
+        "/flow_runs/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Flow Runs"
+                ],
+                "summary": "Bulk Delete Flow Runs",
+                "description": "Bulk delete flow runs matching the specified filter criteria.\n\nReturns the IDs of flow runs that were deleted.",
+                "operationId": "bulk_delete_flow_runs_flow_runs_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/flow_runs/bulk_set_state": {
+            "post": {
+                "tags": [
+                    "Flow Runs"
+                ],
+                "summary": "Bulk Set Flow Run State",
+                "description": "Bulk set state for flow runs matching the specified filter criteria.\n\nReturns the orchestration results for each flow run.",
+                "operationId": "bulk_set_flow_run_state_flow_runs_bulk_set_state_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkSetStateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/flow_runs/{id}/set_state": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1171,7 +1328,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input": {
+        "/flow_runs/{id}/input": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1234,7 +1391,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input/filter": {
+        "/flow_runs/{id}/input/filter": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1303,7 +1460,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/input/{key}": {
+        "/flow_runs/{id}/input/{key}": {
             "get": {
                 "tags": [
                     "Flow Runs"
@@ -1424,7 +1581,7 @@
                 }
             }
         },
-        "/api/flow_runs/paginate": {
+        "/flow_runs/paginate": {
             "post": {
                 "tags": [
                     "Flow Runs"
@@ -1476,7 +1633,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/logs/download": {
+        "/flow_runs/{id}/logs/download": {
             "get": {
                 "tags": [
                     "Flow Runs"
@@ -1529,7 +1686,7 @@
                 }
             }
         },
-        "/api/flow_runs/{id}/labels": {
+        "/flow_runs/{id}/labels": {
             "patch": {
                 "tags": [
                     "Flow Runs"
@@ -1590,7 +1747,7 @@
                 }
             }
         },
-        "/api/task_runs/": {
+        "/task_runs/": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1643,7 +1800,7 @@
                 }
             }
         },
-        "/api/task_runs/{id}": {
+        "/task_runs/{id}": {
             "patch": {
                 "tags": [
                     "Task Runs"
@@ -1800,7 +1957,7 @@
                 }
             }
         },
-        "/api/task_runs/count": {
+        "/task_runs/count": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1853,7 +2010,7 @@
                 }
             }
         },
-        "/api/task_runs/history": {
+        "/task_runs/history": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1910,7 +2067,7 @@
                 }
             }
         },
-        "/api/task_runs/filter": {
+        "/task_runs/filter": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -1966,7 +2123,7 @@
                 }
             }
         },
-        "/api/task_runs/paginate": {
+        "/task_runs/paginate": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2018,7 +2175,7 @@
                 }
             }
         },
-        "/api/task_runs/{id}/set_state": {
+        "/task_runs/{id}/set_state": {
             "post": {
                 "tags": [
                     "Task Runs"
@@ -2083,7 +2240,7 @@
                 }
             }
         },
-        "/api/flow_run_states/{id}": {
+        "/flow_run_states/{id}": {
             "get": {
                 "tags": [
                     "Flow Run States"
@@ -2138,7 +2295,7 @@
                 }
             }
         },
-        "/api/flow_run_states/": {
+        "/flow_run_states/": {
             "get": {
                 "tags": [
                     "Flow Run States"
@@ -2195,7 +2352,7 @@
                 }
             }
         },
-        "/api/task_run_states/{id}": {
+        "/task_run_states/{id}": {
             "get": {
                 "tags": [
                     "Task Run States"
@@ -2250,7 +2407,7 @@
                 }
             }
         },
-        "/api/task_run_states/": {
+        "/task_run_states/": {
             "get": {
                 "tags": [
                     "Task Run States"
@@ -2307,7 +2464,7 @@
                 }
             }
         },
-        "/api/deployments/": {
+        "/deployments/": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2360,7 +2517,7 @@
                 }
             }
         },
-        "/api/deployments/{id}": {
+        "/deployments/{id}": {
             "patch": {
                 "tags": [
                     "Deployments"
@@ -2516,7 +2673,7 @@
                 }
             }
         },
-        "/api/deployments/name/{flow_name}/{deployment_name}": {
+        "/deployments/name/{flow_name}/{deployment_name}": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -2581,7 +2738,7 @@
                 }
             }
         },
-        "/api/deployments/filter": {
+        "/deployments/filter": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2637,7 +2794,7 @@
                 }
             }
         },
-        "/api/deployments/paginate": {
+        "/deployments/paginate": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2689,7 +2846,7 @@
                 }
             }
         },
-        "/api/deployments/get_scheduled_flow_runs": {
+        "/deployments/get_scheduled_flow_runs": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2746,7 +2903,7 @@
                 }
             }
         },
-        "/api/deployments/count": {
+        "/deployments/count": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2799,7 +2956,59 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedule": {
+        "/deployments/bulk_delete": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Bulk Delete Deployments",
+                "description": "Bulk delete deployments matching the specified filter criteria.\n\nReturns the IDs of deployments that were deleted.",
+                "operationId": "bulk_delete_deployments_deployments_bulk_delete_post",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_bulk_delete_deployments_deployments_bulk_delete_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeploymentBulkDeleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/deployments/{id}/schedule": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2861,7 +3070,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/resume_deployment": {
+        "/deployments/{id}/resume_deployment": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2914,7 +3123,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/pause_deployment": {
+        "/deployments/{id}/pause_deployment": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -2967,7 +3176,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/create_flow_run": {
+        "/deployments/{id}/create_flow_run": {
             "post": {
                 "tags": [
                     "Deployments"
@@ -3032,7 +3241,77 @@
                 }
             }
         },
-        "/api/deployments/{id}/work_queue_check": {
+        "/deployments/{id}/create_flow_run/bulk": {
+            "post": {
+                "tags": [
+                    "Deployments"
+                ],
+                "summary": "Bulk Create Flow Runs From Deployment",
+                "description": "Create multiple flow runs from a deployment.\n\nAny parameters not provided will be inferred from the deployment's parameters.\nIf tags are not provided, the deployment's tags will be used.\n\nIf no state is provided, the flow runs will be created in a SCHEDULED state.",
+                "operationId": "bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "The deployment id",
+                            "title": "Id"
+                        },
+                        "description": "The deployment id"
+                    },
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/DeploymentFlowRunCreate"
+                                },
+                                "description": "List of flow run configurations to create",
+                                "title": "Flow Runs"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunBulkCreateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/deployments/{id}/work_queue_check": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -3092,7 +3371,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedules": {
+        "/deployments/{id}/schedules": {
             "get": {
                 "tags": [
                     "Deployments"
@@ -3221,7 +3500,7 @@
                 }
             }
         },
-        "/api/deployments/{id}/schedules/{schedule_id}": {
+        "/deployments/{id}/schedules/{schedule_id}": {
             "patch": {
                 "tags": [
                     "Deployments"
@@ -3348,7 +3627,7 @@
                 }
             }
         },
-        "/api/saved_searches/": {
+        "/saved_searches/": {
             "put": {
                 "tags": [
                     "SavedSearches"
@@ -3401,7 +3680,7 @@
                 }
             }
         },
-        "/api/saved_searches/{id}": {
+        "/saved_searches/{id}": {
             "get": {
                 "tags": [
                     "SavedSearches"
@@ -3502,7 +3781,7 @@
                 }
             }
         },
-        "/api/saved_searches/filter": {
+        "/saved_searches/filter": {
             "post": {
                 "tags": [
                     "SavedSearches"
@@ -3558,7 +3837,7 @@
                 }
             }
         },
-        "/api/logs/": {
+        "/logs/": {
             "post": {
                 "tags": [
                     "Logs"
@@ -3613,7 +3892,7 @@
                 }
             }
         },
-        "/api/logs/filter": {
+        "/logs/filter": {
             "post": {
                 "tags": [
                     "Logs"
@@ -3669,7 +3948,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/": {
+        "/concurrency_limits/": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -3722,7 +4001,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/{id}": {
+        "/concurrency_limits/{id}": {
             "get": {
                 "tags": [
                     "Concurrency Limits"
@@ -3827,7 +4106,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/tag/{tag}": {
+        "/concurrency_limits/tag/{tag}": {
             "get": {
                 "tags": [
                     "Concurrency Limits"
@@ -3930,7 +4209,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/filter": {
+        "/concurrency_limits/filter": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -3986,7 +4265,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/tag/{tag}/reset": {
+        "/concurrency_limits/tag/{tag}/reset": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4046,7 +4325,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/increment": {
+        "/concurrency_limits/increment": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4103,7 +4382,7 @@
                 }
             }
         },
-        "/api/concurrency_limits/decrement": {
+        "/concurrency_limits/decrement": {
             "post": {
                 "tags": [
                     "Concurrency Limits"
@@ -4160,7 +4439,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/": {
+        "/v2/concurrency_limits/": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4213,7 +4492,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/{id_or_name}": {
+        "/v2/concurrency_limits/{id_or_name}": {
             "get": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4388,7 +4667,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/filter": {
+        "/v2/concurrency_limits/filter": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4443,7 +4722,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/increment": {
+        "/v2/concurrency_limits/increment": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4499,7 +4778,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/increment-with-lease": {
+        "/v2/concurrency_limits/increment-with-lease": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4551,7 +4830,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/decrement": {
+        "/v2/concurrency_limits/decrement": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4607,7 +4886,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/decrement-with-lease": {
+        "/v2/concurrency_limits/decrement-with-lease": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4652,7 +4931,7 @@
                 }
             }
         },
-        "/api/v2/concurrency_limits/leases/{lease_id}/renew": {
+        "/v2/concurrency_limits/leases/{lease_id}/renew": {
             "post": {
                 "tags": [
                     "Concurrency Limits V2"
@@ -4708,7 +4987,7 @@
                 }
             }
         },
-        "/api/block_types/": {
+        "/block_types/": {
             "post": {
                 "tags": [
                     "Block types"
@@ -4761,7 +5040,7 @@
                 }
             }
         },
-        "/api/block_types/{id}": {
+        "/block_types/{id}": {
             "get": {
                 "tags": [
                     "Block types"
@@ -4917,7 +5196,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}": {
+        "/block_types/slug/{slug}": {
             "get": {
                 "tags": [
                     "Block types"
@@ -4971,7 +5250,7 @@
                 }
             }
         },
-        "/api/block_types/filter": {
+        "/block_types/filter": {
             "post": {
                 "tags": [
                     "Block types"
@@ -5027,7 +5306,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}/block_documents": {
+        "/block_types/slug/{slug}/block_documents": {
             "get": {
                 "tags": [
                     "Block types",
@@ -5098,7 +5377,7 @@
                 }
             }
         },
-        "/api/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
+        "/block_types/slug/{slug}/block_documents/name/{block_document_name}": {
             "get": {
                 "tags": [
                     "Block types",
@@ -5176,7 +5455,7 @@
                 }
             }
         },
-        "/api/block_types/install_system_block_types": {
+        "/block_types/install_system_block_types": {
             "post": {
                 "tags": [
                     "Block types"
@@ -5216,7 +5495,7 @@
                 }
             }
         },
-        "/api/block_documents/": {
+        "/block_documents/": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5269,7 +5548,7 @@
                 }
             }
         },
-        "/api/block_documents/filter": {
+        "/block_documents/filter": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5325,7 +5604,7 @@
                 }
             }
         },
-        "/api/block_documents/count": {
+        "/block_documents/count": {
             "post": {
                 "tags": [
                     "Block documents"
@@ -5378,7 +5657,7 @@
                 }
             }
         },
-        "/api/block_documents/{id}": {
+        "/block_documents/{id}": {
             "get": {
                 "tags": [
                     "Block documents"
@@ -5544,7 +5823,7 @@
                 }
             }
         },
-        "/api/work_pools/": {
+        "/work_pools/": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5597,7 +5876,7 @@
                 }
             }
         },
-        "/api/work_pools/{name}": {
+        "/work_pools/{name}": {
             "get": {
                 "tags": [
                     "Work Pools"
@@ -5751,7 +6030,7 @@
                 }
             }
         },
-        "/api/work_pools/filter": {
+        "/work_pools/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5807,7 +6086,7 @@
                 }
             }
         },
-        "/api/work_pools/count": {
+        "/work_pools/count": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5860,7 +6139,7 @@
                 }
             }
         },
-        "/api/work_pools/{name}/get_scheduled_flow_runs": {
+        "/work_pools/{name}/get_scheduled_flow_runs": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5927,7 +6206,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues": {
+        "/work_pools/{work_pool_name}/queues": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -5991,7 +6270,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues/{name}": {
+        "/work_pools/{work_pool_name}/queues/{name}": {
             "get": {
                 "tags": [
                     "Work Pools"
@@ -6178,7 +6457,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/queues/filter": {
+        "/work_pools/{work_pool_name}/queues/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6245,7 +6524,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/heartbeat": {
+        "/work_pools/{work_pool_name}/workers/heartbeat": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6301,7 +6580,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/filter": {
+        "/work_pools/{work_pool_name}/workers/filter": {
             "post": {
                 "tags": [
                     "Work Pools"
@@ -6368,7 +6647,7 @@
                 }
             }
         },
-        "/api/work_pools/{work_pool_name}/workers/{name}": {
+        "/work_pools/{work_pool_name}/workers/{name}": {
             "delete": {
                 "tags": [
                     "Work Pools"
@@ -6426,7 +6705,7 @@
                 }
             }
         },
-        "/api/task_workers/filter": {
+        "/task_workers/filter": {
             "post": {
                 "tags": [
                     "Task Workers"
@@ -6482,7 +6761,7 @@
                 }
             }
         },
-        "/api/work_queues/": {
+        "/work_queues/": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -6535,7 +6814,7 @@
                 }
             }
         },
-        "/api/work_queues/{id}": {
+        "/work_queues/{id}": {
             "patch": {
                 "tags": [
                     "Work Queues"
@@ -6692,7 +6971,7 @@
                 }
             }
         },
-        "/api/work_queues/name/{name}": {
+        "/work_queues/name/{name}": {
             "get": {
                 "tags": [
                     "Work Queues"
@@ -6746,7 +7025,7 @@
                 }
             }
         },
-        "/api/work_queues/{id}/get_runs": {
+        "/work_queues/{id}/get_runs": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -6833,7 +7112,7 @@
                 }
             }
         },
-        "/api/work_queues/filter": {
+        "/work_queues/filter": {
             "post": {
                 "tags": [
                     "Work Queues"
@@ -6889,7 +7168,7 @@
                 }
             }
         },
-        "/api/work_queues/{id}/status": {
+        "/work_queues/{id}/status": {
             "get": {
                 "tags": [
                     "Work Queues"
@@ -6944,7 +7223,7 @@
                 }
             }
         },
-        "/api/artifacts/": {
+        "/artifacts/": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -6997,7 +7276,7 @@
                 }
             }
         },
-        "/api/artifacts/{id}": {
+        "/artifacts/{id}": {
             "get": {
                 "tags": [
                     "Artifacts"
@@ -7154,7 +7433,7 @@
                 }
             }
         },
-        "/api/artifacts/{key}/latest": {
+        "/artifacts/{key}/latest": {
             "get": {
                 "tags": [
                     "Artifacts"
@@ -7208,7 +7487,7 @@
                 }
             }
         },
-        "/api/artifacts/filter": {
+        "/artifacts/filter": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7264,7 +7543,7 @@
                 }
             }
         },
-        "/api/artifacts/latest/filter": {
+        "/artifacts/latest/filter": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7320,7 +7599,7 @@
                 }
             }
         },
-        "/api/artifacts/count": {
+        "/artifacts/count": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7373,7 +7652,7 @@
                 }
             }
         },
-        "/api/artifacts/latest/count": {
+        "/artifacts/latest/count": {
             "post": {
                 "tags": [
                     "Artifacts"
@@ -7426,7 +7705,7 @@
                 }
             }
         },
-        "/api/block_schemas/": {
+        "/block_schemas/": {
             "post": {
                 "tags": [
                     "Block schemas"
@@ -7479,7 +7758,7 @@
                 }
             }
         },
-        "/api/block_schemas/{id}": {
+        "/block_schemas/{id}": {
             "delete": {
                 "tags": [
                     "Block schemas"
@@ -7580,7 +7859,7 @@
                 }
             }
         },
-        "/api/block_schemas/filter": {
+        "/block_schemas/filter": {
             "post": {
                 "tags": [
                     "Block schemas"
@@ -7636,7 +7915,7 @@
                 }
             }
         },
-        "/api/block_schemas/checksum/{checksum}": {
+        "/block_schemas/checksum/{checksum}": {
             "get": {
                 "tags": [
                     "Block schemas"
@@ -7707,7 +7986,7 @@
                 }
             }
         },
-        "/api/block_capabilities/": {
+        "/block_capabilities/": {
             "get": {
                 "tags": [
                     "Block capabilities"
@@ -7754,7 +8033,7 @@
                 }
             }
         },
-        "/api/collections/views/{view}": {
+        "/collections/views/{view}": {
             "get": {
                 "tags": [
                     "Collections"
@@ -7808,7 +8087,7 @@
                 }
             }
         },
-        "/api/variables/": {
+        "/variables/": {
             "post": {
                 "tags": [
                     "Variables"
@@ -7861,7 +8140,7 @@
                 }
             }
         },
-        "/api/variables/{id}": {
+        "/variables/{id}": {
             "get": {
                 "tags": [
                     "Variables"
@@ -8009,7 +8288,7 @@
                 }
             }
         },
-        "/api/variables/name/{name}": {
+        "/variables/name/{name}": {
             "get": {
                 "tags": [
                     "Variables"
@@ -8154,7 +8433,7 @@
                 }
             }
         },
-        "/api/variables/filter": {
+        "/variables/filter": {
             "post": {
                 "tags": [
                     "Variables"
@@ -8209,7 +8488,7 @@
                 }
             }
         },
-        "/api/variables/count": {
+        "/variables/count": {
             "post": {
                 "tags": [
                     "Variables"
@@ -8261,7 +8540,7 @@
                 }
             }
         },
-        "/api/csrf-token": {
+        "/csrf-token": {
             "get": {
                 "summary": "Create Csrf Token",
                 "description": "Create or update a CSRF token for a client",
@@ -8312,7 +8591,7 @@
                 }
             }
         },
-        "/api/events": {
+        "/events": {
             "post": {
                 "tags": [
                     "Events"
@@ -8362,7 +8641,7 @@
                 }
             }
         },
-        "/api/events/filter": {
+        "/events/filter": {
             "post": {
                 "tags": [
                     "Events"
@@ -8414,7 +8693,7 @@
                 }
             }
         },
-        "/api/events/filter/next": {
+        "/events/filter/next": {
             "get": {
                 "tags": [
                     "Events"
@@ -8466,7 +8745,7 @@
                 }
             }
         },
-        "/api/events/count-by/{countable}": {
+        "/events/count-by/{countable}": {
             "post": {
                 "tags": [
                     "Events"
@@ -8531,7 +8810,7 @@
                 }
             }
         },
-        "/api/automations/": {
+        "/automations/": {
             "post": {
                 "tags": [
                     "Automations"
@@ -8584,7 +8863,7 @@
                 }
             }
         },
-        "/api/automations/{id}": {
+        "/automations/{id}": {
             "put": {
                 "tags": [
                     "Automations"
@@ -8785,7 +9064,7 @@
                 }
             }
         },
-        "/api/automations/filter": {
+        "/automations/filter": {
             "post": {
                 "tags": [
                     "Automations"
@@ -8840,7 +9119,7 @@
                 }
             }
         },
-        "/api/automations/count": {
+        "/automations/count": {
             "post": {
                 "tags": [
                     "Automations"
@@ -8883,7 +9162,7 @@
                 }
             }
         },
-        "/api/automations/related-to/{resource_id}": {
+        "/automations/related-to/{resource_id}": {
             "get": {
                 "tags": [
                     "Automations"
@@ -8938,7 +9217,7 @@
                 }
             }
         },
-        "/api/automations/owned-by/{resource_id}": {
+        "/automations/owned-by/{resource_id}": {
             "delete": {
                 "tags": [
                     "Automations"
@@ -8987,7 +9266,7 @@
                 }
             }
         },
-        "/api/templates/validate": {
+        "/templates/validate": {
             "post": {
                 "tags": [
                     "Automations"
@@ -9033,7 +9312,7 @@
                 }
             }
         },
-        "/api/automations/templates/validate": {
+        "/automations/templates/validate": {
             "post": {
                 "tags": [
                     "Automations"
@@ -9079,7 +9358,7 @@
                 }
             }
         },
-        "/api/admin/settings": {
+        "/admin/settings": {
             "get": {
                 "tags": [
                     "Admin"
@@ -9122,7 +9401,7 @@
                 }
             }
         },
-        "/api/admin/version": {
+        "/admin/version": {
             "get": {
                 "tags": [
                     "Admin"
@@ -9166,142 +9445,7 @@
                 }
             }
         },
-        "/api/admin/database/clear": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Clear Database",
-                "description": "Clear all database tables without dropping them.",
-                "operationId": "clear_database_admin_database_clear_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_clear_database_admin_database_clear_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/database/drop": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Drop Database",
-                "description": "Drop all database objects.",
-                "operationId": "drop_database_admin_database_drop_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_drop_database_admin_database_drop_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/database/create": {
-            "post": {
-                "tags": [
-                    "Admin"
-                ],
-                "summary": "Create Database",
-                "description": "Create all database objects.",
-                "operationId": "create_database_admin_database_create_post",
-                "parameters": [
-                    {
-                        "name": "x-prefect-api-version",
-                        "in": "header",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "X-Prefect-Api-Version"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_create_database_admin_database_create_post"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/hello": {
+        "/hello": {
             "get": {
                 "tags": [
                     "Root"
@@ -9345,7 +9489,7 @@
                 }
             }
         },
-        "/api/ready": {
+        "/ready": {
             "get": {
                 "tags": [
                     "Root"
@@ -12362,6 +12506,81 @@
                 ],
                 "title": "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
             },
+            "Body_bulk_delete_deployments_deployments_bulk_delete_post": {
+                "properties": {
+                    "deployments": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for deployments to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of deployments to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_deployments_deployments_bulk_delete_post"
+            },
+            "Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post": {
+                "properties": {
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flow runs to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flow runs to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"
+            },
+            "Body_bulk_delete_flows_flows_bulk_delete_post": {
+                "properties": {
+                    "flows": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flows to delete"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flows to delete. Defaults to 50.",
+                        "default": 50
+                    }
+                },
+                "type": "object",
+                "title": "Body_bulk_delete_flows_flows_bulk_delete_post"
+            },
             "Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post": {
                 "properties": {
                     "slots": {
@@ -12457,17 +12676,43 @@
                 ],
                 "title": "Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"
             },
-            "Body_clear_database_admin_database_clear_post": {
+            "Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post": {
                 "properties": {
-                    "confirm": {
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for flow runs to update"
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/StateCreate",
+                        "description": "The state to set"
+                    },
+                    "force": {
                         "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
+                        "title": "Force",
+                        "description": "If false, orchestration rules will be applied that may alter or prevent the state transition. If True, orchestration rules are not applied.",
                         "default": false
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "maximum": 50.0,
+                        "minimum": 1.0,
+                        "title": "Limit",
+                        "description": "Maximum number of flow runs to update. Defaults to 50.",
+                        "default": 50
                     }
                 },
                 "type": "object",
-                "title": "Body_clear_database_admin_database_clear_post"
+                "required": [
+                    "state"
+                ],
+                "title": "Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"
             },
             "Body_count_account_events_events_count_by__countable__post": {
                 "properties": {
@@ -12808,18 +13053,6 @@
                 "type": "object",
                 "title": "Body_count_work_pools_work_pools_count_post"
             },
-            "Body_create_database_admin_database_create_post": {
-                "properties": {
-                    "confirm": {
-                        "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
-                        "default": false
-                    }
-                },
-                "type": "object",
-                "title": "Body_create_database_admin_database_create_post"
-            },
             "Body_create_flow_run_input_flow_runs__id__input_post": {
                 "properties": {
                     "key": {
@@ -12876,18 +13109,6 @@
                     "task_run_id"
                 ],
                 "title": "Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post"
-            },
-            "Body_drop_database_admin_database_drop_post": {
-                "properties": {
-                    "confirm": {
-                        "type": "boolean",
-                        "title": "Confirm",
-                        "description": "Pass confirm=True to confirm you want to modify the database.",
-                        "default": false
-                    }
-                },
-                "type": "object",
-                "title": "Body_drop_database_admin_database_drop_post"
             },
             "Body_filter_flow_run_input_flow_runs__id__input_filter_post": {
                 "properties": {
@@ -15670,6 +15891,21 @@
                 ],
                 "title": "DependencyResult"
             },
+            "DeploymentBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "DeploymentBulkDeleteResponse",
+                "description": "Response from bulk deployment deletion."
+            },
             "DeploymentCreate": {
                 "properties": {
                     "name": {
@@ -18173,6 +18409,21 @@
                 "title": "Flow",
                 "description": "An ORM representation of flow data."
             },
+            "FlowBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "FlowBulkDeleteResponse",
+                "description": "Response from bulk flow deletion."
+            },
             "FlowCreate": {
                 "properties": {
                     "name": {
@@ -18340,6 +18591,22 @@
                         ],
                         "title": "Any",
                         "description": "A list of flow ids to include"
+                    },
+                    "not_any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Not Any",
+                        "description": "A list of flow ids to exclude"
                     }
                 },
                 "additionalProperties": false,
@@ -18868,6 +19135,49 @@
                 "title": "FlowRun",
                 "description": "An ORM representation of flow run data."
             },
+            "FlowRunBulkCreateResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunCreateResult"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkCreateResponse",
+                "description": "Response from bulk flow run creation."
+            },
+            "FlowRunBulkDeleteResponse": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deleted"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkDeleteResponse",
+                "description": "Response from bulk flow run deletion."
+            },
+            "FlowRunBulkSetStateResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/FlowRunOrchestrationResult"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    }
+                },
+                "type": "object",
+                "title": "FlowRunBulkSetStateResponse",
+                "description": "Response from bulk set state operation."
+            },
             "FlowRunCreate": {
                 "properties": {
                     "state": {
@@ -19065,6 +19375,47 @@
                 ],
                 "title": "FlowRunCreate",
                 "description": "Data used by the Prefect REST API to create a flow run."
+            },
+            "FlowRunCreateResult": {
+                "properties": {
+                    "flow_run_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Flow Run Id"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "CREATED",
+                            "FAILED"
+                        ],
+                        "title": "Status"
+                    },
+                    "error": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Error"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "status"
+                ],
+                "title": "FlowRunCreateResult",
+                "description": "Per-run result for bulk create operations."
             },
             "FlowRunFilter": {
                 "properties": {
@@ -20017,6 +20368,53 @@
                 ],
                 "title": "FlowRunInput"
             },
+            "FlowRunOrchestrationResult": {
+                "properties": {
+                    "flow_run_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Flow Run Id"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SetStateStatus"
+                    },
+                    "state": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/State"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "details": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/StateAcceptDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateWaitDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateRejectDetails"
+                            },
+                            {
+                                "$ref": "#/components/schemas/StateAbortDetails"
+                            }
+                        ],
+                        "title": "Details"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "flow_run_id",
+                    "status",
+                    "details"
+                ],
+                "title": "FlowRunOrchestrationResult",
+                "description": "Per-run result for bulk state operations."
+            },
             "FlowRunPaginationResponse": {
                 "properties": {
                     "results": {
@@ -20697,6 +21095,23 @@
             },
             "FlowsSettings": {
                 "properties": {
+                    "heartbeat_frequency": {
+                        "anyOf": [
+                            {
+                                "type": "integer",
+                                "minimum": 30.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Heartbeat Frequency",
+                        "description": "Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.",
+                        "supported_environment_variables": [
+                            "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
+                            "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                        ]
+                    },
                     "default_retries": {
                         "type": "integer",
                         "minimum": 0.0,
@@ -22567,20 +22982,13 @@
                             "PREFECT_RUNNER_POLL_FREQUENCY"
                         ]
                     },
-                    "heartbeat_frequency": {
-                        "anyOf": [
-                            {
-                                "type": "integer",
-                                "minimum": 30.0
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Heartbeat Frequency",
-                        "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
+                    "crash_on_cancellation_failure": {
+                        "type": "boolean",
+                        "title": "Crash On Cancellation Failure",
+                        "description": "Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.",
+                        "default": false,
                         "supported_environment_variables": [
-                            "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                            "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE"
                         ]
                     },
                     "server": {

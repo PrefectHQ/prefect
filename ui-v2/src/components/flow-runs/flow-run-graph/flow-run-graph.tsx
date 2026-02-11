@@ -3,6 +3,7 @@ import {
 	type GraphItemSelection,
 	isArtifactsSelection,
 	isEventSelection,
+	isEventsSelection,
 	isNodeSelection,
 	isStateSelection,
 	type RunGraphConfig,
@@ -34,6 +35,7 @@ import { FlowRunGraphActions } from "./flow-run-graph-actions";
 import { FlowRunGraphArtifactDrawer } from "./flow-run-graph-artifact-drawer";
 import { FlowRunGraphArtifactsPopover } from "./flow-run-graph-artifacts-popover";
 import { FlowRunGraphEventPopover } from "./flow-run-graph-event-popover";
+import { FlowRunGraphEventsPopover } from "./flow-run-graph-events-popover";
 import { FlowRunGraphSelectionPanel } from "./flow-run-graph-selection-panel";
 import { FlowRunGraphStatePopover } from "./flow-run-graph-state-popover";
 
@@ -196,7 +198,7 @@ export function FlowRunGraph({
 					</p>
 				</div>
 			)}
-			<div className="absolute bottom-0 right-0">
+			<div className="absolute bottom-2 right-2">
 				<FlowRunGraphActions
 					fullscreen={fullscreen}
 					onFullscreenChange={updateFullscreen}
@@ -222,6 +224,15 @@ export function FlowRunGraph({
 			)}
 			{selected && isEventSelection(selected) && (
 				<FlowRunGraphEventPopover
+					selection={selected}
+					onClose={() => {
+						setInternalSelected(undefined);
+						onSelectedChange?.(undefined);
+					}}
+				/>
+			)}
+			{selected && isEventsSelection(selected) && (
+				<FlowRunGraphEventsPopover
 					selection={selected}
 					onClose={() => {
 						setInternalSelected(undefined);

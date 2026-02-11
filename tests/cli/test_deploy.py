@@ -6225,6 +6225,55 @@ class TestDeployInfraOverrides:
             ],
         )
 
+    async def test_job_variables_preserve_ctx_flow_templates(
+        self,
+        project_dir: Path,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        """
+        Regression test: ensure that {{ ctx.flow.name }} and {{ ctx.flow_run.name }}
+        templates in job_variables are preserved during `prefect deploy` and not
+        stripped by the apply_values step that resolves build/push step outputs.
+
+        These templates should only be resolved at flow run time by the worker's
+        prepare_for_flow_run() method.
+        """
+        prefect_file = project_dir / "prefect.yaml"
+        prefect_file.write_text(
+            yaml.safe_dump(
+                {
+                    "deployments": [
+                        {
+                            "name": "test-ctx-templates",
+                            "entrypoint": "./flows/hello.py:my_flow",
+                            "work_pool": {
+                                "name": "test-pool",
+                                "job_variables": {
+                                    "name": "job-{{ ctx.flow.name }}/{{ ctx.flow_run.name }}",
+                                    "env": "prod",
+                                },
+                            },
+                        }
+                    ]
+                }
+            )
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/test-ctx-templates"
+        )
+        assert deployment.job_variables == {
+            "name": "job-{{ ctx.flow.name }}/{{ ctx.flow_run.name }}",
+            "env": "prod",
+        }
+
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
 class TestDeployDockerPushSteps:
@@ -6632,3 +6681,85 @@ deployments:
         assert action.parameters["event_id"]["template"] == "{{ event.id }}"
         assert action.parameters["event_id"]["__prefect_kind"] == "jinja"
         assert action.parameters["fan_out"] is True
+
+
+class TestDeployAllEnvVarTemplateDisplay:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_resolves_env_var_in_deployment_name(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Regression test: ensure that when using `prefect deploy --all`, the
+        deployment name with environment variable templates is resolved correctly.
+        """
+        monkeypatch.setenv("DEPLOY_ENV", "dev")
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "{{ $DEPLOY_ENV }}-test-flow",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            expected_output_contains=["An important name/dev-test-flow"],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/dev-test-flow"
+        )
+        assert deployment.name == "dev-test-flow"
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_all_handles_unset_env_var_in_deployment_name(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Test that when an environment variable is not set, the template
+        resolves to an empty string in the deployment name.
+        """
+        monkeypatch.delenv("DEPLOY_ENV", raising=False)
+
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        contents["deployments"] = [
+            {
+                "entrypoint": "./flows/hello.py:my_flow",
+                "name": "{{ $DEPLOY_ENV }}-test-flow",
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy --all",
+            expected_code=0,
+            expected_output_contains=["An important name/-test-flow"],
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/-test-flow"
+        )
+        assert deployment.name == "-test-flow"

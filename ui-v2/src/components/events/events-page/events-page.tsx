@@ -32,7 +32,6 @@ import {
 	PaginationPreviousButton,
 } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Typography } from "@/components/ui/typography";
 import { cn } from "@/utils";
 import { InteractiveEventsChart } from "../events-line-chart";
 import { EventsResourceFilter } from "../events-resource-filter";
@@ -208,9 +207,9 @@ export function EventsPage({ search, onSearchChange }: EventsPageProps) {
 										/>
 									</PaginationItem>
 									<PaginationItem>
-										<Typography variant="bodySmall" className="px-2">
+										<p className="text-sm px-2">
 											Page {currentPage} of {totalPages}
-										</Typography>
+										</p>
 									</PaginationItem>
 									<PaginationItem>
 										<PaginationNextButton

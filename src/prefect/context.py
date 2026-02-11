@@ -990,6 +990,17 @@ def root_settings_context() -> SettingsContext:
 GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
 
 
+def refresh_global_settings_context() -> None:
+    """
+    Refresh the global settings context to pick up environment variable changes.
+
+    This is called after plugins run to ensure any environment variables they set
+    are reflected in get_current_settings().
+    """
+    global GLOBAL_SETTINGS_CONTEXT
+    GLOBAL_SETTINGS_CONTEXT = root_settings_context()
+
+
 # 2024-07-02: This surfaces an actionable error message for removed objects
 # in Prefect 3.0 upgrade.
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)

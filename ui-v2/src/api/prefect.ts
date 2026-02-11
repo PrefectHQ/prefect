@@ -149,6 +149,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/flows/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Flows
+         * @description Bulk delete flows matching the specified filter criteria.
+         *
+         *     This also deletes all associated deployments.
+         *
+         *     Returns the IDs of flows that were deleted.
+         */
+        post: operations["bulk_delete_flows_flows_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/flows/paginate": {
         parameters: {
             query?: never;
@@ -356,6 +380,50 @@ export interface paths {
          * @description Query for flow runs.
          */
         post: operations["read_flow_runs_flow_runs_filter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flow_runs/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Flow Runs
+         * @description Bulk delete flow runs matching the specified filter criteria.
+         *
+         *     Returns the IDs of flow runs that were deleted.
+         */
+        post: operations["bulk_delete_flow_runs_flow_runs_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/flow_runs/bulk_set_state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Set Flow Run State
+         * @description Bulk set state for flow runs matching the specified filter criteria.
+         *
+         *     Returns the orchestration results for each flow run.
+         */
+        post: operations["bulk_set_flow_run_state_flow_runs_bulk_set_state_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -895,6 +963,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deployments/bulk_delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Delete Deployments
+         * @description Bulk delete deployments matching the specified filter criteria.
+         *
+         *     Returns the IDs of deployments that were deleted.
+         */
+        post: operations["bulk_delete_deployments_deployments_bulk_delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deployments/{id}/schedule": {
         parameters: {
             query?: never;
@@ -985,6 +1075,31 @@ export interface paths {
          *     If no state is provided, the flow run will be created in a SCHEDULED state.
          */
         post: operations["create_flow_run_from_deployment_deployments__id__create_flow_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deployments/{id}/create_flow_run/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Create Flow Runs From Deployment
+         * @description Create multiple flow runs from a deployment.
+         *
+         *     Any parameters not provided will be inferred from the deployment's parameters.
+         *     If tags are not provided, the deployment's tags will be used.
+         *
+         *     If no state is provided, the flow runs will be created in a SCHEDULED state.
+         */
+        post: operations["bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2885,66 +3000,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/database/clear": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Clear Database
-         * @description Clear all database tables without dropping them.
-         */
-        post: operations["clear_database_admin_database_clear_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/database/drop": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Drop Database
-         * @description Drop all database objects.
-         */
-        post: operations["drop_database_admin_database_drop_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/database/create": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Database
-         * @description Create all database objects.
-         */
-        post: operations["create_database_admin_database_create_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/hello": {
         parameters: {
             query?: never;
@@ -4160,6 +4215,39 @@ export interface components {
              */
             lease_id: string;
         };
+        /** Body_bulk_delete_deployments_deployments_bulk_delete_post */
+        Body_bulk_delete_deployments_deployments_bulk_delete_post: {
+            /** @description Filter criteria for deployments to delete */
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            /**
+             * Limit
+             * @description Maximum number of deployments to delete. Defaults to 50.
+             * @default 50
+             */
+            limit: number;
+        };
+        /** Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post */
+        Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post: {
+            /** @description Filter criteria for flow runs to delete */
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            /**
+             * Limit
+             * @description Maximum number of flow runs to delete. Defaults to 50.
+             * @default 50
+             */
+            limit: number;
+        };
+        /** Body_bulk_delete_flows_flows_bulk_delete_post */
+        Body_bulk_delete_flows_flows_bulk_delete_post: {
+            /** @description Filter criteria for flows to delete */
+            flows?: components["schemas"]["FlowFilter"] | null;
+            /**
+             * Limit
+             * @description Maximum number of flows to delete. Defaults to 50.
+             * @default 50
+             */
+            limit: number;
+        };
         /** Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post */
         Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
             /** Slots */
@@ -4199,14 +4287,24 @@ export interface components {
             /** @description The holder of the lease with type (flow_run, task_run, or deployment) and id. */
             holder?: components["schemas"]["ConcurrencyLeaseHolder"] | null;
         };
-        /** Body_clear_database_admin_database_clear_post */
-        Body_clear_database_admin_database_clear_post: {
+        /** Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post */
+        Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post: {
+            /** @description Filter criteria for flow runs to update */
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            /** @description The state to set */
+            state: components["schemas"]["StateCreate"];
             /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
+             * Force
+             * @description If false, orchestration rules will be applied that may alter or prevent the state transition. If True, orchestration rules are not applied.
              * @default false
              */
-            confirm: boolean;
+            force: boolean;
+            /**
+             * Limit
+             * @description Maximum number of flow runs to update. Defaults to 50.
+             * @default 50
+             */
+            limit: number;
         };
         /** Body_count_account_events_events_count_by__countable__post */
         Body_count_account_events_events_count_by__countable__post: {
@@ -4292,15 +4390,6 @@ export interface components {
         Body_count_work_pools_work_pools_count_post: {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
         };
-        /** Body_create_database_admin_database_create_post */
-        Body_create_database_admin_database_create_post: {
-            /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
-             * @default false
-             */
-            confirm: boolean;
-        };
         /** Body_create_flow_run_input_flow_runs__id__input_post */
         Body_create_flow_run_input_flow_runs__id__input_post: {
             /**
@@ -4333,15 +4422,6 @@ export interface components {
              * @description The ID of the task run releasing the slot
              */
             task_run_id: string;
-        };
-        /** Body_drop_database_admin_database_drop_post */
-        Body_drop_database_admin_database_drop_post: {
-            /**
-             * Confirm
-             * @description Pass confirm=True to confirm you want to modify the database.
-             * @default false
-             */
-            confirm: boolean;
         };
         /** Body_filter_flow_run_input_flow_runs__id__input_filter_post */
         Body_filter_flow_run_input_flow_runs__id__input_filter_post: {
@@ -5676,6 +5756,14 @@ export interface components {
             untrackable_result: boolean;
         };
         /**
+         * DeploymentBulkDeleteResponse
+         * @description Response from bulk deployment deletion.
+         */
+        DeploymentBulkDeleteResponse: {
+            /** Deleted */
+            deleted?: string[];
+        };
+        /**
          * DeploymentCreate
          * @description Data used by the Prefect REST API to create a deployment.
          */
@@ -6797,6 +6885,14 @@ export interface components {
             } | null;
         };
         /**
+         * FlowBulkDeleteResponse
+         * @description Response from bulk flow deletion.
+         */
+        FlowBulkDeleteResponse: {
+            /** Deleted */
+            deleted?: string[];
+        };
+        /**
          * FlowCreate
          * @description Data used by the Prefect REST API to create a flow.
          */
@@ -6873,6 +6969,11 @@ export interface components {
              * @description A list of flow ids to include
              */
             any_?: string[] | null;
+            /**
+             * Not Any
+             * @description A list of flow ids to exclude
+             */
+            not_any_?: string[] | null;
         };
         /**
          * FlowFilterName
@@ -7119,6 +7220,30 @@ export interface components {
             } | null;
         };
         /**
+         * FlowRunBulkCreateResponse
+         * @description Response from bulk flow run creation.
+         */
+        FlowRunBulkCreateResponse: {
+            /** Results */
+            results?: components["schemas"]["FlowRunCreateResult"][];
+        };
+        /**
+         * FlowRunBulkDeleteResponse
+         * @description Response from bulk flow run deletion.
+         */
+        FlowRunBulkDeleteResponse: {
+            /** Deleted */
+            deleted?: string[];
+        };
+        /**
+         * FlowRunBulkSetStateResponse
+         * @description Response from bulk set state operation.
+         */
+        FlowRunBulkSetStateResponse: {
+            /** Results */
+            results?: components["schemas"]["FlowRunOrchestrationResult"][];
+        };
+        /**
          * FlowRunCreate
          * @description Data used by the Prefect REST API to create a flow run.
          */
@@ -7207,6 +7332,21 @@ export interface components {
              * @description DEPRECATED: The id of the deployment associated with this flow run, if available.
              */
             deployment_id?: string | null;
+        };
+        /**
+         * FlowRunCreateResult
+         * @description Per-run result for bulk create operations.
+         */
+        FlowRunCreateResult: {
+            /** Flow Run Id */
+            flow_run_id?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "CREATED" | "FAILED";
+            /** Error */
+            error?: string | null;
         };
         /**
          * FlowRunFilter
@@ -7613,6 +7753,21 @@ export interface components {
              * @description The sender of the input.
              */
             sender?: string | null;
+        };
+        /**
+         * FlowRunOrchestrationResult
+         * @description Per-run result for bulk state operations.
+         */
+        FlowRunOrchestrationResult: {
+            /**
+             * Flow Run Id
+             * Format: uuid
+             */
+            flow_run_id: string;
+            status: components["schemas"]["SetStateStatus"];
+            state?: components["schemas"]["State"] | null;
+            /** Details */
+            details: components["schemas"]["StateAcceptDetails"] | components["schemas"]["StateWaitDetails"] | components["schemas"]["StateRejectDetails"] | components["schemas"]["StateAbortDetails"];
         };
         /** FlowRunPaginationResponse */
         FlowRunPaginationResponse: {
@@ -8990,6 +9145,12 @@ export interface components {
              * @default 10
              */
             poll_frequency: number;
+            /**
+             * Crash On Cancellation Failure
+             * @description Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.
+             * @default false
+             */
+            crash_on_cancellation_failure: boolean;
             server?: components["schemas"]["RunnerServerSettings"];
         };
         /**
@@ -12428,6 +12589,41 @@ export interface operations {
             };
         };
     };
+    bulk_delete_flows_flows_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_delete_flows_flows_bulk_delete_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowBulkDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     paginate_flows_flows_paginate_post: {
         parameters: {
             query?: never;
@@ -12836,6 +13032,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowRunResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_delete_flow_runs_flow_runs_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRunBulkDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_set_flow_run_state_flow_runs_bulk_set_state_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRunBulkSetStateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -13902,6 +14168,41 @@ export interface operations {
             };
         };
     };
+    bulk_delete_deployments_deployments_bulk_delete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_bulk_delete_deployments_deployments_bulk_delete_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentBulkDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     schedule_deployment_deployments__id__schedule_post: {
         parameters: {
             query?: never;
@@ -14033,6 +14334,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FlowRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path: {
+                /** @description The deployment id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeploymentFlowRunCreate"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRunBulkCreateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -18192,105 +18531,6 @@ export interface operations {
                 content: {
                     "application/json": string;
                 };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    clear_database_admin_database_clear_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_clear_database_admin_database_clear_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    drop_database_admin_database_drop_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_drop_database_admin_database_drop_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_database_admin_database_create_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-prefect-api-version"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["Body_create_database_admin_database_create_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description Validation Error */
             422: {

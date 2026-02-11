@@ -1444,6 +1444,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         runner._shutdown_event = threading.Event()
         runner._queue_counter = 42
         runner._skipped_nodes = {"node1", "node2"}
+        runner._started_nodes = {"node3", "node4"}
 
         # Stop should reset all state
         runner._stop_callback_processor()
@@ -1453,6 +1454,7 @@ class TestPrefectDbtRunnerCallbackProcessorReset:
         assert runner._shutdown_event is None
         assert runner._queue_counter == 0
         assert runner._skipped_nodes == set()
+        assert runner._started_nodes == set()
 
     def test_multiple_invokes_create_fresh_callback_processors(
         self, mock_dbt_runner_class, mock_settings_context_manager

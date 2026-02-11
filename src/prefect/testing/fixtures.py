@@ -303,6 +303,7 @@ class Puppeteer:
     outgoing_events: List[Event]
 
     def __init__(self):
+        self.token = None
         self.hard_auth_failure = False
         self.refuse_any_further_connections = False
         self.hard_disconnect_after = None
@@ -340,6 +341,23 @@ async def events_server(
             await outgoing_events(socket)
 
     async def incoming_events(socket: ServerConnection):
+        # 1. authentication (required when using the "prefect" subprotocol)
+        if socket.subprotocol == "prefect":
+            auth_message = json.loads(await socket.recv())
+
+            assert auth_message["type"] == "auth"
+            recorder.token = auth_message["token"]
+            if puppeteer.token is not None and puppeteer.token != recorder.token:
+                if not puppeteer.hard_auth_failure:
+                    await socket.send(
+                        json.dumps({"type": "auth_failure", "reason": "nope"})
+                    )
+                await socket.close(WS_1008_POLICY_VIOLATION)
+                return
+
+            await socket.send(json.dumps({"type": "auth_success"}))
+
+        # 2. receive events
         while True:
             try:
                 message = await socket.recv()
@@ -388,7 +406,20 @@ async def events_server(
                 puppeteer.hard_disconnect_after = None
                 raise ValueError("zonk")
 
-    async with serve(handler, host="localhost", port=unused_tcp_port) as server:
+    def select_subprotocol(
+        connection: ServerConnection, subprotocols: list[str]
+    ) -> str | None:
+        # Accept the "prefect" subprotocol if requested
+        if "prefect" in subprotocols:
+            return "prefect"
+        return None
+
+    async with serve(
+        handler,
+        host="localhost",
+        port=unused_tcp_port,
+        select_subprotocol=select_subprotocol,
+    ) as server:
         yield server
 
 

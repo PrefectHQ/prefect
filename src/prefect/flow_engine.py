@@ -565,6 +565,14 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         link_state_to_flow_run_result(terminal_state, resolved_result)
         self._telemetry.end_span_on_success()
 
+        # Track first flow run milestone for analytics
+        try:
+            from prefect._internal.analytics import try_mark_milestone
+
+            try_mark_milestone("first_flow_run")
+        except Exception:
+            pass
+
         return result
 
     def handle_exception(
@@ -614,6 +622,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             name="TimedOut",
         )
         self.set_state(state)
+        if self.state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {self.state.name!r} when proposing final"
+                f" state {state.name!r} and will attempt to run again..."
+            )
+            self.set_state(Running())
+            return
         self._raised = exc
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(message)
@@ -1150,6 +1165,14 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self._telemetry.end_span_on_success()
 
+        # Track first flow run milestone for analytics
+        try:
+            from prefect._internal.analytics import try_mark_milestone
+
+            try_mark_milestone("first_flow_run")
+        except Exception:
+            pass
+
         return result
 
     async def handle_exception(
@@ -1197,6 +1220,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             name="TimedOut",
         )
         await self.set_state(state)
+        if self.state.is_scheduled():
+            self.logger.info(
+                f"Received non-final state {self.state.name!r} when proposing final"
+                f" state {state.name!r} and will attempt to run again..."
+            )
+            await self.set_state(Running())
+            return
         self._raised = exc
 
         self._telemetry.record_exception(exc)

@@ -68,6 +68,8 @@ from prefect_docker.credentials import DockerRegistryCredentials
 from prefect_docker.types import VolumeStr
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import (
         FlowRun,
         WorkPool,
@@ -266,12 +268,15 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: "str | None" = None,
+        worker_id: "UUID | None" = None,
     ):
         """
         Prepares the flow run by setting the image, labels, and name
         attributes.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
+        )
 
         self.image = self.image or get_prefect_image_name()
         self.labels = self._convert_labels_to_docker_format(
@@ -579,7 +584,8 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             worker_name=self.name,
         )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        creation_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        bundle = creation_result["bundle"]
 
         await (
             anyio.Path(self._tmp_dir)

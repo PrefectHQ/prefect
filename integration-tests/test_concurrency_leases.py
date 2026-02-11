@@ -171,8 +171,10 @@ async def test_async_concurrency_with_lease_renewal_failure(
 
     assert active_lease
 
-    # Revoke the current lease and create a new one to simulate a lease renewal failure
-    await lease_storage.revoke_lease(active_lease.id)
+    # Revoke the lease through the API to avoid a cross-process filesystem race
+    # where a concurrent renew_lease can recreate the file deleted by revoke_lease
+    async with prefect.get_client() as client:
+        await client.release_concurrency_slots_with_lease(lease_id=active_lease.id)
 
     # Wait for the process to exit cleanly before the configured sleep time
     process.join(timeout=10)
@@ -269,8 +271,10 @@ async def test_sync_concurrency_with_lease_renewal_failure(
 
     assert active_lease
 
-    # Revoke the current lease and create a new one to simulate a lease renewal failure
-    await lease_storage.revoke_lease(active_lease.id)
+    # Revoke the lease through the API to avoid a cross-process filesystem race
+    # where a concurrent renew_lease can recreate the file deleted by revoke_lease
+    async with prefect.get_client() as client:
+        await client.release_concurrency_slots_with_lease(lease_id=active_lease.id)
 
     # Wait for the process to exit cleanly before the configured sleep time
     process.join(timeout=10)

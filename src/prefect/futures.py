@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import concurrent.futures
 import threading
 import time
@@ -402,11 +403,23 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
                 "Waiting for completed event for flow run %s...",
                 self.flow_run_id,
             )
+            start_time = time.monotonic()
             await FlowRunWaiter.wait_for_flow_run(self._flow_run_id, timeout=timeout)
-            flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
-            if flow_run.state and flow_run.state.is_final():
-                self._final_state = flow_run.state
-            return
+
+            # Poll for the final state in case the event was missed due to race
+            # conditions or connection issues with the event subscriber
+            while True:
+                flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
+                if flow_run.state and flow_run.state.is_final():
+                    self._final_state = flow_run.state
+                    return
+                # Check if timeout has been exceeded
+                if timeout is not None:
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= timeout:
+                        return
+                # Brief sleep before polling again to avoid hammering the API
+                await asyncio.sleep(0.1)
 
     def result(
         self,
@@ -479,22 +492,41 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         """
         Get the results of all task runs associated with the futures in the list.
 
+        Uses `as_completed` internally so that failures are raised as soon as
+        they occur rather than waiting for earlier, still-running futures to
+        finish first.
+
         Args:
             timeout: The maximum number of seconds to wait for all futures to
                 complete.
             raise_on_failure: If `True`, an exception will be raised if any task run fails.
 
         Returns:
-            A list of results of the task runs.
+            A list of results of the task runs, in the same order as the
+            futures in the list.
 
         Raises:
             TimeoutError: If the timeout is reached before all futures complete.
         """
+        # Build a mapping from each unique future to every index it occupies
+        # so that we can handle duplicates and preserve ordering.
+        future_to_indices: dict[PrefectFuture[R], list[int]] = {}
+        for idx, future in enumerate(self):
+            future_to_indices.setdefault(future, []).append(idx)
+
+        results: list[R] = [None] * len(self)  # type: ignore[list-item]
+
         try:
+            # Wrap the entire loop in timeout_context so that both the wait
+            # for futures *and* any slow result retrieval (e.g. large data
+            # deserialization) are bounded by the caller's timeout.
             with timeout_context(timeout):
-                return [
-                    future.result(raise_on_failure=raise_on_failure) for future in self
-                ]
+                # as_completed de-duplicates internally; each unique future
+                # is yielded exactly once, in completion order.
+                for future in as_completed(list(self), timeout=timeout):
+                    result = future.result(raise_on_failure=raise_on_failure)
+                    for i in future_to_indices[future]:
+                        results[i] = result
         except TimeoutError as exc:
             # timeout came from inside the task
             if "Scope timed out after {timeout} second(s)." not in str(exc):
@@ -502,6 +534,8 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
             raise TimeoutError(
                 f"Timed out waiting for all futures to complete within {timeout} seconds"
             ) from exc
+
+        return results
 
 
 def as_completed(

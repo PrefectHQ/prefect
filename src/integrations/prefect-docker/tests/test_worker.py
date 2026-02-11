@@ -531,6 +531,7 @@ async def test_uses_env_setting(
     assert call_env == {
         **get_current_settings().to_environment_variables(exclude_unset=True),
         "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+        "PREFECT__FLOW_ID": str(flow_run.flow_id),
         "foo": "FOO",
         "bar": "BAR",
     }

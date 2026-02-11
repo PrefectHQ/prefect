@@ -707,7 +707,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     "title": "Name",
                     "description": (
                         "Name given to infrastructure created by the worker using this "
-                        "job configuration."
+                        "job configuration. Supports templates using {{ ctx.flow.* }} and "
+                        "{{ ctx.flow_run.* }} when prepared for a flow run."
                     ),
                 },
                 "other": {
@@ -1600,7 +1601,8 @@ class TestWorkerProperties:
                         "default": None,
                         "description": (
                             "Name given to infrastructure created by the worker using "
-                            "this job configuration."
+                            "this job configuration. Supports templates using {{ ctx.flow.* }} "
+                            "and {{ ctx.flow_run.* }} when prepared for a flow run."
                         ),
                     },
                 },
@@ -1767,6 +1769,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1784,6 +1787,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1804,6 +1808,9 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
+            "PREFECT__FLOW_NAME": flow.name,
+            "PREFECT__DEPLOYMENT_NAME": deployment.name,
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1817,6 +1824,15 @@ class TestPrepareForFlowRun:
         }
         assert job_config.name == "my-job-name"
         assert job_config.command == "prefect flow-run execute"
+
+    def test_prepare_for_flow_run_renders_name_template(self, flow_run, flow):
+        job_config = BaseJobConfiguration(
+            name="worker-1/{{ ctx.flow.name }}/{{ ctx.flow_run.name }}"
+        )
+
+        job_config.prepare_for_flow_run(flow_run, flow=flow)
+
+        assert job_config.name == f"worker-1/{flow.name}/{flow_run.name}"
 
 
 async def test_get_flow_run_logger_without_worker_id_set(

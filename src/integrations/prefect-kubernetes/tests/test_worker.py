@@ -273,115 +273,130 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
-        lambda flow_run,
-        deployment,
-        flow,
-        work_pool,
-        worker_name: KubernetesWorkerJobConfiguration(
-            command="prefect flow-run execute",
-            env={
-                **get_current_settings().to_environment_variables(exclude_unset=True),
-                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
-            },
-            labels={
-                "prefect.io/flow-run-id": str(flow_run.id),
-                "prefect.io/flow-run-name": flow_run.name,
-                "prefect.io/version": _slugify_label_value(
-                    prefect.__version__.split("+")[0]
-                ),
-                "prefect.io/deployment-id": str(deployment.id),
-                "prefect.io/deployment-name": deployment.name,
-                "prefect.io/flow-id": str(flow.id),
-                "prefect.io/flow-name": flow.name,
-                "prefect.io/worker-name": worker_name,
-                "prefect.io/work-pool-name": work_pool.name,
-                "prefect.io/work-pool-id": str(work_pool.id),
-            },
-            name=flow_run.name,
-            namespace="default",
-            job_manifest={
-                "apiVersion": "batch/v1",
-                "kind": "Job",
-                "metadata": {
-                    "namespace": "default",
-                    "generateName": f"{flow_run.name}-",
-                    "labels": {
-                        "prefect.io/flow-run-id": str(flow_run.id),
-                        "prefect.io/flow-run-name": flow_run.name,
-                        "prefect.io/version": _slugify_label_value(
-                            prefect.__version__.split("+")[0]
-                        ),
-                        "prefect.io/deployment-id": str(deployment.id),
-                        "prefect.io/deployment-name": deployment.name,
-                        "prefect.io/flow-id": str(flow.id),
-                        "prefect.io/flow-name": flow.name,
-                        "prefect.io/worker-name": worker_name,
-                        "prefect.io/work-pool-name": work_pool.name,
-                        "prefect.io/work-pool-id": str(work_pool.id),
-                    },
+        lambda flow_run, deployment, flow, work_pool, worker_name: (
+            KubernetesWorkerJobConfiguration(
+                command="prefect flow-run execute",
+                env={
+                    **get_current_settings().to_environment_variables(
+                        exclude_unset=True
+                    ),
+                    "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    **KubernetesWorkerJobConfiguration._base_attribution_environment(
+                        flow_run=flow_run,
+                        deployment=deployment,
+                        flow=flow,
+                        worker_name=worker_name,
+                    ),
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
                 },
-                "spec": {
-                    "backoffLimit": 0,
-                    "template": {
-                        "metadata": {
-                            "labels": {
-                                "prefect.io/flow-run-id": str(flow_run.id),
-                                "prefect.io/flow-run-name": flow_run.name,
-                                "prefect.io/version": _slugify_label_value(
-                                    prefect.__version__.split("+")[0]
-                                ),
-                                "prefect.io/deployment-id": str(deployment.id),
-                                "prefect.io/deployment-name": deployment.name,
-                                "prefect.io/flow-id": str(flow.id),
-                                "prefect.io/flow-name": flow.name,
-                                "prefect.io/worker-name": worker_name,
-                                "prefect.io/work-pool-name": work_pool.name,
-                                "prefect.io/work-pool-id": str(work_pool.id),
+                labels={
+                    "prefect.io/flow-run-id": str(flow_run.id),
+                    "prefect.io/flow-run-name": flow_run.name,
+                    "prefect.io/version": _slugify_label_value(
+                        prefect.__version__.split("+")[0]
+                    ),
+                    "prefect.io/deployment-id": str(deployment.id),
+                    "prefect.io/deployment-name": deployment.name,
+                    "prefect.io/flow-id": str(flow.id),
+                    "prefect.io/flow-name": flow.name,
+                    "prefect.io/worker-name": worker_name,
+                    "prefect.io/work-pool-name": work_pool.name,
+                    "prefect.io/work-pool-id": str(work_pool.id),
+                },
+                name=flow_run.name,
+                namespace="default",
+                job_manifest={
+                    "apiVersion": "batch/v1",
+                    "kind": "Job",
+                    "metadata": {
+                        "namespace": "default",
+                        "generateName": f"{flow_run.name}-",
+                        "labels": {
+                            "prefect.io/flow-run-id": str(flow_run.id),
+                            "prefect.io/flow-run-name": flow_run.name,
+                            "prefect.io/version": _slugify_label_value(
+                                prefect.__version__.split("+")[0]
+                            ),
+                            "prefect.io/deployment-id": str(deployment.id),
+                            "prefect.io/deployment-name": deployment.name,
+                            "prefect.io/flow-id": str(flow.id),
+                            "prefect.io/flow-name": flow.name,
+                            "prefect.io/worker-name": worker_name,
+                            "prefect.io/work-pool-name": work_pool.name,
+                            "prefect.io/work-pool-id": str(work_pool.id),
+                        },
+                    },
+                    "spec": {
+                        "backoffLimit": 0,
+                        "template": {
+                            "metadata": {
+                                "labels": {
+                                    "prefect.io/flow-run-id": str(flow_run.id),
+                                    "prefect.io/flow-run-name": flow_run.name,
+                                    "prefect.io/version": _slugify_label_value(
+                                        prefect.__version__.split("+")[0]
+                                    ),
+                                    "prefect.io/deployment-id": str(deployment.id),
+                                    "prefect.io/deployment-name": deployment.name,
+                                    "prefect.io/flow-id": str(flow.id),
+                                    "prefect.io/flow-name": flow.name,
+                                    "prefect.io/worker-name": worker_name,
+                                    "prefect.io/work-pool-name": work_pool.name,
+                                    "prefect.io/work-pool-id": str(work_pool.id),
+                                },
+                            },
+                            "spec": {
+                                "parallelism": 1,
+                                "completions": 1,
+                                "restartPolicy": "Never",
+                                "containers": [
+                                    {
+                                        "name": "prefect-job",
+                                        "imagePullPolicy": "IfNotPresent",
+                                        "env": [
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in get_current_settings()
+                                                .to_environment_variables(
+                                                    exclude_unset=True
+                                                )
+                                                .items()
+                                            ],
+                                            {
+                                                "name": "PREFECT__FLOW_RUN_ID",
+                                                "value": str(flow_run.id),
+                                            },
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in KubernetesWorkerJobConfiguration._base_attribution_environment(
+                                                    flow_run=flow_run,
+                                                    deployment=deployment,
+                                                    flow=flow,
+                                                    worker_name=worker_name,
+                                                ).items()
+                                            ],
+                                            {
+                                                "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                                "value": "reschedule",
+                                            },
+                                        ],
+                                        "image": get_prefect_image_name(),
+                                        "args": [
+                                            "prefect",
+                                            "flow-run",
+                                            "execute",
+                                        ],
+                                    }
+                                ],
                             },
                         },
-                        "spec": {
-                            "parallelism": 1,
-                            "completions": 1,
-                            "restartPolicy": "Never",
-                            "containers": [
-                                {
-                                    "name": "prefect-job",
-                                    "imagePullPolicy": "IfNotPresent",
-                                    "env": [
-                                        *[
-                                            {"name": k, "value": v}
-                                            for k, v in get_current_settings()
-                                            .to_environment_variables(
-                                                exclude_unset=True
-                                            )
-                                            .items()
-                                        ],
-                                        {
-                                            "name": "PREFECT__FLOW_RUN_ID",
-                                            "value": str(flow_run.id),
-                                        },
-                                        {
-                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
-                                            "value": "reschedule",
-                                        },
-                                    ],
-                                    "image": get_prefect_image_name(),
-                                    "args": [
-                                        "prefect",
-                                        "flow-run",
-                                        "execute",
-                                    ],
-                                }
-                            ],
-                        },
                     },
                 },
-            },
-            cluster_config=None,
-            job_watch_timeout_seconds=None,
-            pod_watch_timeout_seconds=60,
-            stream_output=True,
+                cluster_config=None,
+                job_watch_timeout_seconds=None,
+                pod_watch_timeout_seconds=60,
+                stream_output=True,
+            )
         ),
     ),
     (
@@ -589,124 +604,139 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=60,
             stream_output=True,
         ),
-        lambda flow_run,
-        deployment,
-        flow,
-        work_pool,
-        worker_name: KubernetesWorkerJobConfiguration(
-            command="prefect flow-run execute",
-            env={
-                **get_current_settings().to_environment_variables(exclude_unset=True),
-                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
-            },
-            labels={
-                "prefect.io/flow-run-id": str(flow_run.id),
-                "prefect.io/flow-run-name": flow_run.name,
-                "prefect.io/version": _slugify_label_value(
-                    prefect.__version__.split("+")[0]
-                ),
-                "prefect.io/deployment-id": str(deployment.id),
-                "prefect.io/deployment-name": deployment.name,
-                "prefect.io/flow-id": str(flow.id),
-                "prefect.io/flow-name": flow.name,
-                "prefect.io/worker-name": worker_name,
-                "prefect.io/work-pool-name": work_pool.name,
-                "prefect.io/work-pool-id": str(work_pool.id),
-            },
-            name=flow_run.name,
-            namespace="default",
-            job_manifest={
-                "apiVersion": "batch/v1",
-                "kind": "Job",
-                "metadata": {
-                    "namespace": "default",
-                    "generateName": f"{flow_run.name}-",
-                    "labels": {
-                        "prefect.io/flow-run-id": str(flow_run.id),
-                        "prefect.io/flow-run-name": flow_run.name,
-                        "prefect.io/version": _slugify_label_value(
-                            prefect.__version__.split("+")[0]
-                        ),
-                        "prefect.io/deployment-id": str(deployment.id),
-                        "prefect.io/deployment-name": deployment.name,
-                        "prefect.io/flow-id": str(flow.id),
-                        "prefect.io/flow-name": flow.name,
-                        "prefect.io/worker-name": worker_name,
-                        "prefect.io/work-pool-name": work_pool.name,
-                        "prefect.io/work-pool-id": str(work_pool.id),
-                    },
+        lambda flow_run, deployment, flow, work_pool, worker_name: (
+            KubernetesWorkerJobConfiguration(
+                command="prefect flow-run execute",
+                env={
+                    **get_current_settings().to_environment_variables(
+                        exclude_unset=True
+                    ),
+                    "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    **KubernetesWorkerJobConfiguration._base_attribution_environment(
+                        flow_run=flow_run,
+                        deployment=deployment,
+                        flow=flow,
+                        worker_name=worker_name,
+                    ),
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
                 },
-                "spec": {
-                    "backoffLimit": 0,
-                    "template": {
-                        "metadata": {
-                            "labels": {
-                                "prefect.io/flow-run-id": str(flow_run.id),
-                                "prefect.io/flow-run-name": flow_run.name,
-                                "prefect.io/version": _slugify_label_value(
-                                    prefect.__version__.split("+")[0]
-                                ),
-                                "prefect.io/deployment-id": str(deployment.id),
-                                "prefect.io/deployment-name": deployment.name,
-                                "prefect.io/flow-id": str(flow.id),
-                                "prefect.io/flow-name": flow.name,
-                                "prefect.io/worker-name": worker_name,
-                                "prefect.io/work-pool-name": work_pool.name,
-                                "prefect.io/work-pool-id": str(work_pool.id),
+                labels={
+                    "prefect.io/flow-run-id": str(flow_run.id),
+                    "prefect.io/flow-run-name": flow_run.name,
+                    "prefect.io/version": _slugify_label_value(
+                        prefect.__version__.split("+")[0]
+                    ),
+                    "prefect.io/deployment-id": str(deployment.id),
+                    "prefect.io/deployment-name": deployment.name,
+                    "prefect.io/flow-id": str(flow.id),
+                    "prefect.io/flow-name": flow.name,
+                    "prefect.io/worker-name": worker_name,
+                    "prefect.io/work-pool-name": work_pool.name,
+                    "prefect.io/work-pool-id": str(work_pool.id),
+                },
+                name=flow_run.name,
+                namespace="default",
+                job_manifest={
+                    "apiVersion": "batch/v1",
+                    "kind": "Job",
+                    "metadata": {
+                        "namespace": "default",
+                        "generateName": f"{flow_run.name}-",
+                        "labels": {
+                            "prefect.io/flow-run-id": str(flow_run.id),
+                            "prefect.io/flow-run-name": flow_run.name,
+                            "prefect.io/version": _slugify_label_value(
+                                prefect.__version__.split("+")[0]
+                            ),
+                            "prefect.io/deployment-id": str(deployment.id),
+                            "prefect.io/deployment-name": deployment.name,
+                            "prefect.io/flow-id": str(flow.id),
+                            "prefect.io/flow-name": flow.name,
+                            "prefect.io/worker-name": worker_name,
+                            "prefect.io/work-pool-name": work_pool.name,
+                            "prefect.io/work-pool-id": str(work_pool.id),
+                        },
+                    },
+                    "spec": {
+                        "backoffLimit": 0,
+                        "template": {
+                            "metadata": {
+                                "labels": {
+                                    "prefect.io/flow-run-id": str(flow_run.id),
+                                    "prefect.io/flow-run-name": flow_run.name,
+                                    "prefect.io/version": _slugify_label_value(
+                                        prefect.__version__.split("+")[0]
+                                    ),
+                                    "prefect.io/deployment-id": str(deployment.id),
+                                    "prefect.io/deployment-name": deployment.name,
+                                    "prefect.io/flow-id": str(flow.id),
+                                    "prefect.io/flow-name": flow.name,
+                                    "prefect.io/worker-name": worker_name,
+                                    "prefect.io/work-pool-name": work_pool.name,
+                                    "prefect.io/work-pool-id": str(work_pool.id),
+                                },
+                            },
+                            "spec": {
+                                "parallelism": 1,
+                                "completions": 1,
+                                "restartPolicy": "Never",
+                                "containers": [
+                                    {
+                                        "name": "prefect-job",
+                                        "imagePullPolicy": "IfNotPresent",
+                                        "env": [
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in get_current_settings()
+                                                .to_environment_variables(
+                                                    exclude_unset=True
+                                                )
+                                                .items()
+                                            ],
+                                            {
+                                                "name": "PREFECT__FLOW_RUN_ID",
+                                                "value": str(flow_run.id),
+                                            },
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in KubernetesWorkerJobConfiguration._base_attribution_environment(
+                                                    flow_run=flow_run,
+                                                    deployment=deployment,
+                                                    flow=flow,
+                                                    worker_name=worker_name,
+                                                ).items()
+                                            ],
+                                            {
+                                                "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                                "value": "reschedule",
+                                            },
+                                            {
+                                                "name": "TEST_ENV",
+                                                "valueFrom": {
+                                                    "secretKeyRef": {
+                                                        "name": "test-secret",
+                                                        "key": "shhhhh",
+                                                    }
+                                                },
+                                            },
+                                        ],
+                                        "image": get_prefect_image_name(),
+                                        "args": [
+                                            "prefect",
+                                            "flow-run",
+                                            "execute",
+                                        ],
+                                    }
+                                ],
                             },
                         },
-                        "spec": {
-                            "parallelism": 1,
-                            "completions": 1,
-                            "restartPolicy": "Never",
-                            "containers": [
-                                {
-                                    "name": "prefect-job",
-                                    "imagePullPolicy": "IfNotPresent",
-                                    "env": [
-                                        *[
-                                            {"name": k, "value": v}
-                                            for k, v in get_current_settings()
-                                            .to_environment_variables(
-                                                exclude_unset=True
-                                            )
-                                            .items()
-                                        ],
-                                        {
-                                            "name": "PREFECT__FLOW_RUN_ID",
-                                            "value": str(flow_run.id),
-                                        },
-                                        {
-                                            "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
-                                            "value": "reschedule",
-                                        },
-                                        {
-                                            "name": "TEST_ENV",
-                                            "valueFrom": {
-                                                "secretKeyRef": {
-                                                    "name": "test-secret",
-                                                    "key": "shhhhh",
-                                                }
-                                            },
-                                        },
-                                    ],
-                                    "image": get_prefect_image_name(),
-                                    "args": [
-                                        "prefect",
-                                        "flow-run",
-                                        "execute",
-                                    ],
-                                }
-                            ],
-                        },
                     },
                 },
-            },
-            cluster_config=None,
-            job_watch_timeout_seconds=None,
-            pod_watch_timeout_seconds=60,
-            stream_output=True,
+                cluster_config=None,
+                job_watch_timeout_seconds=None,
+                pod_watch_timeout_seconds=60,
+                stream_output=True,
+            )
         ),
     ),
     (
@@ -778,116 +808,131 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=90,
             stream_output=False,
         ),
-        lambda flow_run,
-        deployment,
-        flow,
-        work_pool,
-        worker_name: KubernetesWorkerJobConfiguration(
-            command="echo hello",
-            env={
-                **get_current_settings().to_environment_variables(exclude_unset=True),
-                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-                "TEST_ENV": "test",
-            },
-            labels={
-                "prefect.io/flow-run-id": str(flow_run.id),
-                "prefect.io/flow-run-name": flow_run.name,
-                "prefect.io/version": _slugify_label_value(
-                    prefect.__version__.split("+")[0]
-                ),
-                "prefect.io/deployment-id": str(deployment.id),
-                "prefect.io/deployment-name": deployment.name,
-                "prefect.io/flow-id": str(flow.id),
-                "prefect.io/flow-name": flow.name,
-                "prefect.io/worker-name": worker_name,
-                "prefect.io/work-pool-name": work_pool.name,
-                "prefect.io/work-pool-id": str(work_pool.id),
-                "TEST_LABEL": "test label",
-            },
-            name="test",
-            namespace="test-namespace",
-            job_manifest={
-                "apiVersion": "batch/v1",
-                "kind": "Job",
-                "metadata": {
-                    "namespace": "test-namespace",
-                    "generateName": "test-",
-                    "labels": {
-                        "prefect.io/flow-run-id": str(flow_run.id),
-                        "prefect.io/flow-run-name": flow_run.name,
-                        "prefect.io/version": _slugify_label_value(
-                            prefect.__version__.split("+")[0]
-                        ),
-                        "prefect.io/deployment-id": str(deployment.id),
-                        "prefect.io/deployment-name": deployment.name,
-                        "prefect.io/flow-id": str(flow.id),
-                        "prefect.io/flow-name": flow.name,
-                        "prefect.io/worker-name": worker_name,
-                        "prefect.io/work-pool-name": work_pool.name,
-                        "prefect.io/work-pool-id": str(work_pool.id),
-                        "test_label": "test-label",
-                    },
+        lambda flow_run, deployment, flow, work_pool, worker_name: (
+            KubernetesWorkerJobConfiguration(
+                command="echo hello",
+                env={
+                    **get_current_settings().to_environment_variables(
+                        exclude_unset=True
+                    ),
+                    "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    **KubernetesWorkerJobConfiguration._base_attribution_environment(
+                        flow_run=flow_run,
+                        deployment=deployment,
+                        flow=flow,
+                        worker_name=worker_name,
+                    ),
+                    "TEST_ENV": "test",
                 },
-                "spec": {
-                    "backoffLimit": 6,
-                    "ttlSecondsAfterFinished": 60,
-                    "template": {
-                        "metadata": {
-                            "labels": {
-                                "prefect.io/flow-run-id": str(flow_run.id),
-                                "prefect.io/flow-run-name": flow_run.name,
-                                "prefect.io/version": _slugify_label_value(
-                                    prefect.__version__.split("+")[0]
-                                ),
-                                "prefect.io/deployment-id": str(deployment.id),
-                                "prefect.io/deployment-name": deployment.name,
-                                "prefect.io/flow-id": str(flow.id),
-                                "prefect.io/flow-name": flow.name,
-                                "prefect.io/worker-name": worker_name,
-                                "prefect.io/work-pool-name": work_pool.name,
-                                "prefect.io/work-pool-id": str(work_pool.id),
-                                "test_label": "test-label",
+                labels={
+                    "prefect.io/flow-run-id": str(flow_run.id),
+                    "prefect.io/flow-run-name": flow_run.name,
+                    "prefect.io/version": _slugify_label_value(
+                        prefect.__version__.split("+")[0]
+                    ),
+                    "prefect.io/deployment-id": str(deployment.id),
+                    "prefect.io/deployment-name": deployment.name,
+                    "prefect.io/flow-id": str(flow.id),
+                    "prefect.io/flow-name": flow.name,
+                    "prefect.io/worker-name": worker_name,
+                    "prefect.io/work-pool-name": work_pool.name,
+                    "prefect.io/work-pool-id": str(work_pool.id),
+                    "TEST_LABEL": "test label",
+                },
+                name="test",
+                namespace="test-namespace",
+                job_manifest={
+                    "apiVersion": "batch/v1",
+                    "kind": "Job",
+                    "metadata": {
+                        "namespace": "test-namespace",
+                        "generateName": "test-",
+                        "labels": {
+                            "prefect.io/flow-run-id": str(flow_run.id),
+                            "prefect.io/flow-run-name": flow_run.name,
+                            "prefect.io/version": _slugify_label_value(
+                                prefect.__version__.split("+")[0]
+                            ),
+                            "prefect.io/deployment-id": str(deployment.id),
+                            "prefect.io/deployment-name": deployment.name,
+                            "prefect.io/flow-id": str(flow.id),
+                            "prefect.io/flow-name": flow.name,
+                            "prefect.io/worker-name": worker_name,
+                            "prefect.io/work-pool-name": work_pool.name,
+                            "prefect.io/work-pool-id": str(work_pool.id),
+                            "test_label": "test-label",
+                        },
+                    },
+                    "spec": {
+                        "backoffLimit": 6,
+                        "ttlSecondsAfterFinished": 60,
+                        "template": {
+                            "metadata": {
+                                "labels": {
+                                    "prefect.io/flow-run-id": str(flow_run.id),
+                                    "prefect.io/flow-run-name": flow_run.name,
+                                    "prefect.io/version": _slugify_label_value(
+                                        prefect.__version__.split("+")[0]
+                                    ),
+                                    "prefect.io/deployment-id": str(deployment.id),
+                                    "prefect.io/deployment-name": deployment.name,
+                                    "prefect.io/flow-id": str(flow.id),
+                                    "prefect.io/flow-name": flow.name,
+                                    "prefect.io/worker-name": worker_name,
+                                    "prefect.io/work-pool-name": work_pool.name,
+                                    "prefect.io/work-pool-id": str(work_pool.id),
+                                    "test_label": "test-label",
+                                },
+                            },
+                            "spec": {
+                                "parallelism": 1,
+                                "completions": 1,
+                                "restartPolicy": "Never",
+                                "serviceAccountName": "test-service-account",
+                                "containers": [
+                                    {
+                                        "name": "prefect-job",
+                                        "imagePullPolicy": "Always",
+                                        "env": [
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in get_current_settings()
+                                                .to_environment_variables(
+                                                    exclude_unset=True
+                                                )
+                                                .items()
+                                            ],
+                                            {
+                                                "name": "PREFECT__FLOW_RUN_ID",
+                                                "value": str(flow_run.id),
+                                            },
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in KubernetesWorkerJobConfiguration._base_attribution_environment(
+                                                    flow_run=flow_run,
+                                                    deployment=deployment,
+                                                    flow=flow,
+                                                    worker_name=worker_name,
+                                                ).items()
+                                            ],
+                                            {
+                                                "name": "TEST_ENV",
+                                                "value": "test",
+                                            },
+                                        ],
+                                        "image": "test-image:latest",
+                                        "args": ["echo", "hello"],
+                                    }
+                                ],
                             },
                         },
-                        "spec": {
-                            "parallelism": 1,
-                            "completions": 1,
-                            "restartPolicy": "Never",
-                            "serviceAccountName": "test-service-account",
-                            "containers": [
-                                {
-                                    "name": "prefect-job",
-                                    "imagePullPolicy": "Always",
-                                    "env": [
-                                        *[
-                                            {"name": k, "value": v}
-                                            for k, v in get_current_settings()
-                                            .to_environment_variables(
-                                                exclude_unset=True
-                                            )
-                                            .items()
-                                        ],
-                                        {
-                                            "name": "PREFECT__FLOW_RUN_ID",
-                                            "value": str(flow_run.id),
-                                        },
-                                        {
-                                            "name": "TEST_ENV",
-                                            "value": "test",
-                                        },
-                                    ],
-                                    "image": "test-image:latest",
-                                    "args": ["echo", "hello"],
-                                }
-                            ],
-                        },
                     },
                 },
-            },
-            cluster_config=None,
-            job_watch_timeout_seconds=120,
-            pod_watch_timeout_seconds=90,
-            stream_output=False,
+                cluster_config=None,
+                job_watch_timeout_seconds=120,
+                pod_watch_timeout_seconds=90,
+                stream_output=False,
+            )
         ),
     ),
     # custom template with values
@@ -1099,121 +1144,136 @@ from_template_and_values_cases = [
             pod_watch_timeout_seconds=90,
             stream_output=True,
         ),
-        lambda flow_run,
-        deployment,
-        flow,
-        work_pool,
-        worker_name: KubernetesWorkerJobConfiguration(
-            command="echo hello",
-            env={
-                **get_current_settings().to_environment_variables(exclude_unset=True),
-                "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-                "TEST_ENV": "test",
-            },
-            labels={
-                "prefect.io/flow-run-id": str(flow_run.id),
-                "prefect.io/flow-run-name": flow_run.name,
-                "prefect.io/version": prefect.__version__.split("+")[0],
-                "prefect.io/deployment-id": str(deployment.id),
-                "prefect.io/deployment-name": deployment.name,
-                "prefect.io/flow-id": str(flow.id),
-                "prefect.io/flow-name": flow.name,
-                "prefect.io/worker-name": worker_name,
-                "prefect.io/work-pool-name": work_pool.name,
-                "prefect.io/work-pool-id": str(work_pool.id),
-                "TEST_LABEL": "test label",
-            },
-            name="test",
-            namespace="default",
-            job_manifest={
-                "apiVersion": "batch/v1",
-                "kind": "Job",
-                "metadata": {
-                    "namespace": "default",
-                    "generateName": "test-",
-                    "labels": {
-                        "prefect.io/flow-run-id": str(flow_run.id),
-                        "prefect.io/flow-run-name": flow_run.name,
-                        "prefect.io/version": _slugify_label_value(
-                            prefect.__version__.split("+")[0]
-                        ),
-                        "prefect.io/deployment-id": str(deployment.id),
-                        "prefect.io/deployment-name": deployment.name,
-                        "prefect.io/flow-id": str(flow.id),
-                        "prefect.io/flow-name": flow.name,
-                        "prefect.io/worker-name": worker_name,
-                        "prefect.io/work-pool-name": work_pool.name,
-                        "prefect.io/work-pool-id": str(work_pool.id),
-                        "test_label": "test-label",
+        lambda flow_run, deployment, flow, work_pool, worker_name: (
+            KubernetesWorkerJobConfiguration(
+                command="echo hello",
+                env={
+                    **get_current_settings().to_environment_variables(
+                        exclude_unset=True
+                    ),
+                    "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+                    **KubernetesWorkerJobConfiguration._base_attribution_environment(
+                        flow_run=flow_run,
+                        deployment=deployment,
+                        flow=flow,
+                        worker_name=worker_name,
+                    ),
+                    "TEST_ENV": "test",
+                },
+                labels={
+                    "prefect.io/flow-run-id": str(flow_run.id),
+                    "prefect.io/flow-run-name": flow_run.name,
+                    "prefect.io/version": prefect.__version__.split("+")[0],
+                    "prefect.io/deployment-id": str(deployment.id),
+                    "prefect.io/deployment-name": deployment.name,
+                    "prefect.io/flow-id": str(flow.id),
+                    "prefect.io/flow-name": flow.name,
+                    "prefect.io/worker-name": worker_name,
+                    "prefect.io/work-pool-name": work_pool.name,
+                    "prefect.io/work-pool-id": str(work_pool.id),
+                    "TEST_LABEL": "test label",
+                },
+                name="test",
+                namespace="default",
+                job_manifest={
+                    "apiVersion": "batch/v1",
+                    "kind": "Job",
+                    "metadata": {
+                        "namespace": "default",
+                        "generateName": "test-",
+                        "labels": {
+                            "prefect.io/flow-run-id": str(flow_run.id),
+                            "prefect.io/flow-run-name": flow_run.name,
+                            "prefect.io/version": _slugify_label_value(
+                                prefect.__version__.split("+")[0]
+                            ),
+                            "prefect.io/deployment-id": str(deployment.id),
+                            "prefect.io/deployment-name": deployment.name,
+                            "prefect.io/flow-id": str(flow.id),
+                            "prefect.io/flow-name": flow.name,
+                            "prefect.io/worker-name": worker_name,
+                            "prefect.io/work-pool-name": work_pool.name,
+                            "prefect.io/work-pool-id": str(work_pool.id),
+                            "test_label": "test-label",
+                        },
+                    },
+                    "spec": {
+                        "template": {
+                            "metadata": {
+                                "other_metadata": "other-metadata",
+                                "labels": {
+                                    "prefect.io/flow-run-id": str(flow_run.id),
+                                    "prefect.io/flow-run-name": flow_run.name,
+                                    "prefect.io/version": _slugify_label_value(
+                                        prefect.__version__.split("+")[0]
+                                    ),
+                                    "prefect.io/deployment-id": str(deployment.id),
+                                    "prefect.io/deployment-name": deployment.name,
+                                    "prefect.io/flow-id": str(flow.id),
+                                    "prefect.io/flow-name": flow.name,
+                                    "prefect.io/worker-name": worker_name,
+                                    "prefect.io/work-pool-name": work_pool.name,
+                                    "prefect.io/work-pool-id": str(work_pool.id),
+                                    "test_label": "test-label",
+                                    "label_from_template": "label-from-template",
+                                },
+                            },
+                            "spec": {
+                                "parallelism": 1,
+                                "completions": 1,
+                                "restartPolicy": "Never",
+                                "containers": [
+                                    {
+                                        "name": "prefect-job",
+                                        "imagePullPolicy": "Always",
+                                        "env": [
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in get_current_settings()
+                                                .to_environment_variables(
+                                                    exclude_unset=True
+                                                )
+                                                .items()
+                                            ],
+                                            {
+                                                "name": "PREFECT__FLOW_RUN_ID",
+                                                "value": str(flow_run.id),
+                                            },
+                                            *[
+                                                {"name": k, "value": v}
+                                                for k, v in KubernetesWorkerJobConfiguration._base_attribution_environment(
+                                                    flow_run=flow_run,
+                                                    deployment=deployment,
+                                                    flow=flow,
+                                                    worker_name=worker_name,
+                                                ).items()
+                                            ],
+                                            {
+                                                "name": "TEST_ENV",
+                                                "value": "test",
+                                            },
+                                        ],
+                                        "image": "test-image:latest",
+                                        "args": ["echo", "hello"],
+                                        "resources": {
+                                            "limits": {
+                                                "memory": "200Mi",
+                                            },
+                                            "requests": {
+                                                "memory": "100Mi",
+                                            },
+                                        },
+                                    }
+                                ],
+                            },
+                        }
                     },
                 },
-                "spec": {
-                    "template": {
-                        "metadata": {
-                            "other_metadata": "other-metadata",
-                            "labels": {
-                                "prefect.io/flow-run-id": str(flow_run.id),
-                                "prefect.io/flow-run-name": flow_run.name,
-                                "prefect.io/version": _slugify_label_value(
-                                    prefect.__version__.split("+")[0]
-                                ),
-                                "prefect.io/deployment-id": str(deployment.id),
-                                "prefect.io/deployment-name": deployment.name,
-                                "prefect.io/flow-id": str(flow.id),
-                                "prefect.io/flow-name": flow.name,
-                                "prefect.io/worker-name": worker_name,
-                                "prefect.io/work-pool-name": work_pool.name,
-                                "prefect.io/work-pool-id": str(work_pool.id),
-                                "test_label": "test-label",
-                                "label_from_template": "label-from-template",
-                            },
-                        },
-                        "spec": {
-                            "parallelism": 1,
-                            "completions": 1,
-                            "restartPolicy": "Never",
-                            "containers": [
-                                {
-                                    "name": "prefect-job",
-                                    "imagePullPolicy": "Always",
-                                    "env": [
-                                        *[
-                                            {"name": k, "value": v}
-                                            for k, v in get_current_settings()
-                                            .to_environment_variables(
-                                                exclude_unset=True
-                                            )
-                                            .items()
-                                        ],
-                                        {
-                                            "name": "PREFECT__FLOW_RUN_ID",
-                                            "value": str(flow_run.id),
-                                        },
-                                        {
-                                            "name": "TEST_ENV",
-                                            "value": "test",
-                                        },
-                                    ],
-                                    "image": "test-image:latest",
-                                    "args": ["echo", "hello"],
-                                    "resources": {
-                                        "limits": {
-                                            "memory": "200Mi",
-                                        },
-                                        "requests": {
-                                            "memory": "100Mi",
-                                        },
-                                    },
-                                }
-                            ],
-                        },
-                    }
-                },
-            },
-            cluster_config=None,
-            job_watch_timeout_seconds=120,
-            pod_watch_timeout_seconds=90,
-            stream_output=True,
+                cluster_config=None,
+                job_watch_timeout_seconds=120,
+                pod_watch_timeout_seconds=90,
+                stream_output=True,
+            )
         ),
     ),
 ]
@@ -2189,6 +2249,7 @@ class TestKubernetesWorker:
                 for key, value in {
                     **configuration._base_environment(),
                     **configuration._base_flow_run_environment(flow_run),
+                    **configuration._base_attribution_environment(flow_run=flow_run),
                     "foo": "FOO",
                     "bar": "BAR",
                     "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule",
@@ -2225,6 +2286,7 @@ class TestKubernetesWorker:
                 for key, value in {
                     **configuration._base_environment(),
                     **configuration._base_flow_run_environment(flow_run),
+                    **configuration._base_attribution_environment(flow_run=flow_run),
                     "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "die",
                 }.items()
             ]

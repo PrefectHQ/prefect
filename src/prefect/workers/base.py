@@ -80,6 +80,7 @@ from prefect.states import (
 )
 from prefect.tasks import Task
 from prefect.types import KeyValueLabels
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
@@ -130,7 +131,8 @@ class BaseJobConfiguration(BaseModel):
         default=None,
         description=(
             "Name given to infrastructure created by the worker using this "
-            "job configuration."
+            "job configuration. Supports templates using {{ ctx.flow.* }} and "
+            "{{ ctx.flow_run.* }} when prepared for a flow run."
         ),
     )
 
@@ -265,6 +267,7 @@ class BaseJobConfiguration(BaseModel):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
+        worker_id: "UUID | None" = None,
     ) -> None:
         """
         Prepare the job configuration for a flow run.
@@ -279,6 +282,7 @@ class BaseJobConfiguration(BaseModel):
             flow: The flow that the flow run is associated with.
             work_pool: The work pool that the flow run is running in.
             worker_name: The name of the worker that is submitting the flow run.
+            worker_id: The backend ID of the worker that is submitting the flow run.
         """
 
         self._related_objects = {
@@ -290,6 +294,13 @@ class BaseJobConfiguration(BaseModel):
         env = {
             **self._base_environment(),
             **self._base_flow_run_environment(flow_run),
+            **self._base_attribution_environment(
+                flow_run=flow_run,
+                deployment=deployment,
+                flow=flow,
+                worker_id=worker_id,
+                worker_name=worker_name,
+            ),
             **(self.env if isinstance(self.env, dict) else {}),  # pyright: ignore[reportUnnecessaryIsInstance]
         }
         self.env = {key: value for key, value in env.items() if value is not None}
@@ -301,6 +312,21 @@ class BaseJobConfiguration(BaseModel):
             **self._base_deployment_labels(deployment),
             **self.labels,
         }
+        if self.name:
+            template_values = {
+                "ctx": {
+                    "flow": flow.model_dump(mode="json") if flow is not None else {},
+                    "flow_run": flow_run.model_dump(mode="json") if flow_run else {},
+                },
+            }
+            rendered_name = apply_values(
+                template=self.name,
+                values=template_values,
+                remove_notset=True,
+            )
+            if rendered_name is not NotSet:
+                self.name = rendered_name
+
         self.name = self.name or flow_run.name
         self.command = self.command or self._base_flow_run_command()
 
@@ -340,6 +366,40 @@ class BaseJobConfiguration(BaseModel):
             return {}
 
         return {"PREFECT__FLOW_RUN_ID": str(flow_run.id)}
+
+    @staticmethod
+    def _base_attribution_environment(
+        flow_run: "FlowRun | None" = None,
+        deployment: "DeploymentResponse | None" = None,
+        flow: "APIFlow | None" = None,
+        worker_id: "UUID | None" = None,
+        worker_name: str | None = None,
+    ) -> dict[str, str]:
+        """
+        Generate environment variables for attribution headers.
+
+        These variables allow the flow run process to include attribution headers
+        in API requests, enabling usage tracking and rate limit debugging.
+        """
+        env: dict[str, str] = {}
+        if worker_id is not None:
+            env["PREFECT__WORKER_ID"] = str(worker_id)
+        if worker_name is not None:
+            env["PREFECT__WORKER_NAME"] = worker_name
+        # Use getattr for safety with mock/minimal FlowRun objects
+        if flow_id := (
+            getattr(flow_run, "flow_id", None) if flow_run is not None else None
+        ):
+            env["PREFECT__FLOW_ID"] = str(flow_id)
+        if flow is not None and getattr(flow, "name", None):
+            env["PREFECT__FLOW_NAME"] = flow.name
+        if deployment_id := (
+            getattr(flow_run, "deployment_id", None) if flow_run is not None else None
+        ):
+            env["PREFECT__DEPLOYMENT_ID"] = str(deployment_id)
+        if deployment is not None and getattr(deployment, "name", None):
+            env["PREFECT__DEPLOYMENT_NAME"] = deployment.name
+        return env
 
     @staticmethod
     def _base_deployment_labels(
@@ -932,10 +992,35 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             flow=api_flow,
             work_pool=self.work_pool,
             worker_name=self.name,
+            worker_id=self.backend_id,
         )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-        await aupload_bundle_to_storage(bundle, bundle_key, upload_command)
+        bundle_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        bundle = bundle_result["bundle"]
+        zip_path = bundle_result["zip_path"]
+
+        try:
+            await aupload_bundle_to_storage(
+                bundle,
+                bundle_key,
+                upload_command,
+                zip_path=zip_path,
+                upload_step=self.work_pool.storage_configuration.bundle_upload_step,
+            )
+        finally:
+            # Clean up zip file after upload (success or failure)
+            if zip_path:
+                try:
+                    zip_path.unlink(missing_ok=True)
+                    # Also clean up the temp directory created by ZipBuilder
+                    if zip_path.parent.exists() and zip_path.parent.name.startswith(
+                        "prefect-zip-"
+                    ):
+                        import shutil
+
+                        shutil.rmtree(zip_path.parent, ignore_errors=True)
+                except Exception as cleanup_error:
+                    logger.debug("Failed to clean up zip file: %s", cleanup_error)
 
         logger.debug("Successfully uploaded execution bundle")
 
@@ -992,8 +1077,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             try:
                 self._cancelling_observer = await self._exit_stack.enter_async_context(
                     FlowRunCancellingObserver(
-                        on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
-                            self._cancel_run, flow_run_id
+                        on_cancelling=lambda flow_run_id: (
+                            self._runs_task_group.start_soon(
+                                self._cancel_run, flow_run_id
+                            )
                         ),
                         polling_interval=get_current_settings().worker.cancellation_poll_seconds,
                         event_filter=EventFilter(
@@ -1484,16 +1571,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 flow=flow,
                 work_pool=self.work_pool,
                 worker_name=self.name,
+                worker_id=self.backend_id,
             )
         except TypeError:
             warnings.warn(
-                "This worker is missing the `work_pool` and `worker_name` arguments "
+                "This worker is missing the `work_pool`, `worker_name`, or `worker_id` arguments "
                 "in its JobConfiguration.prepare_for_flow_run method. Please update "
-                "the worker's JobConfiguration  class to accept these arguments to "
+                "the worker's JobConfiguration class to accept these arguments to "
                 "avoid this warning.",
                 category=PrefectDeprecationWarning,
             )
-            # Handle older subclasses that don't accept work_pool and worker_name
+            # Handle older subclasses that don't accept work_pool, worker_name, and worker_id
             configuration.prepare_for_flow_run(
                 flow_run=flow_run, deployment=deployment, flow=flow
             )

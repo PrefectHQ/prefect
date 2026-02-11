@@ -211,7 +211,9 @@ def task_run_logger(
         extra={
             **{
                 "task_run_id": str(task_run.id),
-                "flow_run_id": str(task_run.flow_run_id),
+                "flow_run_id": str(task_run.flow_run_id)
+                if task_run.flow_run_id is not None
+                else None,
                 "task_run_name": task_run.name,
                 "task_name": task.name if task else "<unknown>",
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
@@ -326,8 +328,13 @@ def print_as_log(*args: Any, **kwargs: Any) -> None:
     kwargs["file"] = buffer
     print(*args, **kwargs)
 
-    # Remove trailing whitespace to prevent duplicates
-    logger.info(buffer.getvalue().rstrip())
+    msg = buffer.getvalue().rstrip()
+
+    if isinstance(logger, logging.LoggerAdapter) and sys.version_info < (3, 11):
+        if logger.isEnabledFor(logging.INFO):
+            logger.logger._log(logging.INFO, msg, (), extra=logger.extra, stacklevel=1)
+    else:
+        logger.info(msg, stacklevel=2)
 
 
 @contextmanager

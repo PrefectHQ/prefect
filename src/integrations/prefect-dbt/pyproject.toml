@@ -25,7 +25,7 @@ classifiers = [
 dependencies = [
   "prefect>=3.4.9",
   "dbt-core>=1.7.0",
-  "prefect_shell>=0.3.0",
+  "prefect_shell>=0.3.2",
   "sgqlc>=16.0.0",
 ]
 dynamic = ["version"]
@@ -66,6 +66,10 @@ dev = [
   "pytest-xdist",
   "respx",
 ]
+integration = [
+    "dbt-duckdb>=1.7",
+    "duckdb>=1.4.4",
+]
 
 [project.urls]
 Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dbt"
@@ -98,6 +102,7 @@ show_missing = true
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+markers = ["integration: integration tests requiring dbt-duckdb"]
 
 [tool.uv.sources]
 prefect = { path = "../../../" }

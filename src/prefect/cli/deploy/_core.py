@@ -6,6 +6,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from rich.markup import escape
 from rich.panel import Panel
 
 import prefect.cli.root as root
@@ -299,7 +300,15 @@ async def _run_single_deploy(
     # Save triggers before templating to preserve event template parameters
     _triggers = deploy_config.pop("triggers", None)
 
-    deploy_config = apply_values(deploy_config, step_outputs, warn_on_notset=True)
+    # Preserve {{ ctx.* }} placeholders during deploy-time templating.
+    # These are runtime templates resolved by the worker's
+    # prepare_for_flow_run() and must not be stripped here.
+    deploy_config = apply_values(
+        deploy_config,
+        step_outputs,
+        warn_on_notset=True,
+        skip_prefixes=["ctx."],
+    )
     deploy_config["parameter_openapi_schema"] = _parameter_schema
     deploy_config["schedules"] = _schedules
 
@@ -500,5 +509,11 @@ async def _run_multi_deploy(
             else:
                 app.console.print("Skipping unnamed deployment.", style="yellow")
                 continue
-        app.console.print(Panel(f"Deploying {deploy_config['name']}", style="blue"))
+        # Resolve env var templates in name for display purposes only
+        resolved_name = apply_values(
+            {"name": deploy_config["name"]}, os.environ, remove_notset=False
+        )["name"]
+        # Escape Rich markup to prevent brackets from being interpreted as style tags
+        display_name = escape(str(resolved_name))
+        app.console.print(Panel(f"Deploying {display_name}", style="blue"))
         await _run_single_deploy(deploy_config, actions, prefect_file=prefect_file)

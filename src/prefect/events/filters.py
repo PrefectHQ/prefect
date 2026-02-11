@@ -73,10 +73,10 @@ class EventDataFilter(PrefectBaseModel, extra="forbid"):  # type: ignore[call-ar
 
 class EventOccurredFilter(EventDataFilter):
     since: DateTime = Field(
-        default_factory=lambda: prefect.types._datetime.start_of_day(
-            prefect.types._datetime.now("UTC")
-        )
-        - datetime.timedelta(days=180),
+        default_factory=lambda: (
+            prefect.types._datetime.start_of_day(prefect.types._datetime.now("UTC"))
+            - datetime.timedelta(days=180)
+        ),
         description="Only include events after this time (inclusive)",
     )
     until: DateTime = Field(

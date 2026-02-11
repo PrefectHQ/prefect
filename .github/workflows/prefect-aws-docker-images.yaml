@@ -38,9 +38,12 @@ jobs:
 
     steps:
       - name: Set version environment variables
+        env:
+          PREFECT_VERSION_INPUT: ${{ inputs.prefect_version || github.event.inputs.prefect_version }}
+          PREFECT_AWS_VERSION_INPUT: ${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}
         run: |
-          echo "PREFECT_VERSION=${{ inputs.prefect_version || github.event.inputs.prefect_version }}" >> $GITHUB_ENV
-          echo "PREFECT_AWS_VERSION=${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}" >> $GITHUB_ENV
+          echo "PREFECT_VERSION=$PREFECT_VERSION_INPUT" >> $GITHUB_ENV
+          echo "PREFECT_AWS_VERSION=$PREFECT_AWS_VERSION_INPUT" >> $GITHUB_ENV
       
       - name: Checkout
         uses: actions/checkout@v6
@@ -67,12 +70,12 @@ jobs:
             type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python${{ matrix.python-version }}-prefect${{ env.PREFECT_VERSION }}
             # Version with Python: prefect-aws-version-python-version
             type=raw,value=${{ env.PREFECT_AWS_VERSION }}-python${{ matrix.python-version }}
-            # Minor version with Python (only for stable releases, not rc)
-            type=pep440,pattern={{major}}.{{minor}}-python${{ matrix.python-version }},value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') }}
-            # Latest with Python version (only for stable releases, not rc)
-            type=raw,value=latest-python${{ matrix.python-version }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') }}
-            # Latest tag (only for Python 3.12 and stable releases, not rc)
-            type=raw,value=latest,enable=${{ matrix.python-version == '3.12' && !contains(env.PREFECT_AWS_VERSION, 'rc') }}
+            # Minor version with Python (only for stable releases, not rc or dev)
+            type=pep440,pattern={{major}}.{{minor}}-python${{ matrix.python-version }},value=${{ env.PREFECT_AWS_VERSION }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Latest with Python version (only for stable releases, not rc or dev)
+            type=raw,value=latest-python${{ matrix.python-version }},enable=${{ !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
+            # Latest tag (only for Python 3.12 and stable releases, not rc or dev)
+            type=raw,value=latest,enable=${{ matrix.python-version == '3.12' && !contains(env.PREFECT_AWS_VERSION, 'rc') && !contains(env.PREFECT_VERSION, 'dev') }}
           flavor: |
             latest=false
 
