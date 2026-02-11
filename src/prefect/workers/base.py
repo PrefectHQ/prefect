@@ -1388,6 +1388,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     def _rate_limit_retry_seconds(
         self, exc: PrefectHTTPStatusError, attempt: int
     ) -> float:
+        """
+        Compute backoff with jitter for a rate-limited API response.
+        """
         retry_after = exc.retry_after_seconds()
         retry_seconds = retry_after if retry_after is not None else 2**attempt
         jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
@@ -1401,6 +1404,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         return max(0.0, retry_seconds)
 
     def _finalize_flow_run_submission(self, flow_run_id: UUID) -> None:
+        """
+        Ensure submission bookkeeping is cleaned up for a flow run.
+        """
         if flow_run_id in self._submitting_flow_run_ids:
             self._submitting_flow_run_ids.remove(flow_run_id)
         if self._cancelling_observer is not None:

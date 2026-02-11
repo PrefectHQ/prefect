@@ -278,6 +278,15 @@ async def _apply_flow_run_filters(
     return query
 
 
+def _flow_run_effective_start_time(
+    db: PrefectDBInterface,
+) -> sa.ColumnElement[DateTime]:
+    return sa.case(
+        (db.FlowRun.start_time.is_not(None), db.FlowRun.start_time),
+        else_=db.FlowRun.expected_start_time,
+    )
+
+
 @db_injector
 async def read_flow_runs(
     db: PrefectDBInterface,
@@ -310,12 +319,21 @@ async def read_flow_runs(
     Returns:
         List[orm_models.FlowRun]: flow runs
     """
-    query = (
-        select(db.FlowRun)
-        .order_by(*sort.as_sql_sort())
-        .options(
-            selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
+    order_by = list(sort.as_sql_sort())
+    if sort in {
+        schemas.sorting.FlowRunSort.START_TIME_ASC,
+        schemas.sorting.FlowRunSort.START_TIME_DESC,
+    }:
+        effective_start_time = _flow_run_effective_start_time(db)
+        direction = (
+            effective_start_time.asc()
+            if sort == schemas.sorting.FlowRunSort.START_TIME_ASC
+            else effective_start_time.desc()
         )
+        order_by = [direction, db.FlowRun.id.desc()]
+
+    query = select(db.FlowRun).order_by(*order_by).options(
+        selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
     )
 
     if columns:
