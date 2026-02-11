@@ -2565,8 +2565,8 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_with_replaces_renames_slug(
         self,
-        client,
-        flow,
+        client: AsyncClient,
+        flow: Flow,
     ):
         """When a schedule has 'replaces', it should update the existing schedule with that slug."""
         schedule1 = schemas.schedules.IntervalSchedule(
@@ -2619,8 +2619,8 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_replaces_nonexistent_slug_warns_and_creates(
         self,
-        client,
-        flow,
+        client: AsyncClient,
+        flow: Flow,
     ):
         """When 'replaces' points to a non-existent slug, warn and create new schedule."""
         schedule1 = schemas.schedules.IntervalSchedule(
@@ -2674,8 +2674,8 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_multiple_replaces_same_target_errors(
         self,
-        client,
-        flow,
+        client: AsyncClient,
+        flow: Flow,
     ):
         """When multiple schedules have 'replaces' pointing to the same slug, return 422."""
         schedule1 = schemas.schedules.IntervalSchedule(
@@ -2730,8 +2730,8 @@ class TestUpdateDeployment:
 
     async def test_update_deployment_schedule_replaces_collision_with_existing_slug(
         self,
-        client,
-        flow,
+        client: AsyncClient,
+        flow: Flow,
     ):
         """When 'replaces' renames to a slug that already exists, return 422."""
         schedule1 = schemas.schedules.IntervalSchedule(
@@ -2786,6 +2786,67 @@ class TestUpdateDeployment:
             "Cannot rename schedule from 'old-slug' to 'existing-slug'" in response.text
         )
         assert "already exists" in response.text
+
+    async def test_update_deployment_schedule_chained_replaces_errors(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Chained replacements (A→B and B→C) should be rejected."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        # Create deployment with two schedules
+        data = DeploymentCreate(  # type: ignore
+            name="test-deployment-chained-replaces",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="slug-a",
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=True,
+                    slug="slug-b",
+                ),
+            ],
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # Try chained replacement: A→B and B→C
+        schedule3 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=3)
+        )
+        schedule4 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=4)
+        )
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule3,
+                    slug="slug-b",
+                    replaces="slug-a",
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule4,
+                    slug="slug-c",
+                    replaces="slug-b",
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 422
+        assert "Chained replacements are not supported" in response.text
 
 
 class TestGetScheduledFlowRuns:

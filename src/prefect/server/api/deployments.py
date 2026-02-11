@@ -252,14 +252,25 @@ async def update_deployment(
                         )
                     replaces_targets[schedule.replaces] = schedule.slug or ""
 
-            # Check for slug collisions: if a schedule's new slug already exists
-            # and that existing slug is not being replaced, it's a collision
-            slugs_being_replaced = set(replaces_targets.keys())
+            # Reject chained replacements (e.g., A→B and B→C in the same
+            # request) because the sequential DB updates are order-dependent
+            # and can violate the unique (deployment_id, slug) constraint.
+            new_slugs_from_replaces = set(replaces_targets.values())
+            chained = new_slugs_from_replaces & set(replaces_targets.keys())
+            if chained:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Chained replacements are not supported. "
+                    f"The following slugs appear as both replacement targets "
+                    f"and new slugs: {', '.join(sorted(chained))}",
+                )
+
+            # Check for slug collisions: if a schedule's new slug already
+            # exists as a current slug, it's a collision
             for schedule in deployment.schedules:
                 if (
                     schedule.slug
                     and schedule.slug in current_slugs
-                    and schedule.slug not in slugs_being_replaced
                     and schedule.replaces
                 ):
                     raise HTTPException(
