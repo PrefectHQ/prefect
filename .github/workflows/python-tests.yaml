@@ -47,64 +47,19 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
+    # TEMPORARY: only run the cyclopts leg to diagnose CI failures
     strategy:
       fail-fast: false
       matrix:
         test-type:
-          - name: Server Tests
-            modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
-          - name: Database and Orchestration Tests
-            modules: tests/server/database/ tests/server/orchestration/
-          - name: Client Tests
-            modules: >-
-              tests/
-              --ignore=tests/typesafety
-              --ignore=tests/server/
-              --ignore=tests/events/server
-              --ignore=tests/test_task_runners.py
-              --ignore=tests/runner
-              --ignore=tests/workers
-              --ignore=tests/cli/
-              --ignore=tests/test_settings.py
-              --ignore=tests/input/
-          - name: Runner, Worker, Settings, Input, and CLI Tests
-            modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
+          - name: CLI Tests (Cyclopts)
+            modules: tests/cli/test_profile.py tests/cli/test_config.py
         database:
           - "postgres:14"
-          - "sqlite"
         python-version:
-          - "3.10"
-          - "3.11"
           - "3.12"
-          - "3.13"
-          - "3.14"
-        exclude:
-          - database: "sqlite"
-            test-type:
-              name: Client Tests
-              modules: >-
-                tests/
-                --ignore=tests/typesafety
-                --ignore=tests/server/
-                --ignore=tests/events/server
-                --ignore=tests/test_task_runners.py
-                --ignore=tests/runner
-                --ignore=tests/workers
-                --ignore=tests/cli/
-                --ignore=tests/test_settings.py
-                --ignore=tests/input/
-          - database: "sqlite"
-            test-type:
-              name: Runner, Worker, Settings, Input, and CLI Tests
-              modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
-        include:
-          # Run CLI tests through cyclopts (PREFECT_CLI_FAST=1) on one matrix leg
-          - test-type:
-              name: CLI Tests (Cyclopts)
-              modules: tests/cli/
-            database: "postgres:14"
-            python-version: "3.12"
-            cyclopts: true
+        cyclopts:
+          - true
 
     timeout-minutes: 15
 
@@ -169,14 +124,13 @@ jobs:
       - name: Run tests
         run: |
           uv run pytest ${{ matrix.test-type.modules }} \
+          -v \
+          --tb=long \
+          -n0 \
           -m "not windows" \
-          --numprocesses auto \
-          --maxprocesses 6 \
-          --dist worksteal \
           --disable-docker-image-builds \
           --exclude-service kubernetes \
           --exclude-service docker \
-          --durations 26 \
 
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
@@ -187,6 +141,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-docker-tests:
+    if: false  # TEMPORARY: disabled to diagnose cyclopts CI failures
     runs-on: ubuntu-latest
     name: docker, python:${{ matrix.python-version }}
     strategy:
@@ -333,6 +288,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-typesafety-test:
+    if: false  # TEMPORARY: disabled to diagnose cyclopts CI failures
     name: typesafety
     runs-on: ubuntu-latest
 
