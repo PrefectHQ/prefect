@@ -1305,6 +1305,24 @@
 	}
 }
 
+.prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+	background-color: var(--muted);
+	border-radius: 0.25rem;
+	padding: 0.125rem 0.375rem;
+	font-weight: 500;
+}
+
+.prose
+	:where(code):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	)::before,
+.prose
+	:where(code):not(
+		:where([class~="not-prose"], [class~="not-prose"] *)
+	)::after {
+	content: none;
+}
+
 @keyframes blink {
 	0% {
 		opacity: 0;
