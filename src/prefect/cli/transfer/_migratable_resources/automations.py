@@ -28,6 +28,10 @@ from prefect.events.actions import (
     WorkQueueAction,
 )
 from prefect.events.schemas.automations import Automation, AutomationCore
+from prefect.exceptions import ObjectNotFound
+from prefect.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class MigratableAutomation(MigratableResource[Automation]):
@@ -77,10 +81,20 @@ class MigratableAutomation(MigratableResource[Automation]):
                     ):
                         self._dependencies[action.deployment_id] = dependency
                     else:
-                        deployment = await client.read_deployment(action.deployment_id)
-                        self._dependencies[
-                            deployment.id
-                        ] = await construct_migratable_resource(deployment)
+                        try:
+                            deployment = await client.read_deployment(
+                                action.deployment_id
+                            )
+                        except ObjectNotFound:
+                            logger.warning(
+                                "Deployment %s referenced by automation %r no longer exists, skipping dependency",
+                                action.deployment_id,
+                                self.source_automation.name,
+                            )
+                        else:
+                            self._dependencies[
+                                deployment.id
+                            ] = await construct_migratable_resource(deployment)
                 elif (
                     isinstance(action, WorkPoolAction)
                     and action.work_pool_id is not None
@@ -109,10 +123,20 @@ class MigratableAutomation(MigratableResource[Automation]):
                     ):
                         self._dependencies[action.work_queue_id] = dependency
                     else:
-                        work_queue = await client.read_work_queue(action.work_queue_id)
-                        self._dependencies[
-                            work_queue.id
-                        ] = await construct_migratable_resource(work_queue)
+                        try:
+                            work_queue = await client.read_work_queue(
+                                action.work_queue_id
+                            )
+                        except ObjectNotFound:
+                            logger.warning(
+                                "Work queue %s referenced by automation %r no longer exists, skipping dependency",
+                                action.work_queue_id,
+                                self.source_automation.name,
+                            )
+                        else:
+                            self._dependencies[
+                                work_queue.id
+                            ] = await construct_migratable_resource(work_queue)
                 elif (
                     isinstance(action, AutomationAction)
                     and action.automation_id is not None
@@ -133,24 +157,40 @@ class MigratableAutomation(MigratableResource[Automation]):
                     ):
                         self._dependencies[action.block_document_id] = dependency
                     else:
-                        block_document = await client.read_block_document(
-                            action.block_document_id
-                        )
-                        self._dependencies[
-                            block_document.id
-                        ] = await construct_migratable_resource(block_document)
+                        try:
+                            block_document = await client.read_block_document(
+                                action.block_document_id
+                            )
+                        except ObjectNotFound:
+                            logger.warning(
+                                "Block document %s referenced by automation %r no longer exists, skipping dependency",
+                                action.block_document_id,
+                                self.source_automation.name,
+                            )
+                        else:
+                            self._dependencies[
+                                block_document.id
+                            ] = await construct_migratable_resource(block_document)
                 elif isinstance(action, SendNotification):
                     if dependency := await MigratableBlockDocument.get_instance(
                         id=action.block_document_id
                     ):
                         self._dependencies[action.block_document_id] = dependency
                     else:
-                        block_document = await client.read_block_document(
-                            action.block_document_id
-                        )
-                        self._dependencies[
-                            block_document.id
-                        ] = await construct_migratable_resource(block_document)
+                        try:
+                            block_document = await client.read_block_document(
+                                action.block_document_id
+                            )
+                        except ObjectNotFound:
+                            logger.warning(
+                                "Block document %s referenced by automation %r no longer exists, skipping dependency",
+                                action.block_document_id,
+                                self.source_automation.name,
+                            )
+                        else:
+                            self._dependencies[
+                                block_document.id
+                            ] = await construct_migratable_resource(block_document)
         return list(self._dependencies.values())
 
     async def migrate(self) -> None:
