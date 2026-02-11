@@ -570,13 +570,31 @@ async def status(
         while True:
             healthcheck_exc = await client.api_healthcheck()
 
+            elapsed = _monotonic() - start_time
+            deadline_exceeded = wait and timeout > 0 and elapsed >= timeout
+
+            if deadline_exceeded and healthcheck_exc is not None:
+                result: dict[str, object] = {
+                    "status": "timed_out",
+                    "api_url": api_url,
+                    "timeout": timeout,
+                    "error": str(healthcheck_exc),
+                }
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                    raise typer.Exit(1)
+                exit_with_error(
+                    f"Timed out after {timeout} seconds waiting for server "
+                    f"at {api_url}."
+                )
+
             if healthcheck_exc is None:
                 try:
                     server_version = await client.api_version()
                 except Exception:
                     server_version = None
 
-                result: dict[str, object] = {
+                result = {
                     "status": "available",
                     "api_url": api_url,
                 }
@@ -603,22 +621,6 @@ async def status(
                     raise typer.Exit(1)
                 exit_with_error(
                     f"Server is not available at {api_url}. Error: {healthcheck_exc}"
-                )
-
-            elapsed = _monotonic() - start_time
-            if timeout > 0 and elapsed >= timeout:
-                result = {
-                    "status": "timed_out",
-                    "api_url": api_url,
-                    "timeout": timeout,
-                    "error": str(healthcheck_exc),
-                }
-                if is_json:
-                    app.console.print(json_mod.dumps(result, indent=2))
-                    raise typer.Exit(1)
-                exit_with_error(
-                    f"Timed out after {timeout} seconds waiting for server "
-                    f"at {api_url}."
                 )
 
             await asyncio.sleep(1)
