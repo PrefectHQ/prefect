@@ -164,7 +164,7 @@ jobs:
 
       - name: Set cyclopts mode
         if: ${{ matrix.cyclopts }}
-        run: echo "PREFECT_CLI_FAST=True" >> $GITHUB_ENV
+        run: echo "PREFECT_CLI_FAST=1" >> $GITHUB_ENV
 
       - name: Run tests
         run: |

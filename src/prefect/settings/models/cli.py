@@ -26,11 +26,6 @@ class CLISettings(PrefectBaseSettings):
         description="If `True`, use interactive prompts in CLI commands. If `False`, no interactive prompts will be used. If `None`, the value will be dynamically determined based on the presence of an interactive-enabled terminal.",
     )
 
-    fast: bool = Field(
-        default=False,
-        description="If `True`, use the experimental fast CLI powered by cyclopts instead of typer.",
-    )
-
     wrap_lines: bool = Field(
         default=True,
         description="If `True`, wrap text by inserting new lines in long lines in CLI output. If `False`, output will not be wrapped.",
