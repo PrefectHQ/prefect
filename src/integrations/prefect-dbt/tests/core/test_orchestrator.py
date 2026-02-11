@@ -1123,21 +1123,6 @@ def mixed_resource_manifest_data() -> dict[str, Any]:
     }
 
 
-@pytest.fixture(autouse=True)
-def _use_thread_runner_for_per_node(monkeypatch):
-    """Replace ProcessPoolTaskRunner with a thread-delegating stand-in.
-
-    Unit tests use MagicMock executors that aren't picklable, so we can't
-    send them to real subprocesses.  This fixture swaps in a lightweight
-    runner that delegates to Prefect's default ThreadPoolTaskRunner via
-    ``task.submit()``.
-    """
-    monkeypatch.setattr(
-        "prefect.task_runners.ProcessPoolTaskRunner",
-        _ThreadDelegatingRunner,
-    )
-
-
 # =============================================================================
 # TestPerNodeInit
 # =============================================================================
@@ -1151,6 +1136,7 @@ class TestPerNodeInit:
             manifest_path=manifest,
             executor=_make_mock_executor(),
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
         assert orch._execution_mode == ExecutionMode.PER_NODE
 
@@ -1221,6 +1207,7 @@ class TestPerNodeBasic:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1252,6 +1239,7 @@ class TestPerNodeBasic:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1274,6 +1262,7 @@ class TestPerNodeBasic:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1316,6 +1305,7 @@ class TestPerNodeBasic:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1348,6 +1338,7 @@ class TestPerNodeBasic:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1388,6 +1379,7 @@ class TestPerNodeCommandMapping:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1421,6 +1413,7 @@ class TestPerNodeCommandMapping:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1453,6 +1446,7 @@ class TestPerNodeCommandMapping:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1474,6 +1468,7 @@ class TestPerNodeCommandMapping:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1509,6 +1504,7 @@ class TestPerNodeCommandMapping:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1551,6 +1547,7 @@ class TestPerNodeFailure:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1577,6 +1574,7 @@ class TestPerNodeFailure:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1605,6 +1603,7 @@ class TestPerNodeFailure:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1658,6 +1657,7 @@ class TestPerNodeFailure:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1698,6 +1698,7 @@ class TestPerNodeFailure:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1725,6 +1726,7 @@ class TestPerNodeFailure:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1755,6 +1757,7 @@ class TestPerNodeFailure:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1794,6 +1797,7 @@ class TestPerNodeResults:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1830,6 +1834,7 @@ class TestPerNodeResults:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1872,6 +1877,7 @@ class TestPerNodeResults:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1906,6 +1912,7 @@ class TestPerNodeResults:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow
@@ -1966,6 +1973,7 @@ class TestPerNodeRetries:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
             retries=1,
             retry_delay_seconds=0,
         )
@@ -2004,6 +2012,7 @@ class TestPerNodeRetries:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
             retries=2,
             retry_delay_seconds=0,
         )
@@ -2025,8 +2034,8 @@ class TestPerNodeRetries:
 
 
 class TestPerNodeConcurrency:
-    def test_int_concurrency_sets_max_workers(self, monkeypatch, tmp_path):
-        """With concurrency=2, ProcessPoolTaskRunner is created with max_workers=2."""
+    def test_int_concurrency_sets_max_workers(self, tmp_path):
+        """With concurrency=2, task runner is created with max_workers=2."""
         from prefect import flow
 
         data = {
@@ -2052,15 +2061,12 @@ class TestPerNodeConcurrency:
                 captured_kwargs.append(kwargs)
                 super().__init__(**kwargs)
 
-        monkeypatch.setattr(
-            "prefect.task_runners.ProcessPoolTaskRunner", _TrackingRunner
-        )
-
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_TrackingRunner,
             concurrency=2,
         )
 
@@ -2070,7 +2076,6 @@ class TestPerNodeConcurrency:
 
         result = test_flow()
 
-        # ProcessPoolTaskRunner should have been created with max_workers=2
         assert len(captured_kwargs) == 1
         assert captured_kwargs[0]["max_workers"] == 2
 
@@ -2078,7 +2083,7 @@ class TestPerNodeConcurrency:
         for node_id in data["nodes"]:
             assert result[node_id]["status"] == "success"
 
-    def test_no_concurrency_uses_wave_size(self, monkeypatch, tmp_path):
+    def test_no_concurrency_uses_wave_size(self, tmp_path):
         """Without int concurrency, max_workers = max wave size."""
         from prefect import flow
 
@@ -2122,15 +2127,12 @@ class TestPerNodeConcurrency:
                 captured_kwargs.append(kwargs)
                 super().__init__(**kwargs)
 
-        monkeypatch.setattr(
-            "prefect.task_runners.ProcessPoolTaskRunner", _TrackingRunner
-        )
-
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_TrackingRunner,
         )
 
         @flow
@@ -2163,6 +2165,7 @@ class TestPerNodeWithSelectors:
             manifest_path=manifest,
             executor=executor,
             execution_mode=ExecutionMode.PER_NODE,
+            task_runner_type=_ThreadDelegatingRunner,
         )
 
         @flow

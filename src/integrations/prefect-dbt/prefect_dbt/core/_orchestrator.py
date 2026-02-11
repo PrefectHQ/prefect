@@ -94,6 +94,8 @@ class PrefectDbtOrchestrator:
         concurrency: Concurrency limit.  A string names an existing Prefect
             global concurrency limit; an int sets the max_workers on the
             ProcessPoolTaskRunner used for parallel node execution.
+        task_runner_type: Task runner class to use for PER_NODE execution.
+            Defaults to ``ProcessPoolTaskRunner``.
 
     Example::
 
@@ -121,6 +123,7 @@ class PrefectDbtOrchestrator:
         retries: int = 0,
         retry_delay_seconds: int = 30,
         concurrency: Optional[Union[str, int]] = None,
+        task_runner_type: Optional[type] = None,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
@@ -128,6 +131,7 @@ class PrefectDbtOrchestrator:
         self._retries = retries
         self._retry_delay_seconds = retry_delay_seconds
         self._concurrency = concurrency
+        self._task_runner_type = task_runner_type
 
         # When the caller provides an explicit manifest_path that lives
         # outside the default target dir, align settings.target_path so
@@ -378,7 +382,13 @@ class PrefectDbtOrchestrator:
         Requires an active Prefect flow run context (call inside a ``@flow``).
         """
         from prefect import task as prefect_task
-        from prefect.task_runners import ProcessPoolTaskRunner
+
+        if self._task_runner_type is None:
+            from prefect.task_runners import ProcessPoolTaskRunner
+
+            task_runner_type = ProcessPoolTaskRunner
+        else:
+            task_runner_type = self._task_runner_type
 
         executor = self._executor
         concurrency_name = (
@@ -455,7 +465,7 @@ class PrefectDbtOrchestrator:
         results: dict[str, Any] = {}
         failed_nodes: set[str] = set()
 
-        with ProcessPoolTaskRunner(max_workers=max_workers) as runner:
+        with task_runner_type(max_workers=max_workers) as runner:
             for wave in waves:
                 futures: dict[str, Any] = {}
 
