@@ -19,7 +19,7 @@ from prefect_dbt.core._manifest import ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
 
 
-class ExecutionMode(str, Enum):
+class ExecutionMode(Enum):
     """Execution mode for dbt orchestration.
 
     PER_WAVE: Each wave is a single `dbt build` invocation containing all
