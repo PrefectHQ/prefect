@@ -69,6 +69,8 @@ dev = [
 integration = [
     "dbt-duckdb>=1.7",
     "duckdb>=1.4.4",
+    "dbt-postgres>=1.7",
+    "psycopg2-binary",
 ]
 
 [project.urls]

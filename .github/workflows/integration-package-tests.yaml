@@ -90,6 +90,7 @@ jobs:
         working-directory: src/integrations/${{ matrix.package }}
         run: >
           uv run pytest
+          -m "not integration"
           --numprocesses auto
           --maxprocesses 4
           --dist worksteal
@@ -106,10 +107,26 @@ jobs:
   run-prefect-dbt-integration-tests:
     timeout-minutes: 20
 
-    name: Run prefect-dbt integration tests (DuckDB, Python ${{ matrix.python-version }})
+    name: Run prefect-dbt integration tests (Python ${{ matrix.python-version }})
     needs: prepare-matrix
     if: contains(toJSON(needs.prepare-matrix.outputs.matrix), 'prefect-dbt')
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: dbt_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U prefect -d dbt_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
