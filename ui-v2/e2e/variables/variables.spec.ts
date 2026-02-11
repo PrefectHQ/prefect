@@ -392,18 +392,17 @@ test.describe("Variables Page", () => {
 	});
 
 	test.describe("Sorting", () => {
-		// Use unique suffix per test run to avoid conflicts with parallel test execution
+		const SORT_PREFIX = "e2e-sort-";
 		let sortTestSuffix: string;
 		let aaaVarName: string;
 		let zzzVarName: string;
 
 		test.beforeEach(async ({ apiClient }) => {
-			// Generate unique suffix for this test run
 			sortTestSuffix = `${Date.now()}`;
-			aaaVarName = `${TEST_PREFIX}aaa-sort-${sortTestSuffix}`;
-			zzzVarName = `${TEST_PREFIX}zzz-sort-${sortTestSuffix}`;
+			aaaVarName = `${SORT_PREFIX}${sortTestSuffix}-aaa`;
+			zzzVarName = `${SORT_PREFIX}${sortTestSuffix}-zzz`;
 
-			// Create variables with specific names for sorting tests
+			await cleanupVariables(apiClient, SORT_PREFIX);
 			await createVariable(apiClient, {
 				name: aaaVarName,
 				value: "first",
@@ -416,80 +415,72 @@ test.describe("Variables Page", () => {
 			});
 		});
 
+		test.afterEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, SORT_PREFIX);
+		});
+
 		test("should sort variables by name A to Z", async ({ page }) => {
-			// Use toPass to handle eventual consistency - retry navigation if data not visible
 			await expect(async () => {
-				await page.goto("/variables");
+				await page.goto(`/variables?name=${SORT_PREFIX}${sortTestSuffix}`);
 				await expect(page.getByText(aaaVarName)).toBeVisible({ timeout: 2000 });
 			}).toPass({ timeout: 15000 });
 
-			// Change sort to A to Z
 			await page
 				.getByRole("combobox", { name: /variable sort order/i })
 				.click();
 			await page.getByRole("option", { name: "A to Z" }).click();
 
-			// Verify URL updated
 			await expect(page).toHaveURL(/sort=NAME_ASC/);
 
-			// Get all variable names in order
-			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
+			const firstRow = page.getByRole("row").nth(1);
 			await expect(firstRow).toContainText(aaaVarName);
 		});
 
 		test("should sort variables by name Z to A", async ({ page }) => {
-			// Use toPass to handle eventual consistency - retry navigation if data not visible
 			await expect(async () => {
-				await page.goto("/variables");
+				await page.goto(`/variables?name=${SORT_PREFIX}${sortTestSuffix}`);
 				await expect(page.getByText(aaaVarName)).toBeVisible({ timeout: 2000 });
 			}).toPass({ timeout: 15000 });
 
-			// Change sort to Z to A
 			await page
 				.getByRole("combobox", { name: /variable sort order/i })
 				.click();
 			await page.getByRole("option", { name: "Z to A" }).click();
 
-			// Verify URL updated
 			await expect(page).toHaveURL(/sort=NAME_DESC/);
 
-			// Verify zzz comes before aaa
-			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
+			const firstRow = page.getByRole("row").nth(1);
 			await expect(firstRow).toContainText(zzzVarName);
 		});
 
 		test("should sort variables by created date (default)", async ({
 			page,
 		}) => {
-			// Use toPass to handle eventual consistency - retry navigation if data not visible
 			await expect(async () => {
-				await page.goto("/variables");
+				await page.goto(`/variables?name=${SORT_PREFIX}${sortTestSuffix}`);
 				await expect(page.getByText(zzzVarName)).toBeVisible({ timeout: 2000 });
 			}).toPass({ timeout: 15000 });
 
-			// Verify default sort is CREATED_DESC
 			await expect(page).toHaveURL(/sort=CREATED_DESC/);
 
-			// Most recently created should be first
-			const firstRow = page.getByRole("row").nth(1); // nth(1) skips header row
+			const firstRow = page.getByRole("row").nth(1);
 			await expect(firstRow).toContainText(zzzVarName);
 		});
 	});
 
 	test.describe("Pagination", () => {
-		// Use unique suffix per test run to avoid conflicts with parallel test execution
+		const PAGE_PREFIX = "e2e-page-";
 		let paginationTestSuffix: string;
 
 		test.beforeEach(async ({ apiClient }) => {
-			// Generate unique suffix for this test run
 			paginationTestSuffix = `${Date.now()}`;
 
-			// Create enough variables to test pagination (more than default page size of 10)
+			await cleanupVariables(apiClient, PAGE_PREFIX);
 			const createPromises = [];
 			for (let i = 0; i < 15; i++) {
 				createPromises.push(
 					createVariable(apiClient, {
-						name: `${TEST_PREFIX}page-${paginationTestSuffix}-${String(i).padStart(2, "0")}`,
+						name: `${PAGE_PREFIX}${paginationTestSuffix}-${String(i).padStart(2, "0")}`,
 						value: `value-${i}`,
 					}),
 				);
@@ -497,10 +488,15 @@ test.describe("Variables Page", () => {
 			await Promise.all(createPromises);
 		});
 
+		test.afterEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, PAGE_PREFIX);
+		});
+
 		test("should show correct page count", async ({ page }) => {
-			// Use toPass to handle eventual consistency with parallel test execution
 			await expect(async () => {
-				await page.goto("/variables");
+				await page.goto(
+					`/variables?name=${PAGE_PREFIX}${paginationTestSuffix}`,
+				);
 				await expect(page.getByText("Page 1 of 2")).toBeVisible({
 					timeout: 2000,
 				});
@@ -508,67 +504,64 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should navigate to next page", async ({ page }) => {
-			// Use toPass to handle eventual consistency with parallel test execution
 			await expect(async () => {
-				await page.goto("/variables");
+				await page.goto(
+					`/variables?name=${PAGE_PREFIX}${paginationTestSuffix}`,
+				);
 				await expect(page.getByText("Page 1 of 2")).toBeVisible({
 					timeout: 2000,
 				});
 			}).toPass({ timeout: 15000 });
 
-			// Click next page
 			await page.getByRole("button", { name: "Go to next page" }).click();
 
-			// Verify page changed
 			await expect(page.getByText("Page 2 of 2")).toBeVisible();
 			await expect(page).toHaveURL(/offset=10/);
 		});
 
 		test("should navigate to previous page", async ({ page }) => {
-			// Use toPass to handle eventual consistency with parallel test execution
 			await expect(async () => {
-				await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
+				await page.goto(
+					`/variables?name=${PAGE_PREFIX}${paginationTestSuffix}&offset=10&limit=10&sort=CREATED_DESC`,
+				);
 				await expect(page.getByText("Page 2 of 2")).toBeVisible({
 					timeout: 2000,
 				});
 			}).toPass({ timeout: 15000 });
 
-			// Click previous page
 			await page.getByRole("button", { name: "Go to previous page" }).click();
 
-			// Verify page changed
 			await expect(page.getByText("Page 1 of 2")).toBeVisible();
 			await expect(page).toHaveURL(/offset=0/);
 		});
 
 		test("should change items per page", async ({ page }) => {
-			// Use toPass to handle eventual consistency with parallel test execution
 			await expect(async () => {
-				await page.goto("/variables");
+				await page.goto(
+					`/variables?name=${PAGE_PREFIX}${paginationTestSuffix}`,
+				);
 				await expect(page.getByText("Page 1 of 2")).toBeVisible({
 					timeout: 2000,
 				});
 			}).toPass({ timeout: 15000 });
 
-			// Change to 25 items per page
 			await page.getByRole("combobox", { name: "Items per page" }).click();
 			await page.getByRole("option", { name: "25" }).click();
 
-			// With 15 items and 25 per page, should be 1 page
 			await expect(page.getByText("Page 1 of 1")).toBeVisible();
 			await expect(page).toHaveURL(/limit=25/);
 		});
 
 		test("should disable previous buttons on first page", async ({ page }) => {
-			// Use toPass to handle eventual consistency with parallel test execution
 			await expect(async () => {
-				await page.goto("/variables");
+				await page.goto(
+					`/variables?name=${PAGE_PREFIX}${paginationTestSuffix}`,
+				);
 				await expect(page.getByText("Page 1 of 2")).toBeVisible({
 					timeout: 2000,
 				});
 			}).toPass({ timeout: 15000 });
 
-			// On first page, previous buttons should be disabled
 			await expect(
 				page.getByRole("button", { name: "Go to first page" }),
 			).toBeDisabled();
@@ -576,7 +569,6 @@ test.describe("Variables Page", () => {
 				page.getByRole("button", { name: "Go to previous page" }),
 			).toBeDisabled();
 
-			// Next buttons should be enabled
 			await expect(
 				page.getByRole("button", { name: "Go to next page" }),
 			).toBeEnabled();
@@ -586,15 +578,15 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should disable next buttons on last page", async ({ page }) => {
-			// Use toPass to handle eventual consistency with parallel test execution
 			await expect(async () => {
-				await page.goto("/variables?offset=10&limit=10&sort=CREATED_DESC");
+				await page.goto(
+					`/variables?name=${PAGE_PREFIX}${paginationTestSuffix}&offset=10&limit=10&sort=CREATED_DESC`,
+				);
 				await expect(page.getByText("Page 2 of 2")).toBeVisible({
 					timeout: 2000,
 				});
 			}).toPass({ timeout: 15000 });
 
-			// On last page, next buttons should be disabled
 			await expect(
 				page.getByRole("button", { name: "Go to next page" }),
 			).toBeDisabled();
@@ -602,7 +594,6 @@ test.describe("Variables Page", () => {
 				page.getByRole("button", { name: "Go to last page" }),
 			).toBeDisabled();
 
-			// Previous buttons should be enabled
 			await expect(
 				page.getByRole("button", { name: "Go to first page" }),
 			).toBeEnabled();
