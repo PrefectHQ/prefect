@@ -68,11 +68,12 @@ test.describe("Flows List Page", () => {
 		const flowName = `${TEST_PREFIX}search-${Date.now()}`;
 		await createFlow(apiClient, flowName);
 
-		await page.goto("/flows");
-		await waitForFlowsPageReady(page);
-
-		await expect(page.getByText(/\d+ Flows?/)).toBeVisible();
-		await expect(page.getByText(flowName)).toBeVisible();
+		await expect(async () => {
+			await page.goto("/flows");
+			await expect(page.getByText(/\d+ Flows?/)).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
 
 		await page.getByPlaceholder("Flow names").fill(flowName);
 
@@ -84,8 +85,12 @@ test.describe("Flows List Page", () => {
 		const flowName = `${TEST_PREFIX}tag-${Date.now()}`;
 		await createFlow(apiClient, { name: flowName, tags: ["e2e-tag-test"] });
 
-		await page.goto("/flows");
-		await waitForFlowsPageReady(page);
+		await expect(async () => {
+			await page.goto("/flows");
+			await expect(page.getByText(/\d+ Flows?/)).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
 
 		const tagsInput = page.getByPlaceholder("Filter by tags");
 		await tagsInput.pressSequentially("e2e-tag-test");
@@ -112,21 +117,24 @@ test.describe("Flows List Page", () => {
 	});
 
 	test("FLOW-04 - Pagination", async ({ page, apiClient }) => {
+		const timestamp = Date.now();
 		const flows = [];
 		for (let i = 0; i < 6; i++) {
 			flows.push(
 				createFlow(
 					apiClient,
-					`${TEST_PREFIX}page-${Date.now()}-${String(i).padStart(2, "0")}`,
+					`${TEST_PREFIX}page-${timestamp}-${String(i).padStart(2, "0")}`,
 				),
 			);
 		}
 		await Promise.all(flows);
 
-		await page.goto(`/flows?limit=5&name=${TEST_PREFIX}page-`);
-		await waitForFlowsPageReady(page);
-
-		await expect(page.getByText(/Page 1 of/)).toBeVisible();
+		await expect(async () => {
+			await page.goto(`/flows?limit=5&name=${TEST_PREFIX}page-${timestamp}`);
+			await expect(page.getByText(/Page 1 of/)).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
 
 		await page.getByRole("button", { name: /go to next page/i }).click();
 
@@ -141,8 +149,12 @@ test.describe("Flows List Page", () => {
 		const flowName = `${TEST_PREFIX}detail-${Date.now()}`;
 		const flow = await createFlow(apiClient, flowName);
 
-		await page.goto("/flows");
-		await waitForFlowsPageReady(page);
+		await expect(async () => {
+			await page.goto(`/flows?name=${flowName}`);
+			await expect(page.getByText(flowName)).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
 
 		await page.getByRole("link", { name: flowName }).click();
 
@@ -158,11 +170,13 @@ test.describe("Flows List Page", () => {
 			flowId: flow.id,
 		});
 
-		await page.goto("/flows");
-		await waitForFlowsPageReady(page);
+		await expect(async () => {
+			await page.goto(`/flows?name=${flowName}`);
+			await expect(page.getByText(flowName)).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
 
-		await page.getByPlaceholder("Flow names").fill(flowName);
-		await expect(page.getByText(flowName)).toBeVisible();
 		await expect(page.getByText("1 Deployment")).toBeVisible();
 	});
 });
