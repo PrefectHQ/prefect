@@ -101,7 +101,7 @@ async def start(
 ):
     """Start a worker process to poll a work pool for flow runs."""
     from prefect.cli._prompts import confirm
-    from prefect.cli.worker import (
+    from prefect.cli._worker_utils import (
         _check_work_pool_paused,
         _check_work_queues_paused,
         _find_package_for_worker_type,
@@ -154,7 +154,9 @@ async def start(
 
     # Resolve worker type
     if worker_type is None:
-        worker_type = await _retrieve_worker_type_from_pool(work_pool_name)
+        worker_type = await _retrieve_worker_type_from_pool(
+            _cli.console, exit_with_error, work_pool_name
+        )
 
     if worker_type == "prefect-agent":
         exit_with_error(
@@ -164,14 +166,14 @@ async def start(
 
     # Load or install worker class (matches typer's _get_worker_class flow)
     if install_policy == InstallPolicy.ALWAYS:
-        package = await _find_package_for_worker_type(worker_type)
+        package = await _find_package_for_worker_type(_cli.console, worker_type)
         if package:
-            await _install_package(package, upgrade=True)
+            await _install_package(_cli.console, package, upgrade=True)
 
     worker_cls = _load_worker_class(worker_type)
 
     if worker_cls is None:
-        package = await _find_package_for_worker_type(worker_type)
+        package = await _find_package_for_worker_type(_cli.console, worker_type)
         if package:
             should_install = False
             if install_policy == InstallPolicy.IF_NOT_PRESENT:
@@ -185,7 +187,7 @@ async def start(
                 should_install = confirm(message, default=True)
 
             if should_install:
-                await _install_package(package)
+                await _install_package(_cli.console, package)
                 worker_cls = _load_worker_class(worker_type)
 
     if worker_cls is None:

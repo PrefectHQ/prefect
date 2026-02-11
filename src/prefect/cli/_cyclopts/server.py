@@ -34,76 +34,6 @@ server_app.command(database_app)
 server_app.command(services_app)
 
 
-def _validate_multi_worker(workers: int) -> None:
-    """Validate configuration for multi-worker mode.
-
-    Mirrors prefect.cli.server._validate_multi_worker but uses the cyclopts
-    exit_with_error so output goes through the correct console.
-    """
-    import textwrap
-
-    from prefect.server.utilities.database import get_dialect
-    from prefect.settings import get_current_settings
-
-    if workers == 1:
-        return
-
-    if workers < 1:
-        exit_with_error("Number of workers must be >= 1")
-
-    settings = get_current_settings()
-
-    try:
-        dialect = get_dialect(
-            settings.server.database.connection_url.get_secret_value()
-        )
-    except Exception as e:
-        exit_with_error(f"Unable to validate database configuration: {e}")
-
-    if dialect.name != "postgresql":
-        exit_with_error(
-            "Multi-worker mode (--workers > 1) is not supported with SQLite database."
-        )
-
-    try:
-        messaging_cache = settings.server.events.messaging_cache
-        messaging_broker = settings.server.events.messaging_broker
-        causal_ordering = settings.server.events.causal_ordering
-        lease_storage = settings.server.concurrency.lease_storage
-    except Exception as e:
-        exit_with_error(f"Unable to validate messaging configuration: {e}")
-
-    if (
-        messaging_cache == "prefect.server.utilities.messaging.memory"
-        or messaging_broker == "prefect.server.utilities.messaging.memory"
-        or causal_ordering == "prefect.server.events.ordering.memory"
-        or lease_storage == "prefect.server.concurrency.lease_storage.memory"
-    ):
-        error_message = textwrap.dedent(
-            """
-            Multi-worker mode (--workers > 1) requires Redis for messaging and lease storage.
-
-            Please configure the following settings to use Redis:
-
-                prefect config set PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
-                prefect config set PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
-                prefect config set PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
-                prefect config set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
-
-            You'll also need to configure your Redis connection:
-
-                export PREFECT_REDIS_MESSAGING_HOST="your-redis-host"
-                export PREFECT_REDIS_MESSAGING_PORT="6379"
-                export PREFECT_REDIS_MESSAGING_DB="0"
-
-            For complete setup instructions, see:
-            https://docs.prefect.io/v3/how-to-guides/self-hosted/server-cli#multi-worker-api-server
-            https://docs.prefect.io/v3/advanced/self-hosted#redis-setup
-            """
-        ).strip()
-        exit_with_error(error_message)
-
-
 @server_app.command()
 @with_cli_exception_handling
 def start(
@@ -180,13 +110,13 @@ def start(
     """Start a Prefect server instance."""
     import socket
 
-    from prefect.cli.server import (
+    from prefect.cli._server_utils import (
         SERVER_PID_FILE_NAME,
         _format_host_for_url,
         _run_in_background,
         _run_in_foreground,
+        _validate_multi_worker,
         generate_welcome_blurb,
-        is_interactive,
         prestart_check,
     )
     from prefect.settings import (
@@ -221,15 +151,15 @@ def start(
 
     base_url = f"http://{_format_host_for_url(host)}:{port}"
 
-    if is_interactive():
+    if _cli.is_interactive():
         try:
-            prestart_check(base_url)
+            prestart_check(_cli.console, base_url)
         except Exception:
             pass
 
     if workers > 1:
         no_services = True
-    _validate_multi_worker(workers)
+    _validate_multi_worker(workers, exit_with_error)
 
     server_settings = {
         "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),
@@ -285,6 +215,7 @@ def start(
 
     if background:
         _run_in_background(
+            _cli.console,
             pid_file,
             server_settings,
             host,
@@ -295,7 +226,13 @@ def start(
         )
     else:
         _run_in_foreground(
-            server_settings, host, port, keep_alive_timeout, no_services, workers
+            _cli.console,
+            server_settings,
+            host,
+            port,
+            keep_alive_timeout,
+            no_services,
+            workers,
         )
 
 
@@ -303,7 +240,7 @@ def start(
 @with_cli_exception_handling
 async def stop():
     """Stop a Prefect server instance running in the background."""
-    from prefect.cli.server import SERVER_PID_FILE_NAME
+    from prefect.cli._server_utils import SERVER_PID_FILE_NAME
     from prefect.settings import PREFECT_HOME
 
     pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
@@ -515,7 +452,7 @@ def start_services(
     ] = False,
 ):
     """Start all enabled Prefect services in one process."""
-    from prefect.cli.server import (
+    from prefect.cli._server_utils import (
         SERVICES_PID_FILE,
         _cleanup_pid_file,
         _is_process_running,
@@ -575,7 +512,7 @@ def start_services(
 @with_cli_exception_handling
 async def stop_services():
     """Stop any background Prefect services that were started."""
-    from prefect.cli.server import (
+    from prefect.cli._server_utils import (
         SERVICES_PID_FILE,
         _cleanup_pid_file,
         _is_process_running,
@@ -626,7 +563,7 @@ services_app.command(_manager_app)
 @with_cli_exception_handling
 def run_manager_process():
     """Internal entrypoint for background services."""
-    from prefect.cli.server import _run_all_services
+    from prefect.cli._server_utils import _run_all_services
     from prefect.logging import get_logger
     from prefect.server.services.base import Service
 
