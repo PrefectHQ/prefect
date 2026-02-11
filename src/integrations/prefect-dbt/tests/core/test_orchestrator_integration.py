@@ -157,7 +157,7 @@ class TestOrchestratorIntegration:
         # Staging wave must start before or at mart wave
         assert staging_started <= mart_started
 
-    def test_build_with_select(self, orchestrator):
+    def test_build_with_select(self, orchestrator, dbt_project):
         """run_build(select='staging') returns only staging models."""
         orch = orchestrator()
         results = orch.run_build(select="staging")
@@ -166,6 +166,20 @@ class TestOrchestratorIntegration:
         assert set(results.keys()) == {STG_CUSTOMERS, STG_ORDERS}
         for result in results.values():
             assert result["status"] == "success"
+
+        # Verify the staging views were actually created in DuckDB
+        db_path = dbt_project["project_dir"] / "warehouse.duckdb"
+        conn = duckdb.connect(str(db_path))
+        try:
+            assert (
+                conn.execute("select count(*) from main.stg_customers").fetchone()[0]
+                == 5
+            )
+            assert (
+                conn.execute("select count(*) from main.stg_orders").fetchone()[0] == 10
+            )
+        finally:
+            conn.close()
 
     def test_build_with_graph_selector(self, orchestrator):
         """run_build(select='+customer_summary') includes all upstream nodes."""
@@ -407,7 +421,7 @@ class TestPerNodeIntegration:
         assert seed_started <= staging_started
         assert staging_started <= mart_started
 
-    def test_per_node_with_select(self, per_node_orchestrator):
+    def test_per_node_with_select(self, per_node_orchestrator, per_node_dbt_project):
         """PER_NODE run_build(select='staging') returns only staging models."""
         from prefect import flow
 
@@ -425,6 +439,20 @@ class TestPerNodeIntegration:
         assert set(results.keys()) == {STG_CUSTOMERS, STG_ORDERS}
         for result in results.values():
             assert result["status"] == "success"
+
+        # Verify the staging views were actually created in DuckDB
+        db_path = per_node_dbt_project["project_dir"] / "warehouse.duckdb"
+        conn = duckdb.connect(str(db_path))
+        try:
+            assert (
+                conn.execute("select count(*) from main.stg_customers").fetchone()[0]
+                == 5
+            )
+            assert (
+                conn.execute("select count(*) from main.stg_orders").fetchone()[0] == 10
+            )
+        finally:
+            conn.close()
 
     def test_per_node_uses_correct_commands(self, per_node_orchestrator):
         """PER_NODE uses 'seed' for seeds and 'run' for models."""
