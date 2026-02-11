@@ -53,7 +53,7 @@ jobs:
       matrix:
         test-type:
           - name: CLI Tests (Cyclopts)
-            modules: tests/cli/test_profile.py tests/cli/test_config.py
+            modules: tests/cli/
         database:
           - "postgres:14"
         python-version:
@@ -126,7 +126,9 @@ jobs:
           uv run pytest ${{ matrix.test-type.modules }} \
           -v \
           --tb=long \
-          -n0 \
+          -n6 \
+          --dist worksteal \
+          -x \
           -m "not windows" \
           --disable-docker-image-builds \
           --exclude-service kubernetes \
