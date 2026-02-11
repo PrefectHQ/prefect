@@ -21,13 +21,13 @@ from prefect_dbt.core.settings import PrefectDbtSettings
 class ExecutionMode:
     """Execution mode for dbt orchestration.
 
-    PER_WAVE: Each wave is a single ``dbt build`` invocation containing all
+    PER_WAVE: Each wave is a single `dbt build` invocation containing all
         nodes in the wave.  Lower overhead, but a single failure marks the
         entire wave as failed and retries are not per-node.
 
     PER_NODE: Each node is a separate Prefect task with individual retries
-        and concurrency control.  Requires ``run_build()`` to be called
-        inside a ``@flow``.
+        and concurrency control.  Requires `run_build()` to be called
+        inside a `@flow`.
     """
 
     PER_NODE = "per_node"
@@ -73,11 +73,11 @@ class PrefectDbtOrchestrator:
 
     Supports two execution modes:
 
-    - **PER_WAVE** (default): Each wave is a single ``dbt build`` invocation.
+    - **PER_WAVE** (default): Each wave is a single `dbt build` invocation.
       Lower overhead but coarser failure granularity.
     - **PER_NODE**: Each node is a separate Prefect task with individual
-      retries and concurrency control.  Requires ``run_build()`` to be
-      called inside a ``@flow``.
+      retries and concurrency control.  Requires `run_build()` to be
+      called inside a `@flow`.
 
     Args:
         settings: PrefectDbtSettings instance (created with defaults if None)
@@ -88,14 +88,14 @@ class PrefectDbtOrchestrator:
         defer: Whether to pass --defer flag
         defer_state_path: Path for --defer-state flag
         favor_state: Whether to pass --favor-state flag
-        execution_mode: ``ExecutionMode.PER_WAVE`` or ``ExecutionMode.PER_NODE``
+        execution_mode: `ExecutionMode.PER_WAVE` or `ExecutionMode.PER_NODE`
         retries: Number of retries per node (PER_NODE mode only)
         retry_delay_seconds: Delay between retries in seconds
         concurrency: Concurrency limit.  A string names an existing Prefect
             global concurrency limit; an int sets the max_workers on the
             ProcessPoolTaskRunner used for parallel node execution.
         task_runner_type: Task runner class to use for PER_NODE execution.
-            Defaults to ``ProcessPoolTaskRunner``.
+            Defaults to `ProcessPoolTaskRunner`.
 
     Example::
 
@@ -178,10 +178,10 @@ class PrefectDbtOrchestrator:
     def _resolve_target_path(self) -> Path:
         """Resolve the target directory path.
 
-        When ``manifest_path`` is explicitly set, normalizes it to an absolute
-        path (relative to ``settings.project_dir``) and returns its parent
-        directory so that ``resolve_selection`` uses the same target directory
-        as the manifest. Otherwise, returns ``settings.target_path``.
+        When `manifest_path` is explicitly set, normalizes it to an absolute
+        path (relative to `settings.project_dir`) and returns its parent
+        directory so that `resolve_selection` uses the same target directory
+        as the manifest. Otherwise, returns `settings.target_path`.
         """
         if self._manifest_path is not None:
             if self._manifest_path.is_absolute():
@@ -192,9 +192,9 @@ class PrefectDbtOrchestrator:
     def _resolve_manifest_path(self) -> Path:
         """Resolve the path to manifest.json.
 
-        Uses the explicit ``manifest_path`` if provided (relative paths are
-        resolved against ``settings.project_dir``), otherwise derives it from
-        ``settings.project_dir / settings.target_path / "manifest.json"``.
+        Uses the explicit `manifest_path` if provided (relative paths are
+        resolved against `settings.project_dir`), otherwise derives it from
+        `settings.project_dir / settings.target_path / "manifest.json"`.
 
         Returns:
             Resolved Path to the manifest.json file
@@ -236,23 +236,23 @@ class PrefectDbtOrchestrator:
         4. Execute (per-wave or per-node depending on mode)
 
         In **PER_NODE** mode, each node becomes a separate Prefect task with
-        individual retries.  This requires ``run_build()`` to be called
-        inside a ``@flow``.
+        individual retries.  This requires `run_build()` to be called
+        inside a `@flow`.
 
         Args:
-            select: dbt selector expression (e.g. ``"tag:daily"``)
+            select: dbt selector expression (e.g. `"tag:daily"`)
             exclude: dbt exclude expression
-            full_refresh: Whether to pass ``--full-refresh`` to dbt
+            full_refresh: Whether to pass `--full-refresh` to dbt
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
-            - ``status``: ``"success"``, ``"error"``, or ``"skipped"``
-            - ``timing``: ``{started_at, completed_at, duration_seconds}``
+            - `status`: `"success"`, `"error"`, or `"skipped"`
+            - `timing`: `{started_at, completed_at, duration_seconds}`
               (not present for skipped nodes)
-            - ``invocation``: ``{command, args}`` (not present for skipped)
-            - ``error``: ``{message, type}`` (only for error status)
-            - ``reason``: reason string (only for skipped status)
-            - ``failed_upstream``: list of failed node IDs (only for skipped)
+            - `invocation`: `{command, args}` (not present for skipped)
+            - `error`: `{message, type}` (only for error status)
+            - `reason`: reason string (only for skipped status)
+            - `failed_upstream`: list of failed node IDs (only for skipped)
         """
         # 1. Parse manifest
         manifest_path = self._resolve_manifest_path()
@@ -372,14 +372,14 @@ class PrefectDbtOrchestrator:
 
         Creates a separate Prefect task per node with individual retries.
         Nodes within a wave are submitted concurrently via a
-        ``ProcessPoolTaskRunner``; waves are processed sequentially.  Failed
+        `ProcessPoolTaskRunner`; waves are processed sequentially.  Failed
         nodes cause their downstream dependents to be skipped.
 
-        Each subprocess gets its own dbt adapter registry (``FACTORY``
+        Each subprocess gets its own dbt adapter registry (`FACTORY`
         singleton), so there is no shared mutable state and no need to
-        monkey-patch ``adapter_management``.
+        monkey-patch `adapter_management`.
 
-        Requires an active Prefect flow run context (call inside a ``@flow``).
+        Requires an active Prefect flow run context (call inside a `@flow`).
         """
         from prefect import task as prefect_task
 

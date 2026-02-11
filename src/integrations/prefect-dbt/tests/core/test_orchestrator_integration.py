@@ -50,8 +50,8 @@ def dbt_project(tmp_path_factory):
     """Set up a real dbt project with DuckDB and a parsed manifest.
 
     Session-scoped: copies the test project to a temp directory, writes a
-    profiles.yml pointing DuckDB at a local file, and runs ``dbt parse``
-    to generate ``target/manifest.json``.
+    profiles.yml pointing DuckDB at a local file, and runs `dbt parse`
+    to generate `target/manifest.json`.
     """
     project_dir = tmp_path_factory.mktemp("dbt_project")
 
@@ -103,26 +103,31 @@ def dbt_project(tmp_path_factory):
     }
 
 
-def _make_orchestrator(dbt_project, **kwargs):
-    """Create a PrefectDbtOrchestrator pointed at the test project."""
-    settings = PrefectDbtSettings(
-        project_dir=dbt_project["project_dir"],
-        profiles_dir=dbt_project["profiles_dir"],
-    )
-    return PrefectDbtOrchestrator(
-        settings=settings,
-        manifest_path=dbt_project["manifest_path"],
-        **kwargs,
-    )
+@pytest.fixture
+def orchestrator(dbt_project):
+    """Factory fixture that creates a PrefectDbtOrchestrator for the test project."""
+
+    def _factory(**kwargs):
+        settings = PrefectDbtSettings(
+            project_dir=dbt_project["project_dir"],
+            profiles_dir=dbt_project["profiles_dir"],
+        )
+        return PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=dbt_project["manifest_path"],
+            **kwargs,
+        )
+
+    return _factory
 
 
 class TestOrchestratorIntegration:
     """Integration tests that run the full orchestrator against DuckDB."""
 
-    def test_full_build_all_nodes_succeed(self, dbt_project):
+    def test_full_build_all_nodes_succeed(self, orchestrator):
         """run_build() with no selectors executes all 5 executable nodes successfully."""
-        orchestrator = _make_orchestrator(dbt_project)
-        results = orchestrator.run_build()
+        orch = orchestrator()
+        results = orch.run_build()
 
         assert set(results.keys()) == ALL_EXECUTABLE
         for node_id, result in results.items():
@@ -130,10 +135,10 @@ class TestOrchestratorIntegration:
                 f"{node_id} failed: {result.get('error')}"
             )
 
-    def test_build_wave_ordering(self, dbt_project):
+    def test_build_wave_ordering(self, orchestrator):
         """Builds execute in 3 waves: seeds -> staging -> marts."""
-        orchestrator = _make_orchestrator(dbt_project)
-        results = orchestrator.run_build()
+        orch = orchestrator()
+        results = orch.run_build()
 
         # All nodes succeeded — verify via timing that seeds started first,
         # then staging, then marts. We check by comparing started_at timestamps.
@@ -152,20 +157,20 @@ class TestOrchestratorIntegration:
         # Staging wave must start before or at mart wave
         assert staging_started <= mart_started
 
-    def test_build_with_select(self, dbt_project):
+    def test_build_with_select(self, orchestrator):
         """run_build(select='staging') returns only staging models."""
-        orchestrator = _make_orchestrator(dbt_project)
-        results = orchestrator.run_build(select="staging")
+        orch = orchestrator()
+        results = orch.run_build(select="staging")
 
         # Should only contain the two staging models
         assert set(results.keys()) == {STG_CUSTOMERS, STG_ORDERS}
         for result in results.values():
             assert result["status"] == "success"
 
-    def test_build_with_graph_selector(self, dbt_project):
+    def test_build_with_graph_selector(self, orchestrator):
         """run_build(select='+customer_summary') includes all upstream nodes."""
-        orchestrator = _make_orchestrator(dbt_project)
-        results = orchestrator.run_build(select="+customer_summary")
+        orch = orchestrator()
+        results = orch.run_build(select="+customer_summary")
 
         # +customer_summary means customer_summary and all its ancestors.
         # The ephemeral int_orders_enriched is resolved through, so we get:
@@ -174,10 +179,10 @@ class TestOrchestratorIntegration:
         for result in results.values():
             assert result["status"] == "success"
 
-    def test_build_result_has_timing_and_artifacts(self, dbt_project):
+    def test_build_result_has_timing_and_artifacts(self, orchestrator):
         """Results include timing fields and execution_time from artifacts."""
-        orchestrator = _make_orchestrator(dbt_project)
-        results = orchestrator.run_build()
+        orch = orchestrator()
+        results = orch.run_build()
 
         nodes_with_execution_time = []
         for node_id, result in results.items():
@@ -196,19 +201,19 @@ class TestOrchestratorIntegration:
         # At least the model nodes should have execution_time from artifacts
         assert len(nodes_with_execution_time) > 0
 
-    def test_full_refresh_build(self, dbt_project):
+    def test_full_refresh_build(self, orchestrator):
         """run_build(full_refresh=True) succeeds."""
-        orchestrator = _make_orchestrator(dbt_project)
-        results = orchestrator.run_build(full_refresh=True)
+        orch = orchestrator()
+        results = orch.run_build(full_refresh=True)
 
         assert len(results) == len(ALL_EXECUTABLE)
         for result in results.values():
             assert result["status"] == "success"
 
-    def test_build_creates_database_objects(self, dbt_project):
+    def test_build_creates_database_objects(self, orchestrator, dbt_project):
         """After build, DuckDB contains the expected tables/views with correct row counts."""
-        orchestrator = _make_orchestrator(dbt_project)
-        results = orchestrator.run_build()
+        orch = orchestrator()
+        results = orch.run_build()
 
         # Verify the build succeeded before querying the database
         for node_id, result in results.items():
@@ -251,10 +256,10 @@ class TestOrchestratorIntegration:
         finally:
             conn.close()
 
-    def test_ephemeral_model_not_in_results(self, dbt_project):
+    def test_ephemeral_model_not_in_results(self, orchestrator):
         """The ephemeral int_orders_enriched does not appear in build results."""
-        orchestrator = _make_orchestrator(dbt_project)
-        results = orchestrator.run_build()
+        orch = orchestrator()
+        results = orch.run_build()
 
         assert INT_ORDERS_ENRICHED not in results
 
@@ -264,12 +269,12 @@ def per_node_dbt_project(dbt_project, tmp_path):
     """Function-scoped copy of the dbt project for PER_NODE tests.
 
     PER_WAVE tests run dbt in-process and the dbt-duckdb adapter keeps
-    an OS-level file lock on the ``.duckdb`` file that persists even
-    after ``reset_adapters()`` / ``cleanup_connections()``.  PER_NODE
+    an OS-level file lock on the `.duckdb` file that persists even
+    after `reset_adapters()` / `cleanup_connections()`.  PER_NODE
     tests run dbt in subprocesses that need their own file locks.
 
     This fixture copies the session-scoped project to a fresh temp
-    directory so each PER_NODE test gets its own ``.duckdb`` file with
+    directory so each PER_NODE test gets its own `.duckdb` file with
     no lock conflicts from the parent process.
     """
     project_dir = tmp_path / "dbt_project"
@@ -297,7 +302,7 @@ def per_node_dbt_project(dbt_project, tmp_path):
         f.unlink()
 
     # Pre-load seed data so tests that select only models (e.g.
-    # ``select="staging"``) find the underlying seed tables.
+    # `select="staging"`) find the underlying seed tables.
     # Run in a subprocess to avoid the parent process acquiring a
     # DuckDB file lock that would block PER_NODE subprocesses.
     import subprocess
@@ -325,29 +330,46 @@ def per_node_dbt_project(dbt_project, tmp_path):
     }
 
 
+@pytest.fixture
+def per_node_orchestrator(per_node_dbt_project):
+    """Factory fixture that creates a PrefectDbtOrchestrator for PER_NODE tests."""
+
+    def _factory(**kwargs):
+        settings = PrefectDbtSettings(
+            project_dir=per_node_dbt_project["project_dir"],
+            profiles_dir=per_node_dbt_project["profiles_dir"],
+        )
+        return PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=per_node_dbt_project["manifest_path"],
+            **kwargs,
+        )
+
+    return _factory
+
+
 class TestPerNodeIntegration:
     """Integration tests for PER_NODE execution mode against DuckDB.
 
-    All tests use ``concurrency=1`` because DuckDB's file-based storage
+    All tests use `concurrency=1` because DuckDB's file-based storage
     only supports a single writer at a time.  Without this, concurrent
-    ``dbt run`` invocations within the same wave would conflict on the
+    `dbt run` invocations within the same wave would conflict on the
     database write lock.  Production databases (Postgres, Snowflake, etc.)
     do not have this limitation.
     """
 
-    def test_per_node_full_build(self, per_node_dbt_project):
+    def test_per_node_full_build(self, per_node_orchestrator):
         """PER_NODE run_build() executes all 5 executable nodes successfully."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            per_node_dbt_project,
+        orch = per_node_orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -357,19 +379,18 @@ class TestPerNodeIntegration:
                 f"{node_id} failed: {result.get('error')}"
             )
 
-    def test_per_node_wave_ordering(self, per_node_dbt_project):
+    def test_per_node_wave_ordering(self, per_node_orchestrator):
         """PER_NODE builds respect wave ordering: seeds -> staging -> marts."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            per_node_dbt_project,
+        orch = per_node_orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -386,19 +407,18 @@ class TestPerNodeIntegration:
         assert seed_started <= staging_started
         assert staging_started <= mart_started
 
-    def test_per_node_with_select(self, per_node_dbt_project):
+    def test_per_node_with_select(self, per_node_orchestrator):
         """PER_NODE run_build(select='staging') returns only staging models."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            per_node_dbt_project,
+        orch = per_node_orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build(select="staging")
+            return orch.run_build(select="staging")
 
         results = test_flow()
 
@@ -406,19 +426,18 @@ class TestPerNodeIntegration:
         for result in results.values():
             assert result["status"] == "success"
 
-    def test_per_node_uses_correct_commands(self, per_node_dbt_project):
+    def test_per_node_uses_correct_commands(self, per_node_orchestrator):
         """PER_NODE uses 'seed' for seeds and 'run' for models."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            per_node_dbt_project,
+        orch = per_node_orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -430,19 +449,18 @@ class TestPerNodeIntegration:
         assert results[STG_ORDERS]["invocation"]["command"] == "run"
         assert results[CUSTOMER_SUMMARY]["invocation"]["command"] == "run"
 
-    def test_per_node_each_node_has_individual_timing(self, per_node_dbt_project):
+    def test_per_node_each_node_has_individual_timing(self, per_node_orchestrator):
         """Each node has its own timing, not shared with the wave."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            per_node_dbt_project,
+        orch = per_node_orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -455,36 +473,36 @@ class TestPerNodeIntegration:
             # Each node's invocation should list only its own unique_id
             assert result["invocation"]["args"] == [node_id]
 
-    def test_per_node_ephemeral_not_in_results(self, per_node_dbt_project):
+    def test_per_node_ephemeral_not_in_results(self, per_node_orchestrator):
         """Ephemeral models are not executed in PER_NODE mode."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            per_node_dbt_project,
+        orch = per_node_orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
         assert INT_ORDERS_ENRICHED not in results
 
-    def test_per_node_creates_database_objects(self, per_node_dbt_project):
+    def test_per_node_creates_database_objects(
+        self, per_node_orchestrator, per_node_dbt_project
+    ):
         """PER_NODE mode produces the same database objects as PER_WAVE."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            per_node_dbt_project,
+        orch = per_node_orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -506,7 +524,7 @@ class TestPerNodeIntegration:
         finally:
             conn.close()
 
-    def test_per_node_with_concurrency_limit(self, per_node_dbt_project):
+    def test_per_node_with_concurrency_limit(self, per_node_orchestrator):
         """PER_NODE with an explicit concurrency limit still succeeds.
 
         Uses concurrency=1 because DuckDB only supports a single writer.
@@ -514,15 +532,14 @@ class TestPerNodeIntegration:
         """
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            per_node_dbt_project,
+        orch = per_node_orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 

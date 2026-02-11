@@ -79,7 +79,7 @@ def pg_dbt_project(tmp_path_factory):
     """Set up a real dbt project with Postgres and a parsed manifest.
 
     Session-scoped: copies the test project to a temp directory, creates a
-    unique schema in Postgres, writes profiles.yml, and runs ``dbt parse``.
+    unique schema in Postgres, writes profiles.yml, and runs `dbt parse`.
     """
     schema_name = f"dbt_test_{uuid4().hex[:8]}"
     project_dir = tmp_path_factory.mktemp("dbt_project_pg")
@@ -149,34 +149,39 @@ def pg_dbt_project(tmp_path_factory):
         conn.close()
 
 
-def _make_orchestrator(pg_dbt_project, **kwargs):
-    settings = PrefectDbtSettings(
-        project_dir=pg_dbt_project["project_dir"],
-        profiles_dir=pg_dbt_project["profiles_dir"],
-    )
-    return PrefectDbtOrchestrator(
-        settings=settings,
-        manifest_path=pg_dbt_project["manifest_path"],
-        **kwargs,
-    )
+@pytest.fixture
+def orchestrator(pg_dbt_project):
+    """Factory fixture that creates a PrefectDbtOrchestrator for the Postgres project."""
+
+    def _factory(**kwargs):
+        settings = PrefectDbtSettings(
+            project_dir=pg_dbt_project["project_dir"],
+            profiles_dir=pg_dbt_project["profiles_dir"],
+        )
+        return PrefectDbtOrchestrator(
+            settings=settings,
+            manifest_path=pg_dbt_project["manifest_path"],
+            **kwargs,
+        )
+
+    return _factory
 
 
 class TestPerNodePostgresConcurrency:
     """Integration tests for PER_NODE mode with real concurrent execution on Postgres."""
 
-    def test_concurrent_full_build(self, pg_dbt_project):
+    def test_concurrent_full_build(self, orchestrator):
         """All 5 nodes succeed with concurrency=4."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            pg_dbt_project,
+        orch = orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=4,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -186,7 +191,7 @@ class TestPerNodePostgresConcurrency:
                 f"{node_id} failed: {result.get('error')}"
             )
 
-    def test_concurrent_nodes_overlap_in_time(self, pg_dbt_project):
+    def test_concurrent_nodes_overlap_in_time(self, orchestrator):
         """With concurrency=4, same-wave nodes show overlapping execution.
 
         We verify concurrency by checking that same-wave nodes have
@@ -197,15 +202,14 @@ class TestPerNodePostgresConcurrency:
 
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            pg_dbt_project,
+        orch = orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=4,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -234,7 +238,7 @@ class TestPerNodePostgresConcurrency:
             f"Staging timings: {results[STG_CUSTOMERS]['timing']} vs {results[STG_ORDERS]['timing']}"
         )
 
-    def test_concurrency_limit_serializes(self, pg_dbt_project):
+    def test_concurrency_limit_serializes(self, orchestrator):
         """With concurrency=1, within-wave nodes do not overlap.
 
         We verify serialization by checking that no two same-wave nodes
@@ -245,15 +249,14 @@ class TestPerNodePostgresConcurrency:
 
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            pg_dbt_project,
+        orch = orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=1,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -281,19 +284,18 @@ class TestPerNodePostgresConcurrency:
             f"Staging timings: {results[STG_CUSTOMERS]['timing']} vs {results[STG_ORDERS]['timing']}"
         )
 
-    def test_concurrent_creates_correct_data(self, pg_dbt_project):
+    def test_concurrent_creates_correct_data(self, orchestrator, pg_dbt_project):
         """Postgres has correct row counts and aggregation values after concurrent build."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            pg_dbt_project,
+        orch = orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=4,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
 
@@ -331,19 +333,18 @@ class TestPerNodePostgresConcurrency:
         finally:
             conn.close()
 
-    def test_per_node_ephemeral_not_in_results(self, pg_dbt_project):
+    def test_per_node_ephemeral_not_in_results(self, orchestrator):
         """Ephemeral models are not executed in PER_NODE mode."""
         from prefect import flow
 
-        orchestrator = _make_orchestrator(
-            pg_dbt_project,
+        orch = orchestrator(
             execution_mode=ExecutionMode.PER_NODE,
             concurrency=4,
         )
 
         @flow
         def test_flow():
-            return orchestrator.run_build()
+            return orch.run_build()
 
         results = test_flow()
         assert INT_ORDERS_ENRICHED not in results
