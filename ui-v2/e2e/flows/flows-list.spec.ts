@@ -44,7 +44,7 @@ test.describe("Flows List Page", () => {
 		}
 	});
 
-	test("FLOW-01 - Empty state when no flows exist", async ({ page }) => {
+	test("Empty state when no flows exist", async ({ page }) => {
 		await page.goto("/flows");
 
 		const emptyStateHeading = page.getByRole("heading", {
@@ -66,7 +66,7 @@ test.describe("Flows List Page", () => {
 		}
 	});
 
-	test("FLOW-02 - Flows list with name search", async ({ page, apiClient }) => {
+	test("Flows list with name search", async ({ page, apiClient }) => {
 		const flowName = `${TEST_PREFIX}search-${Date.now()}`;
 		await createFlow(apiClient, flowName);
 
@@ -83,7 +83,7 @@ test.describe("Flows List Page", () => {
 		await expect(page.getByRole("link", { name: flowName })).toBeVisible();
 	});
 
-	test("FLOW-02 - Tag filter", async ({ page, apiClient }) => {
+	test("Tag filter", async ({ page, apiClient }) => {
 		const flowName = `${TEST_PREFIX}tag-${Date.now()}`;
 		await createFlow(apiClient, { name: flowName, tags: ["e2e-tag-test"] });
 
@@ -104,10 +104,7 @@ test.describe("Flows List Page", () => {
 		});
 	});
 
-	test("FLOW-03 - Sort flows with URL persistence", async ({
-		page,
-		apiClient,
-	}) => {
+	test("Sort flows with URL persistence", async ({ page, apiClient }) => {
 		const flowName = `${TEST_PREFIX}sort-${Date.now()}`;
 		await createFlow(apiClient, flowName);
 
@@ -120,7 +117,7 @@ test.describe("Flows List Page", () => {
 		await expect(page).toHaveURL(/sort=NAME_DESC/);
 	});
 
-	test("FLOW-04 - Pagination", async ({ page, apiClient }) => {
+	test("Pagination", async ({ page, apiClient }) => {
 		const timestamp = Date.now();
 		for (let i = 0; i < 6; i++) {
 			await createFlow(
@@ -144,10 +141,7 @@ test.describe("Flows List Page", () => {
 		await expect(page.getByText(/Page 2 of/)).toBeVisible();
 	});
 
-	test("FLOW-05 - Navigate from list to flow detail", async ({
-		page,
-		apiClient,
-	}) => {
+	test("Navigate from list to flow detail", async ({ page, apiClient }) => {
 		const flowName = `${TEST_PREFIX}detail-${Date.now()}`;
 		const flow = await createFlow(apiClient, flowName);
 
@@ -164,7 +158,7 @@ test.describe("Flows List Page", () => {
 		await expect(page.getByText(flowName)).toBeVisible();
 	});
 
-	test("FLOW-09 - Deployment count in list", async ({ page, apiClient }) => {
+	test("Deployment count in list", async ({ page, apiClient }) => {
 		const flowName = `${TEST_PREFIX}deploy-${Date.now()}`;
 		const flow = await createFlow(apiClient, flowName);
 
