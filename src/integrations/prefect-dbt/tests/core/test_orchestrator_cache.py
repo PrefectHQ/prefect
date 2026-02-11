@@ -2,7 +2,7 @@
 
 import pickle
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from conftest import (
@@ -313,13 +313,63 @@ DIAMOND_WITH_FILES = {
     "sources": {},
 }
 
+DIAMOND_WITH_INDEPENDENT = {
+    "nodes": {
+        "model.test.root": {
+            "name": "root",
+            "resource_type": "model",
+            "depends_on": {"nodes": []},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/root.sql",
+        },
+        "model.test.left": {
+            "name": "left",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.root"]},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/left.sql",
+        },
+        "model.test.right": {
+            "name": "right",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.root"]},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/right.sql",
+        },
+        "model.test.leaf": {
+            "name": "leaf",
+            "resource_type": "model",
+            "depends_on": {"nodes": ["model.test.left", "model.test.right"]},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/leaf.sql",
+        },
+        "model.test.independent": {
+            "name": "independent",
+            "resource_type": "model",
+            "depends_on": {"nodes": []},
+            "config": {"materialized": "table"},
+            "original_file_path": "models/independent.sql",
+        },
+    },
+    "sources": {},
+}
+
 
 @pytest.fixture
 def cache_orch(tmp_path):
-    """Factory fixture for PER_NODE orchestrator with caching enabled.
+    """Factory fixture for PER_NODE orchestrator with caching and persistent storage.
 
-    Writes SQL files and manifest, returns (orchestrator, executor, project_dir).
+    Creates shared result_storage and cache_key_storage directories that
+    persist across calls within the same test, enabling cross-run cache tests.
+
+    Each call gets a unique project_dir but shares storage by default.
+    Returns (orchestrator, executor, project_dir).
     """
+    result_dir = tmp_path / "result_storage"
+    result_dir.mkdir()
+    key_dir = tmp_path / "cache_key_storage"
+    key_dir.mkdir()
+    call_count = [0]
 
     def _factory(
         manifest_data,
@@ -327,11 +377,13 @@ def cache_orch(tmp_path):
         *,
         executor=None,
         enable_caching=True,
+        result_storage=None,
+        cache_key_storage=None,
         **kwargs,
     ):
-        # Use tmp_path as project_dir so file hashing works
-        project_dir = tmp_path / "project"
+        project_dir = tmp_path / f"project_{call_count[0]}"
         project_dir.mkdir(exist_ok=True)
+        call_count[0] += 1
 
         if sql_files:
             write_sql_files(project_dir, sql_files)
@@ -347,6 +399,10 @@ def cache_orch(tmp_path):
             "execution_mode": ExecutionMode.PER_NODE,
             "task_runner_type": ThreadPoolTaskRunner,
             "enable_caching": enable_caching,
+            # result_storage must be a Path (not str) so Prefect creates a
+            # LocalFileSystem instead of trying Block.load() on a string.
+            "result_storage": result_storage or result_dir,
+            "cache_key_storage": cache_key_storage or str(key_dir),
         }
         defaults.update(kwargs)
         return PrefectDbtOrchestrator(**defaults), executor, project_dir
@@ -396,245 +452,115 @@ class TestOrchestratorCachingInit:
         assert orch._cache_key_storage == "/tmp/keys"
 
 
-class TestOrchestratorCachingExecution:
-    def test_caching_disabled_no_policy(self, cache_orch):
-        """When caching is disabled, with_options does not receive cache_policy."""
-        orch, executor, _ = cache_orch(
-            SINGLE_MODEL_WITH_FILE,
-            sql_files={"models/m1.sql": "SELECT 1"},
-            enable_caching=False,
-        )
+class TestOrchestratorCachingOutcomes:
+    """Outcome-based integration tests for cross-run caching.
+
+    These tests validate real caching behavior by running builds multiple
+    times and observing whether the executor is invoked (cache miss) or
+    skipped (cache hit).  No internals like ``with_options`` or
+    ``build_cache_policy_for_node`` are patched or inspected.
+    """
+
+    def test_second_run_skips_unchanged_nodes(self, cache_orch):
+        """Second run with identical files hits cache; executor is not invoked."""
+        sql_files = {"models/m1.sql": "SELECT 1"}
+        orch, executor, _ = cache_orch(SINGLE_MODEL_WITH_FILE, sql_files)
 
         @flow
-        def test_flow():
-            return orch.run_build()
+        def run_twice():
+            r1 = orch.run_build()
+            r2 = orch.run_build()
+            return r1, r2
 
-        # Patch to capture with_options kwargs
-        with patch(
-            "prefect_dbt.core._orchestrator.PrefectDbtOrchestrator._execute_per_node",
-            wraps=orch._execute_per_node,
-        ):
-            result = test_flow()
+        r1, r2 = run_twice()
 
-        assert result["model.test.m1"]["status"] == "success"
+        # Both runs return success
+        assert r1["model.test.m1"]["status"] == "success"
+        assert r2["model.test.m1"]["status"] == "success"
+        # Executor was only called once (first run); second was a cache hit
+        assert executor.execute_node.call_count == 1
 
-    def test_caching_enabled_sets_policy(self, cache_orch):
-        """When caching is enabled, tasks get a DbtNodeCachePolicy."""
-        orch, executor, _ = cache_orch(
-            SINGLE_MODEL_WITH_FILE,
-            sql_files={"models/m1.sql": "SELECT 1"},
-        )
-
-        @flow
-        def test_flow():
-            return orch.run_build()
-
-        with patch(
-            "prefect_dbt.core._cache.build_cache_policy_for_node",
-            wraps=build_cache_policy_for_node,
-        ) as mock_build:
-            result = test_flow()
-
-        assert result["model.test.m1"]["status"] == "success"
-        mock_build.assert_called_once()
-        call_kwargs = mock_build.call_args
-        assert call_kwargs[0][0].unique_id == "model.test.m1"  # node arg
-
-    def test_cache_expiration_forwarded(self, cache_orch):
-        """cache_expiration is stored and would be passed to with_options."""
-        orch, executor, _ = cache_orch(
-            SINGLE_MODEL_WITH_FILE,
-            sql_files={"models/m1.sql": "SELECT 1"},
-            cache_expiration=timedelta(hours=2),
-        )
-        assert orch._cache_expiration == timedelta(hours=2)
+    def test_cache_invalidates_downstream_on_root_change(self, cache_orch):
+        """Changing root SQL invalidates downstream nodes but not independent ones."""
+        sql_files = {
+            "models/root.sql": "SELECT 1",
+            "models/left.sql": "SELECT * FROM root",
+            "models/right.sql": "SELECT * FROM root",
+            "models/leaf.sql": "SELECT * FROM left JOIN right",
+            "models/independent.sql": "SELECT 42",
+        }
+        orch, executor, project_dir = cache_orch(DIAMOND_WITH_INDEPENDENT, sql_files)
 
         @flow
-        def test_flow():
-            return orch.run_build()
+        def run_then_change():
+            r1 = orch.run_build()
+            # Change root SQL to invalidate its cache key (and all downstream)
+            (project_dir / "models/root.sql").write_text("SELECT 2")
+            r2 = orch.run_build()
+            return r1, r2
 
-        result = test_flow()
-        assert result["model.test.m1"]["status"] == "success"
+        r1, r2 = run_then_change()
 
-    def test_result_storage_forwarded(self, cache_orch):
-        """result_storage is stored on the orchestrator."""
-        orch, executor, _ = cache_orch(
-            SINGLE_MODEL_WITH_FILE,
-            sql_files={"models/m1.sql": "SELECT 1"},
-            result_storage="/tmp/results",
-        )
-        assert orch._result_storage == "/tmp/results"
+        # All nodes succeed in both runs
+        for node_id in DIAMOND_WITH_INDEPENDENT["nodes"]:
+            assert r1[node_id]["status"] == "success"
+            assert r2[node_id]["status"] == "success"
 
-    def test_upstream_key_propagation(self, cache_orch):
-        """In a diamond graph, leaf's cache key depends on root's SQL content."""
+        # Run 1: 5 nodes executed.
+        # Run 2: 4 re-executed (root changed + downstream cascade),
+        #         independent cached.
+        # Total: 9
+        assert executor.execute_node.call_count == 9
+
+        # Verify independent was only executed once (cached on run 2)
+        executed_nodes = [
+            call.args[0].unique_id for call in executor.execute_node.call_args_list
+        ]
+        assert executed_nodes.count("model.test.independent") == 1
+
+    def test_full_refresh_bypasses_cache(self, cache_orch):
+        """full_refresh=True produces different cache keys, bypassing cache."""
+        sql_files = {"models/m1.sql": "SELECT 1"}
+        orch, executor, _ = cache_orch(SINGLE_MODEL_WITH_FILE, sql_files)
+
+        @flow
+        def run_then_refresh():
+            r1 = orch.run_build()
+            r2 = orch.run_build(full_refresh=True)
+            return r1, r2
+
+        r1, r2 = run_then_refresh()
+
+        assert r1["model.test.m1"]["status"] == "success"
+        assert r2["model.test.m1"]["status"] == "success"
+        # Both runs executed because full_refresh changes the cache key
+        assert executor.execute_node.call_count == 2
+
+    def test_cache_persists_across_orchestrator_instances(self, cache_orch):
+        """A new orchestrator instance reuses cached results from a prior run."""
         sql_files = {
             "models/root.sql": "SELECT 1",
             "models/left.sql": "SELECT * FROM root",
             "models/right.sql": "SELECT * FROM root",
             "models/leaf.sql": "SELECT * FROM left JOIN right",
         }
-        orch, executor, project_dir = cache_orch(DIAMOND_WITH_FILES, sql_files)
-
-        build_calls: list[tuple] = []
-
-        original_build = build_cache_policy_for_node
-
-        def _tracking_build(*args, **kwargs):
-            policy = original_build(*args, **kwargs)
-            build_calls.append((args[0].unique_id, dict(args[3])))
-            return policy
+        orch1, exec1, _ = cache_orch(DIAMOND_WITH_FILES, sql_files)
+        orch2, exec2, _ = cache_orch(DIAMOND_WITH_FILES, sql_files)
 
         @flow
-        def test_flow():
-            return orch.run_build()
+        def run_cross_instance():
+            r1 = orch1.run_build()
+            r2 = orch2.run_build()
+            return r1, r2
 
-        with patch(
-            "prefect_dbt.core._cache.build_cache_policy_for_node",
-            side_effect=_tracking_build,
-        ):
-            result = test_flow()
+        r1, r2 = run_cross_instance()
 
-        # All nodes should succeed
-        for nid in DIAMOND_WITH_FILES["nodes"]:
-            assert result[nid]["status"] == "success"
+        # Both runs return success for all nodes
+        for node_id in DIAMOND_WITH_FILES["nodes"]:
+            assert r1[node_id]["status"] == "success"
+            assert r2[node_id]["status"] == "success"
 
-        # Find the call for each node
-        calls_by_node = {node_id: upstream for node_id, upstream in build_calls}
-
-        # Root has no upstream keys
-        assert calls_by_node["model.test.root"] == {}
-
-        # Left and right have root's key
-        assert "model.test.root" in calls_by_node["model.test.left"]
-        assert "model.test.root" in calls_by_node["model.test.right"]
-
-        # Leaf has left and right's keys
-        assert "model.test.left" in calls_by_node["model.test.leaf"]
-        assert "model.test.right" in calls_by_node["model.test.leaf"]
-
-    def test_failed_node_key_not_propagated(self, cache_orch):
-        """Failed node's key is removed from computed_cache_keys."""
-        linear_with_files = {
-            "nodes": {
-                "model.test.a": {
-                    "name": "a",
-                    "resource_type": "model",
-                    "depends_on": {"nodes": []},
-                    "config": {"materialized": "table"},
-                    "original_file_path": "models/a.sql",
-                },
-                "model.test.b": {
-                    "name": "b",
-                    "resource_type": "model",
-                    "depends_on": {"nodes": ["model.test.a"]},
-                    "config": {"materialized": "table"},
-                    "original_file_path": "models/b.sql",
-                },
-            },
-            "sources": {},
-        }
-        sql_files = {
-            "models/a.sql": "SELECT 1",
-            "models/b.sql": "SELECT * FROM a",
-        }
-        orch, executor, _ = cache_orch(
-            linear_with_files,
-            sql_files,
-            executor_kwargs={
-                "fail_nodes": {"model.test.a"},
-                "error": RuntimeError("a failed"),
-            },
-        )
-
-        build_calls: dict[str, dict] = {}
-        original_build = build_cache_policy_for_node
-
-        def _tracking_build(*args, **kwargs):
-            policy = original_build(*args, **kwargs)
-            build_calls[args[0].unique_id] = dict(args[3])
-            return policy
-
-        @flow
-        def test_flow():
-            return orch.run_build()
-
-        with patch(
-            "prefect_dbt.core._cache.build_cache_policy_for_node",
-            side_effect=_tracking_build,
-        ):
-            result = test_flow()
-
-        assert result["model.test.a"]["status"] == "error"
-        assert result["model.test.b"]["status"] == "skipped"
-        # b was never built because it was skipped due to upstream failure,
-        # so its cache policy was never constructed
-        assert "model.test.b" not in build_calls
-
-    def test_upstream_key_changes_cascade(self, cache_orch):
-        """Changing root's SQL changes the entire chain of keys."""
-        sql_v1 = {
-            "models/root.sql": "SELECT 1",
-            "models/left.sql": "SELECT * FROM root",
-            "models/right.sql": "SELECT * FROM root",
-            "models/leaf.sql": "SELECT * FROM left JOIN right",
-        }
-        sql_v2 = {
-            "models/root.sql": "SELECT 2",  # changed!
-            "models/left.sql": "SELECT * FROM root",
-            "models/right.sql": "SELECT * FROM root",
-            "models/leaf.sql": "SELECT * FROM left JOIN right",
-        }
-
-        # First run
-        orch1, _, project_dir1 = cache_orch(DIAMOND_WITH_FILES, sql_v1)
-
-        keys_run1: dict[str, str] = {}
-        original_build = build_cache_policy_for_node
-
-        def _capture_keys_1(*args, **kwargs):
-            policy = original_build(*args, **kwargs)
-            key = policy.compute_key(None, {}, {})
-            if key:
-                keys_run1[args[0].unique_id] = key
-            return policy
-
-        @flow
-        def run1():
-            return orch1.run_build()
-
-        with patch(
-            "prefect_dbt.core._cache.build_cache_policy_for_node",
-            side_effect=_capture_keys_1,
-        ):
-            run1()
-
-        # Second run with changed root SQL
-        orch2, _, project_dir2 = cache_orch(DIAMOND_WITH_FILES, sql_v2)
-
-        keys_run2: dict[str, str] = {}
-
-        def _capture_keys_2(*args, **kwargs):
-            policy = original_build(*args, **kwargs)
-            key = policy.compute_key(None, {}, {})
-            if key:
-                keys_run2[args[0].unique_id] = key
-            return policy
-
-        @flow
-        def run2():
-            return orch2.run_build()
-
-        with patch(
-            "prefect_dbt.core._cache.build_cache_policy_for_node",
-            side_effect=_capture_keys_2,
-        ):
-            run2()
-
-        # Root's key should be different
-        assert keys_run1["model.test.root"] != keys_run2["model.test.root"]
-        # Left depends on root, so its key should also change
-        assert keys_run1["model.test.left"] != keys_run2["model.test.left"]
-        # Right too
-        assert keys_run1["model.test.right"] != keys_run2["model.test.right"]
-        # Leaf depends on both, so its key changes
-        assert keys_run1["model.test.leaf"] != keys_run2["model.test.leaf"]
+        # Instance 1 executed all nodes
+        assert exec1.execute_node.call_count == 4
+        # Instance 2 hit cache for all nodes
+        assert exec2.execute_node.call_count == 0
