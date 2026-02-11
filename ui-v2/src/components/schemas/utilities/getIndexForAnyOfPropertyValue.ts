@@ -1,4 +1,5 @@
 import type { SchemaObject } from "openapi-typescript";
+import { isPrefectKindValue } from "../types/prefect-kind-value";
 import {
 	isArray,
 	isDefined,
@@ -34,6 +35,13 @@ export function getIndexForAnyOfPropertyValue({
 	}
 
 	const definitions = getSchemaPropertyAnyOfDefinitions(property, schema);
+
+	if (isPrefectKindValue(valueOrDefaultValue)) {
+		const index = definitions.findIndex(
+			(definition) => !isDefined(definition.type),
+		);
+		return index >= 0 ? index : 0;
+	}
 
 	switch (typeof valueOrDefaultValue) {
 		case "string":

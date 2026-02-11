@@ -39,41 +39,6 @@ export function SchemaFormInput({
 	id,
 	nested = true,
 }: SchemaFormInputProps) {
-	if (isPrefectKindValue(value)) {
-		if (isPrefectKindValue(value, "json")) {
-			return (
-				<SchemaFormInputPrefectKindJson
-					value={value}
-					onValueChange={onValueChange}
-					id={id}
-				/>
-			);
-		}
-
-		if (isPrefectKindValue(value, "jinja")) {
-			return (
-				<SchemaFormInputPrefectKindJinja
-					value={value}
-					onValueChange={onValueChange}
-					id={id}
-				/>
-			);
-		}
-
-		if (isPrefectKindValue(value, "workspace_variable")) {
-			return (
-				<SchemaFormInputPrefectKindWorkspaceVariable
-					value={value}
-					onValueChange={onValueChange}
-					id={id}
-				/>
-			);
-		}
-
-		// @ts-expect-error This is an exhaustive check. If a prefect kind is not implemented this will get flaggged.
-		throw new Error(`Prefect kind not implemented: ${value.__prefect_kind}`);
-	}
-
 	if ("block_type_slug" in property) {
 		const blockTypeSlug = property.block_type_slug;
 		if (typeof blockTypeSlug === "string") {
@@ -136,6 +101,41 @@ export function SchemaFormInput({
 				errors={errors}
 			/>
 		);
+	}
+
+	if (isPrefectKindValue(value)) {
+		if (isPrefectKindValue(value, "json")) {
+			return (
+				<SchemaFormInputPrefectKindJson
+					value={value}
+					onValueChange={onValueChange}
+					id={id}
+				/>
+			);
+		}
+
+		if (isPrefectKindValue(value, "jinja")) {
+			return (
+				<SchemaFormInputPrefectKindJinja
+					value={value}
+					onValueChange={onValueChange}
+					id={id}
+				/>
+			);
+		}
+
+		if (isPrefectKindValue(value, "workspace_variable")) {
+			return (
+				<SchemaFormInputPrefectKindWorkspaceVariable
+					value={value}
+					onValueChange={onValueChange}
+					id={id}
+				/>
+			);
+		}
+
+		// @ts-expect-error This is an exhaustive check. If a prefect kind is not implemented this will get flaggged.
+		throw new Error(`Prefect kind not implemented: ${value.__prefect_kind}`);
 	}
 
 	if (isAllOfObject(property)) {
