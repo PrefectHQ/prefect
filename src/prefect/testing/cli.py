@@ -63,7 +63,7 @@ class CycloptsResult:
         self.stderr = stderr
         # Click's CliRunner merges stdout and stderr into one stream.
         # Match that behavior so ``result.output`` always contains both.
-        self.output = stdout + stderr
+        self.output: str = stdout + stderr
         self.exit_code = exit_code
         self.exception = exception
 

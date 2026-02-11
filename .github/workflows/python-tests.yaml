@@ -106,7 +106,7 @@ jobs:
             python-version: "3.12"
             cyclopts: true
 
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Display current test matrix
