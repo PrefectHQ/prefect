@@ -196,8 +196,8 @@ deployments:
     entrypoint: flows/s3_processor.py:process_files
     work_pool:
       name: my-work-pool
-    concurrency_limit: 1
-    concurrency_options:
+    concurrency_limit:
+      limit: 1
       collision_strategy: CANCEL_NEW
     triggers:
       - type: event
