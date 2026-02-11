@@ -38,9 +38,12 @@ jobs:
 
     steps:
       - name: Set version environment variables
+        env:
+          PREFECT_VERSION_INPUT: ${{ inputs.prefect_version || github.event.inputs.prefect_version }}
+          PREFECT_AWS_VERSION_INPUT: ${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}
         run: |
-          echo "PREFECT_VERSION=${{ inputs.prefect_version || github.event.inputs.prefect_version }}" >> $GITHUB_ENV
-          echo "PREFECT_AWS_VERSION=${{ inputs.prefect_aws_version || github.event.inputs.prefect_aws_version }}" >> $GITHUB_ENV
+          echo "PREFECT_VERSION=$PREFECT_VERSION_INPUT" >> $GITHUB_ENV
+          echo "PREFECT_AWS_VERSION=$PREFECT_AWS_VERSION_INPUT" >> $GITHUB_ENV
       
       - name: Checkout
         uses: actions/checkout@v6
