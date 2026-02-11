@@ -1,5 +1,5 @@
 import type { ObjectSubtype, SchemaObject } from "openapi-typescript";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
 import { Card } from "../ui/card";
 import { SchemaFormProperty } from "./schema-form-property";
@@ -18,6 +18,13 @@ export type SchemaFormInputObjectProps = {
 	nested: boolean;
 };
 
+function hasDefinedProperties(property: SchemaObject & ObjectSubtype): boolean {
+	return (
+		property.properties !== undefined &&
+		Object.keys(property.properties).length > 0
+	);
+}
+
 export function SchemaFormInputObject({
 	values,
 	onValuesChange,
@@ -25,7 +32,16 @@ export function SchemaFormInputObject({
 	errors,
 	nested,
 }: SchemaFormInputObjectProps) {
+	const isOpenObject = !hasDefinedProperties(property);
 	const patches = useRef<{ key: string; value: unknown }[]>([]);
+
+	useEffect(() => {
+		if (isOpenObject && nested && !values) {
+			onValuesChange({
+				__prefect_kind: "json",
+			} as Record<string, unknown>);
+		}
+	}, [isOpenObject, nested, values, onValuesChange]);
 
 	const flush = useDebounceCallback(
 		useCallback(() => {
@@ -51,6 +67,16 @@ export function SchemaFormInputObject({
 		10,
 	);
 
+	const properties = useMemo(() => {
+		return Object.entries(property.properties ?? {}).sort(([, a], [, b]) =>
+			sortByPropertyPosition(a, b),
+		);
+	}, [property.properties]);
+
+	if (isOpenObject && nested) {
+		return null;
+	}
+
 	function onPropertyValueChange(key: string, value: unknown) {
 		patches.current.push({ key, value });
 
@@ -67,12 +93,6 @@ export function SchemaFormInputObject({
 			.filter((error) => error.property === key)
 			.flatMap((error) => error.errors);
 	}
-
-	const properties = useMemo(() => {
-		return Object.entries(property.properties ?? {}).sort(([, a], [, b]) =>
-			sortByPropertyPosition(a, b),
-		);
-	}, [property.properties]);
 
 	const output = (
 		<div className="flex flex-col gap-4">

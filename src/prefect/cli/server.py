@@ -10,6 +10,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -35,6 +36,7 @@ from prefect.cli._server_utils import (
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import get_client
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
@@ -46,6 +48,7 @@ from prefect.settings import (
     PREFECT_SERVER_API_PORT,
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UI_ENABLED,
+    get_current_settings,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -67,6 +70,8 @@ server_app.add_typer(services_app)
 app.add_typer(server_app)
 
 logger: "logging.Logger" = get_logger(__name__)
+
+_monotonic = time.monotonic
 
 
 @server_app.command()
@@ -184,6 +189,108 @@ def start(
             no_services,
             workers,
         )
+
+
+@server_app.command()
+async def status(
+    wait: bool = typer.Option(
+        False,
+        "--wait",
+        help="Wait for the server to become available before returning.",
+    ),
+    timeout: int = typer.Option(
+        0,
+        "--timeout",
+        "-t",
+        help=(
+            "Maximum number of seconds to wait when using --wait. "
+            "A value of 0 means wait indefinitely."
+        ),
+    ),
+    output: str | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
+    """Check the status of the Prefect server."""
+    import json as json_mod
+
+    if output is not None and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
+
+    is_json = output is not None
+
+    api_url = get_current_settings().api.url
+    if api_url is None:
+        exit_with_error(
+            "No API URL configured. Set PREFECT_API_URL to the address of your server."
+        )
+
+    if not is_json:
+        app.console.print(f"Connecting to server at {api_url}...")
+
+    start_time = _monotonic()
+
+    async with get_client() as client:
+        while True:
+            healthcheck_exc = await client.api_healthcheck()
+
+            elapsed = _monotonic() - start_time
+            deadline_exceeded = wait and timeout > 0 and elapsed >= timeout
+
+            if deadline_exceeded and healthcheck_exc is not None:
+                result: dict[str, object] = {
+                    "status": "timed_out",
+                    "api_url": api_url,
+                    "timeout": timeout,
+                    "error": str(healthcheck_exc),
+                }
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                    raise typer.Exit(1)
+                exit_with_error(
+                    f"Timed out after {timeout} seconds waiting for server "
+                    f"at {api_url}."
+                )
+
+            if healthcheck_exc is None:
+                try:
+                    server_version = await client.api_version()
+                except Exception:
+                    server_version = None
+
+                result = {
+                    "status": "available",
+                    "api_url": api_url,
+                }
+                if server_version is not None:
+                    result["server_version"] = server_version
+
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                else:
+                    app.console.print("Server is available.")
+                    app.console.print(f"  API URL: {api_url}")
+                    if server_version is not None:
+                        app.console.print(f"  Server version: {server_version}")
+                return
+
+            if not wait:
+                result = {
+                    "status": "unavailable",
+                    "api_url": api_url,
+                    "error": str(healthcheck_exc),
+                }
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                    raise typer.Exit(1)
+                exit_with_error(
+                    f"Server is not available at {api_url}. Error: {healthcheck_exc}"
+                )
+
+            await asyncio.sleep(1)
 
 
 @server_app.command()

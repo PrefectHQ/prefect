@@ -36,7 +36,13 @@ export {
 	type FlowRun,
 	listFlowRuns,
 } from "./flow-runs";
-export { createFlow, type Flow } from "./flows";
+export {
+	cleanupFlows,
+	createFlow,
+	deleteFlow,
+	type Flow,
+	listFlows,
+} from "./flows";
 export { waitForServerHealth } from "./server";
 export {
 	cleanupVariables,

@@ -493,8 +493,9 @@ class PrefectDbtOrchestrator:
         Args:
             settings: PrefectDbtSettings for dbt Core executor
             manifest_path: Override path to manifest.json
-            concurrency: Either a string (name of existing global limit) or int (creates
-                ephemeral limit for this run). E.g., "dbt-warehouse" or 4.
+            concurrency: Either a string (name of existing Prefect global concurrency
+                limit) or int (sets max_workers on ProcessPoolTaskRunner). E.g.,
+                "dbt-warehouse" or 4.
             threads: dbt --threads for parallelism within each node
             enable_caching: Whether to enable per-node caching (cross-run by default)
             cache_expiration: How long cached results remain valid (default: 1 day)
@@ -615,13 +616,18 @@ def resolve_selection(
 
 | Mode | Overhead | Best For |
 |------|----------|----------|
-| **PER_NODE** | Higher (one dbt process per node) | Production runs where retries/caching matter, DAGs with flaky nodes |
-| **PER_WAVE** | Lower (one dbt process per wave) | CI/CD pipelines, dev iterations, stable DAGs where failures are rare |
+| **PER_NODE** | Higher (one dbt invocation per node in a subprocess pool) | Production runs where retries/caching matter, DAGs with flaky nodes |
+| **PER_WAVE** | Lower (one dbt invocation per wave, in-process) | CI/CD pipelines, dev iterations, stable DAGs where failures are rare |
+
+**PER_NODE overhead details:**
+- Each node is a separate `dbtRunner.invoke()` call in a subprocess. The `ProcessPoolTaskRunner` reuses worker processes across tasks (import cost is paid once per worker, not once per node), but dbt's `adapter_management()` calls `reset_adapters()` on each invoke, so each node still pays manifest parse + adapter registration cost.
+- This is the same trade-off made by Astronomer Cosmos's LOCAL execution mode, where each Airflow task runs dbt in a separate worker process for adapter registry isolation.
+- Users who want maximum speed without per-node control should use `PrefectDbtRunner` (single `dbt build` with callbacks, analogous to Cosmos's WATCHER mode) or PER_WAVE mode.
 
 **Rules of thumb:**
-- Start with PER_NODE (the default) for correctness and observability
-- Switch to PER_WAVE if you have >50 nodes and process startup overhead becomes noticeable
-- PER_WAVE is ~2-5x faster for large DAGs but loses per-node retry granularity
+- Start with PER_WAVE (the default) for speed
+- Switch to PER_NODE when you need per-node retries, per-node concurrency control, or fine-grained failure isolation
+- PER_WAVE is significantly faster for large DAGs but loses per-node retry granularity
 - For CI, PER_WAVE + `state:modified+` selector is typically the fastest option
 
 ## Result Object Contract
@@ -1013,7 +1019,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 5: Per-Node Execution Mode
+### Phase 5: Per-Node Execution Mode ✅
+
+**Status**: Complete — [PR #20608](https://github.com/PrefectHQ/prefect/pull/20608)
 
 **PR Scope**: Add PER_NODE execution with retries.
 
@@ -1032,6 +1040,24 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Failed node retries independently
 - Concurrency limits respected
 - Downstream nodes skip when upstream fails
+
+**Implementation notes**:
+- **`ExecutionMode` class** — Added as a simple namespace class (not an enum) with `PER_WAVE` and `PER_NODE` string constants, consistent with the plan's `ExecutionMode` interface.
+- **`_NODE_COMMAND` mapping** — Maps `NodeType.Model → "run"`, `NodeType.Seed → "seed"`, `NodeType.Snapshot → "snapshot"`. In PER_NODE mode each node is executed with its specific dbt command rather than `dbt build`.
+- **`_DbtNodeError` exception** — Raised inside Prefect task functions to trigger Prefect's built-in retry mechanism. Carries `execution_result`, `timing`, and `invocation` data so the orchestrator can build a proper error result after all retries are exhausted.
+- **Process-based execution via `ProcessPoolTaskRunner`** — Each node runs in its own OS process via Prefect's `ProcessPoolTaskRunner`. This gives each subprocess its own dbt adapter registry (`FACTORY` singleton), eliminating the shared mutable state that caused race conditions with dbt's `adapter_management()` context manager. This is the same isolation strategy used by Astronomer Cosmos's LOCAL execution mode, where each Airflow task runs in a separate worker process. The original implementation used threads with `threading.Semaphore` and a monkey-patch of `adapter_management` to prevent `reset_adapters()` from racing across threads. The process approach trades some startup overhead (each subprocess reimports dbt-core, re-parses the manifest, and re-registers adapters) for correctness without patching dbt internals. `ProcessPoolExecutor` reuses worker processes across tasks within a wave, so import cost is paid once per worker, not once per node.
+- **Concurrency control** — Integer concurrency values set `max_workers` on the `ProcessPoolTaskRunner`. When no integer is provided, `max_workers` defaults to the size of the largest wave. Named string limits use `prefect.concurrency.sync.concurrency` context manager inside the task function, lazily imported only when needed.
+- **Pickle safety** — Since tasks cross process boundaries, all data must be picklable. dbt exceptions often aren't (they carry unpicklable references to dbt internals), so `_DbtNodeError` converts `result.error` to a `RuntimeError(str(...))` before raising. The `DbtCoreExecutor` and its `PrefectDbtSettings` (a Pydantic model) are naturally picklable.
+- **Removed `warm_up_manifest()` and `_patch_adapter_management()`** — Both were workarounds for thread-based execution. `warm_up_manifest()` cached the dbt manifest to avoid concurrent `parse_manifest()` calls across threads; `_patch_adapter_management()` replaced dbt's `adapter_management` context manager with a no-op to prevent `reset_adapters()` from clearing adapters used by concurrent threads. Neither is needed with process isolation since each subprocess has its own adapter registry and manifest state.
+- **Prefect task creation** — A single `@prefect_task`-decorated `run_dbt_node` function is defined once, then customized per node via `.with_options(name=..., retries=..., retry_delay_seconds=...)`. Tasks are submitted via `runner.submit(node_task, parameters={...})`.
+- **Wave-by-wave execution** — Waves are processed sequentially. Within each wave, nodes are submitted concurrently to the process pool. Failed nodes are tracked in a `failed_nodes` set; downstream nodes in later waves check this set and are marked `skipped` with `reason="upstream failure"`.
+- **Refactored `run_build()`** — Extracted existing wave logic into `_execute_per_wave()` and added `_execute_per_node()`. `run_build()` dispatches based on `self._execution_mode`.
+- **Unit test strategy** — Unit tests use `MagicMock` executors that aren't picklable, so they can't run in real subprocesses. An autouse fixture replaces `ProcessPoolTaskRunner` with `_ThreadDelegatingRunner`, a lightweight stand-in that delegates `runner.submit()` to `task.submit()` (Prefect's default thread-based execution). This lets all existing mock-based tests work unchanged while production code uses real subprocesses.
+- **DuckDB integration test isolation** — DuckDB's single-writer file lock prevents concurrent subprocess access to the same `.duckdb` file. PER_WAVE tests (which run first in the session) acquire a file lock in the parent process that persists via dbt's adapter registry. A function-scoped `per_node_dbt_project` fixture copies the session project to a fresh temp directory, rewrites `profiles.yml` to point at a new DuckDB file, and pre-seeds data via `subprocess.run()` (not in-process, which would acquire a parent-process lock). Each PER_NODE test gets its own isolated DuckDB file with no lock conflicts.
+- **Postgres concurrency tests** — A separate integration test module (`test_orchestrator_postgres_integration.py`) validates real concurrent execution with `concurrency=4` against a Dockerized Postgres instance. These tests confirm that multiple subprocesses can write concurrently without lock conflicts, validating the production use case that DuckDB can't exercise.
+- **Performance comparison tests** — Deferred. DuckDB's single-writer limitation prevents meaningful concurrent execution benchmarks. The Postgres integration tests validate concurrent correctness. Unit tests verify `max_workers` is set correctly.
+- **Comparison with existing `PrefectDbtRunner`** — The `PrefectDbtRunner` (and Cosmos's WATCHER mode) use a single `dbtRunner.invoke()` call with callbacks to create Prefect tasks that observe dbt's internal execution. The `PrefectDbtOrchestrator` with PER_NODE mode takes the opposite approach: Prefect controls execution of each node individually, enabling per-node retries and concurrency control that dbt's internal threading doesn't offer. Users who want speed without per-node control already have `PrefectDbtRunner` or PER_WAVE mode.
+- New symbols (`ExecutionMode`, `PrefectDbtOrchestrator`) are not exported from `prefect_dbt.core.__init__` — the orchestrator remains accessible via the private `prefect_dbt.core._orchestrator` path. Public API exposure deferred to a later phase.
 
 ---
 
