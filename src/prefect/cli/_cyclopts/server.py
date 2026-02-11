@@ -34,6 +34,76 @@ server_app.command(database_app)
 server_app.command(services_app)
 
 
+def _validate_multi_worker(workers: int) -> None:
+    """Validate configuration for multi-worker mode.
+
+    Mirrors prefect.cli.server._validate_multi_worker but uses the cyclopts
+    exit_with_error so output goes through the correct console.
+    """
+    import textwrap
+
+    from prefect.server.utilities.database import get_dialect
+    from prefect.settings import get_current_settings
+
+    if workers == 1:
+        return
+
+    if workers < 1:
+        exit_with_error("Number of workers must be >= 1")
+
+    settings = get_current_settings()
+
+    try:
+        dialect = get_dialect(
+            settings.server.database.connection_url.get_secret_value()
+        )
+    except Exception as e:
+        exit_with_error(f"Unable to validate database configuration: {e}")
+
+    if dialect.name != "postgresql":
+        exit_with_error(
+            "Multi-worker mode (--workers > 1) is not supported with SQLite database."
+        )
+
+    try:
+        messaging_cache = settings.server.events.messaging_cache
+        messaging_broker = settings.server.events.messaging_broker
+        causal_ordering = settings.server.events.causal_ordering
+        lease_storage = settings.server.concurrency.lease_storage
+    except Exception as e:
+        exit_with_error(f"Unable to validate messaging configuration: {e}")
+
+    if (
+        messaging_cache == "prefect.server.utilities.messaging.memory"
+        or messaging_broker == "prefect.server.utilities.messaging.memory"
+        or causal_ordering == "prefect.server.events.ordering.memory"
+        or lease_storage == "prefect.server.concurrency.lease_storage.memory"
+    ):
+        error_message = textwrap.dedent(
+            """
+            Multi-worker mode (--workers > 1) requires Redis for messaging and lease storage.
+
+            Please configure the following settings to use Redis:
+
+                prefect config set PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
+                prefect config set PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+                prefect config set PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
+                prefect config set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
+
+            You'll also need to configure your Redis connection:
+
+                export PREFECT_REDIS_MESSAGING_HOST="your-redis-host"
+                export PREFECT_REDIS_MESSAGING_PORT="6379"
+                export PREFECT_REDIS_MESSAGING_DB="0"
+
+            For complete setup instructions, see:
+            https://docs.prefect.io/v3/how-to-guides/self-hosted/server-cli#multi-worker-api-server
+            https://docs.prefect.io/v3/advanced/self-hosted#redis-setup
+            """
+        ).strip()
+        exit_with_error(error_message)
+
+
 @server_app.command()
 @with_cli_exception_handling
 def start(
@@ -115,7 +185,6 @@ def start(
         _format_host_for_url,
         _run_in_background,
         _run_in_foreground,
-        _validate_multi_worker,
         generate_welcome_blurb,
         is_interactive,
         prestart_check,

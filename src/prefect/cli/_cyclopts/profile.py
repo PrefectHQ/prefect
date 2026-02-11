@@ -15,9 +15,9 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.table import Table
 
+import prefect.cli._cyclopts as _cli
 import prefect.context
 import prefect.settings
-from prefect.cli._cyclopts import console, is_interactive
 from prefect.cli._cyclopts._utilities import (
     exit_with_error,
     exit_with_success,
@@ -54,7 +54,7 @@ def ls():
             table.add_row(f"[green]  * {name}[/green]")
         else:
             table.add_row(f"  {name}")
-    console.print(table)
+    _cli.console.print(table)
 
 
 @profile_app.command()
@@ -72,7 +72,7 @@ def create(
     """
     profiles = prefect.settings.load_profiles(include_defaults=False)
     if name in profiles:
-        console.print(
+        _cli.console.print(
             textwrap.dedent(
                 f"""
                 [red]Profile {name!r} already exists.[/red]
@@ -94,7 +94,7 @@ def create(
 
     prefect.settings.save_profiles(profiles)
 
-    console.print(
+    _cli.console.print(
         textwrap.dedent(
             f"""
             Created profile with properties:
@@ -199,10 +199,10 @@ def delete(name: str):
             f"Profile {name!r} is the active profile. You must switch profiles before"
             " it can be deleted."
         )
-    if is_interactive():
+    if _cli.is_interactive():
         if not Confirm.ask(
             f"Are you sure you want to delete profile with name {name!r}?",
-            console=console,
+            console=_cli.console,
             default=False,
         ):
             exit_with_error("Deletion aborted.")
@@ -232,7 +232,7 @@ def rename(name: str, new_name: str):
     if profiles.active_name == name:
         profiles.set_active(new_name)
     if os.environ.get("PREFECT_PROFILE") == name:
-        console.print(
+        _cli.console.print(
             f"You have set your current profile to {name!r} with the "
             "PREFECT_PROFILE environment variable. You must update this variable to "
             f"{new_name!r} to continue using the profile."
@@ -277,7 +277,7 @@ def inspect(
 
     if not profiles[name].settings:
         if output and output.lower() == "json":
-            console.print("{}")
+            _cli.console.print("{}")
         else:
             print(f"Profile {name!r} is empty.")
         return
@@ -287,10 +287,10 @@ def inspect(
             setting.name: value for setting, value in profiles[name].settings.items()
         }
         json_output = orjson.dumps(profile_data, option=orjson.OPT_INDENT_2).decode()
-        console.print(json_output)
+        _cli.console.print(json_output)
     else:
         for setting, value in profiles[name].settings.items():
-            console.print(f"{setting.name}='{value}'")
+            _cli.console.print(f"{setting.name}='{value}'")
 
 
 @profile_app.command(name="populate-defaults")
@@ -309,26 +309,26 @@ def populate_defaults():
         if not _show_profile_changes(user_profiles, default_profiles):
             return
 
-        if is_interactive():
+        if _cli.is_interactive():
             if Confirm.ask(
                 f"\nBack up existing profiles to {user_path}.bak?",
-                console=console,
+                console=_cli.console,
             ):
                 shutil.copy(user_path, f"{user_path}.bak")
-                console.print(f"Profiles backed up to {user_path}.bak")
+                _cli.console.print(f"Profiles backed up to {user_path}.bak")
     else:
         user_profiles = ProfilesCollection([])
-        console.print(
+        _cli.console.print(
             "\n[bold]Creating new profiles file with default profiles.[/bold]"
         )
         _show_profile_changes(user_profiles, default_profiles)
 
-    if is_interactive():
+    if _cli.is_interactive():
         if not Confirm.ask(
             f"\nUpdate profiles at {user_path}?",
-            console=console,
+            console=_cli.console,
         ):
-            console.print("Operation cancelled.")
+            _cli.console.print("Operation cancelled.")
             return
 
     for name, profile in default_profiles.items():
@@ -336,13 +336,13 @@ def populate_defaults():
             user_profiles.add_profile(profile)
 
     _write_profiles_to(user_path, user_profiles)
-    console.print(f"\nProfiles updated in [green]{user_path}[/green]")
-    console.print(
+    _cli.console.print(f"\nProfiles updated in [green]{user_path}[/green]")
+    _cli.console.print(
         "\nUse with [green]prefect profile use[/green] [blue][PROFILE-NAME][/blue]"
     )
-    console.print("\nAvailable profiles:")
+    _cli.console.print("\nAvailable profiles:")
     for name in user_profiles.names:
-        console.print(f"  - {name}")
+        _cli.console.print(f"  - {name}")
 
 
 def _show_profile_changes(user_profiles, default_profiles) -> bool:
@@ -354,12 +354,14 @@ def _show_profile_changes(user_profiles, default_profiles) -> bool:
             changes.append(("add", name))
 
     if not changes:
-        console.print("[green]No changes needed. All profiles are up to date.[/green]")
+        _cli.console.print(
+            "[green]No changes needed. All profiles are up to date.[/green]"
+        )
         return False
 
-    console.print("\n[bold cyan]Proposed Changes:[/bold cyan]")
+    _cli.console.print("\n[bold cyan]Proposed Changes:[/bold cyan]")
     for change in changes:
         if change[0] == "add":
-            console.print(f"  [blue]\u2022[/blue] Add '{change[1]}'")
+            _cli.console.print(f"  [blue]\u2022[/blue] Add '{change[1]}'")
 
     return True
