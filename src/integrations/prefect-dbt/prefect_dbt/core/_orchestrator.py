@@ -387,10 +387,18 @@ class PrefectDbtOrchestrator:
         build_result = self._build_node_result
 
         # Compute max_workers for the process pool.
+        largest_wave = max((len(wave.nodes) for wave in waves), default=1)
         if isinstance(self._concurrency, int):
             max_workers = self._concurrency
+        elif isinstance(self._concurrency, str):
+            # Named concurrency limit: the server-side limit throttles
+            # execution, so clamp the pool to avoid spawning an excessive
+            # number of idle processes on large DAGs.
+            import os
+
+            max_workers = min(largest_wave, os.cpu_count() or 4)
         else:
-            max_workers = max((len(wave.nodes) for wave in waves), default=1)
+            max_workers = largest_wave
 
         # Define the task function once; .with_options() customizes per node.
         @prefect_task

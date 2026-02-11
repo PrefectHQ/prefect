@@ -187,13 +187,11 @@ class TestPerNodePostgresConcurrency:
             )
 
     def test_concurrent_nodes_overlap_in_time(self, pg_dbt_project):
-        """With concurrency=4, same-wave nodes finish near-simultaneously.
+        """With concurrency=4, same-wave nodes show overlapping execution.
 
-        The orchestrator records ``started_at`` before semaphore acquisition,
-        so overlap-based checks are vacuous.  Instead we verify concurrency
-        via ``completed_at`` spread: concurrent nodes finish near the same
-        time, so the spread of ``completed_at`` within a wave should be
-        small relative to each node's execution time.
+        We verify concurrency by checking that same-wave nodes have
+        overlapping [started_at, completed_at] intervals.  Two nodes
+        overlap if one started before the other finished.
         """
         from datetime import datetime
 
@@ -211,38 +209,37 @@ class TestPerNodePostgresConcurrency:
 
         results = test_flow()
 
-        def _completion_spread_is_concurrent(node_ids):
-            """Check if nodes finished near-simultaneously (concurrent)."""
+        def _intervals_overlap(node_ids):
+            """Check if any pair of nodes has overlapping execution intervals."""
             timings = [results[nid]["timing"] for nid in node_ids]
-            ends = sorted(datetime.fromisoformat(t["completed_at"]) for t in timings)
-            durations = [t["duration_seconds"] for t in timings]
-            spread = (ends[-1] - ends[0]).total_seconds()
-            min_duration = min(durations)
-            # Concurrent: spread is small relative to each node's duration
-            return spread < min_duration * 0.5
+            intervals = [
+                (
+                    datetime.fromisoformat(t["started_at"]),
+                    datetime.fromisoformat(t["completed_at"]),
+                )
+                for t in timings
+            ]
+            for i, (s1, e1) in enumerate(intervals):
+                for s2, e2 in intervals[i + 1 :]:
+                    if s1 < e2 and s2 < e1:
+                        return True
+            return False
 
-        seeds_concurrent = _completion_spread_is_concurrent(
-            [SEED_CUSTOMERS, SEED_ORDERS]
-        )
-        staging_concurrent = _completion_spread_is_concurrent(
-            [STG_CUSTOMERS, STG_ORDERS]
-        )
+        seeds_concurrent = _intervals_overlap([SEED_CUSTOMERS, SEED_ORDERS])
+        staging_concurrent = _intervals_overlap([STG_CUSTOMERS, STG_ORDERS])
 
         assert seeds_concurrent or staging_concurrent, (
-            "Expected at least one pair of same-wave nodes to execute concurrently. "
+            "Expected at least one pair of same-wave nodes to have overlapping execution. "
             f"Seed timings: {results[SEED_CUSTOMERS]['timing']} vs {results[SEED_ORDERS]['timing']}, "
             f"Staging timings: {results[STG_CUSTOMERS]['timing']} vs {results[STG_ORDERS]['timing']}"
         )
 
     def test_concurrency_limit_serializes(self, pg_dbt_project):
-        """With concurrency=1, within-wave nodes complete sequentially.
+        """With concurrency=1, within-wave nodes do not overlap.
 
-        The orchestrator records ``started_at`` before semaphore acquisition,
-        so within a wave all tasks share nearly identical ``started_at``
-        values.  Instead we verify serialization via ``completed_at`` spread:
-        with serial execution the spread equals the execution time of all but
-        the first node (>= 50 ms each), whereas parallel execution produces
-        near-identical ``completed_at`` values.
+        We verify serialization by checking that no two same-wave nodes
+        have overlapping [started_at, completed_at] intervals.  With
+        concurrency=1, each node must complete before the next starts.
         """
         from datetime import datetime
 
@@ -260,35 +257,28 @@ class TestPerNodePostgresConcurrency:
 
         results = test_flow()
 
-        # Within each multi-node wave, serial execution means the spread of
-        # completed_at values equals the execution time of all but the first
-        # node.  Each dbt command against Postgres takes at least ~50 ms, so
-        # the spread should be substantial.  With parallel execution
-        # (concurrency=4), same-wave nodes complete within a few ms of each
-        # other.
-        seed_ends = sorted(
-            [
-                datetime.fromisoformat(
-                    results[SEED_CUSTOMERS]["timing"]["completed_at"]
-                ),
-                datetime.fromisoformat(results[SEED_ORDERS]["timing"]["completed_at"]),
-            ]
-        )
-        stg_ends = sorted(
-            [
-                datetime.fromisoformat(
-                    results[STG_CUSTOMERS]["timing"]["completed_at"]
-                ),
-                datetime.fromisoformat(results[STG_ORDERS]["timing"]["completed_at"]),
-            ]
-        )
+        def _no_overlap(node_ids):
+            """Check that no pair of nodes has overlapping execution."""
+            timings = [results[nid]["timing"] for nid in node_ids]
+            intervals = sorted(
+                (
+                    datetime.fromisoformat(t["started_at"]),
+                    datetime.fromisoformat(t["completed_at"]),
+                )
+                for t in timings
+            )
+            for i in range(len(intervals) - 1):
+                if intervals[i][1] > intervals[i + 1][0]:
+                    return False
+            return True
 
-        seed_spread = (seed_ends[1] - seed_ends[0]).total_seconds()
-        stg_spread = (stg_ends[1] - stg_ends[0]).total_seconds()
+        seed_serial = _no_overlap([SEED_CUSTOMERS, SEED_ORDERS])
+        stg_serial = _no_overlap([STG_CUSTOMERS, STG_ORDERS])
 
-        assert seed_spread > 0.05 or stg_spread > 0.05, (
-            f"Expected serial execution to spread completion times within waves. "
-            f"Seed spread: {seed_spread:.3f}s, staging spread: {stg_spread:.3f}s"
+        assert seed_serial and stg_serial, (
+            f"Expected serial execution (no overlap) within waves. "
+            f"Seed timings: {results[SEED_CUSTOMERS]['timing']} vs {results[SEED_ORDERS]['timing']}, "
+            f"Staging timings: {results[STG_CUSTOMERS]['timing']} vs {results[STG_ORDERS]['timing']}"
         )
 
     def test_concurrent_creates_correct_data(self, pg_dbt_project):
