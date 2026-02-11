@@ -259,16 +259,15 @@ describe("property.type", () => {
 				vi.runAllTimers();
 			});
 
-			const calls = spy.mock.calls.map(
-				(call: [Record<string, unknown>]) => call[0],
-			);
-			const hasJsonKind = calls.some(
-				(val: Record<string, unknown>) =>
-					val.config !== undefined &&
+			const hasJsonKind = spy.mock.calls.some((call: unknown[]) => {
+				const val = call[0] as Record<string, unknown> | undefined;
+				return (
+					val?.config !== undefined &&
 					typeof val.config === "object" &&
 					val.config !== null &&
-					"__prefect_kind" in val.config,
-			);
+					"__prefect_kind" in val.config
+				);
+			});
 			expect(hasJsonKind).toBe(false);
 		});
 	});
