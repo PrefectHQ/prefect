@@ -65,7 +65,9 @@ export async function cleanupGlobalConcurrencyLimits(
 	const limits = await listGlobalConcurrencyLimits(client);
 	const toDelete = limits.filter((l) => l.name.startsWith(namePrefix));
 	await Promise.all(
-		toDelete.map((l) => deleteGlobalConcurrencyLimit(client, l.id)),
+		toDelete.map((l) =>
+			deleteGlobalConcurrencyLimit(client, l.id).catch(() => {}),
+		),
 	);
 }
 
@@ -119,6 +121,8 @@ export async function cleanupTaskRunConcurrencyLimits(
 	const limits = await listTaskRunConcurrencyLimits(client);
 	const toDelete = limits.filter((l) => l.tag.startsWith(tagPrefix));
 	await Promise.all(
-		toDelete.map((l) => deleteTaskRunConcurrencyLimit(client, l.id)),
+		toDelete.map((l) =>
+			deleteTaskRunConcurrencyLimit(client, l.id).catch(() => {}),
+		),
 	);
 }
