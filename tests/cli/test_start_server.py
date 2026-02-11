@@ -184,6 +184,10 @@ class TestMultipleWorkerServer:
                 expected_code=1,
             )
 
+    @pytest.mark.skipif(
+        os.environ.get("PREFECT_CLI_FAST") == "1",
+        reason="TODO: patch target differs under cyclopts",
+    )
     @patch("prefect.cli.server._validate_multi_worker")
     async def test_multi_worker_in_background(
         self,
