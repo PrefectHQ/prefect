@@ -7,7 +7,7 @@ This module provides:
 """
 
 from contextlib import nullcontext
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional, Union
@@ -98,6 +98,13 @@ class PrefectDbtOrchestrator:
             ProcessPoolTaskRunner used for parallel node execution.
         task_runner_type: Task runner class to use for PER_NODE execution.
             Defaults to `ProcessPoolTaskRunner`.
+        enable_caching: Enable cross-run caching for PER_NODE mode.  When
+            True, unchanged nodes are skipped on subsequent runs.  Only
+            supported with ``execution_mode=ExecutionMode.PER_NODE``.
+        cache_expiration: How long cached results remain valid.
+        result_storage: Where to persist task results (required for
+            caching to work across process restarts).
+        cache_key_storage: Where to persist cache keys.
 
     Example::
 
@@ -126,6 +133,10 @@ class PrefectDbtOrchestrator:
         retry_delay_seconds: int = 30,
         concurrency: Optional[Union[str, int]] = None,
         task_runner_type: Optional[type] = None,
+        enable_caching: bool = False,
+        cache_expiration: Optional[timedelta] = None,
+        result_storage: Optional[Union[Any, str, Path]] = None,
+        cache_key_storage: Optional[Union[Any, str, Path]] = None,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
@@ -140,6 +151,16 @@ class PrefectDbtOrchestrator:
         self._retry_delay_seconds = retry_delay_seconds
         self._concurrency = concurrency
         self._task_runner_type = task_runner_type
+        self._enable_caching = enable_caching
+        self._cache_expiration = cache_expiration
+        self._result_storage = result_storage
+        self._cache_key_storage = cache_key_storage
+
+        if enable_caching and self._execution_mode != ExecutionMode.PER_NODE:
+            raise ValueError(
+                "Caching is only supported in PER_NODE execution mode. "
+                "Set execution_mode=ExecutionMode.PER_NODE to use caching."
+            )
 
         # When the caller provides an explicit manifest_path that lives
         # outside the default target dir, align settings.target_path so
@@ -375,6 +396,41 @@ class PrefectDbtOrchestrator:
     # PER_NODE execution
     # ------------------------------------------------------------------
 
+    def _build_cache_options_for_node(self, node, full_refresh, computed_cache_keys):
+        """Build cache-related ``with_options`` kwargs and record the eager key.
+
+        Returns a dict of extra kwargs to merge into ``with_options``.
+        As a side-effect, stores the pre-computed cache key in
+        *computed_cache_keys* so downstream nodes can incorporate it.
+        """
+        from prefect_dbt.core._cache import build_cache_policy_for_node
+
+        upstream_keys = {
+            dep_id: computed_cache_keys[dep_id]
+            for dep_id in node.depends_on
+            if dep_id in computed_cache_keys
+        }
+        policy = build_cache_policy_for_node(
+            node,
+            self._settings.project_dir,
+            full_refresh,
+            upstream_keys,
+            self._cache_key_storage,
+        )
+        key = policy.compute_key(None, {}, {})
+        if key is not None:
+            computed_cache_keys[node.unique_id] = key
+
+        opts: dict[str, Any] = {
+            "cache_policy": policy,
+            "persist_result": True,
+        }
+        if self._cache_expiration is not None:
+            opts["cache_expiration"] = self._cache_expiration
+        if self._result_storage is not None:
+            opts["result_storage"] = self._result_storage
+        return opts
+
     def _execute_per_node(self, waves, full_refresh):
         """Execute each node as an individual Prefect task.
 
@@ -470,8 +526,13 @@ class PrefectDbtOrchestrator:
                 )
             raise _DbtNodeError(result, timing, invocation)
 
+        def _mark_failed(node_id):
+            failed_nodes.add(node_id)
+            computed_cache_keys.pop(node_id, None)
+
         results: dict[str, Any] = {}
         failed_nodes: set[str] = set()
+        computed_cache_keys: dict[str, str] = {}
 
         with task_runner_type(max_workers=max_workers) as runner:
             for wave in waves:
@@ -492,11 +553,20 @@ class PrefectDbtOrchestrator:
                         continue
 
                     command = _NODE_COMMAND.get(node.resource_type, "run")
-                    node_task = run_dbt_node.with_options(
-                        name=f"dbt_{command}_{node.name}",
-                        retries=self._retries,
-                        retry_delay_seconds=self._retry_delay_seconds,
-                    )
+                    with_opts: dict[str, Any] = {
+                        "name": f"dbt_{command}_{node.name}",
+                        "retries": self._retries,
+                        "retry_delay_seconds": self._retry_delay_seconds,
+                    }
+
+                    if self._enable_caching:
+                        with_opts.update(
+                            self._build_cache_options_for_node(
+                                node, full_refresh, computed_cache_keys
+                            )
+                        )
+
+                    node_task = run_dbt_node.with_options(**with_opts)
                     future = runner.submit(
                         node_task,
                         parameters={
@@ -526,7 +596,7 @@ class PrefectDbtOrchestrator:
                             invocation=exc.invocation,
                             error=error_info,
                         )
-                        failed_nodes.add(node_id)
+                        _mark_failed(node_id)
                     except Exception as exc:
                         results[node_id] = build_result(
                             status="error",
@@ -535,6 +605,6 @@ class PrefectDbtOrchestrator:
                                 "type": type(exc).__name__,
                             },
                         )
-                        failed_nodes.add(node_id)
+                        _mark_failed(node_id)
 
         return results

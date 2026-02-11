@@ -107,6 +107,18 @@ def write_manifest(tmp_path: Path, data: dict[str, Any]) -> Path:
     return manifest_path
 
 
+def write_sql_files(project_dir: Path, file_map: dict[str, str]) -> None:
+    """Create SQL/CSV files relative to *project_dir* for cache tests.
+
+    ``file_map`` maps relative paths (e.g. ``"models/my_model.sql"``) to
+    file content strings.
+    """
+    for rel_path, content in file_map.items():
+        full_path = project_dir / rel_path
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_text(content)
+
+
 @pytest.fixture
 def diamond_manifest_data() -> dict[str, Any]:
     """Diamond graph: root -> left/right -> leaf.
