@@ -198,7 +198,7 @@ def view(
 
     if ui_url := prefect.settings.PREFECT_UI_URL.value():
         app.console.print(
-            f"🚀 you are connected to:\n[green]{ui_url}[/green]", soft_wrap=True
+            f"🚀 Prefect UI URL:\n[green]{ui_url}[/green]", soft_wrap=True
         )
 
     # Display the profile first
