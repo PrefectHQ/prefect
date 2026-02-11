@@ -8,6 +8,7 @@ This module provides:
 
 from contextlib import nullcontext
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -18,7 +19,7 @@ from prefect_dbt.core._manifest import ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
 
 
-class ExecutionMode:
+class ExecutionMode(str, Enum):
     """Execution mode for dbt orchestration.
 
     PER_WAVE: Each wave is a single `dbt build` invocation containing all
@@ -88,7 +89,8 @@ class PrefectDbtOrchestrator:
         defer: Whether to pass --defer flag
         defer_state_path: Path for --defer-state flag
         favor_state: Whether to pass --favor-state flag
-        execution_mode: `ExecutionMode.PER_WAVE` or `ExecutionMode.PER_NODE`
+        execution_mode: `ExecutionMode.PER_WAVE` or `ExecutionMode.PER_NODE`.
+            Raises `ValueError` for unrecognized values.
         retries: Number of retries per node (PER_NODE mode only)
         retry_delay_seconds: Delay between retries in seconds
         concurrency: Concurrency limit.  A string names an existing Prefect
@@ -119,7 +121,7 @@ class PrefectDbtOrchestrator:
         defer: bool = False,
         defer_state_path: Optional[Path] = None,
         favor_state: bool = False,
-        execution_mode: str = ExecutionMode.PER_WAVE,
+        execution_mode: ExecutionMode = ExecutionMode.PER_WAVE,
         retries: int = 0,
         retry_delay_seconds: int = 30,
         concurrency: Optional[Union[str, int]] = None,
@@ -127,7 +129,13 @@ class PrefectDbtOrchestrator:
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
-        self._execution_mode = execution_mode
+        try:
+            self._execution_mode = ExecutionMode(execution_mode)
+        except ValueError:
+            raise ValueError(
+                f"Invalid execution_mode {execution_mode!r}. "
+                f"Must be one of: {', '.join(m.value for m in ExecutionMode)}"
+            ) from None
         self._retries = retries
         self._retry_delay_seconds = retry_delay_seconds
         self._concurrency = concurrency
@@ -419,7 +427,7 @@ class PrefectDbtOrchestrator:
                     concurrency as prefect_concurrency,
                 )
 
-                ctx = prefect_concurrency(concurrency_name)
+                ctx = prefect_concurrency(concurrency_name, strict=True)
             else:
                 ctx = nullcontext()
 
