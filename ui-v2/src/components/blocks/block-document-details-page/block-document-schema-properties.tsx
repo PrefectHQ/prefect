@@ -31,9 +31,13 @@ function formatLabel(key: string): string {
 
 function ObjectValueCard({ value }: { value: Record<string, unknown> }) {
 	const filtered = filterInternalFields(value);
+	const entries = Object.entries(filtered);
+	if (entries.length === 0) {
+		return <span className="text-gray-500 text-base">None</span>;
+	}
 	return (
 		<Card className="p-3 flex flex-col gap-2">
-			{Object.entries(filtered).map(([key, val]) => (
+			{entries.map(([key, val]) => (
 				<div key={key} className="flex flex-col gap-1">
 					<span className="text-gray-500 text-sm">{formatLabel(key)}</span>
 					{isRecord(val) ? (
@@ -54,7 +58,13 @@ function formatDisplayValue(value: unknown): string {
 	if (typeof value === "string") {
 		return value;
 	}
-	return String(value);
+	if (typeof value === "boolean" || typeof value === "number") {
+		return String(value);
+	}
+	if (Array.isArray(value)) {
+		return JSON.stringify(value);
+	}
+	return JSON.stringify(value);
 }
 
 type FieldValue = {
