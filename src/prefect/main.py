@@ -6,7 +6,7 @@ from prefect.flows import FlowDecorator, flow, Flow, serve, aserve
 from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
-from prefect.utilities.annotations import unmapped, allow_failure
+from prefect.utilities.annotations import unmapped, allow_failure, opaque
 from prefect._result_records import ResultRecordMetadata
 from prefect.flow_runs import (
     apause_flow_run,
@@ -74,6 +74,7 @@ __all__ = [
     "get_client",
     "get_cloud_client",
     "get_run_logger",
+    "opaque",
     "pause_flow_run",
     "resume_flow_run",
     "serve",
