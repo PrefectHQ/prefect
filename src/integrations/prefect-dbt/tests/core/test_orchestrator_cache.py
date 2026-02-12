@@ -564,3 +564,41 @@ class TestOrchestratorCachingOutcomes:
         assert exec1.execute_node.call_count == 4
         # Instance 2 hit cache for all nodes
         assert exec2.execute_node.call_count == 0
+
+    def test_full_refresh_always_executes(self, cache_orch):
+        """Repeated full_refresh=True runs always execute (never cached)."""
+        sql_files = {"models/m1.sql": "SELECT 1"}
+        orch, executor, _ = cache_orch(SINGLE_MODEL_WITH_FILE, sql_files)
+
+        @flow
+        def run_full_refresh_twice():
+            r1 = orch.run_build(full_refresh=True)
+            r2 = orch.run_build(full_refresh=True)
+            return r1, r2
+
+        r1, r2 = run_full_refresh_twice()
+
+        assert r1["model.test.m1"]["status"] == "success"
+        assert r2["model.test.m1"]["status"] == "success"
+        # Both runs must execute — full_refresh forces re-execution
+        assert executor.execute_node.call_count == 2
+
+    def test_normal_run_after_full_refresh_uses_own_cache(self, cache_orch):
+        """Normal run, full_refresh, normal again — third run hits normal cache."""
+        sql_files = {"models/m1.sql": "SELECT 1"}
+        orch, executor, _ = cache_orch(SINGLE_MODEL_WITH_FILE, sql_files)
+
+        @flow
+        def run_three_ways():
+            r1 = orch.run_build()  # normal — cache miss
+            r2 = orch.run_build(full_refresh=True)  # full_refresh — always executes
+            r3 = orch.run_build()  # normal — cache hit from r1
+            return r1, r2, r3
+
+        r1, r2, r3 = run_three_ways()
+
+        assert r1["model.test.m1"]["status"] == "success"
+        assert r2["model.test.m1"]["status"] == "success"
+        assert r3["model.test.m1"]["status"] == "success"
+        # r1 executes (miss), r2 executes (refresh), r3 cached (hit from r1)
+        assert executor.execute_node.call_count == 2

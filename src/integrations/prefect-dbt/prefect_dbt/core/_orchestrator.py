@@ -425,6 +425,8 @@ class PrefectDbtOrchestrator:
             "cache_policy": policy,
             "persist_result": True,
         }
+        if full_refresh:
+            opts["refresh_cache"] = True
         if self._cache_expiration is not None:
             opts["cache_expiration"] = self._cache_expiration
         if self._result_storage is not None:
