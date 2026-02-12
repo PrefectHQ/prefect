@@ -2,6 +2,27 @@
 title: prefect-azure
 ---
 
+## 0.4.9
+
+_Released on February 12, 2026_
+
+**Features**
+
+- Fix pull_from_azure_blob_storage failing on ADLS2 directory blobs [#20617](https://github.com/PrefectHQ/prefect/pull/20617) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add attribution headers to SDK API requests [#20508](https://github.com/PrefectHQ/prefect/pull/20508) by [@zangell44](https://github.com/zangell44)
+- Add `include_files` support to `@ecs` decorator for bundling non-Python files [#20551](https://github.com/PrefectHQ/prefect/pull/20551) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- fix: pin azure-mgmt-resource`<25` to avoid breaking import change [#20588](https://github.com/PrefectHQ/prefect/pull/20588) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
+- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@app/dependabot](https://github.com/app/dependabot)
+
+---
+
 ## 0.4.8
 
 _Released on January 15, 2026_
