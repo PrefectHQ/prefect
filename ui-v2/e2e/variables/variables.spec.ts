@@ -91,10 +91,16 @@ test.describe("Variables Page", () => {
 			await expect(page.getByText(variableName)).toBeVisible();
 
 			// Verify via API
-			const variables = await listVariables(apiClient);
-			const created = variables.find((v) => v.name === variableName);
-			expect(created).toBeDefined();
-			expect(created?.value).toBe(variableValue);
+			await expect
+				.poll(
+					async () => {
+						const variables = await listVariables(apiClient);
+						const found = variables.find((v) => v.name === variableName);
+						return found?.value;
+					},
+					{ timeout: 10_000 },
+				)
+				.toBe(variableValue);
 		});
 
 		test("should create a variable with JSON object value", async ({
@@ -171,10 +177,19 @@ test.describe("Variables Page", () => {
 			await expect(page.getByText(variableName)).toBeVisible();
 
 			// Verify via API
-			const variables = await listVariables(apiClient);
-			const created = variables.find((v) => v.name === variableName);
-			expect(created).toBeDefined();
-			expect(created?.tags).toEqual(expect.arrayContaining(tags));
+			await expect
+				.poll(
+					async () => {
+						const variables = await listVariables(apiClient);
+						return variables.find((v) => v.name === variableName);
+					},
+					{ timeout: 10_000 },
+				)
+				.toEqual(
+					expect.objectContaining({
+						tags: expect.arrayContaining(tags),
+					}),
+				);
 		});
 
 		test("should close dialog when clicking Close button", async ({ page }) => {
@@ -193,11 +208,6 @@ test.describe("Variables Page", () => {
 				.getByRole("button", { name: /close/i });
 			await expect(closeButton).toBeVisible();
 			await expect(closeButton).toBeEnabled();
-
-			// Wait for dialog animation to complete (200ms duration) before clicking
-			// This ensures the DialogClose event handler is fully attached
-			await page.waitForTimeout(250);
-
 			await closeButton.click();
 
 			await expect(dialog).not.toBeVisible();
@@ -254,9 +264,16 @@ test.describe("Variables Page", () => {
 			await expect(page.getByRole("dialog")).not.toBeVisible();
 
 			// Verify via API
-			const variables = await listVariables(apiClient);
-			const updated = variables.find((v) => v.name === variableName);
-			expect(updated?.value).toBe(updatedValue);
+			await expect
+				.poll(
+					async () => {
+						const variables = await listVariables(apiClient);
+						const found = variables.find((v) => v.name === variableName);
+						return found?.value;
+					},
+					{ timeout: 10_000 },
+				)
+				.toBe(updatedValue);
 		});
 	});
 

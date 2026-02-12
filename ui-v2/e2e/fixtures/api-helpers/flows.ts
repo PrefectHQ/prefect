@@ -49,5 +49,7 @@ export async function cleanupFlows(
 ): Promise<void> {
 	const flows = await listFlows(client);
 	const toDelete = flows.filter((f) => f.name.startsWith(prefix));
-	await Promise.all(toDelete.map((f) => deleteFlow(client, f.id)));
+	await Promise.all(
+		toDelete.map((f) => deleteFlow(client, f.id).catch(() => {})),
+	);
 }
