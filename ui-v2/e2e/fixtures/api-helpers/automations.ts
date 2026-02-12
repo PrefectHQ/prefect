@@ -33,5 +33,7 @@ export async function cleanupAutomations(
 ): Promise<void> {
 	const automations = await listAutomations(client);
 	const toDelete = automations.filter((a) => a.name.startsWith(namePrefix));
-	await Promise.all(toDelete.map((a) => deleteAutomation(client, a.id)));
+	await Promise.all(
+		toDelete.map((a) => deleteAutomation(client, a.id).catch(() => {})),
+	);
 }
