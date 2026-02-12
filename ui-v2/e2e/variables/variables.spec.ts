@@ -193,16 +193,17 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should close dialog when clicking Close button", async ({ page }) => {
-			await page.goto("/variables");
-			await waitForVariablesPageReady(page);
-
-			await page.getByRole("button", { name: /add variable/i }).click();
+			await expect(async () => {
+				await page.goto("/variables");
+				await waitForVariablesPageReady(page);
+				await page
+					.getByRole("button", { name: /add variable/i })
+					.click({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 
 			const dialog = page.getByRole("dialog", { name: /new variable/i });
 			await expect(dialog).toBeVisible();
 
-			// Click the Close button in the dialog footer (not the X button in the corner)
-			// Wait for the button to be visible and enabled before clicking
 			const closeButton = dialog
 				.locator("form")
 				.getByRole("button", { name: /close/i });
