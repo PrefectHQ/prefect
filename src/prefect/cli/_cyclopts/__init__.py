@@ -32,7 +32,7 @@ _app.meta.group_parameters = cyclopts.Group("Session Parameters", sort_key=0)
 console: Console = Console(highlight=False, theme=_THEME)
 
 
-def _is_interactive() -> bool:
+def is_interactive() -> bool:
     """Check if the CLI should prompt for input.
 
     After the root callback runs, console.is_interactive reflects
@@ -47,9 +47,7 @@ def _root_callback(
     *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
     profile: Annotated[
         Optional[str],
-        cyclopts.Parameter(
-            "--profile", alias="-p", help="Select a profile for this CLI run."
-        ),
+        cyclopts.Parameter("--profile", help="Select a profile for this CLI run."),
     ] = None,
     prompt: Annotated[
         Optional[bool],
@@ -59,6 +57,22 @@ def _root_callback(
     ] = None,
 ):
     """Prefect CLI for workflow orchestration."""
+    _setup_and_run(tokens, profile=profile, prompt=prompt)
+
+
+def _setup_and_run(
+    tokens: tuple[str, ...],
+    *,
+    profile: Optional[str] = None,
+    prompt: Optional[bool] = None,
+    delegate: bool = False,
+) -> None:
+    """Shared environment setup and command dispatch.
+
+    Called from both the cyclopts meta callback (for native commands and
+    ``--help``) and from ``_dispatch`` (for delegated commands that must
+    bypass cyclopts argument parsing).
+    """
     global console
     import prefect.context
     from prefect.logging.configuration import setup_logging
@@ -84,7 +98,10 @@ def _root_callback(
         if sys.platform == "win32":
             asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-        _app(tokens)
+        if delegate:
+            _delegate(tokens[0], tokens[1:])
+        else:
+            _app(tokens)
 
     if profile and prefect.context.get_settings_context().profile.name != profile:
         try:
@@ -99,9 +116,112 @@ def _root_callback(
         _run_with_settings()
 
 
+# Short flags that need rewriting before cyclopts meta parses them.
+# Cyclopts meta processes ALL tokens, so a short flag like -p would be
+# greedily consumed as --profile even when it appears after a subcommand
+# (where it means --pool).  We rewrite top-level short flags to their
+# long form before cyclopts sees them; subcommand flags pass through.
+_TOP_LEVEL_SHORT_FLAGS = {"-p": "--profile"}
+
+
+def _normalize_top_level_flags(args: list[str]) -> list[str]:
+    """Rewrite short flags to long form when they appear before the command.
+
+    Only rewrites flags that appear before the first non-flag token (the
+    command name).  After the command, all tokens pass through unchanged
+    so subcommand flags like ``worker start -p pool`` are not affected.
+    """
+    result = []
+    seen_command = False
+    it = iter(args)
+    for token in it:
+        if seen_command:
+            result.append(token)
+        elif token in _TOP_LEVEL_SHORT_FLAGS:
+            result.append(_TOP_LEVEL_SHORT_FLAGS[token])
+        elif not token.startswith("-"):
+            seen_command = True
+            result.append(token)
+        else:
+            result.append(token)
+    return result
+
+
+def _parse_global_options(
+    args: list[str],
+) -> tuple[Optional[str], Optional[bool], list[str]]:
+    """Extract ``--profile`` and ``--prompt``/``--no-prompt`` from *args*.
+
+    Returns ``(profile, prompt, remaining)`` where *remaining* has the
+    global flags removed but subcommand tokens left untouched.
+    """
+    profile: Optional[str] = None
+    prompt: Optional[bool] = None
+    remaining: list[str] = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--profile" and i + 1 < len(args):
+            profile = args[i + 1]
+            i += 2
+        elif args[i] == "--prompt":
+            prompt = True
+            i += 1
+        elif args[i] == "--no-prompt":
+            prompt = False
+            i += 1
+        else:
+            remaining.append(args[i])
+            i += 1
+    return profile, prompt, remaining
+
+
+def _dispatch(args: list[str]) -> None:
+    """Route *args* to either a delegated Typer command or cyclopts.
+
+    Delegated commands are dispatched **before** cyclopts processes the
+    tokens, avoiding cyclopts splitting combined short flags like ``-jv``
+    into ``-j``, ``-v``.  Native commands go through ``_app.meta()`` as
+    usual.
+    """
+    profile, prompt, remaining = _parse_global_options(args)
+    if remaining and remaining[0] in _DELEGATED_COMMANDS:
+        _setup_and_run(tuple(remaining), profile=profile, prompt=prompt, delegate=True)
+    else:
+        _app.meta(args)
+
+
 def app():
     """Entry point that invokes the meta app for global option handling."""
-    _app.meta()
+    _dispatch(_normalize_top_level_flags(sys.argv[1:]))
+
+
+# Commands that delegate to the Typer CLI.  Dispatched from _root_callback
+# *before* cyclopts parses subcommand args (cyclopts would otherwise mangle
+# combined short flags like "-jv" into "-j", "-v").
+_DELEGATED_COMMANDS: set[str] = {
+    "api",
+    "artifact",
+    "automation",
+    "block",
+    "cloud",
+    "concurrency-limit",
+    "dashboard",
+    "deploy",
+    "deployment",
+    "dev",
+    "events",
+    "experimental",
+    "flow",
+    "flow-run",
+    "global-concurrency-limit",
+    "sdk",
+    "task",
+    "task-run",
+    "transfer",
+    "variable",
+    "work-pool",
+    "work-queue",
+}
 
 
 def _delegate(command: str, tokens: tuple[str, ...]) -> None:
@@ -201,40 +321,19 @@ def deployment_default(
 
 
 # --- server ---
-server_app = _delegated_app("server", "Start and manage the Prefect server.")
+from prefect.cli._cyclopts.server import server_app
+
 _app.command(server_app)
 
-
-@server_app.default
-def server_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("server", tokens)
-
-
 # --- worker ---
-worker_app = _delegated_app("worker", "Start and interact with workers.")
+from prefect.cli._cyclopts.worker import worker_app
+
 _app.command(worker_app)
 
-
-@worker_app.default
-def worker_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("worker", tokens)
-
-
 # --- shell ---
-shell_app = _delegated_app("shell", "Run shell commands as Prefect flows.")
+from prefect.cli._cyclopts.shell import shell_app
+
 _app.command(shell_app)
-
-
-@shell_app.default
-def shell_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("shell", tokens)
-
 
 # --- config ---
 from prefect.cli._cyclopts.config import config_app
