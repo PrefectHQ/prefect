@@ -99,9 +99,39 @@ Join Prefect's vibrant [community of nearly 30,000 engineers](/contribute/index/
 
 ### MCP server
 
-Connect to `https://docs.prefect.io/mcp` in Claude Desktop, Cursor, or VS Code for AI-powered documentation search and assistance.
+The Prefect MCP server connects AI assistants to your Prefect workflows, enabling them to monitor deployments, debug flow runs, and query your infrastructure.
 
-You can also install the [Prefect MCP server](/v3/how-to-guides/ai/use-prefect-mcp-server) to get both documentation access and direct integration with your Prefect workflows to enable AI assistants to monitor deployments, debug flow runs, and query your Prefect infrastructure.
+**Quick start:**
+
+<CodeGroup>
+```bash Claude Code
+/plugin marketplace add prefecthq/prefect-mcp-server
+/plugin install prefect
+```
+
+```bash Cursor
+# Add to .cursor/mcp.json
+{
+  "mcpServers": {
+    "prefect": {
+      "command": "uvx",
+      "args": ["--from", "prefect-mcp", "prefect-mcp-server"]
+    }
+  }
+}
+```
+
+```bash Other Clients
+# Generic setup for any MCP client
+uvx --from prefect-mcp prefect-mcp-server
+```
+</CodeGroup>
+
+See the [Prefect MCP server guide](/v3/how-to-guides/ai/use-prefect-mcp-server) for detailed setup instructions, credential configuration, and advanced usage.
+
+**Documentation-only access:**
+
+For AI-powered documentation search without connecting to your workflows, use the docs proxy at `https://docs.prefect.io/mcp` in Claude Desktop, Cursor, or VS Code.
 
 ### Plain text formats
 

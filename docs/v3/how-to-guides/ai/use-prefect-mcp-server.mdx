@@ -32,103 +32,35 @@ When using AI agents autonomously, consider the Prefect Role associated with you
 
 For detailed answers to common security questions—including authentication patterns, RBAC, file access requirements, and recommendations for internal pilots—see the [Security FAQ](https://github.com/PrefectHQ/prefect-mcp-server/blob/main/SECURITY.md).
 
-## Installation
+## Quick start
 
-### Local installation
-
-Install and run the MCP server locally using `uvx`:
-
-```bash
-uvx --from prefect-mcp prefect-mcp-server
-```
-
-When running locally with stdio transport, the server automatically inherits credentials from your active Prefect profile (`~/.prefect/profiles.toml`).
-
-### Cloud deployment
-
-Deploy the MCP server to [FastMCP Cloud](https://fastmcp.cloud) for remote access:
-
-1. Fork the [prefect-mcp-server repository](https://github.com/PrefectHQ/prefect-mcp-server) on GitHub
-2. Sign in to [fastmcp.cloud](https://fastmcp.cloud)
-3. Create a new server pointing to your fork:
-   - Server path: `src/prefect_mcp_server/server.py`
-   - Requirements: `pyproject.toml` (or leave blank)
-4. Configure environment variables in the FastMCP Cloud interface:
-
-   | Environment Variable | Prefect Cloud | Self-hosted Prefect |
-   |---------------------|---------------|---------------------|
-   | `PREFECT_API_URL` | `https://api.prefect.cloud/api/`<br/>`accounts/[ACCOUNT_ID]/`<br/>`workspaces/[WORKSPACE_ID]` | Your Prefect server URL (e.g., `http://your-server:4200/api`) |
-   | `PREFECT_API_KEY` | Your Prefect Cloud API key | Not used |
-   | `PREFECT_API_AUTH_STRING` | Not used | Your authentication string (if using basic auth) |
-5. Get your server URL (e.g., `https://your-server-name.fastmcp.app/mcp`)
-
-<Note>
-When deploying to FastMCP Cloud, environment variables are configured on the FastMCP Cloud server itself (step 4 above), not in your client configuration. FastMCP's authentication secures access to your MCP server, while the MCP server uses your Prefect API key to access your Prefect instance.
-</Note>
-
-<Tip>
-Prefect Cloud users on Team, Pro, and Enterprise plans can use service accounts for API authentication. Pro and Enterprise users can restrict service accounts to read-only access (only `see_*` permissions) since the Prefect MCP server requires no write permissions.
-</Tip>
-
-## Client setup
-
-Configure your AI assistant to connect to the Prefect MCP server.
-
-### General setup
-
-All MCP clients need three pieces of information to connect to the Prefect MCP server:
-
-1. **Command**: `uvx`
-2. **Arguments**: `--from prefect-mcp prefect-mcp-server`
-3. **Environment variables** (optional): Credentials for your Prefect instance
-
-The configuration format varies by client. Choose your client below for specific setup instructions:
+The fastest way to get started depends on your AI assistant:
 
 <AccordionGroup>
 
-<Accordion title="Claude Code">
+<Accordion title="Claude Code" defaultOpen>
 
-**Marketplace install (recommended)**
-
-The easiest way to get started with Claude Code is through the plugin marketplace:
+**Recommended: Use the marketplace**
 
 ```bash
-# Add from marketplace
 /plugin marketplace add prefecthq/prefect-mcp-server
-
-# Install the plugin
 /plugin install prefect
 ```
 
-This installs both the MCP server (for read-only diagnostics) and a CLI skill (for mutations like triggering deployments or cancelling runs).
+This installs both the MCP server and a CLI skill for working with Prefect.
 
-<Note>
-The plugin uses your local Prefect configuration from `~/.prefect/profiles.toml`. For explicit credentials, use the manual setup below.
-</Note>
-
-**Manual setup**
-
-Alternatively, add the Prefect MCP server to Claude Code using the CLI:
+**Alternative: Manual setup**
 
 ```bash
-# Minimal setup - inherits from local Prefect profile
+# Uses your local Prefect profile from ~/.prefect/profiles.toml
 claude mcp add prefect -- uvx --from prefect-mcp prefect-mcp-server
-
-# With explicit Prefect Cloud credentials
-claude mcp add prefect \
-  -e PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID] \
-  -e PREFECT_API_KEY=your-cloud-api-key \
-  -- uvx --from prefect-mcp prefect-mcp-server
-
-# With FastMCP Cloud deployment (HTTP transport)
-claude mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
 ```
 
 </Accordion>
 
 <Accordion title="Cursor">
 
-Add the Prefect MCP server to Cursor by creating or editing `.cursor/mcp.json` in your project:
+Add this configuration to `.cursor/mcp.json` in your project:
 
 ```json
 {
@@ -136,23 +68,6 @@ Add the Prefect MCP server to Cursor by creating or editing `.cursor/mcp.json` i
     "prefect": {
       "command": "uvx",
       "args": ["--from", "prefect-mcp", "prefect-mcp-server"]
-    }
-  }
-}
-```
-
-To use explicit credentials, add an `env` section:
-
-```json
-{
-  "mcpServers": {
-    "prefect": {
-      "command": "uvx",
-      "args": ["--from", "prefect-mcp", "prefect-mcp-server"],
-      "env": {
-        "PREFECT_API_URL": "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]",
-        "PREFECT_API_KEY": "your-cloud-api-key"
-      }
     }
   }
 }
@@ -162,95 +77,322 @@ To use explicit credentials, add an `env` section:
 
 <Accordion title="Codex CLI">
 
-Add the Prefect MCP server to Codex using the CLI:
-
 ```bash
-# Minimal setup - inherits from local Prefect profile
 codex mcp add prefect -- uvx --from prefect-mcp prefect-mcp-server
-
-# With explicit Prefect Cloud credentials
-codex mcp add prefect \
-  --env PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID] \
-  --env PREFECT_API_KEY=your-cloud-api-key \
-  -- uvx --from prefect-mcp prefect-mcp-server
-```
-
-Alternatively, edit `~/.codex/config.toml` directly:
-
-```toml
-[mcp.prefect]
-command = "uvx"
-args = ["--from", "prefect-mcp", "prefect-mcp-server"]
-
-# For explicit credentials, add:
-[mcp.prefect.env]
-PREFECT_API_URL = "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]"
-PREFECT_API_KEY = "your-cloud-api-key"
 ```
 
 </Accordion>
 
 <Accordion title="Gemini CLI">
 
-Add the Prefect MCP server to Gemini CLI using the CLI:
+```bash
+gemini mcp add prefect uvx --from prefect-mcp prefect-mcp-server
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+## Test your setup
+
+Once configured, try these prompts to verify the connection:
+
+- "Show me my recent flow runs"
+- "What deployments are available?"
+- "Debug my last failed flow run"
+
+## Installation options
+
+### Local installation (stdio transport)
+
+The default setup runs the MCP server locally using `uvx`. The server automatically inherits credentials from your active Prefect profile:
 
 ```bash
-# STDIO transport - runs locally with uvx
-gemini mcp add prefect uvx --from prefect-mcp prefect-mcp-server
-
-# With explicit Prefect Cloud credentials
-gemini mcp add prefect \
-  -e PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID] \
-  -e PREFECT_API_KEY=your-cloud-api-key \
-  uvx --from prefect-mcp prefect-mcp-server
-
-# HTTP transport - for FastMCP Cloud deployment
-gemini mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
+uvx --from prefect-mcp prefect-mcp-server
 ```
 
-Alternatively, edit `~/.gemini/settings.json` directly:
+**Credentials:** Uses `~/.prefect/profiles.toml` by default
 
-**For STDIO transport (local):**
+### Cloud deployment (HTTP transport)
 
-```json
-{
-  "mcpServers": {
-    "prefect": {
-      "command": "uvx",
-      "args": ["--from", "prefect-mcp", "prefect-mcp-server"]
-    }
-  }
-}
-```
+Deploy the MCP server to [FastMCP Cloud](https://fastmcp.cloud) for remote access from any client:
 
-**For STDIO transport with explicit credentials:**
+<Steps>
+  <Step title="Fork the repository">
+    Fork the [prefect-mcp-server repository](https://github.com/PrefectHQ/prefect-mcp-server) on GitHub
+  </Step>
 
-```json
-{
-  "mcpServers": {
-    "prefect": {
-      "command": "uvx",
-      "args": ["--from", "prefect-mcp", "prefect-mcp-server"],
-      "env": {
-        "PREFECT_API_URL": "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]",
-        "PREFECT_API_KEY": "your-cloud-api-key"
+  <Step title="Deploy to FastMCP Cloud">
+    1. Sign in to [fastmcp.cloud](https://fastmcp.cloud)
+    2. Create a new server pointing to your fork
+    3. Configure:
+       - Server path: `src/prefect_mcp_server/server.py`
+       - Requirements: `pyproject.toml` (or leave blank)
+  </Step>
+
+  <Step title="Set environment variables">
+    Configure credentials in the FastMCP Cloud interface:
+
+    | Environment Variable | Prefect Cloud | Self-hosted Prefect |
+    |---------------------|---------------|---------------------|
+    | `PREFECT_API_URL` | `https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]` | Your server URL (e.g., `http://your-server:4200/api`) |
+    | `PREFECT_API_KEY` | Your Prefect Cloud API key | Not used |
+    | `PREFECT_API_AUTH_STRING` | Not used | Your authentication string (if using basic auth) |
+
+    <Tip>
+    Find your account ID and workspace ID in your Prefect Cloud browser URL:
+    `https://app.prefect.cloud/account/[ACCOUNT-ID]/workspace/[WORKSPACE-ID]/dashboard`
+    </Tip>
+  </Step>
+
+  <Step title="Get your server URL">
+    Copy the generated URL (e.g., `https://your-server-name.fastmcp.app/mcp`) and use it in your client configuration
+  </Step>
+</Steps>
+
+<Note>
+When deploying to FastMCP Cloud, environment variables are configured on the FastMCP Cloud server itself, not in your client configuration. FastMCP's authentication secures access to your MCP server, while the MCP server uses your Prefect API key to access your Prefect instance.
+</Note>
+
+<Tip>
+Prefect Cloud users on Team, Pro, and Enterprise plans can use service accounts for API authentication. Pro and Enterprise users can restrict service accounts to read-only access (only `see_*` permissions) since the Prefect MCP server requires no write permissions.
+</Tip>
+
+## Client configuration
+
+### Configuration basics
+
+All MCP clients need these components to connect:
+
+1. **Command**: `uvx`
+2. **Arguments**: `--from prefect-mcp prefect-mcp-server`
+3. **Environment variables** (optional): Explicit Prefect credentials
+
+The configuration format varies by client. See detailed setup instructions below:
+
+<AccordionGroup>
+
+<Accordion title="Claude Code">
+
+<Tabs>
+  <Tab title="Marketplace (Recommended)">
+    The easiest way to install:
+
+    ```bash
+    /plugin marketplace add prefecthq/prefect-mcp-server
+    /plugin install prefect
+    ```
+
+    This installs both the MCP server (for read-only diagnostics) and a CLI skill (for mutations like triggering deployments or cancelling runs).
+
+    <Note>
+    The plugin uses your local Prefect configuration from `~/.prefect/profiles.toml`. For explicit credentials, use the manual CLI setup.
+    </Note>
+  </Tab>
+
+  <Tab title="Manual CLI Setup">
+    **Local (stdio):**
+
+    ```bash
+    # Uses credentials from ~/.prefect/profiles.toml
+    claude mcp add prefect -- uvx --from prefect-mcp prefect-mcp-server
+    ```
+
+    **With explicit Prefect Cloud credentials:**
+
+    ```bash
+    claude mcp add prefect \
+      -e PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID] \
+      -e PREFECT_API_KEY=your-cloud-api-key \
+      -- uvx --from prefect-mcp prefect-mcp-server
+    ```
+
+    **With FastMCP Cloud (HTTP):**
+
+    ```bash
+    claude mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
+    ```
+  </Tab>
+</Tabs>
+
+</Accordion>
+
+<Accordion title="Cursor">
+
+<Tabs>
+  <Tab title="Basic Setup">
+    Create or edit `.cursor/mcp.json` in your project:
+
+    ```json
+    {
+      "mcpServers": {
+        "prefect": {
+          "command": "uvx",
+          "args": ["--from", "prefect-mcp", "prefect-mcp-server"]
+        }
       }
     }
-  }
-}
-```
+    ```
 
-**For HTTP transport (FastMCP Cloud):**
+    Uses credentials from `~/.prefect/profiles.toml`
+  </Tab>
 
-```json
-{
-  "mcpServers": {
-    "prefect": {
-      "httpUrl": "https://your-server-name.fastmcp.app/mcp"
+  <Tab title="With Explicit Credentials">
+    Add environment variables to the configuration:
+
+    ```json
+    {
+      "mcpServers": {
+        "prefect": {
+          "command": "uvx",
+          "args": ["--from", "prefect-mcp", "prefect-mcp-server"],
+          "env": {
+            "PREFECT_API_URL": "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]",
+            "PREFECT_API_KEY": "your-cloud-api-key"
+          }
+        }
+      }
     }
-  }
-}
-```
+    ```
+  </Tab>
+
+  <Tab title="HTTP Transport (FastMCP)">
+    For FastMCP Cloud deployments:
+
+    ```json
+    {
+      "mcpServers": {
+        "prefect": {
+          "httpUrl": "https://your-server-name.fastmcp.app/mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+</Accordion>
+
+<Accordion title="Codex CLI">
+
+<Tabs>
+  <Tab title="CLI Setup">
+    **Basic setup:**
+
+    ```bash
+    # Uses credentials from ~/.prefect/profiles.toml
+    codex mcp add prefect -- uvx --from prefect-mcp prefect-mcp-server
+    ```
+
+    **With explicit Prefect Cloud credentials:**
+
+    ```bash
+    codex mcp add prefect \
+      --env PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID] \
+      --env PREFECT_API_KEY=your-cloud-api-key \
+      -- uvx --from prefect-mcp prefect-mcp-server
+    ```
+  </Tab>
+
+  <Tab title="Config File">
+    Edit `~/.codex/config.toml`:
+
+    **Basic setup:**
+
+    ```toml
+    [mcp.prefect]
+    command = "uvx"
+    args = ["--from", "prefect-mcp", "prefect-mcp-server"]
+    ```
+
+    **With explicit credentials:**
+
+    ```toml
+    [mcp.prefect]
+    command = "uvx"
+    args = ["--from", "prefect-mcp", "prefect-mcp-server"]
+
+    [mcp.prefect.env]
+    PREFECT_API_URL = "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]"
+    PREFECT_API_KEY = "your-cloud-api-key"
+    ```
+  </Tab>
+</Tabs>
+
+</Accordion>
+
+<Accordion title="Gemini CLI">
+
+<Tabs>
+  <Tab title="CLI Setup">
+    **Basic setup (stdio):**
+
+    ```bash
+    gemini mcp add prefect uvx --from prefect-mcp prefect-mcp-server
+    ```
+
+    **With explicit Prefect Cloud credentials:**
+
+    ```bash
+    gemini mcp add prefect \
+      -e PREFECT_API_URL=https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID] \
+      -e PREFECT_API_KEY=your-cloud-api-key \
+      uvx --from prefect-mcp prefect-mcp-server
+    ```
+
+    **HTTP transport (FastMCP Cloud):**
+
+    ```bash
+    gemini mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
+    ```
+  </Tab>
+
+  <Tab title="Config File">
+    Edit `~/.gemini/settings.json`:
+
+    **Basic setup (stdio):**
+
+    ```json
+    {
+      "mcpServers": {
+        "prefect": {
+          "command": "uvx",
+          "args": ["--from", "prefect-mcp", "prefect-mcp-server"]
+        }
+      }
+    }
+    ```
+
+    **With explicit credentials:**
+
+    ```json
+    {
+      "mcpServers": {
+        "prefect": {
+          "command": "uvx",
+          "args": ["--from", "prefect-mcp", "prefect-mcp-server"],
+          "env": {
+            "PREFECT_API_URL": "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]",
+            "PREFECT_API_KEY": "your-cloud-api-key"
+          }
+        }
+      }
+    }
+    ```
+
+    **HTTP transport (FastMCP Cloud):**
+
+    ```json
+    {
+      "mcpServers": {
+        "prefect": {
+          "httpUrl": "https://your-server-name.fastmcp.app/mcp"
+        }
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
 
 </Accordion>
 
