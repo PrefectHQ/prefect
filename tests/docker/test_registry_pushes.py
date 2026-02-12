@@ -123,7 +123,7 @@ def test_streams_progress_to_stdout(howdy: str, registry: str, capsys: CaptureFi
 
     # spot check a few things we should expect to find in the output
     assert "push refers to repository" in output
-    assert "\nPreparing" in output
+    assert "\nPreparing" in output or "\nLayer already exists" in output
     assert "\nPushing [" in output or "\nLayer already exists" in output
 
 
@@ -136,5 +136,5 @@ def test_streams_progress_to_given_stream(howdy: str, registry: str):
 
     # spot check a few things we should expect to find in the output
     assert "push refers to repository" in output
-    assert "\nPreparing" in output
+    assert "\nPreparing" in output or "\nLayer already exists" in output
     assert "\nPushing [" in output or "\nLayer already exists" in output

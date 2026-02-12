@@ -994,7 +994,8 @@ async def create_deployment_schedules(
 
     schedules_with_deployment_id: list[dict[str, Any]] = []
     for schedule in schedules:
-        data = schedule.model_dump()
+        # Exclude 'replaces' as it's a deploy-time directive, not a persisted field
+        data = schedule.model_dump(exclude={"replaces"})
         data["deployment_id"] = deployment_id
         schedules_with_deployment_id.append(data)
 
@@ -1064,6 +1065,8 @@ async def update_deployment_schedule(
         deployment_schedule_id: a deployment schedule id
         schedule: a deployment schedule update action
     """
+    # Exclude 'replaces' as it's a deploy-time directive, not a persisted field
+    update_values = schedule.model_dump(exclude_none=True, exclude={"replaces"})
     if deployment_schedule_id:
         result = await session.execute(
             sa.update(db.DeploymentSchedule)
@@ -1073,7 +1076,7 @@ async def update_deployment_schedule(
                     db.DeploymentSchedule.deployment_id == deployment_id,
                 )
             )
-            .values(**schedule.model_dump(exclude_none=True))
+            .values(**update_values)
         )
     elif deployment_schedule_slug:
         result = await session.execute(
@@ -1084,7 +1087,7 @@ async def update_deployment_schedule(
                     db.DeploymentSchedule.deployment_id == deployment_id,
                 )
             )
-            .values(**schedule.model_dump(exclude_none=True))
+            .values(**update_values)
         )
     else:
         raise ValueError(

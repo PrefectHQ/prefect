@@ -2563,6 +2563,291 @@ class TestUpdateDeployment:
             in response.json()["exception_detail"][0]["msg"]
         )
 
+    async def test_update_deployment_schedule_with_replaces_renames_slug(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """When a schedule has 'replaces', it should update the existing schedule with that slug."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+
+        # Create deployment with initial schedule
+        data = DeploymentCreate(  # type: ignore
+            name="test-deployment-replaces",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="old-schedule-slug",
+                ),
+            ],
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        original_schedule_id = response.json()["schedules"][0]["id"]
+
+        # Update with replaces
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule2,
+                    slug="new-schedule-slug",
+                    replaces="old-schedule-slug",
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 204
+
+        # Verify the schedule was renamed, not recreated
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        schedules = response.json()["schedules"]
+        assert len(schedules) == 1
+        assert schedules[0]["slug"] == "new-schedule-slug"
+        assert schedules[0]["id"] == original_schedule_id  # Same schedule, just renamed
+        assert schedules[0]["schedule"]["interval"] == 172800.0  # 2 days in seconds
+
+    async def test_update_deployment_schedule_replaces_nonexistent_slug_warns_and_creates(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """When 'replaces' points to a non-existent slug, warn and create new schedule."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+
+        # Create deployment with initial schedule
+        data = DeploymentCreate(  # type: ignore
+            name="test-deployment-replaces-nonexistent",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="existing-slug",
+                ),
+            ],
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # Update with replaces pointing to non-existent slug
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    slug="existing-slug",  # Keep existing
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule2,
+                    slug="new-slug",
+                    replaces="nonexistent-slug",  # This doesn't exist
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 204
+
+        # Verify both schedules exist (original preserved, new created)
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        schedules = response.json()["schedules"]
+        assert len(schedules) == 2
+        slugs = {s["slug"] for s in schedules}
+        assert slugs == {"existing-slug", "new-slug"}
+
+    async def test_update_deployment_schedule_multiple_replaces_same_target_errors(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """When multiple schedules have 'replaces' pointing to the same slug, return 422."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+
+        # Create deployment with initial schedule
+        data = DeploymentCreate(  # type: ignore
+            name="test-deployment-replaces-conflict",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="target-slug",
+                ),
+            ],
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # Update with two schedules both replacing the same slug
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+        schedule3 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=3)
+        )
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule2,
+                    slug="new-slug-1",
+                    replaces="target-slug",
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule3,
+                    slug="new-slug-2",
+                    replaces="target-slug",  # Same target - should error
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 422
+        assert (
+            "Multiple schedules have 'replaces' targeting the same slug"
+            in response.text
+        )
+
+    async def test_update_deployment_schedule_replaces_collision_with_existing_slug(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """When 'replaces' renames to a slug that already exists, return 422."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        # Create deployment with two schedules
+        data = DeploymentCreate(  # type: ignore
+            name="test-deployment-replaces-collision",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="old-slug",
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=True,
+                    slug="existing-slug",
+                ),
+            ],
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # Try to rename old-slug to existing-slug (collision)
+        schedule3 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=3)
+        )
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule3,
+                    slug="existing-slug",  # This already exists!
+                    replaces="old-slug",
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    slug="existing-slug",  # Keep this one unchanged
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 422
+        assert (
+            "Cannot rename schedule from 'old-slug' to 'existing-slug'" in response.text
+        )
+        assert "already exists" in response.text
+
+    async def test_update_deployment_schedule_chained_replaces_errors(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Chained replacements (A→B and B→C) should be rejected."""
+        schedule1 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+        schedule2 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=2)
+        )
+
+        # Create deployment with two schedules
+        data = DeploymentCreate(  # type: ignore
+            name="test-deployment-chained-replaces",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1,
+                    active=True,
+                    slug="slug-a",
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule2,
+                    active=True,
+                    slug="slug-b",
+                ),
+            ],
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        # Try chained replacement: A→B and B→C
+        schedule3 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=3)
+        )
+        schedule4 = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=4)
+        )
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule3,
+                    slug="slug-b",
+                    replaces="slug-a",
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    schedule=schedule4,
+                    slug="slug-c",
+                    replaces="slug-b",
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 422
+        assert "Chained replacements are not supported" in response.text
+
 
 class TestGetScheduledFlowRuns:
     @pytest.fixture

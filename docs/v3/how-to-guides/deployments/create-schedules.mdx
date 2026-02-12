@@ -158,6 +158,37 @@ deployments:
       active: true
 ```
 
+### Renaming schedule slugs
+
+If you need to rename a schedule's slug, use the `replaces` field to indicate which existing schedule should be updated:
+
+```yaml
+deployments:
+  - name: send-emails
+    entrypoint: flows.py:send_email
+    schedules:
+      - cron: "0 8 * * *"
+        slug: "daily-team-digest"    # The new slug
+        replaces: "morning-emails"   # The old slug being replaced
+        parameters:
+          to: "team@company.com"
+```
+
+When you run `prefect deploy`:
+- The existing schedule with slug "morning-emails" will be updated
+- Its slug will change to "daily-team-digest"
+- No new schedule is created, and no orphaned schedule remains
+
+After a successful deploy, you can remove the `replaces` field from your YAML - it becomes a no-op once the old slug no longer exists.
+
+<Note>
+If `replaces` points to a slug that doesn't exist, the schedule will be created normally and a warning will be logged.
+</Note>
+
+<Warning>
+Two schedules cannot have `replaces` pointing to the same slug. This will result in a validation error.
+</Warning>
+
 ### Create schedules with Terraform
 
 import { TF } from "/snippets/resource-management/terraform.mdx"
