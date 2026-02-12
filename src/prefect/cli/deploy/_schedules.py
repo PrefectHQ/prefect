@@ -44,6 +44,7 @@ def _schedule_config_to_deployment_schedule(
     schedule_active = schedule_config.get("active")
     parameters = schedule_config.get("parameters", {})
     slug = schedule_config.get("slug")
+    replaces = schedule_config.get("replaces")
 
     if cron := schedule_config.get("cron"):
         day_or = schedule_config.get("day_or")
@@ -83,5 +84,7 @@ def _schedule_config_to_deployment_schedule(
         schedule_obj["parameters"] = parameters
     if slug:
         schedule_obj["slug"] = slug
+    if replaces:
+        schedule_obj["replaces"] = replaces
 
     return schedule_obj
