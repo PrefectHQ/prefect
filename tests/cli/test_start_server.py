@@ -8,7 +8,6 @@ import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Callable
-from unittest.mock import patch
 
 import anyio
 import httpx
@@ -17,7 +16,7 @@ import readchar
 from anyio.abc import Process
 from typer import Exit
 
-from prefect.cli.server import SERVER_PID_FILE_NAME, _format_host_for_url
+from prefect.cli._server_utils import SERVER_PID_FILE_NAME, _format_host_for_url
 from prefect.context import get_settings_context
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -184,14 +183,23 @@ class TestMultipleWorkerServer:
                 expected_code=1,
             )
 
-    @patch("prefect.cli.server._validate_multi_worker")
     async def test_multi_worker_in_background(
         self,
-        mock_validate_multi_worker,
         unused_tcp_port: int,
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Test starting the server with multiple workers in the background."""
+        # Patch at the canonical location (for cyclopts, which imports inside
+        # the function body) and at the typer module namespace (which captured
+        # the reference at import time).
+        from unittest.mock import MagicMock
+
+        mock_validate = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._validate_multi_worker", mock_validate
+        )
+        monkeypatch.setattr("prefect.cli.server._validate_multi_worker", mock_validate)
+
         # Disable migrations and block registration to avoid race conditions
         # when multiple workers start concurrently. Each worker would try to
         # run migrations/block registration at the same time, causing database
@@ -251,7 +259,7 @@ class TestMultipleWorkerServer:
                 await anyio.sleep(1)  # Wait a bit more before retrying
 
             assert len(pids) == 2, f"Expected 2 worker PIDs but got {len(pids)}: {pids}"
-            assert mock_validate_multi_worker.called
+            assert mock_validate.called
 
         finally:
             await run_sync_in_worker_thread(
@@ -484,6 +492,8 @@ class TestPrestartCheck:
     @pytest.fixture(autouse=True)
     def interactive_console(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr("prefect.cli.server.is_interactive", lambda: True)
+        if os.environ.get("PREFECT_CLI_FAST") == "1":
+            monkeypatch.setattr("prefect.cli._cyclopts.is_interactive", lambda: True)
 
         # `readchar` does not like the fake stdin provided by typer isolation so we provide
         # a version that does not require a fd to be attached

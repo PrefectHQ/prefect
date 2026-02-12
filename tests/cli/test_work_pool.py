@@ -17,6 +17,7 @@ from prefect.client.schemas.actions import (
 from prefect.client.schemas.objects import BlockDocument, WorkPool
 from prefect.context import get_settings_context
 from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
+from prefect.infrastructure import provisioners
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.settings import (
     PREFECT_DEFAULT_WORK_POOL_NAME,
@@ -328,7 +329,8 @@ class TestCreate:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
+            provisioners,
+            "get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 
@@ -377,7 +379,8 @@ class TestCreate:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
+            provisioners,
+            "get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 
@@ -862,7 +865,8 @@ class TestProvisionInfrastructure:
                 return FAKE_DEFAULT_BASE_JOB_TEMPLATE
 
         monkeypatch.setattr(
-            "prefect.infrastructure.provisioners.get_infrastructure_provisioner_for_work_pool_type",
+            provisioners,
+            "get_infrastructure_provisioner_for_work_pool_type",
             lambda *args: MockProvisioner(),
         )
 

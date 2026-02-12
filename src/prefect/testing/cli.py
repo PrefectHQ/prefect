@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import contextlib
+import getpass
 import io
 import os
 import re
 import sys
 import textwrap
+import warnings
 from typing import Iterable
 
 import readchar
+from click.exceptions import Exit as click_Exit
 from rich.console import Console
 from typer.testing import CliRunner, Result  # type: ignore
 
@@ -58,7 +61,9 @@ class CycloptsResult:
     ):
         self.stdout = stdout
         self.stderr = stderr
-        self.output = stdout
+        # Click's CliRunner merges stdout and stderr into one stream.
+        # Match that behavior so ``result.output`` always contains both.
+        self.output: str = stdout + stderr
         self.exit_code = exit_code
         self.exception = exception
 
@@ -100,16 +105,37 @@ class CycloptsCliRunner:
             any exception that occurred.
         """
         import prefect.cli._cyclopts as _cli
-        from prefect.cli._cyclopts import _app
+        from prefect.cli._cyclopts import _dispatch, _normalize_top_level_flags
 
         if isinstance(args, str):
-            args = args.split()
+            import shlex
+
+            args = shlex.split(args)
         else:
             # Ensure all args are strings (tests may pass integers).
-            args = [str(a) for a in args]
+            # Drop None values and their preceding --flag, matching
+            # Click's CliRunner which passes None through to the parser
+            # as "no value" (the option keeps its default).
+            cleaned: list[str] = []
+            for a in args:
+                if a is None:
+                    # Drop the preceding --flag too, if present
+                    if cleaned and cleaned[-1].startswith("--"):
+                        cleaned.pop()
+                else:
+                    cleaned.append(str(a))
+            args = cleaned
 
-        stdout_buf = _TTYStringIO()
-        stderr_buf = _TTYStringIO()
+        # Emulate a TTY only when input is provided (interactive tests).
+        # Without input, use plain StringIO (isatty()=False) so that
+        # Rich Console.is_interactive is False — matching Click's CliRunner
+        # behavior and suppressing interactive prompts in non-interactive tests.
+        if input is not None:
+            stdout_buf = _TTYStringIO()
+            stderr_buf = _TTYStringIO()
+        else:
+            stdout_buf = io.StringIO()
+            stderr_buf = io.StringIO()
         exit_code = 0
         exception: BaseException | None = None
 
@@ -125,19 +151,26 @@ class CycloptsCliRunner:
             sys.stderr = stderr_buf  # type: ignore[assignment]
             if input is not None:
                 sys.stdin = io.StringIO(input)  # type: ignore[assignment]
+            else:
+                sys.stdin = io.StringIO()  # type: ignore[assignment]
             # Wide terminal prevents Rich from wrapping long lines, which
             # would cause brittle assertions on output content.
             os.environ["COLUMNS"] = "500"
 
-            _app.meta(args)
+            # Suppress getpass warnings — like Click's CliRunner, our
+            # StringIO stdin doesn't support terminal echo control.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", getpass.GetPassWarning)
+                _dispatch(_normalize_top_level_flags(args))
 
         except SystemExit as exc:
             exit_code = (
                 exc.code if isinstance(exc.code, int) else (1 if exc.code else 0)
             )
-        except Exception as exc:
-            exception = exc
-            exit_code = 1
+        except click_Exit as exc:
+            # Native cyclopts commands may call typer helpers that raise
+            # click.exceptions.Exit instead of SystemExit.
+            exit_code = exc.exit_code
         finally:
             sys.stdout = saved_stdout
             sys.stderr = saved_stderr
@@ -240,9 +273,6 @@ def invoke_and_assert(
     use_cyclopts = os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true")
 
     if use_cyclopts:
-        if isinstance(command, str):
-            command = [command]
-
         if user_input and prompts_and_responses:
             raise ValueError("Cannot provide both user_input and prompts_and_responses")
 

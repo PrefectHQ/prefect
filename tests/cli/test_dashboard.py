@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import prefect.cli.dashboard as _dashboard_mod
 from prefect.settings import (
     PREFECT_UI_URL,
     temporary_settings,
@@ -12,7 +13,7 @@ from prefect.testing.cli import invoke_and_assert
 @pytest.fixture
 def mock_webbrowser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     mock = MagicMock()
-    monkeypatch.setattr("prefect.cli.dashboard.webbrowser", mock)
+    monkeypatch.setattr(_dashboard_mod, "webbrowser", mock)
     return mock
 
 
