@@ -824,3 +824,103 @@ class TestPerNodeCachingIntegration:
 
         # customer_summary was recreated (no caching = always re-executes)
         assert _object_exists(db_path, "customer_summary")
+
+    def test_full_refresh_always_re_executes(
+        self, caching_orchestrator, per_node_dbt_project
+    ):
+        """Repeated full_refresh=True runs always execute (never cached)."""
+        from prefect import flow
+
+        orch = caching_orchestrator()
+        db_path = per_node_dbt_project["project_dir"] / "warehouse.duckdb"
+
+        @flow
+        def run(**kwargs):
+            return orch.run_build(**kwargs)
+
+        # Run 1: full_refresh build — populates DB
+        r1 = run(full_refresh=True)
+        assert all(r["status"] == "success" for r in r1.values())
+        assert _object_exists(db_path, "customer_summary")
+
+        # Drop customer_summary between runs
+        _drop_object(db_path, "customer_summary", "TABLE")
+        assert not _object_exists(db_path, "customer_summary")
+
+        # Run 2: full_refresh again — must re-execute (not cached)
+        r2 = run(full_refresh=True)
+        assert all(r["status"] == "success" for r in r2.values())
+
+        # customer_summary was recreated — full_refresh never caches
+        assert _object_exists(db_path, "customer_summary")
+
+    def test_normal_run_after_full_refresh_uses_cache(
+        self, caching_orchestrator, per_node_dbt_project
+    ):
+        """A normal run's cache isn't poisoned by a full_refresh run."""
+        from prefect import flow
+
+        orch = caching_orchestrator()
+        db_path = per_node_dbt_project["project_dir"] / "warehouse.duckdb"
+
+        @flow
+        def run(**kwargs):
+            return orch.run_build(**kwargs)
+
+        # Run 1: normal build — warms cache
+        r1 = run()
+        assert all(r["status"] == "success" for r in r1.values())
+
+        # Run 2: full_refresh — always executes
+        r2 = run(full_refresh=True)
+        assert all(r["status"] == "success" for r in r2.values())
+
+        # Drop customer_summary
+        _drop_object(db_path, "customer_summary", "TABLE")
+        assert not _object_exists(db_path, "customer_summary")
+
+        # Run 3: normal build — should hit Run 1's cache
+        r3 = run()
+        assert all(r["status"] == "success" for r in r3.values())
+
+        # customer_summary was NOT recreated — Run 1's cache was used
+        assert not _object_exists(db_path, "customer_summary")
+
+    def test_macro_change_invalidates_cache(
+        self, caching_orchestrator, per_node_dbt_project
+    ):
+        """Editing a macro file invalidates cache for dependent nodes."""
+        from prefect import flow
+
+        project_dir = per_node_dbt_project["project_dir"]
+        db_path = project_dir / "warehouse.duckdb"
+
+        orch = caching_orchestrator()
+
+        @flow
+        def run():
+            return orch.run_build()
+
+        # Run 1: full build — warms cache
+        r1 = run()
+        assert all(r["status"] == "success" for r in r1.values())
+        assert _object_exists(db_path, "customer_summary")
+
+        # Modify the macro file on disk — changes the macro content hash
+        macro_path = project_dir / "macros" / "format_amount.sql"
+        macro_path.write_text(
+            "{% macro format_amount(column) %}\n"
+            "    coalesce({{ column }}, 0)\n"
+            "{% endmacro %}\n"
+        )
+
+        # Drop customer_summary — if cache miss, dbt will recreate it
+        _drop_object(db_path, "customer_summary", "TABLE")
+        assert not _object_exists(db_path, "customer_summary")
+
+        # Run 2: macro hash changed → customer_summary must re-execute
+        r2 = run()
+        assert all(r["status"] == "success" for r in r2.values())
+
+        # customer_summary was recreated — macro change invalidated cache
+        assert _object_exists(db_path, "customer_summary")
