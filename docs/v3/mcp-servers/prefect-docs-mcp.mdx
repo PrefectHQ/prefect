@@ -1,0 +1,93 @@
+---
+title: Prefect Docs MCP
+sidebarTitle: Prefect Docs MCP
+description: Access Prefect documentation through your AI assistant using the docs proxy.
+---
+
+The Prefect Docs MCP provides AI-powered documentation search without requiring installation or connecting to your Prefect workflows. Simply configure your AI assistant to use the docs proxy URL.
+
+## Quick start
+
+Add the docs proxy URL to your MCP-compatible AI assistant:
+
+**Docs Proxy URL**: `https://docs.prefect.io/mcp`
+
+### Configuration examples
+
+<AccordionGroup>
+
+<Accordion title="Claude Desktop" defaultOpen>
+
+Add to your Claude Desktop configuration:
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="Cursor">
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="VS Code">
+
+Add to your VS Code settings:
+
+```json
+{
+  "mcp.servers": {
+    "prefect-docs": {
+      "url": "https://docs.prefect.io/mcp"
+    }
+  }
+}
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+## Test your setup
+
+Once configured, try these prompts to verify the connection:
+
+- "What is a Prefect flow?"
+- "How do I create a deployment?"
+- "Show me examples of using task caching"
+- "What are work pools?"
+
+## What you can do
+
+With the Prefect Docs MCP, your AI assistant can:
+
+- **Search documentation**: Find relevant Prefect documentation based on your questions
+- **Answer questions**: Get contextual answers about Prefect concepts and APIs
+- **Find examples**: Discover code examples and best practices
+- **Access current content**: Always get up-to-date information from the official docs
+
+## No installation required
+
+The docs proxy is a hosted service—no credentials, installation, or Prefect instance required. It only accesses public Prefect documentation.
+
+## Want more?
+
+If you also want to monitor your Prefect instance, debug flow runs, and query your infrastructure, check out the [Prefect MCP Server](/v3/mcp-servers/prefect-mcp-server) which includes both documentation access and workflow integration.
