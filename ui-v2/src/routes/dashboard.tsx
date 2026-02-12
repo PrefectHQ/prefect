@@ -53,6 +53,70 @@ import { PrefectLoading } from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 
+function FlowRunsCardSkeleton() {
+	return (
+		<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+			<div className="flex flex-row items-center justify-between p-6 pb-2">
+				<Skeleton className="h-6 w-24" />
+				<Skeleton className="h-4 w-16" />
+			</div>
+			<div className="p-6 pt-0 space-y-2">
+				<Skeleton className="h-24 w-full" />
+				<div className="flex justify-between w-full gap-2">
+					{[1, 2, 3, 4, 5].map((i) => (
+						<Skeleton key={i} className="h-10 flex-1" />
+					))}
+				</div>
+				<Skeleton className="h-32 w-full" />
+			</div>
+		</div>
+	);
+}
+
+function TaskRunsCardSkeleton() {
+	return (
+		<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+			<div className="flex flex-row items-center justify-between p-6 pb-2">
+				<Skeleton className="h-6 w-24" />
+			</div>
+			<div className="p-6 pt-0 space-y-4">
+				<div className="grid gap-1">
+					<Skeleton className="h-5 w-20" />
+					<Skeleton className="h-4 w-32" />
+					<Skeleton className="h-4 w-28" />
+				</div>
+				<Skeleton className="h-16 w-full" />
+			</div>
+		</div>
+	);
+}
+
+function WorkPoolsCardSkeleton() {
+	return (
+		<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+			<div className="p-6">
+				<Skeleton className="h-6 w-32 mb-4" />
+			</div>
+			<div className="p-6 pt-0 space-y-4">
+				<div className="rounded-xl border p-3 space-y-3">
+					<div className="flex items-center gap-2">
+						<Skeleton className="h-5 w-32" />
+						<Skeleton className="h-5 w-5 rounded-full" />
+					</div>
+					<div className="grid grid-cols-4 gap-2">
+						{[1, 2, 3, 4].map((i) => (
+							<div key={i} className="space-y-1">
+								<Skeleton className="h-3 w-16" />
+								<Skeleton className="h-4 w-12" />
+							</div>
+						))}
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 // Valid tab values for flow run state filtering
 const FLOW_RUN_STATE_TABS = [
 	"FAILED-CRASHED",
@@ -300,410 +364,9 @@ const STATE_TYPE_GROUPS = [
 	["CANCELLED"],
 ] as const;
 
-function omitKeys<T extends object, K extends readonly (keyof T)[]>(
-	obj: T,
-	keys: K,
-): Omit<T, K[number]> {
-	const clone: Record<string, unknown> = {
-		...(obj as Record<string, unknown>),
-	};
-	for (const k of keys as readonly string[]) {
-		delete clone[k];
-	}
-	return clone as Omit<T, K[number]>;
-}
-
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(searchParams),
-	component: function RouteComponent() {
-		function FlowRunsCardSkeleton() {
-			return (
-				<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-					<div className="flex flex-row items-center justify-between p-6 pb-2">
-						<Skeleton className="h-6 w-24" />
-						<Skeleton className="h-4 w-16" />
-					</div>
-					<div className="p-6 pt-0 space-y-2">
-						<Skeleton className="h-24 w-full" />
-						<div className="flex justify-between w-full gap-2">
-							{[1, 2, 3, 4, 5].map((i) => (
-								<Skeleton key={i} className="h-10 flex-1" />
-							))}
-						</div>
-						<Skeleton className="h-32 w-full" />
-					</div>
-				</div>
-			);
-		}
-
-		function TaskRunsCardSkeleton() {
-			return (
-				<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-					<div className="flex flex-row items-center justify-between p-6 pb-2">
-						<Skeleton className="h-6 w-24" />
-					</div>
-					<div className="p-6 pt-0 space-y-4">
-						<div className="grid gap-1">
-							<Skeleton className="h-5 w-20" />
-							<Skeleton className="h-4 w-32" />
-							<Skeleton className="h-4 w-28" />
-						</div>
-						<Skeleton className="h-16 w-full" />
-					</div>
-				</div>
-			);
-		}
-
-		function WorkPoolsCardSkeleton() {
-			return (
-				<div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-					<div className="p-6">
-						<Skeleton className="h-6 w-32 mb-4" />
-					</div>
-					<div className="p-6 pt-0 space-y-4">
-						<div className="rounded-xl border p-3 space-y-3">
-							<div className="flex items-center gap-2">
-								<Skeleton className="h-5 w-32" />
-								<Skeleton className="h-5 w-5 rounded-full" />
-							</div>
-							<div className="grid grid-cols-4 gap-2">
-								{[1, 2, 3, 4].map((i) => (
-									<div key={i} className="space-y-1">
-										<Skeleton className="h-3 w-16" />
-										<Skeleton className="h-4 w-12" />
-									</div>
-								))}
-							</div>
-						</div>
-					</div>
-				</div>
-			);
-		}
-
-		const search = Route.useSearch();
-		const navigate = Route.useNavigate();
-
-		// Check if there are any flow runs at all (unfiltered count)
-		const { data: totalFlowRuns } = useSuspenseQuery(
-			buildCountFlowRunsQuery({}, 30_000),
-		);
-		const isEmpty = totalFlowRuns === 0;
-
-		// Derive UI states with sensible defaults
-		const hideSubflows = search.hideSubflows ?? false;
-		const tags = search.tags ?? [];
-		const dateRangeValue = useMemo<DateRangeSelectValue>(() => {
-			switch (search.rangeType) {
-				case "span": {
-					const seconds = search.seconds ?? -86400; // default 24h
-					return { type: "span", seconds };
-				}
-				case "range": {
-					if (search.start && search.end) {
-						return {
-							type: "range",
-							startDate: new Date(search.start),
-							endDate: new Date(search.end),
-						};
-					}
-					return { type: "span", seconds: -86400 };
-				}
-				case "around": {
-					if (search.aroundDate && search.aroundQuantity && search.aroundUnit) {
-						return {
-							type: "around",
-							date: new Date(search.aroundDate),
-							quantity: search.aroundQuantity,
-							unit: search.aroundUnit as DateRangeSelectAroundUnit,
-						};
-					}
-					return { type: "span", seconds: -86400 };
-				}
-				case "period": {
-					return { type: "period", period: search.period ?? "Today" };
-				}
-				default:
-					return { type: "span", seconds: -86400 };
-			}
-		}, [
-			search.rangeType,
-			search.seconds,
-			search.start,
-			search.end,
-			search.aroundDate,
-			search.aroundQuantity,
-			search.aroundUnit,
-			search.period,
-		]);
-
-		const onToggleHideSubflows = useCallback(
-			(checked: boolean) => {
-				void navigate({
-					to: ".",
-					search: (prev) => ({ ...prev, hideSubflows: checked }),
-					replace: true,
-				});
-			},
-			[navigate],
-		);
-
-		const onTagsChange = useCallback(
-			(nextTags: string[]) => {
-				void navigate({
-					to: ".",
-					search: (prev) => ({
-						...prev,
-						tags: nextTags.length ? nextTags : undefined,
-					}),
-					replace: true,
-				});
-			},
-			[navigate],
-		);
-
-		// Convert tab string to state types array and vice versa
-		const selectedStates = useMemo(() => {
-			const tab = search.tab ?? "FAILED-CRASHED";
-			return tab.split("-") as Array<
-				| "FAILED"
-				| "CRASHED"
-				| "RUNNING"
-				| "PENDING"
-				| "CANCELLING"
-				| "COMPLETED"
-				| "SCHEDULED"
-				| "PAUSED"
-				| "CANCELLED"
-			>;
-		}, [search.tab]);
-
-		const onTabChange = useCallback(
-			(
-				states: Array<
-					| "FAILED"
-					| "CRASHED"
-					| "RUNNING"
-					| "PENDING"
-					| "CANCELLING"
-					| "COMPLETED"
-					| "SCHEDULED"
-					| "PAUSED"
-					| "CANCELLED"
-				>,
-			) => {
-				const tabValue = states.join("-") as FlowRunStateTab;
-				void navigate({
-					to: ".",
-					search: (prev) => ({
-						...prev,
-						// Only set tab if it's not the default (FAILED-CRASHED)
-						tab: tabValue === "FAILED-CRASHED" ? undefined : tabValue,
-					}),
-					replace: true,
-				});
-			},
-			[navigate],
-		);
-
-		const onDateRangeChange = useCallback(
-			(next: DateRangeSelectValue) => {
-				void navigate({
-					to: ".",
-					search: (prev: DashboardSearch) => {
-						if (!next) {
-							return omitKeys(prev, [
-								"rangeType",
-								"seconds",
-								"start",
-								"end",
-								"aroundDate",
-								"aroundQuantity",
-								"aroundUnit",
-								"period",
-								"from",
-								"to",
-							] as const);
-						}
-
-						// Compute normalized from/to for convenience
-						let fromIso: string | undefined;
-						let toIso: string | undefined;
-						switch (next.type) {
-							case "span": {
-								const now = new Date();
-								const then = new Date(now.getTime() + next.seconds * 1000);
-								const [a, b] = [now, then].sort(
-									(x, y) => x.getTime() - y.getTime(),
-								);
-								fromIso = a.toISOString();
-								toIso = b.toISOString();
-								return {
-									...prev,
-									rangeType: "span",
-									seconds: next.seconds,
-									from: fromIso,
-									to: toIso,
-								};
-							}
-							case "range": {
-								fromIso = next.startDate.toISOString();
-								toIso = next.endDate.toISOString();
-								return {
-									...prev,
-									rangeType: "range",
-									start: fromIso,
-									end: toIso,
-									from: fromIso,
-									to: toIso,
-								};
-							}
-							case "around": {
-								const center = next.date;
-								const multiplier = {
-									second: 1,
-									minute: 60,
-									hour: 3600,
-									day: 86400,
-								}[next.unit];
-								const spanSeconds = next.quantity * multiplier;
-								const from = new Date(center.getTime() - spanSeconds * 1000);
-								const to = new Date(center.getTime() + spanSeconds * 1000);
-								fromIso = from.toISOString();
-								toIso = to.toISOString();
-								return {
-									...prev,
-									rangeType: "around",
-									aroundDate: center.toISOString(),
-									aroundQuantity: next.quantity,
-									aroundUnit: next.unit,
-									from: fromIso,
-									to: toIso,
-								};
-							}
-							case "period": {
-								// Only Today supported; normalize to today's start/end
-								const now = new Date();
-								const start = new Date(now);
-								start.setHours(0, 0, 0, 0);
-								const end = new Date(now);
-								end.setHours(23, 59, 59, 999);
-								fromIso = start.toISOString();
-								toIso = end.toISOString();
-								return {
-									...prev,
-									rangeType: "period",
-									period: next.period,
-									from: fromIso,
-									to: toIso,
-								};
-							}
-						}
-					},
-					replace: true,
-				});
-			},
-			[navigate],
-		);
-
-		// Compute the date range from search params (defaults are set in zod schema)
-		const { from, to } = getDateRangeFromSearch(search);
-
-		return (
-			<FlowRunActivityBarGraphTooltipProvider>
-				<LayoutWell>
-					<LayoutWellContent>
-						<LayoutWellHeader className="pb-4 md:pb-6">
-							<div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
-								<div>
-									<Breadcrumb>
-										<BreadcrumbList>
-											<BreadcrumbItem className="text-xl font-semibold">
-												Dashboard
-											</BreadcrumbItem>
-										</BreadcrumbList>
-									</Breadcrumb>
-								</div>
-								{!isEmpty && (
-									<div className="flex flex-col w-full max-w-full gap-2 md:w-auto md:inline-flex md:flex-row items-center">
-										{/* Filters */}
-										<div className="flex items-center gap-2 w-full md:w-auto">
-											<div className="pr-2 w-full md:w-auto flex items-center gap-2">
-												<Switch
-													id="hide-subflows"
-													checked={hideSubflows}
-													onCheckedChange={onToggleHideSubflows}
-												/>
-												<Label htmlFor="hide-subflows">Hide subflows</Label>
-											</div>
-											<div className="min-w-0 w-60">
-												<FlowRunTagsSelect
-													value={tags}
-													onChange={onTagsChange}
-													placeholder="All tags"
-												/>
-											</div>
-											<div className="min-w-0">
-												<RichDateRangeSelector
-													value={dateRangeValue}
-													onValueChange={onDateRangeChange}
-													placeholder="Select a time span"
-												/>
-											</div>
-										</div>
-									</div>
-								)}
-							</div>
-						</LayoutWellHeader>
-
-						{isEmpty ? (
-							<DashboardFlowRunsEmptyState />
-						) : (
-							<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
-								{/* Main content - Flow Runs Card */}
-								<div className="space-y-4">
-									<Suspense fallback={<FlowRunsCardSkeleton />}>
-										<FlowRunsCard
-											filter={{
-												startDate: from,
-												endDate: to,
-												tags: search.tags,
-												hideSubflows: search.hideSubflows,
-											}}
-											selectedStates={selectedStates}
-											onStateChange={onTabChange}
-										/>
-									</Suspense>
-								</div>
-
-								{/* Sidebar - Task Runs and Work Pools Cards */}
-								<div className="grid grid-cols-1 gap-4">
-									<Suspense fallback={<TaskRunsCardSkeleton />}>
-										<TaskRunsCard
-											filter={{
-												startDate: from,
-												endDate: to,
-												tags: search.tags,
-												hideSubflows: search.hideSubflows,
-											}}
-										/>
-									</Suspense>
-
-									<Suspense fallback={<WorkPoolsCardSkeleton />}>
-										<DashboardWorkPoolsCard
-											filter={{
-												startDate: from,
-												endDate: to,
-											}}
-										/>
-									</Suspense>
-								</div>
-							</div>
-						)}
-					</LayoutWellContent>
-				</LayoutWell>
-			</FlowRunActivityBarGraphTooltipProvider>
-		);
-	},
+	component: RouteComponent,
 	pendingComponent: PrefectLoading,
 	pendingMs: 400,
 	pendingMinMs: 400,
@@ -1075,3 +738,342 @@ export const Route = createFileRoute("/dashboard")({
 	},
 	wrapInSuspense: true,
 });
+
+function omitKeys<T extends object, K extends readonly (keyof T)[]>(
+	obj: T,
+	keys: K,
+): Omit<T, K[number]> {
+	const clone: Record<string, unknown> = {
+		...(obj as Record<string, unknown>),
+	};
+	for (const k of keys as readonly string[]) {
+		delete clone[k];
+	}
+	return clone as Omit<T, K[number]>;
+}
+
+export function RouteComponent() {
+	const search = Route.useSearch();
+	const navigate = Route.useNavigate();
+
+	// Check if there are any flow runs at all (unfiltered count)
+	const { data: totalFlowRuns } = useSuspenseQuery(
+		buildCountFlowRunsQuery({}, 30_000),
+	);
+	const isEmpty = totalFlowRuns === 0;
+
+	// Derive UI states with sensible defaults
+	const hideSubflows = search.hideSubflows ?? false;
+	const tags = search.tags ?? [];
+	const dateRangeValue = useMemo<DateRangeSelectValue>(() => {
+		switch (search.rangeType) {
+			case "span": {
+				const seconds = search.seconds ?? -86400; // default 24h
+				return { type: "span", seconds };
+			}
+			case "range": {
+				if (search.start && search.end) {
+					return {
+						type: "range",
+						startDate: new Date(search.start),
+						endDate: new Date(search.end),
+					};
+				}
+				return { type: "span", seconds: -86400 };
+			}
+			case "around": {
+				if (search.aroundDate && search.aroundQuantity && search.aroundUnit) {
+					return {
+						type: "around",
+						date: new Date(search.aroundDate),
+						quantity: search.aroundQuantity,
+						unit: search.aroundUnit as DateRangeSelectAroundUnit,
+					};
+				}
+				return { type: "span", seconds: -86400 };
+			}
+			case "period": {
+				return { type: "period", period: search.period ?? "Today" };
+			}
+			default:
+				return { type: "span", seconds: -86400 };
+		}
+	}, [
+		search.rangeType,
+		search.seconds,
+		search.start,
+		search.end,
+		search.aroundDate,
+		search.aroundQuantity,
+		search.aroundUnit,
+		search.period,
+	]);
+
+	const onToggleHideSubflows = useCallback(
+		(checked: boolean) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, hideSubflows: checked }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const onTagsChange = useCallback(
+		(nextTags: string[]) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					tags: nextTags.length ? nextTags : undefined,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	// Convert tab string to state types array and vice versa
+	const selectedStates = useMemo(() => {
+		const tab = search.tab ?? "FAILED-CRASHED";
+		return tab.split("-") as Array<
+			| "FAILED"
+			| "CRASHED"
+			| "RUNNING"
+			| "PENDING"
+			| "CANCELLING"
+			| "COMPLETED"
+			| "SCHEDULED"
+			| "PAUSED"
+			| "CANCELLED"
+		>;
+	}, [search.tab]);
+
+	const onTabChange = useCallback(
+		(
+			states: Array<
+				| "FAILED"
+				| "CRASHED"
+				| "RUNNING"
+				| "PENDING"
+				| "CANCELLING"
+				| "COMPLETED"
+				| "SCHEDULED"
+				| "PAUSED"
+				| "CANCELLED"
+			>,
+		) => {
+			const tabValue = states.join("-") as FlowRunStateTab;
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					// Only set tab if it's not the default (FAILED-CRASHED)
+					tab: tabValue === "FAILED-CRASHED" ? undefined : tabValue,
+				}),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const onDateRangeChange = useCallback(
+		(next: DateRangeSelectValue) => {
+			void navigate({
+				to: ".",
+				search: (prev: DashboardSearch) => {
+					if (!next) {
+						return omitKeys(prev, [
+							"rangeType",
+							"seconds",
+							"start",
+							"end",
+							"aroundDate",
+							"aroundQuantity",
+							"aroundUnit",
+							"period",
+							"from",
+							"to",
+						] as const);
+					}
+
+					// Compute normalized from/to for convenience
+					let fromIso: string | undefined;
+					let toIso: string | undefined;
+					switch (next.type) {
+						case "span": {
+							const now = new Date();
+							const then = new Date(now.getTime() + next.seconds * 1000);
+							const [a, b] = [now, then].sort(
+								(x, y) => x.getTime() - y.getTime(),
+							);
+							fromIso = a.toISOString();
+							toIso = b.toISOString();
+							return {
+								...prev,
+								rangeType: "span",
+								seconds: next.seconds,
+								from: fromIso,
+								to: toIso,
+							};
+						}
+						case "range": {
+							fromIso = next.startDate.toISOString();
+							toIso = next.endDate.toISOString();
+							return {
+								...prev,
+								rangeType: "range",
+								start: fromIso,
+								end: toIso,
+								from: fromIso,
+								to: toIso,
+							};
+						}
+						case "around": {
+							const center = next.date;
+							const multiplier = {
+								second: 1,
+								minute: 60,
+								hour: 3600,
+								day: 86400,
+							}[next.unit];
+							const spanSeconds = next.quantity * multiplier;
+							const from = new Date(center.getTime() - spanSeconds * 1000);
+							const to = new Date(center.getTime() + spanSeconds * 1000);
+							fromIso = from.toISOString();
+							toIso = to.toISOString();
+							return {
+								...prev,
+								rangeType: "around",
+								aroundDate: center.toISOString(),
+								aroundQuantity: next.quantity,
+								aroundUnit: next.unit,
+								from: fromIso,
+								to: toIso,
+							};
+						}
+						case "period": {
+							// Only Today supported; normalize to today's start/end
+							const now = new Date();
+							const start = new Date(now);
+							start.setHours(0, 0, 0, 0);
+							const end = new Date(now);
+							end.setHours(23, 59, 59, 999);
+							fromIso = start.toISOString();
+							toIso = end.toISOString();
+							return {
+								...prev,
+								rangeType: "period",
+								period: next.period,
+								from: fromIso,
+								to: toIso,
+							};
+						}
+					}
+				},
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	// Compute the date range from search params (defaults are set in zod schema)
+	const { from, to } = getDateRangeFromSearch(search);
+
+	return (
+		<FlowRunActivityBarGraphTooltipProvider>
+			<LayoutWell>
+				<LayoutWellContent>
+					<LayoutWellHeader className="pb-4 md:pb-6">
+						<div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
+							<div>
+								<Breadcrumb>
+									<BreadcrumbList>
+										<BreadcrumbItem className="text-xl font-semibold">
+											Dashboard
+										</BreadcrumbItem>
+									</BreadcrumbList>
+								</Breadcrumb>
+							</div>
+							{!isEmpty && (
+								<div className="flex flex-col w-full max-w-full gap-2 md:w-auto md:inline-flex md:flex-row items-center">
+									{/* Filters */}
+									<div className="flex items-center gap-2 w-full md:w-auto">
+										<div className="pr-2 w-full md:w-auto flex items-center gap-2">
+											<Switch
+												id="hide-subflows"
+												checked={hideSubflows}
+												onCheckedChange={onToggleHideSubflows}
+											/>
+											<Label htmlFor="hide-subflows">Hide subflows</Label>
+										</div>
+										<div className="min-w-0 w-60">
+											<FlowRunTagsSelect
+												value={tags}
+												onChange={onTagsChange}
+												placeholder="All tags"
+											/>
+										</div>
+										<div className="min-w-0">
+											<RichDateRangeSelector
+												value={dateRangeValue}
+												onValueChange={onDateRangeChange}
+												placeholder="Select a time span"
+											/>
+										</div>
+									</div>
+								</div>
+							)}
+						</div>
+					</LayoutWellHeader>
+
+					{isEmpty ? (
+						<DashboardFlowRunsEmptyState />
+					) : (
+						<div className="grid grid-cols-1 gap-4 items-start xl:grid-cols-2">
+							{/* Main content - Flow Runs Card */}
+							<div className="space-y-4">
+								<Suspense fallback={<FlowRunsCardSkeleton />}>
+									<FlowRunsCard
+										filter={{
+											startDate: from,
+											endDate: to,
+											tags: search.tags,
+											hideSubflows: search.hideSubflows,
+										}}
+										selectedStates={selectedStates}
+										onStateChange={onTabChange}
+									/>
+								</Suspense>
+							</div>
+
+							{/* Sidebar - Task Runs and Work Pools Cards */}
+							<div className="grid grid-cols-1 gap-4">
+								<Suspense fallback={<TaskRunsCardSkeleton />}>
+									<TaskRunsCard
+										filter={{
+											startDate: from,
+											endDate: to,
+											tags: search.tags,
+											hideSubflows: search.hideSubflows,
+										}}
+									/>
+								</Suspense>
+
+								<Suspense fallback={<WorkPoolsCardSkeleton />}>
+									<DashboardWorkPoolsCard
+										filter={{
+											startDate: from,
+											endDate: to,
+										}}
+									/>
+								</Suspense>
+							</div>
+						</div>
+					)}
+				</LayoutWellContent>
+			</LayoutWell>
+		</FlowRunActivityBarGraphTooltipProvider>
+	);
+}
