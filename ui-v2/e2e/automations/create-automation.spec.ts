@@ -61,20 +61,29 @@ test.describe("Create Automation", () => {
 		// Click Save
 		await page.getByRole("button", { name: /save/i }).click();
 
-		// Verify navigation to /automations
-		await expect(page).toHaveURL(/\/automations$/);
+		// Verify navigation to /automations and automation appears in list
+		await expect(async () => {
+			await expect(page).toHaveURL(/\/automations$/, { timeout: 2000 });
+			await expect(page.getByText(automationName)).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
 
-		// Verify automation appears in list
-		await expect(page.getByText(automationName)).toBeVisible();
-
-		// Verify via API client that automation was created
-		const automations = await listAutomations(apiClient);
-		const createdAutomation = automations.find(
-			(a) => a.name === automationName,
-		);
-		expect(createdAutomation).toBeDefined();
-		expect(createdAutomation?.description).toBe(automationDescription);
-		expect(createdAutomation?.enabled).toBe(true);
+		// Verify via API client that automation was created with correct properties
+		await expect
+			.poll(
+				async () => {
+					const automations = await listAutomations(apiClient);
+					return automations.find((a) => a.name === automationName);
+				},
+				{ timeout: 10_000 },
+			)
+			.toEqual(
+				expect.objectContaining({
+					description: automationDescription,
+					enabled: true,
+				}),
+			);
 	});
 
 	test("should show validation error when name is missing", async ({

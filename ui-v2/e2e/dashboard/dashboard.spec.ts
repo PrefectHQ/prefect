@@ -82,9 +82,14 @@ test.describe("Dashboard Page", () => {
 				state: { type: "RUNNING", name: "Running" },
 			});
 
-			// --- NAVIGATE to dashboard ---
-			await page.goto("/dashboard");
-			await waitForDashboardReady(page);
+			// --- NAVIGATE to dashboard and wait for data ---
+			await expect(async () => {
+				await page.goto("/dashboard");
+				await waitForDashboardReady(page);
+				await expect(page.getByText(/completed/i).first()).toBeVisible({
+					timeout: 2000,
+				});
+			}).toPass({ timeout: 15000 });
 
 			// --- VERIFY: Dashboard header and filters are visible ---
 			// Dashboard title is in a BreadcrumbItem (li element), not a heading
