@@ -198,6 +198,7 @@ test.describe("Variables Page", () => {
 				await waitForVariablesPageReady(page);
 				await page
 					.getByRole("button", { name: /add variable/i })
+					.first()
 					.click({ timeout: 2000 });
 			}).toPass({ timeout: 15000 });
 

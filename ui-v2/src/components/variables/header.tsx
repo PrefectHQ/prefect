@@ -27,7 +27,7 @@ export const VariablesPageHeader = ({
 					size="icon"
 					className="size-7"
 					variant="outline"
-					aria-label="Add Variable"
+					aria-label="Add variable"
 					onClick={() => onAddVariableClick()}
 				>
 					<Icon id="Plus" className="size-4" />
