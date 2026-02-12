@@ -48,7 +48,7 @@ test.describe("Variables Page", () => {
 				page.getByRole("heading", { name: /add a variable to get started/i }),
 			).toBeVisible();
 			await expect(
-				page.getByRole("button", { name: /add variable/i }),
+				page.getByRole("button", { name: "Add Variable", exact: true }),
 			).toBeVisible();
 			await expect(
 				page.getByRole("link", { name: /view docs/i }),
@@ -68,7 +68,10 @@ test.describe("Variables Page", () => {
 			await waitForVariablesPageReady(page);
 
 			// Click Add Variable button
-			await page.getByRole("button", { name: /add variable/i }).click();
+			await page
+				.getByRole("button", { name: /add variable/i })
+				.first()
+				.click();
 
 			// Verify dialog opens
 			await expect(
@@ -113,7 +116,10 @@ test.describe("Variables Page", () => {
 			await page.goto("/variables");
 			await waitForVariablesPageReady(page);
 
-			await page.getByRole("button", { name: /add variable/i }).click();
+			await page
+				.getByRole("button", { name: /add variable/i })
+				.first()
+				.click();
 			await expect(
 				page.getByRole("dialog", { name: /new variable/i }),
 			).toBeVisible();
@@ -152,7 +158,10 @@ test.describe("Variables Page", () => {
 			await page.goto("/variables");
 			await waitForVariablesPageReady(page);
 
-			await page.getByRole("button", { name: /add variable/i }).click();
+			await page
+				.getByRole("button", { name: /add variable/i })
+				.first()
+				.click();
 			await expect(
 				page.getByRole("dialog", { name: /new variable/i }),
 			).toBeVisible();
