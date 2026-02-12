@@ -2,6 +2,34 @@
 title: prefect-dbt
 ---
 
+## 0.7.17
+
+_Released on February 12, 2026_
+
+**Features**
+
+- Add PER_NODE execution mode to PrefectDbtOrchestrator [#20608](https://github.com/PrefectHQ/prefect/pull/20608) by [@desertaxle](https://github.com/desertaxle)
+- Add `PrefectDbtOrchestrator` with wave-by-wave execution [#20591](https://github.com/PrefectHQ/prefect/pull/20591) by [@desertaxle](https://github.com/desertaxle)
+- Add selector resolution and node filtering for per-node dbt orchestration [#20579](https://github.com/PrefectHQ/prefect/pull/20579) by [@desertaxle](https://github.com/desertaxle)
+- Add `DbtNode`, `ExecutionWave`, and `ManifestParser` for per-node dbt orchestration [#20561](https://github.com/PrefectHQ/prefect/pull/20561) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- Fix error message in PrefectDbtRunner [#20648](https://github.com/PrefectHQ/prefect/pull/20648) by [@lostkamp](https://github.com/lostkamp)
+- fix: use `timeout_seconds_override` as `max_wait_seconds` when polling for dbt Cloud job completion [#20583](https://github.com/PrefectHQ/prefect/pull/20583) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Fix `DbtCoreOperation` sync methods after `prefect-shell` `async_dispatch` migration [#20562](https://github.com/PrefectHQ/prefect/pull/20562) by [@desertaxle](https://github.com/desertaxle)
+
+**Documentation**
+
+- Add DbtCoreExecutor for per-node dbt command execution [#20589](https://github.com/PrefectHQ/prefect/pull/20589) by [@desertaxle](https://github.com/desertaxle)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
+- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@app/dependabot](https://github.com/app/dependabot)
+
+---
+
 ## 0.7.15
 
 _Released on January 15, 2026_
