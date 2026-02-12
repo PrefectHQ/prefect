@@ -3,57 +3,38 @@ title: MCP Servers
 description: Connect AI assistants to Prefect using the Model Context Protocol.
 ---
 
-Prefect provides [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers that enable AI assistants to interact with your Prefect workflows and documentation. These servers allow AI tools like Claude Code, Cursor, and other MCP-compatible clients to help you build, monitor, and debug your Prefect workflows.
+Prefect provides a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that enables AI assistants to interact with your Prefect workflows and access documentation. The Prefect MCP server allows AI tools like Claude Code, Cursor, and other MCP-compatible clients to help you build, monitor, and debug your Prefect workflows.
 
 ## What is MCP?
 
 The Model Context Protocol (MCP) is an open standard that enables AI assistants to securely connect to external tools and data sources. MCP servers expose capabilities through a standardized interface, allowing AI assistants to access real-time information and perform operations on your behalf.
 
-## Available MCP Servers
+## Prefect MCP Server
 
-Prefect offers two MCP servers to enhance your AI-assisted development workflow:
+The Prefect MCP server provides AI assistants with tools to:
 
-<CardGroup cols={2}>
-  <Card
-    title="Prefect MCP Server"
-    icon="chart-network"
-    href="/v3/mcp-servers/prefect-mcp-server"
-  >
-    Monitor deployments, debug flow runs, and interact with your Prefect instance through AI assistants.
-  </Card>
-  <Card
-    title="Prefect Docs MCP Server"
-    icon="book"
-    href="/v3/mcp-servers/prefect-docs-mcp-server"
-  >
-    Access up-to-date Prefect documentation and get instant answers about Prefect concepts and APIs.
-  </Card>
-</CardGroup>
+- **Monitor & inspect**: View system health, query deployments, flow runs, task runs, work pools, and execution logs
+- **Debug intelligently**: Get contextual guidance for troubleshooting failed flows and deployment issues
+- **Access documentation**: Query up-to-date Prefect documentation through an integrated docs proxy
+
+[Get started with the Prefect MCP Server →](/v3/mcp-servers/prefect-mcp-server)
 
 ## Why Use MCP with Prefect?
 
-Integrating MCP servers with your AI assistant provides several benefits:
+Integrating the Prefect MCP server with your AI assistant provides several benefits:
 
 - **Faster Development**: Get instant access to Prefect documentation and examples without leaving your editor
 - **Intelligent Debugging**: Receive contextual guidance when troubleshooting failed flows and deployments
 - **Real-time Monitoring**: Query your Prefect instance to check deployment status, view logs, and track flow runs
 - **Reduced Context Switching**: Keep your workflow in one place by accessing Prefect directly through your AI assistant
 
-## Getting Started
-
-Choose the MCP server that fits your needs:
-
-- **Building workflows?** Start with the [Prefect Docs MCP Server](/v3/mcp-servers/prefect-docs-mcp-server) to get documentation at your fingertips
-- **Managing deployments?** Use the [Prefect MCP Server](/v3/mcp-servers/prefect-mcp-server) to monitor and debug your running workflows
-- **Want both?** Install both servers—they work great together
-
 ## Security Considerations
 
-Both MCP servers are designed with security in mind:
+The Prefect MCP server is designed with security in mind:
 
-- The **Prefect MCP Server** provides read-only access to your Prefect instance using your existing credentials
-- The **Prefect Docs MCP Server** only accesses public documentation—no credentials required
-- All MCP servers run locally on your machine or can be deployed to secure cloud environments
+- Provides **read-only access** to your Prefect instance using your existing credentials
+- Can only access information available to the account you authenticate with
+- Runs locally on your machine or can be deployed to secure cloud environments
 
 <Warning>
 Remember that MCP servers operate within the context of your AI assistant. If your AI assistant has terminal access or other capabilities, it can perform actions beyond what the MCP server itself provides. Always be mindful of the permissions and capabilities of your AI assistant.
