@@ -240,7 +240,7 @@ Creates a deployment's schedules.
 - `schedules`: a list of deployment schedule create actions
 
 
-### `read_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1014" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_deployment_schedules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1015" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_deployment_schedules(db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID, deployment_schedule_filter: Optional[schemas.filters.DeploymentScheduleFilter] = None) -> list[schemas.core.DeploymentSchedule]
@@ -257,7 +257,7 @@ Reads a deployment's schedules.
 - list\[schemas.core.DeploymentSchedule]: the deployment's schedules
 
 
-### `update_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1051" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1052" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_deployment_schedule(db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID, schedule: schemas.actions.DeploymentScheduleUpdate, deployment_schedule_id: UUID | None = None, deployment_schedule_slug: str | None = None) -> bool
@@ -272,7 +272,7 @@ Updates a deployment's schedules.
 - `schedule`: a deployment schedule update action
 
 
-### `delete_schedules_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1098" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_schedules_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_schedules_for_deployment(db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID) -> bool
@@ -286,7 +286,7 @@ Deletes a deployment schedule.
 - `deployment_id`: a deployment id
 
 
-### `delete_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_deployment_schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_deployment_schedule(db: PrefectDBInterface, session: AsyncSession, deployment_id: UUID, deployment_schedule_id: UUID) -> bool
@@ -300,19 +300,19 @@ Deletes a deployment schedule.
 - `deployment_schedule_id`: a deployment schedule id
 
 
-### `mark_deployments_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mark_deployments_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mark_deployments_ready() -> None
 ```
 
-### `mark_deployments_not_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mark_deployments_not_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 mark_deployments_not_ready(db: PrefectDBInterface, deployment_ids: Optional[Iterable[UUID]] = None, work_queue_ids: Optional[Iterable[UUID]] = None) -> None
 ```
 
-### `with_system_labels_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_system_labels_for_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_system_labels_for_deployment(session: AsyncSession, deployment: schemas.core.Deployment) -> schemas.core.KeyValueLabels
@@ -322,7 +322,7 @@ with_system_labels_for_deployment(session: AsyncSession, deployment: schemas.cor
 Augment user supplied labels with system default labels for a deployment.
 
 
-### `with_system_labels_for_deployment_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `with_system_labels_for_deployment_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/deployments.py#L1291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_system_labels_for_deployment_flow_run(session: AsyncSession, deployment: orm_models.Deployment, user_supplied_labels: Optional[schemas.core.KeyValueLabels] = None) -> schemas.core.KeyValueLabels

@@ -17243,6 +17243,18 @@
                         ],
                         "title": "Slug",
                         "description": "A unique identifier for the schedule."
+                    },
+                    "replaces": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Replaces",
+                        "description": "The slug of an existing schedule that this schedule replaces. Used for renaming slugs."
                     }
                 },
                 "additionalProperties": false,
@@ -17314,6 +17326,18 @@
                         ],
                         "title": "Slug",
                         "description": "A unique identifier for the schedule."
+                    },
+                    "replaces": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Replaces",
+                        "description": "The slug of an existing schedule that this schedule replaces. Used for renaming slugs."
                     }
                 },
                 "additionalProperties": false,
