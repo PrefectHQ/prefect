@@ -1135,7 +1135,7 @@ class PrefectDbtRunner:
 
         if not res.success and res.exception:
             raise ValueError(
-                f"Failed to invoke dbt command '{''.join(args_copy)}': {res.exception}"
+                f"Failed to invoke dbt command '{' '.join(args_copy)}': {res.exception}"
             )
         elif not res.success and self.raise_on_failure:
             assert isinstance(res.result, RunExecutionResult), (
