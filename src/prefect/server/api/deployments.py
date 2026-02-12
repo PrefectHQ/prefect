@@ -15,6 +15,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.starlette import status
+from prefect.logging import get_logger
 from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
@@ -44,7 +45,7 @@ from prefect.utilities.schema_tools.validation import (
     validate,
 )
 
-logger: logging.Logger = logging.getLogger(__name__)
+logger: logging.Logger = get_logger(__name__)
 
 router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
