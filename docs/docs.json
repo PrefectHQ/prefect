@@ -328,6 +328,19 @@
         "tab": "Examples"
       },
       {
+        "pages": [
+          "v3/mcp-servers/index",
+          {
+            "group": "MCP Servers",
+            "pages": [
+              "v3/mcp-servers/prefect-mcp-server",
+              "v3/mcp-servers/prefect-docs-mcp-server"
+            ]
+          }
+        ],
+        "tab": "MCP Servers"
+      },
+      {
         "groups": [
           {
             "group": "Integrations",

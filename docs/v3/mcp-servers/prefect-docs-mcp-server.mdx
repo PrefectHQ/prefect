@@ -1,0 +1,393 @@
+---
+title: Prefect Docs MCP Server
+sidebarTitle: Prefect Docs MCP Server
+description: Access Prefect documentation directly through your AI assistant using the Model Context Protocol.
+---
+
+The Prefect Docs MCP server provides AI assistants with direct access to the official Prefect documentation through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). This enables your AI assistant to answer questions about Prefect concepts, APIs, and best practices using up-to-date documentation—all without leaving your development environment.
+
+## What is the Prefect Docs MCP server?
+
+The Prefect Docs MCP server is an [MCP](https://modelcontextprotocol.io/) server that gives AI assistants the ability to:
+
+- **Search documentation**: Find relevant Prefect documentation based on natural language queries
+- **Access current content**: Get up-to-date information from the official Prefect docs
+- **Answer questions**: Receive contextual answers about Prefect concepts, APIs, and workflows
+- **Find examples**: Discover code examples and best practices from the documentation
+
+Unlike the Prefect MCP server which connects to your Prefect instance, the Docs MCP server focuses solely on documentation access—no credentials or Prefect instance required.
+
+## Prerequisites
+
+Before installing the Prefect Docs MCP server, ensure you have:
+
+- **Python 3.9 or newer** (for `uvx`)
+- **uv** installed (Python package installer): `pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
+
+No Prefect credentials or instance required—this server only accesses public documentation.
+
+## Quick start
+
+The fastest way to get started depends on your AI assistant. Choose your platform below:
+
+<AccordionGroup>
+
+<Accordion title="Claude Code CLI" defaultOpen>
+
+**Recommended: Use the marketplace**
+
+```bash
+/plugin marketplace add prefecthq/prefect-docs-mcp-server
+/plugin install prefect-docs
+```
+
+**Alternative: Manual CLI setup**
+
+```bash
+claude mcp add prefect-docs --scope user -- uvx --from prefect-docs-mcp prefect-docs-mcp-server
+```
+
+</Accordion>
+
+<Accordion title="Cursor">
+
+**Option 1: Use the UI**
+
+1. Open Cursor Settings
+2. Navigate to **MCP** section
+3. Click **Add Server**
+4. Enter server name: `prefect-docs`
+5. Command: `uvx`
+6. Arguments: `--from prefect-docs-mcp prefect-docs-mcp-server`
+
+**Option 2: Manual configuration**
+
+Create or edit `.cursor/mcp.json` in your project:
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "command": "uvx",
+      "args": ["--from", "prefect-docs-mcp", "prefect-docs-mcp-server"]
+    }
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="VS Code (GitHub Copilot)">
+
+**Using the VS Code UI:**
+
+1. Open VS Code Settings (`Cmd/Ctrl + ,`)
+2. Search for "MCP"
+3. Under **GitHub Copilot > MCP**, click **Add Server**
+4. Configure:
+   - Name: `prefect-docs`
+   - Command: `uvx`
+   - Arguments: `--from prefect-docs-mcp prefect-docs-mcp-server`
+
+**Using settings.json:**
+
+Add to your VS Code `settings.json`:
+
+```json
+{
+  "github.copilot.mcp.servers": {
+    "prefect-docs": {
+      "command": "uvx",
+      "args": ["--from", "prefect-docs-mcp", "prefect-docs-mcp-server"]
+    }
+  }
+}
+```
+
+</Accordion>
+
+<Accordion title="Cline (VS Code Extension)">
+
+Cline automatically detects MCP servers configured in your project. Create `.cline/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "command": "uvx",
+      "args": ["--from", "prefect-docs-mcp", "prefect-docs-mcp-server"]
+    }
+  }
+}
+```
+
+For more details, see the [Cline documentation](https://docs.cline.bot).
+
+</Accordion>
+
+<Accordion title="Codex CLI">
+
+```bash
+codex mcp add prefect-docs -- uvx --from prefect-docs-mcp prefect-docs-mcp-server
+```
+
+</Accordion>
+
+<Accordion title="Gemini CLI">
+
+```bash
+# Basic setup
+gemini mcp add prefect-docs uvx --from prefect-docs-mcp prefect-docs-mcp-server
+
+# Install with auto-update
+gemini extensions install --auto-update \
+  https://github.com/PrefectHQ/prefect-docs-mcp-server
+```
+
+</Accordion>
+
+<Accordion title="JetBrains IDEs (AI Assistant/Junie)">
+
+1. Open your JetBrains IDE (IntelliJ IDEA, PyCharm, etc.)
+2. Go to **Settings/Preferences**
+3. Navigate to **Tools → AI Assistant** (or **Junie** depending on your version)
+4. Find the **MCP** section
+5. Click **Add Server**
+6. Configure:
+   - Name: `prefect-docs`
+   - Command: `uvx`
+   - Arguments: `--from prefect-docs-mcp prefect-docs-mcp-server`
+
+</Accordion>
+
+<Accordion title="Factory CLI (Droid)">
+
+```bash
+droid mcp add prefect-docs "uvx --from prefect-docs-mcp prefect-docs-mcp-server"
+```
+
+</Accordion>
+
+<Accordion title="Qoder / OpenCode">
+
+Use the configuration UI in your respective IDE:
+
+**Qoder:**
+1. Open Qoder settings
+2. Navigate to MCP configuration
+3. Add new server with standard JSON configuration
+
+**OpenCode:**
+1. Open OpenCode settings
+2. Find MCP servers section
+3. Add server configuration
+
+**Standard JSON configuration for both:**
+
+```json
+{
+  "mcpServers": {
+    "prefect-docs": {
+      "command": "uvx",
+      "args": ["--from", "prefect-docs-mcp", "prefect-docs-mcp-server"]
+    }
+  }
+}
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+## Test your setup
+
+Once configured, try these prompts to verify the connection:
+
+- "What is a Prefect flow?"
+- "How do I create a deployment?"
+- "Show me examples of using task caching"
+- "What are the best practices for work pools?"
+
+## Installation
+
+### Local installation (stdio transport)
+
+The default setup runs the MCP server locally using `uvx`:
+
+```bash
+uvx --from prefect-docs-mcp prefect-docs-mcp-server
+```
+
+No credentials or configuration required—the server accesses public documentation only.
+
+### Cloud deployment (HTTP transport)
+
+Deploy the MCP server to [FastMCP Cloud](https://fastmcp.cloud) for remote access from any client:
+
+<Steps>
+  <Step title="Fork the repository">
+    Fork the [prefect-docs-mcp-server repository](https://github.com/PrefectHQ/prefect-docs-mcp-server) on GitHub
+  </Step>
+
+  <Step title="Deploy to FastMCP Cloud">
+    1. Sign in to [fastmcp.cloud](https://fastmcp.cloud)
+    2. Create a new server pointing to your fork
+    3. Configure:
+       - Server path: `src/prefect_docs_mcp_server/server.py`
+       - Requirements: `pyproject.toml` (or leave blank)
+  </Step>
+
+  <Step title="Get your server URL">
+    Copy the generated URL (e.g., `https://your-server-name.fastmcp.app/mcp`) and use it in your client configuration
+  </Step>
+</Steps>
+
+<Note>
+No environment variables or credentials are needed—the Docs MCP server only accesses public Prefect documentation.
+</Note>
+
+## Advanced configuration
+
+### Configuration file locations
+
+MCP server configurations are typically stored in these locations:
+
+| Client | Configuration Location |
+|--------|----------------------|
+| Claude Code CLI | `~/.claude/config.json` |
+| Cursor | `.cursor/mcp.json` (project-specific) |
+| VS Code (Copilot) | `settings.json` (user or workspace) |
+| Cline | `.cline/mcp.json` (project-specific) |
+| Codex CLI | `~/.codex/config.toml` |
+| Gemini CLI | `~/.gemini/settings.json` |
+| JetBrains | IDE settings (varies by IDE) |
+
+### Multiple server scopes
+
+Some clients (like Claude Code) support different scopes for MCP servers:
+
+- `--scope user`: Available across all projects (recommended)
+- `--scope project`: Only available in the current project directory
+
+```bash
+# User-scoped (available everywhere)
+claude mcp add prefect-docs --scope user -- uvx --from prefect-docs-mcp prefect-docs-mcp-server
+
+# Project-scoped (only in current directory)
+claude mcp add prefect-docs --scope project -- uvx --from prefect-docs-mcp prefect-docs-mcp-server
+```
+
+### Troubleshooting installation
+
+**Server not connecting:**
+
+1. Verify `uv` is installed: `uv --version`
+2. Test the server manually: `uvx --from prefect-docs-mcp prefect-docs-mcp-server`
+3. Review client logs (location varies by client)
+
+**Command not found errors:**
+
+Ensure `uvx` is in your PATH. Install `uv` if needed:
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Via pip
+pip install uv
+```
+
+**Permission errors:**
+
+Some clients may need explicit permissions to run external commands. Check your client's security settings and allowlists.
+
+## Available capabilities
+
+The Prefect Docs MCP server provides these capabilities:
+
+### Documentation search
+
+- Search the entire Prefect documentation using natural language queries
+- Get relevant documentation pages ranked by relevance
+- Access content from all sections: concepts, how-to guides, API reference, and more
+
+### Contextual answers
+
+- Ask questions about Prefect concepts and receive answers based on official documentation
+- Get code examples and usage patterns directly from the docs
+- Understand best practices and recommended approaches
+
+### Up-to-date information
+
+- Access the latest version of the Prefect documentation
+- Get information about new features and changes
+- Stay current with Prefect best practices
+
+## Prompting tips
+
+To get the most out of the Prefect Docs MCP server, try these patterns:
+
+### Ask concept questions
+
+The Docs MCP server excels at explaining Prefect concepts:
+
+**Example prompts:**
+- "What is the difference between a flow and a task?"
+- "Explain how work pools and workers interact"
+- "What are the different types of schedules in Prefect?"
+
+### Find usage examples
+
+Get practical code examples from the documentation:
+
+**Example prompts:**
+- "Show me an example of using task caching"
+- "How do I create a deployment with a schedule?"
+- "What's an example of using variables in a flow?"
+
+### Look up API details
+
+Find specific API syntax and parameters:
+
+**Example prompts:**
+- "What parameters does the flow decorator accept?"
+- "How do I configure retries for a task?"
+- "What are the available settings for concurrency limits?"
+
+### Discover best practices
+
+Learn recommended approaches from the documentation:
+
+**Example prompts:**
+- "What are the best practices for deployment configuration?"
+- "How should I structure my Prefect project?"
+- "What's the recommended way to handle secrets?"
+
+## Using both MCP servers together
+
+The Prefect Docs MCP server and the Prefect MCP server complement each other:
+
+- **Prefect Docs MCP Server**: Use for learning, documentation lookup, and finding examples
+- **Prefect MCP Server**: Use for monitoring your instance, debugging runs, and querying your infrastructure
+
+Install both to get the full AI-assisted Prefect experience:
+
+```bash
+# Claude Code marketplace installation
+/plugin marketplace add prefecthq/prefect-docs-mcp-server
+/plugin marketplace add prefecthq/prefect-mcp-server
+/plugin install prefect-docs
+/plugin install prefect
+```
+
+With both installed, you can seamlessly transition from learning about a concept (Docs server) to implementing it in your instance (MCP server).
+
+## Learn more
+
+- [Prefect Docs MCP Server on GitHub](https://github.com/PrefectHQ/prefect-docs-mcp-server)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+- [Prefect MCP Server](/v3/mcp-servers/prefect-mcp-server) - Monitor and debug your Prefect instance
+- [FastMCP Cloud](https://fastmcp.cloud)
