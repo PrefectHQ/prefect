@@ -11,7 +11,7 @@ export const Route = createFileRoute("/automations/automation/$id")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 	return <AutomationDetailsPage id={id} />;
 }

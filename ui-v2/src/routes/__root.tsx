@@ -19,7 +19,7 @@ import { ServerErrorDisplay } from "@/components/ui/server-error";
 const showDevtools =
 	import.meta.env.DEV && import.meta.env.VITE_DISABLE_DEVTOOLS !== "true";
 
-const TanStackRouterDevtools = showDevtools
+export const TanStackRouterDevtools = showDevtools
 	? lazy(() =>
 			import("@tanstack/router-devtools").then((mod) => ({
 				default: mod.TanStackRouterDevtools,
@@ -32,7 +32,7 @@ interface MyRouterContext {
 	auth: AuthState;
 }
 
-function RootErrorComponent({ error, reset }: ErrorComponentProps) {
+export function RootErrorComponent({ error, reset }: ErrorComponentProps) {
 	const router = useRouter();
 	const serverError = categorizeError(
 		error,
@@ -51,7 +51,7 @@ function RootErrorComponent({ error, reset }: ErrorComponentProps) {
 	return <ServerErrorDisplay error={serverError} onRetry={handleRetry} />;
 }
 
-function RootComponent() {
+export function RootComponent() {
 	const location = useRouterState({ select: (s) => s.location });
 	const auth = useAuthSafe();
 	const isLoginPage = location.pathname === "/login";

@@ -86,7 +86,7 @@ function useEventDefaultValues() {
 	};
 }
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { createAutomation, isPending } = useCreateAutomation();
 	const navigate = useNavigate();
 	const eventDefaultValues = useEventDefaultValues();

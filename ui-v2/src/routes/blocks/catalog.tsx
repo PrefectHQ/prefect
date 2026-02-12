@@ -29,7 +29,7 @@ export const Route = createFileRoute("/blocks/catalog")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const [search, onSearch] = useSearch();
 	const { data: blockTypes } = useSuspenseQuery(
 		buildListFilterBlockTypesQuery({

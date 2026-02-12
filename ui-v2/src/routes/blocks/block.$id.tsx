@@ -12,7 +12,7 @@ export const Route = createFileRoute("/blocks/block/$id")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 	const { data } = useSuspenseQuery(buildGetBlockDocumentQuery(id));
 	return <BlockDocumentDetailsPage blockDocument={data} />;

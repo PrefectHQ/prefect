@@ -70,7 +70,10 @@ const searchParams = z.object({
 
 export type DeploymentDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
-function DeploymentErrorComponent({ error, reset }: ErrorComponentProps) {
+export function DeploymentErrorComponent({
+	error,
+	reset,
+}: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load deployment");
 	return (
 		<div className="flex flex-col gap-4">
@@ -109,7 +112,7 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 	errorComponent: DeploymentErrorComponent,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 	return <DeploymentDetailsPage id={id} />;
 }

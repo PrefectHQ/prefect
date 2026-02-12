@@ -65,7 +65,7 @@ const buildFilterBody = (
 	},
 });
 
-function VariablesErrorComponent({ error, reset }: ErrorComponentProps) {
+export function VariablesErrorComponent({ error, reset }: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load variables");
 
 	// Only handle API errors (server-error, client-error) at route level
@@ -219,7 +219,7 @@ const useVariableSorting = () => {
 	return [search.sort, onSortingChange] as const;
 };
 
-function RouteComponent() {
+export function RouteComponent() {
 	const search = Route.useSearch();
 	const [pagination, onPaginationChange] = usePagination();
 	const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();

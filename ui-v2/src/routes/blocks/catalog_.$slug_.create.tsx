@@ -26,7 +26,7 @@ export const Route = createFileRoute("/blocks/catalog_/$slug_/create")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { slug } = Route.useParams();
 	const { data: blockType } = useSuspenseQuery(buildGetBlockTypeQuery(slug));
 	const { data: blockSchemas } = useSuspenseQuery(

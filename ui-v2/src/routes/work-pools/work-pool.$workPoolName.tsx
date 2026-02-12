@@ -145,7 +145,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 });
 
 // Wrapper component for Work Pool Queues tab
-const WorkPoolQueuesTabWrapper = ({
+export const WorkPoolQueuesTabWrapper = ({
 	workPoolName,
 }: {
 	workPoolName: string;
@@ -178,7 +178,11 @@ const WorkPoolQueuesTabWrapper = ({
 };
 
 // Wrapper component for Workers tab
-const WorkersTabWrapper = ({ workPoolName }: { workPoolName: string }) => {
+export const WorkersTabWrapper = ({
+	workPoolName,
+}: {
+	workPoolName: string;
+}) => {
 	const [pagination, setPagination] = useState<PaginationState>({
 		pageIndex: 0,
 		pageSize: 10,
@@ -201,7 +205,7 @@ const WorkersTabWrapper = ({ workPoolName }: { workPoolName: string }) => {
 	);
 };
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { workPoolName } = Route.useParams();
 	const { tab } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });

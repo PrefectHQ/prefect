@@ -27,7 +27,7 @@ export const Route = createFileRoute("/events/event/$eventDate/$eventId")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { eventDate, eventId } = Route.useParams();
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();

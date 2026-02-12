@@ -31,7 +31,7 @@ export const Route = createFileRoute("/artifacts/key/$key")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { key } = Route.useParams();
 
 	const { data: artifacts } = useSuspenseQuery(

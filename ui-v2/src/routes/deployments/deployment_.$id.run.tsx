@@ -39,7 +39,7 @@ export const Route = createFileRoute("/deployments/deployment_/$id/run")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 	const search = Route.useSearch();
 	return <CustomRunPage id={id} overrideParameters={search?.parameters} />;

@@ -567,7 +567,7 @@ const useTaskRunSearch = () => {
 	return [search["task-run-search"], onTaskRunSearchChange] as const;
 };
 
-function RouteComponent() {
+export function RouteComponent() {
 	const queryClient = useQueryClient();
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();

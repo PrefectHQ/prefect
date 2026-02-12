@@ -78,7 +78,7 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 
 const NUMBER_OF_ACTIVITY_BARS = 16;
 
-function FlowsErrorComponent({ error, reset }: ErrorComponentProps) {
+export function FlowsErrorComponent({ error, reset }: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load flows");
 
 	// Only handle API errors (server-error, client-error) at route level
@@ -217,7 +217,7 @@ const useFlowsColumnFilters = () => {
 	return [columnFilters, onColumnFiltersChange] as const;
 };
 
-function FlowsRoute() {
+export function FlowsRoute() {
 	const search = Route.useSearch();
 	const queryClient = useQueryClient();
 	const [pagination, onPaginationChange] = usePagination();

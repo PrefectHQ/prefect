@@ -7,7 +7,10 @@ import { AutomationsPage } from "@/components/automations/automations-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 
-function AutomationsErrorComponent({ error, reset }: ErrorComponentProps) {
+export function AutomationsErrorComponent({
+	error,
+	reset,
+}: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load automations");
 
 	// Only handle API errors (server-error, client-error) at route level

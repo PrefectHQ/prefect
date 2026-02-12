@@ -29,7 +29,7 @@ const searchParams = z.object({
  * Skeleton component shown while the events page is loading.
  * Displays placeholder elements for header, filters, chart, and timeline.
  */
-function EventsPageSkeleton() {
+export function EventsPageSkeleton() {
 	return (
 		<div className="flex flex-col gap-4">
 			{/* Header skeleton */}
@@ -64,7 +64,7 @@ export const Route = createFileRoute("/events/")({
 	component: RouteComponent,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 

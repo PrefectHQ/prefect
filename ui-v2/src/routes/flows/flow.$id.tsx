@@ -305,7 +305,7 @@ const useDeploymentPagination = () => {
 	return [deploymentPagination, onDeploymentPaginationChange] as const;
 };
 
-const FlowDetailRoute = () => {
+export const FlowDetailRoute = () => {
 	const queryClient = useQueryClient();
 	const { id } = Route.useParams();
 	const search = Route.useSearch();

@@ -15,7 +15,7 @@ import { WorkPoolsPageHeader } from "@/components/work-pools/header";
 import { WorkPoolCard } from "@/components/work-pools/work-pool-card/work-pool-card";
 import { pluralize } from "@/utils";
 
-function WorkPoolsErrorComponent({ error, reset }: ErrorComponentProps) {
+export function WorkPoolsErrorComponent({ error, reset }: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load work pools");
 
 	// Only handle API errors (server-error, client-error) at route level
@@ -51,7 +51,7 @@ export const Route = createFileRoute("/work-pools/")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const [searchTerm, setSearchTerm] = useState("");
 
 	const { data: workPoolCount = 0 } = useSuspenseQuery(

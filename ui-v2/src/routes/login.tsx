@@ -20,7 +20,7 @@ export const Route = createFileRoute("/login")({
 	component: LoginRouteComponent,
 });
 
-function LoginRouteComponent() {
+export function LoginRouteComponent() {
 	const { redirectTo } = Route.useSearch();
 	const auth = useAuthSafe();
 

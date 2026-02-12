@@ -21,7 +21,7 @@ export const Route = createFileRoute(
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { workPoolName } = Route.useParams();
 	const { data: workPool } = useSuspenseQuery(
 		buildGetWorkPoolQuery(workPoolName),

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/automations/automation_/$id/edit")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 	return <AutomationEditPage id={id} />;
 }

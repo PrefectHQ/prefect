@@ -17,7 +17,7 @@ export const Route = createFileRoute("/artifacts/artifact/$id")({
 	},
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 
 	const { data: artifact } = useSuspenseQuery(buildGetArtifactQuery(id));

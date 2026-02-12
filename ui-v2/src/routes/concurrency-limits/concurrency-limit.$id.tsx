@@ -28,7 +28,7 @@ export const Route = createFileRoute(
 		),
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 	return <TaskRunConcurrencyLimitPage id={id} />;
 }

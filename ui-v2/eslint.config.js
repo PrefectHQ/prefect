@@ -48,12 +48,6 @@ export default tseslint.config(
 	...pluginQuery.configs["flat/recommended"],
 	...pluginRouter.configs["flat/recommended"],
 	{
-		files: ["src/routes/**/*.{ts,tsx}"],
-		rules: {
-			"react-refresh/only-export-components": "off",
-		},
-	},
-	{
 		files: ["tests/**/*.{ts,tsx}"],
 		plugins: testingLibrary.configs["flat/react"].plugins,
 		rules: {

@@ -115,7 +115,7 @@ const useFilter = () => {
 	return { filters, onFilterChange };
 };
 
-function RouteComponent() {
+export function RouteComponent() {
 	const search = Route.useSearch();
 	const { filters, onFilterChange } = useFilter();
 

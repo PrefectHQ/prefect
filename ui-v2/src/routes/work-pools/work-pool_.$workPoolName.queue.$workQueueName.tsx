@@ -29,7 +29,7 @@ const searchParams = z.object({
 
 type SearchParams = z.infer<typeof searchParams>;
 
-function DetailsTabSkeleton() {
+export function DetailsTabSkeleton() {
 	return (
 		<div className="space-y-6">
 			<div className="space-y-4">
@@ -63,7 +63,7 @@ function DetailsTabSkeleton() {
 	);
 }
 
-function UpcomingRunsTabSkeleton() {
+export function UpcomingRunsTabSkeleton() {
 	return (
 		<div className="flex flex-col gap-2">
 			<Skeleton className="h-24 w-full" />
@@ -73,7 +73,7 @@ function UpcomingRunsTabSkeleton() {
 	);
 }
 
-function RunsTabSkeleton() {
+export function RunsTabSkeleton() {
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex flex-col sm:flex-row gap-4">
@@ -110,7 +110,7 @@ export const Route = createFileRoute(
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { workPoolName, workQueueName } = Route.useParams();
 	const { queueTab } = Route.useSearch();
 	const navigate = Route.useNavigate();

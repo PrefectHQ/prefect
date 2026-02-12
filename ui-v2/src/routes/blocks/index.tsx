@@ -59,7 +59,7 @@ export const Route = createFileRoute("/blocks/")({
 	pendingComponent: PrefectLoading,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	usePageTitle("Blocks");
 	const [search, onSearch] = useSearch();
 	const [blockTypeSlugs, onSetBlockTypeSlugs] = useFilterByBlockTypes();

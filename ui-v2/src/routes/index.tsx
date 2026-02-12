@@ -9,6 +9,6 @@ export const Route = createFileRoute("/")({
 	},
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	return null;
 }

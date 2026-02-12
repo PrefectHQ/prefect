@@ -64,7 +64,10 @@ const buildPaginationBody = (
 	},
 });
 
-function DeploymentsErrorComponent({ error, reset }: ErrorComponentProps) {
+export function DeploymentsErrorComponent({
+	error,
+	reset,
+}: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load deployments");
 
 	// Only handle API errors (server-error, client-error) at route level
@@ -235,7 +238,7 @@ const useDeploymentsColumnFilters = () => {
 	return [columnFilters, onColumnFiltersChange] as const;
 };
 
-function RouteComponent() {
+export function RouteComponent() {
 	const search = Route.useSearch();
 	const [pagination, onPaginationChange] = usePagination();
 	const [sort, onSortChange] = useSort();

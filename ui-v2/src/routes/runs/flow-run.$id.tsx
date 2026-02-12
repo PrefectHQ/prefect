@@ -29,7 +29,7 @@ const searchParams = z.object({
 
 export type FlowRunDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
-function FlowRunErrorComponent({ error, reset }: ErrorComponentProps) {
+export function FlowRunErrorComponent({ error, reset }: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load flow run");
 	return (
 		<div className="flex flex-col gap-4">
@@ -109,7 +109,7 @@ export const Route = createFileRoute("/runs/flow-run/$id")({
 	notFoundComponent: FlowRunNotFound,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 	const { tab } = Route.useSearch();
 	const navigate = useNavigate();

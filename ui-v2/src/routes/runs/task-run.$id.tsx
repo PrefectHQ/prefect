@@ -19,7 +19,7 @@ const searchParams = z.object({
 
 export type TaskRunDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
-function TaskRunErrorComponent({ error, reset }: ErrorComponentProps) {
+export function TaskRunErrorComponent({ error, reset }: ErrorComponentProps) {
 	const serverError = categorizeError(error, "Failed to load task run");
 	return (
 		<div className="flex flex-col gap-4">
@@ -76,7 +76,7 @@ export const Route = createFileRoute("/runs/task-run/$id")({
 	errorComponent: TaskRunErrorComponent,
 });
 
-function RouteComponent() {
+export function RouteComponent() {
 	const { id } = Route.useParams();
 	const { tab } = Route.useSearch();
 	const navigate = useNavigate();
