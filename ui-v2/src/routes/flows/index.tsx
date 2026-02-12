@@ -78,32 +78,146 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 
 const NUMBER_OF_ACTIVITY_BARS = 16;
 
-export function FlowsErrorComponent({ error, reset }: ErrorComponentProps) {
-	const serverError = categorizeError(error, "Failed to load flows");
-
-	// Only handle API errors (server-error, client-error) at route level
-	// Let network errors and unknown errors bubble up to root error component
-	if (
-		serverError.type !== "server-error" &&
-		serverError.type !== "client-error"
-	) {
-		throw error;
-	}
-
-	return (
-		<div className="flex flex-col gap-4">
-			<div>
-				<h1 className="text-2xl font-semibold">Flows</h1>
-			</div>
-			<RouteErrorState error={serverError} onRetry={reset} />
-		</div>
-	);
-}
-
 export const Route = createFileRoute("/flows/")({
 	validateSearch: zodValidator(searchParams),
-	component: FlowsRoute,
-	errorComponent: FlowsErrorComponent,
+	component: function FlowsRoute() {
+		const search = Route.useSearch();
+		const queryClient = useQueryClient();
+		const [pagination, onPaginationChange] = usePagination();
+		const [sort, onSortChange] = useSort();
+		const [columnFilters, onColumnFiltersChange] = useFlowsColumnFilters();
+
+		const paginationBody = buildPaginationBody(search);
+
+		// Use useSuspenseQuery for count (stable key, won't cause suspense on search change)
+		const { data: count } = useSuspenseQuery(
+			buildCountFlowsFilteredQuery({
+				offset: 0,
+				sort: search.sort,
+				flows: paginationBody.flows ?? undefined,
+			}),
+		);
+
+		// Get total count of all flows (without filters) to determine if empty state should be shown
+		const { data: totalCount } = useSuspenseQuery(
+			buildCountFlowsFilteredQuery({
+				offset: 0,
+				sort: "NAME_ASC",
+			}),
+		);
+
+		// Use useQuery for paginated flows to leverage placeholderData: keepPreviousData
+		// This prevents the page from suspending when search/filter changes
+		const { data: flowsPage } = useQuery(
+			buildPaginateFlowsQuery(paginationBody, 30_000),
+		);
+
+		const flows = flowsPage?.results ?? [];
+
+		// Prefetch a page and its child component data when user hovers over pagination buttons
+		const onPrefetchPage = useCallback(
+			(page: number) => {
+				const pageDeps = { ...paginationBody, page };
+				void queryClient
+					.prefetchQuery(buildPaginateFlowsQuery(pageDeps, 30_000))
+					.then(() => {
+						// Get the prefetched page data from cache
+						const pageData = queryClient.getQueryData<{
+							results?: Array<{ id?: string }>;
+						}>(buildPaginateFlowsQuery(pageDeps, 30_000).queryKey);
+
+						const flowIds =
+							pageData?.results
+								?.map((flow) => flow.id)
+								.filter((id): id is string => Boolean(id)) ?? [];
+
+						if (flowIds.length === 0) return;
+
+						// Prefetch child component queries for each flow individually
+						// Using individual flow IDs ensures query keys match what components use
+						for (const flowId of flowIds) {
+							// FlowNextRun query - uses single flow ID array for query key matching
+							void queryClient.prefetchQuery(
+								buildNextRunsByFlowQuery([flowId]),
+							);
+
+							// FlowDeploymentCount query - uses single flow ID array for query key matching
+							void queryClient.prefetchQuery(
+								buildDeploymentsCountByFlowQuery([flowId]),
+							);
+							// FlowLastRun query - last completed run
+							void queryClient.prefetchQuery(
+								buildFilterFlowRunsQuery({
+									flows: { operator: "and_", id: { any_: [flowId] } },
+									flow_runs: {
+										operator: "and_",
+										start_time: { is_null_: false },
+									},
+									offset: 0,
+									limit: 1,
+									sort: "START_TIME_DESC",
+								}),
+							);
+
+							// FlowActivity query - recent runs for activity chart
+							void queryClient.prefetchQuery(
+								buildFilterFlowRunsQuery({
+									flows: { operator: "and_", id: { any_: [flowId] } },
+									flow_runs: {
+										operator: "and_",
+										start_time: { is_null_: false },
+									},
+									offset: 0,
+									limit: NUMBER_OF_ACTIVITY_BARS,
+									sort: "START_TIME_DESC",
+								}),
+							);
+						}
+					});
+			},
+			[queryClient, paginationBody],
+		);
+
+		return (
+			<FlowsPage
+				flows={flows}
+				count={count ?? 0}
+				totalCount={totalCount ?? 0}
+				pageCount={flowsPage?.pages ?? 0}
+				sort={sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
+				pagination={pagination}
+				onPaginationChange={onPaginationChange}
+				onSortChange={onSortChange}
+				columnFilters={columnFilters}
+				onColumnFiltersChange={onColumnFiltersChange}
+				onPrefetchPage={onPrefetchPage}
+			/>
+		);
+	},
+	errorComponent: function FlowsErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load flows");
+
+		// Only handle API errors (server-error, client-error) at route level
+		// Let network errors and unknown errors bubble up to root error component
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Flows</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
+	},
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: ({ deps, context }) => {
 		// Prefetch current page queries without blocking the loader
@@ -216,116 +330,3 @@ const useFlowsColumnFilters = () => {
 
 	return [columnFilters, onColumnFiltersChange] as const;
 };
-
-export function FlowsRoute() {
-	const search = Route.useSearch();
-	const queryClient = useQueryClient();
-	const [pagination, onPaginationChange] = usePagination();
-	const [sort, onSortChange] = useSort();
-	const [columnFilters, onColumnFiltersChange] = useFlowsColumnFilters();
-
-	const paginationBody = buildPaginationBody(search);
-
-	// Use useSuspenseQuery for count (stable key, won't cause suspense on search change)
-	const { data: count } = useSuspenseQuery(
-		buildCountFlowsFilteredQuery({
-			offset: 0,
-			sort: search.sort,
-			flows: paginationBody.flows ?? undefined,
-		}),
-	);
-
-	// Get total count of all flows (without filters) to determine if empty state should be shown
-	const { data: totalCount } = useSuspenseQuery(
-		buildCountFlowsFilteredQuery({
-			offset: 0,
-			sort: "NAME_ASC",
-		}),
-	);
-
-	// Use useQuery for paginated flows to leverage placeholderData: keepPreviousData
-	// This prevents the page from suspending when search/filter changes
-	const { data: flowsPage } = useQuery(
-		buildPaginateFlowsQuery(paginationBody, 30_000),
-	);
-
-	const flows = flowsPage?.results ?? [];
-
-	// Prefetch a page and its child component data when user hovers over pagination buttons
-	const onPrefetchPage = useCallback(
-		(page: number) => {
-			const pageDeps = { ...paginationBody, page };
-			void queryClient
-				.prefetchQuery(buildPaginateFlowsQuery(pageDeps, 30_000))
-				.then(() => {
-					// Get the prefetched page data from cache
-					const pageData = queryClient.getQueryData<{
-						results?: Array<{ id?: string }>;
-					}>(buildPaginateFlowsQuery(pageDeps, 30_000).queryKey);
-
-					const flowIds =
-						pageData?.results
-							?.map((flow) => flow.id)
-							.filter((id): id is string => Boolean(id)) ?? [];
-
-					if (flowIds.length === 0) return;
-
-					// Prefetch child component queries for each flow individually
-					// Using individual flow IDs ensures query keys match what components use
-					for (const flowId of flowIds) {
-						// FlowNextRun query - uses single flow ID array for query key matching
-						void queryClient.prefetchQuery(buildNextRunsByFlowQuery([flowId]));
-
-						// FlowDeploymentCount query - uses single flow ID array for query key matching
-						void queryClient.prefetchQuery(
-							buildDeploymentsCountByFlowQuery([flowId]),
-						);
-						// FlowLastRun query - last completed run
-						void queryClient.prefetchQuery(
-							buildFilterFlowRunsQuery({
-								flows: { operator: "and_", id: { any_: [flowId] } },
-								flow_runs: {
-									operator: "and_",
-									start_time: { is_null_: false },
-								},
-								offset: 0,
-								limit: 1,
-								sort: "START_TIME_DESC",
-							}),
-						);
-
-						// FlowActivity query - recent runs for activity chart
-						void queryClient.prefetchQuery(
-							buildFilterFlowRunsQuery({
-								flows: { operator: "and_", id: { any_: [flowId] } },
-								flow_runs: {
-									operator: "and_",
-									start_time: { is_null_: false },
-								},
-								offset: 0,
-								limit: NUMBER_OF_ACTIVITY_BARS,
-								sort: "START_TIME_DESC",
-							}),
-						);
-					}
-				});
-		},
-		[queryClient, paginationBody],
-	);
-
-	return (
-		<FlowsPage
-			flows={flows}
-			count={count ?? 0}
-			totalCount={totalCount ?? 0}
-			pageCount={flowsPage?.pages ?? 0}
-			sort={sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
-			pagination={pagination}
-			onPaginationChange={onPaginationChange}
-			onSortChange={onSortChange}
-			columnFilters={columnFilters}
-			onColumnFiltersChange={onColumnFiltersChange}
-			onPrefetchPage={onPrefetchPage}
-		/>
-	);
-}

@@ -61,7 +61,27 @@ const buildFilterBody = (
 
 export const Route = createFileRoute("/artifacts/")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const search = Route.useSearch();
+		const { filters, onFilterChange } = useFilter();
+
+		const [{ data: artifactsCount }, { data: artifactsList }] =
+			useSuspenseQueries({
+				queries: [
+					buildCountArtifactsQuery(buildFilterBody(search)),
+					buildListArtifactsQuery(buildFilterBody(search)),
+				],
+			});
+
+		return (
+			<ArtifactsPage
+				filters={filters}
+				onFilterChange={onFilterChange}
+				artifactsCount={artifactsCount}
+				artifactsList={artifactsList}
+			/>
+		);
+	},
 	loaderDeps: ({ search }) => buildFilterBody(search),
 	loader: async ({ deps, context }) => {
 		const [artifactsCount, artifactsList] = await Promise.all([
@@ -114,25 +134,3 @@ const useFilter = () => {
 
 	return { filters, onFilterChange };
 };
-
-export function RouteComponent() {
-	const search = Route.useSearch();
-	const { filters, onFilterChange } = useFilter();
-
-	const [{ data: artifactsCount }, { data: artifactsList }] =
-		useSuspenseQueries({
-			queries: [
-				buildCountArtifactsQuery(buildFilterBody(search)),
-				buildListArtifactsQuery(buildFilterBody(search)),
-			],
-		});
-
-	return (
-		<ArtifactsPage
-			filters={filters}
-			onFilterChange={onFilterChange}
-			artifactsCount={artifactsCount}
-			artifactsList={artifactsList}
-		/>
-	);
-}

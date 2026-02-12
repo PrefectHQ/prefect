@@ -37,7 +37,42 @@ function parseRouteDate(dateStr: string): Date {
 }
 
 export const Route = createFileRoute("/automations/create")({
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { createAutomation, isPending } = useCreateAutomation();
+		const navigate = useNavigate();
+		const eventDefaultValues = useEventDefaultValues();
+
+		const handleSubmit = (values: AutomationWizardSchemaType) => {
+			const automationData: AutomationCreate = {
+				name: values.name,
+				description: values.description ?? "",
+				enabled: true,
+				trigger: values.trigger,
+				actions: values.actions,
+			};
+
+			createAutomation(automationData, {
+				onSuccess: () => {
+					toast.success("Automation created successfully");
+					void navigate({ to: "/automations" });
+				},
+				onError: (error) => {
+					toast.error(`Failed to create automation: ${error.message}`);
+				},
+			});
+		};
+
+		return (
+			<div className="flex flex-col gap-4">
+				<AutomationsCreateHeader />
+				<AutomationWizard
+					defaultValues={eventDefaultValues}
+					onSubmit={handleSubmit}
+					isSubmitting={isPending}
+				/>
+			</div>
+		);
+	},
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => ({
 		eventId: search.eventId,
@@ -84,41 +119,4 @@ function useEventDefaultValues() {
 		trigger,
 		triggerTemplate,
 	};
-}
-
-export function RouteComponent() {
-	const { createAutomation, isPending } = useCreateAutomation();
-	const navigate = useNavigate();
-	const eventDefaultValues = useEventDefaultValues();
-
-	const handleSubmit = (values: AutomationWizardSchemaType) => {
-		const automationData: AutomationCreate = {
-			name: values.name,
-			description: values.description ?? "",
-			enabled: true,
-			trigger: values.trigger,
-			actions: values.actions,
-		};
-
-		createAutomation(automationData, {
-			onSuccess: () => {
-				toast.success("Automation created successfully");
-				void navigate({ to: "/automations" });
-			},
-			onError: (error) => {
-				toast.error(`Failed to create automation: ${error.message}`);
-			},
-		});
-	};
-
-	return (
-		<div className="flex flex-col gap-4">
-			<AutomationsCreateHeader />
-			<AutomationWizard
-				defaultValues={eventDefaultValues}
-				onSubmit={handleSubmit}
-				isSubmitting={isPending}
-			/>
-		</div>
-	);
 }

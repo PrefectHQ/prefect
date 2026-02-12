@@ -13,7 +13,23 @@ const searchParams = z.object({
 
 export const Route = createFileRoute("/blocks/catalog")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const [search, onSearch] = useSearch();
+		const { data: blockTypes } = useSuspenseQuery(
+			buildListFilterBlockTypesQuery({
+				block_types: { name: { like_: search } },
+				offset: 0,
+			}),
+		);
+
+		return (
+			<BlocksCatalogPage
+				blockTypes={blockTypes}
+				search={search}
+				onSearch={onSearch}
+			/>
+		);
+	},
 	loaderDeps: ({ search: { blockName } }) => ({
 		blockName,
 	}),
@@ -28,24 +44,6 @@ export const Route = createFileRoute("/blocks/catalog")({
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 });
-
-export function RouteComponent() {
-	const [search, onSearch] = useSearch();
-	const { data: blockTypes } = useSuspenseQuery(
-		buildListFilterBlockTypesQuery({
-			block_types: { name: { like_: search } },
-			offset: 0,
-		}),
-	);
-
-	return (
-		<BlocksCatalogPage
-			blockTypes={blockTypes}
-			search={search}
-			onSearch={onSearch}
-		/>
-	);
-}
 
 function useSearch() {
 	const { blockName } = Route.useSearch();

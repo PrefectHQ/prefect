@@ -38,7 +38,7 @@ export default tseslint.config(
 			...reactHooks.configs.recommended.rules,
 			"react-refresh/only-export-components": [
 				"warn",
-				{ allowConstantExport: true, allowExportNames: ["Route"] },
+				{ allowConstantExport: true },
 			],
 			...react.configs.recommended.rules,
 			...react.configs["jsx-runtime"].rules,

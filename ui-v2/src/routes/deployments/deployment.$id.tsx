@@ -70,24 +70,12 @@ const searchParams = z.object({
 
 export type DeploymentDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
-export function DeploymentErrorComponent({
-	error,
-	reset,
-}: ErrorComponentProps) {
-	const serverError = categorizeError(error, "Failed to load deployment");
-	return (
-		<div className="flex flex-col gap-4">
-			<div>
-				<h1 className="text-2xl font-semibold">Deployment</h1>
-			</div>
-			<RouteErrorState error={serverError} onRetry={reset} />
-		</div>
-	);
-}
-
 export const Route = createFileRoute("/deployments/deployment/$id")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		return <DeploymentDetailsPage id={id} />;
+	},
 	loader: async ({ params, context: { queryClient } }) => {
 		// ----- Critical data
 		const res = await queryClient.ensureQueryData(
@@ -109,10 +97,18 @@ export const Route = createFileRoute("/deployments/deployment/$id")({
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
-	errorComponent: DeploymentErrorComponent,
+	errorComponent: function DeploymentErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load deployment");
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Deployment</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
+	},
 });
-
-export function RouteComponent() {
-	const { id } = Route.useParams();
-	return <DeploymentDetailsPage id={id} />;
-}

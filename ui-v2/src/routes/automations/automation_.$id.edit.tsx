@@ -4,14 +4,12 @@ import { AutomationEditPage } from "@/components/automations/automation-edit-pag
 import { PrefectLoading } from "@/components/ui/loading";
 
 export const Route = createFileRoute("/automations/automation_/$id/edit")({
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		return <AutomationEditPage id={id} />;
+	},
 	loader: ({ context, params }) =>
 		context.queryClient.ensureQueryData(buildGetAutomationQuery(params.id)),
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 });
-
-export function RouteComponent() {
-	const { id } = Route.useParams();
-	return <AutomationEditPage id={id} />;
-}

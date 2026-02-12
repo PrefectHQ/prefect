@@ -29,7 +29,7 @@ const searchParams = z.object({
  * Skeleton component shown while the events page is loading.
  * Displays placeholder elements for header, filters, chart, and timeline.
  */
-export function EventsPageSkeleton() {
+const eventsPageSkeleton = () => {
 	return (
 		<div className="flex flex-col gap-4">
 			{/* Header skeleton */}
@@ -46,13 +46,13 @@ export function EventsPageSkeleton() {
 			<Skeleton className="h-64 w-full" />
 		</div>
 	);
-}
+};
 
 export const Route = createFileRoute("/events/")({
 	validateSearch: zodValidator(searchParams),
 	loaderDeps: ({ search }) => search,
 	wrapInSuspense: true,
-	pendingComponent: EventsPageSkeleton,
+	pendingComponent: eventsPageSkeleton,
 	loader: ({ deps: search, context: { queryClient } }) => {
 		const eventsFilter = buildEventsFilterFromSearch(search);
 		const countFilter = buildEventsCountFilterFromSearch(search);
@@ -61,24 +61,24 @@ export const Route = createFileRoute("/events/")({
 		void queryClient.prefetchQuery(buildFilterEventsQuery(eventsFilter));
 		void queryClient.prefetchQuery(buildEventsHistoryQuery(countFilter));
 	},
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const EventsPageSkeleton = eventsPageSkeleton;
+
+		const search = Route.useSearch();
+		const navigate = Route.useNavigate();
+
+		const handleSearchChange = (updates: Partial<EventsSearchParams>) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, ...updates }),
+				replace: true,
+			});
+		};
+
+		return (
+			<Suspense fallback={<EventsPageSkeleton />}>
+				<EventsPage search={search} onSearchChange={handleSearchChange} />
+			</Suspense>
+		);
+	},
 });
-
-export function RouteComponent() {
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	const handleSearchChange = (updates: Partial<EventsSearchParams>) => {
-		void navigate({
-			to: ".",
-			search: (prev) => ({ ...prev, ...updates }),
-			replace: true,
-		});
-	};
-
-	return (
-		<Suspense fallback={<EventsPageSkeleton />}>
-			<EventsPage search={search} onSearchChange={handleSearchChange} />
-		</Suspense>
-	);
-}

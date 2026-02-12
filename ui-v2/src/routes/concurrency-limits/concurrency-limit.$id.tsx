@@ -19,7 +19,10 @@ export const Route = createFileRoute(
 	"/concurrency-limits/concurrency-limit/$id",
 )({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		return <TaskRunConcurrencyLimitPage id={id} />;
+	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 	loader: ({ context, params }) =>
@@ -27,8 +30,3 @@ export const Route = createFileRoute(
 			buildConcurrenyLimitDetailsActiveRunsQuery(params.id),
 		),
 });
-
-export function RouteComponent() {
-	const { id } = Route.useParams();
-	return <TaskRunConcurrencyLimitPage id={id} />;
-}
