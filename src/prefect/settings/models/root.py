@@ -203,7 +203,7 @@ class Settings(PrefectBaseSettings):
                     f"http://{self.server.api.host}:{self.server.api.port}/api"
                 )
                 self.server.ui.__pydantic_fields_set__.remove("api_url")
-        if self.debug_mode or self.testing.test_mode:
+        if self.debug_mode or self.testing.test_mode or self.worker.debug_mode:
             self.logging.level = "DEBUG"
             self.internal.logging_level = "DEBUG"
             self.logging.__pydantic_fields_set__.remove("level")
