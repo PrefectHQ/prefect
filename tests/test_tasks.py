@@ -61,7 +61,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
     temporary_settings,
 )
-from prefect.states import State
+from prefect.states import Completed, State
 from prefect.task_worker import read_parameters
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
@@ -937,8 +937,8 @@ class TestTaskSubmit:
 
     def test_opaque_resolves_future_without_recursive_traversal(self):
         @task
-        def produce_large_result():
-            return {"key": "value", "nested": [1, 2, 3]}
+        def produce_result_with_nested_state():
+            return {"data": "value", "nested_state": Completed(data="inner")}
 
         @task
         def consume(data):
@@ -946,12 +946,13 @@ class TestTaskSubmit:
 
         @flow
         def test_flow():
-            f = produce_large_result.submit()
+            f = produce_result_with_nested_state.submit()
             b = consume.submit(opaque(f))
             return b.result()
 
         result = test_flow()
-        assert result == {"key": "value", "nested": [1, 2, 3]}
+        assert result["data"] == "value"
+        assert isinstance(result["nested_state"], State)
 
     async def test_allow_failure_chained_mapped_tasks(
         self,
