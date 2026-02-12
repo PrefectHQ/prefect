@@ -42,3 +42,21 @@ name = "prefect profile ls (cyclopts)"
 args = ["env", "PREFECT_CLI_FAST=1", "prefect", "profile", "ls"]
 category = "startup"
 description = "profile ls via cyclopts"
+
+[[commands]]
+name = "prefect server services ls (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "server", "services", "ls"]
+category = "startup"
+description = "server services ls via cyclopts"
+
+[[commands]]
+name = "prefect worker start --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "worker", "start", "--help"]
+category = "startup"
+description = "worker start help via cyclopts"
+
+[[commands]]
+name = "prefect shell --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "shell", "--help"]
+category = "startup"
+description = "shell help via cyclopts"

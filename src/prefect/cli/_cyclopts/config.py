@@ -11,10 +11,10 @@ from typing import Annotated, Any, Literal, Union, cast
 import cyclopts
 from dotenv import dotenv_values
 
+import prefect.cli._cyclopts as _cli
 import prefect.context
 import prefect.settings
 from prefect._internal.compatibility.backports import tomllib
-from prefect.cli._cyclopts import _is_interactive, console
 from prefect.cli._cyclopts._utilities import exit_with_error, exit_with_success
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import Settings
@@ -73,9 +73,9 @@ def set_(
         exit_with_error(help_message)
 
     for setting, value in parsed_settings.items():
-        console.print(f"Set {setting!r} to {value!r}.")
+        _cli.console.print(f"Set {setting!r} to {value!r}.")
         if setting in os.environ:
-            console.print(
+            _cli.console.print(
                 f"[yellow]{setting} is also set by an environment variable which will "
                 f"override your config value. Run `unset {setting}` to clear it."
             )
@@ -129,13 +129,13 @@ def unset(
         if setting not in profile.settings:
             exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
 
-    if not yes and _is_interactive():
+    if not yes and _cli.is_interactive():
         from rich.prompt import Confirm
 
         if not Confirm.ask(
             f"Are you sure you want to unset the following setting(s): "
             f"{listrepr(setting_names)}?",
-            console=console,
+            console=_cli.console,
         ):
             exit_with_error("Unset aborted.")
 
@@ -144,9 +144,9 @@ def unset(
     )
 
     for setting_name in setting_names:
-        console.print(f"Unset {setting_name!r}.")
+        _cli.console.print(f"Unset {setting_name!r}.")
         if setting_name in os.environ:
-            console.print(
+            _cli.console.print(
                 f"[yellow]{setting_name!r} is also set by an environment variable. "
                 f"Use `unset {setting_name}` to clear it."
             )
@@ -197,12 +197,14 @@ def view(
     current_profile_settings = context.profile.settings
 
     if ui_url := prefect.settings.PREFECT_UI_URL.value():
-        console.print(
+        _cli.console.print(
             f"\N{ROCKET} you are connected to:\n[green]{ui_url}[/green]",
             soft_wrap=True,
         )
 
-    console.print(f"[bold blue]PREFECT_PROFILE={context.profile.name!r}[/bold blue]")
+    _cli.console.print(
+        f"[bold blue]PREFECT_PROFILE={context.profile.name!r}[/bold blue]"
+    )
 
     settings_output: list[str] = []
     processed_settings: set[str] = set()
@@ -302,4 +304,4 @@ def view(
             current_path=[],
         )
 
-    console.print("\n".join(sorted(settings_output)), soft_wrap=True)
+    _cli.console.print("\n".join(sorted(settings_output)), soft_wrap=True)

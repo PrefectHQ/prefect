@@ -23,6 +23,7 @@ def enable_all_services():
 @pytest.fixture
 def pid_file(monkeypatch: pytest.MonkeyPatch) -> Path:
     pid_file = Path(PREFECT_HOME.value()) / "services.pid"
+    monkeypatch.setattr("prefect.cli._server_utils.SERVICES_PID_FILE", pid_file)
     monkeypatch.setattr("prefect.cli.server.SERVICES_PID_FILE", pid_file)
     return pid_file
 

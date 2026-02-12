@@ -1,8 +1,16 @@
+import os
+
+import pytest
+
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.testing.cli import invoke_and_assert
 
 
+@pytest.mark.skipif(
+    os.environ.get("PREFECT_CLI_FAST", "").lower() in ("1", "true"),
+    reason="PrefectTyper alias behavior is typer-specific",
+)
 class TestPrefectTyper:
     singular_subcommand = PrefectTyper(name="singular-subcommand")
     pluralized_subcommand = PrefectTyper(name="pluralized-subcommand")

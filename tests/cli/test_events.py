@@ -132,9 +132,18 @@ def oss_api_setup(events_api_url: str):
 @pytest.fixture
 def mock_events_client(monkeypatch: pytest.MonkeyPatch):
     mock_client = AssertingEventsClient()
+
+    def mock_factory(*args, **kwargs):
+        return mock_client
+
     monkeypatch.setattr(
         "prefect.cli.events.get_events_client",
-        lambda *args, **kwargs: mock_client,
+        mock_factory,
+    )
+    # Also patch the source module so delegated commands (cyclopts) see it.
+    monkeypatch.setattr(
+        "prefect.events.clients.get_events_client",
+        mock_factory,
     )
     return mock_client
 
