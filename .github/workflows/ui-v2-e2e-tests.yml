@@ -28,9 +28,13 @@ concurrency:
 
 jobs:
   e2e-tests:
-    name: E2E Tests
+    name: E2E Tests (Shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
 
     services:
       postgres:
@@ -88,7 +92,7 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: ./ui-v2
-        run: npx playwright test
+        run: npx playwright test --shard=${{ matrix.shard }}/3
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           CI: true
@@ -97,7 +101,7 @@ jobs:
         uses: actions/upload-artifact@v6
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-shard-${{ matrix.shard }}
           path: ui-v2/playwright-report/
           retention-days: 30
 
@@ -105,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v6
         if: failure()
         with:
-          name: server-log
+          name: server-log-shard-${{ matrix.shard }}
           path: server.log
           retention-days: 30
 
