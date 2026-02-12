@@ -54,6 +54,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TEST_MODE,
+    PREFECT_WORKER_DEBUG_MODE,
     PREFECT_WORKER_ENABLE_CANCELLATION,
     get_current_settings,
     temporary_settings,
@@ -3236,3 +3237,31 @@ class TestWorkerCancellationHandling:
                 # Note: it may be removed quickly after submission completes
                 # so we just verify the observer exists and is functioning
                 assert observer._in_flight_flow_run_ids is not None
+
+
+class TestWorkerDebugMode:
+    def test_worker_debug_mode_sets_logger_to_debug(self):
+        import logging
+
+        with temporary_settings(updates={PREFECT_WORKER_DEBUG_MODE: True}):
+            worker = WorkerTestImpl(
+                work_pool_name="test-pool",
+                name="test-worker",
+            )
+            assert worker._logger.level == logging.DEBUG
+
+    def test_worker_debug_mode_off_does_not_force_debug_level(self):
+        with mock.patch(
+            "prefect.workers.base.get_current_settings"
+        ) as mock_get_settings:
+            mock_get_settings.return_value.worker.debug_mode = False
+            with mock.patch(
+                "prefect.workers.base.get_worker_logger"
+            ) as mock_get_logger:
+                mock_logger = MagicMock()
+                mock_get_logger.return_value = mock_logger
+                WorkerTestImpl(
+                    work_pool_name="test-pool",
+                    name="test-worker",
+                )
+                mock_logger.setLevel.assert_not_called()

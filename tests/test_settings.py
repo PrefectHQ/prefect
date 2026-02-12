@@ -2832,11 +2832,6 @@ def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
 
 
 class TestWorkerDebugMode:
-    def test_worker_debug_mode_sets_logging_to_debug(self):
-        settings = Settings(worker={"debug_mode": True})
-        assert settings.logging.level == "DEBUG"
-        assert settings.internal.logging_level == "DEBUG"
-
     def test_worker_debug_mode_defaults_to_false(self):
         settings = Settings()
         assert settings.worker.debug_mode is False
@@ -2844,6 +2839,13 @@ class TestWorkerDebugMode:
     def test_worker_debug_mode_does_not_set_root_debug_mode(self):
         settings = Settings(worker={"debug_mode": True})
         assert settings.debug_mode is False
+
+    def test_worker_debug_mode_does_not_set_global_logging_level(self):
+        settings = Settings(
+            worker={"debug_mode": True},
+            testing={"test_mode": False},
+        )
+        assert settings.logging.level != "DEBUG"
 
     def test_worker_debug_mode_env_not_in_base_environment_as_debug_mode(self):
         with temporary_settings({PREFECT_WORKER_DEBUG_MODE: True}):
