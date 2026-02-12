@@ -9,15 +9,34 @@ Prefect provides a [Model Context Protocol (MCP)](https://modelcontextprotocol.i
 
 The Model Context Protocol (MCP) is an open standard that enables AI assistants to securely connect to external tools and data sources. MCP servers expose capabilities through a standardized interface, allowing AI assistants to access real-time information and perform operations on your behalf.
 
-## Prefect MCP Server
+## Get Started
 
-The Prefect MCP server provides AI assistants with tools to:
+Choose your installation method:
+
+<CardGroup cols={2}>
+  <Card
+    title="Claude Code Plugin"
+    icon="puzzle-piece"
+    href="/v3/mcp-servers/prefect-mcp-server"
+  >
+    Install via Claude Code marketplace for the easiest setup with both MCP server and CLI skill.
+  </Card>
+  <Card
+    title="Manual Installation"
+    icon="code"
+    href="/v3/mcp-servers/prefect-mcp-server"
+  >
+    Configure manually for Cursor, Codex CLI, Gemini CLI, and other MCP-compatible clients.
+  </Card>
+</CardGroup>
+
+## What the Prefect MCP Server Provides
+
+The Prefect MCP server gives AI assistants powerful capabilities:
 
 - **Monitor & inspect**: View system health, query deployments, flow runs, task runs, work pools, and execution logs
 - **Debug intelligently**: Get contextual guidance for troubleshooting failed flows and deployment issues
 - **Access documentation**: Query up-to-date Prefect documentation through an integrated docs proxy
-
-[Get started with the Prefect MCP Server →](/v3/mcp-servers/prefect-mcp-server)
 
 ## Why Use MCP with Prefect?
 
@@ -44,4 +63,3 @@ Remember that MCP servers operate within the context of your AI assistant. If yo
 
 - [Model Context Protocol](https://modelcontextprotocol.io/)
 - [Prefect MCP Server on GitHub](https://github.com/PrefectHQ/prefect-mcp-server)
-- [Prefect Docs MCP Server on GitHub](https://github.com/PrefectHQ/prefect-docs-mcp-server)
