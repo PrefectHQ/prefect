@@ -100,22 +100,22 @@ class opaque(BaseAnnotation[T]):
     Wrapper for task inputs that resolves the top-level value but prevents
     recursive traversal into its contents.
 
-    When a ``PrefectFuture`` (or ``State``) is wrapped with ``opaque``, Prefect
+    When a `PrefectFuture` (or `State`) is wrapped with `opaque`, Prefect
     will wait for the future and return its result, but will **not** walk into
     the resolved object looking for nested futures, states, or task-run inputs.
-    This avoids the expensive CPU-bound traversal that ``visit_collection``
+    This avoids the expensive CPU-bound traversal that `visit_collection`
     performs on large results (big dicts, DataFrames, etc.) while still
-    preserving the ergonomic ``.submit()`` chaining pattern.
+    preserving the ergonomic `.submit()` chaining pattern.
 
     Semantics compared with other annotations:
 
     * **No annotation** — resolve *and* recursively traverse (default).
-    * ``quote`` — do **not** resolve, do **not** traverse.
-    * ``opaque`` — resolve the top-level value, but do **not** traverse into
+    * `quote` — do **not** resolve, do **not** traverse.
+    * `opaque` — resolve the top-level value, but do **not** traverse into
       its contents.
 
-    Example::
-
+    Example:
+        ```python
         from prefect import flow, task
         from prefect.utilities.annotations import opaque
 
@@ -131,6 +131,7 @@ class opaque(BaseAnnotation[T]):
         def my_flow():
             cities = load_cities.submit()
             process_cities.submit(opaque(cities))
+        ```
     """
 
 
