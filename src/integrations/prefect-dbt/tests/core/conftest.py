@@ -17,6 +17,7 @@ def _make_node(
     name: str = "my_model",
     resource_type: NodeType = NodeType.Model,
     depends_on: tuple[str, ...] = (),
+    depends_on_macros: tuple[str, ...] = (),
     materialization: str = "table",
 ) -> DbtNode:
     return DbtNode(
@@ -24,6 +25,7 @@ def _make_node(
         name=name,
         resource_type=resource_type,
         depends_on=depends_on,
+        depends_on_macros=depends_on_macros,
         materialization=materialization,
     )
 

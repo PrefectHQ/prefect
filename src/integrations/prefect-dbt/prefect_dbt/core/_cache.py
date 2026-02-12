@@ -43,6 +43,7 @@ class DbtNodeCachePolicy(CachePolicy):
     config_hash: Optional[str] = None
     full_refresh: bool = False
     upstream_cache_keys: tuple[tuple[str, str], ...] = ()
+    macro_content_hash: Optional[str] = None
 
     def compute_key(
         self,
@@ -62,6 +63,7 @@ class DbtNodeCachePolicy(CachePolicy):
             self.config_hash,
             self.full_refresh,
             self.upstream_cache_keys,
+            self.macro_content_hash,
         )
 
 
@@ -95,12 +97,49 @@ def _hash_node_config(node: DbtNode) -> Optional[str]:
     return hash_objects(node.config)
 
 
+def _hash_macro_dependencies(
+    node: DbtNode,
+    project_dir: Path,
+    macro_paths: dict[str, Optional[str]],
+) -> Optional[str]:
+    """Hash macro dependencies for *node*.
+
+    For each macro in ``node.depends_on_macros`` (sorted for determinism):
+
+    - If the macro has an ``original_file_path`` and the file exists on
+      disk, hash the file contents.
+    - Otherwise, use the macro unique_id as a stable fallback (external
+      packages, builtins, etc.).
+
+    Returns ``None`` when the node has no macro dependencies.
+    """
+    if not node.depends_on_macros:
+        return None
+
+    parts: list[str] = []
+    for macro_id in sorted(node.depends_on_macros):
+        file_path = macro_paths.get(macro_id)
+        if file_path is not None:
+            full_path = project_dir / file_path
+            try:
+                content = full_path.read_bytes()
+                parts.append(stable_hash(content))
+                continue
+            except (OSError, IOError):
+                pass
+        # Fallback: use macro ID itself (stable across runs)
+        parts.append(macro_id)
+
+    return stable_hash("|".join(parts).encode())
+
+
 def build_cache_policy_for_node(
     node: DbtNode,
     project_dir: Path,
     full_refresh: bool,
     upstream_cache_keys: dict[str, str],
     key_storage: Optional[Union[WritableFileSystem, str, Path]] = None,
+    macro_paths: Optional[dict[str, Optional[str]]] = None,
 ) -> DbtNodeCachePolicy:
     """Construct a :class:`DbtNodeCachePolicy` for *node*.
 
@@ -113,6 +152,7 @@ def build_cache_policy_for_node(
     file_hash = _hash_node_file(node, project_dir)
     config_hash = _hash_node_config(node)
     sorted_upstream = tuple(sorted(upstream_cache_keys.items()))
+    macro_hash = _hash_macro_dependencies(node, project_dir, macro_paths or {})
 
     policy = DbtNodeCachePolicy(
         node_unique_id=node.unique_id,
@@ -120,6 +160,7 @@ def build_cache_policy_for_node(
         config_hash=config_hash,
         full_refresh=full_refresh,
         upstream_cache_keys=sorted_upstream,
+        macro_content_hash=macro_hash,
     )
 
     if key_storage is not None:

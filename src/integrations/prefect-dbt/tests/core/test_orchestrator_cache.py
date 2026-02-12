@@ -15,10 +15,12 @@ from conftest import (
 from dbt.artifacts.resources.types import NodeType
 from prefect_dbt.core._cache import (
     DbtNodeCachePolicy,
+    _hash_macro_dependencies,
     _hash_node_config,
     _hash_node_file,
     build_cache_policy_for_node,
 )
+from prefect_dbt.core._manifest import ManifestParser
 from prefect_dbt.core._orchestrator import ExecutionMode, PrefectDbtOrchestrator
 
 from prefect import flow
@@ -77,6 +79,19 @@ class TestDbtNodeCachePolicy:
         )
         p1 = DbtNodeCachePolicy(upstream_cache_keys=(("a", "k1"),), **base)
         p2 = DbtNodeCachePolicy(upstream_cache_keys=(("a", "k2"),), **base)
+        assert p1.compute_key(None, {}, {}) != p2.compute_key(None, {}, {})
+
+    def test_key_changes_on_macro_hash(self):
+        """Different macro_content_hash produces a different key."""
+        base = dict(
+            node_unique_id="model.test.m1",
+            file_content_hash="file",
+            config_hash="cfg",
+            full_refresh=False,
+            upstream_cache_keys=(),
+        )
+        p1 = DbtNodeCachePolicy(macro_content_hash="macro_a", **base)
+        p2 = DbtNodeCachePolicy(macro_content_hash="macro_b", **base)
         assert p1.compute_key(None, {}, {}) != p2.compute_key(None, {}, {})
 
     def test_key_changes_on_full_refresh(self):
@@ -259,6 +274,126 @@ class TestHashHelpers:
         h = _hash_node_config(node)
         assert h is not None
         assert isinstance(h, str)
+
+
+# =============================================================================
+# TestHashMacroDependencies
+# =============================================================================
+
+
+class TestHashMacroDependencies:
+    def test_no_macros_returns_none(self, tmp_path):
+        """Node with no macro dependencies returns None."""
+        node = _make_node(unique_id="model.test.m1", name="m1")
+        assert _hash_macro_dependencies(node, tmp_path, {}) is None
+
+    def test_project_macro_hashed(self, tmp_path):
+        """Project-local macro file content is hashed."""
+        (tmp_path / "macros").mkdir()
+        (tmp_path / "macros/my_macro.sql").write_text(
+            "{% macro my_macro() %}1{% endmacro %}"
+        )
+        node = _make_node(
+            unique_id="model.test.m1",
+            name="m1",
+            depends_on_macros=("macro.proj.my_macro",),
+        )
+        macro_paths = {"macro.proj.my_macro": "macros/my_macro.sql"}
+        h = _hash_macro_dependencies(node, tmp_path, macro_paths)
+        assert h is not None
+        assert isinstance(h, str)
+
+    def test_different_content_different_hash(self, tmp_path):
+        """Editing a macro file changes the hash."""
+        (tmp_path / "macros").mkdir()
+        macro_file = tmp_path / "macros/my_macro.sql"
+        node = _make_node(
+            unique_id="model.test.m1",
+            name="m1",
+            depends_on_macros=("macro.proj.my_macro",),
+        )
+        macro_paths = {"macro.proj.my_macro": "macros/my_macro.sql"}
+
+        macro_file.write_text("{% macro my_macro() %}v1{% endmacro %}")
+        h1 = _hash_macro_dependencies(node, tmp_path, macro_paths)
+
+        macro_file.write_text("{% macro my_macro() %}v2{% endmacro %}")
+        h2 = _hash_macro_dependencies(node, tmp_path, macro_paths)
+
+        assert h1 != h2
+
+    def test_external_macro_uses_id_fallback(self, tmp_path):
+        """Macro with no file path falls back to macro ID."""
+        node = _make_node(
+            unique_id="model.test.m1",
+            name="m1",
+            depends_on_macros=("macro.dbt.run_query",),
+        )
+        macro_paths = {"macro.dbt.run_query": None}
+        h = _hash_macro_dependencies(node, tmp_path, macro_paths)
+        assert h is not None
+
+    def test_unknown_macro_uses_id_fallback(self, tmp_path):
+        """Macro not in macro_paths falls back to macro ID."""
+        node = _make_node(
+            unique_id="model.test.m1",
+            name="m1",
+            depends_on_macros=("macro.unknown.foo",),
+        )
+        h = _hash_macro_dependencies(node, tmp_path, {})
+        assert h is not None
+
+
+# =============================================================================
+# TestManifestMacroParsing
+# =============================================================================
+
+
+class TestManifestMacroParsing:
+    def test_depends_on_macros_parsed(self, tmp_path):
+        """depends_on.macros from manifest is parsed into DbtNode."""
+        manifest_data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {
+                        "nodes": [],
+                        "macros": ["macro.proj.my_macro", "macro.dbt.run_query"],
+                    },
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest_path = write_manifest(tmp_path, manifest_data)
+        parser = ManifestParser(manifest_path)
+        nodes = parser.get_executable_nodes()
+        node = nodes["model.test.m1"]
+        assert node.depends_on_macros == ("macro.proj.my_macro", "macro.dbt.run_query")
+
+    def test_get_macro_paths(self, tmp_path):
+        """ManifestParser.get_macro_paths extracts macro file paths."""
+        manifest_data = {
+            "nodes": {},
+            "sources": {},
+            "macros": {
+                "macro.proj.my_macro": {
+                    "name": "my_macro",
+                    "original_file_path": "macros/my_macro.sql",
+                },
+                "macro.dbt.run_query": {
+                    "name": "run_query",
+                },
+            },
+        }
+        manifest_path = write_manifest(tmp_path, manifest_data)
+        parser = ManifestParser(manifest_path)
+        paths = parser.get_macro_paths()
+        assert paths == {
+            "macro.proj.my_macro": "macros/my_macro.sql",
+            "macro.dbt.run_query": None,
+        }
 
 
 # =============================================================================
@@ -601,4 +736,50 @@ class TestOrchestratorCachingOutcomes:
         assert r2["model.test.m1"]["status"] == "success"
         assert r3["model.test.m1"]["status"] == "success"
         # r1 executes (miss), r2 executes (refresh), r3 cached (hit from r1)
+        assert executor.execute_node.call_count == 2
+
+    def test_macro_change_invalidates_cache(self, cache_orch):
+        """Editing a macro file between runs invalidates the cache for dependent nodes."""
+        manifest_data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {
+                        "nodes": [],
+                        "macros": ["macro.proj.my_macro"],
+                    },
+                    "config": {"materialized": "table"},
+                    "original_file_path": "models/m1.sql",
+                }
+            },
+            "sources": {},
+            "macros": {
+                "macro.proj.my_macro": {
+                    "name": "my_macro",
+                    "original_file_path": "macros/my_macro.sql",
+                },
+            },
+        }
+        sql_files = {
+            "models/m1.sql": "SELECT {{ my_macro() }}",
+            "macros/my_macro.sql": "{% macro my_macro() %}1{% endmacro %}",
+        }
+        orch, executor, project_dir = cache_orch(manifest_data, sql_files)
+
+        @flow
+        def run_then_edit_macro():
+            r1 = orch.run_build()
+            # Edit the macro file
+            (project_dir / "macros/my_macro.sql").write_text(
+                "{% macro my_macro() %}2{% endmacro %}"
+            )
+            r2 = orch.run_build()
+            return r1, r2
+
+        r1, r2 = run_then_edit_macro()
+
+        assert r1["model.test.m1"]["status"] == "success"
+        assert r2["model.test.m1"]["status"] == "success"
+        # Both runs must execute — macro content changed
         assert executor.execute_node.call_count == 2

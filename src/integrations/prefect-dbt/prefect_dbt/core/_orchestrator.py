@@ -305,7 +305,8 @@ class PrefectDbtOrchestrator:
 
         # 4. Execute
         if self._execution_mode == ExecutionMode.PER_NODE:
-            return self._execute_per_node(waves, full_refresh)
+            macro_paths = parser.get_macro_paths() if self._enable_caching else {}
+            return self._execute_per_node(waves, full_refresh, macro_paths)
         return self._execute_per_wave(waves, full_refresh)
 
     # ------------------------------------------------------------------
@@ -396,7 +397,9 @@ class PrefectDbtOrchestrator:
     # PER_NODE execution
     # ------------------------------------------------------------------
 
-    def _build_cache_options_for_node(self, node, full_refresh, computed_cache_keys):
+    def _build_cache_options_for_node(
+        self, node, full_refresh, computed_cache_keys, macro_paths=None
+    ):
         """Build cache-related ``with_options`` kwargs and record the eager key.
 
         Returns a dict of extra kwargs to merge into ``with_options``.
@@ -416,6 +419,7 @@ class PrefectDbtOrchestrator:
             full_refresh,
             upstream_keys,
             self._cache_key_storage,
+            macro_paths=macro_paths,
         )
         key = policy.compute_key(None, {}, {})
         if key is not None:
@@ -433,7 +437,7 @@ class PrefectDbtOrchestrator:
             opts["result_storage"] = self._result_storage
         return opts
 
-    def _execute_per_node(self, waves, full_refresh):
+    def _execute_per_node(self, waves, full_refresh, macro_paths=None):
         """Execute each node as an individual Prefect task.
 
         Creates a separate Prefect task per node with individual retries.
@@ -564,7 +568,7 @@ class PrefectDbtOrchestrator:
                     if self._enable_caching:
                         with_opts.update(
                             self._build_cache_options_for_node(
-                                node, full_refresh, computed_cache_keys
+                                node, full_refresh, computed_cache_keys, macro_paths
                             )
                         )
 
