@@ -277,19 +277,19 @@ Returns a key used to determine whether to instantiate a new DB interface.
 
 **Methods:**
 
-#### `begin_sqlite_conn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L551" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `begin_sqlite_conn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L555" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 begin_sqlite_conn(self, conn: aiosqlite.AsyncAdapt_aiosqlite_connection) -> None
 ```
 
-#### `begin_sqlite_stmt` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `begin_sqlite_stmt` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L564" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 begin_sqlite_stmt(self, conn: sa.Connection) -> None
 ```
 
-#### `begin_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `begin_transaction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L577" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 begin_transaction(self, session: AsyncSession, with_for_update: bool = False) -> AsyncGenerator[AsyncSessionTransaction, None]
@@ -304,7 +304,7 @@ begin_transaction(self, session: AsyncSession, with_for_update: bool = False) ->
 Enter a transaction for a session
 
 
-#### `create_db` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L593" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_db` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L597" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_db(self, connection: AsyncConnection, base_metadata: sa.MetaData) -> None
@@ -322,7 +322,7 @@ create_db(self, connection: AsyncConnection, base_metadata: sa.MetaData) -> None
 Create the database
 
 
-#### `drop_db` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L600" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `drop_db` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 drop_db(self, connection: AsyncConnection, base_metadata: sa.MetaData) -> None
@@ -369,7 +369,7 @@ engine(self) -> AsyncEngine
 Returns a SqlAlchemy engine
 
 
-#### `is_inmemory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L607" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_inmemory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L611" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_inmemory(self) -> bool
@@ -387,7 +387,7 @@ is_inmemory(self) -> bool
 Returns true if database is run in memory
 
 
-#### `schedule_engine_disposal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `schedule_engine_disposal` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L480" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_engine_disposal(self, cache_key: _EngineCacheKey) -> None
@@ -408,7 +408,7 @@ connection slots. Users operating at a scale where connection limits are
 encountered should be encouraged to use a standalone server.
 
 
-#### `session` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L584" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `session` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L588" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 session(self, engine: AsyncEngine) -> AsyncSession
@@ -429,7 +429,7 @@ session(self, engine: AsyncEngine) -> AsyncSession
 Retrieves a SQLAlchemy session for an engine.
 
 
-#### `setup_sqlite` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L500" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `setup_sqlite` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/configurations.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 setup_sqlite(self, conn: DBAPIConnection, record: ConnectionPoolEntry) -> None

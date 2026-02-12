@@ -918,6 +918,7 @@
                     "group": "prefect.client",
                     "pages": [
                       "v3/api-ref/python/prefect-client-__init__",
+                      "v3/api-ref/python/prefect-client-attribution",
                       "v3/api-ref/python/prefect-client-base",
                       "v3/api-ref/python/prefect-client-cloud",
                       "v3/api-ref/python/prefect-client-collections",

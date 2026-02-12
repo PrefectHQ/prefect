@@ -7,7 +7,7 @@ sidebarTitle: base
 
 ## Functions
 
-### `app_lifespan_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `app_lifespan_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 app_lifespan_context(app: ASGIApp) -> AsyncGenerator[None, None]
@@ -42,7 +42,7 @@ without closing the lifespan context and reference counts will be used to ensure
 the lifespan is closed once all of the clients are done.
 
 
-### `determine_server_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `determine_server_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L727" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 determine_server_type() -> ServerType
@@ -61,9 +61,9 @@ not enabled
 
 ## Classes
 
-### `ASGIApp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ASGIApp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `PrefectResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectResponse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect wrapper for the `httpx.Response` class.
@@ -73,7 +73,7 @@ Provides more informative error messages.
 
 **Methods:**
 
-#### `from_httpx_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_httpx_response` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_httpx_response(cls: type[Self], response: httpx.Response) -> Response
@@ -86,7 +86,7 @@ resolution order to look for methods defined in PrefectResponse, while leaving
 everything else about the original Response instance intact.
 
 
-#### `raise_for_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `raise_for_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 raise_for_status(self) -> Response
@@ -98,7 +98,7 @@ The `PrefectHTTPStatusError` contains useful additional information that
 is not contained in the `HTTPStatusError`.
 
 
-### `PrefectHttpxAsyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectHttpxAsyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect wrapper for the async httpx client with support for retry-after headers
@@ -112,7 +112,7 @@ For more details on rate limit headers, see:
 
 **Methods:**
 
-#### `send` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `send` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L349" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 send(self, request: Request, *args: Any, **kwargs: Any) -> Response
@@ -128,7 +128,7 @@ Send a request with automatic retry behavior for the following status codes:
 - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
 
 
-### `PrefectHttpxSyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectHttpxSyncClient` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L450" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect wrapper for the async httpx client with support for retry-after headers
@@ -142,7 +142,7 @@ For more details on rate limit headers, see:
 
 **Methods:**
 
-#### `send` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L596" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `send` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 send(self, request: Request, *args: Any, **kwargs: Any) -> Response
@@ -158,7 +158,7 @@ Send a request with automatic retry behavior for the following status codes:
 - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
 
 
-### `ServerType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L695" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/base.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
