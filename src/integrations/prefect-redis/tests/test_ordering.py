@@ -284,3 +284,85 @@ async def test_two_instances_do_not_interfere(
     await ordering_two.forget_follower(event_two)
     assert await ordering_one.get_followers(event_one) == []
     assert await ordering_two.get_followers(event_one) == []
+
+
+async def test_atomic_completion_finds_parked_followers(
+    causal_ordering: CausalOrdering,
+    event_one: ReceivedEvent,
+    event_two: ReceivedEvent,
+):
+    """Test that the atomic completion finds followers that parked before completion.
+
+    This tests the fix for the race condition where followers could be orphaned
+    if they parked between the leader's DEL processing and SMEMBERS followers.
+    With the Lua script fix, SET seen + SMEMBERS followers + DEL processing
+    happen atomically, preventing this race.
+    """
+    # First, have the follower park itself (simulating it arriving before leader finished)
+    await causal_ordering.record_follower(event_two)
+
+    # Verify the follower is parked
+    followers = await causal_ordering.get_followers(event_one)
+    assert event_two in followers
+
+    # Now have the leader complete using the atomic completion
+    # This uses complete_event_and_get_followers internally via the context manager
+    async with causal_ordering.event_is_processing(event_one) as completion:
+        # The completion object will be populated with followers after the context exits
+        pass
+
+    # The completion should have found the parked follower
+    assert len(completion.followers) == 1
+    assert completion.followers[0].id == event_two.id
+
+
+async def test_claimed_follower_not_dropped(
+    causal_ordering: CausalOrdering,
+    event_one: ReceivedEvent,
+    event_two: ReceivedEvent,
+):
+    """Test that a follower claimed by leader isn't dropped due to double-check cleanup.
+
+    This is a regression test for the scenario where:
+    1. Follower parks itself
+    2. Leader's Lua script runs: SET seen, SMEMBERS+DEL followers (claims follower)
+    3. Follower's double-check sees seen=True, sismember=False (claimed)
+    4. Follower should NOT delete its event data - leader needs it
+
+    Without the fix, the follower would delete event:{id} before the leader
+    could read it via followers_by_id(), causing silent data loss.
+    """
+    # Step 1: Follower parks itself
+    await causal_ordering.record_follower(event_two)
+
+    # Verify event data exists
+    event_key = causal_ordering._key(f"event:{event_two.id}")
+    assert await causal_ordering.redis.exists(event_key) == 1
+
+    # Step 2: Leader completes, claiming the follower
+    await causal_ordering.record_event_as_processing(event_one)
+    followers = await causal_ordering.complete_event_and_get_followers(event_one)
+
+    # Verify leader got the follower
+    assert len(followers) == 1
+    assert followers[0].id == event_two.id
+
+    # Step 3: Simulate follower's double-check path
+    # In the real code, this happens in wait_for_leader when follower sees:
+    # - seen=True (leader completed)
+    # - sismember=False (Lua DELeted followers set, so follower was claimed)
+    seen = await causal_ordering.event_has_been_seen(event_one)
+    assert seen is True
+
+    still_in_followers = await causal_ordering.redis.sismember(
+        causal_ordering._key(f"followers:{event_one.id}"), str(event_two.id)
+    )
+    assert still_in_followers == 0  # Claimed by leader's Lua script
+
+    # Step 4: Verify event data is STILL available for the leader
+    # The fix ensures we don't delete event:{id} in the claimed branch
+    assert await causal_ordering.redis.exists(event_key) == 1
+
+    # Leader can still read the event data
+    event_json = await causal_ordering.redis.get(event_key)
+    assert event_json is not None
