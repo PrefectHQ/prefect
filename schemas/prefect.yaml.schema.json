@@ -463,6 +463,19 @@
                     "default": null,
                     "description": "A unique identifier for the schedule.",
                     "title": "Slug"
+                },
+                "replaces": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
+                    "title": "Replaces"
                 }
             },
             "required": [
@@ -735,6 +748,18 @@
                     ],
                     "default": null,
                     "title": "Slug"
+                },
+                "replaces": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Replaces"
                 },
                 "day_or": {
                     "anyOf": [

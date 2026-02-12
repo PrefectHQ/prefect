@@ -3,6 +3,7 @@ Routes for interacting with Deployment objects.
 """
 
 import datetime
+import logging
 from typing import List, Optional
 from uuid import UUID
 
@@ -14,6 +15,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect._internal.compatibility.starlette import status
+from prefect.logging import get_logger
 from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
@@ -42,6 +44,8 @@ from prefect.utilities.schema_tools.validation import (
     ValidationError,
     validate,
 )
+
+logger: logging.Logger = get_logger(__name__)
 
 router: PrefectRouter = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -238,9 +242,63 @@ async def update_deployment(
                 schedule.slug for schedule in existing_deployment.schedules
             ]
 
+            # Check for duplicate replaces targets
+            replaces_targets: dict[str, str] = {}  # old_slug -> new_slug
+            for schedule in deployment.schedules or []:
+                if schedule.replaces:
+                    if schedule.replaces in replaces_targets:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail=f"Multiple schedules have 'replaces' targeting the same slug: {schedule.replaces}",
+                        )
+                    replaces_targets[schedule.replaces] = schedule.slug or ""
+
+            # Reject chained replacements (e.g., A→B and B→C in the same
+            # request) because the sequential DB updates are order-dependent
+            # and can violate the unique (deployment_id, slug) constraint.
+            new_slugs_from_replaces = set(replaces_targets.values())
+            chained = new_slugs_from_replaces & set(replaces_targets.keys())
+            if chained:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Chained replacements are not supported. "
+                    f"The following slugs appear as both replacement targets "
+                    f"and new slugs: {', '.join(sorted(chained))}",
+                )
+
+            # Check for slug collisions: if a schedule's new slug already
+            # exists as a current slug, it's a collision
             for schedule in deployment.schedules:
-                if schedule.slug in current_slugs:
+                if (
+                    schedule.slug
+                    and schedule.slug in current_slugs
+                    and schedule.replaces
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=f"Cannot rename schedule from '{schedule.replaces}' to '{schedule.slug}': "
+                        f"a schedule with slug '{schedule.slug}' already exists.",
+                    )
+
+            for schedule in deployment.schedules:
+                # Check if this schedule replaces an existing one
+                target_slug = schedule.replaces if schedule.replaces else schedule.slug
+
+                if target_slug in current_slugs:
                     schedules_to_patch.append(schedule)
+                elif schedule.replaces:
+                    # replaces points to a non-existent slug - warn and create new
+                    logger.warning(
+                        f"Schedule with slug '{schedule.slug}' has 'replaces: {schedule.replaces}' "
+                        f"but no schedule with slug '{schedule.replaces}' exists. Creating new schedule."
+                    )
+                    if schedule.schedule:
+                        schedules_to_create.append(schedule)
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="Unable to create new deployment schedules without a schedule configuration.",
+                        )
                 elif schedule.schedule:
                     schedules_to_create.append(schedule)
                 else:
@@ -348,11 +406,13 @@ async def update_deployment(
         )
 
         for schedule in schedules_to_patch:
+            # Use replaces slug if provided, otherwise use the schedule's own slug
+            lookup_slug = schedule.replaces if schedule.replaces else schedule.slug
             await models.deployments.update_deployment_schedule(
                 session=session,
                 deployment_id=deployment_id,
                 schedule=schedule,
-                deployment_schedule_slug=schedule.slug,
+                deployment_schedule_slug=lookup_slug,
             )
         if schedules_to_create:
             await models.deployments.create_deployment_schedules(

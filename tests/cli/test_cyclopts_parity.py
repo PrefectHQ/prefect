@@ -214,3 +214,93 @@ class TestServerCommandParity:
 
         assert "Available Services" in strip_ansi(typer_result.stdout)
         assert "Available Services" in strip_ansi(cyclopts_result.stdout)
+
+    @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
+    def test_server_services_ls_same_service_names(self):
+        """server services ls should list the same service names."""
+        typer_result = run_cli(["server", "services", "ls"], fast=False)
+        cyclopts_result = run_cli(["server", "services", "ls"], fast=True)
+
+        typer_out = strip_ansi(typer_result.stdout)
+        cyclopts_out = strip_ansi(cyclopts_result.stdout)
+
+        # Extract service environment variable names (PREFECT_SERVER_SERVICES_*)
+        svc_pattern = re.compile(r"PREFECT_SERVER_SERVICES_\w+")
+        typer_services = set(svc_pattern.findall(typer_out))
+        cyclopts_services = set(svc_pattern.findall(cyclopts_out))
+
+        assert typer_services == cyclopts_services, (
+            f"Services differ:\n"
+            f"Typer only: {typer_services - cyclopts_services}\n"
+            f"Cyclopts only: {cyclopts_services - typer_services}"
+        )
+
+    @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
+    def test_server_stop_no_server_running(self):
+        """server stop with no server running should exit 0 in both modes."""
+        typer_result = run_cli(["server", "stop"], fast=False)
+        cyclopts_result = run_cli(["server", "stop"], fast=True)
+
+        assert typer_result.returncode == cyclopts_result.returncode
+
+    @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
+    def test_server_database_reset_no_confirm_exits_nonzero(self):
+        """server database reset without --yes should exit non-zero (no tty)."""
+        typer_result = run_cli(["server", "database", "reset"], fast=False)
+        cyclopts_result = run_cli(["server", "database", "reset"], fast=True)
+
+        # Both should fail when not interactive and no --yes flag
+        assert typer_result.returncode != 0
+        assert cyclopts_result.returncode != 0
+
+    @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
+    def test_server_manager_not_in_help(self):
+        """The internal manager command should not appear in services help."""
+        cyclopts_result = run_cli(["server", "services", "--help"], fast=True)
+        assert cyclopts_result.returncode == 0
+        assert "manager" not in strip_ansi(cyclopts_result.stdout).lower()
+
+
+# =============================================================================
+# Worker command parity
+# =============================================================================
+
+
+class TestWorkerCommandParity:
+    """Test that worker commands produce equivalent behavior."""
+
+    @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
+    def test_worker_start_missing_pool_exits_nonzero(self):
+        """worker start without --pool should exit non-zero."""
+        typer_result = run_cli(["worker", "start"], fast=False)
+        cyclopts_result = run_cli(["worker", "start"], fast=True)
+
+        assert typer_result.returncode != 0
+        assert cyclopts_result.returncode != 0
+
+
+# =============================================================================
+# Shell command parity
+# =============================================================================
+
+
+class TestShellCommandParity:
+    """Test that shell commands produce equivalent behavior."""
+
+    @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
+    def test_shell_watch_missing_command_exits_nonzero(self):
+        """shell watch without a command arg should exit non-zero."""
+        typer_result = run_cli(["shell", "watch"], fast=False)
+        cyclopts_result = run_cli(["shell", "watch"], fast=True)
+
+        assert typer_result.returncode != 0
+        assert cyclopts_result.returncode != 0
+
+    @pytest.mark.usefixtures("skip_if_cyclopts_not_installed")
+    def test_shell_serve_missing_args_exits_nonzero(self):
+        """shell serve without required args should exit non-zero."""
+        typer_result = run_cli(["shell", "serve"], fast=False)
+        cyclopts_result = run_cli(["shell", "serve"], fast=True)
+
+        assert typer_result.returncode != 0
+        assert cyclopts_result.returncode != 0
