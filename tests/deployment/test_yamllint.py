@@ -28,18 +28,25 @@ TEMPLATES_DIR = (
 # sequence styles, since Python's yaml.dump() does not indent list items by
 # default.
 YAMLLINT_CONFIG = YamlLintConfig(
-    "extends: default\nrules:\n  indentation:\n    indent-sequences: whatever\n"
+    """\
+extends: default
+rules:
+  indentation:
+    indent-sequences: whatever
+"""
 )
 
 # yamllint configuration for generated files: same as above but with
 # line-length disabled, because generated files may contain user-provided
 # values (e.g. directory paths) that can exceed 80 characters.
 YAMLLINT_GENERATED_CONFIG = YamlLintConfig(
-    "extends: default\n"
-    "rules:\n"
-    "  indentation:\n"
-    "    indent-sequences: whatever\n"
-    "  line-length: disable\n"
+    """\
+extends: default
+rules:
+  indentation:
+    indent-sequences: whatever
+  line-length: disable
+"""
 )
 
 
@@ -128,61 +135,3 @@ class TestGeneratedYamlPassesYamllint:
                 filepath=f"generated prefect.yaml ({recipe})",
                 config=YAMLLINT_GENERATED_CONFIG,
             )
-
-
-class TestYamlLintRules:
-    """Validate specific yamllint rules that the PR addresses."""
-
-    @pytest.mark.parametrize(
-        "recipe",
-        [d.name for d in sorted(RECIPES_DIR.iterdir()) if d.is_dir()],
-    )
-    def test_recipe_has_document_start_marker(self, recipe):
-        yaml_path = RECIPES_DIR / recipe / "prefect.yaml"
-        content = yaml_path.read_text()
-        assert content.startswith("---"), (
-            f"{yaml_path} is missing the '---' document start marker"
-        )
-
-    def test_template_has_document_start_marker(self):
-        yaml_path = TEMPLATES_DIR / "prefect.yaml"
-        content = yaml_path.read_text()
-        assert content.startswith("---"), (
-            f"{yaml_path} is missing the '---' document start marker"
-        )
-
-    @pytest.mark.parametrize(
-        "recipe",
-        [d.name for d in sorted(RECIPES_DIR.iterdir()) if d.is_dir()],
-    )
-    def test_recipe_no_lines_exceed_80_chars(self, recipe):
-        yaml_path = RECIPES_DIR / recipe / "prefect.yaml"
-        content = yaml_path.read_text()
-        for i, line in enumerate(content.splitlines(), start=1):
-            assert len(line) <= 80, (
-                f"{yaml_path} line {i} exceeds 80 characters "
-                f"({len(line)} chars): {line!r}"
-            )
-
-    @pytest.mark.parametrize(
-        "recipe",
-        [d.name for d in sorted(RECIPES_DIR.iterdir()) if d.is_dir()],
-    )
-    def test_recipe_no_trailing_whitespace(self, recipe):
-        yaml_path = RECIPES_DIR / recipe / "prefect.yaml"
-        content = yaml_path.read_text()
-        for i, line in enumerate(content.splitlines(), start=1):
-            assert line == line.rstrip(), (
-                f"{yaml_path} line {i} has trailing whitespace: {line!r}"
-            )
-
-    def test_generated_yaml_has_document_start_marker(self):
-        contents = configure_project_by_recipe(
-            "local", directory="/tmp/test", name="test"
-        )
-        create_default_prefect_yaml(".", name="test-project", contents=contents)
-
-        generated = Path("prefect.yaml").read_text()
-        assert generated.startswith("---"), (
-            "Generated prefect.yaml is missing the '---' document start marker"
-        )
