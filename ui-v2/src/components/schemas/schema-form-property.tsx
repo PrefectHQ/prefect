@@ -91,6 +91,12 @@ export function SchemaFormProperty({
 		value,
 	]);
 
+	useEffect(() => {
+		if (isDefined(value)) {
+			setInternalValue(value);
+		}
+	}, [value]);
+
 	function getInitialValue() {
 		if (isDefined(value)) {
 			return value;
