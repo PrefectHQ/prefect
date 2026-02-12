@@ -69,7 +69,7 @@ test.describe("Create Automation", () => {
 			});
 		}).toPass({ timeout: 15000 });
 
-		// Verify via API client that automation was created
+		// Verify via API client that automation was created with correct properties
 		await expect
 			.poll(
 				async () => {
@@ -78,14 +78,12 @@ test.describe("Create Automation", () => {
 				},
 				{ timeout: 10_000 },
 			)
-			.toBeDefined();
-
-		const automations = await listAutomations(apiClient);
-		const createdAutomation = automations.find(
-			(a) => a.name === automationName,
-		);
-		expect(createdAutomation?.description).toBe(automationDescription);
-		expect(createdAutomation?.enabled).toBe(true);
+			.toEqual(
+				expect.objectContaining({
+					description: automationDescription,
+					enabled: true,
+				}),
+			);
 	});
 
 	test("should show validation error when name is missing", async ({

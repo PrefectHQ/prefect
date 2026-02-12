@@ -256,7 +256,7 @@ test.describe("Blocks Page", () => {
 				});
 			}).toPass({ timeout: 15000 });
 
-			// Find the row containing our blockand click its actions menu
+			// Find the row containing our block and click its actions menu
 			const blockRow = page.getByRole("row").filter({ hasText: blockName });
 			await blockRow.getByRole("button", { name: /open menu/i }).click();
 			await page.getByRole("menuitem", { name: /delete/i }).click();

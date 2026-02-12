@@ -95,15 +95,12 @@ test.describe("Variables Page", () => {
 				.poll(
 					async () => {
 						const variables = await listVariables(apiClient);
-						return variables.find((v) => v.name === variableName);
+						const found = variables.find((v) => v.name === variableName);
+						return found?.value;
 					},
 					{ timeout: 10_000 },
 				)
-				.toBeDefined();
-
-			const variables = await listVariables(apiClient);
-			const created = variables.find((v) => v.name === variableName);
-			expect(created?.value).toBe(variableValue);
+				.toBe(variableValue);
 		});
 
 		test("should create a variable with JSON object value", async ({
@@ -188,11 +185,11 @@ test.describe("Variables Page", () => {
 					},
 					{ timeout: 10_000 },
 				)
-				.toBeDefined();
-
-			const variables = await listVariables(apiClient);
-			const created = variables.find((v) => v.name === variableName);
-			expect(created?.tags).toEqual(expect.arrayContaining(tags));
+				.toEqual(
+					expect.objectContaining({
+						tags: expect.arrayContaining(tags),
+					}),
+				);
 		});
 
 		test("should close dialog when clicking Close button", async ({ page }) => {
