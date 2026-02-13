@@ -451,8 +451,11 @@ class EventTooLarge(PrefectException):
     Raised when an event exceeds the configured maximum size.
     """
 
-    def __init__(self, size: int, maximum: int):
-        super().__init__(f"Event is too large to emit ({size} > {maximum} bytes)")
+    def __init__(self, size: int, maximum: int, hint: str | None = None):
+        message = f"Event is too large to emit ({size} > {maximum} bytes)."
+        if hint:
+            message = f"{message} {hint}"
+        super().__init__(message)
         self.size = size
         self.maximum = maximum
 
