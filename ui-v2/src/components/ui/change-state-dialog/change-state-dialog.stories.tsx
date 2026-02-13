@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StateBadge } from "@/components/ui/state-badge";
 import { toastDecorator } from "@/storybook/utils";
-import { ChangeStateDialog, useChangeStateDialog } from "./index";
+import { ChangeStateDialog } from "./index";
+import { useChangeStateDialog } from "./use-change-state-dialog";
 
 const meta: Meta<typeof ChangeStateDialog> = {
 	title: "UI/ChangeStateDialog",

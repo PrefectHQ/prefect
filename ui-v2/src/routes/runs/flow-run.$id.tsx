@@ -29,21 +29,25 @@ const searchParams = z.object({
 
 export type FlowRunDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
-function FlowRunErrorComponent({ error, reset }: ErrorComponentProps) {
-	const serverError = categorizeError(error, "Failed to load flow run");
-	return (
-		<div className="flex flex-col gap-4">
-			<div>
-				<h1 className="text-2xl font-semibold">Flow Run</h1>
-			</div>
-			<RouteErrorState error={serverError} onRetry={reset} />
-		</div>
-	);
-}
-
 export const Route = createFileRoute("/runs/flow-run/$id")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		const { tab } = Route.useSearch();
+		const navigate = useNavigate();
+
+		const onTabChange = (tab: FlowRunDetailsTabOptions) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					tab,
+				}),
+			});
+		};
+
+		return <FlowRunDetailsPage id={id} tab={tab} onTabChange={onTabChange} />;
+	},
 	loader: async ({ params, context: { queryClient } }) => {
 		// ----- Deferred data
 		void queryClient.prefetchInfiniteQuery(
@@ -105,24 +109,19 @@ export const Route = createFileRoute("/runs/flow-run/$id")({
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
-	errorComponent: FlowRunErrorComponent,
+	errorComponent: function FlowRunErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load flow run");
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Flow Run</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
+	},
 	notFoundComponent: FlowRunNotFound,
 });
-
-function RouteComponent() {
-	const { id } = Route.useParams();
-	const { tab } = Route.useSearch();
-	const navigate = useNavigate();
-
-	const onTabChange = (tab: FlowRunDetailsTabOptions) => {
-		void navigate({
-			to: ".",
-			search: (prev) => ({
-				...prev,
-				tab,
-			}),
-		});
-	};
-
-	return <FlowRunDetailsPage id={id} tab={tab} onTabChange={onTabChange} />;
-}

@@ -5,7 +5,15 @@ import { useGetArtifactFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-fl
 import { ArtifactDetailPage } from "@/components/artifacts/artifact/artifact-detail-page";
 
 export const Route = createFileRoute("/artifacts/artifact/$id")({
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+
+		const { data: artifact } = useSuspenseQuery(buildGetArtifactQuery(id));
+
+		const artifactWithMetadata = useGetArtifactFlowTaskRuns(id);
+
+		return <ArtifactDetailPage artifact={artifactWithMetadata ?? artifact} />;
+	},
 	loader: async ({ context, params }) => {
 		const { id } = params;
 
@@ -16,13 +24,3 @@ export const Route = createFileRoute("/artifacts/artifact/$id")({
 		return { artifact };
 	},
 });
-
-function RouteComponent() {
-	const { id } = Route.useParams();
-
-	const { data: artifact } = useSuspenseQuery(buildGetArtifactQuery(id));
-
-	const artifactWithMetadata = useGetArtifactFlowTaskRuns(id);
-
-	return <ArtifactDetailPage artifact={artifactWithMetadata ?? artifact} />;
-}
