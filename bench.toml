@@ -1,0 +1,88 @@
+# prefect CLI benchmark configuration
+
+[project]
+name = "prefect"
+import_path = "prefect.cli"
+version_module = "prefect"
+typer_app_path = "prefect.cli:app"
+api_url_env_var = "PREFECT_API_URL"
+
+# startup commands - measure import and CLI framework overhead
+[[commands]]
+name = "prefect --help"
+args = ["prefect", "--help"]
+category = "startup"
+description = "baseline import cost"
+
+[[commands]]
+name = "prefect --version"
+args = ["prefect", "--version"]
+category = "startup"
+description = "minimal output"
+
+[[commands]]
+name = "prefect version"
+args = ["prefect", "version"]
+category = "startup"
+description = "full version with integrations scan"
+
+# local commands - don't require server
+[[commands]]
+name = "prefect config view"
+args = ["prefect", "config", "view", "--hide-sources"]
+category = "local"
+description = "local file reads, settings loading"
+
+[[commands]]
+name = "prefect profile ls"
+args = ["prefect", "profile", "ls"]
+category = "local"
+description = "profile loading, table rendering"
+
+[[commands]]
+name = "prefect config validate"
+args = ["prefect", "config", "validate"]
+category = "local"
+description = "settings validation"
+
+[[commands]]
+name = "prefect server start --help"
+args = ["prefect", "server", "start", "--help"]
+category = "local"
+description = "complex subcommand help text"
+
+# api commands - require a running server
+[[commands]]
+name = "prefect flow ls"
+args = ["prefect", "flow", "ls"]
+category = "api"
+requires_server = true
+description = "simple API read"
+
+[[commands]]
+name = "prefect flow-run ls"
+args = ["prefect", "flow-run", "ls", "--limit", "5"]
+category = "api"
+requires_server = true
+description = "API read with pagination"
+
+[[commands]]
+name = "prefect deployment ls"
+args = ["prefect", "deployment", "ls", "--limit", "5"]
+category = "api"
+requires_server = true
+description = "deployment listing"
+
+[[commands]]
+name = "prefect work-pool ls"
+args = ["prefect", "work-pool", "ls"]
+category = "api"
+requires_server = true
+description = "work pool listing"
+
+[[commands]]
+name = "prefect variable ls"
+args = ["prefect", "variable", "ls"]
+category = "api"
+requires_server = true
+description = "variables listing"
