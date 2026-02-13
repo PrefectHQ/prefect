@@ -37,6 +37,22 @@ def split_logs_into_batches(
         yield batch
 
 
+def _sanitize_log_strings(log: LogCreate) -> LogCreate:
+    """Strip null bytes from log string fields.
+
+    PostgreSQL rejects strings containing null bytes (0x00) with
+    ``CharacterNotInRepertoireError``.  Rather than letting the INSERT
+    fail, we replace them here so the rest of the log record is preserved.
+    """
+    sanitized_message = log.message.replace("\x00", "")
+    sanitized_name = log.name.replace("\x00", "")
+    if sanitized_message != log.message or sanitized_name != log.name:
+        return log.model_copy(
+            update={"message": sanitized_message, "name": sanitized_name}
+        )
+    return log
+
+
 @db_injector
 async def create_logs(
     db: PrefectDBInterface, session: AsyncSession, logs: Sequence[LogCreate]
@@ -52,6 +68,7 @@ async def create_logs(
         None
     """
     try:
+        logs = [_sanitize_log_strings(log) for log in logs]
         full_logs = [schemas.core.Log(**log.model_dump()) for log in logs]
         await session.execute(
             db.queries.insert(db.Log).values(
