@@ -284,7 +284,7 @@ def compute_freshness_expiration(
         fr = freshness_results.get(source_id)
         if fr is None:
             continue
-        threshold = fr.warn_after or fr.error_after
+        threshold = fr.warn_after if fr.warn_after is not None else fr.error_after
         if threshold is None or fr.max_loaded_at_time_ago_in_s is None:
             continue
 
