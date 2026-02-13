@@ -43,6 +43,7 @@ export {
 	type Flow,
 	listFlows,
 } from "./flows";
+export { createLogs } from "./logs";
 export { waitForServerHealth } from "./server";
 export {
 	cleanupVariables,
