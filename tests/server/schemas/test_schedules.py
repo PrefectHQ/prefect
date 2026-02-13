@@ -1,4 +1,5 @@
 import asyncio
+import importlib.metadata
 from datetime import datetime as pydatetime
 from datetime import timedelta
 from unittest import mock
@@ -461,7 +462,9 @@ class TestCronScheduleDaylightSavingsTime:
 
         # pendulum fixed a UTC-offset issue in 3.0
         # https://github.com/PrefectHQ/prefect/issues/11619
-        if version.parse(pendulum.__version__) >= version.parse("3.0"):
+        if version.parse(importlib.metadata.version("pendulum")) >= version.parse(
+            "3.0"
+        ):
             assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 7, 8]
         else:
             assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 6, 7, 8]

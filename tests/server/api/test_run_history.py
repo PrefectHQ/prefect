@@ -1,3 +1,4 @@
+import importlib.metadata
 from datetime import timedelta
 from typing import List
 
@@ -120,7 +121,9 @@ async def data(db, work_queue):
         # Pendulum renamed 'period' method to 'interval' in 3.0
         # and changed weeks to start on Mondays
         # https://github.com/PrefectHQ/prefect/issues/11619
-        if version.parse(pendulum.__version__) >= version.parse("3.0"):
+        if version.parse(importlib.metadata.version("pendulum")) >= version.parse(
+            "3.0"
+        ):
             pendulum_interval = pendulum.interval
             weekend_days = (5, 6)
         else:

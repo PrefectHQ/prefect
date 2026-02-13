@@ -1,3 +1,4 @@
+import importlib.metadata
 import uuid
 from typing import Any, Dict, Optional
 from unittest.mock import MagicMock, call
@@ -2050,7 +2051,7 @@ async def test_worker_set_last_polled_time(
 
     # https://github.com/PrefectHQ/prefect/issues/11619
     # Pendulum 3 Test Case
-    if version.parse(pendulum.__version__) >= version.parse("3.0"):
+    if version.parse(importlib.metadata.version("pendulum")) >= version.parse("3.0"):
         # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
         with pendulum.travel_to(now, freeze=True):
             async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
@@ -2099,7 +2100,7 @@ async def test_worker_last_polled_health_check(
 
     # https://github.com/PrefectHQ/prefect/issues/11619
     # Pendulum 3 Test Case
-    if version.parse(pendulum.__version__) >= version.parse("3.0"):
+    if version.parse(importlib.metadata.version("pendulum")) >= version.parse("3.0"):
         # https://github.com/sdispater/pendulum/blob/master/docs/docs/testing.md
         pendulum.travel_to(now, freeze=True)
 
