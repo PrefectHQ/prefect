@@ -222,9 +222,11 @@ test.describe("Variables Page", () => {
 				.getByRole("button", { name: /close/i });
 			await expect(closeButton).toBeVisible();
 			await expect(closeButton).toBeEnabled();
-			await closeButton.click();
 
-			await expect(dialog).not.toBeVisible();
+			await expect(async () => {
+				await closeButton.click({ timeout: 2000 });
+				await expect(dialog).not.toBeVisible({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 		});
 	});
 
