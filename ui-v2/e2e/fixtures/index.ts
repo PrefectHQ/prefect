@@ -32,6 +32,7 @@ export {
 	createFlow,
 	createFlowRun,
 	createGlobalConcurrencyLimit,
+	createLogs,
 	createTaskRunConcurrencyLimit,
 	createVariable,
 	type Deployment,
@@ -65,3 +66,11 @@ export {
 	isAuthRequired,
 	setAuthCredentials,
 } from "./auth-helpers";
+export {
+	type FlowWithTasksResult,
+	type ParentChildResult,
+	runFlowWithTasks,
+	runParentChild,
+	runSimpleTask,
+	type SimpleTaskResult,
+} from "./run-python-flow";
