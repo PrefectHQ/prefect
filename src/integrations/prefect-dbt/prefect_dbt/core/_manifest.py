@@ -137,6 +137,11 @@ class ManifestParser:
         self._all_nodes: dict[str, DbtNode] = {}  # includes ephemeral/sources
         self._load_manifest()
 
+    @property
+    def all_nodes(self) -> dict[str, DbtNode]:
+        """All parsed nodes including sources and ephemeral models."""
+        return self._all_nodes
+
     def _load_manifest(self) -> None:
         """Load and parse the manifest.json file."""
         with open(self._manifest_path) as f:
