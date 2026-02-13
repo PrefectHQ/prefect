@@ -6349,6 +6349,11 @@ export interface components {
              * @description A unique identifier for the schedule.
              */
             slug?: string | null;
+            /**
+             * Replaces
+             * @description The slug of an existing schedule that this schedule replaces. Used for renaming slugs.
+             */
+            replaces?: string | null;
         };
         /** DeploymentScheduleUpdate */
         DeploymentScheduleUpdate: {
@@ -6379,6 +6384,11 @@ export interface components {
              * @description A unique identifier for the schedule.
              */
             slug?: string | null;
+            /**
+             * Replaces
+             * @description The slug of an existing schedule that this schedule replaces. Used for renaming slugs.
+             */
+            replaces?: string | null;
         };
         /**
          * DeploymentSort
