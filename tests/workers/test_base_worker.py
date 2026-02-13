@@ -3265,3 +3265,26 @@ class TestWorkerDebugMode:
                     name="test-worker",
                 )
                 mock_logger.setLevel.assert_not_called()
+
+    def test_worker_debug_mode_does_not_affect_non_worker_loggers(self):
+        import logging
+
+        flow_run_logger = logging.getLogger("prefect.flow_runs")
+        task_run_logger = logging.getLogger("prefect.task_runs")
+        prefect_logger = logging.getLogger("prefect")
+
+        original_levels = {
+            "flow_runs": flow_run_logger.level,
+            "task_runs": task_run_logger.level,
+            "prefect": prefect_logger.level,
+        }
+
+        with temporary_settings(updates={PREFECT_WORKER_DEBUG_MODE: True}):
+            WorkerTestImpl(
+                work_pool_name="test-pool",
+                name="test-worker",
+            )
+
+        assert flow_run_logger.level == original_levels["flow_runs"]
+        assert task_run_logger.level == original_levels["task_runs"]
+        assert prefect_logger.level == original_levels["prefect"]
