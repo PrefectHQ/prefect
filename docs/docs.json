@@ -330,8 +330,7 @@
       {
         "pages": [
           "v3/mcp-servers/index",
-          "v3/mcp-servers/prefect-docs-mcp",
-          "v3/mcp-servers/prefect-mcp-server"
+          "v3/mcp-servers/prefect-docs-mcp"
         ],
         "tab": "MCP Servers"
       },
