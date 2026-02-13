@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
-import path from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface SimpleTaskResult {
 	flow_run_id: string;
@@ -24,7 +25,7 @@ export interface FlowWithTasksResult {
 	task_run_names: string[];
 }
 
-const REPO_ROOT = path.resolve(__dirname, "../..");
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 function runScenario(scenario: string, prefix: string): string {
 	try {

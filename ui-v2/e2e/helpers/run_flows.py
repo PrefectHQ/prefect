@@ -6,12 +6,17 @@ from uuid import uuid4
 
 from prefect import flow, task
 from prefect.client.orchestration import get_client
+from prefect.client.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterId,
+    FlowRunFilterParentTaskRunId,
+)
 
 
 async def get_task_runs_for_flow(flow_run_id):
     async with get_client() as client:
         task_runs = await client.read_task_runs(
-            flow_run_filter={"id": {"any_": [str(flow_run_id)]}}
+            flow_run_filter=FlowRunFilter(id=FlowRunFilterId(any_=[flow_run_id]))
         )
         return task_runs
 
@@ -61,12 +66,16 @@ def run_parent_child(prefix):
     async def get_data():
         async with get_client() as client:
             task_runs = await client.read_task_runs(
-                flow_run_filter={"id": {"any_": [str(parent_flow_run_id)]}}
+                flow_run_filter=FlowRunFilter(
+                    id=FlowRunFilterId(any_=[parent_flow_run_id])
+                )
             )
             flow_runs = await client.read_flow_runs(
-                flow_run_filter={
-                    "parent_task_run_id": {"any_": [str(tr.id) for tr in task_runs]}
-                }
+                flow_run_filter=FlowRunFilter(
+                    parent_task_run_id=FlowRunFilterParentTaskRunId(
+                        any_=[tr.id for tr in task_runs]
+                    )
+                )
             )
             return task_runs, flow_runs
 
