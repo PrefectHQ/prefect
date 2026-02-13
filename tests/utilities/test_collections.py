@@ -8,7 +8,7 @@ import numpy as np
 import pydantic
 import pytest
 
-from prefect.utilities.annotations import BaseAnnotation, quote
+from prefect.utilities.annotations import BaseAnnotation, opaque, quote
 from prefect.utilities.collections import (
     AutoEnum,
     StopVisiting,
@@ -504,6 +504,28 @@ class TestVisitCollection:
         )
         # Only the first two items should be visited
         assert result == [2, 3, [3, [4, 5, 6]]]
+
+    def test_visit_collection_opaque_one_level_only(self):
+        foo = opaque([1, [2, 3]])
+
+        visits = {"lists": 0, "ints": 0}
+
+        def visit(expr, context):
+            if isinstance(expr, list):
+                visits["lists"] += 1
+                return ["X"]
+            if isinstance(expr, int):
+                visits["ints"] += 1
+                return expr + 1
+            return expr
+
+        result = visit_collection(
+            foo, visit, context={}, return_data=True, remove_annotations=True
+        )
+        # Only the top-level unwrapped value should be visited; children are not traversed
+        assert result == ["X"]
+        assert visits["lists"] == 1
+        assert visits["ints"] == 0
 
     @pytest.mark.parametrize(
         "val",

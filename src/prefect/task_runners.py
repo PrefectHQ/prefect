@@ -34,7 +34,7 @@ from prefect.futures import (
 )
 from prefect.logging.loggers import get_logger, get_run_logger
 from prefect.settings.context import get_current_settings
-from prefect.utilities.annotations import allow_failure, quote, unmapped
+from prefect.utilities.annotations import allow_failure, opaque, quote, unmapped
 from prefect.utilities.callables import (
     cloudpickle_wrapped_call,
     collapse_variadic_parameters,
@@ -156,7 +156,7 @@ class TaskRunner(abc.ABC, Generic[F]):
         static_parameters: dict[str, Any] = {}
         annotated_parameters: dict[str, Any] = {}
         for key, val in parameters.items():
-            if isinstance(val, (allow_failure, quote)):
+            if isinstance(val, (allow_failure, opaque, quote)):
                 # Unwrap annotated parameters to determine if they are iterable
                 annotated_parameters[key] = val
                 val = val.unwrap()
