@@ -64,30 +64,88 @@ const buildPaginationBody = (
 	},
 });
 
-function DeploymentsErrorComponent({ error, reset }: ErrorComponentProps) {
-	const serverError = categorizeError(error, "Failed to load deployments");
-
-	// Only handle API errors (server-error, client-error) at route level
-	// Let network errors and unknown errors bubble up to root error component
-	if (
-		serverError.type !== "server-error" &&
-		serverError.type !== "client-error"
-	) {
-		throw error;
-	}
-
-	return (
-		<div className="flex flex-col gap-4">
-			<DeploymentsPageHeader />
-			<RouteErrorState error={serverError} onRetry={reset} />
-		</div>
-	);
-}
-
 export const Route = createFileRoute("/deployments/")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
-	errorComponent: DeploymentsErrorComponent,
+	component: function RouteComponent() {
+		const search = Route.useSearch();
+		const [pagination, onPaginationChange] = usePagination();
+		const [sort, onSortChange] = useSort();
+		const [columnFilters, onColumnFiltersChange] =
+			useDeploymentsColumnFilters();
+
+		const [{ data: deploymentsCount }, { data: deploymentsPage }] =
+			useSuspenseQueries({
+				queries: [
+					buildCountDeploymentsQuery(),
+					buildPaginateDeploymentsQuery(buildPaginationBody(search)),
+				],
+			});
+
+		const deployments = deploymentsPage?.results ?? [];
+
+		const { data: flows } = useQuery(
+			buildListFlowsQuery({
+				flows: {
+					operator: "and_",
+					id: {
+						any_: [
+							...new Set(deployments.map((deployment) => deployment.flow_id)),
+						],
+					},
+				},
+				offset: 0,
+				sort: "NAME_ASC",
+			}),
+		);
+
+		const deploymentsWithFlows = deployments.map((deployment) => ({
+			...deployment,
+			flow: flows?.find((flow) => flow.id === deployment.flow_id),
+		}));
+
+		return (
+			<div className="flex flex-col gap-4">
+				<DeploymentsPageHeader />
+				{deploymentsCount === 0 ? (
+					<DeploymentsEmptyState />
+				) : (
+					<DeploymentsDataTable
+						deployments={deploymentsWithFlows}
+						currentDeploymentsCount={deploymentsCount}
+						pageCount={deploymentsPage?.pages ?? 0}
+						pagination={pagination}
+						sort={sort}
+						columnFilters={columnFilters}
+						onPaginationChange={onPaginationChange}
+						onSortChange={onSortChange}
+						onColumnFiltersChange={onColumnFiltersChange}
+					/>
+				)}
+			</div>
+		);
+	},
+	errorComponent: function DeploymentsErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load deployments");
+
+		// Only handle API errors (server-error, client-error) at route level
+		// Let network errors and unknown errors bubble up to root error component
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+
+		return (
+			<div className="flex flex-col gap-4">
+				<DeploymentsPageHeader />
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
+	},
 	loaderDeps: ({ search }) => buildPaginationBody(search),
 	loader: async ({ deps, context }) => {
 		// Get full count of deployments, don't block the UI
@@ -234,61 +292,3 @@ const useDeploymentsColumnFilters = () => {
 
 	return [columnFilters, onColumnFiltersChange] as const;
 };
-
-function RouteComponent() {
-	const search = Route.useSearch();
-	const [pagination, onPaginationChange] = usePagination();
-	const [sort, onSortChange] = useSort();
-	const [columnFilters, onColumnFiltersChange] = useDeploymentsColumnFilters();
-
-	const [{ data: deploymentsCount }, { data: deploymentsPage }] =
-		useSuspenseQueries({
-			queries: [
-				buildCountDeploymentsQuery(),
-				buildPaginateDeploymentsQuery(buildPaginationBody(search)),
-			],
-		});
-
-	const deployments = deploymentsPage?.results ?? [];
-
-	const { data: flows } = useQuery(
-		buildListFlowsQuery({
-			flows: {
-				operator: "and_",
-				id: {
-					any_: [
-						...new Set(deployments.map((deployment) => deployment.flow_id)),
-					],
-				},
-			},
-			offset: 0,
-			sort: "NAME_ASC",
-		}),
-	);
-
-	const deploymentsWithFlows = deployments.map((deployment) => ({
-		...deployment,
-		flow: flows?.find((flow) => flow.id === deployment.flow_id),
-	}));
-
-	return (
-		<div className="flex flex-col gap-4">
-			<DeploymentsPageHeader />
-			{deploymentsCount === 0 ? (
-				<DeploymentsEmptyState />
-			) : (
-				<DeploymentsDataTable
-					deployments={deploymentsWithFlows}
-					currentDeploymentsCount={deploymentsCount}
-					pageCount={deploymentsPage?.pages ?? 0}
-					pagination={pagination}
-					sort={sort}
-					columnFilters={columnFilters}
-					onPaginationChange={onPaginationChange}
-					onSortChange={onSortChange}
-					onColumnFiltersChange={onColumnFiltersChange}
-				/>
-			)}
-		</div>
-	);
-}

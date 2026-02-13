@@ -31,10 +31,8 @@ import {
 	BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import {
-	ChangeStateDialog,
-	useChangeStateDialog,
-} from "@/components/ui/change-state-dialog";
+import { ChangeStateDialog } from "@/components/ui/change-state-dialog";
+import { useChangeStateDialog } from "@/components/ui/change-state-dialog/use-change-state-dialog";
 import {
 	DeleteConfirmationDialog,
 	useDeleteConfirmationDialog,

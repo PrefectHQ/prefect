@@ -5,15 +5,13 @@ import { BlockDocumentDetailsPage } from "@/components/blocks/block-document-det
 import { PrefectLoading } from "@/components/ui/loading";
 
 export const Route = createFileRoute("/blocks/block/$id")({
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		const { data } = useSuspenseQuery(buildGetBlockDocumentQuery(id));
+		return <BlockDocumentDetailsPage blockDocument={data} />;
+	},
 	loader: ({ params, context: { queryClient } }) =>
 		queryClient.ensureQueryData(buildGetBlockDocumentQuery(params.id)),
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 });
-
-function RouteComponent() {
-	const { id } = Route.useParams();
-	const { data } = useSuspenseQuery(buildGetBlockDocumentQuery(id));
-	return <BlockDocumentDetailsPage blockDocument={data} />;
-}

@@ -10,7 +10,19 @@ import {
 export const Route = createFileRoute(
 	"/work-pools/work-pool_/$workPoolName/edit",
 )({
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { workPoolName } = Route.useParams();
+		const { data: workPool } = useSuspenseQuery(
+			buildGetWorkPoolQuery(workPoolName),
+		);
+
+		return (
+			<div className="container max-w-4xl py-6">
+				<WorkPoolEditPageHeader workPool={workPool} />
+				<WorkPoolEditForm workPool={workPool} />
+			</div>
+		);
+	},
 	loader: async ({ context, params }) => {
 		const { workPoolName } = params;
 		return context.queryClient.ensureQueryData(
@@ -20,17 +32,3 @@ export const Route = createFileRoute(
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 });
-
-function RouteComponent() {
-	const { workPoolName } = Route.useParams();
-	const { data: workPool } = useSuspenseQuery(
-		buildGetWorkPoolQuery(workPoolName),
-	);
-
-	return (
-		<div className="container max-w-4xl py-6">
-			<WorkPoolEditPageHeader workPool={workPool} />
-			<WorkPoolEditForm workPool={workPool} />
-		</div>
-	);
-}

@@ -17,28 +17,26 @@ export const Route = createFileRoute("/login")({
 			redirect({ to: search.redirectTo ?? "/dashboard", throw: true });
 		}
 	},
-	component: LoginRouteComponent,
-});
+	component: function LoginRouteComponent() {
+		const { redirectTo } = Route.useSearch();
+		const auth = useAuthSafe();
 
-function LoginRouteComponent() {
-	const { redirectTo } = Route.useSearch();
-	const auth = useAuthSafe();
+		// If auth context is not available (e.g., in tests), just render the login page
+		if (!auth) {
+			return <LoginPage redirectTo={redirectTo} />;
+		}
 
-	// If auth context is not available (e.g., in tests), just render the login page
-	if (!auth) {
+		// Show loading state while auth is initializing
+		if (auth.isLoading) {
+			return <PrefectLoading />;
+		}
+
+		// Redirect to dashboard if already authenticated
+		// (This handles the case where beforeLoad didn't catch it due to loading state)
+		if (auth.isAuthenticated) {
+			return <Navigate to={redirectTo ?? "/dashboard"} replace={true} />;
+		}
+
 		return <LoginPage redirectTo={redirectTo} />;
-	}
-
-	// Show loading state while auth is initializing
-	if (auth.isLoading) {
-		return <PrefectLoading />;
-	}
-
-	// Redirect to dashboard if already authenticated
-	// (This handles the case where beforeLoad didn't catch it due to loading state)
-	if (auth.isAuthenticated) {
-		return <Navigate to={redirectTo ?? "/dashboard"} replace={true} />;
-	}
-
-	return <LoginPage redirectTo={redirectTo} />;
-}
+	},
+});

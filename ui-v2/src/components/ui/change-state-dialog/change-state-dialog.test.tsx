@@ -2,7 +2,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ChangeStateDialog, useChangeStateDialog } from "./index";
+import { ChangeStateDialog } from "./index";
+import { useChangeStateDialog } from "./use-change-state-dialog";
 
 describe("ChangeStateDialog", () => {
 	const defaultProps = {
@@ -116,8 +117,8 @@ describe("ChangeStateDialog", () => {
 		const footerCloseButton = closeButtons.find(
 			(btn) => btn.textContent === "Close",
 		);
-		expect(footerCloseButton).toBeDefined();
-		await user.click(footerCloseButton!);
+		if (!footerCloseButton) throw new Error("Footer close button not found");
+		await user.click(footerCloseButton);
 
 		expect(onOpenChange).toHaveBeenCalledWith(false);
 	});

@@ -343,7 +343,267 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 
 export const Route = createFileRoute("/runs/")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const queryClient = useQueryClient();
+		const search = Route.useSearch();
+		const navigate = Route.useNavigate();
+
+		// localStorage persistence for pagination limits (separate keys for flow runs and task runs)
+		const [storedFlowRunsLimit, setStoredFlowRunsLimit] = useLocalStorage(
+			"workspace-flow-runs-list-limit",
+			100,
+		);
+		const [storedTaskRunsLimit, setStoredTaskRunsLimit] = useLocalStorage(
+			"workspace-task-runs-list-limit",
+			100,
+		);
+
+		// Track if we've done the initial URL sync to avoid re-running on every render
+		const hasInitializedRef = useRef(false);
+
+		// On mount - if URL limit is undefined (not explicitly set), use localStorage value
+		useEffect(() => {
+			if (hasInitializedRef.current) return;
+			hasInitializedRef.current = true;
+
+			const needsFlowRunsLimit = search.limit === undefined;
+			const needsTaskRunsLimit = search["task-runs-limit"] === undefined;
+
+			if (needsFlowRunsLimit || needsTaskRunsLimit) {
+				void navigate({
+					to: ".",
+					search: (prev) => ({
+						...prev,
+						...(needsFlowRunsLimit && { limit: storedFlowRunsLimit }),
+						...(needsTaskRunsLimit && {
+							"task-runs-limit": storedTaskRunsLimit,
+						}),
+					}),
+					replace: true,
+				});
+			}
+		}, [
+			navigate,
+			search.limit,
+			search["task-runs-limit"],
+			storedFlowRunsLimit,
+			storedTaskRunsLimit,
+		]);
+
+		// When flow runs URL limit changes (user interaction), save to localStorage
+		useEffect(() => {
+			if (search.limit !== undefined && search.limit !== storedFlowRunsLimit) {
+				setStoredFlowRunsLimit(search.limit);
+			}
+		}, [search.limit, storedFlowRunsLimit, setStoredFlowRunsLimit]);
+
+		// When task runs URL limit changes (user interaction), save to localStorage
+		useEffect(() => {
+			if (
+				search["task-runs-limit"] !== undefined &&
+				search["task-runs-limit"] !== storedTaskRunsLimit
+			) {
+				setStoredTaskRunsLimit(search["task-runs-limit"]);
+			}
+		}, [
+			search["task-runs-limit"],
+			storedTaskRunsLimit,
+			setStoredTaskRunsLimit,
+		]);
+
+		// Flow runs hooks
+		const [pagination, onPaginationChange] = usePagination();
+		const [sort, onSortChange] = useSort();
+		const [hideSubflows, onHideSubflowsChange] = useHideSubflows();
+		const [tab, onTabChange] = useTab();
+		const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
+		// Consolidated filter state
+		const {
+			states: selectedStates,
+			flows: selectedFlows,
+			deployments: selectedDeployments,
+			workPools: selectedWorkPools,
+			tags: selectedTags,
+			dateRange,
+			onStatesChange: onStateFilterChange,
+			onFlowsChange: onFlowFilterChange,
+			onDeploymentsChange: onDeploymentFilterChange,
+			onWorkPoolsChange: onWorkPoolFilterChange,
+			onTagsChange: onTagsFilterChange,
+			onDateRangeChange,
+		} = useRunsFilters();
+		// Task runs hooks
+		const [taskRunsPagination, onTaskRunsPaginationChange] =
+			useTaskRunsPagination();
+		const [taskRunsSort, onTaskRunsSortChange] = useTaskRunsSort();
+		const [taskRunSearch, onTaskRunSearchChange] = useTaskRunSearch();
+
+		// Saved filters hook
+		const {
+			currentFilter,
+			savedFiltersForMenu,
+			onSelectFilter,
+			onSaveFilter,
+			onDeleteFilter,
+			onSetDefault,
+			onRemoveDefault,
+			isSaveDialogOpen,
+			closeSaveDialog,
+			confirmSave,
+		} = useRunsSavedFilters();
+
+		// Apply default filter on initial page load (if one is set and no filters are active)
+		useApplyDefaultFilterOnMount();
+
+		// Use useSuspenseQueries for unfiltered count queries (stable keys, won't cause suspense on search change)
+		// These are used to determine if the app has ANY runs at all (for empty state)
+		const [{ data: flowRunsCountAll }, { data: taskRunsCountAll }] =
+			useSuspenseQueries({
+				queries: [buildCountFlowRunsQuery(), buildCountTaskRunsQuery()],
+			});
+
+		// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
+		// This prevents the page from suspending when search/filter changes
+		const { data: flowRunsPage } = useQuery(
+			buildPaginateFlowRunsQuery(buildPaginationBody(search), 30_000),
+		);
+
+		// Use useQuery for paginated task runs to leverage placeholderData: keepPreviousData
+		const { data: taskRunsPage } = useQuery(
+			buildPaginateTaskRunsQuery(buildTaskRunsPaginationBody(search), 30_000),
+		);
+
+		// Use useQuery for flow run history (scatter plot) to leverage placeholderData: keepPreviousData
+		// This prevents the scatter plot from flickering when search/filter changes
+		const { data: flowRunHistory } = useQuery(
+			buildFlowRunHistoryQuery(buildHistoryFilter(search), 30_000),
+		);
+
+		const flowRuns = flowRunsPage?.results ?? [];
+		const taskRuns = taskRunsPage?.results ?? [];
+
+		// Extract date range from search params for the scatter plot
+		const scatterPlotDateRange = useMemo(() => {
+			const dateRangeFilter = getDateRangeFilter(search);
+			return {
+				startDate: dateRangeFilter?.after_
+					? new Date(dateRangeFilter.after_)
+					: undefined,
+				endDate: dateRangeFilter?.before_
+					? new Date(dateRangeFilter.before_)
+					: undefined,
+			};
+		}, [search]);
+
+		// Prefetch task run counts for the current page's flow runs
+		// This ensures the data is ready when FlowRunCard renders
+		useEffect(() => {
+			const flowRunIds = flowRuns.map((run) => run.id);
+			if (flowRunIds.length > 0) {
+				void queryClient.prefetchQuery(
+					buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+				);
+			}
+		}, [queryClient, flowRuns]);
+
+		const onPrefetchPage = useCallback(
+			(page: number) => {
+				const filter = buildPaginationBody({
+					...search,
+					page,
+				});
+				// Prefetch the page data, then chain prefetch of task run counts
+				void (async () => {
+					const pageData = await queryClient.ensureQueryData(
+						buildPaginateFlowRunsQuery(filter, 30_000),
+					);
+					const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
+					if (flowRunIds.length > 0) {
+						void queryClient.prefetchQuery(
+							buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
+						);
+					}
+				})();
+			},
+			[queryClient, search],
+		);
+
+		const onTaskRunsPrefetchPage = useCallback(
+			(page: number) => {
+				const filter = buildTaskRunsPaginationBody({
+					...search,
+					"task-runs-page": page,
+				});
+				void queryClient.prefetchQuery(
+					buildPaginateTaskRunsQuery(filter, 30_000),
+				);
+			},
+			[queryClient, search],
+		);
+
+		const onClearTaskRunFilters = useCallback(() => {
+			onTaskRunSearchChange("");
+		}, [onTaskRunSearchChange]);
+
+		return (
+			<RunsPage
+				tab={tab}
+				onTabChange={onTabChange}
+				flowRunsCount={flowRunsPage?.count ?? 0}
+				taskRunsCount={taskRunsPage?.count ?? 0}
+				hasAnyFlowRuns={(flowRunsCountAll ?? 0) > 0}
+				hasAnyTaskRuns={(taskRunsCountAll ?? 0) > 0}
+				flowRuns={flowRuns}
+				flowRunsPages={flowRunsPage?.pages ?? 0}
+				pagination={pagination}
+				onPaginationChange={onPaginationChange}
+				onPrefetchPage={onPrefetchPage}
+				sort={sort}
+				onSortChange={onSortChange}
+				hideSubflows={hideSubflows}
+				onHideSubflowsChange={onHideSubflowsChange}
+				flowRunSearch={flowRunSearch}
+				onFlowRunSearchChange={onFlowRunSearchChange}
+				selectedStates={selectedStates}
+				onStateFilterChange={onStateFilterChange}
+				selectedFlows={selectedFlows}
+				onFlowFilterChange={onFlowFilterChange}
+				selectedDeployments={selectedDeployments}
+				onDeploymentFilterChange={onDeploymentFilterChange}
+				selectedTags={selectedTags}
+				onTagsFilterChange={onTagsFilterChange}
+				selectedWorkPools={selectedWorkPools}
+				onWorkPoolFilterChange={onWorkPoolFilterChange}
+				dateRange={dateRange}
+				onDateRangeChange={onDateRangeChange}
+				// Scatter plot props
+				flowRunHistory={flowRunHistory ?? []}
+				scatterPlotDateRange={scatterPlotDateRange}
+				// Task runs props
+				taskRuns={taskRuns}
+				taskRunsPages={taskRunsPage?.pages ?? 0}
+				taskRunsPagination={taskRunsPagination}
+				onTaskRunsPaginationChange={onTaskRunsPaginationChange}
+				onTaskRunsPrefetchPage={onTaskRunsPrefetchPage}
+				taskRunsSort={taskRunsSort}
+				onTaskRunsSortChange={onTaskRunsSortChange}
+				taskRunSearch={taskRunSearch}
+				onTaskRunSearchChange={onTaskRunSearchChange}
+				onClearTaskRunFilters={onClearTaskRunFilters}
+				// Saved filters props
+				currentFilter={currentFilter}
+				savedFilters={savedFiltersForMenu}
+				onSelectFilter={onSelectFilter}
+				onSaveFilter={onSaveFilter}
+				onDeleteFilter={onDeleteFilter}
+				onSetDefault={onSetDefault}
+				onRemoveDefault={onRemoveDefault}
+				isSaveDialogOpen={isSaveDialogOpen}
+				onCloseSaveDialog={closeSaveDialog}
+				onConfirmSave={confirmSave}
+			/>
+		);
+	},
 	loaderDeps: ({ search }) => ({
 		flowRunsDeps: buildPaginationBody(search),
 		taskRunsDeps: buildTaskRunsPaginationBody(search),
@@ -566,261 +826,3 @@ const useTaskRunSearch = () => {
 
 	return [search["task-run-search"], onTaskRunSearchChange] as const;
 };
-
-function RouteComponent() {
-	const queryClient = useQueryClient();
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
-
-	// localStorage persistence for pagination limits (separate keys for flow runs and task runs)
-	const [storedFlowRunsLimit, setStoredFlowRunsLimit] = useLocalStorage(
-		"workspace-flow-runs-list-limit",
-		100,
-	);
-	const [storedTaskRunsLimit, setStoredTaskRunsLimit] = useLocalStorage(
-		"workspace-task-runs-list-limit",
-		100,
-	);
-
-	// Track if we've done the initial URL sync to avoid re-running on every render
-	const hasInitializedRef = useRef(false);
-
-	// On mount - if URL limit is undefined (not explicitly set), use localStorage value
-	useEffect(() => {
-		if (hasInitializedRef.current) return;
-		hasInitializedRef.current = true;
-
-		const needsFlowRunsLimit = search.limit === undefined;
-		const needsTaskRunsLimit = search["task-runs-limit"] === undefined;
-
-		if (needsFlowRunsLimit || needsTaskRunsLimit) {
-			void navigate({
-				to: ".",
-				search: (prev) => ({
-					...prev,
-					...(needsFlowRunsLimit && { limit: storedFlowRunsLimit }),
-					...(needsTaskRunsLimit && {
-						"task-runs-limit": storedTaskRunsLimit,
-					}),
-				}),
-				replace: true,
-			});
-		}
-	}, [
-		navigate,
-		search.limit,
-		search["task-runs-limit"],
-		storedFlowRunsLimit,
-		storedTaskRunsLimit,
-	]);
-
-	// When flow runs URL limit changes (user interaction), save to localStorage
-	useEffect(() => {
-		if (search.limit !== undefined && search.limit !== storedFlowRunsLimit) {
-			setStoredFlowRunsLimit(search.limit);
-		}
-	}, [search.limit, storedFlowRunsLimit, setStoredFlowRunsLimit]);
-
-	// When task runs URL limit changes (user interaction), save to localStorage
-	useEffect(() => {
-		if (
-			search["task-runs-limit"] !== undefined &&
-			search["task-runs-limit"] !== storedTaskRunsLimit
-		) {
-			setStoredTaskRunsLimit(search["task-runs-limit"]);
-		}
-	}, [search["task-runs-limit"], storedTaskRunsLimit, setStoredTaskRunsLimit]);
-
-	// Flow runs hooks
-	const [pagination, onPaginationChange] = usePagination();
-	const [sort, onSortChange] = useSort();
-	const [hideSubflows, onHideSubflowsChange] = useHideSubflows();
-	const [tab, onTabChange] = useTab();
-	const [flowRunSearch, onFlowRunSearchChange] = useFlowRunSearch();
-	// Consolidated filter state
-	const {
-		states: selectedStates,
-		flows: selectedFlows,
-		deployments: selectedDeployments,
-		workPools: selectedWorkPools,
-		tags: selectedTags,
-		dateRange,
-		onStatesChange: onStateFilterChange,
-		onFlowsChange: onFlowFilterChange,
-		onDeploymentsChange: onDeploymentFilterChange,
-		onWorkPoolsChange: onWorkPoolFilterChange,
-		onTagsChange: onTagsFilterChange,
-		onDateRangeChange,
-	} = useRunsFilters();
-	// Task runs hooks
-	const [taskRunsPagination, onTaskRunsPaginationChange] =
-		useTaskRunsPagination();
-	const [taskRunsSort, onTaskRunsSortChange] = useTaskRunsSort();
-	const [taskRunSearch, onTaskRunSearchChange] = useTaskRunSearch();
-
-	// Saved filters hook
-	const {
-		currentFilter,
-		savedFiltersForMenu,
-		onSelectFilter,
-		onSaveFilter,
-		onDeleteFilter,
-		onSetDefault,
-		onRemoveDefault,
-		isSaveDialogOpen,
-		closeSaveDialog,
-		confirmSave,
-	} = useRunsSavedFilters();
-
-	// Apply default filter on initial page load (if one is set and no filters are active)
-	useApplyDefaultFilterOnMount();
-
-	// Use useSuspenseQueries for unfiltered count queries (stable keys, won't cause suspense on search change)
-	// These are used to determine if the app has ANY runs at all (for empty state)
-	const [{ data: flowRunsCountAll }, { data: taskRunsCountAll }] =
-		useSuspenseQueries({
-			queries: [buildCountFlowRunsQuery(), buildCountTaskRunsQuery()],
-		});
-
-	// Use useQuery for paginated flow runs to leverage placeholderData: keepPreviousData
-	// This prevents the page from suspending when search/filter changes
-	const { data: flowRunsPage } = useQuery(
-		buildPaginateFlowRunsQuery(buildPaginationBody(search), 30_000),
-	);
-
-	// Use useQuery for paginated task runs to leverage placeholderData: keepPreviousData
-	const { data: taskRunsPage } = useQuery(
-		buildPaginateTaskRunsQuery(buildTaskRunsPaginationBody(search), 30_000),
-	);
-
-	// Use useQuery for flow run history (scatter plot) to leverage placeholderData: keepPreviousData
-	// This prevents the scatter plot from flickering when search/filter changes
-	const { data: flowRunHistory } = useQuery(
-		buildFlowRunHistoryQuery(buildHistoryFilter(search), 30_000),
-	);
-
-	const flowRuns = flowRunsPage?.results ?? [];
-	const taskRuns = taskRunsPage?.results ?? [];
-
-	// Extract date range from search params for the scatter plot
-	const scatterPlotDateRange = useMemo(() => {
-		const dateRangeFilter = getDateRangeFilter(search);
-		return {
-			startDate: dateRangeFilter?.after_
-				? new Date(dateRangeFilter.after_)
-				: undefined,
-			endDate: dateRangeFilter?.before_
-				? new Date(dateRangeFilter.before_)
-				: undefined,
-		};
-	}, [search]);
-
-	// Prefetch task run counts for the current page's flow runs
-	// This ensures the data is ready when FlowRunCard renders
-	useEffect(() => {
-		const flowRunIds = flowRuns.map((run) => run.id);
-		if (flowRunIds.length > 0) {
-			void queryClient.prefetchQuery(
-				buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
-			);
-		}
-	}, [queryClient, flowRuns]);
-
-	const onPrefetchPage = useCallback(
-		(page: number) => {
-			const filter = buildPaginationBody({
-				...search,
-				page,
-			});
-			// Prefetch the page data, then chain prefetch of task run counts
-			void (async () => {
-				const pageData = await queryClient.ensureQueryData(
-					buildPaginateFlowRunsQuery(filter, 30_000),
-				);
-				const flowRunIds = pageData?.results?.map((run) => run.id) ?? [];
-				if (flowRunIds.length > 0) {
-					void queryClient.prefetchQuery(
-						buildGetFlowRunsTaskRunsCountQuery(flowRunIds),
-					);
-				}
-			})();
-		},
-		[queryClient, search],
-	);
-
-	const onTaskRunsPrefetchPage = useCallback(
-		(page: number) => {
-			const filter = buildTaskRunsPaginationBody({
-				...search,
-				"task-runs-page": page,
-			});
-			void queryClient.prefetchQuery(
-				buildPaginateTaskRunsQuery(filter, 30_000),
-			);
-		},
-		[queryClient, search],
-	);
-
-	const onClearTaskRunFilters = useCallback(() => {
-		onTaskRunSearchChange("");
-	}, [onTaskRunSearchChange]);
-
-	return (
-		<RunsPage
-			tab={tab}
-			onTabChange={onTabChange}
-			flowRunsCount={flowRunsPage?.count ?? 0}
-			taskRunsCount={taskRunsPage?.count ?? 0}
-			hasAnyFlowRuns={(flowRunsCountAll ?? 0) > 0}
-			hasAnyTaskRuns={(taskRunsCountAll ?? 0) > 0}
-			flowRuns={flowRuns}
-			flowRunsPages={flowRunsPage?.pages ?? 0}
-			pagination={pagination}
-			onPaginationChange={onPaginationChange}
-			onPrefetchPage={onPrefetchPage}
-			sort={sort}
-			onSortChange={onSortChange}
-			hideSubflows={hideSubflows}
-			onHideSubflowsChange={onHideSubflowsChange}
-			flowRunSearch={flowRunSearch}
-			onFlowRunSearchChange={onFlowRunSearchChange}
-			selectedStates={selectedStates}
-			onStateFilterChange={onStateFilterChange}
-			selectedFlows={selectedFlows}
-			onFlowFilterChange={onFlowFilterChange}
-			selectedDeployments={selectedDeployments}
-			onDeploymentFilterChange={onDeploymentFilterChange}
-			selectedTags={selectedTags}
-			onTagsFilterChange={onTagsFilterChange}
-			selectedWorkPools={selectedWorkPools}
-			onWorkPoolFilterChange={onWorkPoolFilterChange}
-			dateRange={dateRange}
-			onDateRangeChange={onDateRangeChange}
-			// Scatter plot props
-			flowRunHistory={flowRunHistory ?? []}
-			scatterPlotDateRange={scatterPlotDateRange}
-			// Task runs props
-			taskRuns={taskRuns}
-			taskRunsPages={taskRunsPage?.pages ?? 0}
-			taskRunsPagination={taskRunsPagination}
-			onTaskRunsPaginationChange={onTaskRunsPaginationChange}
-			onTaskRunsPrefetchPage={onTaskRunsPrefetchPage}
-			taskRunsSort={taskRunsSort}
-			onTaskRunsSortChange={onTaskRunsSortChange}
-			taskRunSearch={taskRunSearch}
-			onTaskRunSearchChange={onTaskRunSearchChange}
-			onClearTaskRunFilters={onClearTaskRunFilters}
-			// Saved filters props
-			currentFilter={currentFilter}
-			savedFilters={savedFiltersForMenu}
-			onSelectFilter={onSelectFilter}
-			onSaveFilter={onSaveFilter}
-			onDeleteFilter={onDeleteFilter}
-			onSetDefault={onSetDefault}
-			onRemoveDefault={onRemoveDefault}
-			isSaveDialogOpen={isSaveDialogOpen}
-			onCloseSaveDialog={closeSaveDialog}
-			onConfirmSave={confirmSave}
-		/>
-	);
-}
