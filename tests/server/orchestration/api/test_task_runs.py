@@ -649,6 +649,47 @@ class TestPaginateTaskRuns:
         response = await client.post("/task_runs/paginate", json=dict(page=-1))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    async def test_paginate_task_runs_includes_duration_fields(
+        self, flow_run: FlowRun, session: AsyncSession, client: AsyncClient
+    ):
+        """Test that paginate returns duration fields like total_run_time."""
+        now = now_fn("UTC")
+        await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                name="Task Run with Duration",
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="0",
+                expected_start_time=now - datetime.timedelta(seconds=5),
+                start_time=now,
+                end_time=now + datetime.timedelta(seconds=10),
+                total_run_time=datetime.timedelta(seconds=10),
+            ),
+        )
+        await session.commit()
+
+        response = await client.post("/task_runs/paginate")
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        result = data["results"][0]
+
+        # Verify duration fields are present
+        assert "total_run_time" in result
+        assert "estimated_run_time" in result
+        assert "estimated_start_time_delta" in result
+        assert "start_time" in result
+        assert "end_time" in result
+
+        # Verify the values - estimated fields are computed from the base fields
+        assert result["total_run_time"] == 10.0
+        # estimated_run_time should equal total_run_time when not in RUNNING state
+        assert result["estimated_run_time"] == 10.0
+        # estimated_start_time_delta should be 5 seconds (start_time - expected_start_time)
+        assert result["estimated_start_time_delta"] == 5.0
+
 
 class TestDeleteTaskRuns:
     async def test_delete_task_runs(self, task_run, hosted_api_client, session):
