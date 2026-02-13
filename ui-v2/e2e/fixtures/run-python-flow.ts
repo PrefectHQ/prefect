@@ -25,7 +25,7 @@ export interface FlowWithTasksResult {
 	task_run_names: string[];
 }
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 function runScenario(scenario: string, prefix: string): string {
 	try {

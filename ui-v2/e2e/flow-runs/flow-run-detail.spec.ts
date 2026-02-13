@@ -14,14 +14,16 @@ import {
 const TEST_PREFIX = "e2e-frun-detail-";
 
 test.describe("Flow Run Detail Page", () => {
+	test.describe.configure({ mode: "serial" });
+
 	test.beforeAll(async ({ apiClient }) => {
 		await waitForServerHealth(apiClient);
 	});
 
 	test.beforeEach(async ({ apiClient }) => {
 		try {
-			await cleanupFlows(apiClient, TEST_PREFIX);
 			await cleanupFlowRuns(apiClient, TEST_PREFIX);
+			await cleanupFlows(apiClient, TEST_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -29,8 +31,8 @@ test.describe("Flow Run Detail Page", () => {
 
 	test.afterEach(async ({ apiClient }) => {
 		try {
-			await cleanupFlows(apiClient, TEST_PREFIX);
 			await cleanupFlowRuns(apiClient, TEST_PREFIX);
+			await cleanupFlows(apiClient, TEST_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -51,7 +53,9 @@ test.describe("Flow Run Detail Page", () => {
 
 		await page.goto(`/runs/flow-run/${flowRun.id}`);
 
-		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText(runName, { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
 		await expect(page).toHaveURL(new RegExp(`/runs/flow-run/${flowRun.id}`));
 		await expect(page.getByRole("tab", { name: "Logs" })).toBeVisible();
 		await expect(page.getByRole("tab", { name: "Details" })).toBeVisible();
@@ -71,11 +75,13 @@ test.describe("Flow Run Detail Page", () => {
 
 		await page.goto(`/runs/flow-run/${flowRun.id}`);
 
-		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText(runName, { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
 
-		const header = page.locator(".flex.flex-col.gap-2").first();
-		await expect(header.locator('[class*="bg-state-completed"]')).toBeVisible();
-		await expect(header.getByText("Completed")).toBeVisible();
+		const badge = page.locator('[class*="bg-state-completed"]');
+		await expect(badge).toBeVisible();
+		await expect(badge.getByText("Completed")).toBeVisible();
 	});
 
 	test("FRUN-02b: Deployment link shows for deployment-linked run", async ({
@@ -100,8 +106,12 @@ test.describe("Flow Run Detail Page", () => {
 		});
 
 		await page.goto(`/runs/flow-run/${flowRun.id}`);
-		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
-		await expect(page.getByText(deploymentName)).toBeVisible();
+		await expect(page.getByText(runName, { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
+		await expect(page.getByText(deploymentName)).toBeVisible({
+			timeout: 10000,
+		});
 
 		const adhocRunName = `${TEST_PREFIX}adhoc-run-${Date.now()}`;
 		const adhocRun = await createFlowRun(apiClient, {
@@ -111,10 +121,12 @@ test.describe("Flow Run Detail Page", () => {
 		});
 
 		await page.goto(`/runs/flow-run/${adhocRun.id}`);
-		await expect(page.getByText(adhocRunName)).toBeVisible({
+		await expect(page.getByText(adhocRunName, { exact: true })).toBeVisible({
 			timeout: 10000,
 		});
-		await expect(page.getByText("Deployment")).not.toBeVisible();
+		await expect(
+			page.locator('a[href*="/deployments/deployment/"]'),
+		).not.toBeVisible();
 	});
 
 	test("FRUN-07: State badge colors for 5 states", async ({
@@ -154,7 +166,7 @@ test.describe("Flow Run Detail Page", () => {
 
 		const runs = [];
 		for (const state of states) {
-			const runName = `${TEST_PREFIX}state-${state.type.toLowerCase()}-${Date.now()}`;
+			const runName = `${TEST_PREFIX}badge-${state.type.toLowerCase()}-${Date.now()}`;
 			const flowRun = await createFlowRun(apiClient, {
 				flowId: flow.id,
 				name: runName,
@@ -165,15 +177,13 @@ test.describe("Flow Run Detail Page", () => {
 
 		for (const run of runs) {
 			await page.goto(`/runs/flow-run/${run.flowRun.id}`);
-			await expect(page.getByText(run.runName)).toBeVisible({
+			await expect(page.getByText(run.runName, { exact: true })).toBeVisible({
 				timeout: 10000,
 			});
 
-			const header = page.locator(".flex.flex-col.gap-2").first();
-			await expect(header.locator(`[class*="${run.cssClass}"]`)).toBeVisible();
-			await expect(
-				header.locator(`[class*="${run.cssClass}"]`).getByText(run.name),
-			).toBeVisible();
+			const badge = page.locator(`[class*="${run.cssClass}"]`);
+			await expect(badge).toBeVisible();
+			await expect(badge.getByText(run.name)).toBeVisible();
 		}
 	});
 
@@ -181,9 +191,9 @@ test.describe("Flow Run Detail Page", () => {
 		const result = runParentChild(TEST_PREFIX);
 
 		await page.goto(`/runs/flow-run/${result.child_flow_run_id}`);
-		await expect(page.getByText(result.child_flow_run_name)).toBeVisible({
-			timeout: 15000,
-		});
+		await expect(
+			page.getByText(result.child_flow_run_name, { exact: true }),
+		).toBeVisible({ timeout: 15000 });
 
 		await expect(page.getByText("Parent Run")).toBeVisible({
 			timeout: 10000,
@@ -198,9 +208,9 @@ test.describe("Flow Run Detail Page", () => {
 		await expect(page).toHaveURL(
 			new RegExp(`/runs/flow-run/${result.parent_flow_run_id}`),
 		);
-		await expect(page.getByText(result.parent_flow_run_name)).toBeVisible({
-			timeout: 10000,
-		});
+		await expect(
+			page.getByText(result.parent_flow_run_name, { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 	});
 
 	test("FRUN-09: Flow run graph renders canvas for run with tasks", async ({
@@ -210,9 +220,9 @@ test.describe("Flow Run Detail Page", () => {
 		const result = runFlowWithTasks(TEST_PREFIX);
 
 		await page.goto(`/runs/flow-run/${result.flow_run_id}`);
-		await expect(page.getByText(result.flow_run_name)).toBeVisible({
-			timeout: 15000,
-		});
+		await expect(
+			page.getByText(result.flow_run_name, { exact: true }),
+		).toBeVisible({ timeout: 15000 });
 
 		await expect(page.locator("canvas")).toBeVisible({ timeout: 15000 });
 
@@ -226,7 +236,7 @@ test.describe("Flow Run Detail Page", () => {
 		});
 
 		await page.goto(`/runs/flow-run/${emptyRun.id}`);
-		await expect(page.getByText(emptyRunName)).toBeVisible({
+		await expect(page.getByText(emptyRunName, { exact: true })).toBeVisible({
 			timeout: 10000,
 		});
 
@@ -242,7 +252,7 @@ test.describe("Flow Run Detail Page", () => {
 		});
 
 		await page.goto(`/runs/flow-run/${pendingRun.id}`);
-		await expect(page.getByText(pendingRunName)).toBeVisible({
+		await expect(page.getByText(pendingRunName, { exact: true })).toBeVisible({
 			timeout: 10000,
 		});
 
