@@ -65,30 +65,70 @@ const buildFilterBody = (
 	},
 });
 
-function VariablesErrorComponent({ error, reset }: ErrorComponentProps) {
-	const serverError = categorizeError(error, "Failed to load variables");
-
-	// Only handle API errors (server-error, client-error) at route level
-	// Let network errors and unknown errors bubble up to root error component
-	if (
-		serverError.type !== "server-error" &&
-		serverError.type !== "client-error"
-	) {
-		throw error;
-	}
-
-	return (
-		<div className="flex flex-col gap-4">
-			<VariablesPageHeader />
-			<RouteErrorState error={serverError} onRetry={reset} />
-		</div>
-	);
-}
-
 export const Route = createFileRoute("/variables/")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
-	errorComponent: VariablesErrorComponent,
+	component: function RouteComponent() {
+		const search = Route.useSearch();
+		const [pagination, onPaginationChange] = usePagination();
+		const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
+		const [sorting, onSortingChange] = useVariableSorting();
+		const [variableDialogState, onVariableAddOrEdit] = useVariableDialog();
+
+		const [{ data: variables }, { data: filteredCount }, { data: totalCount }] =
+			useSuspenseQueries({
+				queries: [
+					buildFilterVariablesQuery(buildFilterBody(search)),
+					buildCountVariablesQuery(buildFilterBody(search)),
+					buildCountVariablesQuery(),
+				],
+			});
+
+		const hasVariables = (totalCount ?? 0) > 0;
+
+		return (
+			<div className="flex flex-col gap-4">
+				<VariablesPageHeader onAddVariableClick={onVariableAddOrEdit} />
+				<VariableDialog {...variableDialogState} />
+				{hasVariables ? (
+					<VariablesDataTable
+						variables={variables ?? []}
+						currentVariableCount={filteredCount ?? 0}
+						pagination={pagination}
+						onPaginationChange={onPaginationChange}
+						columnFilters={columnFilters}
+						onColumnFiltersChange={onColumnFiltersChange}
+						sorting={sorting}
+						onSortingChange={onSortingChange}
+						onVariableEdit={onVariableAddOrEdit}
+					/>
+				) : (
+					<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
+				)}
+			</div>
+		);
+	},
+	errorComponent: function VariablesErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load variables");
+
+		// Only handle API errors (server-error, client-error) at route level
+		// Let network errors and unknown errors bubble up to root error component
+		if (
+			serverError.type !== "server-error" &&
+			serverError.type !== "client-error"
+		) {
+			throw error;
+		}
+
+		return (
+			<div className="flex flex-col gap-4">
+				<VariablesPageHeader />
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
+	},
 	loaderDeps: ({ search }) => buildFilterBody(search),
 	loader: ({ deps, context }) => {
 		// Prefetch filtered variables
@@ -218,44 +258,3 @@ const useVariableSorting = () => {
 
 	return [search.sort, onSortingChange] as const;
 };
-
-function RouteComponent() {
-	const search = Route.useSearch();
-	const [pagination, onPaginationChange] = usePagination();
-	const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
-	const [sorting, onSortingChange] = useVariableSorting();
-	const [variableDialogState, onVariableAddOrEdit] = useVariableDialog();
-
-	const [{ data: variables }, { data: filteredCount }, { data: totalCount }] =
-		useSuspenseQueries({
-			queries: [
-				buildFilterVariablesQuery(buildFilterBody(search)),
-				buildCountVariablesQuery(buildFilterBody(search)),
-				buildCountVariablesQuery(),
-			],
-		});
-
-	const hasVariables = (totalCount ?? 0) > 0;
-
-	return (
-		<div className="flex flex-col gap-4">
-			<VariablesPageHeader onAddVariableClick={onVariableAddOrEdit} />
-			<VariableDialog {...variableDialogState} />
-			{hasVariables ? (
-				<VariablesDataTable
-					variables={variables ?? []}
-					currentVariableCount={filteredCount ?? 0}
-					pagination={pagination}
-					onPaginationChange={onPaginationChange}
-					columnFilters={columnFilters}
-					onColumnFiltersChange={onColumnFiltersChange}
-					sorting={sorting}
-					onSortingChange={onSortingChange}
-					onVariableEdit={onVariableAddOrEdit}
-				/>
-			) : (
-				<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
-			)}
-		</div>
-	);
-}

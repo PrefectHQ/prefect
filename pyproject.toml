@@ -38,7 +38,7 @@ dependencies = [
     "pytz>=2021.1,<2026",
     "readchar>=4.0.0,<5.0.0",
     "sqlalchemy[asyncio]>=2.0,<3.0.0",
-    "typer>=0.16.0,<0.22.0",
+    "typer>=0.16.0,<0.24.0",
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
     "amplitude-analytics>=1.2.1,<2.0.0",
@@ -164,7 +164,7 @@ dev = [
     "watchfiles>=1.0.4",
     "respx>=0.22.0",
     "codespell==2.4.1",
-    "ruff==0.15.0",
+    "ruff==0.15.1",
     "mypy==1.15.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",

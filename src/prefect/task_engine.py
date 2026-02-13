@@ -314,7 +314,8 @@ class BaseTaskRunEngine(Generic[P, R]):
                 raise PrefectException(
                     f"Failed to resolve inputs in parameter {parameter!r}. If your"
                     " parameter type is not supported, consider using the `quote`"
-                    " annotation to skip resolution of inputs."
+                    " annotation to skip resolution of inputs, or the `opaque`"
+                    " annotation to resolve the value without traversing its contents."
                 ) from exc
 
         self.parameters = resolved_parameters

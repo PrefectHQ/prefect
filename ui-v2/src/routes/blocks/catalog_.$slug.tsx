@@ -5,15 +5,13 @@ import { BlockTypePage } from "@/components/blocks/block-type-page";
 import { PrefectLoading } from "@/components/ui/loading";
 
 export const Route = createFileRoute("/blocks/catalog_/$slug")({
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { slug } = Route.useParams();
+		const { data: blockType } = useSuspenseQuery(buildGetBlockTypeQuery(slug));
+		return <BlockTypePage blockType={blockType} />;
+	},
 	loader: ({ params, context: { queryClient } }) =>
 		queryClient.ensureQueryData(buildGetBlockTypeQuery(params.slug)),
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 });
-
-function RouteComponent() {
-	const { slug } = Route.useParams();
-	const { data: blockType } = useSuspenseQuery(buildGetBlockTypeQuery(slug));
-	return <BlockTypePage blockType={blockType} />;
-}

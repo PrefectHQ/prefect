@@ -19,21 +19,25 @@ const searchParams = z.object({
 
 export type TaskRunDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
-function TaskRunErrorComponent({ error, reset }: ErrorComponentProps) {
-	const serverError = categorizeError(error, "Failed to load task run");
-	return (
-		<div className="flex flex-col gap-4">
-			<div>
-				<h1 className="text-2xl font-semibold">Task Run</h1>
-			</div>
-			<RouteErrorState error={serverError} onRetry={reset} />
-		</div>
-	);
-}
-
 export const Route = createFileRoute("/runs/task-run/$id")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		const { tab } = Route.useSearch();
+		const navigate = useNavigate();
+
+		const onTabChange = (tab: TaskRunDetailsTabOptions) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({
+					...prev,
+					tab,
+				}),
+			});
+		};
+
+		return <TaskRunDetailsPage id={id} tab={tab} onTabChange={onTabChange} />;
+	},
 	loader: async ({ params, context: { queryClient } }) => {
 		// ----- Deferred data
 		void queryClient.prefetchInfiniteQuery(
@@ -73,23 +77,18 @@ export const Route = createFileRoute("/runs/task-run/$id")({
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
-	errorComponent: TaskRunErrorComponent,
+	errorComponent: function TaskRunErrorComponent({
+		error,
+		reset,
+	}: ErrorComponentProps) {
+		const serverError = categorizeError(error, "Failed to load task run");
+		return (
+			<div className="flex flex-col gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold">Task Run</h1>
+				</div>
+				<RouteErrorState error={serverError} onRetry={reset} />
+			</div>
+		);
+	},
 });
-
-function RouteComponent() {
-	const { id } = Route.useParams();
-	const { tab } = Route.useSearch();
-	const navigate = useNavigate();
-
-	const onTabChange = (tab: TaskRunDetailsTabOptions) => {
-		void navigate({
-			to: ".",
-			search: (prev) => ({
-				...prev,
-				tab,
-			}),
-		});
-	};
-
-	return <TaskRunDetailsPage id={id} tab={tab} onTabChange={onTabChange} />;
-}

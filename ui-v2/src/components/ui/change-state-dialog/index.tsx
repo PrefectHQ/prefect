@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import {
@@ -118,25 +118,4 @@ export const ChangeStateDialog = ({
 			</DialogContent>
 		</Dialog>
 	);
-};
-
-export type UseChangeStateDialogResult = {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	openDialog: () => void;
-	closeDialog: () => void;
-};
-
-export const useChangeStateDialog = (): UseChangeStateDialogResult => {
-	const [open, setOpen] = useState(false);
-
-	const openDialog = useCallback(() => setOpen(true), []);
-	const closeDialog = useCallback(() => setOpen(false), []);
-
-	return {
-		open,
-		onOpenChange: setOpen,
-		openDialog,
-		closeDialog,
-	};
 };

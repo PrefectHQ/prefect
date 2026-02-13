@@ -8,7 +8,10 @@ import {
 	waitForServerHealth,
 } from "../fixtures";
 
-const TEST_PREFIX = "e2e-test-";
+const CREATE_PREFIX = "e2e-create-";
+const EDIT_PREFIX = "e2e-edit-";
+const DELETE_PREFIX = "e2e-delete-";
+const FILTER_PREFIX = "e2e-filter-";
 
 /**
  * Wait for the variables page to be fully loaded.
@@ -30,14 +33,6 @@ test.describe("Variables Page", () => {
 		await waitForServerHealth(apiClient);
 	});
 
-	test.beforeEach(async ({ apiClient }) => {
-		await cleanupVariables(apiClient, TEST_PREFIX);
-	});
-
-	test.afterEach(async ({ apiClient }) => {
-		await cleanupVariables(apiClient, TEST_PREFIX);
-	});
-
 	test.describe("Empty State", () => {
 		test("should show empty state when no variables exist", async ({
 			page,
@@ -48,7 +43,7 @@ test.describe("Variables Page", () => {
 				page.getByRole("heading", { name: /add a variable to get started/i }),
 			).toBeVisible();
 			await expect(
-				page.getByRole("button", { name: /add variable/i }),
+				page.getByRole("button", { name: "Add Variable", exact: true }),
 			).toBeVisible();
 			await expect(
 				page.getByRole("link", { name: /view docs/i }),
@@ -57,18 +52,29 @@ test.describe("Variables Page", () => {
 	});
 
 	test.describe("Create Variable", () => {
+		test.beforeEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, CREATE_PREFIX);
+		});
+
+		test.afterEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, CREATE_PREFIX);
+		});
+
 		test("should create a variable with string value via dialog", async ({
 			page,
 			apiClient,
 		}) => {
-			const variableName = `${TEST_PREFIX}string-var-${Date.now()}`;
+			const variableName = `${CREATE_PREFIX}string-${Date.now()}`;
 			const variableValue = "test-string-value";
 
 			await page.goto("/variables");
 			await waitForVariablesPageReady(page);
 
 			// Click Add Variable button
-			await page.getByRole("button", { name: /add variable/i }).click();
+			await page
+				.getByRole("button", { name: /add variable/i })
+				.first()
+				.click();
 
 			// Verify dialog opens
 			await expect(
@@ -107,13 +113,16 @@ test.describe("Variables Page", () => {
 			page,
 			apiClient,
 		}) => {
-			const variableName = `${TEST_PREFIX}json-var-${Date.now()}`;
+			const variableName = `${CREATE_PREFIX}json-${Date.now()}`;
 			const variableValue = { key: "value", number: 42 };
 
 			await page.goto("/variables");
 			await waitForVariablesPageReady(page);
 
-			await page.getByRole("button", { name: /add variable/i }).click();
+			await page
+				.getByRole("button", { name: /add variable/i })
+				.first()
+				.click();
 			await expect(
 				page.getByRole("dialog", { name: /new variable/i }),
 			).toBeVisible();
@@ -146,13 +155,16 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should create a variable with tags", async ({ page, apiClient }) => {
-			const variableName = `${TEST_PREFIX}tagged-var-${Date.now()}`;
+			const variableName = `${CREATE_PREFIX}tagged-${Date.now()}`;
 			const tags = ["production", "config"];
 
 			await page.goto("/variables");
 			await waitForVariablesPageReady(page);
 
-			await page.getByRole("button", { name: /add variable/i }).click();
+			await page
+				.getByRole("button", { name: /add variable/i })
+				.first()
+				.click();
 			await expect(
 				page.getByRole("dialog", { name: /new variable/i }),
 			).toBeVisible();
@@ -193,31 +205,42 @@ test.describe("Variables Page", () => {
 		});
 
 		test("should close dialog when clicking Close button", async ({ page }) => {
-			await page.goto("/variables");
-			await waitForVariablesPageReady(page);
-
-			await page.getByRole("button", { name: /add variable/i }).click();
+			await expect(async () => {
+				await page.goto("/variables");
+				await waitForVariablesPageReady(page);
+				await page
+					.getByRole("button", { name: /add variable/i })
+					.first()
+					.click({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 
 			const dialog = page.getByRole("dialog", { name: /new variable/i });
 			await expect(dialog).toBeVisible();
 
-			// Click the Close button in the dialog footer (not the X button in the corner)
-			// Wait for the button to be visible and enabled before clicking
 			const closeButton = dialog
 				.locator("form")
 				.getByRole("button", { name: /close/i });
 			await expect(closeButton).toBeVisible();
 			await expect(closeButton).toBeEnabled();
-			await closeButton.click();
 
-			await expect(dialog).not.toBeVisible();
+			await expect(async () => {
+				await closeButton.click({ timeout: 2000 });
+				await expect(dialog).not.toBeVisible({ timeout: 2000 });
+			}).toPass({ timeout: 15000 });
 		});
 	});
 
 	test.describe("Edit Variable", () => {
+		test.beforeEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, EDIT_PREFIX);
+		});
+
+		test.afterEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, EDIT_PREFIX);
+		});
+
 		test("should edit an existing variable", async ({ page, apiClient }) => {
-			// Create a variable via API first
-			const variableName = `${TEST_PREFIX}edit-var-${Date.now()}`;
+			const variableName = `${EDIT_PREFIX}${Date.now()}`;
 			const initialValue = "initial-value";
 			const updatedValue = "updated-value";
 
@@ -278,12 +301,19 @@ test.describe("Variables Page", () => {
 	});
 
 	test.describe("Delete Variable", () => {
+		test.beforeEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, DELETE_PREFIX);
+		});
+
+		test.afterEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, DELETE_PREFIX);
+		});
+
 		test("should delete a variable via actions menu", async ({
 			page,
 			apiClient,
 		}) => {
-			// Create a variable via API first
-			const variableName = `${TEST_PREFIX}delete-var-${Date.now()}`;
+			const variableName = `${DELETE_PREFIX}${Date.now()}`;
 
 			await createVariable(apiClient, {
 				name: variableName,
@@ -316,18 +346,17 @@ test.describe("Variables Page", () => {
 	});
 
 	test.describe("Search and Filter", () => {
-		// Use unique suffix per test run to avoid conflicts with parallel test execution
 		let filterTestSuffix: string;
 		let alphaVarName: string;
 		let betaVarName: string;
 		let gammaVarName: string;
 
 		test.beforeEach(async ({ apiClient }) => {
-			// Generate unique suffix for this test run
+			await cleanupVariables(apiClient, FILTER_PREFIX);
 			filterTestSuffix = `${Date.now()}`;
-			alphaVarName = `${TEST_PREFIX}alpha-${filterTestSuffix}`;
-			betaVarName = `${TEST_PREFIX}beta-${filterTestSuffix}`;
-			gammaVarName = `${TEST_PREFIX}gamma-${filterTestSuffix}`;
+			alphaVarName = `${FILTER_PREFIX}alpha-${filterTestSuffix}`;
+			betaVarName = `${FILTER_PREFIX}beta-${filterTestSuffix}`;
+			gammaVarName = `${FILTER_PREFIX}gamma-${filterTestSuffix}`;
 
 			// Create multiple test variables for filtering tests
 			await createVariable(apiClient, {
@@ -345,6 +374,10 @@ test.describe("Variables Page", () => {
 				value: "gamma",
 				tags: ["production", "config"],
 			});
+		});
+
+		test.afterEach(async ({ apiClient }) => {
+			await cleanupVariables(apiClient, FILTER_PREFIX);
 		});
 
 		test("should filter variables by name search", async ({ page }) => {

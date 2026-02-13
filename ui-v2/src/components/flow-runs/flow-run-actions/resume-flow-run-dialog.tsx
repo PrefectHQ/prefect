@@ -39,7 +39,7 @@ export const ResumeFlowRunDialog = ({
 	const runInputKeyset = flowRun.state?.state_details?.run_input_keyset as
 		| Record<string, string>
 		| undefined;
-	const requiresInput = runInputKeyset && runInputKeyset.schema;
+	const requiresInput = runInputKeyset?.schema;
 
 	if (requiresInput) {
 		return (
