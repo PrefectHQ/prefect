@@ -128,6 +128,11 @@ def concurrency(
         holder=holder,
         suppress_warnings=suppress_warnings,
     )
+
+    if not acquisition_response.limits:
+        yield
+        return
+
     emitted_events = emit_concurrency_acquisition_events(
         acquisition_response.limits, occupy
     )

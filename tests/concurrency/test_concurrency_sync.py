@@ -427,6 +427,35 @@ def test_rate_limit_emits_events(
     }
 
 
+def test_concurrency_skips_release_and_renewal_when_no_limits_exist():
+    """When no concurrency limits exist for the given names, the context manager
+    should skip lease renewal and release to avoid unnecessary API calls.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19367
+    """
+    executed = False
+
+    def resource_heavy():
+        nonlocal executed
+        with concurrency("nonexistent-limit", occupy=1):
+            executed = True
+
+    assert not executed
+
+    with mock.patch(
+        "prefect.concurrency._sync.release_concurrency_slots_with_lease",
+    ) as release_spy:
+        with mock.patch(
+            "prefect.concurrency._sync.maintain_concurrency_lease",
+        ) as renew_spy:
+            resource_heavy()
+
+            release_spy.assert_not_called()
+            renew_spy.assert_not_called()
+
+    assert executed
+
+
 @pytest.mark.parametrize("names", [[], None])
 def test_concurrency_without_limit_names_sync(names):
     executed = False

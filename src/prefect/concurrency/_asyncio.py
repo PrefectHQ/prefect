@@ -216,6 +216,11 @@ async def concurrency(
         holder=holder,
         suppress_warnings=suppress_warnings,
     )
+
+    if not response.limits:
+        yield
+        return
+
     emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
 
     try:
