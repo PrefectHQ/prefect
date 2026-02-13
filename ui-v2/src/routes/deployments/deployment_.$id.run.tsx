@@ -19,7 +19,11 @@ const searchParams = z
 
 export const Route = createFileRoute("/deployments/deployment_/$id/run")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		const search = Route.useSearch();
+		return <CustomRunPage id={id} overrideParameters={search?.parameters} />;
+	},
 	loader: async ({ params, context: { queryClient } }) => {
 		// ---- Critical data
 		const res = await queryClient.ensureQueryData(
@@ -38,9 +42,3 @@ export const Route = createFileRoute("/deployments/deployment_/$id/run")({
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
 });
-
-function RouteComponent() {
-	const { id } = Route.useParams();
-	const search = Route.useSearch();
-	return <CustomRunPage id={id} overrideParameters={search?.parameters} />;
-}
