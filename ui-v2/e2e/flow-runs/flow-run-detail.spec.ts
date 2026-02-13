@@ -38,10 +38,7 @@ test.describe("Flow Run Detail Page", () => {
 		}
 	});
 
-	test("FRUN-01: Navigate to flow run detail by ID", async ({
-		page,
-		apiClient,
-	}) => {
+	test("Navigate to flow run detail by ID", async ({ page, apiClient }) => {
 		const flowName = `${TEST_PREFIX}nav-${Date.now()}`;
 		const flow = await createFlow(apiClient, flowName);
 		const runName = `${TEST_PREFIX}nav-run-${Date.now()}`;
@@ -63,7 +60,7 @@ test.describe("Flow Run Detail Page", () => {
 		await expect(page.getByRole("tab", { name: "Parameters" })).toBeVisible();
 	});
 
-	test("FRUN-02: Flow run metadata display", async ({ page, apiClient }) => {
+	test("Flow run metadata display", async ({ page, apiClient }) => {
 		const flowName = `${TEST_PREFIX}meta-${Date.now()}`;
 		const flow = await createFlow(apiClient, flowName);
 		const runName = `${TEST_PREFIX}meta-run-${Date.now()}`;
@@ -84,7 +81,7 @@ test.describe("Flow Run Detail Page", () => {
 		await expect(badge.getByText("Completed")).toBeVisible();
 	});
 
-	test("FRUN-02b: Deployment link shows for deployment-linked run", async ({
+	test("Deployment link shows for deployment-linked run", async ({
 		page,
 		apiClient,
 	}) => {
@@ -129,10 +126,7 @@ test.describe("Flow Run Detail Page", () => {
 		).not.toBeVisible();
 	});
 
-	test("FRUN-07: State badge colors for 5 states", async ({
-		page,
-		apiClient,
-	}) => {
+	test("State badge colors for 5 states", async ({ page, apiClient }) => {
 		const flowName = `${TEST_PREFIX}states-${Date.now()}`;
 		const flow = await createFlow(apiClient, flowName);
 
@@ -187,7 +181,7 @@ test.describe("Flow Run Detail Page", () => {
 		}
 	});
 
-	test("FRUN-08: Parent-child related runs", async ({ page }) => {
+	test("Parent-child related runs", async ({ page }) => {
 		const result = runParentChild(TEST_PREFIX);
 
 		await page.goto(`/runs/flow-run/${result.child_flow_run_id}`);
@@ -213,7 +207,7 @@ test.describe("Flow Run Detail Page", () => {
 		).toBeVisible({ timeout: 10000 });
 	});
 
-	test("FRUN-09: Flow run graph renders canvas for run with tasks", async ({
+	test("Flow run graph renders canvas for run with tasks", async ({
 		page,
 		apiClient,
 	}) => {
