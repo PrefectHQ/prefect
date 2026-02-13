@@ -33,7 +33,7 @@ clean: check-uv
 
 # Symlink all AGENTS.md files to CLAUDE.md
 symlink-agents-to-claude:
-    ./scripts/symlink_agents_to_claude.py
+    ./.claude/hooks/symlink-agents-to-claude.sh
 
 # Generate API reference documentation for all modules
 api-ref-all:
