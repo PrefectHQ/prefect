@@ -69,12 +69,12 @@ class DbtNode:
         """Return a precise dbt selector string for this node.
 
         For runnable resource types (models, seeds, snapshots) each node
-        has a dedicated file, so ``path:<original_file_path>`` is both
+        has a dedicated file, so `path:<original_file_path>` is both
         globally unique and selects exactly one node.
 
-        Tests are excluded from ``path:`` selection because multiple test
+        Tests are excluded from `path:` selection because multiple test
         nodes can be defined in a single YAML schema file — using
-        ``path:`` would over-select.
+        `path:` would over-select.
 
         Falls back to dot-joined FQN, then bare node name.
         """
@@ -136,6 +136,11 @@ class ManifestParser:
         self._nodes: dict[str, DbtNode] = {}
         self._all_nodes: dict[str, DbtNode] = {}  # includes ephemeral/sources
         self._load_manifest()
+
+    @property
+    def all_nodes(self) -> dict[str, DbtNode]:
+        """All parsed nodes including sources and ephemeral models."""
+        return self._all_nodes
 
     def _load_manifest(self) -> None:
         """Load and parse the manifest.json file."""
@@ -375,11 +380,11 @@ class ManifestParser:
     def get_macro_paths(self) -> dict[str, Optional[str]]:
         """Get a mapping of macro unique_id to original_file_path.
 
-        Reads the top-level ``macros`` section of the manifest.
+        Reads the top-level `macros` section of the manifest.
 
         Returns:
-            Dict mapping macro unique_id to its ``original_file_path``
-            (``None`` when the macro has no path, e.g. builtins).
+            Dict mapping macro unique_id to its `original_file_path`
+            (`None` when the macro has no path, e.g. builtins).
         """
         macros_data = self._manifest_data.get("macros", {})
         return {

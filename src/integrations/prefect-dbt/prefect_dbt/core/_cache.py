@@ -27,7 +27,7 @@ class DbtNodeCachePolicy(CachePolicy):
 
     All data is baked in at construction time (pre-computed hashes) so the
     policy is pickle-safe across process boundaries and does not hold
-    references to ``ManifestParser`` or ``Path`` objects.
+    references to `ManifestParser` or `Path` objects.
 
     Fields:
         node_unique_id: Ensures distinct keys per node.
@@ -54,7 +54,7 @@ class DbtNodeCachePolicy(CachePolicy):
     ) -> Optional[str]:
         """Compute a cache key from pre-baked node metadata.
 
-        ``task_ctx``, ``inputs``, and ``flow_parameters`` are ignored — all
+        `task_ctx`, `inputs`, and `flow_parameters` are ignored — all
         data needed for the key is stored directly on the policy instance.
         """
         return hash_objects(
@@ -70,7 +70,7 @@ class DbtNodeCachePolicy(CachePolicy):
 def _hash_node_file(node: DbtNode, project_dir: Path) -> Optional[str]:
     """Hash the source file for *node* (SQL for models/snapshots, CSV for seeds).
 
-    Returns ``None`` when the file cannot be located on disk.
+    Returns `None` when the file cannot be located on disk.
     """
     if not node.original_file_path:
         return None
@@ -91,7 +91,7 @@ def _hash_node_file(node: DbtNode, project_dir: Path) -> Optional[str]:
 
 
 def _hash_node_config(node: DbtNode) -> Optional[str]:
-    """Hash the config dict for *node*.  Returns ``None`` for empty configs."""
+    """Hash the config dict for *node*.  Returns `None` for empty configs."""
     if not node.config:
         return None
     return hash_objects(node.config)
@@ -104,14 +104,14 @@ def _hash_macro_dependencies(
 ) -> Optional[str]:
     """Hash macro dependencies for *node*.
 
-    For each macro in ``node.depends_on_macros`` (sorted for determinism):
+    For each macro in `node.depends_on_macros` (sorted for determinism):
 
-    - If the macro has an ``original_file_path`` and the file exists on
+    - If the macro has an `original_file_path` and the file exists on
       disk, hash the file contents.
     - Otherwise, use the macro unique_id as a stable fallback (external
       packages, builtins, etc.).
 
-    Returns ``None`` when the node has no macro dependencies.
+    Returns `None` when the node has no macro dependencies.
     """
     if not node.depends_on_macros:
         return None
