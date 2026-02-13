@@ -375,7 +375,7 @@ class TestComputeFreshnessExpiration:
         exp = compute_freshness_expiration("model.test.a", all_nodes, {})
         assert exp is None
 
-    def test_source_without_warn_after_skipped(self):
+    def test_source_without_any_threshold_skipped(self):
         all_nodes = {
             "source.test.raw.s": _make_source_node(
                 unique_id="source.test.raw.s", name="s"
@@ -391,11 +391,36 @@ class TestComputeFreshnessExpiration:
                 unique_id="source.test.raw.s",
                 status="pass",
                 max_loaded_at_time_ago_in_s=100.0,
-                warn_after=None,  # No threshold
+                warn_after=None,
+                error_after=None,
             ),
         }
         exp = compute_freshness_expiration("model.test.m", all_nodes, freshness_results)
         assert exp is None
+
+    def test_falls_back_to_error_after_when_no_warn_after(self):
+        """Sources with only error_after still drive cache expiration."""
+        all_nodes = {
+            "source.test.raw.s": _make_source_node(
+                unique_id="source.test.raw.s", name="s"
+            ),
+            "model.test.m": _make_node(
+                unique_id="model.test.m",
+                name="m",
+                depends_on=("source.test.raw.s",),
+            ),
+        }
+        freshness_results = {
+            "source.test.raw.s": SourceFreshnessResult(
+                unique_id="source.test.raw.s",
+                status="pass",
+                max_loaded_at_time_ago_in_s=3600.0,  # 1 hour ago
+                warn_after=None,
+                error_after=timedelta(hours=6),
+            ),
+        }
+        exp = compute_freshness_expiration("model.test.m", all_nodes, freshness_results)
+        assert exp == timedelta(hours=6) - timedelta(seconds=3600)
 
 
 class TestFilterStaleNodes:
@@ -549,43 +574,46 @@ class TestFilterStaleNodes:
 
 
 class TestRunSourceFreshness:
-    def test_successful_invocation(self, tmp_path):
-        """run_source_freshness invokes dbtRunner and parses results."""
+    def _make_settings(self, tmp_path):
         settings = MagicMock()
         settings.project_dir = tmp_path
         settings.target_path = Path("target")
+        settings.resolve_profiles_yml = MagicMock()
+        settings.resolve_profiles_yml.return_value.__enter__ = MagicMock(
+            return_value="/profiles"
+        )
+        settings.resolve_profiles_yml.return_value.__exit__ = MagicMock(
+            return_value=False
+        )
+        return settings
 
-        # Create the sources.json file that dbt would produce
+    def test_successful_invocation(self, tmp_path):
+        """run_source_freshness invokes dbtRunner and parses results."""
+        settings = self._make_settings(tmp_path)
         target_dir = tmp_path / "target"
         target_dir.mkdir()
-        write_sources_json(
-            target_dir,
-            [
-                {
-                    "unique_id": "source.proj.raw.users",
-                    "status": "pass",
-                    "max_loaded_at_time_ago_in_s": 100.0,
-                    "criteria": {
-                        "warn_after": {"count": 12, "period": "hour"},
-                    },
-                }
-            ],
-        )
 
-        mock_result = MagicMock()
-        mock_result.success = True
+        # Simulate dbtRunner writing sources.json on invoke
+        def fake_invoke(args):
+            write_sources_json(
+                target_dir,
+                [
+                    {
+                        "unique_id": "source.proj.raw.users",
+                        "status": "pass",
+                        "max_loaded_at_time_ago_in_s": 100.0,
+                        "criteria": {
+                            "warn_after": {"count": 12, "period": "hour"},
+                        },
+                    }
+                ],
+            )
+            return MagicMock(success=True)
 
         with patch("dbt.cli.main.dbtRunner") as mock_runner_cls:
             mock_runner = MagicMock()
-            mock_runner.invoke.return_value = mock_result
+            mock_runner.invoke.side_effect = fake_invoke
             mock_runner_cls.return_value = mock_runner
-            settings.resolve_profiles_yml = MagicMock()
-            settings.resolve_profiles_yml.return_value.__enter__ = MagicMock(
-                return_value="/profiles"
-            )
-            settings.resolve_profiles_yml.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
 
             results = run_source_freshness(settings)
 
@@ -594,21 +622,12 @@ class TestRunSourceFreshness:
 
     def test_graceful_degradation_on_exception(self, tmp_path):
         """Returns empty dict when dbt source freshness raises."""
-        settings = MagicMock()
-        settings.project_dir = tmp_path
-        settings.target_path = Path("target")
+        settings = self._make_settings(tmp_path)
 
         with patch("dbt.cli.main.dbtRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner.invoke.side_effect = RuntimeError("dbt crashed")
             mock_runner_cls.return_value = mock_runner
-            settings.resolve_profiles_yml = MagicMock()
-            settings.resolve_profiles_yml.return_value.__enter__ = MagicMock(
-                return_value="/profiles"
-            )
-            settings.resolve_profiles_yml.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
 
             results = run_source_freshness(settings)
 
@@ -616,28 +635,47 @@ class TestRunSourceFreshness:
 
     def test_graceful_degradation_when_no_output(self, tmp_path):
         """Returns empty dict when sources.json is not produced."""
-        settings = MagicMock()
-        settings.project_dir = tmp_path
-        settings.target_path = Path("target")
-
-        mock_result = MagicMock()
-        mock_result.success = False
+        settings = self._make_settings(tmp_path)
 
         with patch("dbt.cli.main.dbtRunner") as mock_runner_cls:
             mock_runner = MagicMock()
-            mock_runner.invoke.return_value = mock_result
+            mock_runner.invoke.return_value = MagicMock(success=False)
             mock_runner_cls.return_value = mock_runner
-            settings.resolve_profiles_yml = MagicMock()
-            settings.resolve_profiles_yml.return_value.__enter__ = MagicMock(
-                return_value="/profiles"
-            )
-            settings.resolve_profiles_yml.return_value.__exit__ = MagicMock(
-                return_value=False
-            )
 
             results = run_source_freshness(settings)
 
         assert results == {}
+
+    def test_stale_sources_json_not_reused_on_failure(self, tmp_path):
+        """Pre-existing sources.json is deleted so failures don't reuse stale data."""
+        settings = self._make_settings(tmp_path)
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+
+        # Write a pre-existing sources.json from a previous run
+        write_sources_json(
+            target_dir,
+            [
+                {
+                    "unique_id": "source.proj.raw.old",
+                    "status": "pass",
+                    "max_loaded_at_time_ago_in_s": 50.0,
+                    "criteria": {},
+                }
+            ],
+        )
+        assert (target_dir / "sources.json").exists()
+
+        # dbtRunner raises — should NOT fall back to the old file
+        with patch("dbt.cli.main.dbtRunner") as mock_runner_cls:
+            mock_runner = MagicMock()
+            mock_runner.invoke.side_effect = RuntimeError("adapter error")
+            mock_runner_cls.return_value = mock_runner
+
+            results = run_source_freshness(settings)
+
+        assert results == {}
+        assert not (target_dir / "sources.json").exists()
 
 
 class TestOrchestratorFreshnessIntegration:

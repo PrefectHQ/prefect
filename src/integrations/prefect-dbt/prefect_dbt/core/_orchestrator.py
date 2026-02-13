@@ -100,14 +100,14 @@ class PrefectDbtOrchestrator:
             Defaults to `ProcessPoolTaskRunner`.
         enable_caching: Enable cross-run caching for PER_NODE mode.  When
             True, unchanged nodes are skipped on subsequent runs.  Only
-            supported with ``execution_mode=ExecutionMode.PER_NODE``.
+            supported with `execution_mode=ExecutionMode.PER_NODE`.
         cache_expiration: How long cached results remain valid.
         result_storage: Where to persist task results (required for
             caching to work across process restarts).
         cache_key_storage: Where to persist cache keys.
         use_source_freshness_expiration: When True (requires
-            ``enable_caching=True``), dynamically compute
-            ``cache_expiration`` per-node from upstream source freshness
+            `enable_caching=True`), dynamically compute
+            `cache_expiration` per-node from upstream source freshness
             thresholds.
 
     Example::
@@ -462,9 +462,9 @@ class PrefectDbtOrchestrator:
         freshness_results=None,
         all_nodes=None,
     ):
-        """Build cache-related ``with_options`` kwargs and record the eager key.
+        """Build cache-related `with_options` kwargs and record the eager key.
 
-        Returns a dict of extra kwargs to merge into ``with_options``.
+        Returns a dict of extra kwargs to merge into `with_options`.
         As a side-effect, stores the pre-computed cache key in
         *computed_cache_keys* so downstream nodes can incorporate it.
         """
