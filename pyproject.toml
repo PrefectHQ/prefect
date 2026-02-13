@@ -81,6 +81,7 @@ dependencies = [
     "semver>=3.0.4",
     "pluggy>=1.6.0",
     "pydocket>=0.13.0",
+    "azure-monitor-opentelemetry>=1.8.6",
 ]
 [project.urls]
 Changelog = "https://github.com/PrefectHQ/prefect/releases"
