@@ -55,6 +55,7 @@ from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
+    PrefectHTTPStatusError,
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFlowRunFuture
@@ -66,6 +67,8 @@ from prefect.logging.loggers import (
 from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLIENT_MAX_RETRIES,
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
     PREFECT_TEST_MODE,
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -84,6 +87,7 @@ from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
 from prefect.utilities.engine import propose_state
+from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 from prefect.utilities.services import (
     critical_service_loop,
     start_client_metrics_server,
@@ -1381,6 +1385,27 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
         )
 
+    def _rate_limit_retry_seconds(
+        self, exc: PrefectHTTPStatusError, attempt: int
+    ) -> float:
+        retry_after = exc.retry_after_seconds()
+        retry_seconds = retry_after if retry_after is not None else 2**attempt
+        jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
+        if retry_seconds > 0 and jitter_factor > 0:
+            if retry_after is not None:
+                retry_seconds = bounded_poisson_interval(
+                    retry_seconds, retry_seconds * (1 + jitter_factor)
+                )
+            else:
+                retry_seconds = clamped_poisson_interval(retry_seconds, jitter_factor)
+        return max(0.0, retry_seconds)
+
+    def _finalize_flow_run_submission(self, flow_run_id: UUID) -> None:
+        if flow_run_id in self._submitting_flow_run_ids:
+            self._submitting_flow_run_ids.remove(flow_run_id)
+        if self._cancelling_observer is not None:
+            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run_id)
+
     async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
         Submits a given flow run for execution by the worker.
@@ -1388,24 +1413,53 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         run_logger = self.get_flow_run_logger(flow_run)
 
         if flow_run.deployment_id:
-            try:
-                await self.client.read_deployment(flow_run.deployment_id)
-            except ObjectNotFound:
-                self._logger.exception(
-                    f"Deployment {flow_run.deployment_id} no longer exists. "
-                    f"Flow run {flow_run.id} will not be submitted for"
-                    " execution"
-                )
-                self._submitting_flow_run_ids.remove(flow_run.id)
-                if self._cancelling_observer is not None:
-                    self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
-                await self._mark_flow_run_as_cancelled(
-                    flow_run,
-                    state_updates=dict(
-                        message=f"Deployment {flow_run.deployment_id} no longer exists, cancelled run."
-                    ),
-                )
-                return
+            attempt = 0
+            max_attempts = max(1, PREFECT_CLIENT_MAX_RETRIES.value())
+            while True:
+                try:
+                    await self.client.read_deployment(flow_run.deployment_id)
+                    break
+                except ObjectNotFound:
+                    self._logger.exception(
+                        f"Deployment {flow_run.deployment_id} no longer exists. "
+                        f"Flow run {flow_run.id} will not be submitted for"
+                        " execution"
+                    )
+                    self._release_limit_slot(flow_run.id)
+                    self._finalize_flow_run_submission(flow_run.id)
+                    await self._mark_flow_run_as_cancelled(
+                        flow_run,
+                        state_updates=dict(
+                            message=(
+                                f"Deployment {flow_run.deployment_id} no longer exists, "
+                                "cancelled run."
+                            )
+                        ),
+                    )
+                    return
+                except PrefectHTTPStatusError as exc:
+                    if not exc.is_rate_limited():
+                        raise
+                    attempt += 1
+                    retry_seconds = self._rate_limit_retry_seconds(exc, attempt)
+                    run_logger.warning(
+                        "Rate limited while reading deployment %s for flow run %s. "
+                        "Backing off for %.1fs (attempt %s/%s).",
+                        flow_run.deployment_id,
+                        flow_run.id,
+                        retry_seconds,
+                        attempt,
+                        max_attempts,
+                    )
+                    if attempt >= max_attempts:
+                        run_logger.warning(
+                            "Rate limit persisted; deferring submission of flow run %s.",
+                            flow_run.id,
+                        )
+                        self._release_limit_slot(flow_run.id)
+                        self._finalize_flow_run_submission(flow_run.id)
+                        return
+                    await anyio.sleep(retry_seconds)
 
         ready_to_submit = await self._propose_pending_state(flow_run)
         self._logger.debug(f"Ready to submit {flow_run.id}: {ready_to_submit}")
@@ -1436,9 +1490,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 self._release_limit_slot(flow_run.id)
         else:
             self._release_limit_slot(flow_run.id)
-        self._submitting_flow_run_ids.remove(flow_run.id)
-        if self._cancelling_observer is not None:
-            self._cancelling_observer.remove_in_flight_flow_run_id(flow_run.id)
+        self._finalize_flow_run_submission(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self,
