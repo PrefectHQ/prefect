@@ -422,6 +422,31 @@ class TestComputeFreshnessExpiration:
         exp = compute_freshness_expiration("model.test.m", all_nodes, freshness_results)
         assert exp == timedelta(hours=6) - timedelta(seconds=3600)
 
+    def test_zero_warn_after_uses_warn_not_error(self):
+        """warn_after=timedelta(0) is valid and must not fall back to error_after."""
+        all_nodes = {
+            "source.test.raw.s": _make_source_node(
+                unique_id="source.test.raw.s", name="s"
+            ),
+            "model.test.m": _make_node(
+                unique_id="model.test.m",
+                name="m",
+                depends_on=("source.test.raw.s",),
+            ),
+        }
+        freshness_results = {
+            "source.test.raw.s": SourceFreshnessResult(
+                unique_id="source.test.raw.s",
+                status="pass",
+                max_loaded_at_time_ago_in_s=60.0,
+                warn_after=timedelta(0),
+                error_after=timedelta(hours=24),
+            ),
+        }
+        exp = compute_freshness_expiration("model.test.m", all_nodes, freshness_results)
+        # Should use warn_after=0, not error_after=24h; clamped to zero
+        assert exp == timedelta(0)
+
 
 class TestFilterStaleNodes:
     def _build_graph(self):
