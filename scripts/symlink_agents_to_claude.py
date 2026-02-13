@@ -25,7 +25,13 @@ def create_claude_symlinks(root_dir: Path | str) -> None:
         claude_link = agents_file.parent / "CLAUDE.md"
 
         if claude_link.is_symlink():
+            if os.readlink(claude_link) == "AGENTS.md":
+                print(f"Already linked: {claude_link} -> AGENTS.md")
+                continue
             claude_link.unlink()
+        elif claude_link.exists():
+            print(f"Skipped (regular file exists): {claude_link}")
+            continue
 
         os.symlink("AGENTS.md", claude_link)
         print(f"Created symlink: {claude_link} -> AGENTS.md")
