@@ -389,6 +389,27 @@ class TaskRunResponse(ORMBaseModel):
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
     )
+    start_time: Optional[DateTime] = Field(
+        default=None, description="The actual start time."
+    )
+    end_time: Optional[DateTime] = Field(
+        default=None, description="The actual end time."
+    )
+    total_run_time: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description=(
+            "Total run time. If the task run was executed multiple times, the time of"
+            " each run will be summed."
+        ),
+    )
+    estimated_run_time: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description="A real-time estimate of the total run time.",
+    )
+    estimated_start_time_delta: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description="The difference between actual and expected start time.",
+    )
 
 
 class DeploymentResponse(ORMBaseModel):
