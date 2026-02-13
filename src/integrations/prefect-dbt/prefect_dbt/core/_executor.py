@@ -101,7 +101,7 @@ class DbtCoreExecutor:
         Args:
             command: dbt command to run (e.g. "build", "run", "seed")
             node_ids: List of node unique_ids for tracking in the result
-            selectors: List of dbt selectors for ``--select``
+            selectors: List of dbt selectors for `--select`
             full_refresh: Whether to pass --full-refresh
         """
         invoke_kwargs: dict[str, Any] = {

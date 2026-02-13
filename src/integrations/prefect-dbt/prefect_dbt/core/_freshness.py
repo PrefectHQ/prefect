@@ -160,6 +160,11 @@ def run_source_freshness(
     output_target = target_path or settings.target_path
     output_path = settings.project_dir / output_target / "sources.json"
 
+    # Remove any pre-existing sources.json so a failed run cannot
+    # silently reuse stale data from a previous invocation.
+    if output_path.exists():
+        output_path.unlink()
+
     with settings.resolve_profiles_yml() as resolved_profiles_dir:
         args = [
             "source",
@@ -256,8 +261,9 @@ def compute_freshness_expiration(
     """Compute cache expiration for a node based on upstream source freshness.
 
     For each upstream source with freshness data, computes the remaining
-    time before the warn_after threshold is reached. Returns the minimum
-    across all sources so the cache expires when the first source goes stale.
+    time before the freshness threshold is reached. Prefers `warn_after`
+    but falls back to `error_after`. Returns the minimum across all
+    sources so the cache expires when the first source goes stale.
 
     Args:
         node_id: The node to compute expiration for
@@ -276,13 +282,14 @@ def compute_freshness_expiration(
 
     for source_id in source_ids:
         fr = freshness_results.get(source_id)
-        if fr is None or fr.warn_after is None:
+        if fr is None:
             continue
-        if fr.max_loaded_at_time_ago_in_s is None:
+        threshold = fr.warn_after or fr.error_after
+        if threshold is None or fr.max_loaded_at_time_ago_in_s is None:
             continue
 
         time_ago = timedelta(seconds=fr.max_loaded_at_time_ago_in_s)
-        remaining = fr.warn_after - time_ago
+        remaining = threshold - time_ago
 
         # Clamp to zero — if already past threshold, expire immediately
         if remaining < timedelta(0):
