@@ -145,6 +145,72 @@ class TestReadLogs:
         assert all([log.task_run_id is not None for log in logs])
 
 
+class TestCreateLogsWithNullBytes:
+    async def test_create_logs_strips_null_bytes_from_message(
+        self, session, flow_run_id, db
+    ):
+        """Null bytes in log messages cause PostgreSQL to reject the INSERT
+        with CharacterNotInRepertoireError.  They should be stripped."""
+        log_data = [
+            LogCreate(
+                name="prefect.flow_run",
+                level=20,
+                message="binary data: \x00\x00 end",
+                timestamp=NOW,
+                flow_run_id=flow_run_id,
+            ),
+        ]
+        await models.logs.create_logs(session=session, logs=log_data)
+
+        query = select(db.Log)
+        result = await session.execute(query)
+        saved = result.scalars().unique().all()
+        assert len(saved) == 1
+        assert saved[0].message == "binary data:  end"
+        assert "\x00" not in saved[0].message
+
+    async def test_create_logs_strips_null_bytes_from_name(
+        self, session, flow_run_id, db
+    ):
+        log_data = [
+            LogCreate(
+                name="prefect\x00.flow_run",
+                level=20,
+                message="test",
+                timestamp=NOW,
+                flow_run_id=flow_run_id,
+            ),
+        ]
+        await models.logs.create_logs(session=session, logs=log_data)
+
+        query = select(db.Log)
+        result = await session.execute(query)
+        saved = result.scalars().unique().all()
+        assert len(saved) == 1
+        assert saved[0].name == "prefect.flow_run"
+
+    async def test_create_logs_without_null_bytes_unchanged(
+        self, session, flow_run_id, db
+    ):
+        """Normal logs without null bytes should pass through unmodified."""
+        log_data = [
+            LogCreate(
+                name="prefect.flow_run",
+                level=20,
+                message="normal message",
+                timestamp=NOW,
+                flow_run_id=flow_run_id,
+            ),
+        ]
+        await models.logs.create_logs(session=session, logs=log_data)
+
+        query = select(db.Log)
+        result = await session.execute(query)
+        saved = result.scalars().unique().all()
+        assert len(saved) == 1
+        assert saved[0].message == "normal message"
+
+
 class TestLogSchemaConversion:
     """Tests for LogCreate to Log schema conversion - the core issue that was fixed"""
 
