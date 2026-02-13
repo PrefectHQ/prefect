@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import logging
 import sys
 import uuid
 from datetime import timedelta
@@ -3241,8 +3242,6 @@ class TestWorkerCancellationHandling:
 
 class TestWorkerDebugMode:
     def test_worker_debug_mode_sets_logger_to_debug(self):
-        import logging
-
         with temporary_settings(updates={PREFECT_WORKER_DEBUG_MODE: True}):
             worker = WorkerTestImpl(
                 work_pool_name="test-pool",
@@ -3267,24 +3266,23 @@ class TestWorkerDebugMode:
                 mock_logger.setLevel.assert_not_called()
 
     def test_worker_debug_mode_does_not_affect_non_worker_loggers(self):
-        import logging
-
-        flow_run_logger = logging.getLogger("prefect.flow_runs")
-        task_run_logger = logging.getLogger("prefect.task_runs")
-        prefect_logger = logging.getLogger("prefect")
-
-        original_levels = {
-            "flow_runs": flow_run_logger.level,
-            "task_runs": task_run_logger.level,
-            "prefect": prefect_logger.level,
-        }
-
         with temporary_settings(updates={PREFECT_WORKER_DEBUG_MODE: True}):
-            WorkerTestImpl(
+            flow_run_logger = logging.getLogger("prefect.flow_runs")
+            task_run_logger = logging.getLogger("prefect.task_runs")
+            prefect_logger = logging.getLogger("prefect")
+
+            level_before = {
+                "flow_runs": flow_run_logger.level,
+                "task_runs": task_run_logger.level,
+                "prefect": prefect_logger.level,
+            }
+
+            worker = WorkerTestImpl(
                 work_pool_name="test-pool",
                 name="test-worker",
             )
 
-        assert flow_run_logger.level == original_levels["flow_runs"]
-        assert task_run_logger.level == original_levels["task_runs"]
-        assert prefect_logger.level == original_levels["prefect"]
+            assert worker._logger.level == logging.DEBUG
+            assert flow_run_logger.level == level_before["flow_runs"]
+            assert task_run_logger.level == level_before["task_runs"]
+            assert prefect_logger.level == level_before["prefect"]
