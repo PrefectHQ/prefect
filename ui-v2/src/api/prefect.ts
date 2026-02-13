@@ -11148,6 +11148,34 @@ export interface components {
              *     ]
              */
             tags?: string[];
+            /**
+             * Start Time
+             * @description The actual start time.
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description The actual end time.
+             */
+            end_time?: string | null;
+            /**
+             * Total Run Time
+             * @description Total run time. If the task run was executed multiple times, the time of each run will be summed.
+             * @default 0
+             */
+            total_run_time: number;
+            /**
+             * Estimated Run Time
+             * @description A real-time estimate of the total run time.
+             * @default 0
+             */
+            estimated_run_time: number;
+            /**
+             * Estimated Start Time Delta
+             * @description The difference between actual and expected start time.
+             * @default 0
+             */
+            estimated_start_time_delta: number;
         };
         /**
          * TaskRunResult
