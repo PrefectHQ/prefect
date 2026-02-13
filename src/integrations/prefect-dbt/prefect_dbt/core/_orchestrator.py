@@ -105,6 +105,10 @@ class PrefectDbtOrchestrator:
         result_storage: Where to persist task results (required for
             caching to work across process restarts).
         cache_key_storage: Where to persist cache keys.
+        use_source_freshness_expiration: When True (requires
+            ``enable_caching=True``), dynamically compute
+            ``cache_expiration`` per-node from upstream source freshness
+            thresholds.
 
     Example::
 
@@ -137,6 +141,7 @@ class PrefectDbtOrchestrator:
         cache_expiration: Optional[timedelta] = None,
         result_storage: Optional[Union[Any, str, Path]] = None,
         cache_key_storage: Optional[Union[Any, str, Path]] = None,
+        use_source_freshness_expiration: bool = False,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
@@ -155,11 +160,17 @@ class PrefectDbtOrchestrator:
         self._cache_expiration = cache_expiration
         self._result_storage = result_storage
         self._cache_key_storage = cache_key_storage
+        self._use_source_freshness_expiration = use_source_freshness_expiration
 
         if enable_caching and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
                 "Caching is only supported in PER_NODE execution mode. "
                 "Set execution_mode=ExecutionMode.PER_NODE to use caching."
+            )
+
+        if use_source_freshness_expiration and not enable_caching:
+            raise ValueError(
+                "use_source_freshness_expiration requires enable_caching=True."
             )
 
         # When the caller provides an explicit manifest_path that lives
@@ -255,14 +266,17 @@ class PrefectDbtOrchestrator:
         select: Optional[str] = None,
         exclude: Optional[str] = None,
         full_refresh: bool = False,
+        only_fresh_sources: bool = False,
     ) -> dict[str, Any]:
         """Execute a dbt build wave-by-wave or per-node.
 
         Pipeline:
         1. Parse the manifest
         2. Optionally resolve selectors to filter nodes
-        3. Compute execution waves (topological order)
-        4. Execute (per-wave or per-node depending on mode)
+        3. Filter nodes
+        4. Optionally run source freshness and filter stale nodes
+        5. Compute execution waves (topological order)
+        6. Execute (per-wave or per-node depending on mode)
 
         In **PER_NODE** mode, each node becomes a separate Prefect task with
         individual retries.  This requires `run_build()` to be called
@@ -272,6 +286,9 @@ class PrefectDbtOrchestrator:
             select: dbt selector expression (e.g. `"tag:daily"`)
             exclude: dbt exclude expression
             full_refresh: Whether to pass `--full-refresh` to dbt
+            only_fresh_sources: When True, skip models whose upstream
+                sources are stale (freshness status "error" or "runtime
+                error").  Downstream dependents are also skipped.
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
@@ -299,15 +316,54 @@ class PrefectDbtOrchestrator:
                     target_path=self._resolve_target_path(),
                 )
 
-        # 3. Filter nodes and compute waves
+        # 3. Filter nodes
         filtered_nodes = parser.filter_nodes(selected_node_ids=selected_ids)
+
+        # 4. Source freshness integration
+        freshness_results: dict = {}
+        skipped_results: dict[str, Any] = {}
+
+        if only_fresh_sources or self._use_source_freshness_expiration:
+            from prefect_dbt.core._freshness import (
+                filter_stale_nodes,
+                run_source_freshness,
+            )
+
+            freshness_results = run_source_freshness(
+                self._settings,
+                target_path=self._resolve_target_path(),
+            )
+
+            if only_fresh_sources and freshness_results:
+                filtered_nodes, skipped_results = filter_stale_nodes(
+                    filtered_nodes, parser.all_nodes, freshness_results
+                )
+
+        # 5. Compute waves from remaining nodes
         waves = parser.compute_execution_waves(nodes=filtered_nodes)
 
-        # 4. Execute
+        # 6. Execute
         if self._execution_mode == ExecutionMode.PER_NODE:
             macro_paths = parser.get_macro_paths() if self._enable_caching else {}
-            return self._execute_per_node(waves, full_refresh, macro_paths)
-        return self._execute_per_wave(waves, full_refresh)
+            execution_results = self._execute_per_node(
+                waves,
+                full_refresh,
+                macro_paths,
+                freshness_results=freshness_results
+                if self._use_source_freshness_expiration
+                else None,
+                all_nodes=parser.all_nodes
+                if self._use_source_freshness_expiration
+                else None,
+            )
+        else:
+            execution_results = self._execute_per_wave(waves, full_refresh)
+
+        # Merge skipped results with execution results
+        if skipped_results:
+            execution_results.update(skipped_results)
+
+        return execution_results
 
     # ------------------------------------------------------------------
     # PER_WAVE execution
@@ -398,7 +454,13 @@ class PrefectDbtOrchestrator:
     # ------------------------------------------------------------------
 
     def _build_cache_options_for_node(
-        self, node, full_refresh, computed_cache_keys, macro_paths=None
+        self,
+        node,
+        full_refresh,
+        computed_cache_keys,
+        macro_paths=None,
+        freshness_results=None,
+        all_nodes=None,
     ):
         """Build cache-related ``with_options`` kwargs and record the eager key.
 
@@ -431,13 +493,32 @@ class PrefectDbtOrchestrator:
         }
         if full_refresh:
             opts["refresh_cache"] = True
-        if self._cache_expiration is not None:
-            opts["cache_expiration"] = self._cache_expiration
+
+        # Determine cache_expiration: freshness-based or default
+        cache_expiration = self._cache_expiration
+        if self._use_source_freshness_expiration and freshness_results and all_nodes:
+            from prefect_dbt.core._freshness import compute_freshness_expiration
+
+            freshness_exp = compute_freshness_expiration(
+                node.unique_id, all_nodes, freshness_results
+            )
+            if freshness_exp is not None:
+                cache_expiration = freshness_exp
+
+        if cache_expiration is not None:
+            opts["cache_expiration"] = cache_expiration
         if self._result_storage is not None:
             opts["result_storage"] = self._result_storage
         return opts
 
-    def _execute_per_node(self, waves, full_refresh, macro_paths=None):
+    def _execute_per_node(
+        self,
+        waves,
+        full_refresh,
+        macro_paths=None,
+        freshness_results=None,
+        all_nodes=None,
+    ):
         """Execute each node as an individual Prefect task.
 
         Creates a separate Prefect task per node with individual retries.
@@ -568,7 +649,12 @@ class PrefectDbtOrchestrator:
                     if self._enable_caching:
                         with_opts.update(
                             self._build_cache_options_for_node(
-                                node, full_refresh, computed_cache_keys, macro_paths
+                                node,
+                                full_refresh,
+                                computed_cache_keys,
+                                macro_paths,
+                                freshness_results=freshness_results,
+                                all_nodes=all_nodes,
                             )
                         )
 

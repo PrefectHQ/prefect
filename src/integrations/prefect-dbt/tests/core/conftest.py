@@ -121,6 +121,93 @@ def write_sql_files(project_dir: Path, file_map: dict[str, str]) -> None:
         full_path.write_text(content)
 
 
+def _make_source_node(
+    unique_id: str = "source.test.raw.my_source",
+    name: str = "my_source",
+    depends_on: tuple[str, ...] = (),
+    relation_name: str | None = '"main"."raw"."my_source"',
+) -> DbtNode:
+    return DbtNode(
+        unique_id=unique_id,
+        name=name,
+        resource_type=NodeType.Source,
+        depends_on=depends_on,
+        materialization=None,
+        relation_name=relation_name,
+    )
+
+
+def write_sources_json(path: Path, results: list[dict[str, Any]]) -> Path:
+    """Write a sources.json file at the given path.
+
+    Args:
+        path: Directory to write sources.json into
+        results: List of source freshness result dicts
+
+    Returns:
+        Path to the written sources.json file
+    """
+    sources_json_path = path / "sources.json"
+    sources_json_path.write_text(
+        json.dumps({"metadata": {}, "results": results, "elapsed_time": 0.0})
+    )
+    return sources_json_path
+
+
+@pytest.fixture
+def source_manifest_data() -> dict[str, Any]:
+    """Graph with sources -> staging -> marts.
+
+    sources: raw.customers, raw.orders
+    staging: stg_src_customers (depends on source.test.raw.customers)
+             stg_src_orders (depends on source.test.raw.orders)
+    marts:   src_customer_summary (depends on both stg_src models)
+    """
+    return {
+        "nodes": {
+            "model.test.stg_src_customers": {
+                "name": "stg_src_customers",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["source.test.raw.customers"]},
+                "config": {"materialized": "view"},
+            },
+            "model.test.stg_src_orders": {
+                "name": "stg_src_orders",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["source.test.raw.orders"]},
+                "config": {"materialized": "view"},
+            },
+            "model.test.src_customer_summary": {
+                "name": "src_customer_summary",
+                "resource_type": "model",
+                "depends_on": {
+                    "nodes": [
+                        "model.test.stg_src_customers",
+                        "model.test.stg_src_orders",
+                    ]
+                },
+                "config": {"materialized": "table"},
+            },
+        },
+        "sources": {
+            "source.test.raw.customers": {
+                "name": "customers",
+                "resource_type": "source",
+                "fqn": ["test", "raw", "customers"],
+                "relation_name": '"main"."raw"."customers"',
+                "config": {},
+            },
+            "source.test.raw.orders": {
+                "name": "orders",
+                "resource_type": "source",
+                "fqn": ["test", "raw", "orders"],
+                "relation_name": '"main"."raw"."orders"',
+                "config": {},
+            },
+        },
+    }
+
+
 @pytest.fixture
 def diamond_manifest_data() -> dict[str, Any]:
     """Diamond graph: root -> left/right -> leaf.
