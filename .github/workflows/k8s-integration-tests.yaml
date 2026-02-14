@@ -5,11 +5,13 @@ on:
   pull_request:
     paths:
       - "src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py"
+      - "src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py"
       - "src/integrations/prefect-kubernetes/integration_tests/**"
   push:
     branches: [main]
     paths:
       - "src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py"
+      - "src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py"
       - "src/integrations/prefect-kubernetes/integration_tests/**"
 
 jobs:
