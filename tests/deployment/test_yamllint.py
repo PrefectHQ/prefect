@@ -73,8 +73,9 @@ def project_dir(tmp_path):
         yield tmp_path
 
 
-class TestRecipeYamlFilesPassYamllint:
-    """Validate that all recipe YAML files conform to yamllint standards."""
+class TestStaticYamlFilesPassYamllint:
+    """Validate that all static YAML files (recipes and templates) conform
+    to yamllint standards."""
 
     @pytest.mark.parametrize(
         "recipe",
@@ -84,10 +85,6 @@ class TestRecipeYamlFilesPassYamllint:
         yaml_path = RECIPES_DIR / recipe / "prefect.yaml"
         content = yaml_path.read_text()
         _assert_yamllint_passes(content, filepath=str(yaml_path))
-
-
-class TestTemplateYamlFilesPassYamllint:
-    """Validate that all template YAML files conform to yamllint standards."""
 
     @pytest.mark.parametrize(
         "template",
