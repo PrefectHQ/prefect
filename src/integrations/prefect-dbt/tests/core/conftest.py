@@ -17,6 +17,7 @@ def _make_node(
     name: str = "my_model",
     resource_type: NodeType = NodeType.Model,
     depends_on: tuple[str, ...] = (),
+    depends_on_macros: tuple[str, ...] = (),
     materialization: str = "table",
 ) -> DbtNode:
     return DbtNode(
@@ -24,6 +25,7 @@ def _make_node(
         name=name,
         resource_type=resource_type,
         depends_on=depends_on,
+        depends_on_macros=depends_on_macros,
         materialization=materialization,
     )
 
@@ -105,6 +107,18 @@ def write_manifest(tmp_path: Path, data: dict[str, Any]) -> Path:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(data))
     return manifest_path
+
+
+def write_sql_files(project_dir: Path, file_map: dict[str, str]) -> None:
+    """Create SQL/CSV files relative to *project_dir* for cache tests.
+
+    ``file_map`` maps relative paths (e.g. ``"models/my_model.sql"``) to
+    file content strings.
+    """
+    for rel_path, content in file_map.items():
+        full_path = project_dir / rel_path
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_text(content)
 
 
 @pytest.fixture
