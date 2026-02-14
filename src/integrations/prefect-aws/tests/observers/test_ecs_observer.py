@@ -1125,6 +1125,138 @@ class TestMarkRunsAsCrashed:
         # Should not propose state for scheduled states
         mock_propose_state.assert_not_called()
 
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_skips_paused_states(
+        self, mock_propose_state, mock_get_client, sample_event, sample_tags
+    ):
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PAUSED", name="Suspended"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(sample_event, sample_tags)
+
+        mock_client.read_flow_run.assert_called_once_with(flow_run_id=flow_run_id)
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_ignores_sidecar_exit_codes(
+        self, mock_propose_state, mock_get_client, sample_tags
+    ):
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "containers": [
+                    {"name": "prefect", "exitCode": 0},
+                    {"name": "vmagent", "exitCode": 0},
+                    {"name": "vector", "exitCode": 0},
+                    {"name": "ecs-exporter", "exitCode": 2},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_checks_orchestration_container(
+        self, mock_propose_state, mock_get_client, sample_tags
+    ):
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "containers": [
+                    {"name": "prefect", "exitCode": 1},
+                    {"name": "sidecar", "exitCode": 0},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_propose_state.assert_called_once()
+        call_args = mock_propose_state.call_args[1]
+        proposed_state = call_args["state"]
+        assert proposed_state.type == StateType.CRASHED
+        assert "prefect" in proposed_state.message
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_falls_back_to_all_containers(
+        self, mock_propose_state, mock_get_client, sample_tags
+    ):
+        event = {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/task-id",
+                "containers": [
+                    {"name": "custom-container", "exitCode": 1},
+                    {"name": "sidecar", "exitCode": 0},
+                ],
+            }
+        }
+
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        await mark_runs_as_crashed(event, sample_tags)
+
+        mock_propose_state.assert_called_once()
+        call_args = mock_propose_state.call_args[1]
+        proposed_state = call_args["state"]
+        assert proposed_state.type == StateType.CRASHED
+
 
 class TestDeregisterTaskDefinition:
     @pytest.fixture

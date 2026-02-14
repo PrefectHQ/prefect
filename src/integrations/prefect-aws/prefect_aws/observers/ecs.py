@@ -534,24 +534,43 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
 
         assert flow_run.state is not None, "Expected flow run state to be set"
 
-        # Exit early for final or scheduled states
-        if flow_run.state.is_final() or flow_run.state.is_scheduled():
+        # Exit early for final, scheduled, or paused states
+        if (
+            flow_run.state.is_final()
+            or flow_run.state.is_scheduled()
+            or flow_run.state.is_paused()
+        ):
             logger.debug(
-                f"Flow run {flow_run_id} is in final or scheduled state, skipping"
+                f"Flow run {flow_run_id} is in final, scheduled, or paused state, skipping"
             )
             return
 
         containers = event.get("detail", {}).get("containers", [])
 
+        orchestration_container = next(
+            (
+                container
+                for container in containers
+                if container.get("name") == _ECS_DEFAULT_CONTAINER_NAME
+            ),
+            None,
+        )
+
+        if orchestration_container is not None:
+            containers_to_check = [orchestration_container]
+        else:
+            containers_to_check = containers
+
         containers_with_non_zero_exit_codes = [
             container
-            for container in containers
+            for container in containers_to_check
             if container.get("exitCode") is None or container.get("exitCode") != 0
         ]
 
         if any(containers_with_non_zero_exit_codes):
             container_identifiers = [
-                c.get("name") or c.get("containerArn") for c in containers
+                c.get("name") or c.get("containerArn")
+                for c in containers_with_non_zero_exit_codes
             ]
             handler_logger.info(
                 "The following containers stopped with a non-zero exit code: %s. Marking flow run %s as crashed",
