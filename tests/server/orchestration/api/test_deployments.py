@@ -2787,33 +2787,29 @@ class TestUpdateDeployment:
         )
         assert "already exists" in response.text
 
-    async def test_update_deployment_schedule_chained_replaces_errors(
+    async def test_update_deployment_schedule_replaces_chain_rename(
         self,
         client: AsyncClient,
         flow: Flow,
     ):
-        """Chained replacements (A→B and B→C) should be rejected."""
-        schedule1 = schemas.schedules.IntervalSchedule(
-            interval=datetime.timedelta(days=1)
-        )
-        schedule2 = schemas.schedules.IntervalSchedule(
-            interval=datetime.timedelta(days=2)
-        )
-
-        # Create deployment with two schedules
+        """Chain rename (a->b, b->c) should update both schedules without collisions."""
         data = DeploymentCreate(  # type: ignore
-            name="test-deployment-chained-replaces",
+            name="test-deployment-chain-rename",
             flow_id=flow.id,
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
-                    schedule=schedule1,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1)
+                    ),
                     active=True,
-                    slug="slug-a",
+                    slug="a",
                 ),
                 schemas.actions.DeploymentScheduleCreate(
-                    schedule=schedule2,
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=2)
+                    ),
                     active=True,
-                    slug="slug-b",
+                    slug="b",
                 ),
             ],
         ).model_dump(mode="json")
@@ -2821,32 +2817,91 @@ class TestUpdateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         deployment_id = response.json()["id"]
+        schedules_by_slug = {s["slug"]: s["id"] for s in response.json()["schedules"]}
+        id_a = schedules_by_slug["a"]
+        id_b = schedules_by_slug["b"]
 
-        # Try chained replacement: A→B and B→C
-        schedule3 = schemas.schedules.IntervalSchedule(
-            interval=datetime.timedelta(days=3)
-        )
-        schedule4 = schemas.schedules.IntervalSchedule(
-            interval=datetime.timedelta(days=4)
-        )
         update_data = schemas.actions.DeploymentUpdate(
             schedules=[
                 schemas.actions.DeploymentScheduleUpdate(
-                    schedule=schedule3,
-                    slug="slug-b",
-                    replaces="slug-a",
+                    slug="b",
+                    replaces="a",
                 ),
                 schemas.actions.DeploymentScheduleUpdate(
-                    schedule=schedule4,
-                    slug="slug-c",
-                    replaces="slug-b",
+                    slug="c",
+                    replaces="b",
                 ),
             ],
         ).model_dump(mode="json", exclude_unset=True)
 
         response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
-        assert response.status_code == 422
-        assert "Chained replacements are not supported" in response.text
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        schedules = response.json()["schedules"]
+        assert len(schedules) == 2
+        updated_by_slug = {s["slug"]: s["id"] for s in schedules}
+        assert updated_by_slug["b"] == id_a
+        assert updated_by_slug["c"] == id_b
+
+    async def test_update_deployment_schedule_replaces_slug_swap(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        """Slug swap (x->y, y->x) should update both schedules without collisions."""
+        data = DeploymentCreate(  # type: ignore
+            name="test-deployment-slug-swap",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=1)
+                    ),
+                    active=True,
+                    slug="x",
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schemas.schedules.IntervalSchedule(
+                        interval=datetime.timedelta(days=2)
+                    ),
+                    active=True,
+                    slug="y",
+                ),
+            ],
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        schedules_by_slug = {s["slug"]: s["id"] for s in response.json()["schedules"]}
+        id_x = schedules_by_slug["x"]
+        id_y = schedules_by_slug["y"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(
+                    slug="y",
+                    replaces="x",
+                ),
+                schemas.actions.DeploymentScheduleUpdate(
+                    slug="x",
+                    replaces="y",
+                ),
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 204
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        schedules = response.json()["schedules"]
+        assert len(schedules) == 2
+        updated_by_slug = {s["slug"]: s["id"] for s in schedules}
+        assert updated_by_slug["y"] == id_x
+        assert updated_by_slug["x"] == id_y
 
 
 class TestGetScheduledFlowRuns:
