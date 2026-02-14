@@ -294,9 +294,15 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
 
     assert flow_run.state is not None, "Expected flow run state to be set"
 
-    # Exit early for terminal/final/scheduled states
-    if flow_run.state.is_final() or flow_run.state.is_scheduled():
-        logger.debug(f"Flow run {flow_run_id} is in final or scheduled state, skipping")
+    # Exit early for terminal/final/scheduled/paused states
+    if (
+        flow_run.state.is_final()
+        or flow_run.state.is_scheduled()
+        or flow_run.state.is_paused()
+    ):
+        logger.debug(
+            f"Flow run {flow_run_id} is in final, scheduled, or paused state, skipping"
+        )
         return
 
     # In the case where a flow run is rescheduled due to a SIGTERM, it will show up as another active job if the
