@@ -1,0 +1,117 @@
+---
+title: steps
+sidebarTitle: steps
+---
+
+# `prefect_aws.deployments.steps`
+
+
+
+Prefect deployment steps for code storage and retrieval in S3 and S3
+compatible services.
+
+
+## Functions
+
+### `push_to_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/deployments/steps.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+push_to_s3(bucket: str, folder: str, credentials: Optional[dict[str, Any]] = None, client_parameters: Optional[dict[str, Any]] = None, ignore_file: Optional[str] = '.prefectignore') -> PushToS3Output
+```
+
+
+Pushes the contents of the current working directory to an S3 bucket,
+excluding files and folders specified in the ignore_file.
+
+**Args:**
+- `bucket`: The name of the S3 bucket where files will be uploaded.
+- `folder`: The folder in the S3 bucket where files will be uploaded.
+- `credentials`: A dictionary of AWS credentials (aws_access_key_id,
+aws_secret_access_key, aws_session_token) or MinIO credentials
+(minio_root_user, minio_root_password).
+- `client_parameters`: A dictionary of additional parameters to pass to the boto3
+client.
+- `ignore_file`: The name of the file containing ignore patterns.
+
+**Returns:**
+- A dictionary containing the bucket and folder where files were uploaded.
+
+**Examples:**
+
+Push files to an S3 bucket:
+```yaml
+push:
+    - prefect_aws.deployments.steps.push_to_s3:
+        requires: prefect-aws
+        bucket: my-bucket
+        folder: my-project
+```
+
+Push files to an S3 bucket using credentials stored in a block:
+```yaml
+push:
+    - prefect_aws.deployments.steps.push_to_s3:
+        requires: prefect-aws
+        bucket: my-bucket
+        folder: my-project
+        credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}"
+```
+
+
+### `pull_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/deployments/steps.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pull_from_s3(bucket: str, folder: str, credentials: Optional[dict[str, Any]] = None, client_parameters: Optional[dict[str, Any]] = None) -> PullFromS3Output
+```
+
+
+Pulls the contents of an S3 bucket folder to the current working directory.
+
+**Args:**
+- `bucket`: The name of the S3 bucket where files are stored.
+- `folder`: The folder in the S3 bucket where files are stored.
+- `credentials`: A dictionary of AWS credentials (aws_access_key_id,
+aws_secret_access_key, aws_session_token) or MinIO credentials
+(minio_root_user, minio_root_password).
+- `client_parameters`: A dictionary of additional parameters to pass to the
+boto3 client.
+
+**Returns:**
+- A dictionary containing the bucket, folder, and local directory where
+files were downloaded.
+
+**Examples:**
+
+Pull files from S3 using the default credentials and client parameters:
+```yaml
+pull:
+    - prefect_aws.deployments.steps.pull_from_s3:
+        requires: prefect-aws
+        bucket: my-bucket
+        folder: my-project
+```
+
+Pull files from S3 using credentials stored in a block:
+```yaml
+pull:
+    - prefect_aws.deployments.steps.pull_from_s3:
+        requires: prefect-aws
+        bucket: my-bucket
+        folder: my-project
+        credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}"
+```
+
+
+## Classes
+
+### `PushToS3Output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/deployments/steps.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The output of the `push_to_s3` step.
+
+
+### `PullFromS3Output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/deployments/steps.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The output of the `pull_from_s3` step.
+
