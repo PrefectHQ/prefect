@@ -4,13 +4,12 @@ Schemas that define Prefect REST API filtering operations.
 Each filter schema includes logic for transforming itself into a SQL `where` clause.
 """
 
+import operator
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
-from sqlalchemy.sql.functions import coalesce
-
 import prefect.server.schemas as schemas
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.server.utilities.text_search_parser import (
@@ -469,20 +468,31 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
         default=None, description="If true, only return flow runs without a start time"
     )
 
+    def _coalesced_time_filter(
+        self,
+        db: "PrefectDBInterface",
+        comparator: Callable[[Any, DateTime], sa.ColumnExpressionArgument[bool]],
+        value: DateTime,
+    ) -> sa.ColumnExpressionArgument[bool]:
+        return sa.or_(
+            sa.and_(
+                db.FlowRun.start_time.is_not(None),
+                comparator(db.FlowRun.start_time, value),
+            ),
+            sa.and_(
+                db.FlowRun.start_time.is_(None),
+                comparator(db.FlowRun.expected_start_time, value),
+            ),
+        )
+
     def _get_filter_list(
         self, db: "PrefectDBInterface"
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
         if self.before_ is not None:
-            filters.append(
-                coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time)
-                <= self.before_
-            )
+            filters.append(self._coalesced_time_filter(db, operator.le, self.before_))
         if self.after_ is not None:
-            filters.append(
-                coalesce(db.FlowRun.start_time, db.FlowRun.expected_start_time)
-                >= self.after_
-            )
+            filters.append(self._coalesced_time_filter(db, operator.ge, self.after_))
         if self.is_null_ is not None:
             filters.append(
                 db.FlowRun.start_time.is_(None)
