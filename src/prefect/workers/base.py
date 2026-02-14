@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import datetime
+import logging
 import threading
 import uuid
 import warnings
@@ -578,6 +579,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._started_event: Optional[Event] = None
         self.backend_id: Optional[UUID] = None
         self._logger = get_worker_logger(self)
+
+        if get_current_settings().worker.debug_mode:
+            self._logger.setLevel(logging.DEBUG)
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
