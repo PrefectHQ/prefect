@@ -9,11 +9,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
 from prefect_kubernetes.observer import (
+    _mark_flow_run_as_crashed,
     _replicate_pod_event,
     start_observer,
     stop_observer,
 )
 
+from prefect.client.schemas.objects import FlowRun, State
 from prefect.events.schemas.events import RelatedResource, Resource
 
 
@@ -344,6 +346,75 @@ class TestReplicatePodEvent:
         )
         # Verify all requests were eventually made
         assert mock_orchestration_client.request.call_count == 5
+
+
+class TestMarkFlowRunAsCrashed:
+    @pytest.fixture
+    def flow_run_id(self):
+        return uuid.uuid4()
+
+    @pytest.fixture
+    def base_kwargs(self, flow_run_id):
+        return {
+            "event": {"type": "MODIFIED"},
+            "name": "test-job",
+            "labels": {"prefect.io/flow-run-id": str(flow_run_id)},
+            "status": {"failed": 7},
+            "logger": MagicMock(),
+            "spec": {"backoffLimit": 6},
+            "namespace": "default",
+        }
+
+    async def test_skips_paused_states(
+        self, mock_orchestration_client: AsyncMock, flow_run_id, base_kwargs
+    ):
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="PAUSED", name="Suspended"),
+        )
+        mock_orchestration_client.read_flow_run.return_value = flow_run
+
+        with pytest.MonkeyPatch.context() as m:
+            mock_propose = AsyncMock()
+            m.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+            await _mark_flow_run_as_crashed(**base_kwargs)
+            mock_propose.assert_not_called()
+
+    async def test_skips_final_states(
+        self, mock_orchestration_client: AsyncMock, flow_run_id, base_kwargs
+    ):
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="COMPLETED", name="Completed"),
+        )
+        mock_orchestration_client.read_flow_run.return_value = flow_run
+
+        with pytest.MonkeyPatch.context() as m:
+            mock_propose = AsyncMock()
+            m.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+            await _mark_flow_run_as_crashed(**base_kwargs)
+            mock_propose.assert_not_called()
+
+    async def test_skips_scheduled_states(
+        self, mock_orchestration_client: AsyncMock, flow_run_id, base_kwargs
+    ):
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+        mock_orchestration_client.read_flow_run.return_value = flow_run
+
+        with pytest.MonkeyPatch.context() as m:
+            mock_propose = AsyncMock()
+            m.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+            await _mark_flow_run_as_crashed(**base_kwargs)
+            mock_propose.assert_not_called()
 
 
 class TestStartAndStopObserver:
