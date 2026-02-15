@@ -41,9 +41,9 @@ test.describe("Task Run Detail Page", () => {
 
 		await page.goto(`/runs/task-run/${taskRunId}`);
 
-		await expect(page.getByText(taskRunName, { exact: true })).toBeVisible({
-			timeout: 15000,
-		});
+		await expect(
+			page.getByLabel("breadcrumb").getByText(taskRunName, { exact: true }),
+		).toBeVisible({ timeout: 15000 });
 		await expect(page).toHaveURL(new RegExp(`/runs/task-run/${taskRunId}`));
 	});
 
@@ -54,16 +54,18 @@ test.describe("Task Run Detail Page", () => {
 		await page.goto(`/runs/task-run/${taskRunId}`);
 
 		await expect(
-			page.getByText(result.task_run_names[0], { exact: true }),
+			page
+				.getByLabel("breadcrumb")
+				.getByText(result.task_run_names[0], { exact: true }),
 		).toBeVisible({ timeout: 15000 });
 
 		const badge = page.locator('[class*="bg-state-completed"]');
 		await expect(badge).toBeVisible({ timeout: 10000 });
 		await expect(badge.getByText("Completed")).toBeVisible();
 
-		const parentLink = page.getByRole("link", {
-			name: result.flow_run_name,
-		});
+		const parentLink = page
+			.getByLabel("breadcrumb")
+			.getByRole("link", { name: result.flow_run_name });
 		await expect(parentLink).toBeVisible({ timeout: 10000 });
 		await parentLink.click();
 
@@ -71,7 +73,9 @@ test.describe("Task Run Detail Page", () => {
 			new RegExp(`/runs/flow-run/${result.flow_run_id}`),
 		);
 		await expect(
-			page.getByText(result.flow_run_name, { exact: true }),
+			page
+				.getByLabel("breadcrumb")
+				.getByText(result.flow_run_name, { exact: true }),
 		).toBeVisible({ timeout: 10000 });
 	});
 
@@ -82,21 +86,14 @@ test.describe("Task Run Detail Page", () => {
 		await page.goto(`/runs/task-run/${taskRunId}`);
 
 		await expect(
-			page.getByText(result.task_run_names[0], { exact: true }),
+			page
+				.getByLabel("breadcrumb")
+				.getByText(result.task_run_names[0], { exact: true }),
 		).toBeVisible({ timeout: 15000 });
 
 		await expect(page.getByText("Flow Run")).toBeVisible({ timeout: 10000 });
 
-		const hasTiming = await Promise.race([
-			page
-				.getByText("Start Time")
-				.isVisible()
-				.then((v) => v),
-			page
-				.getByText("Duration")
-				.isVisible()
-				.then((v) => v),
-		]);
-		expect(hasTiming).toBe(true);
+		await expect(page.getByText("Start Time")).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText("Duration")).toBeVisible({ timeout: 10000 });
 	});
 });
