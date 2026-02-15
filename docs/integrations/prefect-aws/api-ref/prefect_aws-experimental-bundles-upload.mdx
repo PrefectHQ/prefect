@@ -1,0 +1,50 @@
+---
+title: upload
+sidebarTitle: upload
+---
+
+# `prefect_aws.experimental.bundles.upload`
+
+
+
+S3 bundle steps for Prefect.
+These steps allow uploading and downloading flow/task bundles to and from S3.
+
+
+## Functions
+
+### `upload_bundle_to_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/experimental/bundles/upload.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_bundle_to_s3(local_filepath: str, bucket: str, key: str, aws_credentials_block_name: Optional[str] = None) -> UploadResult
+```
+
+
+Uploads a bundle file to an S3 bucket.
+
+**Args:**
+- `local_filepath`: Local path to the bundle file
+- `bucket`: S3 bucket name
+- `key`: S3 object key (if None, uses the bundle filename)
+- `aws_credentials_block_name`: Name of the AWS credentials block to use. If None,
+credentials will be inferred from the environment using boto3's standard
+credential resolution.
+
+**Returns:**
+- A dictionary containing:
+- bucket: The S3 bucket the bundle was uploaded to
+- key: The S3 key (path) the bundle was uploaded to
+- url: The full S3 URL of the uploaded bundle (s3://bucket/key)
+
+**Raises:**
+- `ValueError`: If the local file does not exist
+- `RuntimeError`: If the upload fails
+
+
+## Classes
+
+### `UploadResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/experimental/bundles/upload.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Result of uploading a bundle to S3.
+

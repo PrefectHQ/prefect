@@ -1,0 +1,1271 @@
+---
+title: s3
+sidebarTitle: s3
+---
+
+# `prefect_aws.s3`
+
+
+Tasks for interacting with AWS S3
+
+## Functions
+
+### `get_s3_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_s3_client(credentials: Optional[dict[str, Any]] = None, client_parameters: Optional[dict[str, Any]] = None) -> dict[str, Any]
+```
+
+
+Get a boto3 S3 client with the given credentials and client parameters.
+
+**Args:**
+- `credentials`: A dictionary of credentials to use for authentication with AWS.
+- `client_parameters`: A dictionary of parameters to use for the boto3 client
+initialization.
+
+**Returns:**
+- A boto3 S3 client.
+
+
+### `adownload_from_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adownload_from_bucket(bucket: str, key: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters()) -> bytes
+```
+
+
+Downloads an object with a given key from a given S3 bucket.
+
+Added in prefect-aws==0.5.3.
+
+**Args:**
+- `bucket`: Name of bucket to download object from. Required if a default value was
+not supplied when creating the task.
+- `key`: Key of object to download. Required if a default value was not supplied
+when creating the task.
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `aws_client_parameters`: Custom parameter for the boto3 client initialization.
+
+**Returns:**
+- A `bytes` representation of the downloaded object.
+
+
+### `download_from_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_from_bucket(bucket: str, key: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters()) -> bytes
+```
+
+
+Downloads an object with a given key from a given S3 bucket.
+
+**Args:**
+- `bucket`: Name of bucket to download object from. Required if a default value was
+not supplied when creating the task.
+- `key`: Key of object to download. Required if a default value was not supplied
+when creating the task.
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `aws_client_parameters`: Custom parameter for the boto3 client initialization.
+
+**Returns:**
+- A `bytes` representation of the downloaded object.
+
+
+### `aupload_to_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupload_to_bucket(data: bytes, bucket: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters(), key: Optional[str] = None) -> str
+```
+
+
+Asynchronously uploads data to an S3 bucket.
+
+Added in prefect-aws==0.5.3.
+
+**Args:**
+- `data`: Bytes representation of data to upload to S3.
+- `bucket`: Name of bucket to upload data to. Required if a default value was not
+supplied when creating the task.
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `aws_client_parameters`: Custom parameter for the boto3 client initialization..
+- `key`: Key of object to download. Defaults to a UUID string.
+
+**Returns:**
+- The key of the uploaded object
+
+
+### `upload_to_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_to_bucket(data: bytes, bucket: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters(), key: Optional[str] = None) -> str
+```
+
+
+Uploads data to an S3 bucket.
+
+**Args:**
+- `data`: Bytes representation of data to upload to S3.
+- `bucket`: Name of bucket to upload data to. Required if a default value was not
+supplied when creating the task.
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `aws_client_parameters`: Custom parameter for the boto3 client initialization..
+- `key`: Key of object to download. Defaults to a UUID string.
+
+**Returns:**
+- The key of the uploaded object
+
+
+### `acopy_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acopy_objects(source_path: str, target_path: str, source_bucket_name: str, aws_credentials: AwsCredentials, target_bucket_name: Optional[str] = None, **copy_kwargs) -> str
+```
+
+
+Asynchronously uses S3's internal
+[CopyObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html)
+to copy objects within or between buckets. To copy objects between buckets, the
+credentials must have permission to read the source object and write to the target
+object. If the credentials do not have those permissions, try using
+`S3Bucket.stream_from`.
+
+Added in prefect-aws==0.5.3.
+
+**Args:**
+- `source_path`: The path to the object to copy. Can be a string or `Path`.
+- `target_path`: The path to copy the object to. Can be a string or `Path`.
+- `source_bucket_name`: The bucket to copy the object from.
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `target_bucket_name`: The bucket to copy the object to. If not provided, defaults
+to `source_bucket`.
+- `**copy_kwargs`: Additional keyword arguments to pass to `S3Client.copy_object`.
+
+**Returns:**
+- The path that the object was copied to. Excludes the bucket name.
+
+Examples:
+
+    Copy notes.txt from s3://my-bucket/my_folder/notes.txt to
+    s3://my-bucket/my_folder/notes_copy.txt.
+
+    ```python
+    from prefect import flow
+    from prefect_aws import AwsCredentials
+    from prefect_aws.s3 import acopy_objects
+
+    aws_credentials = AwsCredentials.load("my-creds")
+
+    @flow
+    async def example_copy_flow():
+        await acopy_objects(
+            source_path="my_folder/notes.txt",
+            target_path="my_folder/notes_copy.txt",
+            source_bucket_name="my-bucket",
+            aws_credentials=aws_credentials,
+        )
+
+    await example_copy_flow()
+    ```
+
+    Copy notes.txt from s3://my-bucket/my_folder/notes.txt to
+    s3://other-bucket/notes_copy.txt.
+
+    ```python
+    from prefect import flow
+    from prefect_aws import AwsCredentials
+    from prefect_aws.s3 import acopy_objects
+
+    aws_credentials = AwsCredentials.load("shared-creds")
+
+    @flow
+    async def example_copy_flow():
+        await acopy_objects(
+            source_path="my_folder/notes.txt",
+            target_path="notes_copy.txt",
+            source_bucket_name="my-bucket",
+            aws_credentials=aws_credentials,
+            target_bucket_name="other-bucket",
+        )
+
+    await example_copy_flow()
+    ```
+
+
+### `copy_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L426" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+copy_objects(source_path: str, target_path: str, source_bucket_name: str, aws_credentials: AwsCredentials, target_bucket_name: Optional[str] = None, **copy_kwargs) -> str
+```
+
+
+Uses S3's internal
+[CopyObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html)
+to copy objects within or between buckets. To copy objects between buckets, the
+credentials must have permission to read the source object and write to the target
+object. If the credentials do not have those permissions, try using
+`S3Bucket.stream_from`.
+
+**Args:**
+- `source_path`: The path to the object to copy. Can be a string or `Path`.
+- `target_path`: The path to copy the object to. Can be a string or `Path`.
+- `source_bucket_name`: The bucket to copy the object from.
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `target_bucket_name`: The bucket to copy the object to. If not provided, defaults
+to `source_bucket`.
+- `**copy_kwargs`: Additional keyword arguments to pass to `S3Client.copy_object`.
+
+**Returns:**
+- The path that the object was copied to. Excludes the bucket name.
+
+Examples:
+
+    Copy notes.txt from s3://my-bucket/my_folder/notes.txt to
+    s3://my-bucket/my_folder/notes_copy.txt.
+
+    ```python
+    from prefect import flow
+    from prefect_aws import AwsCredentials
+    from prefect_aws.s3 import copy_objects
+
+    aws_credentials = AwsCredentials.load("my-creds")
+
+    @flow
+    def example_copy_flow():
+        copy_objects(
+            source_path="my_folder/notes.txt",
+            target_path="my_folder/notes_copy.txt",
+            source_bucket_name="my-bucket",
+            aws_credentials=aws_credentials,
+        )
+
+    example_copy_flow()
+    ```
+
+    Copy notes.txt from s3://my-bucket/my_folder/notes.txt to
+    s3://other-bucket/notes_copy.txt.
+
+    ```python
+    from prefect import flow
+    from prefect_aws import AwsCredentials
+    from prefect_aws.s3 import copy_objects
+
+    aws_credentials = AwsCredentials.load("shared-creds")
+
+    @flow
+    def example_copy_flow():
+        copy_objects(
+            source_path="my_folder/notes.txt",
+            target_path="notes_copy.txt",
+            source_bucket_name="my-bucket",
+            aws_credentials=aws_credentials,
+            target_bucket_name="other-bucket",
+        )
+
+    example_copy_flow()
+    ```
+
+
+### `amove_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+amove_objects(source_path: str, target_path: str, source_bucket_name: str, aws_credentials: AwsCredentials, target_bucket_name: Optional[str] = None) -> str
+```
+
+
+Asynchronously moves an object from one S3 location to another. To move objects
+between buckets, the credentials must have permission to read and delete the source
+object and write to the target object. If the credentials do not have those
+permissions, this method will raise an error. If the credentials have permission to
+read the source object but not delete it, the object will be copied but not deleted.
+
+Added in prefect-aws==0.5.3.
+
+**Args:**
+- `source_path`: The path of the object to move
+- `target_path`: The path to move the object to
+- `source_bucket_name`: The name of the bucket containing the source object
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `target_bucket_name`: The bucket to copy the object to. If not provided, defaults
+to `source_bucket`.
+
+**Returns:**
+- The path that the object was moved to. Excludes the bucket name.
+
+
+### `move_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+move_objects(source_path: str, target_path: str, source_bucket_name: str, aws_credentials: AwsCredentials, target_bucket_name: Optional[str] = None) -> str
+```
+
+
+Move an object from one S3 location to another. To move objects between buckets,
+the credentials must have permission to read and delete the source object and write
+to the target object. If the credentials do not have those permissions, this method
+will raise an error. If the credentials have permission to read the source object
+but not delete it, the object will be copied but not deleted.
+
+**Args:**
+- `source_path`: The path of the object to move
+- `target_path`: The path to move the object to
+- `source_bucket_name`: The name of the bucket containing the source object
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `target_bucket_name`: The bucket to copy the object to. If not provided, defaults
+to `source_bucket`.
+
+**Returns:**
+- The path that the object was moved to. Excludes the bucket name.
+
+
+### `alist_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+alist_objects(bucket: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters(), prefix: str = '', delimiter: str = '', page_size: Optional[int] = None, max_items: Optional[int] = None, jmespath_query: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+
+Asynchronously lists details of objects in a given S3 bucket.
+
+Added in prefect-aws==0.5.3.
+
+**Args:**
+- `bucket`: Name of bucket to list items from. Required if a default value was not
+supplied when creating the task.
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `aws_client_parameters`: Custom parameter for the boto3 client initialization..
+- `prefix`: Used to filter objects with keys starting with the specified prefix.
+- `delimiter`: Character used to group keys of listed objects.
+- `page_size`: Number of objects to return in each request to the AWS API.
+- `max_items`: Maximum number of objects that to be returned by task.
+- `jmespath_query`: Query used to filter objects based on object attributes refer to
+the [boto3 docs](https\://boto3.amazonaws.com/v1/documentation/api/latest/guide/paginators.html#filtering-results-with-jmespath)
+for more information on how to construct queries.
+
+**Returns:**
+- A list of dictionaries containing information about the objects retrieved. Refer
+to the boto3 docs for an example response.
+
+
+### `list_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L735" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_objects(bucket: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters(), prefix: str = '', delimiter: str = '', page_size: Optional[int] = None, max_items: Optional[int] = None, jmespath_query: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+
+Lists details of objects in a given S3 bucket.
+
+**Args:**
+- `bucket`: Name of bucket to list items from. Required if a default value was not
+supplied when creating the task.
+- `aws_credentials`: Credentials to use for authentication with AWS.
+- `aws_client_parameters`: Custom parameter for the boto3 client initialization..
+- `prefix`: Used to filter objects with keys starting with the specified prefix.
+- `delimiter`: Character used to group keys of listed objects.
+- `page_size`: Number of objects to return in each request to the AWS API.
+- `max_items`: Maximum number of objects that to be returned by task.
+- `jmespath_query`: Query used to filter objects based on object attributes refer to
+the [boto3 docs](https\://boto3.amazonaws.com/v1/documentation/api/latest/guide/paginators.html#filtering-results-with-jmespath)
+for more information on how to construct queries.
+
+**Returns:**
+- A list of dictionaries containing information about the objects retrieved. Refer
+to the boto3 docs for an example response.
+
+
+## Classes
+
+### `S3Bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L810" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Block used to store data using AWS S3 or S3-compatible object storage like MinIO.
+
+**Attributes:**
+- `bucket_name`: Name of your bucket.
+- `credentials`: A block containing your credentials to AWS or MinIO.
+- `bucket_folder`: A default path to a folder within the S3 bucket to use
+for reading and writing objects.
+
+
+**Methods:**
+
+#### `adownload_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1651" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adownload_folder_to_path(self, from_folder: str, to_folder: Optional[Union[str, Path]] = None, **download_kwargs: Dict[str, Any]) -> Path
+```
+
+Asynchronously downloads objects *within* a folder (excluding the folder itself)
+from the S3 bucket to a folder.
+
+**Args:**
+- `from_folder`: The path to the folder to download from.
+- `to_folder`: The path to download the folder to.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Client.download_file`.
+
+**Returns:**
+- The absolute path that the folder was downloaded to.
+
+**Examples:**
+
+Download my_folder to a local folder named my_folder.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+await s3_bucket.adownload_folder_to_path("my_folder", "my_folder")
+```
+
+
+#### `adownload_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adownload_object_to_file_object(self, from_path: str, to_file_object: BinaryIO, **download_kwargs: Dict[str, Any]) -> BinaryIO
+```
+
+Asynchronously downloads an object from the object storage service to a file-like object,
+which can be a BytesIO object or a BufferedWriter.
+
+**Args:**
+- `from_path`: The path to the object to download from; this gets prefixed
+with the bucket_folder.
+- `to_file_object`: The file-like object to download the object to.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Client.download_fileobj`.
+
+**Returns:**
+- The file-like object that the object was downloaded to.
+
+**Examples:**
+
+Download my_folder/notes.txt object to a BytesIO object.
+```python
+from io import BytesIO
+
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+with BytesIO() as buf:
+    await s3_bucket.adownload_object_to_file_object("my_folder/notes.txt", buf)
+```
+
+Download my_folder/notes.txt object to a BufferedWriter.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+with open("notes.txt", "wb") as f:
+    await s3_bucket.adownload_object_to_file_object("my_folder/notes.txt", f)
+```
+
+
+#### `adownload_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adownload_object_to_path(self, from_path: str, to_path: Optional[Union[str, Path]], **download_kwargs: Dict[str, Any]) -> Path
+```
+
+Asynchronously downloads an object from the S3 bucket to a path.
+
+**Args:**
+- `from_path`: The path to the object to download; this gets prefixed
+with the bucket_folder.
+- `to_path`: The path to download the object to. If not provided, the
+object's name will be used.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Client.download_file`.
+
+**Returns:**
+- The absolute path that the object was downloaded to.
+
+**Examples:**
+
+Download my_folder/notes.txt object to notes.txt.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+await s3_bucket.adownload_object_to_path("my_folder/notes.txt", "notes.txt")
+```
+
+
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L931" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Asynchronously copies a folder from the configured S3 bucket to a local directory.
+
+Defaults to copying the entire contents of the block's basepath to the current
+working directory.
+
+**Args:**
+- `from_path`: Path in S3 bucket to download from. Defaults to the block's
+configured basepath.
+- `local_path`: Local path to download S3 contents to. Defaults to the current
+working directory.
+
+
+#### `alist_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+alist_objects(self, folder: str = '', delimiter: str = '', page_size: Optional[int] = None, max_items: Optional[int] = None, jmespath_query: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+Asynchronously lists objects in the S3 bucket.
+
+**Args:**
+- `folder`: Folder to list objects from.
+- `delimiter`: Character used to group keys of listed objects.
+- `page_size`: Number of objects to return in each request to the AWS API.
+- `max_items`: Maximum number of objects that to be returned by task.
+- `jmespath_query`: Query used to filter objects based on object attributes refer to
+the [boto3 docs](https\://boto3.amazonaws.com/v1/documentation/api/latest/guide/paginators.html#filtering-results-with-jmespath)
+for more information on how to construct queries.
+
+**Returns:**
+- List of objects and their metadata in the bucket.
+
+**Examples:**
+
+List objects under the `base_folder`.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+await s3_bucket.alist_objects("base_folder")
+```
+
+
+#### `amove_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+amove_object(self, from_path: Union[str, Path], to_path: Union[str, Path], to_bucket: Optional[Union['S3Bucket', str]] = None) -> str
+```
+
+Asynchronously uses S3's internal CopyObject and DeleteObject to move objects
+within or between buckets. To move objects between buckets, `self`'s credentials
+must have permission to read and delete the source object and write to the target
+object. If the credentials do not have those permissions, this method will raise
+an error. If the credentials have permission to read the source object but not
+delete it, the object will be copied but not deleted.
+
+**Args:**
+- `from_path`: The path of the object to move.
+- `to_path`: The path to move the object to.
+- `to_bucket`: The bucket to move to. Defaults to the current bucket.
+
+**Returns:**
+- The path that the object was moved to. Excludes the bucket name.
+
+Examples:
+
+    Move notes.txt from my_folder/notes.txt to my_folder/notes_copy.txt.
+
+    ```python
+    from prefect_aws.s3 import S3Bucket
+
+    s3_bucket = S3Bucket.load("my-bucket")
+    await s3_bucket.amove_object("my_folder/notes.txt", "my_folder/notes_copy.txt")
+    ```
+
+    Move notes.txt from my_folder/notes.txt to my_folder/notes_copy.txt in
+    another bucket.
+
+    ```python
+    from prefect_aws.s3 import S3Bucket
+
+    s3_bucket = S3Bucket.load("my-bucket")
+    await s3_bucket.amove_object(
+        "my_folder/notes.txt",
+        "my_folder/notes_copy.txt",
+        to_bucket="other-bucket"
+    )
+    ```
+
+
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1004" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
+```
+
+Asynchronously uploads a directory from a given local path to the configured S3 bucket in a
+given folder.
+
+Defaults to uploading the entire contents the current working directory to the
+block's basepath.
+
+**Args:**
+- `local_path`: Path to local directory to upload from.
+- `to_path`: Path in S3 bucket to upload to. Defaults to block's configured
+basepath.
+- `ignore_file`: Path to file containing gitignore style expressions for
+filepaths to ignore.
+
+
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread_path(self, path: str) -> bytes
+```
+
+Asynchronously reads the contents of a specified path from the S3 bucket.
+Provide the entire path to the key in S3.
+
+**Args:**
+- `path`: Entire path to (and including) the key.
+
+
+#### `astream_from` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1785" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+astream_from(self, bucket: 'S3Bucket', from_path: str, to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Asynchronously streams an object from another bucket to this bucket. Requires the
+object to be downloaded and uploaded in chunks. If `self`'s credentials
+allow for writes to the other bucket, try using `S3Bucket.copy_object`.
+Added in version 0.5.3.
+
+**Args:**
+- `bucket`: The bucket to stream from.
+- `from_path`: The path of the object to stream.
+- `to_path`: The path to stream the object to. Defaults to the object's name.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Client.upload_fileobj`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Stream notes.txt from your-bucket/notes.txt to my-bucket/landed/notes.txt.
+
+```python
+from prefect_aws.s3 import S3Bucket
+
+your_s3_bucket = S3Bucket.load("your-bucket")
+my_s3_bucket = S3Bucket.load("my-bucket")
+
+await my_s3_bucket.astream_from(
+    your_s3_bucket,
+    "notes.txt",
+    to_path="landed/notes.txt"
+)
+```
+
+
+#### `aupload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2007" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupload_from_file_object(self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Asynchronously uploads an object to the S3 bucket from a file-like object,
+which can be a BytesIO object or a BufferedReader.
+
+**Args:**
+- `from_file_object`: The file-like object to upload from.
+- `to_path`: The path to upload the object to.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Client.upload_fileobj`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Upload BytesIO object to my_folder/notes.txt.
+```python
+from io import BytesIO
+
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+with open("notes.txt", "rb") as f:
+    await s3_bucket.aupload_from_file_object(f, "my_folder/notes.txt")
+```
+
+Upload BufferedReader object to my_folder/notes.txt.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+with open("notes.txt", "rb") as f:
+    s3_bucket.upload_from_file_object(
+        f, "my_folder/notes.txt"
+    )
+```
+
+
+#### `aupload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupload_from_folder(self, from_folder: Union[str, Path], to_folder: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> Union[str, None]
+```
+
+Asynchronously uploads files *within* a folder (excluding the folder itself)
+to the object storage service folder. Added in version prefect-aws==0.5.3.
+
+**Args:**
+- `from_folder`: The path to the folder to upload from.
+- `to_folder`: The path to upload the folder to.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Client.upload_fileobj`.
+
+**Returns:**
+- The path that the folder was uploaded to.
+
+**Examples:**
+
+Upload contents from my_folder to new_folder.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+await s3_bucket.aupload_from_folder("my_folder", "new_folder")
+```
+
+
+#### `aupload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1914" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupload_from_path(self, from_path: Union[str, Path], to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Asynchronously uploads an object from a path to the S3 bucket.
+Added in version 0.5.3.
+
+**Args:**
+- `from_path`: The path to the file to upload from.
+- `to_path`: The path to upload the file to.
+- `**upload_kwargs`: Additional keyword arguments to pass to `Client.upload`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Upload notes.txt to my_folder/notes.txt.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+await s3_bucket.aupload_from_path("notes.txt", "my_folder/notes.txt")
+```
+
+
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_path(self, path: str, content: bytes) -> str
+```
+
+Asynchronously writes to an S3 bucket.
+
+Args:
+
+    path: The key name. Each object in your bucket has a unique
+        key (or key name).
+    content: What you are uploading to S3.
+
+Example:
+
+    Write data to the path `dogs/small_dogs/havanese` in an S3 Bucket:
+    ```python
+    from prefect_aws import MinioCredentials
+    from prefect_aws.s3 import S3Bucket
+
+    minio_creds = MinIOCredentials(
+        minio_root_user = "minioadmin",
+        minio_root_password = "minioadmin",
+    )
+
+    s3_bucket_block = S3Bucket(
+        bucket_name="bucket",
+        minio_credentials=minio_creds,
+        bucket_folder="dogs/smalldogs",
+        endpoint_url="http://localhost:9000",
+    )
+    s3_havanese_path = await s3_bucket_block.awrite_path(path="havanese", content=data)
+    ```
+
+
+#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L878" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+basepath(self) -> str
+```
+
+The base path of the S3 bucket.
+
+**Returns:**
+- The base path of the S3 bucket.
+
+
+#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+basepath(self, value: str) -> None
+```
+
+#### `copy_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+copy_object(self, from_path: Union[str, Path], to_path: Union[str, Path], to_bucket: Optional[Union['S3Bucket', str]] = None, **copy_kwargs) -> str
+```
+
+Uses S3's internal
+[CopyObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html)
+to copy objects within or between buckets. To copy objects between buckets,
+`self`'s credentials must have permission to read the source object and write
+to the target object. If the credentials do not have those permissions, try
+using `S3Bucket.stream_from`.
+
+**Args:**
+- `from_path`: The path of the object to copy.
+- `to_path`: The path to copy the object to.
+- `to_bucket`: The bucket to copy to. Defaults to the current bucket.
+- `**copy_kwargs`: Additional keyword arguments to pass to
+`S3Client.copy_object`.
+
+**Returns:**
+- The path that the object was copied to. Excludes the bucket name.
+
+Examples:
+
+    Copy notes.txt from my_folder/notes.txt to my_folder/notes_copy.txt.
+
+    ```python
+    from prefect_aws.s3 import S3Bucket
+
+    s3_bucket = S3Bucket.load("my-bucket")
+    s3_bucket.copy_object("my_folder/notes.txt", "my_folder/notes_copy.txt")
+    ```
+
+    Copy notes.txt from my_folder/notes.txt to my_folder/notes_copy.txt in
+    another bucket.
+
+    ```python
+    from prefect_aws.s3 import S3Bucket
+
+    s3_bucket = S3Bucket.load("my-bucket")
+    s3_bucket.copy_object(
+        "my_folder/notes.txt",
+        "my_folder/notes_copy.txt",
+        to_bucket="other-bucket"
+    )
+    ```
+
+
+#### `download_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_folder_to_path(self, from_folder: str, to_folder: Optional[Union[str, Path]] = None, **download_kwargs: Dict[str, Any]) -> Path
+```
+
+Downloads objects *within* a folder (excluding the folder itself)
+from the S3 bucket to a folder.
+Changed in version 0.6.0.
+
+**Args:**
+- `from_folder`: The path to the folder to download from.
+- `to_folder`: The path to download the folder to.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Client.download_file`.
+
+**Returns:**
+- The absolute path that the folder was downloaded to.
+
+**Examples:**
+
+Download my_folder to a local folder named my_folder.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+s3_bucket.download_folder_to_path("my_folder", "my_folder")
+```
+
+
+#### `download_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_object_to_file_object(self, from_path: str, to_file_object: BinaryIO, **download_kwargs: Dict[str, Any]) -> BinaryIO
+```
+
+Downloads an object from the object storage service to a file-like object,
+which can be a BytesIO object or a BufferedWriter.
+
+**Args:**
+- `from_path`: The path to the object to download from; this gets prefixed
+with the bucket_folder.
+- `to_file_object`: The file-like object to download the object to.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Client.download_fileobj`.
+
+**Returns:**
+- The file-like object that the object was downloaded to.
+
+**Examples:**
+
+Download my_folder/notes.txt object to a BytesIO object.
+```python
+from io import BytesIO
+
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+with BytesIO() as buf:
+    s3_bucket.download_object_to_file_object("my_folder/notes.txt", buf)
+```
+
+Download my_folder/notes.txt object to a BufferedWriter.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+with open("notes.txt", "wb") as f:
+    s3_bucket.download_object_to_file_object("my_folder/notes.txt", f)
+```
+
+
+#### `download_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_object_to_path(self, from_path: str, to_path: Optional[Union[str, Path]], **download_kwargs: Dict[str, Any]) -> Path
+```
+
+Downloads an object from the S3 bucket to a path.
+
+**Args:**
+- `from_path`: The path to the object to download; this gets prefixed
+with the bucket_folder.
+- `to_path`: The path to download the object to. If not provided, the
+object's name will be used.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Client.download_file`.
+
+**Returns:**
+- The absolute path that the object was downloaded to.
+
+**Examples:**
+
+Download my_folder/notes.txt object to notes.txt.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+s3_bucket.download_object_to_path("my_folder/notes.txt", "notes.txt")
+```
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L968" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Copies a folder from the configured S3 bucket to a local directory.
+
+Defaults to copying the entire contents of the block's basepath to the current
+working directory.
+
+**Args:**
+- `from_path`: Path in S3 bucket to download from. Defaults to the block's
+configured basepath.
+- `local_path`: Local path to download S3 contents to. Defaults to the current
+working directory.
+
+
+#### `list_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_objects(self, folder: str = '', delimiter: str = '', page_size: Optional[int] = None, max_items: Optional[int] = None, jmespath_query: Optional[str] = None) -> List[Dict[str, Any]]
+```
+
+**Args:**
+- `folder`: Folder to list objects from.
+- `delimiter`: Character used to group keys of listed objects.
+- `page_size`: Number of objects to return in each request to the AWS API.
+- `max_items`: Maximum number of objects that to be returned by task.
+- `jmespath_query`: Query used to filter objects based on object attributes refer to
+the [boto3 docs](https\://boto3.amazonaws.com/v1/documentation/api/latest/guide/paginators.html#filtering-results-with-jmespath)
+for more information on how to construct queries.
+
+**Returns:**
+- List of objects and their metadata in the bucket.
+
+**Examples:**
+
+List objects under the `base_folder`.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+s3_bucket.list_objects("base_folder")
+```
+
+
+#### `move_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+move_object(self, from_path: Union[str, Path], to_path: Union[str, Path], to_bucket: Optional[Union['S3Bucket', str]] = None) -> str
+```
+
+Uses S3's internal CopyObject and DeleteObject to move objects within or
+between buckets. To move objects between buckets, `self`'s credentials must
+have permission to read and delete the source object and write to the target
+object. If the credentials do not have those permissions, this method will raise
+an error. If the credentials have permission to read the source object but not
+delete it, the object will be copied but not deleted.
+
+**Args:**
+- `from_path`: The path of the object to move.
+- `to_path`: The path to move the object to.
+- `to_bucket`: The bucket to move to. Defaults to the current bucket.
+
+**Returns:**
+- The path that the object was moved to. Excludes the bucket name.
+
+Examples:
+
+    Move notes.txt from my_folder/notes.txt to my_folder/notes_copy.txt.
+
+    ```python
+    from prefect_aws.s3 import S3Bucket
+
+    s3_bucket = S3Bucket.load("my-bucket")
+    s3_bucket.move_object("my_folder/notes.txt", "my_folder/notes_copy.txt")
+    ```
+
+    Move notes.txt from my_folder/notes.txt to my_folder/notes_copy.txt in
+    another bucket.
+
+    ```python
+    from prefect_aws.s3 import S3Bucket
+
+    s3_bucket = S3Bucket.load("my-bucket")
+    s3_bucket.move_object(
+        "my_folder/notes.txt",
+        "my_folder/notes_copy.txt",
+        to_bucket="other-bucket"
+    )
+    ```
+
+
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1059" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
+```
+
+Uploads a directory from a given local path to the configured S3 bucket in a
+given folder.
+
+Defaults to uploading the entire contents the current working directory to the
+block's basepath.
+
+**Args:**
+- `local_path`: Path to local directory to upload from.
+- `to_path`: Path in S3 bucket to upload to. Defaults to block's configured
+basepath.
+- `ignore_file`: Path to file containing gitignore style expressions for
+filepaths to ignore.
+
+
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_path(self, path: str) -> bytes
+```
+
+Read specified path from S3 and return contents. Provide the entire
+path to the key in S3.
+
+**Args:**
+- `path`: Entire path to (and including) the key.
+
+
+#### `stream_from` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1852" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stream_from(self, bucket: 'S3Bucket', from_path: str, to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Streams an object from another bucket to this bucket. Requires the
+object to be downloaded and uploaded in chunks. If `self`'s credentials
+allow for writes to the other bucket, try using `S3Bucket.copy_object`.
+
+**Args:**
+- `bucket`: The bucket to stream from.
+- `from_path`: The path of the object to stream.
+- `to_path`: The path to stream the object to. Defaults to the object's name.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Client.upload_fileobj`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Stream notes.txt from your-bucket/notes.txt to my-bucket/landed/notes.txt.
+
+```python
+from prefect_aws.s3 import S3Bucket
+
+your_s3_bucket = S3Bucket.load("your-bucket")
+my_s3_bucket = S3Bucket.load("my-bucket")
+
+my_s3_bucket.stream_from(
+    your_s3_bucket,
+    "notes.txt",
+    to_path="landed/notes.txt"
+)
+```
+
+
+#### `upload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2062" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_file_object(self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Uploads an object to the S3 bucket from a file-like object,
+which can be a BytesIO object or a BufferedReader.
+
+**Args:**
+- `from_file_object`: The file-like object to upload from.
+- `to_path`: The path to upload the object to.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Client.upload_fileobj`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Upload BytesIO object to my_folder/notes.txt.
+```python
+from io import BytesIO
+
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+with open("notes.txt", "rb") as f:
+    s3_bucket.upload_from_file_object(f, "my_folder/notes.txt")
+```
+
+Upload BufferedReader object to my_folder/notes.txt.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+with open("notes.txt", "rb") as f:
+    s3_bucket.upload_from_file_object(
+        f, "my_folder/notes.txt"
+    )
+```
+
+
+#### `upload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_folder(self, from_folder: Union[str, Path], to_folder: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> Union[str, None]
+```
+
+Uploads files *within* a folder (excluding the folder itself)
+to the object storage service folder.
+
+**Args:**
+- `from_folder`: The path to the folder to upload from.
+- `to_folder`: The path to upload the folder to.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Client.upload_fileobj`.
+
+**Returns:**
+- The path that the folder was uploaded to.
+
+**Examples:**
+
+Upload contents from my_folder to new_folder.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+s3_bucket.upload_from_folder("my_folder", "new_folder")
+```
+
+
+#### `upload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1962" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_path(self, from_path: Union[str, Path], to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Uploads an object from a path to the S3 bucket.
+
+**Args:**
+- `from_path`: The path to the file to upload from.
+- `to_path`: The path to upload the file to.
+- `**upload_kwargs`: Additional keyword arguments to pass to `Client.upload`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Upload notes.txt to my_folder/notes.txt.
+```python
+from prefect_aws.s3 import S3Bucket
+
+s3_bucket = S3Bucket.load("my-bucket")
+s3_bucket.upload_from_path("notes.txt", "my_folder/notes.txt")
+```
+
+
+#### `validate_credentials` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L841" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_credentials(cls, value, field)
+```
+
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+write_path(self, path: str, content: bytes) -> str
+```
+
+Writes to an S3 bucket.
+
+Args:
+
+    path: The key name. Each object in your bucket has a unique
+        key (or key name).
+    content: What you are uploading to S3.
+
+Example:
+
+    Write data to the path `dogs/small_dogs/havanese` in an S3 Bucket:
+    ```python
+    from prefect_aws import MinioCredentials
+    from prefect_aws.s3 import S3Bucket
+
+    minio_creds = MinIOCredentials(
+        minio_root_user = "minioadmin",
+        minio_root_password = "minioadmin",
+    )
+
+    s3_bucket_block = S3Bucket(
+        bucket_name="bucket",
+        minio_credentials=minio_creds,
+        bucket_folder="dogs/smalldogs",
+        endpoint_url="http://localhost:9000",
+    )
+    s3_havanese_path = s3_bucket_block.write_path(path="havanese", content=data)
+    ```
+

@@ -1,0 +1,232 @@
+---
+title: ecs_worker
+sidebarTitle: ecs_worker
+---
+
+# `prefect_aws.workers.ecs_worker`
+
+
+
+Prefect worker for executing flow runs as ECS tasks.
+
+Get started by creating a work pool:
+
+```
+$ prefect work-pool create --type ecs my-ecs-pool
+```
+
+Then, you can start a worker for the pool:
+
+```
+$ prefect worker start --pool my-ecs-pool
+```
+
+It's common to deploy the worker as an ECS task as well. However, you can run the worker
+locally to get started.
+
+The worker may work without any additional configuration, but it is dependent on your
+specific AWS setup and we'd recommend opening the work pool editor in the UI to see the
+available options.
+
+By default, the worker will register a task definition for each flow run and run a task
+in your default ECS cluster using AWS Fargate. Fargate requires tasks to configure
+subnets, which we will infer from your default VPC. If you do not have a default VPC,
+you must provide a VPC ID or manually setup the network configuration for your tasks.
+
+Note, the worker caches task definitions for each deployment to avoid excessive
+registration. The worker will check that the cached task definition is compatible with
+your configuration before using it.
+
+The launch type option can be used to run your tasks in different modes. For example,
+`FARGATE_SPOT` can be used to use spot instances for your Fargate tasks or `EC2` can be
+used to run your tasks on a cluster backed by EC2 instances.
+
+Generally, it is very useful to enable CloudWatch logging for your ECS tasks; this can
+help you debug task failures. To enable CloudWatch logging, you must provide an
+execution role ARN with permissions to create and write to log streams. See the
+`configure_cloudwatch_logs` field documentation for details.
+
+The worker can be configured to use an existing task definition by setting the task
+definition arn variable or by providing a "taskDefinition" in the task run request. When
+a task definition is provided, the worker will never create a new task definition which
+may result in variables that are templated into the task definition payload being
+ignored.
+
+
+## Functions
+
+### `parse_identifier` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+parse_identifier(identifier: str) -> ECSIdentifier
+```
+
+
+Splits identifier into its cluster and task components, e.g.
+input "cluster_name::task_arn" outputs ("cluster_name", "task_arn").
+
+
+### `mask_sensitive_env_values` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+mask_sensitive_env_values(task_run_request: dict, values: List[str], keep_length = 3, replace_with = '***')
+```
+
+### `mask_api_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+mask_api_key(task_run_request)
+```
+
+## Classes
+
+### `ECSIdentifier` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The identifier for a running ECS task.
+
+
+### `CapacityProvider` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The capacity provider strategy to use when running the task.
+
+
+### `ECSJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Job configuration for an ECS worker.
+
+
+**Methods:**
+
+#### `at_least_one_container_is_essential` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+at_least_one_container_is_essential(self) -> Self
+```
+
+Ensures that at least one container will be marked as essential
+in the task definition.
+
+
+#### `cloudwatch_logs_options_requires_configure_cloudwatch_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cloudwatch_logs_options_requires_configure_cloudwatch_logs(self) -> Self
+```
+
+Enforces that an execution role arn is provided (or could be provided by a
+runtime task definition) when configuring logging.
+
+
+#### `configure_cloudwatch_logs_requires_execution_role_arn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L425" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+configure_cloudwatch_logs_requires_execution_role_arn(self) -> Self
+```
+
+Enforces that an execution role arn is provided (or could be provided by a
+runtime task definition) when configuring logging.
+
+
+#### `container_name_default_from_task_definition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+container_name_default_from_task_definition(self) -> Self
+```
+
+Infers the container name from the task definition if not provided.
+
+
+#### `json_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L330" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+json_template(cls) -> dict[str, Any]
+```
+
+Returns a dict with job configuration as keys and the corresponding templates as values
+
+Defaults to using the job configuration parameter name as the template variable name.
+
+e.g.
+```python
+{
+    key1: '{{ key1 }}',     # default variable template
+    key2: '{{ template2 }}', # `template2` specifically provide as template
+}
+```
+
+
+#### `network_configuration_requires_vpc_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L463" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+network_configuration_requires_vpc_id(self) -> Self
+```
+
+Enforces a `vpc_id` is provided when custom network configuration mode is
+enabled for network settings.
+
+
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: 'DeploymentResponse | None' = None, flow: 'APIFlow | None' = None, work_pool: 'WorkPool | None' = None, worker_name: str | None = None, worker_id: 'UUID | None' = None) -> None
+```
+
+#### `task_run_request_requires_arn_if_no_task_definition_given` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+task_run_request_requires_arn_if_no_task_definition_given(self) -> Self
+```
+
+If no task definition is provided, a task definition ARN must be present on the
+task run request.
+
+
+### `ECSVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Variables for templating an ECS job.
+
+
+### `ECSWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L681" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The result of an ECS job.
+
+
+### `ECSWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A Prefect worker to run flow runs as ECS tasks.
+
+
+**Methods:**
+
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L1637" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+kill_infrastructure(self, infrastructure_pid: str, configuration: ECSJobConfiguration, grace_seconds: int = 30) -> None
+```
+
+Stop an ECS task.
+
+**Args:**
+- `infrastructure_pid`: The infrastructure identifier in format
+"cluster\:\:task_arn".
+- `configuration`: The job configuration used to connect to AWS.
+- `grace_seconds`: Not used for ECS (ECS handles graceful shutdown internally).
+
+**Raises:**
+- `InfrastructureNotFound`: If the task doesn't exist.
+
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/workers/ecs_worker.py#L725" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, flow_run: 'FlowRun', configuration: ECSJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None) -> ECSWorkerResult
+```
+
+Runs a given flow run on the current worker.
+
