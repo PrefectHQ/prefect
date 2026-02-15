@@ -1,10 +1,11 @@
+---
 name: null
 prefect-version: null
 description: "Store code on a local filesystem"
 
 build: null
 push: null
-pull: 
+pull:
   - prefect.deployments.steps.set_working_directory:
       directory: "{{ directory }}"
 

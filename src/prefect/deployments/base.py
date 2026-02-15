@@ -53,9 +53,11 @@ def create_default_prefect_yaml(
     with prefect_file.open(mode="w") as f:
         # write header
         f.write(
-            "# Welcome to your prefect.yaml file! You can use this file for storing and"
-            " managing\n# configuration for deploying your flows. We recommend"
-            " committing this file to source\n# control along with your flow code.\n\n"
+            "---\n"
+            "# Welcome to your prefect.yaml file! You can use this file for\n"
+            "# storing and managing configuration for deploying your flows.\n"
+            "# We recommend committing this file to source control along\n"
+            "# with your flow code.\n\n"
         )
 
         f.write("# Generic metadata about this project\n")
@@ -74,8 +76,8 @@ def create_default_prefect_yaml(
 
         # push
         f.write(
-            "# push section allows you to manage if and how this project is uploaded to"
-            " remote locations\n"
+            "# push section allows you to manage if and how this project\n"
+            "# is uploaded to remote locations\n"
         )
         yaml.dump(
             {"push": contents.get("push", default_contents.get("push"))},
@@ -86,8 +88,8 @@ def create_default_prefect_yaml(
 
         # pull
         f.write(
-            "# pull section allows you to provide instructions for cloning this project"
-            " in remote locations\n"
+            "# pull section allows you to provide instructions for cloning\n"
+            "# this project in remote locations\n"
         )
         yaml.dump(
             {"pull": contents.get("pull", default_contents.get("pull"))},
@@ -98,8 +100,8 @@ def create_default_prefect_yaml(
 
         # deployments
         f.write(
-            "# the deployments section allows you to provide configuration for"
-            " deploying flows\n"
+            "# the deployments section allows you to provide configuration\n"
+            "# for deploying flows\n"
         )
         yaml.dump(
             {
