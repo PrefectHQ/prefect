@@ -1,0 +1,248 @@
+---
+title: Customizing Base Job Templates
+description: Learn how to customize Kubernetes base job templates for work pools
+---
+
+This guide provides comprehensive examples for customizing the Kubernetes base job template. These examples demonstrate common configuration patterns for environment variables, secrets, resource limits, and image pull secrets.
+
+## Understanding the Base Job Template Structure
+
+The base job template uses a two-part structure:
+
+1. **variables**: Define configurable parameters with defaults and descriptions
+2. **job_configuration**: Reference variables using `{{ variable_name }}` syntax to apply them to the Kubernetes job manifest
+
+<Warning>
+Variables defined in the `variables` section must be explicitly referenced in `job_configuration` using `{{ variable_name }}` syntax to take effect. If you customize the template and remove a variable reference from `job_configuration`, that variable's value will not be passed to the worker, even if it's defined in `variables`.
+</Warning>
+
+## Accessing the Base Job Template
+
+You can customize the base job template in two ways:
+
+1. **Through the UI**: Navigate to your work pool → **Advanced** tab → Edit the JSON representation
+2. **Through the CLI**: Get the default template to use as a starting point:
+```bash
+prefect work-pool get-default-base-job-template --type kubernetes
+```
+
+## Common Configuration Patterns
+
+### Environment Variables
+
+Configure environment variables to pass configuration to your flow runs:
+```json
+{
+  "variables": {
+    "env": {
+      "title": "Environment Variables",
+      "description": "Environment variables to set in the container",
+      "default": {},
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    }
+  },
+  "job_configuration": {
+    "job_manifest": {
+      "spec": {
+        "template": {
+          "spec": {
+            "containers": [
+              {
+                "name": "prefect-job",
+                "env": "{{ env }}"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Secret References
+
+Reference Kubernetes secrets to inject sensitive data:
+```json
+{
+  "variables": {
+    "secret_name": {
+      "title": "Secret Name",
+      "description": "Name of the Kubernetes secret containing credentials",
+      "default": null,
+      "type": "string"
+    }
+  },
+  "job_configuration": {
+    "job_manifest": {
+      "spec": {
+        "template": {
+          "spec": {
+            "containers": [
+              {
+                "name": "prefect-job",
+                "envFrom": [
+                  {
+                    "secretRef": {
+                      "name": "{{ secret_name }}"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Image Pull Secrets
+
+Configure authentication for private container registries:
+```json
+{
+  "variables": {
+    "image_pull_secrets": {
+      "title": "Image Pull Secrets",
+      "description": "Names of Kubernetes secrets for pulling images from private registries",
+      "default": [],
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  },
+  "job_configuration": {
+    "job_manifest": {
+      "spec": {
+        "template": {
+          "spec": {
+            "imagePullSecrets": "{{ image_pull_secrets }}"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Resource Limits and Requests
+
+Set CPU and memory resource constraints:
+```json
+{
+  "variables": {
+    "cpu_request": {
+      "title": "CPU Request",
+      "description": "CPU allocation to request for this pod",
+      "default": "100m",
+      "type": "string"
+    },
+    "cpu_limit": {
+      "title": "CPU Limit",
+      "description": "Maximum CPU allocation for this pod",
+      "default": "1000m",
+      "type": "string"
+    },
+    "memory_request": {
+      "title": "Memory Request",
+      "description": "Memory allocation to request for this pod",
+      "default": "256Mi",
+      "type": "string"
+    },
+    "memory_limit": {
+      "title": "Memory Limit",
+      "description": "Maximum memory allocation for this pod",
+      "default": "1Gi",
+      "type": "string"
+    }
+  },
+  "job_configuration": {
+    "job_manifest": {
+      "spec": {
+        "template": {
+          "spec": {
+            "containers": [
+              {
+                "name": "prefect-job",
+                "resources": {
+                  "requests": {
+                    "cpu": "{{ cpu_request }}",
+                    "memory": "{{ memory_request }}"
+                  },
+                  "limits": {
+                    "cpu": "{{ cpu_limit }}",
+                    "memory": "{{ memory_limit }}"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## Combining Multiple Configurations
+
+<Note>
+These examples show individual configurations. In practice, you'll combine multiple configurations in a single base job template. Remember that any modifications replace the entire default configuration, so include all necessary fields when customizing.
+</Note>
+
+When combining configurations, merge the `variables` and `job_configuration` sections. For example, to combine environment variables with resource limits:
+```json
+{
+  "variables": {
+    "env": {
+      "title": "Environment Variables",
+      "description": "Environment variables to set in the container",
+      "default": {},
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    },
+    "cpu_request": {
+      "title": "CPU Request",
+      "description": "CPU allocation to request for this pod",
+      "default": "100m",
+      "type": "string"
+    },
+    "memory_request": {
+      "title": "Memory Request",
+      "description": "Memory allocation to request for this pod",
+      "default": "256Mi",
+      "type": "string"
+    }
+  },
+  "job_configuration": {
+    "job_manifest": {
+      "spec": {
+        "template": {
+          "spec": {
+            "containers": [
+              {
+                "name": "prefect-job",
+                "env": "{{ env }}",
+                "resources": {
+                  "requests": {
+                    "cpu": "{{ cpu_request }}",
+                    "memory": "{{ memory_request }}"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## Next Steps
+
+- Learn more about [Kubernetes work pools](/v3/deploy/infrastructure-concepts/work-pools/)
+- See [how to run flows on Kubernetes](/v3/how-to-guides/deployment_infra/kubernetes/)
+- Explore [overriding job variables](/v3/deploy/infrastructure-concepts/customize/)
