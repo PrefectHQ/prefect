@@ -29,14 +29,13 @@ If you already have one, skip ahead to the next section.
     Node pools can be backed by either EC2 instances or FARGATE.
     Choose FARGATE so there's less to manage.
     The following command takes around 15 minutes and must not be interrupted:
-
-    ```bash
+```bash
     # Replace the cluster name with your own value
     eksctl create cluster --fargate --name <CLUSTER-NAME>
 
     # Authenticate to the cluster.
     aws eks update-kubeconfig --name <CLUSTER-NAME>
-    ```
+```
   </Tab>
   <Tab title="GCP">
 
@@ -47,8 +46,7 @@ If you already have one, skip ahead to the next section.
     To deploy the cluster, your project must have a VPC network configured.
 
     First, authenticate to GCP by setting the following configuration options:
-
-    ```bash
+```bash
     # Authenticate to gcloud
     gcloud auth login
 
@@ -56,12 +54,11 @@ If you already have one, skip ahead to the next section.
     # Replace the project name with your GCP project name
     gcloud config set project <GCP-PROJECT-NAME>
     gcloud config set compute/zone <AVAILABILITY-ZONE>
-    ```
+```
 
     Next, deploy the cluster. This command takes ~15 minutes to complete.
     Once the cluster has been created, authenticate to the cluster.
-
-    ```bash
+```bash
     # Create cluster
     # Replace the cluster name with your own value
     gcloud container clusters create <CLUSTER-NAME> --num-nodes=1 \
@@ -69,17 +66,15 @@ If you already have one, skip ahead to the next section.
 
     # Authenticate to the cluster
     gcloud container clusters <CLUSTER-NAME> --region <AVAILABILITY-ZONE>
-    ```
+```
 
 <Warning>
 **GCP potential errors**
-
 ```
 ERROR: (gcloud.container.clusters.create) ResponseError: code=400, message=Service account "000000000000-compute@developer.gserviceaccount.com" is disabled.
 ```
 - You must enable the default service account in the IAM console, or
 specify a different service account with the appropriate permissions.
-
 ```
 creation failed: Constraint constraints/compute.vmExternalIpAccess violated for project 000000000000. Add instance projects/<GCP-PROJECT-NAME>/zones/us-east1-b/instances/gke-gke-guide-1-default-pool-c369c84d-wcfl to the constraint to use external IP with it."
 ```
@@ -97,15 +92,13 @@ page within IAM.
     or use the Cloud Shell directly from the Azure portal [shell.azure.com](https://shell.azure.com).
 
     First, authenticate to Azure if not already done.
-
-    ```bash
+```bash
       az login
-    ```
+```
 
     Next, deploy the cluster - this command takes ~4 minutes to complete.
     Once the cluster is created, authenticate to the cluster.
-
-    ```bash
+```bash
 
       # Create a Resource Group at the desired location, e.g. westus
       az group create --name <RESOURCE-GROUP-NAME> --location <LOCATION>
@@ -118,7 +111,7 @@ page within IAM.
 
       # Verify the connection by listing the cluster nodes
       kubectl get nodes
-    ```
+```
   </Tab>
 </Tabs>
 
@@ -134,8 +127,7 @@ If you already have a registry, skip ahead to the next section.
 
     Create a registry using the AWS CLI and authenticate the docker daemon to
     that registry:
-
-    ```bash
+```bash
     # Replace the image name with your own value
     aws ecr create-repository --repository-name <IMAGE-NAME>
 
@@ -143,13 +135,12 @@ If you already have a registry, skip ahead to the next section.
     # Replace the region and account ID with your own values
     aws ecr get-login-password --region <REGION> | docker login \
       --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
-    ```
+```
   </Tab>
   <Tab title="GCP">
     Create a registry using the gcloud CLI and authenticate the docker daemon to
     that registry:
-
-    ```bash
+```bash
     # Create artifact registry repository to host your custom image
     # Replace the repository name with your own value; it can be the
     # same name as your image
@@ -158,13 +149,12 @@ If you already have a registry, skip ahead to the next section.
 
     # Authenticate to artifact registry
     gcloud auth configure-docker us-docker.pkg.dev
-    ```
+```
   </Tab>
 <Tab title="Azure">
     Create a registry using the Azure CLI and authenticate the docker daemon to
     that registry:
-
-    ```bash
+```bash
     # Name must be a lower-case alphanumeric
     # Tier SKU can easily be updated later, e.g. az acr update --name <REPOSITORY-NAME> --sku Standard
     az acr create --resource-group <RESOURCE-GROUP-NAME> \
@@ -177,8 +167,7 @@ If you already have a registry, skip ahead to the next section.
 
     # You can verify AKS can now reach ACR
     az aks check-acr --resource-group RESOURCE-GROUP-NAME> --name <CLUSTER-NAME> --acr <REPOSITORY-NAME>.azurecr.io
-
-    ```
+```
   </Tab>
 </Tabs>
 
@@ -278,19 +267,17 @@ executing the flow runs.
     </Warning>
 
     For example, to set a CPU request, add the following section under variables:
-
-    ```json
+```json
     "cpu_request": {
       "title": "CPU Request",
       "description": "The CPU allocation to request for this pod.",
       "default": "default",
       "type": "string"
     },
-    ```
+```
 
     Next add the following to the first `containers` item under `job_configuration`:
-
-    ```json
+```json
     ...
     "containers": [
       {
@@ -303,7 +290,7 @@ executing the flow runs.
       }
     ],
     ...
-    ```
+```
 
     Running deployments with this work pool will request the specified CPU.
 </Note>
@@ -313,6 +300,8 @@ After configuring the work pool settings, move to the next screen.
 Give the work pool a name and save.
 
 Your new Kubernetes work pool should appear in the list of work pools.
+
+For comprehensive examples of customizing the base job template, see [Customizing Base Job Templates](/v3/advanced/customize-base-job-templates).
 
 ## Create a Prefect Cloud API key
 
@@ -336,7 +325,6 @@ The recommended method for deploying a worker is with the [Prefect Helm Chart](h
 ### Add the Prefect Helm repository
 
 Add the Prefect Helm repository to your Helm client:
-
 ```bash
 helm repo add prefect https://prefecthq.github.io/prefect-helm
 helm repo update
@@ -345,13 +333,11 @@ helm repo update
 ### Create a namespace
 
 Create a new namespace in your Kubernetes cluster to deploy the Prefect worker:
-
 ```bash
 kubectl create namespace prefect
 ```
 
 ### Create a Kubernetes secret for the Prefect API key
-
 ```bash
 kubectl create secret generic prefect-api-key \
 --namespace=prefect --from-literal=key=your-prefect-cloud-api-key
@@ -361,7 +347,6 @@ kubectl create secret generic prefect-api-key \
 
 Create a `values.yaml` file to customize the Prefect worker configuration.
 Add the following contents to the file:
-
 ```yaml
 worker:
   cloudApiConfig:
@@ -380,7 +365,6 @@ For example: \<https://app.prefect.cloud/account/abc-my-account-id-is-here/works
 ### Create a Helm release
 
 Install the Prefect worker using the Helm chart with your custom `values.yaml` file:
-
 ```bash
 helm install prefect-worker prefect/prefect-worker \
   --namespace=prefect \
@@ -390,7 +374,6 @@ helm install prefect-worker prefect/prefect-worker \
 ### Verify deployment
 
 Check the status of your Prefect worker deployment:
-
 ```bash
 kubectl get pods -n prefect
 ```
@@ -399,7 +382,6 @@ kubectl get pods -n prefect
 
 Start simple with a flow that just logs a message.
 In a directory named `flows`, create a file named `hello.py` with the following contents:
-
 ```python
 from prefect import flow, tags
 from prefect.logging import get_run_logger
@@ -433,7 +415,6 @@ The [`prefect.yaml`](/v3/deploy/infrastructure-concepts/prefect-yaml/#managing-d
 by the `prefect deploy` command to deploy your flows.
 As a part of that process it also builds and pushes your image.
 Create a new file named `prefect.yaml` with the following contents:
-
 ```yaml
 # Generic metadata about this project
 name: flows
@@ -507,7 +488,6 @@ but run on cloud provider instances.
 </Note>
 
 Define your requirements in a `requirements.txt` file:
-
 ```
 prefect>=3.0.0
 prefect-docker>=0.4.0
@@ -515,7 +495,6 @@ prefect-kubernetes>=0.3.1
 ```
 
 The directory should now look something like this:
-
 ```
 .
 ├── prefect.yaml
@@ -533,7 +512,6 @@ an option with the Python deployment creation method.
 
 Use the `run_shell_script` command to grab the SHA and pass it to the `tag`
 parameter of `build_docker_image`:
-
 ```yaml
 build:
 - prefect.deployments.steps.run_shell_script:
@@ -550,7 +528,6 @@ build:
 ```
 
 Set the SHA as a tag for easy identification in the UI:
-
 ```yaml
 definitions:
   tags: &common_tags
@@ -568,7 +545,6 @@ Before deploying the flows to Prefect, you need to authenticate through the Pref
 You also need to ensure that all of your flow's dependencies are present at `deploy` time.
 
 This example uses a virtual environment to ensure consistency across environments.
-
 ```bash
 # Create a virtualenv & activate it
 virtualenv prefect-demo
@@ -591,22 +567,19 @@ You have configured our `prefect.yaml` file to get the image name from the
 
 <Tabs>
   <Tab title="AWS">
-
-    ```bash
+```bash
     export PREFECT_IMAGE_NAME=<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<IMAGE-NAME>
-    ```
+```
   </Tab>
   <Tab title="GCP">
-
-    ```bash
+```bash
     export PREFECT_IMAGE_NAME=us-docker.pkg.dev/<GCP-PROJECT-NAME>/<REPOSITORY-NAME>/<IMAGE-NAME>
-    ```
+```
   </Tab>
 <Tab title="Azure">
-
-    ```bash
+```bash
     export PREFECT_IMAGE_NAME=<REPOSITORY-NAME>.azurecr.io/<IMAGE-NAME>
-    ```
+```
   </Tab>
 </Tabs>
 
@@ -617,7 +590,6 @@ flows with `prefect deploy --all` or deploy them individually by name: `prefect 
 ## Run the flows
 
 Once the deployments are successfully created, you can run them from the UI or the CLI:
-
 ```bash
 prefect deployment run hello/default
 prefect deployment run hello/arthur
