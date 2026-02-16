@@ -59,7 +59,9 @@ test.describe("Deployment Detail Page", () => {
 
 		await expect(page.getByText(depName)).toBeVisible({ timeout: 10000 });
 
-		await expect(page.getByRole("link", { name: "Deployments" })).toBeVisible();
+		await expect(
+			page.getByLabel("breadcrumb").getByRole("link", { name: "Deployments" }),
+		).toBeVisible();
 
 		await expect(page.getByText(flowName)).toBeVisible({ timeout: 10000 });
 
@@ -145,7 +147,9 @@ test.describe("Deployment Detail Page", () => {
 
 		await page.goto(`/deployments/deployment/${deployment.id}/edit`);
 
-		await expect(page.getByText("Edit")).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText("Edit", { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
 
 		const form = page.locator("form");
 
@@ -174,7 +178,9 @@ test.describe("Deployment Detail Page", () => {
 
 		await page.goto(`/deployments/deployment/${deployment.id}/duplicate`);
 
-		await expect(page.getByText("Duplicate")).toBeVisible({ timeout: 10000 });
+		await expect(page.getByText("Duplicate", { exact: true })).toBeVisible({
+			timeout: 10000,
+		});
 
 		const form = page.locator("form");
 
