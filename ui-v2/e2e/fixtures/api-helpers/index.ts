@@ -28,7 +28,13 @@ export {
 	listTaskRunConcurrencyLimits,
 	type TaskRunConcurrencyLimit,
 } from "./concurrency-limits";
-export { createDeployment, type Deployment } from "./deployments";
+export {
+	cleanupDeployments,
+	createDeployment,
+	type Deployment,
+	deleteDeployment,
+	listDeployments,
+} from "./deployments";
 export {
 	cleanupFlowRuns,
 	createFlowRun,
