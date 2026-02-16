@@ -85,7 +85,9 @@ test.describe("Deployments List Page", () => {
 		await page.getByPlaceholder("Search deployments").fill(depName);
 
 		await expect(page).toHaveURL(/flowOrDeploymentName=/);
-		await expect(page.getByText(depName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole("link", { name: depName })).toBeVisible({
+			timeout: 10000,
+		});
 	});
 
 	test("Tag filter", async ({ page, apiClient }) => {
@@ -111,7 +113,7 @@ test.describe("Deployments List Page", () => {
 		await page.keyboard.press("Enter");
 
 		await expect(page).toHaveURL(/tags=/);
-		await expect(page.getByText(depName)).toBeVisible({
+		await expect(page.getByRole("link", { name: depName })).toBeVisible({
 			timeout: 10000,
 		});
 	});
