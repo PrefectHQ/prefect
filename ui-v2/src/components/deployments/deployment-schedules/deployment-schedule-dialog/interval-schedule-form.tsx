@@ -133,7 +133,9 @@ export const IntervalScheduleForm = ({
 			const { active, schedule } = scheduleToEdit;
 			if ("interval" in schedule) {
 				const { interval, anchor_date, timezone } = schedule;
-				const { interval_value, interval_time } = parseIntervalToTime(interval);
+				const { interval_value, interval_time } = parseIntervalToTime(
+					Number(interval),
+				);
 				form.reset({
 					active,
 					schedule: {

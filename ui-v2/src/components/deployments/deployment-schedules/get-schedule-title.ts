@@ -6,7 +6,7 @@ import type { DeploymentSchedule } from "@/api/deployments";
 export const getScheduleTitle = (deploymentSchedule: DeploymentSchedule) => {
 	const { schedule } = deploymentSchedule;
 	if ("interval" in schedule) {
-		return `Every ${humanizeDuration(schedule.interval * 1_000)}`;
+		return `Every ${humanizeDuration(Number(schedule.interval) * 1_000)}`;
 	}
 	if ("cron" in schedule) {
 		return cronstrue.toString(schedule.cron);

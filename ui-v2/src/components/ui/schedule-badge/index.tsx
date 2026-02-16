@@ -97,7 +97,7 @@ const IntervalScheduleBadge = ({
 	active: boolean;
 	schedule: IntervalSchedule;
 }) => {
-	const scheduleText = `Every ${humanizeDuration(schedule.interval * 1000)}`;
+	const scheduleText = `Every ${humanizeDuration(Number(schedule.interval) * 1000)}`;
 	let detailedScheduleText = `${active ? "" : "(Paused)"} ${scheduleText}`;
 	if (schedule.anchor_date) {
 		detailedScheduleText += ` using ${format(
