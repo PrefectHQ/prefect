@@ -29,7 +29,7 @@ export async function fetchFlowRunGraph(id: string): Promise<RunGraphData> {
 		throw new Error("No data returned from API");
 	}
 
-	return mapApiResponseToRunGraphData(data);
+	return mapApiResponseToRunGraphData(data as GraphResponse);
 }
 
 /**
