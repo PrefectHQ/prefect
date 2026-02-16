@@ -757,6 +757,16 @@ def test_resolve_path(s3_bucket):
     assert s3_bucket._resolve_path("") == ""
 
 
+def test_resolve_path_no_double_prefix(s3_bucket):
+    """When path already contains bucket_folder, _resolve_path should not duplicate it."""
+    s3_bucket.bucket_folder = "prefect-flow-template-dev/prefect-3"
+    # Simple key - should get prefix
+    assert s3_bucket._resolve_path("abc123") == "prefect-flow-template-dev/prefect-3/abc123"
+    # Already-prefixed path - should NOT get duplicated
+    already_prefixed = "prefect-flow-template-dev/prefect-3/task_cache_key"
+    assert s3_bucket._resolve_path(already_prefixed) == already_prefixed
+
+
 class TestS3Bucket:
     @pytest.fixture(
         params=[
