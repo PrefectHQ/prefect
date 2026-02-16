@@ -36,7 +36,14 @@ test.describe("Variables Page", () => {
 	test.describe("Empty State", () => {
 		test("should show empty state when no variables exist", async ({
 			page,
+			apiClient,
 		}) => {
+			const variables = await listVariables(apiClient);
+			test.skip(
+				variables.length > 0,
+				"Skipping empty state test because variables already exist",
+			);
+
 			await page.goto("/variables");
 
 			await expect(
