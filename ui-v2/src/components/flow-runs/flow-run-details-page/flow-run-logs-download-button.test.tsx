@@ -30,9 +30,7 @@ describe("FlowRunLogsDownloadButton", () => {
 		server.use(
 			http.get(buildApiUrl("/flow_runs/:id/logs/download"), () => {
 				return new HttpResponse(
-					new Blob(["timestamp,level,message\n2024-01-01,INFO,Test log"], {
-						type: "text/csv",
-					}),
+					"timestamp,level,message\n2024-01-01,INFO,Test log",
 					{
 						headers: { "Content-Type": "text/csv" },
 					},
