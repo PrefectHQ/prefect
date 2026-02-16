@@ -13,7 +13,7 @@ compatible services.
 
 ## Functions
 
-### `push_to_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/deployments/steps.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `push_to_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/deployments/steps.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 push_to_s3(bucket: str, folder: str, credentials: Optional[dict[str, Any]] = None, client_parameters: Optional[dict[str, Any]] = None, ignore_file: Optional[str] = '.prefectignore') -> PushToS3Output
@@ -58,7 +58,7 @@ push:
 ```
 
 
-### `pull_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/deployments/steps.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pull_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/deployments/steps.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_from_s3(bucket: str, folder: str, credentials: Optional[dict[str, Any]] = None, client_parameters: Optional[dict[str, Any]] = None) -> PullFromS3Output
@@ -104,13 +104,13 @@ pull:
 
 ## Classes
 
-### `PushToS3Output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/deployments/steps.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PushToS3Output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/deployments/steps.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The output of the `push_to_s3` step.
 
 
-### `PullFromS3Output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/deployments/steps.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PullFromS3Output` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/deployments/steps.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The output of the `pull_from_s3` step.

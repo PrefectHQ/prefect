@@ -15,6 +15,10 @@ api-ref:
         --all \
         --root-module prefect_aws \
         --output-dir docs/integrations/prefect-aws/api-ref \
-        --anchor-name "prefect-aws SDK Reference" \
+        --anchor-name "SDK Reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance
+    # Fix source links: mdxify resolves to prefect_aws/ but the actual repo
+    # path is src/integrations/prefect-aws/prefect_aws/
+    find docs/integrations/prefect-aws/api-ref -name '*.mdx' -exec \
+        sed -i 's|/blob/main/prefect_aws/|/blob/main/src/integrations/prefect-aws/prefect_aws/|g' {} +

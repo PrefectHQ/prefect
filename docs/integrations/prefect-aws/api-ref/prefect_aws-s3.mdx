@@ -10,7 +10,7 @@ Tasks for interacting with AWS S3
 
 ## Functions
 
-### `get_s3_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_s3_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_s3_client(credentials: Optional[dict[str, Any]] = None, client_parameters: Optional[dict[str, Any]] = None) -> dict[str, Any]
@@ -28,7 +28,7 @@ initialization.
 - A boto3 S3 client.
 
 
-### `adownload_from_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `adownload_from_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adownload_from_bucket(bucket: str, key: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters()) -> bytes
@@ -51,7 +51,7 @@ when creating the task.
 - A `bytes` representation of the downloaded object.
 
 
-### `download_from_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `download_from_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 download_from_bucket(bucket: str, key: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters()) -> bytes
@@ -72,7 +72,7 @@ when creating the task.
 - A `bytes` representation of the downloaded object.
 
 
-### `aupload_to_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aupload_to_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aupload_to_bucket(data: bytes, bucket: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters(), key: Optional[str] = None) -> str
@@ -95,7 +95,7 @@ supplied when creating the task.
 - The key of the uploaded object
 
 
-### `upload_to_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `upload_to_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upload_to_bucket(data: bytes, bucket: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters(), key: Optional[str] = None) -> str
@@ -116,7 +116,7 @@ supplied when creating the task.
 - The key of the uploaded object
 
 
-### `acopy_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `acopy_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acopy_objects(source_path: str, target_path: str, source_bucket_name: str, aws_credentials: AwsCredentials, target_bucket_name: Optional[str] = None, **copy_kwargs) -> str
@@ -192,7 +192,7 @@ Examples:
     ```
 
 
-### `copy_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L426" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `copy_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L426" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 copy_objects(source_path: str, target_path: str, source_bucket_name: str, aws_credentials: AwsCredentials, target_bucket_name: Optional[str] = None, **copy_kwargs) -> str
@@ -266,7 +266,7 @@ Examples:
     ```
 
 
-### `amove_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `amove_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 amove_objects(source_path: str, target_path: str, source_bucket_name: str, aws_credentials: AwsCredentials, target_bucket_name: Optional[str] = None) -> str
@@ -293,7 +293,7 @@ to `source_bucket`.
 - The path that the object was moved to. Excludes the bucket name.
 
 
-### `move_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `move_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L589" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 move_objects(source_path: str, target_path: str, source_bucket_name: str, aws_credentials: AwsCredentials, target_bucket_name: Optional[str] = None) -> str
@@ -318,7 +318,7 @@ to `source_bucket`.
 - The path that the object was moved to. Excludes the bucket name.
 
 
-### `alist_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `alist_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 alist_objects(bucket: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters(), prefix: str = '', delimiter: str = '', page_size: Optional[int] = None, max_items: Optional[int] = None, jmespath_query: Optional[str] = None) -> List[Dict[str, Any]]
@@ -347,7 +347,7 @@ for more information on how to construct queries.
 to the boto3 docs for an example response.
 
 
-### `list_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L735" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L735" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 list_objects(bucket: str, aws_credentials: AwsCredentials, aws_client_parameters: AwsClientParameters = AwsClientParameters(), prefix: str = '', delimiter: str = '', page_size: Optional[int] = None, max_items: Optional[int] = None, jmespath_query: Optional[str] = None) -> List[Dict[str, Any]]
@@ -376,7 +376,7 @@ to the boto3 docs for an example response.
 
 ## Classes
 
-### `S3Bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L810" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `S3Bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L810" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Block used to store data using AWS S3 or S3-compatible object storage like MinIO.
@@ -390,7 +390,7 @@ for reading and writing objects.
 
 **Methods:**
 
-#### `adownload_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1651" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adownload_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1651" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adownload_folder_to_path(self, from_folder: str, to_folder: Optional[Union[str, Path]] = None, **download_kwargs: Dict[str, Any]) -> Path
@@ -419,7 +419,7 @@ await s3_bucket.adownload_folder_to_path("my_folder", "my_folder")
 ```
 
 
-#### `adownload_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adownload_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adownload_object_to_file_object(self, from_path: str, to_file_object: BinaryIO, **download_kwargs: Dict[str, Any]) -> BinaryIO
@@ -461,7 +461,7 @@ with open("notes.txt", "wb") as f:
 ```
 
 
-#### `adownload_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adownload_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adownload_object_to_path(self, from_path: str, to_path: Optional[Union[str, Path]], **download_kwargs: Dict[str, Any]) -> Path
@@ -491,7 +491,7 @@ await s3_bucket.adownload_object_to_path("my_folder/notes.txt", "notes.txt")
 ```
 
 
-#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L931" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L931" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -509,7 +509,7 @@ configured basepath.
 working directory.
 
 
-#### `alist_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `alist_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 alist_objects(self, folder: str = '', delimiter: str = '', page_size: Optional[int] = None, max_items: Optional[int] = None, jmespath_query: Optional[str] = None) -> List[Dict[str, Any]]
@@ -540,7 +540,7 @@ await s3_bucket.alist_objects("base_folder")
 ```
 
 
-#### `amove_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `amove_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L2373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 amove_object(self, from_path: Union[str, Path], to_path: Union[str, Path], to_bucket: Optional[Union['S3Bucket', str]] = None) -> str
@@ -587,7 +587,7 @@ Examples:
     ```
 
 
-#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1004" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1004" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
@@ -607,7 +607,7 @@ basepath.
 filepaths to ignore.
 
 
-#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aread_path(self, path: str) -> bytes
@@ -620,7 +620,7 @@ Provide the entire path to the key in S3.
 - `path`: Entire path to (and including) the key.
 
 
-#### `astream_from` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1785" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `astream_from` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1785" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 astream_from(self, bucket: 'S3Bucket', from_path: str, to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
@@ -659,7 +659,7 @@ await my_s3_bucket.astream_from(
 ```
 
 
-#### `aupload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2007" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aupload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L2007" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aupload_from_file_object(self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]) -> str
@@ -702,7 +702,7 @@ with open("notes.txt", "rb") as f:
 ```
 
 
-#### `aupload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aupload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L2115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aupload_from_folder(self, from_folder: Union[str, Path], to_folder: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> Union[str, None]
@@ -731,7 +731,7 @@ await s3_bucket.aupload_from_folder("my_folder", "new_folder")
 ```
 
 
-#### `aupload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1914" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aupload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1914" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aupload_from_path(self, from_path: Union[str, Path], to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
@@ -759,7 +759,7 @@ await s3_bucket.aupload_from_path("notes.txt", "my_folder/notes.txt")
 ```
 
 
-#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_path(self, path: str, content: bytes) -> str
@@ -795,7 +795,7 @@ Example:
     ```
 
 
-#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L878" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L878" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 basepath(self) -> str
@@ -807,13 +807,13 @@ The base path of the S3 bucket.
 - The base path of the S3 bucket.
 
 
-#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 basepath(self, value: str) -> None
 ```
 
-#### `copy_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `copy_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L2251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 copy_object(self, from_path: Union[str, Path], to_path: Union[str, Path], to_bucket: Optional[Union['S3Bucket', str]] = None, **copy_kwargs) -> str
@@ -862,7 +862,7 @@ Examples:
     ```
 
 
-#### `download_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `download_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 download_folder_to_path(self, from_folder: str, to_folder: Optional[Union[str, Path]] = None, **download_kwargs: Dict[str, Any]) -> Path
@@ -892,7 +892,7 @@ s3_bucket.download_folder_to_path("my_folder", "my_folder")
 ```
 
 
-#### `download_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `download_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 download_object_to_file_object(self, from_path: str, to_file_object: BinaryIO, **download_kwargs: Dict[str, Any]) -> BinaryIO
@@ -934,7 +934,7 @@ with open("notes.txt", "wb") as f:
 ```
 
 
-#### `download_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `download_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 download_object_to_path(self, from_path: str, to_path: Optional[Union[str, Path]], **download_kwargs: Dict[str, Any]) -> Path
@@ -964,7 +964,7 @@ s3_bucket.download_object_to_path("my_folder/notes.txt", "notes.txt")
 ```
 
 
-#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L968" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L968" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -982,7 +982,7 @@ configured basepath.
 working directory.
 
 
-#### `list_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `list_objects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 list_objects(self, folder: str = '', delimiter: str = '', page_size: Optional[int] = None, max_items: Optional[int] = None, jmespath_query: Optional[str] = None) -> List[Dict[str, Any]]
@@ -1011,7 +1011,7 @@ s3_bucket.list_objects("base_folder")
 ```
 
 
-#### `move_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `move_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L2439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 move_object(self, from_path: Union[str, Path], to_path: Union[str, Path], to_bucket: Optional[Union['S3Bucket', str]] = None) -> str
@@ -1058,7 +1058,7 @@ Examples:
     ```
 
 
-#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1059" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1059" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
@@ -1078,7 +1078,7 @@ basepath.
 filepaths to ignore.
 
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
@@ -1091,7 +1091,7 @@ path to the key in S3.
 - `path`: Entire path to (and including) the key.
 
 
-#### `stream_from` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1852" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stream_from` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1852" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stream_from(self, bucket: 'S3Bucket', from_path: str, to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
@@ -1129,7 +1129,7 @@ my_s3_bucket.stream_from(
 ```
 
 
-#### `upload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2062" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `upload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L2062" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upload_from_file_object(self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]) -> str
@@ -1172,7 +1172,7 @@ with open("notes.txt", "rb") as f:
 ```
 
 
-#### `upload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L2186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `upload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L2186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upload_from_folder(self, from_folder: Union[str, Path], to_folder: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> Union[str, None]
@@ -1201,7 +1201,7 @@ s3_bucket.upload_from_folder("my_folder", "new_folder")
 ```
 
 
-#### `upload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1962" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `upload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1962" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upload_from_path(self, from_path: Union[str, Path], to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
@@ -1228,13 +1228,13 @@ s3_bucket.upload_from_path("notes.txt", "my_folder/notes.txt")
 ```
 
 
-#### `validate_credentials` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L841" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_credentials` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L841" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_credentials(cls, value, field)
 ```
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/s3.py#L1241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/s3.py#L1241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str

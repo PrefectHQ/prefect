@@ -60,7 +60,7 @@ Examples:
 
 ## Classes
 
-### `LambdaFunction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/lambda_function.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LambdaFunction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/lambda_function.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Invoke a Lambda function. This block is part of the prefect-aws
@@ -80,7 +80,7 @@ with a default factory of AwsCredentials.
 
 **Methods:**
 
-#### `ainvoke` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/lambda_function.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ainvoke` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/lambda_function.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ainvoke(self, payload: Optional[dict] = None, invocation_type: Literal['RequestResponse', 'Event', 'DryRun'] = 'RequestResponse', tail: bool = False, client_context: Optional[dict] = None) -> dict
@@ -123,7 +123,7 @@ async def example_flow():
 ```
 
 
-#### `invoke` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/lambda_function.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `invoke` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/lambda_function.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 invoke(self, payload: Optional[dict] = None, invocation_type: Literal['RequestResponse', 'Event', 'DryRun'] = 'RequestResponse', tail: bool = False, client_context: Optional[dict] = None) -> dict

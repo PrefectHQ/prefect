@@ -13,7 +13,7 @@ Integrations with the AWS Glue Job.
 
 ## Classes
 
-### `GlueJobRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/glue_job.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GlueJobRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Execute a Glue Job
@@ -21,7 +21,7 @@ Execute a Glue Job
 
 **Methods:**
 
-#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/glue_job.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_result(self) -> str
@@ -30,7 +30,7 @@ fetch_result(self) -> str
 fetch glue job state
 
 
-#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/glue_job.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_completion(self) -> None
@@ -39,7 +39,7 @@ wait_for_completion(self) -> None
 Wait for the job run to complete and get exit code
 
 
-### `GlueJobBlock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/glue_job.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GlueJobBlock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Execute a job to the AWS Glue Job service.
@@ -64,7 +64,7 @@ have a 1-minute minimum.
 
 **Methods:**
 
-#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/glue_job.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 trigger(self) -> GlueJobRun

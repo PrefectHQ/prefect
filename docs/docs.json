@@ -339,7 +339,7 @@
                 "pages": [
                   "integrations/prefect-aws/index",
                   {
-                    "group": "prefect-aws SDK Reference",
+                    "group": "SDK Reference",
                     "pages": [
                       "integrations/prefect-aws/api-ref/prefect_aws-assume_role_parameters",
                       "integrations/prefect-aws/api-ref/prefect_aws-batch",

@@ -10,7 +10,7 @@ Task for waiting on a long-running AWS job
 
 ## Functions
 
-### `aclient_waiter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/client_waiter.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aclient_waiter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_waiter.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aclient_waiter(client: str, waiter_name: str, aws_credentials: AwsCredentials, waiter_definition: Optional[Dict[str, Any]] = None, **waiter_kwargs: Optional[Dict[str, Any]])
@@ -32,7 +32,7 @@ you supply a custom definition, it is assumed that the provided
 depend upon the specific waiter being called.
 
 
-### `client_waiter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/client_waiter.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `client_waiter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_waiter.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_waiter(client: str, waiter_name: str, aws_credentials: AwsCredentials, waiter_definition: Optional[Dict[str, Any]] = None, **waiter_kwargs: Optional[Dict[str, Any]])

@@ -10,7 +10,7 @@ Module handling Client parameters
 
 ## Classes
 
-### `AwsClientParameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/client_parameters.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AwsClientParameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Model used to manage extra parameters that you can pass when you initialize
@@ -45,7 +45,7 @@ for more details.
 
 **Methods:**
 
-#### `deprecated_verify_cert_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/client_parameters.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `deprecated_verify_cert_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deprecated_verify_cert_path(cls, values: Dict[str, Any]) -> Dict[str, Any]
@@ -54,7 +54,7 @@ deprecated_verify_cert_path(cls, values: Dict[str, Any]) -> Dict[str, Any]
 If verify is not a bool, raise a warning.
 
 
-#### `get_params_override` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/client_parameters.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_params_override` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_params_override(self) -> Dict[str, Any]
@@ -64,7 +64,7 @@ Return the dictionary of the parameters to override.
 The parameters to override are the one which are not None.
 
 
-#### `instantiate_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/client_parameters.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `instantiate_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 instantiate_config(cls, value: Union[Config, Dict[str, Any]]) -> Dict[str, Any]
@@ -73,7 +73,7 @@ instantiate_config(cls, value: Union[Config, Dict[str, Any]]) -> Dict[str, Any]
 Casts lists to Config instances.
 
 
-#### `verify_cert_path_and_verify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/client_parameters.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `verify_cert_path_and_verify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 verify_cert_path_and_verify(cls, values: Dict[str, Any]) -> Dict[str, Any]

@@ -7,7 +7,7 @@ sidebarTitle: execute
 
 ## Functions
 
-### `download_bundle_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/experimental/bundles/execute.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `download_bundle_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/experimental/bundles/execute.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 download_bundle_from_s3(bucket: str, key: str, output_dir: str | None = None, aws_credentials_block_name: Optional[str] = None) -> DownloadResult
@@ -29,7 +29,7 @@ credential resolution.
 - local_path: Path where the bundle was downloaded
 
 
-### `execute_bundle_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/experimental/bundles/execute.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `execute_bundle_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/experimental/bundles/execute.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute_bundle_from_s3(bucket: str, key: str, aws_credentials_block_name: Optional[str] = None) -> None
@@ -54,7 +54,7 @@ credential resolution.
 
 ## Classes
 
-### `DownloadResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/prefect_aws/experimental/bundles/execute.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DownloadResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/experimental/bundles/execute.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Result of downloading a bundle from S3.
