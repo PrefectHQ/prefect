@@ -1,7 +1,7 @@
 ---
 Title: Use integrations
 
-description: Prefect integrations are PyPI packages you can install to help you build integrate your workflows with third parties.
+description: Prefect integrations are PyPI packages you can install to help you build and integrate your workflows with third parties.
 ---
 
 ## Install an integration package
@@ -20,11 +20,11 @@ pip install prefect-aws
 pip install 'prefect[aws]'
 ```
 
-See [the `setup.py`](https://github.com/PrefectHQ/prefect/blob/main/setup.py) for the full list of extras and the versions they specify.
+See [the `project.optional-dependencies` section of `pyproject.toml`](https://github.com/PrefectHQ/prefect/blob/main/pyproject.toml) for the full list of extras and the versions they specify.
 
 ## Register blocks from an integration
 
-Once the packages is installed, [register the blocks](/v3/develop/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the integration to view them in the Prefect Cloud UI:
+Once the package is installed, [register the blocks](/v3/develop/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the integration to view them in the Prefect Cloud UI:
 
 For example, to register the blocks available in `prefect-aws`:
 
@@ -58,7 +58,7 @@ def connect_to_database():
 
 ## Customize tasks and flows from an integration
 
-To customize pre-configured tasks or flows use `with_options`. For example, configure retries for dbt Cloud jobs:
+To customize pre-configured tasks or flows, use `with_options`. For example, configure retries for dbt Cloud jobs:
     
 ```python
 from prefect import flow

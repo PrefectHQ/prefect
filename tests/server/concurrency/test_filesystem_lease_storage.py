@@ -10,6 +10,7 @@ from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetada
 from prefect.server.concurrency.lease_storage.filesystem import (
     ConcurrencyLeaseStorage,
 )
+from prefect.types._concurrency import ConcurrencyLeaseHolder
 
 
 class TestFilesystemConcurrencyLeaseStorage:
@@ -29,6 +30,13 @@ class TestFilesystemConcurrencyLeaseStorage:
     @pytest.fixture
     def sample_metadata(self) -> ConcurrencyLimitLeaseMetadata:
         return ConcurrencyLimitLeaseMetadata(slots=5)
+
+    @pytest.fixture
+    def sample_metadata_with_holder(self) -> ConcurrencyLimitLeaseMetadata:
+        return ConcurrencyLimitLeaseMetadata(
+            slots=3,
+            holder=ConcurrencyLeaseHolder(type="task_run", id=uuid4()),
+        )
 
     async def test_create_lease_without_metadata(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
@@ -73,6 +81,43 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert data["metadata"]["slots"] == 5
         assert len(data["resource_ids"]) == 2
 
+    async def test_create_lease_with_holder(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        sample_metadata_with_holder: ConcurrencyLimitLeaseMetadata,
+    ):
+        ttl = timedelta(minutes=5)
+        lease = await storage.create_lease(
+            sample_resource_ids, ttl, sample_metadata_with_holder
+        )
+
+        assert lease.resource_ids == sample_resource_ids
+        assert lease.metadata is not None
+        assert lease.metadata == sample_metadata_with_holder
+        assert lease.metadata.holder is not None
+        assert lease.metadata.holder.model_dump() == {
+            "type": "task_run",
+            "id": lease.metadata.holder.id,
+        }
+
+        # Verify lease file was created with correct data
+        lease_files = [
+            f
+            for f in storage.storage_path.glob("*.json")
+            if f.name != "expirations.json"
+        ]
+        assert len(lease_files) == 1
+
+        with open(lease_files[0], "r") as f:
+            data = json.load(f)
+
+        assert data["metadata"]["slots"] == 3
+        assert data["metadata"]["holder"] == {
+            "type": "task_run",
+            "id": str(lease.metadata.holder.id),
+        }
+
     async def test_read_lease_existing(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
@@ -92,6 +137,29 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert read_lease is not None
         assert read_lease.resource_ids == sample_resource_ids
         assert read_lease.metadata is None
+
+    async def test_read_lease_with_holder(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        sample_metadata_with_holder: ConcurrencyLimitLeaseMetadata,
+    ):
+        ttl = timedelta(minutes=5)
+        created_lease = await storage.create_lease(
+            sample_resource_ids, ttl, sample_metadata_with_holder
+        )
+
+        read_lease = await storage.read_lease(created_lease.id)
+
+        assert read_lease is not None
+        assert read_lease.resource_ids == sample_resource_ids
+        assert read_lease.metadata is not None
+        assert read_lease.metadata.slots == 3
+        assert read_lease.metadata.holder is not None
+        assert read_lease.metadata.holder.model_dump() == {
+            "type": "task_run",
+            "id": read_lease.metadata.holder.id,
+        }
 
     async def test_read_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
@@ -168,7 +236,9 @@ class TestFilesystemConcurrencyLeaseStorage:
 
         # Renew the lease
         new_ttl = timedelta(minutes=10)
-        await storage.renew_lease(lease_id, new_ttl)
+        renewed = await storage.renew_lease(lease_id, new_ttl)
+
+        assert renewed is True
 
         # Check that expiration was updated
         with open(lease_files[0], "r") as f:
@@ -179,8 +249,8 @@ class TestFilesystemConcurrencyLeaseStorage:
 
     async def test_renew_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
-        # Should not raise an exception
-        await storage.renew_lease(non_existing_id, timedelta(minutes=5))
+        renewed = await storage.renew_lease(non_existing_id, timedelta(minutes=5))
+        assert renewed is False
 
     async def test_renew_lease_corrupted_file(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
@@ -200,8 +270,9 @@ class TestFilesystemConcurrencyLeaseStorage:
         with open(lease_files[0], "w") as f:
             f.write("invalid json content")
 
-        # Renewing should clean up the corrupted file
-        await storage.renew_lease(lease_id, timedelta(minutes=10))
+        # Renewing should clean up the corrupted file and return False
+        renewed = await storage.renew_lease(lease_id, timedelta(minutes=10))
+        assert renewed is False
 
         # File should be cleaned up (excluding expiration index)
         lease_files = [
@@ -352,3 +423,247 @@ class TestFilesystemConcurrencyLeaseStorage:
             read_lease = await storage.read_lease(lease_id)
             assert read_lease is not None
             assert read_lease.resource_ids == sample_resource_ids
+
+    async def test_list_holders_for_limit_empty(self, storage: ConcurrencyLeaseStorage):
+        limit_id = uuid4()
+        holders = await storage.list_holders_for_limit(limit_id)
+        assert holders == []
+
+    async def test_list_holders_for_limit_no_holders(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        # Create a lease without a holder
+        ttl = timedelta(minutes=5)
+        metadata = ConcurrencyLimitLeaseMetadata(slots=2)
+        await storage.create_lease(sample_resource_ids, ttl, metadata)
+
+        holders = await storage.list_holders_for_limit(sample_resource_ids[0])
+        assert holders == []
+
+    async def test_list_holders_for_limit_with_holders(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        limit_id = uuid4()
+
+        # Create leases with different holders
+        holder1 = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        holder2 = ConcurrencyLeaseHolder(type="flow_run", id=uuid4())
+
+        metadata1 = ConcurrencyLimitLeaseMetadata(slots=2, holder=holder1)
+        metadata2 = ConcurrencyLimitLeaseMetadata(slots=1, holder=holder2)
+
+        ttl = timedelta(minutes=5)
+        await storage.create_lease([limit_id], ttl, metadata1)
+        await storage.create_lease([limit_id], ttl, metadata2)
+
+        # Create a lease for a different limit to ensure it's not included
+        other_limit_id = uuid4()
+        metadata3 = ConcurrencyLimitLeaseMetadata(
+            slots=1, holder=ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        )
+        await storage.create_lease([other_limit_id], ttl, metadata3)
+
+        holders_with_leases = await storage.list_holders_for_limit(limit_id)
+        assert len(holders_with_leases) == 2
+        holders = [holder for _, holder in holders_with_leases]
+
+        assert holder1 in holders
+        assert holder2 in holders
+
+    async def test_list_holders_for_limit_expired_leases(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        limit_id = uuid4()
+
+        # Create an expired lease with a holder
+        expired_ttl = timedelta(seconds=-1)
+        holder = ConcurrencyLeaseHolder(type="task_run", id=uuid4())
+        metadata = ConcurrencyLimitLeaseMetadata(slots=1, holder=holder)
+        await storage.create_lease([limit_id], expired_ttl, metadata)
+
+        # Create an active lease with a holder
+        active_ttl = timedelta(minutes=5)
+        active_holder = ConcurrencyLeaseHolder(type="flow_run", id=uuid4())
+        active_metadata = ConcurrencyLimitLeaseMetadata(slots=1, holder=active_holder)
+        active_lease = await storage.create_lease(
+            [limit_id], active_ttl, active_metadata
+        )
+
+        holders = await storage.list_holders_for_limit(limit_id)
+        assert len(holders) == 1
+        lease_id, holder = holders[0]
+        assert lease_id == active_lease.id
+        assert holder == active_holder
+
+    async def test_read_active_lease_ids_with_pagination(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        # Create 10 active leases
+        active_ttl = timedelta(minutes=5)
+        lease_ids: list[UUID] = []
+        for _ in range(10):
+            lease = await storage.create_lease([uuid4()], active_ttl)
+            lease_ids.append(lease.id)
+
+        # Test getting first page
+        first_page = await storage.read_active_lease_ids(limit=3, offset=0)
+        assert len(first_page) == 3
+        assert all(lid in lease_ids for lid in first_page)
+
+        # Test getting second page
+        second_page = await storage.read_active_lease_ids(limit=3, offset=3)
+        assert len(second_page) == 3
+        assert all(lid in lease_ids for lid in second_page)
+
+        # Ensure no overlap between pages
+        assert set(first_page).isdisjoint(set(second_page))
+
+        # Test getting third page
+        third_page = await storage.read_active_lease_ids(limit=3, offset=6)
+        assert len(third_page) == 3
+        assert all(lid in lease_ids for lid in third_page)
+
+        # Test getting partial last page
+        fourth_page = await storage.read_active_lease_ids(limit=3, offset=9)
+        assert len(fourth_page) == 1
+        assert all(lid in lease_ids for lid in fourth_page)
+
+        # Test offset beyond available items
+        empty_page = await storage.read_active_lease_ids(limit=3, offset=100)
+        assert empty_page == []
+
+    async def test_read_active_lease_ids_default_pagination(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        # Create 150 active leases (more than default limit)
+        active_ttl = timedelta(minutes=5)
+        lease_ids: list[UUID] = []
+        for _ in range(150):
+            lease = await storage.create_lease([uuid4()], active_ttl)
+            lease_ids.append(lease.id)
+
+        # Test default limit of 100
+        default_page = await storage.read_active_lease_ids()
+        assert len(default_page) == 100
+        assert all(lid in lease_ids for lid in default_page)
+
+        # Test with offset
+        offset_page = await storage.read_active_lease_ids(offset=100)
+        assert len(offset_page) == 50  # remaining leases
+        assert all(lid in lease_ids for lid in offset_page)
+
+        # Ensure no overlap with first page
+        assert set(default_page).isdisjoint(set(offset_page))
+
+    async def test_atomic_write_produces_valid_json(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """Test that _atomic_write_json produces valid, readable JSON files."""
+        test_file = temp_dir / "test_atomic.json"
+        test_data = {"key": "value", "nested": {"a": 1, "b": [1, 2, 3]}}
+
+        storage._atomic_write_json(test_file, test_data)
+
+        # Verify file exists and contains valid JSON
+        assert test_file.exists()
+        with open(test_file, "r") as f:
+            loaded_data = json.load(f)
+        assert loaded_data == test_data
+
+    async def test_atomic_write_no_temp_files_left_behind(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """Test that no temporary files are left behind after lease operations."""
+        ttl = timedelta(minutes=5)
+
+        # Create multiple leases
+        for _ in range(5):
+            await storage.create_lease(sample_resource_ids, ttl)
+
+        # Check for any temp files (they start with .lease_ and end with .tmp)
+        temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
+        assert len(temp_files) == 0, f"Found leftover temp files: {temp_files}"
+
+    async def test_atomic_write_overwrites_existing_file(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """Test that _atomic_write_json correctly overwrites existing files."""
+        test_file = temp_dir / "test_overwrite.json"
+
+        # Write initial data
+        initial_data = {"version": 1}
+        storage._atomic_write_json(test_file, initial_data)
+
+        # Overwrite with new data
+        new_data = {"version": 2, "extra": "field"}
+        storage._atomic_write_json(test_file, new_data)
+
+        # Verify file contains new data
+        with open(test_file, "r") as f:
+            loaded_data = json.load(f)
+        assert loaded_data == new_data
+
+    async def test_atomic_write_cleans_up_temp_on_error(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """Test that temp files are cleaned up when an error occurs during write."""
+        test_file = temp_dir / "test_error.json"
+
+        # Create an object that will fail JSON serialization
+        class NonSerializable:
+            pass
+
+        non_serializable_data = {"bad": NonSerializable()}
+
+        # Attempt to write non-serializable data
+        with pytest.raises(TypeError):
+            storage._atomic_write_json(test_file, non_serializable_data)
+
+        # Verify no temp files are left behind
+        temp_files = list(temp_dir.glob(".lease_*.tmp"))
+        assert len(temp_files) == 0, f"Found leftover temp files: {temp_files}"
+
+        # Verify target file was not created
+        assert not test_file.exists()
+
+    async def test_renew_lease_no_temp_files_left_behind(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """Test that renewing leases doesn't leave temp files behind."""
+        ttl = timedelta(minutes=5)
+        lease = await storage.create_lease(sample_resource_ids, ttl)
+
+        # Renew the lease multiple times
+        for _ in range(5):
+            await storage.renew_lease(lease.id, ttl)
+
+        # Check for any temp files
+        temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
+        assert len(temp_files) == 0, f"Found leftover temp files: {temp_files}"
+
+    async def test_expiration_index_atomic_write(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """Test that expiration index updates use atomic writes."""
+        ttl = timedelta(minutes=5)
+
+        # Create multiple leases to trigger multiple index updates
+        lease_ids = []
+        for _ in range(5):
+            lease = await storage.create_lease(sample_resource_ids, ttl)
+            lease_ids.append(lease.id)
+
+        # Verify expiration index exists and is valid JSON
+        expiration_file = storage.storage_path / "expirations.json"
+        assert expiration_file.exists()
+
+        with open(expiration_file, "r") as f:
+            index_data = json.load(f)
+
+        # Verify all lease IDs are in the index
+        for lease_id in lease_ids:
+            assert str(lease_id) in index_data
+
+        # Verify no temp files left behind
+        temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
+        assert len(temp_files) == 0

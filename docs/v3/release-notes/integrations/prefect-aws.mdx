@@ -1,0 +1,135 @@
+---
+title: prefect-aws
+---
+
+## 0.7.5
+
+_Released on February 12, 2026_
+
+**Features**
+
+- Add attribution headers to SDK API requests [#20508](https://github.com/PrefectHQ/prefect/pull/20508) by [@zangell44](https://github.com/zangell44)
+- Add `include_files` support to `@ecs` decorator for bundling non-Python files [#20551](https://github.com/PrefectHQ/prefect/pull/20551) by [@desertaxle](https://github.com/desertaxle)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
+- Replace `skipif(sys.platform != 'win32')` with `[@pytest](https://github.com/pytest).mark.windows` and remove `skipif(sys.platform == 'win32')` [#20327](https://github.com/PrefectHQ/prefect/pull/20327) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+---
+
+## 0.7.4
+
+_Released on January 15, 2026_
+
+**Features**
+
+- Add `kill_infrastructure` method to worker integrations [#20075](https://github.com/PrefectHQ/prefect/pull/20075) by [@joshuastagner](https://github.com/joshuastagner)
+
+**Bug Fixes**
+
+- Fix comparison for container essential field [#20162](https://github.com/PrefectHQ/prefect/pull/20162) by [@bdalpe](https://github.com/bdalpe)
+
+---
+
+## 0.7.3
+
+_Released on January 07, 2026_
+
+**Bug Fixes**
+
+- Refactor deployment steps to use `AwsCredentials.get_s3_client()` [#20140](https://github.com/PrefectHQ/prefect/pull/20140) by [@bdalpe](https://github.com/bdalpe)
+
+---
+
+## 0.7.2
+
+_Released on December 19, 2025_
+
+**Features**
+
+- Add AWS AssumeRole support to AWSCredentials Block [#19833](https://github.com/PrefectHQ/prefect/pull/19833) by [@bdalpe](https://github.com/bdalpe)
+- Add support for AWS IAM authentication for RDS PostgreSQL [#19580](https://github.com/PrefectHQ/prefect/pull/19580) by [@alaminopu](https://github.com/alaminopu)
+- Add py.typed file for type hinting support in prefect-aws [#19413](https://github.com/PrefectHQ/prefect/pull/19413) by [@peterbygrave](https://github.com/peterbygrave)
+
+**Bug Fixes**
+
+- Allow EC2 task definitions to omit launchType for capacity providers [#19630](https://github.com/PrefectHQ/prefect/pull/19630) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+---
+
+## 0.7.1
+
+_Released on November 07, 2025_
+
+**Bug Fixes**
+
+- Fix missing required `cluster` and `launchType` parameters in `run_task` API Call for ECS worker [#19335](https://github.com/PrefectHQ/prefect/pull/19335) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
+## 0.7.0
+
+_Released on October 31, 2025_
+
+**Bug Fixes**
+
+- Fix `CRASHED` state marking when containers exit with a non-zero exit code in an ECS task [#19310](https://github.com/PrefectHQ/prefect/pull/19310) by [@leetrout](https://github.com/leetrout)
+
+**Breaking Changes**
+
+- Remove Python 3.9 support [#19273](https://github.com/PrefectHQ/prefect/pull/19273) by [@desertaxle](https://github.com/desertaxle)
+
+
+---
+
+## 0.6.0
+
+_Released on October 14, 2025_
+
+With this release the ECS worker now uses an event-based architecture that receives task state changes via EventBridge and SQS, replacing the previous polling-based design. This dramatically improves crash detection responsiveness and reduces API overhead. The worker gracefully degrades to limited functionality if SQS is unavailable, ensuring continued operation even during infrastructure issues.
+
+See the [ECS worker documentation](/integrations/prefect-aws/ecs-worker) for setup instructions.
+
+**Features**
+
+- Move ECS worker to event-based crash detection [#18804](https://github.com/PrefectHQ/prefect/pull/18804) by [@desertaxle](https://github.com/desertaxle)
+
+## 0.5.16
+
+_Released on August 27, 2025_
+
+**Bug Fixes**
+
+- Fix exposed typing imports and remove start signal for observer to avoid the ECS worker hanging on start up [#18798](https://github.com/PrefectHQ/prefect/pull/18798) by [@desertaxle](https://github.com/desertaxle)
+
+## 0.5.15
+
+_Released on August 26, 2025_
+
+This release fixes a bug where `prefect-aws` depended on `mypy_boto3_sqs` unnecessarily and caused an error on start up.
+
+## 0.5.14
+
+_Released on August 26, 2025_
+
+This release introduces significant improvements to ECS worker management and observability. The new `prefect-aws` CLI simplifies ECS worker deployment with commands to deploy and manage ECS workers using CloudFormation templates.
+
+Additionally, event replication capabilities have been added to the ECS worker, enabling real-time monitoring of ECS task state changes through SQS and EventBridge. This creates a foundation for more stateless ECS worker operations and ensures events aren't lost if workers go down during flow execution.
+
+See the [ECS worker documentation](/integrations/prefect-aws/ecs-worker#with-the-prefect-aws-cli) for CLI usage examples and deployment guides.
+
+**Features**
+
+- Add event replication to `ECSWorker` [#18681](https://github.com/PrefectHQ/prefect/pull/18681) by [@desertaxle](https://github.com/desertaxle)
+- Add `prefect-aws` Docker images [#18750](https://github.com/PrefectHQ/prefect/pull/18750) by [@desertaxle](https://github.com/desertaxle)
+- Add CDK stacks for ECS worker infrastructure [#18755](https://github.com/PrefectHQ/prefect/pull/18755) by [@desertaxle](https://github.com/desertaxle)
+- Add `prefect-aws` CLI for ECS worker management [#18771](https://github.com/PrefectHQ/prefect/pull/18771) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- Fix MinIOCredentials hashing with nested config dictionaries [#18752](https://github.com/PrefectHQ/prefect/pull/18752) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Documentation**
+
+- Add SQS queue and EventBridge setup to ECS worker manual deployment guide [#18789](https://github.com/PrefectHQ/prefect/pull/18789) by [@desertaxle](https://github.com/desertaxle)

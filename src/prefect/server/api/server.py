@@ -9,6 +9,7 @@ import atexit
 import base64
 import contextlib
 import gc
+import logging
 import mimetypes
 import os
 import random
@@ -18,10 +19,11 @@ import sqlite3
 import subprocess
 import sys
 import time
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
+from datetime import timedelta
 from functools import wraps
 from hashlib import sha256
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Awaitable, Callable, Optional
+from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
@@ -29,7 +31,8 @@ import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.orm.exc
-from fastapi import Depends, FastAPI, Request, Response, status
+from docket import Docket
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,11 +46,15 @@ from typing_extensions import Self
 import prefect
 import prefect.server.api as api
 import prefect.settings
+from prefect._internal.compatibility.starlette import status
+from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
+from prefect.server.api.background_workers import background_worker
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.schemas.ui import UISettings
+from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -62,21 +69,7 @@ from prefect.settings import (
 )
 from prefect.utilities.hashing import hash_objects
 
-if os.environ.get("PREFECT_LOGFIRE_ENABLED"):
-    import logfire  # pyright: ignore
-
-    token: str | None = os.environ.get("PREFECT_LOGFIRE_WRITE_TOKEN")
-    if token is None:
-        raise ValueError(
-            "PREFECT_LOGFIRE_WRITE_TOKEN must be set when PREFECT_LOGFIRE_ENABLED is true"
-        )
-
-    logfire.configure(token=token)  # pyright: ignore
-else:
-    logfire = None
-
-if TYPE_CHECKING:
-    import logging
+logfire: Any | None = configure_logfire()
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect Prefect REST API"
@@ -130,6 +123,43 @@ API_ROUTERS = (
 )
 
 SQLITE_LOCKED_MSG = "database is locked"
+
+
+class _SQLiteLockedOperationalErrorFilter(logging.Filter):
+    """Filter uvicorn error logs for retryable SQLite lock failures."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        exc: BaseException | None = record.exc_info[1] if record.exc_info else None
+
+        if not isinstance(exc, sqlalchemy.exc.OperationalError):
+            return True
+
+        orig_exc = getattr(exc, "orig", None)
+        if not isinstance(orig_exc, sqlite3.OperationalError):
+            return True
+
+        if getattr(orig_exc, "sqlite_errorname", None) in {
+            "SQLITE_BUSY",
+            "SQLITE_BUSY_SNAPSHOT",
+        } or SQLITE_LOCKED_MSG in getattr(orig_exc, "args", []):
+            return get_current_settings().server.log_retryable_errors
+
+        return True
+
+
+_SQLITE_LOCKED_LOG_FILTER: _SQLiteLockedOperationalErrorFilter | None = None
+
+
+def _install_sqlite_locked_log_filter() -> None:
+    global _SQLITE_LOCKED_LOG_FILTER
+
+    if _SQLITE_LOCKED_LOG_FILTER is not None:
+        return
+
+    filter_ = _SQLiteLockedOperationalErrorFilter()
+    logging.getLogger("uvicorn.error").addFilter(filter_)
+    logging.getLogger("docket.worker").addFilter(filter_)
+    _SQLITE_LOCKED_LOG_FILTER = filter_
 
 
 class SPAStaticFiles(StaticFiles):
@@ -427,11 +457,22 @@ def create_api_app(
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
     base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
-    cache_key = f"{prefect.__version__}:{base_url}"
+
+    # Determine which UI to serve based on setting
+    v2_enabled = prefect.settings.get_current_settings().server.ui.v2_enabled
+
+    if v2_enabled:
+        source_static_path = prefect.__ui_v2_static_path__
+        static_subpath = prefect.__ui_v2_static_subpath__
+        cache_key = f"v2:{prefect.__version__}:{base_url}"
+    else:
+        source_static_path = prefect.__ui_static_path__
+        static_subpath = prefect.__ui_static_subpath__
+        cache_key = f"v1:{prefect.__version__}:{base_url}"
+
     stripped_base_url = base_url.rstrip("/")
-    static_dir = (
-        prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
-        or prefect.__ui_static_subpath__
+    static_dir = prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value() or str(
+        static_subpath
     )
     reference_file_name = "UI_SERVE_BASE"
 
@@ -441,15 +482,15 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         mimetypes.add_type("application/javascript", ".js")
 
     @ui_app.get(f"{stripped_base_url}/ui-settings")
-    def ui_settings() -> dict[str, Any]:  # type: ignore[reportUnusedFunction]
-        return {
-            "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
-            "csrf_enabled": prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
-            "auth": "BASIC"
+    def ui_settings() -> UISettings:  # type: ignore[reportUnusedFunction]
+        return UISettings(
+            api_url=prefect.settings.PREFECT_UI_API_URL.value(),
+            csrf_enabled=prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
+            auth="BASIC"
             if prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
             else None,
-            "flags": [],
-        }
+            flags=[],
+        )
 
     def reference_file_matches_base_url() -> bool:
         reference_file_path = os.path.join(static_dir, reference_file_name)
@@ -467,7 +508,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
         if not os.path.exists(static_dir):
             os.makedirs(static_dir)
 
-        copy_directory(str(prefect.__ui_static_path__), str(static_dir))
+        copy_directory(str(source_static_path), str(static_dir))
         replace_placeholder_string_in_files(
             str(static_dir),
             "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
@@ -483,10 +524,14 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app.add_middleware(GZipMiddleware)
 
     if (
-        os.path.exists(prefect.__ui_static_path__)
+        os.path.exists(source_static_path)
         and prefect.settings.PREFECT_UI_ENABLED.value()
         and not ephemeral
     ):
+        # Log which UI version is being served
+        if v2_enabled:
+            logger.info("Serving experimental V2 UI")
+
         # If the static files have already been copied, check if the base_url has changed
         # If it has, we delete the subpath directory and copy the files again
         if not reference_file_matches_base_url():
@@ -514,6 +559,7 @@ def _memoize_block_auto_registration(
     import toml
 
     import prefect.plugins
+    from prefect._internal.compatibility.backports import tomllib
     from prefect.blocks.core import Block
     from prefect.server.models.block_registration import _load_collection_blocks_data
     from prefect.utilities.dispatch import get_registry_for_type
@@ -540,9 +586,9 @@ def _memoize_block_auto_registration(
         memo_store_path = PREFECT_MEMO_STORE_PATH.value()
         try:
             if memo_store_path.exists():
-                saved_blocks_loading_hash = toml.load(memo_store_path).get(
-                    "block_auto_registration"
-                )
+                saved_blocks_loading_hash = tomllib.loads(
+                    memo_store_path.read_text(encoding="utf-8")
+                ).get("block_auto_registration")
                 if (
                     saved_blocks_loading_hash is not None
                     and current_blocks_loading_hash == saved_blocks_loading_hash
@@ -644,18 +690,38 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-        if app not in LIFESPAN_RAN_FOR_APP:
-            await run_migrations()
-            await add_block_types()
+        if app in LIFESPAN_RAN_FOR_APP:
+            yield
+            return
 
-            Services: type[Service] = Service
-            if ephemeral or webserver_only:
-                Services = RunInAllServers
+        await run_migrations()
+        await add_block_types()
 
-            async with Services.running():
-                LIFESPAN_RAN_FOR_APP.add(app)
-                yield
-        else:
+        Services: type[Service] | None = (
+            RunInWebservers
+            if webserver_only
+            else RunInEphemeralServers
+            if ephemeral
+            else Service
+        )
+
+        async with AsyncExitStack() as stack:
+            docket = await stack.enter_async_context(
+                Docket(
+                    name=settings.server.docket.name,
+                    url=settings.server.docket.url,
+                    execution_ttl=timedelta(0),
+                )
+            )
+            await stack.enter_async_context(
+                background_worker(
+                    docket, ephemeral=ephemeral, webserver_only=webserver_only
+                )
+            )
+            api_app.state.docket = docket
+            if Services:
+                await stack.enter_async_context(Services.running())
+            LIFESPAN_RAN_FOR_APP.add(app)
             yield
 
     def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
@@ -712,6 +778,7 @@ def create_app(
         get_dialect(prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL.value()).name
         == "sqlite"
     ):
+        _install_sqlite_locked_log_filter()
         app.add_middleware(RequestLimitMiddleware, limit=100)
 
     if prefect.settings.PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value():
@@ -752,9 +819,6 @@ def create_app(
             routes=api_app.routes,
         )
         new_schema = partial_schema.copy()
-        new_schema["paths"] = {}
-        for path, value in partial_schema["paths"].items():
-            new_schema["paths"][f"/api{path}"] = value
 
         new_schema["info"]["x-logo"] = {"url": "static/prefect-logo-mark-gradient.png"}
         return new_schema

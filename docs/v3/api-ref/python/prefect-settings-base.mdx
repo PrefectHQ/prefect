@@ -7,7 +7,7 @@ sidebarTitle: base
 
 ## Functions
 
-### `build_settings_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L214" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `build_settings_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_settings_config(path: tuple[str, ...] = tuple(), frozen: bool = False) -> PrefectSettingsConfigDict
@@ -18,12 +18,6 @@ build_settings_config(path: tuple[str, ...] = tuple(), frozen: bool = False) -> 
 ### `PrefectBaseSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
-
-#### `ser_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-ser_model(self, handler: SerializerFunctionWrapHandler, info: SerializationInfo) -> Any
-```
 
 #### `settings_customise_sources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
@@ -38,7 +32,7 @@ The order of the returned callables decides the priority of inputs; first item i
 See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
 
 
-#### `to_environment_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_environment_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_environment_variables(self, exclude_unset: bool = False, include_secrets: bool = True, include_aliases: bool = False) -> dict[str, str]
@@ -47,7 +41,7 @@ to_environment_variables(self, exclude_unset: bool = False, include_secrets: boo
 Convert the settings object to a dictionary of environment variables.
 
 
-### `PrefectSettingsConfigDict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectSettingsConfigDict` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L214" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Configuration for the behavior of Prefect settings models.

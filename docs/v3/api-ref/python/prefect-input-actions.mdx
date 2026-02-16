@@ -13,59 +13,170 @@ sidebarTitle: actions
 ensure_flow_run_id(flow_run_id: Optional[UUID] = None) -> UUID
 ```
 
-### `create_flow_run_input_from_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `acreate_flow_run_input_from_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-create_flow_run_input_from_model(key: str, model_instance: pydantic.BaseModel, flow_run_id: Optional[UUID] = None, sender: Optional[str] = None)
-```
-
-### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-create_flow_run_input(client: 'PrefectClient', key: str, value: Any, flow_run_id: Optional[UUID] = None, sender: Optional[str] = None)
+acreate_flow_run_input_from_model(key: str, model_instance: pydantic.BaseModel, flow_run_id: Optional[UUID] = None, sender: Optional[str] = None) -> None
 ```
 
 
-Create a new flow run input. The given `value` will be serialized to JSON
-and stored as a flow run input value.
+Create a new flow run input from a Pydantic model asynchronously.
 
 **Args:**
-- `-`: the flow run input key
-- `-`: the flow run input value
-- `-`: the, optional, flow run ID. If not given will
-default to pulling the flow run ID from the current context.
+- `key`: the flow run input key
+- `model_instance`: a Pydantic model instance to store
+- `flow_run_id`: the flow run ID (defaults to current context)
+- `sender`: optional sender identifier
 
 
-### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_flow_run_input_from_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-filter_flow_run_input(client: 'PrefectClient', key_prefix: str, limit: int = 1, exclude_keys: Optional[Set[str]] = None, flow_run_id: Optional[UUID] = None)
+create_flow_run_input_from_model(key: str, model_instance: pydantic.BaseModel, flow_run_id: Optional[UUID] = None, sender: Optional[str] = None) -> None
 ```
 
-### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+Create a new flow run input from a Pydantic model.
+
+**Args:**
+- `key`: the flow run input key
+- `model_instance`: a Pydantic model instance to store
+- `flow_run_id`: the flow run ID (defaults to current context)
+- `sender`: optional sender identifier
+
+
+### `acreate_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUID] = None) -> Any
+acreate_flow_run_input(client: 'PrefectClient', key: str, value: Any, flow_run_id: Optional[UUID] = None, sender: Optional[str] = None) -> None
+```
+
+
+Create a new flow run input asynchronously.
+
+The given `value` will be serialized to JSON and stored as a flow run input value.
+
+**Args:**
+- `key`: the flow run input key
+- `value`: the flow run input value
+- `flow_run_id`: the flow run ID (defaults to current context)
+- `sender`: optional sender identifier
+
+
+### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_flow_run_input(key: str, value: Any, flow_run_id: Optional[UUID] = None, sender: Optional[str] = None) -> None
+```
+
+
+Create a new flow run input.
+
+The given `value` will be serialized to JSON and stored as a flow run input value.
+
+**Args:**
+- `key`: the flow run input key
+- `value`: the flow run input value
+- `flow_run_id`: the flow run ID (defaults to current context)
+- `sender`: optional sender identifier
+
+
+### `afilter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+afilter_flow_run_input(client: 'PrefectClient', key_prefix: str, limit: int = 1, exclude_keys: Optional[Set[str]] = None, flow_run_id: Optional[UUID] = None) -> 'list[FlowRunInput]'
+```
+
+
+Filter flow run inputs by key prefix asynchronously.
+
+**Args:**
+- `key_prefix`: prefix to filter keys by
+- `limit`: maximum number of results to return
+- `exclude_keys`: keys to exclude from results
+- `flow_run_id`: the flow run ID (defaults to current context)
+
+**Returns:**
+- List of matching FlowRunInput objects
+
+
+### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+filter_flow_run_input(key_prefix: str, limit: int = 1, exclude_keys: Optional[Set[str]] = None, flow_run_id: Optional[UUID] = None) -> 'list[FlowRunInput]'
+```
+
+
+Filter flow run inputs by key prefix.
+
+**Args:**
+- `key_prefix`: prefix to filter keys by
+- `limit`: maximum number of results to return
+- `exclude_keys`: keys to exclude from results
+- `flow_run_id`: the flow run ID (defaults to current context)
+
+**Returns:**
+- List of matching FlowRunInput objects
+
+
+### `aread_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUID] = None) -> Any
+```
+
+
+Read a flow run input asynchronously.
+
+**Args:**
+- `key`: the flow run input key
+- `flow_run_id`: the flow run ID (defaults to current context)
+
+**Returns:**
+- The deserialized input value, or None if not found
+
+
+### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_flow_run_input(key: str, flow_run_id: Optional[UUID] = None) -> Any
 ```
 
 
 Read a flow run input.
 
 **Args:**
-- `-`: the flow run input key
-- `-`: the flow run ID
+- `key`: the flow run input key
+- `flow_run_id`: the flow run ID (defaults to current context)
+
+**Returns:**
+- The deserialized input value, or None if not found
 
 
-### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `adelete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L268" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUID] = None)
+adelete_flow_run_input(client: 'PrefectClient', key: str, flow_run_id: Optional[UUID] = None) -> None
+```
+
+
+Delete a flow run input asynchronously.
+
+**Args:**
+- `key`: the flow run input key
+- `flow_run_id`: the flow run ID (defaults to current context)
+
+
+### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/input/actions.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_flow_run_input(key: str, flow_run_id: Optional[UUID] = None) -> None
 ```
 
 
 Delete a flow run input.
 
 **Args:**
-- `-`: the flow run ID
-- `-`: the flow run input key
+- `key`: the flow run input key
+- `flow_run_id`: the flow run ID (defaults to current context)
 

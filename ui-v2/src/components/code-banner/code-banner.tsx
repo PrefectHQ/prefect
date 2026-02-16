@@ -3,14 +3,14 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
-interface CodeBannerProps {
+type CodeBannerProps = {
 	command: string;
 	title: string;
 	subtitle: string;
 	className?: string;
-}
+};
 
 export const CodeBanner = ({
 	command,
@@ -38,14 +38,14 @@ export const CodeBanner = ({
 		<div className={cn("space-y-4", className)}>
 			{/* Title and subtitle above terminal */}
 			<div className="text-center">
-				<h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-				<p className="text-gray-600 text-sm">{subtitle}</p>
+				<h3 className="text-lg font-semibold text-foreground mb-1">{title}</h3>
+				<p className="text-muted-foreground text-sm">{subtitle}</p>
 			</div>
 
 			{/* Terminal window */}
-			<div className="bg-gray-100 border border-gray-300 rounded-lg shadow-sm overflow-hidden">
+			<div className="bg-muted border border-border rounded-lg shadow-sm overflow-hidden">
 				{/* macOS-style window header */}
-				<div className="bg-gray-200 border-b border-gray-300 px-3 py-2 flex items-center space-x-2">
+				<div className="bg-muted/80 border-b border-border px-3 py-2 flex items-center space-x-2">
 					<div className="flex space-x-1">
 						<div className="w-3 h-3 bg-red-500 rounded-full" />
 						<div className="w-3 h-3 bg-yellow-500 rounded-full" />
@@ -57,14 +57,14 @@ export const CodeBanner = ({
 						// eslint-disable-next-line @typescript-eslint/no-misused-promises
 						onClick={handleCopy}
 						disabled={copying}
-						className="ml-auto text-gray-600 hover:text-gray-800 hover:bg-gray-300 h-6 w-6 p-0"
+						className="ml-auto text-muted-foreground hover:text-foreground hover:bg-muted h-6 w-6 p-0"
 					>
 						<Copy className="h-4 w-4" />
 					</Button>
 				</div>
 
 				{/* Terminal content */}
-				<div className="bg-gray-800 px-4 py-2">
+				<div className="bg-gray-800 dark:bg-gray-900 px-4 py-2">
 					<p className="py-1">
 						<code className="font-mono text-sm text-gray-300 select-all">
 							{command}

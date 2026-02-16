@@ -19,6 +19,11 @@ class ServerUISettings(PrefectBaseSettings):
         ),
     )
 
+    v2_enabled: bool = Field(
+        default=False,
+        description="Whether to serve the experimental V2 UI instead of the default V1 UI.",
+    )
+
     api_url: Optional[str] = Field(
         default=None,
         description="The connection url for communication from the UI to the API. Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from `PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`.",
@@ -47,4 +52,9 @@ class ServerUISettings(PrefectBaseSettings):
             "prefect_server_ui_static_directory",
             "prefect_ui_static_directory",
         ),
+    )
+
+    show_promotional_content: bool = Field(
+        default=True,
+        description="Whether or not to display promotional content in the UI, including upgrade prompts and marketing banners.",
     )

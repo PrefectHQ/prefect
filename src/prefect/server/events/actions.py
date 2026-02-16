@@ -10,6 +10,7 @@ import asyncio
 import copy
 from base64 import b64encode
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -81,7 +82,7 @@ from prefect.server.utilities.user_templates import (
     render_user_template,
     validate_user_template,
 )
-from prefect.types import DateTime, StrictVariableValue
+from prefect.types import DateTime, NonNegativeTimeDelta, StrictVariableValue
 from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
@@ -157,14 +158,51 @@ class Action(PrefectBaseModel, abc.ABC):
 
         async with PrefectServerEventsClient() as events:
             triggered_event_id = uuid7()
+            # Link to the triggering event if available and recent to establish causal chain.
+            # Only set follows if timing is tight (within 5 minutes) to avoid unnecessary
+            # waiting at CausalOrdering when events arrive >15 min after their follows event.
+            follows_id = None
+            if (
+                triggered_action.triggering_event
+                and triggered_action.triggering_event.occurred
+            ):
+                time_since_trigger = (
+                    triggered_action.triggered
+                    - triggered_action.triggering_event.occurred
+                )
+                TIGHT_TIMING = timedelta(minutes=5)
+                if abs(time_since_trigger) < TIGHT_TIMING:
+                    follows_id = triggered_action.triggering_event.id
+
+            # Build related resources including automation.triggered and triggering event
+            related_resources = list(self._resulting_related_resources)
+            if triggered_action.automation_triggered_event_id:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
+                            "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
+            if triggered_action.triggering_event:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.triggering_event.id}",
+                            "prefect.resource.role": "triggering-event",
+                        }
+                    )
+                )
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
                     event="prefect.automation.action.triggered",
                     resource=resource,
-                    related=self._resulting_related_resources,
+                    related=related_resources,
                     payload=action_details,
                     id=triggered_event_id,
+                    follows=follows_id,
                 )
             )
             await events.emit(
@@ -172,7 +210,7 @@ class Action(PrefectBaseModel, abc.ABC):
                     occurred=now("UTC"),
                     event="prefect.automation.action.failed",
                     resource=resource,
-                    related=self._resulting_related_resources,
+                    related=related_resources,
                     payload={
                         **action_details,
                         "reason": reason,
@@ -209,34 +247,59 @@ class Action(PrefectBaseModel, abc.ABC):
 
         async with PrefectServerEventsClient() as events:
             triggered_event_id = uuid7()
+            # Link to the triggering event if available and recent to establish causal chain.
+            # Only set follows if timing is tight (within 5 minutes) to avoid unnecessary
+            # waiting at CausalOrdering when events arrive >15 min after their follows event.
+            follows_id = None
+            if (
+                triggered_action.triggering_event
+                and triggered_action.triggering_event.occurred
+            ):
+                time_since_trigger = (
+                    triggered_action.triggered
+                    - triggered_action.triggering_event.occurred
+                )
+                TIGHT_TIMING = timedelta(minutes=5)
+                if abs(time_since_trigger) < TIGHT_TIMING:
+                    follows_id = triggered_action.triggering_event.id
+
+            # Build related resources including automation.triggered and triggering event
+            related_resources = list(self._resulting_related_resources)
+            if triggered_action.automation_triggered_event_id:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.automation_triggered_event_id}",
+                            "prefect.resource.role": "automation-triggered-event",
+                        }
+                    )
+                )
+            if triggered_action.triggering_event:
+                related_resources.append(
+                    RelatedResource(
+                        {
+                            "prefect.resource.id": f"prefect.event.{triggered_action.triggering_event.id}",
+                            "prefect.resource.role": "triggering-event",
+                        }
+                    )
+                )
             await events.emit(
                 Event(
                     occurred=triggered_action.triggered,
                     event="prefect.automation.action.triggered",
-                    resource=Resource(
-                        {
-                            "prefect.resource.id": automation_resource_id,
-                            "prefect.resource.name": automation.name,
-                            "prefect.trigger-type": automation.trigger.type,
-                        }
-                    ),
-                    related=self._resulting_related_resources,
+                    resource=resource,
+                    related=related_resources,
                     payload=action_details,
                     id=triggered_event_id,
+                    follows=follows_id,
                 )
             )
             await events.emit(
                 Event(
                     occurred=now("UTC"),
                     event="prefect.automation.action.executed",
-                    resource=Resource(
-                        {
-                            "prefect.resource.id": automation_resource_id,
-                            "prefect.resource.name": automation.name,
-                            "prefect.trigger-type": automation.trigger.type,
-                        }
-                    ),
-                    related=self._resulting_related_resources,
+                    resource=resource,
+                    related=related_resources,
                     payload={
                         **action_details,
                         **self._result_details,
@@ -736,6 +799,13 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
             "to use the deployment's default job variables"
         ),
     )
+    schedule_after: NonNegativeTimeDelta = Field(
+        default_factory=lambda: timedelta(0),
+        description=(
+            "The amount of time to wait before running the deployment. "
+            "Defaults to running the deployment immediately."
+        ),
+    )
 
     _action_description: ClassVar[str] = "Running deployment"
 
@@ -745,7 +815,9 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
         deployment_id: UUID,
         triggered_action: "TriggeredAction",
     ) -> Response:
-        state = Scheduled()
+        # Calculate when to schedule the deployment
+        scheduled_time = datetime.now(timezone.utc) + self.schedule_after
+        state = Scheduled(scheduled_time=scheduled_time)
 
         try:
             flow_run_create = DeploymentFlowRunCreate(  # type: ignore
@@ -1029,7 +1101,9 @@ class FlowRunStateChangeAction(FlowRunAction):
 
         async with await self.orchestration_client(triggered_action) as orchestration:
             response = await orchestration.set_flow_run_state(
-                flow_run_id, await self.new_state(triggered_action=triggered_action)
+                flow_run_id,
+                await self.new_state(triggered_action=triggered_action),
+                force=getattr(self, "force", False),
             )
 
             self._result_details["status_code"] = response.status_code
@@ -1046,7 +1120,7 @@ class ChangeFlowRunState(FlowRunStateChangeAction):
 
     type: Literal["change-flow-run-state"] = "change-flow-run-state"
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         None,
         description="The name of the state to change the flow run to",
     )
@@ -1054,9 +1128,13 @@ class ChangeFlowRunState(FlowRunStateChangeAction):
         ...,
         description="The type of the state to change the flow run to",
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None,
         description="An optional message to associate with the state change",
+    )
+    force: bool = Field(
+        False,
+        description="Force the state change even if the transition is not allowed",
     )
 
     async def new_state(self, triggered_action: "TriggeredAction") -> StateCreate:
@@ -1189,7 +1267,7 @@ class CallWebhook(JinjaTemplateAction):
 
             try:
                 block_document = BlockDocument.model_validate(response.json())
-                block = Block._from_block_document(block_document)
+                block = await _load_block_from_block_document(block_document)
             except Exception as e:
                 raise ActionFailed(f"The webhook block was invalid: {e!r}")
 
@@ -1263,7 +1341,7 @@ class SendNotification(JinjaTemplateAction):
 
             try:
                 block_document = BlockDocument.model_validate(response.json())
-                block = Block._from_block_document(block_document)
+                block = await _load_block_from_block_document(block_document)
             except Exception as e:
                 raise ActionFailed(f"The notification block was invalid: {e!r}")
 
@@ -1739,3 +1817,37 @@ async def consumer() -> AsyncGenerator[MessageHandler, None]:
 
     logger.info("Starting action message handler")
     yield message_handler
+
+
+async def _load_block_from_block_document(
+    block_document: BlockDocument,
+) -> Block:
+    if block_document.block_schema is None:
+        raise ValueError("Unable to determine block schema for provided block document")
+
+    block_cls = Block.get_block_class_from_schema(block_document.block_schema)
+
+    block = block_cls.model_validate(block_document.data)
+    block._block_document_id = block_document.id
+    block.__class__._block_schema_id = block_document.block_schema_id
+    block.__class__._block_type_id = block_document.block_type_id
+    block._block_document_name = block_document.name
+    block._is_anonymous = block_document.is_anonymous
+    block._define_metadata_on_nested_blocks(block_document.block_document_references)
+
+    resources = block._event_method_called_resources()
+    if resources:
+        kind = block._event_kind()
+        resource, related = resources
+        async with PrefectServerEventsClient() as events_client:
+            await events_client.emit(
+                Event(
+                    id=uuid7(),
+                    occurred=now("UTC"),
+                    event=f"{kind}.loaded",
+                    resource=Resource.model_validate(resource),
+                    related=[RelatedResource.model_validate(r) for r in related],
+                )
+            )
+
+    return block

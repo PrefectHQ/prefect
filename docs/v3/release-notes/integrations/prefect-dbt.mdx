@@ -1,0 +1,116 @@
+---
+title: prefect-dbt
+---
+
+## 0.7.17
+
+_Released on February 12, 2026_
+
+**Features**
+
+- Add PER_NODE execution mode to PrefectDbtOrchestrator [#20608](https://github.com/PrefectHQ/prefect/pull/20608) by [@desertaxle](https://github.com/desertaxle)
+- Add `PrefectDbtOrchestrator` with wave-by-wave execution [#20591](https://github.com/PrefectHQ/prefect/pull/20591) by [@desertaxle](https://github.com/desertaxle)
+- Add selector resolution and node filtering for per-node dbt orchestration [#20579](https://github.com/PrefectHQ/prefect/pull/20579) by [@desertaxle](https://github.com/desertaxle)
+- Add `DbtNode`, `ExecutionWave`, and `ManifestParser` for per-node dbt orchestration [#20561](https://github.com/PrefectHQ/prefect/pull/20561) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes**
+
+- Fix error message in PrefectDbtRunner [#20648](https://github.com/PrefectHQ/prefect/pull/20648) by [@lostkamp](https://github.com/lostkamp)
+- fix: use `timeout_seconds_override` as `max_wait_seconds` when polling for dbt Cloud job completion [#20583](https://github.com/PrefectHQ/prefect/pull/20583) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Fix `DbtCoreOperation` sync methods after `prefect-shell` `async_dispatch` migration [#20562](https://github.com/PrefectHQ/prefect/pull/20562) by [@desertaxle](https://github.com/desertaxle)
+
+**Documentation**
+
+- Add DbtCoreExecutor for per-node dbt command execution [#20589](https://github.com/PrefectHQ/prefect/pull/20589) by [@desertaxle](https://github.com/desertaxle)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
+- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@app/dependabot](https://github.com/app/dependabot)
+
+---
+
+## 0.7.15
+
+_Released on January 15, 2026_
+
+**Features**
+
+- Add create and delete job tasks to prefect-dbt Cloud integration [#20216](https://github.com/PrefectHQ/prefect/pull/20216) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Bug Fixes**
+
+- Fix PrefectDbtRunner for multi-word commands [#20221](https://github.com/PrefectHQ/prefect/pull/20221) by [@lostkamp](https://github.com/lostkamp)
+
+---
+
+## 0.7.14
+
+_Released on December 29, 2025_
+
+**Bug Fixes**
+
+- Fix incorrect handling of dbt ephemeral models in PrefectDbtRunner [#19962](https://github.com/PrefectHQ/prefect/pull/19962) by [@vyagubov](https://github.com/vyagubov)
+
+---
+
+## 0.7.13
+
+_Released on December 16, 2025_
+
+**Bug Fixes**
+
+- Skip asset creation for ephemeral models in `_call_task` [#19822](https://github.com/PrefectHQ/prefect/pull/19822) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+---
+
+## 0.7.12
+
+_Released on December 16, 2025_
+
+**Bug Fixes**
+
+- Skip ephemeral models in upstream node lookup [#19708](https://github.com/PrefectHQ/prefect/pull/19708) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+---
+
+## 0.7.11
+
+_Released on December 09, 2025_
+
+**Bug Fixes**
+
+- fix command detection when flags precede command [#19694](https://github.com/PrefectHQ/prefect/pull/19694) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+---
+
+## 0.7.10
+
+**Bug Fixes**
+
+- Fix task caching bug by [@desertaxle](https://github.com/desertaxle) in [#19597](https://github.com/PrefectHQ/prefect/pull/19597)
+
+- Fix a bug where `_stop_callback_processor` did not reset instance variables and caused deadlocks by [@zzstoatzz](https://github.com/zzstoatzz) in [#19601](https://github.com/PrefectHQ/prefect/pull/19601)
+
+## 0.7.9
+
+**Enhancements**
+
+* Queue dbt callbacks and filter queued tasks more aggressively by [@kevingrismore](https://github.com/kevingrismore) in [#19432](https://github.com/PrefectHQ/prefect/pull/19432)
+
+
+## 0.7.8
+
+_Released on September 18, 2025_
+
+**Bug Fixes**
+
+* Fix dbt kwargs handling to preserve positional args and validate command flags by [@zzstoatzz](https://github.com/zzstoatzz) in [#18981](https://github.com/PrefectHQ/prefect/pull/18981)
+
+## 0.7.7
+
+_Released on September 17, 2025_
+
+**Enhancements**
+
+* Handle dbt kwargs as args by [@kevingrismore](https://github.com/kevingrismore) in [#18952](https://github.com/PrefectHQ/prefect/pull/18952)

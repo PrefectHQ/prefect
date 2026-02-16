@@ -13,7 +13,6 @@ from typing_extensions import Self
 
 from prefect.exceptions import MissingContextError
 from prefect.logging.filters import ObfuscateApiKeyFilter
-from prefect.telemetry.logging import add_telemetry_log_handler
 
 if sys.version_info >= (3, 12):
     LoggingAdapter = logging.LoggerAdapter[logging.Logger]
@@ -86,8 +85,6 @@ def get_logger(name: str | None = None) -> logging.Logger:
     obfuscate_api_key_filter = ObfuscateApiKeyFilter()
     logger.addFilter(obfuscate_api_key_filter)
 
-    add_telemetry_log_handler(logger=logger)
-
     return logger
 
 
@@ -154,12 +151,6 @@ def get_run_logger(
     else:
         raise MissingContextError("There is no active flow or task run context.")
 
-    if isinstance(logger, logging.LoggerAdapter):
-        assert isinstance(logger.logger, logging.Logger)
-        add_telemetry_log_handler(logger.logger)
-    else:
-        add_telemetry_log_handler(logger)
-
     return logger
 
 
@@ -220,7 +211,9 @@ def task_run_logger(
         extra={
             **{
                 "task_run_id": str(task_run.id),
-                "flow_run_id": str(task_run.flow_run_id),
+                "flow_run_id": str(task_run.flow_run_id)
+                if task_run.flow_run_id is not None
+                else None,
                 "task_run_name": task_run.name,
                 "task_name": task.name if task else "<unknown>",
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
@@ -298,7 +291,29 @@ def print_as_log(*args: Any, **kwargs: Any) -> None:
     """
     from prefect.context import FlowRunContext, TaskRunContext
 
-    context = TaskRunContext.get() or FlowRunContext.get()
+    # When both contexts exist, we need to determine which one represents the
+    # currently executing code:
+    # - If we're in a subflow that's wrapped by a task, FlowRunContext represents
+    #   the subflow and should take precedence
+    # - If we're in a regular task, TaskRunContext represents the task
+    #
+    # We can distinguish by checking flow_run_id:
+    # - Regular task: flow_ctx.flow_run.id == task_ctx.task_run.flow_run_id
+    # - Subflow in task: flow_ctx.flow_run.id != task_ctx.task_run.flow_run_id
+    flow_ctx = FlowRunContext.get()
+    task_ctx = TaskRunContext.get()
+
+    if flow_ctx and task_ctx:
+        # If the flow_run_id from the flow context differs from the task's flow_run_id,
+        # we're in a subflow that's running inside a task, so prefer the flow context
+        if flow_ctx.flow_run and flow_ctx.flow_run.id != task_ctx.task_run.flow_run_id:
+            context = flow_ctx
+        else:
+            # We're in a regular task within the flow
+            context = task_ctx
+    else:
+        context = flow_ctx or task_ctx
+
     if (
         not context
         or not context.log_prints
@@ -313,8 +328,13 @@ def print_as_log(*args: Any, **kwargs: Any) -> None:
     kwargs["file"] = buffer
     print(*args, **kwargs)
 
-    # Remove trailing whitespace to prevent duplicates
-    logger.info(buffer.getvalue().rstrip())
+    msg = buffer.getvalue().rstrip()
+
+    if isinstance(logger, logging.LoggerAdapter) and sys.version_info < (3, 11):
+        if logger.isEnabledFor(logging.INFO):
+            logger.logger._log(logging.INFO, msg, (), extra=logger.extra, stacklevel=1)
+    else:
+        logger.info(msg, stacklevel=2)
 
 
 @contextmanager

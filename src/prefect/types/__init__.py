@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from functools import partial
-from typing import Annotated, Any, Optional, TypeVar, Union
+from typing import Annotated, Any, Dict, Optional, TypeVar, Union
 from typing_extensions import Literal
 import orjson
 import pydantic
@@ -18,6 +19,7 @@ from .names import (
     ValidAssetKey,
 )
 from pydantic import (
+    AfterValidator,
     BeforeValidator,
     Field,
     StrictBool,
@@ -36,13 +38,57 @@ NonNegativeInteger = Annotated[int, Field(ge=0)]
 PositiveInteger = Annotated[int, Field(gt=0)]
 NonNegativeFloat = Annotated[float, Field(ge=0.0)]
 
+
+def _validate_non_negative_timedelta(v: timedelta) -> timedelta:
+    """Validate that a timedelta is non-negative."""
+    if v.total_seconds() < 0:
+        raise ValueError("schedule_after must be non-negative")
+    return v
+
+
+NonNegativeTimeDelta = Annotated[
+    timedelta, AfterValidator(_validate_non_negative_timedelta)
+]
+
+
+def _convert_seconds_to_timedelta(value: Any) -> Any:
+    """
+    Convert numeric values to timedelta for backward compatibility.
+
+    Accepts:
+    - int/float: interpreted as seconds
+    - str that can be parsed as float: interpreted as seconds
+    - timedelta: passed through unchanged
+    - str in ISO 8601 duration or time format: handled by Pydantic
+    """
+    if isinstance(value, timedelta):
+        return value
+
+    if isinstance(value, (int, float)):
+        return timedelta(seconds=value)
+
+    if isinstance(value, str):
+        # Try to parse as a numeric string first
+        try:
+            seconds = float(value)
+            return timedelta(seconds=seconds)
+        except ValueError:
+            # Not a numeric string, let Pydantic handle it
+            # (ISO 8601 duration format, time format, etc.)
+            pass
+
+    return value
+
+
+SecondsTimeDelta = Annotated[timedelta, BeforeValidator(_convert_seconds_to_timedelta)]
+
 TimeZone = Annotated[
     str,
     Field(
-        default="UTC",
         pattern="|".join(
             [z for z in sorted(available_timezones()) if "localtime" not in z]
         ),
+        examples=["America/New_York"],
     ),
 ]
 
@@ -200,12 +246,35 @@ KeyValueLabelsField = Annotated[
 ]
 
 
+def _deserialize_dict_if_string(value: Any) -> dict[str, str]:
+    """
+    Useful when a value is sometimes passed as a string or natively as a dict.
+
+    Example, setting the custom headers via the CLI involves passing a string format of a dict:
+    ```
+    prefect settings set PREFECT_CLIENT_CUSTOM_HEADERS='{"X-Test-Header": "test-value", "Authorization": "Bearer token123"}'
+    ```
+    """
+    if isinstance(value, str):
+        return orjson.loads(value)
+    return value
+
+
+# This is a Dict[str, str] and not a dict[str, str] because the latter causes errors with Pydantic
+# 2.10.6 and Python < 3.11
+JsonStringOrDict = Annotated[
+    Dict[str, str],
+    BeforeValidator(_deserialize_dict_if_string),
+]
+
+
 __all__ = [
     "BANNED_CHARACTERS",
     "WITHOUT_BANNED_CHARACTERS",
     "ClientRetryExtraCodes",
     "Date",
     "DateTime",
+    "JsonStringOrDict",
     "LogLevel",
     "KeyValueLabelsField",
     "MAX_VARIABLE_NAME_LENGTH",
@@ -214,9 +283,11 @@ __all__ = [
     "PositiveInteger",
     "ListOfNonEmptyStrings",
     "NonNegativeFloat",
+    "NonNegativeTimeDelta",
     "Name",
     "NameOrEmpty",
     "NonEmptyishName",
+    "SecondsTimeDelta",
     "ValidAssetKey",
     "SecretDict",
     "StatusCode",

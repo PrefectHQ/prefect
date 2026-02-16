@@ -1,9 +1,13 @@
 """Credential classes used to perform authenticated interactions with Azure"""
 
+import base64
 import functools
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity.aio import (
+    ClientSecretCredential as AClientSecretCredential,
+)
 from azure.identity.aio import DefaultAzureCredential as ADefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 from azure.mgmt.resource import ResourceManagementClient
@@ -75,12 +79,24 @@ class AzureBlobStorageCredentials(Block):
     """
     Stores credentials for authenticating with Azure Blob Storage.
 
+    Authentication can be done using one of the following methods:
+    1. Connection string: Provide a connection string for your Azure storage account.
+    2. Account URL with DefaultAzureCredential: Provide an account URL and credentials
+       will be discovered automatically using DefaultAzureCredential.
+    3. Account URL with Service Principal: Provide an account URL along with client_id,
+       tenant_id, and client_secret for service principal authentication.
+
     Args:
-        account_url: The URL for your Azure storage account. If provided, the account
-            URL will be used to authenticate with the discovered default Azure
-            credentials.
+        account_url: The URL for your Azure storage account. Required for
+            DefaultAzureCredential or service principal authentication.
         connection_string: The connection string to your Azure storage account. If
             provided, the connection string will take precedence over the account URL.
+        client_id: The service principal client ID. If provided, tenant_id and
+            client_secret must also be provided.
+        tenant_id: The service principal tenant ID. If provided, client_id and
+            client_secret must also be provided.
+        client_secret: The service principal client secret. If provided, client_id and
+            tenant_id must also be provided.
 
     Example:
         Load stored Azure Blob Storage credentials and retrieve a blob service client:
@@ -89,14 +105,29 @@ class AzureBlobStorageCredentials(Block):
 
         azure_credentials_block = AzureBlobStorageCredentials.load("BLOCK_NAME")
 
-        blob_service_client = azure_credentials_block.get_blob_client()
+        blob_service_client = azure_credentials_block.get_client()
+        ```
+
+        Using service principal authentication:
+        ```python
+        from prefect_azure import AzureBlobStorageCredentials
+
+        credentials = AzureBlobStorageCredentials(
+            account_url="https://mystorageaccount.blob.core.windows.net",
+            client_id="my-client-id",
+            tenant_id="my-tenant-id",
+            client_secret="my-client-secret",
+        )
+        blob_service_client = credentials.get_client()
         ```
     """
 
     _block_type_name = "Azure Blob Storage Credentials"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
     _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"  # noqa
-    _credential: Optional[ADefaultAzureCredential] = PrivateAttr(default=None)
+    _credential: Optional[Union[ADefaultAzureCredential, AClientSecretCredential]] = (
+        PrivateAttr(default=None)
+    )
 
     connection_string: Optional[SecretStr] = Field(
         default=None,
@@ -109,9 +140,31 @@ class AzureBlobStorageCredentials(Block):
         default=None,
         title="Account URL",
         description=(
-            "The URL for your Azure storage account. If provided, the account "
-            "URL will be used to authenticate with the discovered default "
-            "Azure credentials."
+            "The URL for your Azure storage account. Required for "
+            "DefaultAzureCredential or service principal authentication."
+        ),
+    )
+    client_id: Optional[str] = Field(
+        default=None,
+        title="Client ID",
+        description=(
+            "The service principal client ID. If provided, tenant_id and "
+            "client_secret must also be provided for service principal authentication."
+        ),
+    )
+    tenant_id: Optional[str] = Field(
+        default=None,
+        title="Tenant ID",
+        description=(
+            "The service principal tenant ID. If provided, client_id and "
+            "client_secret must also be provided for service principal authentication."
+        ),
+    )
+    client_secret: Optional[SecretStr] = Field(
+        default=None,
+        description=(
+            "The service principal client secret. If provided, client_id and "
+            "tenant_id must also be provided for service principal authentication."
         ),
     )
 
@@ -121,19 +174,82 @@ class AzureBlobStorageCredentials(Block):
         cls, values: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Checks that either a connection string or account URL is provided, not both.
+        Validates authentication configuration.
+
+        Valid configurations:
+        1. connection_string only (no account_url, no SPN fields)
+        2. account_url only (uses DefaultAzureCredential)
+        3. account_url + client_id + tenant_id + client_secret (SPN auth)
         """
         has_account_url = values.get("account_url") is not None
         has_conn_str = values.get("connection_string") is not None
+
+        # Check SPN fields
+        spn_fields = ("client_id", "tenant_id", "client_secret")
+        has_any_spn = any(values.get(key) is not None for key in spn_fields)
+        has_all_spn = all(values.get(key) is not None for key in spn_fields)
+
+        # Validate SPN configuration
+        if has_any_spn and not has_all_spn:
+            raise ValueError(
+                "If any of `client_id`, `tenant_id`, or `client_secret` are provided, "
+                "all must be provided for service principal authentication."
+            )
+
+        # SPN requires account_url
+        if has_all_spn and not has_account_url:
+            raise ValueError(
+                "Must provide `account_url` when using service principal authentication."
+            )
+
+        # Connection string cannot be combined with SPN
+        if has_conn_str and has_any_spn:
+            raise ValueError(
+                "Cannot provide both a connection string and service principal "
+                "credentials. Use one or the other."
+            )
+
+        # Must have either connection_string or account_url
         if not has_account_url and not has_conn_str:
             raise ValueError(
                 "Must provide either a connection string or an account URL."
             )
+
+        # Cannot have both connection_string and account_url
         if has_account_url and has_conn_str:
             raise ValueError(
                 "Must provide either a connection string or account URL, but not both."
             )
+
         return values
+
+    def _create_credential(
+        self,
+    ) -> Union[ADefaultAzureCredential, AClientSecretCredential]:
+        """
+        Creates an async Azure credential based on the configured authentication method.
+
+        If service principal credentials are provided, uses ClientSecretCredential.
+        Otherwise, uses DefaultAzureCredential for automatic credential discovery.
+
+        Returns:
+            An async Azure credential ready to use with Azure SDK client classes.
+        """
+        if self._credential is not None:
+            return self._credential
+
+        if self.client_id is not None:
+            # Service principal authentication
+            self._credential = AClientSecretCredential(
+                tenant_id=self.tenant_id,
+                client_id=self.client_id,
+                client_secret=self.client_secret.get_secret_value(),
+            )
+        else:
+            # Default credential discovery
+            self._credential = ADefaultAzureCredential()
+
+        return self._credential
 
     @_raise_help_msg("blob_storage")
     def get_client(self) -> "BlobServiceClient":
@@ -163,10 +279,9 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
-            self._credential = self._credential or ADefaultAzureCredential()
             return BlobServiceClient(
                 account_url=self.account_url,
-                credential=self._credential,
+                credential=self._create_credential(),
             )
 
         return BlobServiceClient.from_connection_string(
@@ -207,11 +322,10 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
-            self._credential = self._credential or ADefaultAzureCredential()
             return BlobClient(
                 account_url=self.account_url,
                 container_name=container,
-                credential=self._credential,
+                credential=self._create_credential(),
                 blob_name=blob,
             )
 
@@ -253,11 +367,10 @@ class AzureBlobStorageCredentials(Block):
             ```
         """
         if self.connection_string is None:
-            self._credential = self._credential or ADefaultAzureCredential()
             return ContainerClient(
                 account_url=self.account_url,
                 container_name=container,
-                credential=self._credential,
+                credential=self._create_credential(),
             )
 
         container_client = ContainerClient.from_connection_string(
@@ -598,3 +711,41 @@ class AzureContainerInstanceCredentials(Block):
             client_secret=self.client_secret.get_secret_value(),
             **self.credential_kwargs,
         )
+
+
+class AzureDevopsCredentials(Block):
+    """
+    Block used to authenticate with Azure DevOps using a Personal Access Token.
+
+    Attributes:
+        token: A Personal Access Token generated from Azure DevOps.
+
+    Example:
+        Load stored Azure DevOps credentials block
+        ```python
+        from prefect_azure import AzureDevopsCredentials
+
+        azuredevops_credentials_block = AzureDevopsCredentials.load("BLOCK_NAME")
+        ```
+    """
+
+    _block_type_name = "AzureDevops Credentials"
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/54e3fa7e00197a4fbd1d82ed62494cb58d08c96a-250x250.png"  # noqa
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-azure"
+
+    token: Optional[SecretStr] = Field(
+        title="AzureDevops Personal Access Token",
+        default=None,
+        description="A Personal Access token to authenticate with AzureDevops.",
+    )
+
+    def get_auth_header(self) -> Dict[str, str]:
+        """
+        Returns an HTTP Authorization header using the stored PAT.
+        This can be used for Azure DevOps REST API calls.
+        """
+        if self.token is None:
+            raise ValueError("Azure DevOps Personal Access Token (token) is not set.")
+        pat = self.token.get_secret_value()
+        basic_auth = base64.b64encode(f":{pat}".encode()).decode()
+        return {"Authorization": f"Basic {basic_auth}"}

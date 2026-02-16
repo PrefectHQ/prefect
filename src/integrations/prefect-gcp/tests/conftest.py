@@ -8,19 +8,15 @@ from google.cloud.aiplatform_v1.types.job_state import JobState
 from google.cloud.exceptions import NotFound
 from prefect_gcp.credentials import GcpCredentials
 
-from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 from prefect.testing.utilities import prefect_test_harness
 
 
 @pytest.fixture(scope="session", autouse=True)
 def prefect_db():
-    with prefect_test_harness():
-        yield
-
-
-@pytest.fixture(scope="session", autouse=True)
-def disable_logging():
-    with temporary_settings({PREFECT_LOGGING_TO_API_ENABLED: False}):
+    # Increase timeout for CI environments where multiple xdist workers
+    # start servers simultaneously, which can be slower on Python 3.11+
+    # See https://github.com/PrefectHQ/prefect/issues/16397
+    with prefect_test_harness(server_startup_timeout=60):
         yield
 
 
@@ -55,8 +51,8 @@ def google_auth_no_quota_project(monkeypatch):
 @pytest.fixture
 def oauth2_credentials(monkeypatch):
     CredentialsMock = MagicMock()
-    CredentialsMock.from_service_account_info.side_effect = (
-        lambda json, scopes: MagicMock(scopes=scopes, **json)
+    CredentialsMock.from_service_account_info.side_effect = lambda json, scopes: (
+        MagicMock(scopes=scopes, **json)
     )
     CredentialsMock.from_service_account_file.side_effect = lambda file, scopes: file
     monkeypatch.setattr("prefect_gcp.credentials.Credentials", CredentialsMock)
@@ -87,8 +83,8 @@ class CloudStorageClient(MagicMock):
     def get_bucket(self, bucket):
         blob_obj = MagicMock()
         blob_obj.download_as_bytes.return_value = b"bytes"
-        blob_obj.download_to_file.side_effect = (
-            lambda file_obj, **kwargs: file_obj.write(b"abcdef")
+        blob_obj.download_to_file.side_effect = lambda file_obj, **kwargs: (
+            file_obj.write(b"abcdef")
         )
         blob_obj.download_to_filename.side_effect = lambda filename, **kwargs: Path(
             filename

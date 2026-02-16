@@ -1,3 +1,4 @@
+import uuid
 from uuid import UUID
 
 import pytest
@@ -18,8 +19,9 @@ def enable_triggers():
 
 @pytest.fixture
 async def automation_spec() -> Automation:
+    automation_name = f"hello-{uuid.uuid4()}"
     automation_to_create = Automation(
-        name="hello",
+        name=automation_name,
         description="world",
         enabled=True,
         trigger=EventTrigger(
@@ -38,8 +40,9 @@ async def automation_spec() -> Automation:
 
 @pytest.fixture
 async def automation() -> Automation:
+    automation_name = f"hello-{uuid.uuid4()}"
     automation_to_create = Automation(
-        name="hello",
+        name=automation_name,
         description="world",
         enabled=True,
         trigger=EventTrigger(
@@ -60,7 +63,7 @@ async def automation() -> Automation:
 
 async def test_read_automation_by_uuid(automation: Automation):
     model = await Automation.read(id=automation.id)
-    assert model.name == "hello"
+    assert model.name == automation.name
     assert model.description == "world"
     assert model.enabled is True
     assert model.trigger.match == ResourceSpecification(
@@ -79,7 +82,7 @@ async def test_read_automation_by_uuid(automation: Automation):
 
 async def test_read_automation_by_uuid_string(automation: Automation):
     model = await Automation.read(str(automation.id))
-    assert model.name == "hello"
+    assert model.name == automation.name
     assert model.description == "world"
     assert model.enabled is True
     assert model.trigger.match == ResourceSpecification(
@@ -98,7 +101,7 @@ async def test_read_automation_by_uuid_string(automation: Automation):
 
 async def test_read_automation_by_name(automation: Automation):
     model = await Automation.read(name=automation.name)
-    assert model.name == "hello"
+    assert model.name == automation.name
     assert model.description == "world"
     assert model.enabled is True
     assert model.trigger.match == ResourceSpecification(
@@ -237,3 +240,32 @@ async def test_find_automation(automation: Automation):
     # Test finding nonexistent name returns None
     found = await client.find_automation("nonexistent_name")
     assert found is None
+
+
+async def test_concurrent_automation_deletion():
+    """Test that concurrent automation deletions don't deadlock."""
+    import asyncio
+
+    test_uuid = uuid.uuid4()
+    automations_to_create = [
+        Automation(
+            name=f"concurrent-test-{test_uuid}-{i}",
+            trigger=EventTrigger(
+                expect={"prefect.flow-run.Completed"},
+                posture=Posture.Reactive,
+                threshold=1,
+            ),
+            actions=[DoNothing()],
+        )
+        for i in range(10)
+    ]
+
+    created_automations = await asyncio.gather(
+        *[automation.create() for automation in automations_to_create]
+    )
+
+    await asyncio.gather(*[automation.adelete() for automation in created_automations])
+
+    for automation in created_automations:
+        with pytest.raises(ValueError):
+            await Automation.read(id=automation.id)

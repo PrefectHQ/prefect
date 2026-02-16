@@ -1,4 +1,4 @@
-from unittest import mock
+import uuid
 
 import pytest
 
@@ -180,9 +180,10 @@ def test_root_flow_custom_serializer_by_instance(default_persistence_off):
 
 async def test_root_flow_custom_storage_by_slug(tmp_path, default_persistence_off):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
-    @flow(result_storage="local-file-system/test")
+    @flow(result_storage=f"local-file-system/{block_name}")
     def foo():
         return get_run_context().result_store, should_persist_result()
 
@@ -197,7 +198,8 @@ async def test_root_flow_custom_storage_by_instance_presaved(
     tmp_path, default_persistence_off
 ):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
     @flow(result_storage=storage)
     def foo():
@@ -362,9 +364,10 @@ def test_child_flow_inherits_custom_serializer(default_persistence_off):
 
 async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_off):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
-    @flow(result_storage="local-file-system/test")
+    @flow(result_storage=f"local-file-system/{block_name}")
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
@@ -382,14 +385,15 @@ async def test_child_flow_inherits_custom_storage(tmp_path, default_persistence_
 
 async def test_child_flow_custom_storage(tmp_path, default_persistence_off):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
     @flow()
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
 
-    @flow(result_storage="local-file-system/test")
+    @flow(result_storage=f"local-file-system/{block_name}")
     def bar():
         return get_run_context().result_store, should_persist_result()
 
@@ -586,9 +590,10 @@ def test_task_inherits_custom_serializer(default_persistence_off):
 
 async def test_task_inherits_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
-    @flow(result_storage="local-file-system/test", persist_result=True)
+    @flow(result_storage=f"local-file-system/{block_name}", persist_result=True)
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
@@ -624,14 +629,15 @@ def test_task_custom_serializer(default_persistence_off):
 
 async def test_nested_flow_custom_storage(tmp_path):
     storage = LocalFileSystem(basepath=tmp_path / "test")
-    storage_id = await storage.save("test")
+    block_name = f"test-{uuid.uuid4()}"
+    storage_id = await storage.save(block_name)
 
     @flow(persist_result=True)
     def foo():
         child_store, child_persist_result = bar()
         return get_run_context().result_store, child_persist_result, child_store
 
-    @flow(result_storage="local-file-system/test", persist_result=True)
+    @flow(result_storage=f"local-file-system/{block_name}", persist_result=True)
     def bar():
         return get_run_context().result_store, should_persist_result()
 
@@ -885,76 +891,63 @@ async def test_supports_isolation_level():
     )
 
 
-class TestResultStoreEmitsEvents:
-    async def test_result_store_emits_write_event(
-        self, tmp_path, enable_lineage_events
-    ):
-        filesystem = LocalFileSystem(basepath=tmp_path)
-        result_store = ResultStore(result_storage=filesystem)
+class TestAsyncDispatch:
+    """Tests for async_dispatch behavior of ResultStore methods."""
 
-        with mock.patch(
-            "prefect._experimental.lineage.emit_result_write_event"
-        ) as mock_emit:
-            await result_store.awrite(key="test", obj="test")
-            resolved_key_path = result_store._resolved_key_path("test")
-            mock_emit.assert_called_once_with(result_store, resolved_key_path)
+    async def test_update_for_flow_dispatches_to_async_in_async_context(self):
+        """Test that update_for_flow dispatches to aupdate_for_flow in async context."""
 
-    async def test_result_store_emits_read_event(self, tmp_path, enable_lineage_events):
-        filesystem = LocalFileSystem(basepath=tmp_path)
-        result_store = ResultStore(result_storage=filesystem)
-        await result_store.awrite(key="test", obj="test")
+        @flow
+        async def my_flow():
+            pass
 
-        # Reading from a different result store allows us to test the read
-        # without the store's in-memory cache.
-        other_result_store = ResultStore(result_storage=filesystem)
+        store = ResultStore()
+        # In async context, calling update_for_flow should return a coroutine
+        result = store.update_for_flow(my_flow)
+        # Should be a coroutine that we can await
+        assert hasattr(result, "__await__")
+        updated_store = await result
+        assert isinstance(updated_store, ResultStore)
 
-        with mock.patch(
-            "prefect._experimental.lineage.emit_result_read_event"
-        ) as mock_emit:
-            await other_result_store.aread(key="test")
-            resolved_key_path = other_result_store._resolved_key_path("test")
-            mock_emit.assert_called_once_with(other_result_store, resolved_key_path)
+    async def test_update_for_task_dispatches_to_async_in_async_context(self):
+        """Test that update_for_task dispatches to aupdate_for_task in async context."""
 
-    async def test_result_store_emits_cached_read_event(
-        self, tmp_path, enable_lineage_events
-    ):
-        result_store = ResultStore(
-            cache_result_in_memory=True,
-        )
-        await result_store.awrite(key="test", obj="test")
+        @task
+        async def my_task():
+            pass
 
-        with mock.patch(
-            "prefect._experimental.lineage.emit_result_read_event"
-        ) as mock_emit:
-            await result_store.aread(key="test")  # cached read
-            resolved_key_path = result_store._resolved_key_path("test")
-            mock_emit.assert_called_once_with(
-                result_store,
-                resolved_key_path,
-                cached=True,
-            )
+        store = ResultStore()
+        # In async context, calling update_for_task should return a coroutine
+        result = store.update_for_task(my_task)
+        # Should be a coroutine that we can await
+        assert hasattr(result, "__await__")
+        updated_store = await result
+        assert isinstance(updated_store, ResultStore)
 
-    async def test_result_store_does_not_emit_lineage_write_events_when_disabled(
-        self, tmp_path
-    ):
-        filesystem = LocalFileSystem(basepath=tmp_path)
-        result_store = ResultStore(result_storage=filesystem)
+    def test_update_for_flow_returns_sync_in_sync_context(self):
+        """Test that update_for_flow returns directly in sync context."""
 
-        with mock.patch(
-            "prefect._experimental.lineage.emit_lineage_event"
-        ) as mock_emit:
-            await result_store.awrite(key="test", obj="test")
-            mock_emit.assert_not_called()
+        @flow
+        def my_flow():
+            pass
 
-    async def test_result_store_does_not_emit_lineage_read_events_when_disabled(
-        self, tmp_path
-    ):
-        filesystem = LocalFileSystem(basepath=tmp_path)
-        result_store = ResultStore(result_storage=filesystem)
-        await result_store.awrite(key="test", obj="test")
+        store = ResultStore()
+        # In sync context, calling update_for_flow should return directly
+        result = store.update_for_flow(my_flow)
+        # Should not be a coroutine
+        assert not hasattr(result, "__await__")
+        assert isinstance(result, ResultStore)
 
-        with mock.patch(
-            "prefect._experimental.lineage.emit_lineage_event"
-        ) as mock_emit:
-            await result_store.aread(key="test")
-            mock_emit.assert_not_called()
+    def test_update_for_task_returns_sync_in_sync_context(self):
+        """Test that update_for_task returns directly in sync context."""
+
+        @task
+        def my_task():
+            pass
+
+        store = ResultStore()
+        # In sync context, calling update_for_task should return directly
+        result = store.update_for_task(my_task)
+        # Should not be a coroutine
+        assert not hasattr(result, "__await__")
+        assert isinstance(result, ResultStore)

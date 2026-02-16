@@ -5,7 +5,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 import boto3
 import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError
-from moto import mock_s3
+from moto import mock_aws
 from prefect_aws import AwsCredentials, MinIOCredentials
 from prefect_aws.client_parameters import AwsClientParameters
 from prefect_aws.s3 import (
@@ -34,7 +34,7 @@ aws_clients = [
 def s3_mock(monkeypatch, client_parameters):
     if client_parameters.endpoint_url:
         monkeypatch.setenv("MOTO_S3_CUSTOM_ENDPOINTS", client_parameters.endpoint_url)
-    with mock_s3():
+    with mock_aws():
         yield
 
 
@@ -496,7 +496,7 @@ BUCKET_NAME = "test_bucket"
 def s3():
     """Mock connection to AWS S3 with boto3 client."""
 
-    with mock_s3():
+    with mock_aws():
         yield boto3.client(
             service_name="s3",
             region_name="us-east-1",
@@ -775,7 +775,7 @@ class TestS3Bucket:
         ]
     )
     def credentials(self, request):
-        with mock_s3():
+        with mock_aws():
             yield request.param
 
     @pytest.fixture

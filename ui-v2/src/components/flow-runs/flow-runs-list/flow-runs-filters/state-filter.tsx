@@ -9,14 +9,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
-import { Typography } from "@/components/ui/typography";
 import {
 	FLOW_RUN_STATES_MAP,
 	FLOW_RUN_STATES_NO_SCHEDULED,
 	type FlowRunState,
 } from "./state-filters.constants";
 
-const MAX_FILTERS_DISPLAYED = 4;
+const MAX_FILTERS_DISPLAYED = 2;
 
 type StateFilterProps = {
 	defaultValue?: Set<FlowRunState>;
@@ -77,22 +76,22 @@ export const StateFilter = ({
 			return "All except scheduled";
 		}
 
+		const selected = Array.from(selectedFilters);
+		const visible = selected.slice(0, MAX_FILTERS_DISPLAYED);
+		const extraCount = selected.length - MAX_FILTERS_DISPLAYED;
+
 		return (
-			<div className="flex gap-2">
-				{Array.from(selectedFilters)
-					.slice(0, MAX_FILTERS_DISPLAYED)
-					.map((filter) => (
+			<div className="flex flex-1 min-w-0 items-center gap-2">
+				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
+					{visible.map((filter) => (
 						<StateBadge
 							key={filter}
 							name={filter}
 							type={FLOW_RUN_STATES_MAP[filter]}
 						/>
 					))}
-				{selectedFilters.size > MAX_FILTERS_DISPLAYED && (
-					<Typography variant="bodySmall">
-						+ {selectedFilters.size - MAX_FILTERS_DISPLAYED}
-					</Typography>
-				)}
+				</div>
+				{extraCount > 0 && <p className="text-sm shrink-0">+ {extraCount}</p>}
 			</div>
 		);
 	};
@@ -100,12 +99,15 @@ export const StateFilter = ({
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline" className="justify-between w-full">
-					<span>{renderSelectedTags()}</span>
+				<Button
+					variant="outline"
+					className="justify-between w-full bg-card dark:bg-background"
+				>
+					<span className="flex-1 min-w-0">{renderSelectedTags()}</span>
 					<Icon id="ChevronDown" className="ml-2 size-4 shrink-0" />
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent>
+			<DropdownMenuContent className="max-h-96 overflow-x-hidden overflow-y-auto">
 				<DropdownMenuItem
 					onSelect={(e) => {
 						e.preventDefault();

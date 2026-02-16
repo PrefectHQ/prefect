@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Input, type InputProps } from "@/components/ui/input";
 import { TagBadgeGroup } from "./tag-badge-group";
 
-export type TagsInputProps = InputProps & {
+export type TagsInputProps = Omit<InputProps, "onChange" | "value"> & {
 	value?: string[];
 	onChange?: (tags: string[]) => void;
 	placeholder?: string;
@@ -54,7 +54,7 @@ export const TagsInput = ({
 	};
 
 	return (
-		<div className="flex items-center border rounded-md focus-within:ring-1 focus-within:ring-ring ">
+		<div className="flex items-center border rounded-md focus-within:ring-1 focus-within:ring-ring bg-card dark:bg-background">
 			<TagBadgeGroup tags={value} onTagsChange={onChange} variant="secondary" />
 			<Input
 				type="text"

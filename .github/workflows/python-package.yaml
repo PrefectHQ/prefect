@@ -2,7 +2,7 @@ name: Publish Python package
 
 on:
   release:
-    types: [released, prereleased]
+    types: [published]
   workflow_dispatch:
     inputs:
       commit:
@@ -17,20 +17,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Set up uv and Python
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          python-version: "3.9"
+          python-version: "3.10"
           cache-dependency-glob: "pyproject.toml"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version-file: ".nvmrc"
           cache-dependency-path: "**/package-lock.json"
@@ -43,16 +43,27 @@ jobs:
         run: |
           uv run prefect dev build-ui
 
+      - name: Build UI v2
+        working-directory: ui-v2
+        env:
+          VITE_AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
+        run: |
+          npm ci
+          npm run build
+          cp -r dist ../src/prefect/server/ui-v2
+
       - name: Check git diff
         run: |
           git diff --exit-code
 
       - name: Build a binary wheel and a source tarball
+        env:
+          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
         run: |
           uv build --sdist --wheel --out-dir dist
 
       - name: Publish build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pypi-dists
           path: "./dist"
@@ -77,7 +88,7 @@ jobs:
           fi
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: pypi-dists
           path: "./dist"

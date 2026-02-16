@@ -1,12 +1,13 @@
 import ipaddress
+import uuid
 from datetime import datetime
 from typing import Optional
 
 import httpx
 import pytest
-from starlette import status
 from tests.cli.cloud.test_cloud import gen_test_workspace
 
+from prefect._internal.compatibility.starlette import status
 from prefect.client.schemas.objects import IPAllowlist, IPAllowlistEntry
 from prefect.context import use_profile
 from prefect.settings import (
@@ -49,7 +50,7 @@ SAMPLE_ALLOWLIST = IPAllowlist(
 @pytest.fixture
 def workspace_with_logged_in_profile():
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
-    profile_name = "logged-in-profile"
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [

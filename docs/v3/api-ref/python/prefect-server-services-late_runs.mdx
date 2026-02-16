@@ -11,73 +11,24 @@ The MarkLateRuns service. Responsible for putting flow runs in a Late state if t
 The threshold for a late run can be configured by changing `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`.
 
 
-## Classes
+## Functions
 
-### `MarkLateRuns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-
-Finds flow runs that are later than their scheduled start time
-
-A flow run is defined as "late" if has not scheduled within a certain amount
-of time after its scheduled start time. The exact amount is configurable in
-Prefect REST API Settings.
-
-
-**Methods:**
-
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `mark_flow_run_late` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_once(self, db: PrefectDBInterface) -> None
+mark_flow_run_late(flow_run_id: Annotated[UUID, Logged]) -> None
 ```
 
-Mark flow runs as late by:
 
-- Querying for flow runs in a scheduled state that are Scheduled to start in the past
-- For any runs past the "late" threshold, setting the flow run state to a new `Late` state
+Mark a single flow run as late (docket task).
 
 
-#### `run_once` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `monitor_late_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_once(self) -> None
+monitor_late_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.late_runs.loop_seconds))) -> None
 ```
 
-Represents one loop of the service.
 
-Subclasses must override this method.
-
-To actually run the service once, call `LoopService().start(loops=1)`
-instead of `LoopService().run_once()`, because this method will not invoke setup
-and teardown methods properly.
-
-
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-service_settings(cls) -> ServicesBaseSetting
-```
-
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-start(self, loops: None = None) -> NoReturn
-```
-
-Run the service indefinitely.
-
-
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-stop(self, block: bool = True) -> None
-```
-
-Gracefully stops a running LoopService and optionally blocks until the
-service stops.
-
-**Args:**
-- `block`: if True, blocks until the service is
-finished running. Otherwise it requests a stop and returns but
-the service may still be running a final loop.
+Monitor for late flow runs and schedule marking tasks.
 

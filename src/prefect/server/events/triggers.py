@@ -35,6 +35,7 @@ from prefect.server.events.models.automations import (
     read_automation,
 )
 from prefect.server.events.models.composite_trigger_child_firing import (
+    acquire_composite_trigger_lock,
     clear_child_firings,
     clear_old_child_firings,
     get_child_firings,
@@ -42,8 +43,8 @@ from prefect.server.events.models.composite_trigger_child_firing import (
 )
 from prefect.server.events.ordering import (
     PRECEDING_EVENT_LOOKBACK,
-    CausalOrdering,
     EventArrivedEarly,
+    get_triggers_causal_ordering,
 )
 from prefect.server.events.schemas.automations import (
     Automation,
@@ -217,6 +218,32 @@ async def evaluate(
                 "meets_threshold": meets_threshold,
             },
         )
+
+        # Special case of a proactive trigger for which the same event satisfies
+        # both `after` and `expect`.  For example, using flow run heartbeats for crash
+        # detection, after the first heartbeat we expect a subsequent heartbeat or
+        # terminal state within a given time.
+        #
+        # If we've already reached the proactive threshold, we need to remove the
+        # current bucket and start a new one for the latest event.
+        if (
+            triggering_event
+            and trigger.posture == Posture.Proactive
+            and not meets_threshold
+            and trigger.starts_after(triggering_event.event)
+            and trigger.expects(triggering_event.event)
+        ):
+            await remove_bucket(session, bucket)
+            return await start_new_bucket(
+                session,
+                trigger,
+                bucketing_key=bucket.bucketing_key,
+                start=triggering_event.occurred,
+                end=triggering_event.occurred + trigger.within,
+                count=0,
+                last_event=triggering_event,
+            )
+
         return bucket
     else:
         # Case #2 from the implementation notes above.
@@ -320,6 +347,11 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
         )
         return
 
+    # Acquire an advisory lock to serialize concurrent evaluations for this
+    # compound trigger. This prevents a race condition where multiple child
+    # triggers fire concurrently and neither transaction sees both firings.
+    await acquire_composite_trigger_lock(session, trigger)
+
     # If we're only looking within a certain time horizon, remove any older firings that
     # should no longer be considered as satisfying this trigger
     if trigger.within is not None:
@@ -356,8 +388,27 @@ async def evaluate_composite_trigger(session: AsyncSession, firing: Firing) -> N
             },
         )
 
-        # clear by firing id
-        await clear_child_firings(session, trigger, firing_ids=list(firing_ids))
+        # Clear by firing id, and only proceed if we won the race to claim them.
+        # This prevents double-firing when multiple workers evaluate concurrently.
+        deleted_ids = await clear_child_firings(
+            session, trigger, firing_ids=list(firing_ids)
+        )
+
+        if deleted_ids != firing_ids:
+            logger.debug(
+                "Composite trigger %s skipped fire; expected to delete %s firings, "
+                "actually deleted %s (another worker likely claimed them)",
+                trigger.id,
+                len(firing_ids),
+                len(deleted_ids),
+                extra={
+                    "automation": automation.id,
+                    "trigger": trigger.id,
+                    "expected_firing_ids": sorted(str(f) for f in firing_ids),
+                    "deleted_firing_ids": sorted(str(f) for f in deleted_ids),
+                },
+            )
+            return
 
         await fire(
             session,
@@ -385,21 +436,37 @@ async def act(firing: Firing) -> None:
     }
     await messaging.publish(state_change_events.values())
 
-    # By default, all `automation.actions` are fired
-    source_actions: List[Tuple[Optional[ReceivedEvent], ServerActionTypes]] = [
-        (firing.triggering_event, action) for action in automation.actions
+    # Determine the primary state change event ID for linking action events back to
+    # the automation.triggered or automation.resolved event. Prefer Triggered over
+    # Resolved when both are present.
+    primary_state_change_event = state_change_events.get(
+        TriggerState.Triggered
+    ) or state_change_events.get(TriggerState.Resolved)
+    primary_state_change_event_id = (
+        primary_state_change_event.id if primary_state_change_event else None
+    )
+
+    # By default, all `automation.actions` are fired. Each tuple contains:
+    # (triggering_event, action, automation_triggered_event_id)
+    source_actions: List[
+        Tuple[Optional[ReceivedEvent], ServerActionTypes, UUID | None]
+    ] = [
+        (firing.triggering_event, action, primary_state_change_event_id)
+        for action in automation.actions
     ]
 
     # Conditionally add in actions that fire on specific trigger states
     if TriggerState.Triggered in firing.trigger_states:
+        triggered_event = state_change_events[TriggerState.Triggered]
         source_actions += [
-            (state_change_events[TriggerState.Triggered], action)
+            (triggered_event, action, triggered_event.id)
             for action in automation.actions_on_trigger
         ]
 
     if TriggerState.Resolved in firing.trigger_states:
+        resolved_event = state_change_events[TriggerState.Resolved]
         source_actions += [
-            (state_change_events[TriggerState.Resolved], action)
+            (resolved_event, action, resolved_event.id)
             for action in automation.actions_on_resolve
         ]
 
@@ -412,8 +479,13 @@ async def act(firing: Firing) -> None:
             triggering_event=action_triggering_event,
             action=action,
             action_index=index,
+            automation_triggered_event_id=automation_triggered_event_id,
         )
-        for index, (action_triggering_event, action) in enumerate(source_actions)
+        for index, (
+            action_triggering_event,
+            action,
+            automation_triggered_event_id,
+        ) in enumerate(source_actions)
     ]
 
     async with messaging.create_actions_publisher() as publisher:
@@ -496,7 +568,7 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
     async with AsyncExitStack() as stack:
         await update_events_clock(event)
         await stack.enter_async_context(
-            causal_ordering().preceding_event_confirmed(
+            get_triggers_causal_ordering().preceding_event_confirmed(
                 reactive_evaluation, event, depth
             )
         )
@@ -597,7 +669,7 @@ async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
 @retry_async_fn(max_attempts=3, retry_on_exceptions=(sa.exc.OperationalError,))
 async def get_lost_followers() -> List[ReceivedEvent]:
     """Get followers that have been sitting around longer than our lookback"""
-    return await causal_ordering().get_lost_followers()
+    return await get_triggers_causal_ordering().get_lost_followers()
 
 
 async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
@@ -866,6 +938,7 @@ async def start_new_bucket(
     end: prefect.types._datetime.DateTime,
     count: int,
     triggered_at: Optional[prefect.types._datetime.DateTime] = None,
+    last_event: Optional[ReceivedEvent] = None,
 ) -> "ORMAutomationBucket":
     """Ensures that a bucket with the given start and end exists with the given count,
     returning the new bucket"""
@@ -882,6 +955,7 @@ async def start_new_bucket(
             count=count,
             last_operation="start_new_bucket[insert]",
             triggered_at=triggered_at,
+            last_event=last_event,
         )
         .on_conflict_do_update(
             index_elements=[
@@ -896,6 +970,7 @@ async def start_new_bucket(
                 last_operation="start_new_bucket[update]",
                 updated=prefect.types._datetime.now("UTC"),
                 triggered_at=triggered_at,
+                last_event=last_event,
             ),
         )
     )
@@ -999,10 +1074,6 @@ async def reset() -> None:
     next_proactive_runs.clear()
 
 
-def causal_ordering() -> CausalOrdering:
-    return CausalOrdering(scope="")
-
-
 async def listen_for_automation_changes() -> None:
     """
     Listens for any changes to automations via PostgreSQL NOTIFY/LISTEN,
@@ -1086,7 +1157,7 @@ async def consumer(
 
     proactive_task = asyncio.create_task(evaluate_periodically(periodic_granularity))
 
-    ordering = causal_ordering()
+    ordering = get_triggers_causal_ordering()
 
     async def message_handler(message: Message):
         if not message.data:
@@ -1184,7 +1255,7 @@ async def proactive_evaluation(
 
 
 async def evaluate_proactive_triggers() -> None:
-    for trigger in triggers.values():
+    for trigger in list(triggers.values()):
         if trigger.posture != Posture.Proactive:
             continue
 

@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 import logging
+import re
 from abc import ABC
 from typing import Any, Optional, cast
 
 from pydantic import AnyHttpUrl, Field, HttpUrl, SecretStr
 from typing_extensions import Literal
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.blocks.abstract import NotificationBlock, NotificationError
 from prefect.logging import LogEavesdropper
 from prefect.types import SecretDict
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.templating import apply_values, find_placeholders
 from prefect.utilities.urls import validate_restricted_url
 
-PREFECT_NOTIFY_TYPE_DEFAULT = "prefect_default"
+PREFECT_NOTIFY_TYPE_DEFAULT = "info"  # Use a valid apprise type as default
 
 
 class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
@@ -22,24 +23,12 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
-        Field(
-            default=PREFECT_NOTIFY_TYPE_DEFAULT,
-            description=(
-                "The type of notification being performed; the prefect_default "
-                "is a plain notification that does not attach an image."
-            ),
-        )
+    notify_type: Literal["info", "success", "warning", "failure"] = Field(
+        default=PREFECT_NOTIFY_TYPE_DEFAULT,
+        description="The type of notification being performed.",
     )
 
     def __init__(self, *args: Any, **kwargs: Any):
-        from apprise import (
-            NOTIFY_TYPES,  # pyright: ignore[reportAttributeAccessIssue, reportUnknownVariableType] incomplete type hints in apprise
-        )
-
-        if PREFECT_NOTIFY_TYPE_DEFAULT not in NOTIFY_TYPES:
-            NOTIFY_TYPES += (PREFECT_NOTIFY_TYPE_DEFAULT,)  # pyright: ignore[reportUnknownVariableType]
-
         super().__init__(*args, **kwargs)
 
     def _start_apprise_client(self, url: SecretStr):
@@ -59,14 +48,28 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     def block_initialization(self) -> None:
         self._start_apprise_client(getattr(self, "url"))
 
-    @sync_compatible
-    async def notify(  # pyright: ignore[reportIncompatibleMethodOverride] TODO: update to sync only once base class is updated
+    async def anotify(
         self,
         body: str,
         subject: str | None = None,
     ) -> None:
         with LogEavesdropper("apprise", level=logging.DEBUG) as eavesdropper:
             result = await self._apprise_client.async_notify(  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
+                body=body,
+                title=subject or "",
+                notify_type=self.notify_type,  # pyright: ignore[reportArgumentType]
+            )
+        if not result and self._raise_on_failure:
+            raise NotificationError(log=eavesdropper.text())
+
+    @async_dispatch(anotify)
+    def notify(
+        self,
+        body: str,
+        subject: str | None = None,
+    ) -> None:
+        with LogEavesdropper("apprise", level=logging.DEBUG) as eavesdropper:
+            result = self._apprise_client.notify(  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
                 body=body,
                 title=subject or "",
                 notify_type=self.notify_type,  # pyright: ignore[reportArgumentType]
@@ -94,12 +97,11 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
         description="Whether to allow notifications to private URLs. Defaults to True.",
     )
 
-    @sync_compatible
-    async def notify(  # pyright: ignore[reportIncompatibleMethodOverride] TODO: update to sync only once base class is updated
+    async def anotify(
         self,
         body: str,
         subject: str | None = None,
-    ):
+    ) -> None:
         if not self.allow_private_urls:
             try:
                 validate_restricted_url(self.url.get_secret_value())
@@ -108,7 +110,23 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
                     raise NotificationError(str(exc))
                 raise
 
-        await super().notify(body, subject)  # pyright: ignore[reportGeneralTypeIssues] TODO: update to sync only once base class is updated
+        await super().anotify(body, subject)
+
+    @async_dispatch(anotify)
+    def notify(
+        self,
+        body: str,
+        subject: str | None = None,
+    ) -> None:
+        if not self.allow_private_urls:
+            try:
+                validate_restricted_url(self.url.get_secret_value())
+            except ValueError as exc:
+                if self._raise_on_failure:
+                    raise NotificationError(str(exc))
+                raise
+
+        super().notify(body, subject)
 
 
 # TODO: Move to prefect-slack once collection block auto-registration is
@@ -116,6 +134,9 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
 class SlackWebhook(AppriseNotificationBlock):
     """
     Enables sending notifications via a provided Slack webhook.
+
+    Supports both standard Slack webhooks (hooks.slack.com) and Slack GovCloud
+    webhooks (hooks.slack-gov.com).
 
     Examples:
         Load a saved Slack webhook and send a message:
@@ -141,6 +162,73 @@ class SlackWebhook(AppriseNotificationBlock):
         description="Slack incoming webhook URL used to send notifications.",
         examples=["https://hooks.slack.com/XXX"],
     )
+
+    _SLACK_WEBHOOK_URL_PATTERN: re.Pattern[str] = re.compile(
+        r"^https?://(?P<host>hooks\.slack(?:-gov)?\.com)/services/"
+        r"(?P<token_a>[A-Z0-9]+)/"
+        r"(?P<token_b>[A-Z0-9]+)/"
+        r"(?P<token_c>[A-Z0-9]+)/?$",
+        re.I,
+    )
+
+    def block_initialization(self) -> None:
+        """Initialize the Slack webhook client.
+
+        This method handles both standard Slack webhooks and Slack GovCloud webhooks.
+        Apprise's built-in Slack plugin only supports hooks.slack.com, so we need to
+        manually construct the NotifySlack instance for slack-gov.com URLs to ensure
+        notifications are sent to the correct host.
+
+        See: https://github.com/caronc/apprise/issues/XXXX (upstream issue)
+        """
+        webhook_url = self.url.get_secret_value()
+        match = self._SLACK_WEBHOOK_URL_PATTERN.match(webhook_url)
+
+        # If it's not a recognized Slack webhook shape, delegate to the base behavior.
+        # This lets restricted-URL checks and existing Apprise validation run as before.
+        if not match:
+            self._start_apprise_client(self.url)
+            return
+
+        host = match.group("host")
+
+        # Standard Slack: let Apprise handle it like it always has.
+        if host == "hooks.slack.com":
+            self._start_apprise_client(self.url)
+            return
+
+        # GovCloud: we know it's a valid Slack webhook and host is hooks.slack-gov.com
+        # We must add the NotifySlack instance directly to the apprise client
+        # (rather than passing slack_instance.url()) because the webhook_url
+        # override is an instance attribute that would be lost if apprise
+        # re-parsed the URL string.
+        from apprise import Apprise, AppriseAsset
+
+        try:
+            from apprise.plugins.slack import NotifySlack
+        except ImportError:
+            from apprise.plugins.NotifySlack import (
+                NotifySlack,  # pyright: ignore[reportMissingImports]
+            )
+
+        token_a = match.group("token_a")
+        token_b = match.group("token_b")
+        token_c = match.group("token_c")
+
+        slack_instance = NotifySlack(
+            token_a=token_a,
+            token_b=token_b,
+            token_c=token_c,
+        )
+        slack_instance.webhook_url = f"https://{host}/services"
+
+        prefect_app_data = AppriseAsset(
+            app_id="Prefect Notifications",
+            app_desc="Prefect Notifications",
+            app_url="https://prefect.io",
+        )
+        self._apprise_client = Apprise(asset=prefect_app_data)
+        self._apprise_client.add(slack_instance)
 
 
 class MicrosoftTeamsWebhook(AppriseNotificationBlock):
@@ -227,8 +315,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         "https://docs.prefect.io/latest/automate/events/automations-triggers#sending-notifications-with-automations"
     )
 
-    # The default cannot be prefect_default because NotifyPagerDuty's
-    # PAGERDUTY_SEVERITY_MAP only has these notify types defined as keys
+    # PagerDuty requires a valid severity level from its PAGERDUTY_SEVERITY_MAP
     notify_type: Literal["info", "success", "warning", "failure"] = Field(  # pyright: ignore[reportIncompatibleVariableOverride]
         default="info", description="The severity of the notification."
     )
@@ -319,12 +406,11 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
         )
         self._start_apprise_client(url)
 
-    @sync_compatible
-    async def notify(  # pyright: ignore[reportIncompatibleMethodOverride] TODO: update to sync only once base class is updated
+    async def anotify(
         self,
         body: str,
         subject: str | None = None,
-    ):
+    ) -> None:
         """
         Apprise will combine subject and body by default, so we need to move
         the body into the custom_details field. custom_details is part of the
@@ -338,7 +424,28 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
             body = " "
             self.block_initialization()
 
-        await super().notify(body, subject)  # pyright: ignore[reportGeneralTypeIssues] TODO: update to sync only once base class is updated
+        await super().anotify(body, subject)
+
+    @async_dispatch(anotify)
+    def notify(
+        self,
+        body: str,
+        subject: str | None = None,
+    ) -> None:
+        """
+        Apprise will combine subject and body by default, so we need to move
+        the body into the custom_details field. custom_details is part of the
+        webhook url, so we need to update the url and restart the client.
+        """
+        if subject:
+            self.custom_details = self.custom_details or {}
+            self.custom_details.update(
+                {"Prefect Notification Body": body.replace(" ", "%20")}
+            )
+            body = " "
+            self.block_initialization()
+
+        super().notify(body, subject)
 
 
 class TwilioSMS(AbstractAppriseNotificationBlock):
@@ -621,7 +728,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
                 token=self.token.get_secret_value(),
                 fullpath=self.path,
                 host=self.hostname,
-                botname=self.botname,
+                user=self.botname,
                 channels=self.channels,
                 include_image=self.include_image,
                 port=self.port,
@@ -786,11 +893,12 @@ class CustomWebhookNotificationBlock(NotificationBlock):
             ' "{{tokenFromSecrets}}"}'
         ],
     )
-    form_data: Optional[dict[str, str]] = Field(
+    form_data: Optional[dict[str, str] | str] = Field(
         default=None,
         title="Form Data",
         description=(
-            "Send form data as payload. Should not be used together with _JSON Data_."
+            "Send form data as payload. Should not be used together with _JSON Data_. "
+            "Can be a dictionary for form-encoded data or a string for raw body content."
         ),
         examples=[
             '{"text": "{{subject}}\\n{{body}}", "title": "{{name}}", "token":'
@@ -824,13 +932,18 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                 "name": self.name,
             }
         )
+        # httpx uses 'data' for form-encoded dicts, 'content' for raw string/bytes
+        if isinstance(self.form_data, str):
+            data_key = "content"
+        else:
+            data_key = "data"
         # do substution
         return apply_values(
             {
                 "method": self.method,
                 "url": self.url,
                 "params": self.params,
-                "data": self.form_data,
+                data_key: self.form_data,
                 "json": self.json_data,
                 "headers": self.headers,
                 "cookies": self.cookies,
@@ -857,18 +970,29 @@ class CustomWebhookNotificationBlock(NotificationBlock):
                 if placeholder.name not in allowed_keys:
                     raise KeyError(f"{name}/{placeholder}")
 
-    @sync_compatible
-    async def notify(self, body: str, subject: str | None = None) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+    async def anotify(self, body: str, subject: str | None = None) -> None:
         import httpx
 
         request_args = self._build_request_args(body, subject)
         cookies = request_args.pop("cookies", dict())
         # make request with httpx
-        client = httpx.AsyncClient(
+        async with httpx.AsyncClient(
             headers={"user-agent": "Prefect Notifications"}, cookies=cookies
-        )
-        async with client:
+        ) as client:
             resp = await client.request(**request_args)
+        resp.raise_for_status()
+
+    @async_dispatch(anotify)
+    def notify(self, body: str, subject: str | None = None) -> None:
+        import httpx
+
+        request_args = self._build_request_args(body, subject)
+        cookies = request_args.pop("cookies", dict())
+        # make request with httpx
+        with httpx.Client(
+            headers={"user-agent": "Prefect Notifications"}, cookies=cookies
+        ) as client:
+            resp = client.request(**request_args)
         resp.raise_for_status()
 
 
@@ -941,17 +1065,27 @@ class SendgridEmail(AbstractAppriseNotificationBlock):
             ).url()  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType] incomplete type hints in apprise
         )
 
-    @sync_compatible
-    async def notify(
-        self,
-        body: str,
-        subject: str | None = None,
-    ):
-        # Update apprise client with current to_emails before sending
+    def _refresh_apprise_client(self) -> None:
+        """Update apprise client with current to_emails before sending."""
         if hasattr(self, "_apprise_client") and self._apprise_client:
             self._apprise_client.clear()
             self._apprise_client.add(
                 servers=self._build_sendgrid_url().get_secret_value()
             )
 
-        await super().notify(body, subject)
+    async def anotify(
+        self,
+        body: str,
+        subject: str | None = None,
+    ) -> None:
+        self._refresh_apprise_client()
+        await super().anotify(body, subject)
+
+    @async_dispatch(anotify)
+    def notify(
+        self,
+        body: str,
+        subject: str | None = None,
+    ) -> None:
+        self._refresh_apprise_client()
+        super().notify(body, subject)

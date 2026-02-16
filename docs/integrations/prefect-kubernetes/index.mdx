@@ -4,9 +4,26 @@ title: prefect-kubernetes
 
 `prefect-kubernetes` contains Prefect tasks, flows, and blocks enabling orchestration, observation and management of Kubernetes resources.
 
-This library is most commonly used for installation with a Kubernetes worker. See the [Prefect docs on deploying with Kubernetes](/v3/deploy/infrastructure-examples/kubernetes) to learn how to create and run deployments in Kubernetes.
+This library is most commonly used for installation with a Kubernetes worker. See the [Prefect docs on deploying with Kubernetes](/v3/how-to-guides/deployment_infra/kubernetes) to learn how to create and run deployments in Kubernetes.
 
 Prefect provides a Helm chart for deploying a worker, a self-hosted Prefect server instance, and other resources to a Kubernetes cluster. See the [Prefect Helm chart](https://github.com/PrefectHQ/prefect-helm) for more information.
+
+## Kubernetes Worker
+
+The Kubernetes worker executes flow runs as Kubernetes Jobs. When you create a Kubernetes work pool, you can customize the base job template to control how jobs are created.
+
+<Warning>
+**Important**: When customizing a work pool's base job template, variables defined in the
+`variables` section must be explicitly referenced in `job_configuration` using
+`{{ variable_name }}` syntax to take effect. If you add or modify a variable in `variables`
+but don't reference it in `job_configuration`, its value (including defaults) will not be
+passed to the worker.
+
+For example, if you set a default for `cluster_config` in `variables`, ensure your
+`job_configuration` includes `"cluster_config": "{{ cluster_config }}"`.
+</Warning>
+
+See the [Kubernetes deployment guide](/v3/how-to-guides/deployment_infra/kubernetes) for complete setup instructions.
 
 ## Getting started
 
@@ -16,7 +33,7 @@ Prefect provides a Helm chart for deploying a worker, a self-hosted Prefect serv
 
 ### Install `prefect-kubernetes`
 
-The following command will install a version of `prefect-kubernetes` compatible with your installed version of `prefect`. 
+The following command will install a version of `prefect-kubernetes` compatible with your installed version of `prefect`.
 If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash

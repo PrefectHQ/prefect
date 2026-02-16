@@ -37,12 +37,14 @@ from pydantic import (
     SerializerFunctionWrapHandler,
     ValidationError,
     model_serializer,
+    model_validator,
 )
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, ParamSpec, Self, TypeGuard, get_args
 
 import prefect.exceptions
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect.client.orchestration import get_client
 from prefect.client.schemas import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -61,7 +63,7 @@ from prefect.events import emit_event
 from prefect.logging.loggers import disable_logger
 from prefect.plugins import load_prefect_collections
 from prefect.types import SecretDict
-from prefect.utilities.asyncutils import run_coro_as_sync, sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import listrepr, remove_nested_keys, visit_collection
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
@@ -78,6 +80,11 @@ R = TypeVar("R")
 P = ParamSpec("P")
 
 ResourceTuple = tuple[dict[str, Any], list[dict[str, Any]]]
+UnionTypes: tuple[object, ...] = (Union,)
+if hasattr(types, "UnionType"):
+    # Python 3.10+ only
+    UnionTypes = (*UnionTypes, types.UnionType)
+NestedTypes: tuple[type, ...] = (list, dict, tuple, *UnionTypes)
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -164,11 +171,7 @@ def _collect_secret_fields(
     secrets list, supporting nested Union / Dict / Tuple / List / BaseModel fields.
     Also, note, this function mutates the input secrets list, thus does not return anything.
     """
-    nested_types = (Union, dict, list, tuple)
-    # Include UnionType if it's available for the current Python version
-    if union_type := getattr(types, "UnionType", None):
-        nested_types = nested_types + (union_type,)
-    if get_origin(type_) in nested_types:
+    if get_origin(type_) in NestedTypes:
         for nested_type in get_args(type_):
             _collect_secret_fields(name, nested_type, secrets)
         return
@@ -298,7 +301,8 @@ def schema_extra(schema: dict[str, Any], model: type["Block"]) -> None:
                 ]
             else:
                 refs[field_name] = annotation._to_block_schema_reference_dict()  # pyright: ignore[reportPrivateUsage]
-        if get_origin(annotation) in (Union, list, tuple, dict):
+
+        if get_origin(annotation) in NestedTypes:
             for type_ in get_args(annotation):
                 collect_block_schema_references(field_name, type_)
 
@@ -331,6 +335,17 @@ class Block(BaseModel, ABC):
         json_schema_extra=schema_extra,
     )
 
+    def __new__(cls: type[Self], **kwargs: Any) -> Self:
+        """
+        Create an instance of the Block subclass type if a `block_type_slug` is
+        present in the data payload.
+        """
+        if block_type_slug := kwargs.pop("block_type_slug", None):
+            subcls = cls.get_block_class_from_key(block_type_slug)
+            if cls is not subcls and issubclass(subcls, cls):
+                return super().__new__(subcls)
+        return super().__new__(cls)
+
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.block_initialization()
@@ -344,6 +359,24 @@ class Block(BaseModel, ABC):
         return [
             (key, value) for key, value in repr_args if key is None or key in data_keys
         ]
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_block_type_slug(cls, values: Any) -> Any:
+        """
+        Validates that the `block_type_slug` in the input values matches the expected
+        block type slug for the class. This helps pydantic to correctly discriminate
+        between different Block subclasses when validating Union types of Blocks.
+        """
+        if isinstance(values, dict):
+            if "block_type_slug" in values:
+                expected_slug = cls.get_block_type_slug()
+                slug = values["block_type_slug"]
+                if slug and slug != expected_slug:
+                    raise ValueError(
+                        f"Invalid block_type_slug: expected '{expected_slug}', got '{values['block_type_slug']}'"
+                    )
+        return values
 
     def block_initialization(self) -> None:
         pass
@@ -988,6 +1021,31 @@ class Block(BaseModel, ABC):
         return block_document, block_document.name
 
     @classmethod
+    def _get_block_document_by_id_sync(
+        cls,
+        block_document_id: Union[str, uuid.UUID],
+        client: "SyncPrefectClient",
+    ) -> tuple[BlockDocument, str]:
+        if isinstance(block_document_id, str):
+            try:
+                block_document_id = UUID(block_document_id)
+            except ValueError:
+                raise ValueError(
+                    f"Block document ID {block_document_id!r} is not a valid UUID"
+                )
+
+        try:
+            block_document = client.read_block_document(
+                block_document_id=block_document_id
+            )
+        except prefect.exceptions.ObjectNotFound:
+            raise ValueError(
+                f"Unable to find block document with ID {block_document_id!r}"
+            )
+
+        return block_document, block_document.name
+
+    @classmethod
     @inject_client
     async def aload(
         cls,
@@ -1175,16 +1233,15 @@ class Block(BaseModel, ABC):
         return cls._load_from_block_document(block_document, validate=validate)
 
     @classmethod
-    @sync_compatible
     @inject_client
-    async def load_from_ref(
+    async def aload_from_ref(
         cls,
         ref: Union[str, UUID, dict[str, Any]],
         validate: bool = True,
         client: "PrefectClient | None" = None,
     ) -> Self:
         """
-        Retrieves data from the block document by given reference for the block type
+        Asynchronously retrieves data from the block document by given reference for the block type
         that corresponds with the current class and returns an instantiated version of
         the current class with the data stored in the block document.
 
@@ -1194,12 +1251,12 @@ class Block(BaseModel, ABC):
         - `{"block_document_slug": <block_document_slug>}`
 
         If a block document for a given block type is saved with a different schema
-        than the current class calling `load`, a warning will be raised.
+        than the current class calling `aload_from_ref`, a warning will be raised.
 
         If the current class schema is a subset of the block document schema, the block
         can be loaded as normal using the default `validate = True`.
 
-        If the current class schema is a superset of the block document schema, `load`
+        If the current class schema is a superset of the block document schema, `aload_from_ref`
         must be called with `validate` set to False to prevent a validation error. In
         this case, the block attributes will default to `None` and must be set manually
         and saved to a new block document before the block can be used as expected.
@@ -1241,6 +1298,77 @@ class Block(BaseModel, ABC):
             raise ValueError(f"Invalid reference format {ref!r}.")
 
         return cls._load_from_block_document(block_document, validate=validate)
+
+    @classmethod
+    @async_dispatch(aload_from_ref)
+    def load_from_ref(
+        cls,
+        ref: Union[str, UUID, dict[str, Any]],
+        validate: bool = True,
+        client: "PrefectClient | None" = None,
+    ) -> Self:
+        """
+        Retrieves data from the block document by given reference for the block type
+        that corresponds with the current class and returns an instantiated version of
+        the current class with the data stored in the block document.
+
+        This function will dispatch to `aload_from_ref` when called from an async context.
+
+        Provided reference can be a block document ID, or a reference data in dictionary format.
+        Supported dictionary reference formats are:
+        - `{"block_document_id": <block_document_id>}`
+        - `{"block_document_slug": <block_document_slug>}`
+
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load_from_ref`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `load_from_ref`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
+        Args:
+            ref: The reference to the block document. This can be a block document ID,
+                or one of supported dictionary reference formats.
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+            client: The client to use to load the block document. If not provided, the
+                default client will be injected. This is ignored when called from a
+                synchronous context.
+
+        Raises:
+            ValueError: If invalid reference format is provided.
+            ValueError: If the requested block document is not found.
+
+        Returns:
+            An instance of the current class hydrated with the data stored in the
+            block document with the specified name.
+
+        """
+        with get_client(sync_client=True) as sync_client:
+            block_document = None
+            if isinstance(ref, (str, UUID)):
+                block_document, _ = cls._get_block_document_by_id_sync(
+                    ref, client=sync_client
+                )
+            else:
+                if block_document_id := ref.get("block_document_id"):
+                    block_document, _ = cls._get_block_document_by_id_sync(
+                        block_document_id, client=sync_client
+                    )
+                elif block_document_slug := ref.get("block_document_slug"):
+                    block_document, _ = cls._get_block_document(
+                        block_document_slug, client=sync_client
+                    )
+
+            if not block_document:
+                raise ValueError(f"Invalid reference format {ref!r}.")
+
+            return cls._load_from_block_document(block_document, validate=validate)
 
     @classmethod
     def _load_from_block_document(
@@ -1308,7 +1436,7 @@ class Block(BaseModel, ABC):
         if Block.is_block_class(annotation):
             return True
 
-        if get_origin(annotation) is Union:
+        if get_origin(annotation) in UnionTypes:
             for annotation in get_args(annotation):
                 if Block.is_block_class(annotation):
                     return True
@@ -1316,11 +1444,12 @@ class Block(BaseModel, ABC):
         return False
 
     @classmethod
-    @sync_compatible
     @inject_client
-    async def register_type_and_schema(cls, client: Optional["PrefectClient"] = None):
+    async def aregister_type_and_schema(
+        cls, client: Optional["PrefectClient"] = None
+    ) -> None:
         """
-        Makes block available for configuration with current Prefect API.
+        Asynchronously makes block available for configuration with current Prefect API.
         Recursively registers all nested blocks. Registration is idempotent.
 
         Args:
@@ -1344,11 +1473,11 @@ class Block(BaseModel, ABC):
         async def register_blocks_in_annotation(annotation: type) -> None:
             """Walk through the annotation and register any nested blocks."""
             if Block.is_block_class(annotation):
-                coro = annotation.register_type_and_schema(client=client)
+                coro = annotation.aregister_type_and_schema(client=client)
                 if TYPE_CHECKING:
                     assert isinstance(coro, Coroutine)
                 await coro
-            elif get_origin(annotation) in (Union, tuple, list, dict):
+            elif get_origin(annotation) in NestedTypes:
                 for inner_annotation in get_args(annotation):
                     await register_blocks_in_annotation(inner_annotation)
 
@@ -1413,6 +1542,103 @@ class Block(BaseModel, ABC):
 
         cls._block_schema_id = block_schema.id
 
+    @classmethod
+    @async_dispatch(aregister_type_and_schema)
+    def register_type_and_schema(cls, client: Optional["PrefectClient"] = None) -> None:
+        """
+        Makes block available for configuration with current Prefect API.
+        Recursively registers all nested blocks. Registration is idempotent.
+
+        This function will dispatch to `aregister_type_and_schema` when called from an async context.
+
+        Args:
+            client: Optional client to use for registering type and schema with the
+                Prefect API. A new client will be created and used if one is not
+                provided. This is ignored when called from a synchronous context.
+        """
+        if cls.__name__ == "Block":
+            raise InvalidBlockRegistration(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on the Block class directly."
+            )
+        if ABC in getattr(cls, "__bases__", []):
+            raise InvalidBlockRegistration(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on a Block interface class directly."
+            )
+
+        def register_blocks_in_annotation_sync(
+            annotation: type, sync_client: "SyncPrefectClient"
+        ) -> None:
+            """Walk through the annotation and register any nested blocks."""
+            if Block.is_block_class(annotation):
+                annotation.register_type_and_schema(_sync=True)
+            elif get_origin(annotation) in NestedTypes:
+                for inner_annotation in get_args(annotation):
+                    register_blocks_in_annotation_sync(inner_annotation, sync_client)
+
+        with get_client(sync_client=True) as sync_client:
+            for field in cls.model_fields.values():
+                if field.annotation is not None:
+                    register_blocks_in_annotation_sync(field.annotation, sync_client)
+
+            try:
+                block_type = sync_client.read_block_type_by_slug(
+                    slug=cls.get_block_type_slug()
+                )
+
+                cls._block_type_id = block_type.id
+
+                local_block_type = cls._to_block_type()
+                if _should_update_block_type(
+                    local_block_type=local_block_type, server_block_type=block_type
+                ):
+                    sync_client.update_block_type(
+                        block_type_id=block_type.id,
+                        block_type=BlockTypeUpdate(
+                            **local_block_type.model_dump(
+                                include={
+                                    "logo_url",
+                                    "documentation_url",
+                                    "description",
+                                    "code_example",
+                                }
+                            )
+                        ),
+                    )
+            except prefect.exceptions.ObjectNotFound:
+                block_type_create = BlockTypeCreate(
+                    **cls._to_block_type().model_dump(
+                        include={
+                            "name",
+                            "slug",
+                            "logo_url",
+                            "documentation_url",
+                            "description",
+                            "code_example",
+                        }
+                    )
+                )
+                block_type = sync_client.create_block_type(block_type=block_type_create)
+                cls._block_type_id = block_type.id
+
+            try:
+                block_schema = sync_client.read_block_schema_by_checksum(
+                    checksum=cls._calculate_schema_checksum(),
+                    version=cls.get_block_schema_version(),
+                )
+            except prefect.exceptions.ObjectNotFound:
+                block_schema_create = BlockSchemaCreate(
+                    **cls._to_block_schema(block_type_id=block_type.id).model_dump(
+                        include={"fields", "block_type_id", "capabilities", "version"}
+                    )
+                )
+                block_schema = sync_client.create_block_schema(
+                    block_schema=block_schema_create
+                )
+
+            cls._block_schema_id = block_schema.id
+
     @inject_client
     async def _save(
         self,
@@ -1453,7 +1679,7 @@ class Block(BaseModel, ABC):
         self._is_anonymous = is_anonymous
 
         # Ensure block type and schema are registered before saving block document.
-        coro = self.register_type_and_schema(client=client)
+        coro = self.aregister_type_and_schema(client=client)
         if TYPE_CHECKING:
             assert isinstance(coro, Coroutine)
         await coro
@@ -1510,52 +1736,193 @@ class Block(BaseModel, ABC):
         self._block_document_id = block_document.id
         return self._block_document_id
 
-    @sync_compatible
-    async def save(
+    def _save_sync(
+        self,
+        name: Optional[str] = None,
+        is_anonymous: bool = False,
+        overwrite: bool = False,
+    ) -> UUID:
+        """
+        Synchronously saves the values of a block as a block document with an option to save as an
+        anonymous block document.
+
+        Args:
+            name: User specified name to give saved block document which can later be used to load the
+                block document.
+            is_anonymous: Boolean value specifying whether the block document is anonymous. Anonymous
+                blocks are intended for system use and are not shown in the UI. Anonymous blocks do not
+                require a user-supplied name.
+            overwrite: Boolean value specifying if values should be overwritten if a block document with
+                the specified name already exists.
+
+        Raises:
+            ValueError: If a name is not given and `is_anonymous` is `False` or a name is given and
+                `is_anonymous` is `True`.
+        """
+        if name is None and not is_anonymous:
+            if self._block_document_name is None:
+                raise ValueError(
+                    "You're attempting to save a block document without a name."
+                    " Please either call `save` with a `name` or pass"
+                    " `is_anonymous=True` to save an anonymous block."
+                )
+            else:
+                name = self._block_document_name
+
+        self._is_anonymous = is_anonymous
+
+        # Ensure block type and schema are registered before saving block document.
+        self.register_type_and_schema(_sync=True)
+
+        with get_client(sync_client=True) as sync_client:
+            block_document = None
+            try:
+                block_document_create = BlockDocumentCreate(
+                    **self._to_block_document(
+                        name=name, include_secrets=True
+                    ).model_dump(
+                        include={
+                            "name",
+                            "block_schema_id",
+                            "block_type_id",
+                            "data",
+                            "is_anonymous",
+                        }
+                    )
+                )
+                block_document = sync_client.create_block_document(
+                    block_document=block_document_create
+                )
+            except prefect.exceptions.ObjectAlreadyExists as err:
+                if overwrite:
+                    block_document_id = self._block_document_id
+                    if block_document_id is None and name is not None:
+                        existing_block_document = (
+                            sync_client.read_block_document_by_name(
+                                name=name, block_type_slug=self.get_block_type_slug()
+                            )
+                        )
+                        block_document_id = existing_block_document.id
+                    if TYPE_CHECKING:
+                        # We know that the block document id is not None here because we
+                        # only get here if the block document already exists
+                        assert isinstance(block_document_id, UUID)
+                    block_document_update = BlockDocumentUpdate(
+                        **self._to_block_document(
+                            name=name, include_secrets=True
+                        ).model_dump(include={"block_schema_id", "data"})
+                    )
+                    sync_client.update_block_document(
+                        block_document_id=block_document_id,
+                        block_document=block_document_update,
+                    )
+                    block_document = sync_client.read_block_document(
+                        block_document_id=block_document_id
+                    )
+                else:
+                    raise ValueError(
+                        "You are attempting to save values with a name that is already in"
+                        " use for this block type. If you would like to overwrite the"
+                        " values that are saved, then save with `overwrite=True`."
+                    ) from err
+
+            # Update metadata on block instance for later use.
+            self._block_document_name = block_document.name
+            self._block_document_id = block_document.id
+            return self._block_document_id
+
+    @inject_client
+    async def asave(
         self,
         name: Optional[str] = None,
         overwrite: bool = False,
         client: Optional["PrefectClient"] = None,
-    ):
+    ) -> UUID:
         """
-        Saves the values of a block as a block document.
+        Asynchronously saves the values of a block as a block document.
 
         Args:
             name: User specified name to give saved block document which can later be used to load the
                 block document.
             overwrite: Boolean value specifying if values should be overwritten if a block document with
                 the specified name already exists.
+            client: The client to use to save the block document. If not provided, the
+                default client will be injected.
 
+        Returns:
+            The ID of the saved block document.
         """
         document_id = await self._save(name=name, overwrite=overwrite, client=client)
-
         return document_id
 
+    @async_dispatch(asave)
+    def save(
+        self,
+        name: Optional[str] = None,
+        overwrite: bool = False,
+        client: Optional["PrefectClient"] = None,
+    ) -> UUID:
+        """
+        Saves the values of a block as a block document.
+
+        This function will dispatch to `asave` when called from an async context.
+
+        Args:
+            name: User specified name to give saved block document which can later be used to load the
+                block document.
+            overwrite: Boolean value specifying if values should be overwritten if a block document with
+                the specified name already exists.
+            client: The client to use to save the block document. If not provided, the
+                default client will be injected. This is ignored when called from a
+                synchronous context.
+
+        Returns:
+            The ID of the saved block document.
+        """
+        return self._save_sync(name=name, overwrite=overwrite)
+
     @classmethod
-    @sync_compatible
     @inject_client
-    async def delete(
+    async def adelete(
         cls,
         name: str,
         client: Optional["PrefectClient"] = None,
-    ):
+    ) -> None:
+        """
+        Asynchronously deletes the block document with the specified name.
+
+        Args:
+            name: The name of the block document to delete.
+            client: The client to use to delete the block document. If not provided, the
+                default client will be injected.
+        """
         if TYPE_CHECKING:
             assert isinstance(client, PrefectClient)
         block_document, _ = await cls._aget_block_document(name, client=client)
 
         await client.delete_block_document(block_document.id)
 
-    def __new__(cls: type[Self], **kwargs: Any) -> Self:
+    @classmethod
+    @async_dispatch(adelete)
+    def delete(
+        cls,
+        name: str,
+        client: Optional["PrefectClient"] = None,
+    ) -> None:
         """
-        Create an instance of the Block subclass type if a `block_type_slug` is
-        present in the data payload.
+        Deletes the block document with the specified name.
+
+        This function will dispatch to `adelete` when called from an async context.
+
+        Args:
+            name: The name of the block document to delete.
+            client: The client to use to delete the block document. If not provided, the
+                default client will be injected. This is ignored when called from a
+                synchronous context.
         """
-        block_type_slug = kwargs.pop("block_type_slug", None)
-        if block_type_slug:
-            subcls = cls.get_block_class_from_key(block_type_slug)
-            return super().__new__(subcls)
-        else:
-            return super().__new__(cls)
+        with get_client(sync_client=True) as sync_client:
+            block_document, _ = cls._get_block_document(name, client=sync_client)
+            sync_client.delete_block_document(block_document.id)
 
     def get_block_placeholder(self) -> str:
         """

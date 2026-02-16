@@ -3,9 +3,33 @@ import { createFileRoute } from "@tanstack/react-router";
 import { buildListFilterBlockSchemasQuery } from "@/api/block-schemas";
 import { buildGetBlockTypeQuery } from "@/api/block-types";
 import { BlockDocumentCreatePage } from "@/components/blocks/block-document-create-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 export const Route = createFileRoute("/blocks/catalog_/$slug_/create")({
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { slug } = Route.useParams();
+		const { data: blockType } = useSuspenseQuery(buildGetBlockTypeQuery(slug));
+		const { data: blockSchemas } = useSuspenseQuery(
+			buildListFilterBlockSchemasQuery({
+				block_schemas: {
+					block_type_id: { any_: [blockType.id] },
+					operator: "and_",
+				},
+				offset: 0,
+			}),
+		);
+		const blockSchema = blockSchemas[0];
+		if (!blockSchema) {
+			throw new Error("Block schema not found");
+		}
+
+		return (
+			<BlockDocumentCreatePage
+				blockSchema={blockSchema}
+				blockType={blockType}
+			/>
+		);
+	},
 	loader: async ({ params, context: { queryClient } }) => {
 		// critical data
 		const res = await queryClient.ensureQueryData(
@@ -22,26 +46,5 @@ export const Route = createFileRoute("/blocks/catalog_/$slug_/create")({
 		);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
-
-function RouteComponent() {
-	const { slug } = Route.useParams();
-	const { data: blockType } = useSuspenseQuery(buildGetBlockTypeQuery(slug));
-	const { data: blockSchemas } = useSuspenseQuery(
-		buildListFilterBlockSchemasQuery({
-			block_schemas: {
-				block_type_id: { any_: [blockType.id] },
-				operator: "and_",
-			},
-			offset: 0,
-		}),
-	);
-	const blockSchema = blockSchemas[0];
-	if (!blockSchema) {
-		throw new Error("Block schema not found");
-	}
-
-	return (
-		<BlockDocumentCreatePage blockSchema={blockSchema} blockType={blockType} />
-	);
-}

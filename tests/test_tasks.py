@@ -61,7 +61,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
     temporary_settings,
 )
-from prefect.states import State
+from prefect.states import Completed, State
 from prefect.task_worker import read_parameters
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
@@ -72,7 +72,7 @@ from prefect.transactions import (
     get_transaction,
     transaction,
 )
-from prefect.utilities.annotations import allow_failure, unmapped
+from prefect.utilities.annotations import allow_failure, opaque, unmapped
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import quote
 from prefect.utilities.engine import get_state_for_result
@@ -159,6 +159,62 @@ class TestTaskKey:
 
         tt = task(funky)
         assert tt.task_key.startswith("Funky-")
+
+
+class TestTaskSourceCode:
+    def test_source_code_captured_for_function(self):
+        @task
+        def my_task():
+            return 42
+
+        assert my_task.source_code is not None
+        assert "def my_task" in my_task.source_code
+        assert "return 42" in my_task.source_code
+
+    def test_source_code_is_none_for_callable_object(self):
+        class MyCallable:
+            def __call__(self):
+                return 42
+
+        callable_obj = MyCallable()
+        my_task = Task(fn=callable_obj)
+
+        # Callable objects don't have source code accessible via inspect.getsource
+        assert my_task.source_code is None
+
+    def test_source_code_survives_cloudpickle(self):
+        import cloudpickle
+
+        @task
+        def my_task():
+            return "hello"
+
+        # Verify source code is captured
+        original_source = my_task.source_code
+        assert original_source is not None
+        assert "def my_task" in original_source
+
+        # Serialize and deserialize the task
+        pickled = cloudpickle.dumps(my_task)
+        restored_task = cloudpickle.loads(pickled)
+
+        # Source code should survive serialization
+        assert restored_task.source_code == original_source
+
+    def test_source_code_different_for_different_tasks(self):
+        @task
+        def task_a():
+            return "a"
+
+        @task
+        def task_b():
+            return "b"
+
+        assert task_a.source_code is not None
+        assert task_b.source_code is not None
+        assert task_a.source_code != task_b.source_code
+        assert "task_a" in task_a.source_code
+        assert "task_b" in task_b.source_code
 
 
 class TestTaskRunName:
@@ -879,6 +935,25 @@ class TestTaskSubmit:
         assert result[1:] == [1, 2]
         assert "Fail task!" in str(result)
 
+    def test_opaque_resolves_future_without_recursive_traversal(self):
+        @task
+        def produce_result_with_nested_state():
+            return {"data": "value", "nested_state": Completed(data="inner")}
+
+        @task
+        def consume(data):
+            return data
+
+        @flow
+        def test_flow():
+            f = produce_result_with_nested_state.submit()
+            b = consume.submit(opaque(f))
+            return b.result()
+
+        result = test_flow()
+        assert result["data"] == "value"
+        assert isinstance(result["nested_state"], State)
+
     async def test_allow_failure_chained_mapped_tasks(
         self,
     ):
@@ -1327,7 +1402,7 @@ class TestTaskRetries:
     @pytest.mark.parametrize(
         ("retries_configured", "expected_log_fragment"),
         [
-            (0, "No retries configured for this task"),
+            (0, None),  # No retry-specific message when no retries configured
             (1, "Retries are exhausted"),
         ],
     )
@@ -1335,7 +1410,7 @@ class TestTaskRetries:
         self,
         caplog: pytest.LogCaptureFixture,
         retries_configured: int,
-        expected_log_fragment: str,
+        expected_log_fragment: Optional[str],
     ):
         caplog.set_level(logging.ERROR, logger="prefect.task_engine")
         exc = ValueError("Test Exception")
@@ -1353,15 +1428,19 @@ class TestTaskRetries:
 
         test_flow()
 
-        found_message = False
+        found_error_message = False
         for record in caplog.records:
-            if expected_log_fragment in record.message and record.levelname == "ERROR":
-                assert str(exc) in record.message
-                found_message = True
+            if record.levelname == "ERROR" and str(exc) in record.message:
+                found_error_message = True
+                # Check for expected retry message only if retries are configured
+                if expected_log_fragment:
+                    assert expected_log_fragment in record.message
+                else:
+                    # When no retries configured, ensure no retry suffix is added
+                    assert "Retries are exhausted" not in record.message
+                    assert "No retries configured" not in record.message
                 break
-        assert found_message, (
-            f"Expected log fragment '{expected_log_fragment}' not found in ERROR logs."
-        )
+        assert found_error_message, "Expected error log message not found."
 
 
 class TestResultPersistence:
@@ -1379,6 +1458,19 @@ class TestResultPersistence:
 
         assert my_task.persist_result is persist_result
         assert new_task.persist_result is persist_result
+
+    def test_default_cache_policy_does_not_set_persist_result_with_options(self):
+        @task
+        def base():
+            pass
+
+        assert base.cache_policy == DEFAULT
+        assert base.persist_result is None
+
+        new_task = base.with_options(name="something")
+
+        assert new_task.cache_policy == DEFAULT
+        assert new_task.persist_result is None
 
     @pytest.mark.parametrize(
         "cache_policy",
@@ -1456,6 +1548,75 @@ class TestResultPersistence:
 
         assert my_task.persist_result is True
         assert new_task.persist_result is True
+
+    def test_result_storage_accepts_path_object(self, tmpdir):
+        from pathlib import Path
+
+        storage_path = Path(tmpdir) / "results"
+
+        @task(result_storage=storage_path)
+        def my_task():
+            return 42
+
+        assert my_task.result_storage == storage_path
+        assert my_task.persist_result is True
+
+    def test_result_storage_with_path_execution(self, tmpdir):
+        from pathlib import Path
+
+        storage_path = Path(tmpdir) / "results"
+
+        @task(result_storage=storage_path, persist_result=True)
+        def my_task(x: int):
+            return x * 2
+
+        @flow
+        def test_flow():
+            return my_task(5)
+
+        result = test_flow()
+        assert result == 10
+
+    def test_result_storage_path_with_with_options(self, tmpdir):
+        from pathlib import Path
+
+        path1 = Path(tmpdir) / "path1"
+        path2 = Path(tmpdir) / "path2"
+
+        @task(result_storage=path1)
+        def base():
+            pass
+
+        new_task = base.with_options(result_storage=path2)
+
+        assert base.result_storage == path1
+        assert new_task.result_storage == path2
+        assert base.persist_result is True
+        assert new_task.persist_result is True
+
+    def test_result_storage_path_relative(self):
+        from pathlib import Path
+
+        @task(result_storage=Path("./relative/path"))
+        def my_task():
+            return "test"
+
+        assert my_task.result_storage == Path("./relative/path")
+        assert my_task.persist_result is True
+
+    def test_result_storage_unsaved_block_still_rejected(self, tmpdir):
+        import pytest
+
+        block = LocalFileSystem(basepath=str(tmpdir))
+
+        with pytest.raises(
+            TypeError,
+            match="Result storage configuration must be persisted server-side",
+        ):
+
+            @task(result_storage=block)
+            def my_task():
+                pass
 
     def test_logs_warning_on_serialization_error(self, caplog):
         @task(result_serializer="json")
@@ -3522,11 +3683,12 @@ class TestTaskRunLogs:
         @flow
         def my_flow():
             my_task()
+            return FlowRunContext.get().flow_run.id
 
-        my_flow()
+        flow_run_id = my_flow()
 
         # Logs don't always show up immediately with the new engine
-        logs = await _wait_for_logs(prefect_client)
+        logs = await _wait_for_logs(prefect_client, flow_run_id=flow_run_id)
         assert "Hello world!" in {log.message for log in logs}
 
     async def test_tracebacks_are_logged(self, prefect_client):
@@ -3541,10 +3703,11 @@ class TestTaskRunLogs:
         @flow
         def my_flow():
             my_task()
+            return FlowRunContext.get().flow_run.id
 
-        my_flow()
+        flow_run_id = my_flow()
 
-        logs = await _wait_for_logs(prefect_client)
+        logs = await _wait_for_logs(prefect_client, flow_run_id=flow_run_id)
         error_log = [log.message for log in logs if log.level == 40].pop()
         assert "NameError" in error_log
         assert "x + y" in error_log
@@ -3558,10 +3721,11 @@ class TestTaskRunLogs:
         @flow
         def my_flow():
             my_task()
+            return FlowRunContext.get().flow_run.id
 
-        my_flow()
+        flow_run_id = my_flow()
 
-        logs = await _wait_for_logs(prefect_client)
+        logs = await _wait_for_logs(prefect_client, flow_run_id=flow_run_id)
         assert "Hello world!" not in {log.message for log in logs}
 
     async def test_logs_are_given_correct_ids(self, prefect_client):
@@ -4980,6 +5144,221 @@ class TestTaskHooksOnFailure:
         assert state.type == StateType.FAILED
         assert my_mock.call_args_list == [call("failed1")]
 
+
+class TestTaskHooksOnRunning:
+    def test_noniterable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected iterable for 'on_running'; got function instead. Please"
+                " provide a list of hooks to 'on_running':\n\n"
+                "@task(on_running=[hook1, hook2])\ndef my_task():\n\tpass"
+            ),
+        ):
+
+            @task(on_running=running_hook)
+            def task1():
+                pass
+
+    def test_noncallable_hook_raises(self):
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@task(on_running=[hook1, hook2])\ndef my_task():\n\tpass"
+            ),
+        ):
+
+            @task(on_running=["test"])
+            def task1():
+                pass
+
+    def test_callable_noncallable_hook_raises(self):
+        def running_hook():
+            pass
+
+        with pytest.raises(
+            TypeError,
+            match=re.escape(
+                "Expected callables in 'on_running'; got str instead. Please provide"
+                " a list of hooks to 'on_running':\n\n"
+                "@task(on_running=[hook1, hook2])\ndef my_task():\n\tpass"
+            ),
+        ):
+
+            @task(on_running=[running_hook, "test"])
+            def task2():
+                pass
+
+    def test_decorated_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        @task
+        def my_task():
+            pass
+
+        @my_task.on_running
+        def running1(task, task_run, state):
+            my_mock("running1")
+
+        @my_task.on_running
+        def running2(task, task_run, state):
+            my_mock("running2")
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_on_running_hooks_run_on_running(self):
+        my_mock = MagicMock()
+
+        def running1(task, task_run, state):
+            my_mock("running1")
+
+        def running2(task, task_run, state):
+            my_mock("running2")
+
+        @task(on_running=[running1, running2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    def test_on_running_hooks_run_on_both_completed_and_failed(self):
+        my_mock = MagicMock()
+
+        def running1(task, task_run, state):
+            my_mock("running")
+
+        @task(on_running=[running1])
+        def successful_task():
+            pass
+
+        @task(on_running=[running1])
+        def failing_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            successful_task()
+            try:
+                failing_task()
+            except Exception:
+                pass
+
+        my_flow()
+        assert my_mock.call_args_list == [call("running"), call("running")]
+
+    def test_other_running_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def running1(task, task_run, state):
+            my_mock("running1")
+
+        def exception_hook(task, task_run, state):
+            raise Exception("bad hook")
+
+        def running2(task, task_run, state):
+            my_mock("running2")
+
+        @task(on_running=[running1, exception_hook, running2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("running1"), call("running2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_running_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @task(on_running=[hook1_with_mock, hook2_with_mock])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
+    def test_on_running_hooks_fire_on_retry_with_delay(self):
+        """Test that on_running hooks fire on initial run AND on retry with delay."""
+        my_mock = MagicMock()
+
+        def running_hook(task, task_run, state):
+            my_mock("running")
+
+        @task(on_running=[running_hook], retries=1, retry_delay_seconds=0.1)
+        def my_task():
+            # Fail on first run, succeed on retry
+            if my_mock.call_count < 2:
+                raise ValueError("failing")
+            return "success"
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        # Hook should fire twice: once on initial run, once on retry
+        assert my_mock.call_args_list == [call("running"), call("running")]
+
+    def test_on_running_hooks_fire_on_retry_without_delay(self):
+        """Test that on_running hooks fire on initial run AND on retry without delay."""
+        my_mock = MagicMock()
+
+        def running_hook(task, task_run, state):
+            my_mock("running")
+
+        @task(on_running=[running_hook], retries=1)
+        def my_task():
+            # Fail on first run, succeed on retry
+            if my_mock.call_count < 2:
+                raise ValueError("failing")
+            return "success"
+
+        @flow
+        def my_flow():
+            return my_task(return_state=True)
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        # Hook should fire twice: once on initial run, once on retry
+        assert my_mock.call_args_list == [call("running"), call("running")]
+
     async def test_task_condition_fn_raises_when_not_a_callable(self):
         with pytest.raises(TypeError):
 
@@ -5760,3 +6139,59 @@ class TestDelay:
         assert await get_background_task_run_parameters(
             add_em_up, future.state.state_details.task_parameters_id
         ) == {"parameters": {"args": (42,), "kwargs": {"y": 42}}, "context": ANY}
+
+
+class TestAsyncTaskFromSyncTask:
+    """Tests for submitting async tasks from within sync tasks."""
+
+    def test_async_task_submit_from_sync_task_with_exception(self):
+        """
+        Test that an async task that raises an exception can be submitted
+        from within a sync task without causing a TypeError about
+        awaiting a bool.
+
+        Regression test for issue where mixed sync/async task transactions
+        would fail with "object bool can't be used in 'await' expression"
+        during transaction rollback.
+        """
+
+        @task
+        async def async_task():
+            raise ValueError("aah!")
+
+        @task
+        def sync_task():
+            future = async_task.submit()
+            # This should raise ValueError, not TypeError
+            return future.result()
+
+        @flow
+        def my_flow():
+            return sync_task()
+
+        # The flow should fail with ValueError from the async task,
+        # not TypeError from transaction handling
+        with pytest.raises(ValueError, match="aah!"):
+            my_flow()
+
+    def test_async_task_submit_from_sync_task_success(self):
+        """
+        Test that an async task can successfully be submitted and awaited
+        from within a sync task.
+        """
+
+        @task
+        async def async_task():
+            return 42
+
+        @task
+        def sync_task():
+            future = async_task.submit()
+            return future.result()
+
+        @flow
+        def my_flow():
+            return sync_task()
+
+        result = my_flow()
+        assert result == 42

@@ -62,13 +62,11 @@ async def receiver_flow():
 
 from __future__ import annotations
 
-import inspect
 from inspect import isclass
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Coroutine,
     Dict,
     Generic,
     Literal,
@@ -87,14 +85,18 @@ import pydantic
 from pydantic import ConfigDict
 from typing_extensions import Self
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.input.actions import (
+    acreate_flow_run_input,
+    acreate_flow_run_input_from_model,
+    afilter_flow_run_input,
+    aread_flow_run_input,
     create_flow_run_input,
     create_flow_run_input_from_model,
     ensure_flow_run_id,
     filter_flow_run_input,
     read_flow_run_input,
 )
-from prefect.utilities.asyncutils import sync_compatible
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRunInput
@@ -164,8 +166,34 @@ class BaseRunInput(pydantic.BaseModel):
         return keyset_from_base_key(cls.__name__.lower())
 
     @classmethod
-    @sync_compatible
-    async def save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None):
+    async def asave(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> None:
+        """
+        Save the run input response to the given key asynchronously.
+
+        Args:
+            - keyset (Keyset): the keyset to save the input for
+            - flow_run_id (UUID, optional): the flow run ID to save the input for
+        """
+        if is_v2_model(cls):
+            schema = create_v2_schema(cls.__name__, model_base=cls)
+        else:
+            schema = cls.model_json_schema(by_alias=True)
+
+        await acreate_flow_run_input(
+            key=keyset["schema"], value=schema, flow_run_id=flow_run_id
+        )
+
+        description = cls._description if isinstance(cls._description, str) else None
+        if description:
+            await acreate_flow_run_input(
+                key=keyset["description"],
+                value=description,
+                flow_run_id=flow_run_id,
+            )
+
+    @classmethod
+    @async_dispatch(asave)
+    def save(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> None:
         """
         Save the run input response to the given key.
 
@@ -173,33 +201,46 @@ class BaseRunInput(pydantic.BaseModel):
             - keyset (Keyset): the keyset to save the input for
             - flow_run_id (UUID, optional): the flow run ID to save the input for
         """
-
         if is_v2_model(cls):
             schema = create_v2_schema(cls.__name__, model_base=cls)
         else:
             schema = cls.model_json_schema(by_alias=True)
 
-        coro = create_flow_run_input(
+        create_flow_run_input(
             key=keyset["schema"], value=schema, flow_run_id=flow_run_id
         )
-        if TYPE_CHECKING:
-            assert inspect.iscoroutine(coro)
-        await coro
 
         description = cls._description if isinstance(cls._description, str) else None
         if description:
-            coro = create_flow_run_input(
+            create_flow_run_input(
                 key=keyset["description"],
                 value=description,
                 flow_run_id=flow_run_id,
             )
-            if TYPE_CHECKING:
-                assert inspect.iscoroutine(coro)
-            await coro
 
     @classmethod
-    @sync_compatible
-    async def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self:
+    async def aload(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self:
+        """
+        Load the run input response from the given key asynchronously.
+
+        Args:
+            - keyset (Keyset): the keyset to load the input for
+            - flow_run_id (UUID, optional): the flow run ID to load the input for
+        """
+        flow_run_id = ensure_flow_run_id(flow_run_id)
+        value = await aread_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
+        if value:
+            instance = cls(**value)
+        else:
+            instance = cls()
+        instance._metadata = RunInputMetadata(
+            key=keyset["response"], sender=None, receiver=flow_run_id
+        )
+        return instance
+
+    @classmethod
+    @async_dispatch(aload)
+    def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self:
         """
         Load the run input response from the given key.
 
@@ -208,7 +249,7 @@ class BaseRunInput(pydantic.BaseModel):
             - flow_run_id (UUID, optional): the flow run ID to load the input for
         """
         flow_run_id = ensure_flow_run_id(flow_run_id)
-        value = await read_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
+        value = read_flow_run_input(keyset["response"], flow_run_id=flow_run_id)
         if value:
             instance = cls(**value)
         else:
@@ -249,7 +290,10 @@ class BaseRunInput(pydantic.BaseModel):
         """
         fields: Dict[str, Any] = {}
         for key, value in kwargs.items():
-            fields[key] = (type(value), value)
+            original_field = cls.model_fields.get(key)
+            # Use the original field annotation if it exists, otherwise infer from value
+            field_type = original_field.annotation if original_field else type(value)
+            fields[key] = (field_type, value)
         model = pydantic.create_model(cls.__name__, **fields, __base__=cls)
 
         if description is not None:
@@ -257,13 +301,13 @@ class BaseRunInput(pydantic.BaseModel):
 
         return model
 
-    @sync_compatible
-    async def respond(
+    async def arespond(
         self,
         run_input: "RunInput",
         sender: Optional[str] = None,
         key_prefix: Optional[str] = None,
-    ):
+    ) -> None:
+        """Respond to the sender of this input asynchronously."""
         flow_run_id = None
         if self.metadata.sender and self.metadata.sender.startswith("prefect.flow-run"):
             _, _, id = self.metadata.sender.rpartition(".")
@@ -274,21 +318,61 @@ class BaseRunInput(pydantic.BaseModel):
                 "Cannot respond to an input that was not sent by a flow run."
             )
 
-        await _send_input(
+        await _asend_input(
             flow_run_id=flow_run_id,
             run_input=run_input,
             sender=sender,
             key_prefix=key_prefix,
         )
 
-    @sync_compatible
-    async def send_to(
+    @async_dispatch(arespond)
+    def respond(
+        self,
+        run_input: "RunInput",
+        sender: Optional[str] = None,
+        key_prefix: Optional[str] = None,
+    ) -> None:
+        """Respond to the sender of this input."""
+        flow_run_id = None
+        if self.metadata.sender and self.metadata.sender.startswith("prefect.flow-run"):
+            _, _, id = self.metadata.sender.rpartition(".")
+            flow_run_id = UUID(id)
+
+        if not flow_run_id:
+            raise RuntimeError(
+                "Cannot respond to an input that was not sent by a flow run."
+            )
+
+        _send_input_sync(
+            flow_run_id=flow_run_id,
+            run_input=run_input,
+            sender=sender,
+            key_prefix=key_prefix,
+        )
+
+    async def asend_to(
         self,
         flow_run_id: UUID,
         sender: Optional[str] = None,
         key_prefix: Optional[str] = None,
-    ):
-        await _send_input(
+    ) -> None:
+        """Send this input to a flow run asynchronously."""
+        await _asend_input(
+            flow_run_id=flow_run_id,
+            run_input=self,
+            sender=sender,
+            key_prefix=key_prefix,
+        )
+
+    @async_dispatch(asend_to)
+    def send_to(
+        self,
+        flow_run_id: UUID,
+        sender: Optional[str] = None,
+        key_prefix: Optional[str] = None,
+    ) -> None:
+        """Send this input to a flow run."""
+        _send_input_sync(
             flow_run_id=flow_run_id,
             run_input=self,
             sender=sender,
@@ -339,8 +423,20 @@ class AutomaticRunInput(BaseRunInput, Generic[T]):
     value: T
 
     @classmethod
-    @sync_compatible
-    async def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> Self:
+    async def aload(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> T:  # type: ignore[override]
+        """
+        Load the run input response from the given key asynchronously.
+
+        Args:
+            - keyset (Keyset): the keyset to load the input for
+            - flow_run_id (UUID, optional): the flow run ID to load the input for
+        """
+        instance = await super().aload(keyset, flow_run_id=flow_run_id)
+        return instance.value
+
+    @classmethod
+    @async_dispatch(aload)
+    def load(cls, keyset: Keyset, flow_run_id: Optional[UUID] = None) -> T:  # type: ignore[override]
         """
         Load the run input response from the given key.
 
@@ -348,10 +444,7 @@ class AutomaticRunInput(BaseRunInput, Generic[T]):
             - keyset (Keyset): the keyset to load the input for
             - flow_run_id (UUID, optional): the flow run ID to load the input for
         """
-        instance_coro = super().load(keyset, flow_run_id=flow_run_id)
-        if TYPE_CHECKING:
-            assert inspect.iscoroutine(instance_coro)
-        instance = await instance_coro
+        instance = super().load(keyset, flow_run_id=flow_run_id)
         return instance.value
 
     @classmethod
@@ -475,26 +568,34 @@ class GetInputHandler(Generic[R]):
 
     async def __anext__(self) -> R:
         try:
-            coro = self.next()
-            if TYPE_CHECKING:
-                assert inspect.iscoroutine(coro)
-            return await coro
+            return await self.anext()
         except TimeoutError:
             if self.raise_timeout_error:
                 raise
             raise StopAsyncIteration
 
     async def filter_for_inputs(self) -> list["FlowRunInput"]:
-        flow_run_inputs_coro = filter_flow_run_input(
+        """Filter for inputs asynchronously."""
+        flow_run_inputs = await afilter_flow_run_input(
             key_prefix=self.key_prefix,
             limit=1,
             exclude_keys=self.exclude_keys,
             flow_run_id=self.flow_run_id,
         )
-        if TYPE_CHECKING:
-            assert inspect.iscoroutine(flow_run_inputs_coro)
 
-        flow_run_inputs = await flow_run_inputs_coro
+        if flow_run_inputs:
+            self.exclude_keys.add(*[i.key for i in flow_run_inputs])
+
+        return flow_run_inputs
+
+    def filter_for_inputs_sync(self) -> list["FlowRunInput"]:
+        """Filter for inputs synchronously."""
+        flow_run_inputs = filter_flow_run_input(
+            key_prefix=self.key_prefix,
+            limit=1,
+            exclude_keys=self.exclude_keys,
+            flow_run_id=self.flow_run_id,
+        )
 
         if flow_run_inputs:
             self.exclude_keys.add(*[i.key for i in flow_run_inputs])
@@ -504,8 +605,8 @@ class GetInputHandler(Generic[R]):
     def to_instance(self, flow_run_input: "FlowRunInput") -> R:
         return self.run_input_cls.load_from_flow_run_input(flow_run_input)
 
-    @sync_compatible
-    async def next(self) -> R:
+    async def anext(self) -> R:
+        """Get the next input asynchronously."""
         flow_run_inputs = await self.filter_for_inputs()
         if flow_run_inputs:
             return self.to_instance(flow_run_inputs[0])
@@ -516,6 +617,27 @@ class GetInputHandler(Generic[R]):
                 flow_run_inputs = await self.filter_for_inputs()
                 if flow_run_inputs:
                     return self.to_instance(flow_run_inputs[0])
+
+    @async_dispatch(anext)
+    def next(self) -> R:
+        """Get the next input."""
+        import time
+
+        flow_run_inputs = self.filter_for_inputs_sync()
+        if flow_run_inputs:
+            return self.to_instance(flow_run_inputs[0])
+
+        start_time = time.monotonic()
+        while True:
+            time.sleep(self.poll_interval)
+            flow_run_inputs = self.filter_for_inputs_sync()
+            if flow_run_inputs:
+                return self.to_instance(flow_run_inputs[0])
+            if (
+                self.timeout is not None
+                and time.monotonic() - start_time >= self.timeout
+            ):
+                raise TimeoutError("Timed out waiting for input")
 
 
 class GetAutomaticInputHandler(Generic[T]):
@@ -547,10 +669,7 @@ class GetAutomaticInputHandler(Generic[T]):
 
     def __next__(self) -> T | AutomaticRunInput[T]:
         try:
-            not_coro = self.next()
-            if TYPE_CHECKING:
-                assert not isinstance(not_coro, Coroutine)
-            return not_coro
+            return self.next()
         except TimeoutError:
             if self.raise_timeout_error:
                 raise
@@ -561,34 +680,42 @@ class GetAutomaticInputHandler(Generic[T]):
 
     async def __anext__(self) -> Union[T, AutomaticRunInput[T]]:
         try:
-            coro = self.next()
-            if TYPE_CHECKING:
-                assert inspect.iscoroutine(coro)
-            return cast(Union[T, AutomaticRunInput[T]], await coro)
+            return await self.anext()
         except TimeoutError:
             if self.raise_timeout_error:
                 raise
             raise StopAsyncIteration
 
     async def filter_for_inputs(self) -> list["FlowRunInput"]:
-        flow_run_inputs_coro = filter_flow_run_input(
+        """Filter for inputs asynchronously."""
+        flow_run_inputs = await afilter_flow_run_input(
             key_prefix=self.key_prefix,
             limit=1,
             exclude_keys=self.exclude_keys,
             flow_run_id=self.flow_run_id,
         )
-        if TYPE_CHECKING:
-            assert inspect.iscoroutine(flow_run_inputs_coro)
-
-        flow_run_inputs = await flow_run_inputs_coro
 
         if flow_run_inputs:
             self.exclude_keys.add(*[i.key for i in flow_run_inputs])
 
         return flow_run_inputs
 
-    @sync_compatible
-    async def next(self) -> Union[T, AutomaticRunInput[T]]:
+    def filter_for_inputs_sync(self) -> list["FlowRunInput"]:
+        """Filter for inputs synchronously."""
+        flow_run_inputs = filter_flow_run_input(
+            key_prefix=self.key_prefix,
+            limit=1,
+            exclude_keys=self.exclude_keys,
+            flow_run_id=self.flow_run_id,
+        )
+
+        if flow_run_inputs:
+            self.exclude_keys.add(*[i.key for i in flow_run_inputs])
+
+        return flow_run_inputs
+
+    async def anext(self) -> Union[T, AutomaticRunInput[T]]:
+        """Get the next input asynchronously."""
         flow_run_inputs = await self.filter_for_inputs()
         if flow_run_inputs:
             return self.to_instance(flow_run_inputs[0])
@@ -600,6 +727,27 @@ class GetAutomaticInputHandler(Generic[T]):
                 if flow_run_inputs:
                     return self.to_instance(flow_run_inputs[0])
 
+    @async_dispatch(anext)
+    def next(self) -> Union[T, AutomaticRunInput[T]]:
+        """Get the next input."""
+        import time
+
+        flow_run_inputs = self.filter_for_inputs_sync()
+        if flow_run_inputs:
+            return self.to_instance(flow_run_inputs[0])
+
+        start_time = time.monotonic()
+        while True:
+            time.sleep(self.poll_interval)
+            flow_run_inputs = self.filter_for_inputs_sync()
+            if flow_run_inputs:
+                return self.to_instance(flow_run_inputs[0])
+            if (
+                self.timeout is not None
+                and time.monotonic() - start_time >= self.timeout
+            ):
+                raise TimeoutError("Timed out waiting for input")
+
     def to_instance(
         self, flow_run_input: "FlowRunInput"
     ) -> Union[T, AutomaticRunInput[T]]:
@@ -610,12 +758,13 @@ class GetAutomaticInputHandler(Generic[T]):
         return run_input.value
 
 
-async def _send_input(
+async def _asend_input(
     flow_run_id: UUID,
     run_input: RunInput | pydantic.BaseModel,
     sender: Optional[str] = None,
     key_prefix: Optional[str] = None,
-):
+) -> None:
+    """Send input to a flow run asynchronously (internal helper)."""
     _run_input: Union[RunInput, AutomaticRunInput[Any]]
     if isinstance(run_input, RunInput):
         _run_input = run_input
@@ -630,23 +779,61 @@ async def _send_input(
 
     key = f"{key_prefix}-{uuid4()}"
 
-    coro = create_flow_run_input_from_model(
+    await acreate_flow_run_input_from_model(
         key=key, flow_run_id=flow_run_id, model_instance=_run_input, sender=sender
     )
-    if TYPE_CHECKING:
-        assert inspect.iscoroutine(coro)
-
-    await coro
 
 
-@sync_compatible
-async def send_input(
+def _send_input_sync(
+    flow_run_id: UUID,
+    run_input: RunInput | pydantic.BaseModel,
+    sender: Optional[str] = None,
+    key_prefix: Optional[str] = None,
+) -> None:
+    """Send input to a flow run synchronously (internal helper)."""
+    _run_input: Union[RunInput, AutomaticRunInput[Any]]
+    if isinstance(run_input, RunInput):
+        _run_input = run_input
+    else:
+        input_cls: Type[AutomaticRunInput[Any]] = run_input_subclass_from_type(
+            type(run_input)
+        )
+        _run_input = input_cls(value=run_input)
+
+    if key_prefix is None:
+        key_prefix = f"{_run_input.__class__.__name__.lower()}-auto"
+
+    key = f"{key_prefix}-{uuid4()}"
+
+    create_flow_run_input_from_model(
+        key=key, flow_run_id=flow_run_id, model_instance=_run_input, sender=sender
+    )
+
+
+async def asend_input(
     run_input: Any,
     flow_run_id: UUID,
     sender: Optional[str] = None,
     key_prefix: Optional[str] = None,
-):
-    await _send_input(
+) -> None:
+    """Send input to a flow run asynchronously."""
+    await _asend_input(
+        flow_run_id=flow_run_id,
+        run_input=run_input,
+        sender=sender,
+        key_prefix=key_prefix,
+    )
+
+
+@async_dispatch(asend_input)
+def send_input(
+    run_input: Any,
+    flow_run_id: UUID,
+    sender: Optional[str] = None,
+    key_prefix: Optional[str] = None,
+) -> None:
+    """Send input to a flow run."""
+    _send_input_sync(
         flow_run_id=flow_run_id,
         run_input=run_input,
         sender=sender,

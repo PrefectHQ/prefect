@@ -6,14 +6,14 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
-interface FormattedDateProps {
+type FormattedDateProps = {
 	date: string | Date | null | undefined;
-	format?: "relative" | "absolute" | "both";
+	format?: "relative" | "absolute" | "both" | "timestamp";
 	showTooltip?: boolean;
 	className?: string;
-}
+};
 
 export const FormattedDate = ({
 	date,
@@ -54,6 +54,8 @@ export const FormattedDate = ({
 				return formatDistanceToNow(parsedDate, { addSuffix: true });
 			case "absolute":
 				return format(parsedDate, "MMM d, yyyy 'at' h:mm a");
+			case "timestamp":
+				return format(parsedDate, "yyyy/MM/dd hh:mm:ss a");
 			case "both":
 				return formatDistanceToNow(parsedDate, { addSuffix: true });
 			default:
@@ -63,17 +65,25 @@ export const FormattedDate = ({
 
 	const formattedText = getFormattedText();
 	const absoluteText = format(parsedDate, "MMMM d, yyyy 'at' h:mm:ss a");
+	const rawIsoString = typeof date === "string" ? date : date.toISOString();
 
 	const dateElement = <span className={className}>{formattedText}</span>;
 
-	// Show tooltip for relative dates or when explicitly requested
-	if (showTooltip && (formatType === "relative" || formatType === "both")) {
+	// Show tooltip for relative, both, or absolute dates when explicitly requested
+	if (
+		showTooltip &&
+		(formatType === "relative" ||
+			formatType === "both" ||
+			formatType === "absolute")
+	) {
+		const tooltipContent =
+			formatType === "absolute" ? rawIsoString : absoluteText;
 		return (
 			<TooltipProvider>
 				<Tooltip>
 					<TooltipTrigger asChild>{dateElement}</TooltipTrigger>
 					<TooltipContent>
-						<p>{absoluteText}</p>
+						<p>{tooltipContent}</p>
 					</TooltipContent>
 				</Tooltip>
 			</TooltipProvider>

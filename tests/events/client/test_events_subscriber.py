@@ -1,7 +1,9 @@
 from typing import Optional, Type
+from unittest.mock import AsyncMock
 
+import orjson
 import pytest
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosed, ConnectionClosedError
 
 from prefect.events import Event, get_events_subscriber
 from prefect.events.clients import (
@@ -337,3 +339,208 @@ async def test_subscriber_skips_duplicate_events(
             recorder.events.append(event)
 
     assert recorder.events == [example_event_1, example_event_2]
+
+
+async def test_subscriber_retries_on_connection_closed_during_initial_connection(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    example_event_1: Event,
+    example_event_2: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """Test that __aenter__ retries on ConnectionClosed during initial connection."""
+    puppeteer.token = token
+    puppeteer.outgoing_events = [example_event_1, example_event_2]
+
+    # Start with refusing connections, then allow after first attempt
+    puppeteer.refuse_any_further_connections = True
+
+    filter = EventFilter(event=EventNameFilter(name=["example.event"]))
+
+    subscriber = Subscriber(
+        filter=filter,
+        reconnection_attempts=3,
+    )
+
+    # Mock _reconnect to fail twice then succeed
+    original_reconnect = subscriber._reconnect
+    call_count = 0
+
+    async def mock_reconnect():
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            raise ConnectionClosed(None, None)
+        puppeteer.refuse_any_further_connections = False
+        return await original_reconnect()
+
+    subscriber._reconnect = mock_reconnect
+
+    async with subscriber:
+        async for event in subscriber:
+            recorder.events.append(event)
+
+    assert call_count == 3  # Failed twice, succeeded on third attempt
+    assert recorder.events == [example_event_1, example_event_2]
+
+
+async def test_subscriber_retries_on_timeout_error_during_initial_connection(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    example_event_1: Event,
+    example_event_2: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """Test that __aenter__ retries on TimeoutError during initial connection."""
+    puppeteer.token = token
+    puppeteer.outgoing_events = [example_event_1, example_event_2]
+
+    filter = EventFilter(event=EventNameFilter(name=["example.event"]))
+
+    subscriber = Subscriber(
+        filter=filter,
+        reconnection_attempts=3,
+    )
+
+    # Mock _reconnect to fail with TimeoutError twice then succeed
+    original_reconnect = subscriber._reconnect
+    call_count = 0
+
+    async def mock_reconnect():
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            raise TimeoutError("Connection timed out")
+        return await original_reconnect()
+
+    subscriber._reconnect = mock_reconnect
+
+    async with subscriber:
+        async for event in subscriber:
+            recorder.events.append(event)
+
+    assert call_count == 3  # Failed twice, succeeded on third attempt
+    assert recorder.events == [example_event_1, example_event_2]
+
+
+async def test_subscriber_gives_up_after_exhausting_retries_during_initial_connection(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """Test that __aenter__ propagates error after exhausting all retry attempts."""
+    puppeteer.token = token
+
+    filter = EventFilter(event=EventNameFilter(name=["example.event"]))
+
+    subscriber = Subscriber(
+        filter=filter,
+        reconnection_attempts=2,
+    )
+
+    # Mock _reconnect to always fail
+    call_count = 0
+
+    async def mock_reconnect():
+        nonlocal call_count
+        call_count += 1
+        raise ConnectionClosed(None, None)
+
+    subscriber._reconnect = mock_reconnect
+
+    with pytest.raises(ConnectionClosed):
+        await subscriber.__aenter__()
+
+    # Should have tried initial attempt + 2 retries = 3 total attempts
+    assert call_count == 3
+
+
+async def test_subscriber_initial_connection_does_not_retry_on_other_exceptions(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """Test that __aenter__ does not retry on exceptions other than ConnectionClosed/TimeoutError."""
+    puppeteer.token = token
+
+    filter = EventFilter(event=EventNameFilter(name=["example.event"]))
+
+    subscriber = Subscriber(
+        filter=filter,
+        reconnection_attempts=5,
+    )
+
+    # Mock _reconnect to fail with a different exception type
+    call_count = 0
+
+    async def mock_reconnect():
+        nonlocal call_count
+        call_count += 1
+        raise ValueError("Configuration error")
+
+    subscriber._reconnect = mock_reconnect
+
+    with pytest.raises(ValueError, match="Configuration error"):
+        await subscriber.__aenter__()
+
+    # Should have only tried once since ValueError is not retried
+    assert call_count == 1
+
+
+async def test_subscriber_resets_retry_counter_after_successful_reconnect(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    example_event_1: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """Test that the retry counter resets after each successful reconnection,
+    allowing the subscriber to survive more total disconnections than
+    reconnection_attempts.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/18428
+    """
+    puppeteer.token = token
+    puppeteer.outgoing_events = [example_event_1]
+
+    filter = EventFilter(event=EventNameFilter(name=["example.event"]))
+
+    async with Subscriber(
+        filter=filter,
+        reconnection_attempts=2,
+    ) as subscriber:
+        reconnect_count = 0
+        event_json = orjson.dumps(
+            {"type": "event", "event": example_event_1.model_dump(mode="json")}
+        )
+
+        async def mock_reconnect():
+            nonlocal reconnect_count
+            reconnect_count += 1
+            mock_ws = AsyncMock()
+            if reconnect_count <= 3:
+                mock_ws.recv = AsyncMock(side_effect=ConnectionClosedError(None, None))
+            else:
+                mock_ws.recv = AsyncMock(return_value=event_json)
+            subscriber._websocket = mock_ws
+
+        subscriber._reconnect = mock_reconnect
+        subscriber._websocket = AsyncMock()
+        subscriber._websocket.recv = AsyncMock(
+            side_effect=ConnectionClosedError(None, None)
+        )
+
+        event = await subscriber.__anext__()
+        recorder.events.append(event)
+
+    assert reconnect_count == 4
+    assert recorder.events == [example_event_1]

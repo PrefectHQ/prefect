@@ -35,6 +35,7 @@ from typing_extensions import TypeAlias, TypeVar
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
 from prefect.utilities.annotations import BaseAnnotation as BaseAnnotation
 from prefect.utilities.annotations import Quote as Quote
+from prefect.utilities.annotations import opaque as opaque
 from prefect.utilities.annotations import quote as quote
 
 if TYPE_CHECKING:
@@ -462,7 +463,14 @@ def visit_collection(
         if context is not None:
             context["annotation"] = cast(VT, annotated)
         unwrapped = annotated.unwrap()
-        value = visit_nested(unwrapped)
+
+        if isinstance(annotated, opaque):
+            try:
+                value = visit_expression(unwrapped)
+            except StopVisiting:
+                value = unwrapped
+        else:
+            value = visit_nested(unwrapped)
 
         if return_data:
             # if we are removing annotations, return the value
@@ -481,7 +489,11 @@ def visit_collection(
         if return_data:
             modified = any(item is not orig for item, orig in zip(items, seq))
             if modified:
-                result = type(seq)(items)
+                # Use _make for NamedTuples
+                if hasattr(type(seq), "_make"):
+                    result = type(seq)._make(items)
+                else:
+                    result = type(seq)(items)
 
     # --- Dictionaries
 

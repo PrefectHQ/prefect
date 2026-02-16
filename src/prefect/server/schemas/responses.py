@@ -369,9 +369,6 @@ class TaskRunResponse(ORMBaseModel):
         description="The version of the task executed in this task run.",
         examples=["1.0"],
     )
-    parameters: dict[str, Any] = Field(
-        default_factory=dict, description="Parameters for the task run."
-    )
     task_inputs: dict[
         str,
         list[
@@ -383,11 +380,6 @@ class TaskRunResponse(ORMBaseModel):
             ]
         ],
     ] = Field(default_factory=dict, description="Inputs provided to the task run.")
-    context: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Additional context for the task run.",
-        examples=[{"my_var": "my_val"}],
-    )
     empirical_policy: schemas.core.TaskRunPolicy = Field(
         default_factory=schemas.core.TaskRunPolicy,
         description="The task run's empirical retry policy.",
@@ -396,6 +388,27 @@ class TaskRunResponse(ORMBaseModel):
         default_factory=list,
         description="A list of tags for the task run.",
         examples=[["tag-1", "tag-2"]],
+    )
+    start_time: Optional[DateTime] = Field(
+        default=None, description="The actual start time."
+    )
+    end_time: Optional[DateTime] = Field(
+        default=None, description="The actual end time."
+    )
+    total_run_time: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description=(
+            "Total run time. If the task run was executed multiple times, the time of"
+            " each run will be summed."
+        ),
+    )
+    estimated_run_time: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description="A real-time estimate of the total run time.",
+    )
+    estimated_start_time_delta: datetime.timedelta = Field(
+        default=datetime.timedelta(0),
+        description="The difference between actual and expected start time.",
     )
 
 
@@ -449,6 +462,10 @@ class DeploymentResponse(ORMBaseModel):
             "The work queue for the deployment. If no work queue is set, work will not"
             " be scheduled."
         ),
+    )
+    work_queue_id: Optional[UUID] = Field(
+        default=None,
+        description="The id of the work pool queue to which this deployment is assigned.",
     )
     last_polled: Optional[DateTime] = Field(
         default=None,
@@ -520,6 +537,7 @@ class DeploymentResponse(ORMBaseModel):
 
         if from_attributes:
             if obj.work_queue:
+                response.work_queue_id = obj.work_queue.id
                 response.work_queue_name = obj.work_queue.name
                 if obj.work_queue.work_pool:
                     response.work_pool_name = obj.work_queue.work_pool.name
@@ -668,3 +686,53 @@ SchemaValueError = Union[str, SchemaValuePropertyError, SchemaValueIndexError]
 class SchemaValuesValidationResponse(BaseModel):
     errors: List[SchemaValueError]
     valid: bool
+
+
+# Bulk operation response schemas
+
+
+class FlowRunBulkDeleteResponse(PrefectBaseModel):
+    """Response from bulk flow run deletion."""
+
+    deleted: List[UUID] = Field(default_factory=list)
+
+
+class DeploymentBulkDeleteResponse(PrefectBaseModel):
+    """Response from bulk deployment deletion."""
+
+    deleted: List[UUID] = Field(default_factory=list)
+
+
+class FlowBulkDeleteResponse(PrefectBaseModel):
+    """Response from bulk flow deletion."""
+
+    deleted: List[UUID] = Field(default_factory=list)
+
+
+class FlowRunOrchestrationResult(PrefectBaseModel):
+    """Per-run result for bulk state operations."""
+
+    flow_run_id: UUID
+    status: SetStateStatus
+    state: Optional[schemas.states.State] = None
+    details: StateResponseDetails
+
+
+class FlowRunBulkSetStateResponse(PrefectBaseModel):
+    """Response from bulk set state operation."""
+
+    results: List[FlowRunOrchestrationResult] = Field(default_factory=list)
+
+
+class FlowRunCreateResult(PrefectBaseModel):
+    """Per-run result for bulk create operations."""
+
+    flow_run_id: Optional[UUID] = None
+    status: Literal["CREATED", "FAILED"]
+    error: Optional[str] = None
+
+
+class FlowRunBulkCreateResponse(PrefectBaseModel):
+    """Response from bulk flow run creation."""
+
+    results: List[FlowRunCreateResult] = Field(default_factory=list)

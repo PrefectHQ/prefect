@@ -2,6 +2,7 @@
 Command line interface for working with automations.
 """
 
+import asyncio
 import functools
 from pathlib import Path
 from typing import Any, Callable, Optional, Type
@@ -301,6 +302,7 @@ async def pause(
 async def delete(
     name: Optional[str] = typer.Argument(None, help="An automation's name"),
     id: Optional[str] = typer.Option(None, "--id", help="An automation's id"),
+    _all: bool = typer.Option(False, "--all", help="Delete all automations"),
 ):
     """Delete an automation.
 
@@ -311,9 +313,37 @@ async def delete(
     Examples:
         `$ prefect automation delete "my-automation"`
         `$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
+        `$ prefect automation delete --all`
     """
 
     async with get_client() as client:
+        if _all:
+            if name is not None or id is not None:
+                exit_with_error(
+                    "Cannot provide an automation name or id when deleting all automations."
+                )
+            automations = await client.read_automations()
+            if len(automations) == 0:
+                exit_with_success("No automations found.")
+            if is_interactive() and not typer.confirm(
+                f"Are you sure you want to delete all {len(automations)} automations?",
+                default=False,
+            ):
+                exit_with_error("Deletion aborted.")
+
+            semaphore = asyncio.Semaphore(10)
+
+            async def limited_delete(automation_id):
+                async with semaphore:
+                    await client.delete_automation(automation_id)
+
+            await asyncio.gather(
+                *[limited_delete(automation.id) for automation in automations]
+            )
+
+            plural = "" if len(automations) == 1 else "s"
+            exit_with_success(f"Deleted {len(automations)} automation{plural}.")
+
         if not id and not name:
             exit_with_error("Please provide either a name or an id.")
 
@@ -438,3 +468,82 @@ async def create(
         raise typer.Exit(1)
     else:
         raise typer.Exit(0)
+
+
+@automations_app.command()
+async def update(
+    id: str = typer.Option(
+        ...,
+        "--id",
+        help="The ID of the automation to update",
+    ),
+    from_file: Optional[Path] = typer.Option(
+        None,
+        "--from-file",
+        "-f",
+        help="Path to YAML or JSON file containing the updated automation",
+    ),
+    from_json: Optional[str] = typer.Option(
+        None,
+        "--from-json",
+        "-j",
+        help="JSON string containing the updated automation",
+    ),
+):
+    """Update an existing automation from a file or JSON string.
+
+    Examples:
+        `$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-file automation.yaml`
+        `$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -f automation.json`
+        `$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-json '{"name": "updated-automation", "trigger": {...}, "actions": [...]}'`
+    """
+    if from_file and from_json:
+        exit_with_error("Please provide either --from-file or --from-json, not both.")
+
+    if not from_file and not from_json:
+        exit_with_error("Please provide either --from-file or --from-json.")
+
+    try:
+        automation_id = UUID(id)
+    except ValueError:
+        exit_with_error(f"Invalid automation ID: {id!r}")
+
+    if from_file:
+        if not from_file.exists():
+            exit_with_error(f"File not found: {from_file}")
+
+        with open(from_file, "r") as f:
+            content = f.read()
+
+        if from_file.suffix.lower() in [".yaml", ".yml"]:
+            data = pyyaml.safe_load(content)
+        elif from_file.suffix.lower() == ".json":
+            data = orjson.loads(content)
+        else:
+            exit_with_error(
+                "File extension not recognized. Please use .yaml, .yml, or .json"
+            )
+    else:  # from_json
+        try:
+            data = orjson.loads(from_json)
+        except orjson.JSONDecodeError as e:
+            exit_with_error(f"Invalid JSON: {e}")
+
+    try:
+        automation = AutomationCore.model_validate(data)
+    except Exception as e:
+        exit_with_error(f"Automation config failed validation: {e}")
+
+    async with get_client() as client:
+        try:
+            existing_automation = await client.read_automation(automation_id)
+        except PrefectHTTPStatusError as e:
+            if e.response.status_code == 404:
+                exit_with_error(f"Automation with id {id!r} not found.")
+            raise
+
+        if not existing_automation:
+            exit_with_error(f"Automation with id {id!r} not found.")
+
+        await client.update_automation(automation_id, automation)
+        exit_with_success(f"Updated automation '{automation.name}' ({id})")

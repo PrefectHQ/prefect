@@ -55,6 +55,29 @@ logger = get_logger("prefect_docker.deployments.steps")
 
 STEP_OUTPUT_CACHE: dict[tuple[Any, ...], Any] = {}
 
+_DENIED_MESSAGE_HINT = (
+    "Docker reported access denied. This can happen if the base image requires "
+    "authentication, if you are not logged in to the registry, or if the image "
+    "name is invalid. Check your image name (no spaces) and run `docker login` "
+    "for the registry you are using."
+)
+
+
+def _validate_image_name(image_name: str) -> None:
+    if any(char.isspace() for char in image_name):
+        raise ValueError(
+            f"Invalid Docker image name {image_name!r}. Image names cannot contain "
+            "spaces. Use lowercase letters, numbers, and separators like '-', '_', "
+            "'.', and '/'."
+        )
+
+
+def _build_error_with_guidance(error: BuildError) -> BuildError:
+    message = str(error)
+    if "denied" in message.lower():
+        return BuildError(f"{message}\n{_DENIED_MESSAGE_HINT}")
+    return error
+
 
 class BuildDockerImageResult(TypedDict):
     """
@@ -205,6 +228,7 @@ def build_docker_image(
               dockerfile_output_path: Dockerfile.generated
         ```
     """  # noqa
+    _validate_image_name(image_name)
 
     namespace, repository = split_repository_path(image_name)
     if not namespace:
@@ -225,7 +249,7 @@ def build_docker_image(
                 f"COPY requirements.txt /opt/prefect/{dir_name}/requirements.txt"
             )
             lines.append(
-                f"RUN python -m pip install -r /opt/prefect/{dir_name}/requirements.txt"
+                f"RUN uv pip install -r /opt/prefect/{dir_name}/requirements.txt"
             )
 
         lines.append(f"COPY . /opt/prefect/{dir_name}/")
@@ -277,12 +301,16 @@ def build_docker_image(
             except docker.errors.APIError as e:
                 raise BuildError(e.explanation) from e
 
+            if not isinstance(image_id, str):
+                raise BuildError("Docker did not return an image ID for built image.")
+        except BuildError as exc:
+            guided_error = _build_error_with_guidance(exc)
+            if guided_error is exc:
+                raise
+            raise guided_error from exc
         finally:
             if auto_build:
                 os.unlink(dockerfile)
-
-        if not isinstance(image_id, str):
-            raise BuildError("Docker did not return an image ID for built image.")
 
         if not tag:
             tag = slugify(datetime.now(ZoneInfo("UTC")).isoformat())
@@ -363,6 +391,7 @@ def push_docker_image(
                 additional_tags: "{{ build-image.additional_tags }}"
         ```
     """  # noqa
+    _validate_image_name(image_name)
 
     namespace, repository = split_repository_path(image_name)
     if not namespace:

@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 from uuid import uuid4
 
 import orjson
@@ -91,7 +91,7 @@ async def test_save_stores_provided_description(flow_run_context):
 
 
 def test_save_works_sync():
-    @flow
+    @flow(name=f"test_save_works_sync_{uuid4()}")
     def test_flow():
         keyset = keyset_from_base_key("person")
         Person.save(keyset)
@@ -140,7 +140,7 @@ async def test_load_populates_metadata(flow_run_context):
 
 
 async def test_load_works_sync():
-    @flow
+    @flow(name=f"test_load_works_sync_{uuid4()}")
     def test_flow():
         keyset = keyset_from_base_key("person")
         create_flow_run_input(
@@ -267,7 +267,7 @@ async def test_respond_functions_sync(flow_run):
 
     person = Person.load_from_flow_run_input(flow_run_input)
 
-    @flow
+    @flow(name=f"test_respond_functions_sync_{uuid4()}")
     def test_flow():
         person.respond(Place(city="New York", state="NY"))
 
@@ -359,7 +359,7 @@ async def test_automatic_input_send_to(flow_run):
 
 
 async def test_automatic_input_send_to_works_sync(flow_run):
-    @flow
+    @flow(name=f"test_automatic_input_send_to_works_sync_{uuid4()}")
     def test_flow():
         send_input(1, flow_run_id=flow_run.id)
 
@@ -429,7 +429,7 @@ async def test_send_to_works_sync(flow_run):
 
     person = Person.load_from_flow_run_input(flow_run_input)
 
-    @flow
+    @flow(name=f"test_send_to_works_sync_{uuid4()}")
     def test_flow():
         person.send_to(flow_run_id=flow_run.id)
 
@@ -526,7 +526,7 @@ async def test_automatic_input_receive_works_sync(flow_run):
 
     received = []
 
-    @flow
+    @flow(name=f"test_automatic_input_receive_works_sync_{uuid4()}")
     def test_flow():
         for city in receive_input(
             Tuple[str, str], flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
@@ -659,7 +659,7 @@ async def test_receive_works_sync(flow_run):
 
     received = []
 
-    @flow
+    @flow(name=f"test_receive_works_sync_{uuid4()}")
     def test_flow():
         for place in Place.receive(
             flow_run_id=flow_run.id, timeout=5, poll_interval=0.1
@@ -729,7 +729,7 @@ async def test_receive_can_raise_timeout_errors_as_generator(flow_run):
 def test_receive_can_raise_timeout_errors_as_generator_sync(flow_run):
     with pytest.raises(TimeoutError):
 
-        @flow
+        @flow(name=f"test_receive_can_raise_timeout_errors_as_generator_sync_{uuid4()}")
         def test_flow():
             for _ in Place.receive(
                 flow_run_id=flow_run.id,
@@ -740,5 +740,147 @@ def test_receive_can_raise_timeout_errors_as_generator_sync(flow_run):
                 raise_timeout_error=True,
             ):
                 pass
+
+        test_flow()
+
+
+def test_with_initial_data_preserves_optional_type_annotations():
+    """Test that with_initial_data preserves union types like str | None."""
+
+    class FormInput(RunInput):
+        """A form with optional fields."""
+
+        name: Union[str, None] = None
+        email: Union[str, None] = None
+        age: Union[int, None] = None
+
+    # Create a model with initial data
+    initial_data = {"name": "Alice", "email": "alice@example.com", "age": 30}
+    PrepopulatedForm = FormInput.with_initial_data(**initial_data)
+
+    # Check that the original field annotations are preserved
+    assert PrepopulatedForm.model_fields["name"].annotation == Union[str, None]
+    assert PrepopulatedForm.model_fields["email"].annotation == Union[str, None]
+    assert PrepopulatedForm.model_fields["age"].annotation == Union[int, None]
+
+    # Verify that we can create instances with the initial data
+    instance = PrepopulatedForm()
+    assert instance.name == "Alice"
+    assert instance.email == "alice@example.com"
+    assert instance.age == 30
+
+    # Verify that we can override with None (clearing the field)
+    instance_with_none = PrepopulatedForm(name=None, email=None, age=None)
+    assert instance_with_none.name is None
+    assert instance_with_none.email is None
+    assert instance_with_none.age is None
+
+    # Verify that we can override with other values
+    instance_overridden = PrepopulatedForm(name="Bob", email="bob@example.com", age=25)
+    assert instance_overridden.name == "Bob"
+    assert instance_overridden.email == "bob@example.com"
+    assert instance_overridden.age == 25
+
+
+class TestAsyncDispatchMigration:
+    """Tests for the async_dispatch migration of run_input methods."""
+
+    async def test_asave_stores_schema(self, flow_run_context):
+        """Test that asave (explicit async) stores schema correctly."""
+        keyset = keyset_from_base_key("person")
+        await Person.asave(keyset)
+        schema = await read_flow_run_input(key=keyset["schema"])
+        assert set(schema["properties"].keys()) == {
+            "name",
+            "email",
+            "human",
+        }
+
+    async def test_aload_returns_instance(self, flow_run_context):
+        """Test that aload (explicit async) returns correct instance."""
+        keyset = keyset_from_base_key("person")
+        await create_flow_run_input(
+            keyset["response"],
+            value={"name": "Bob", "email": "bob@bob.bob", "human": True},
+        )
+
+        person = await Person.aload(keyset)
+        assert isinstance(person, Person)
+        assert person.name == "Bob"
+        assert person.email == "bob@bob.bob"
+        assert person.human is True
+
+    async def test_arespond_sends_input(self, flow_run):
+        """Test that arespond (explicit async) sends input correctly."""
+        flow_run_input = FlowRunInput(
+            flow_run_id=uuid4(),
+            key="person-response",
+            value=orjson.dumps(
+                {"name": "Bob", "email": "bob@example.com", "human": True}
+            ).decode(),
+            sender=f"prefect.flow-run.{flow_run.id}",
+        )
+
+        person = Person.load_from_flow_run_input(flow_run_input)
+        await person.arespond(Place(city="New York", state="NY"))
+
+        place = await Place.receive(flow_run_id=flow_run.id, timeout=0.1).next()
+        assert isinstance(place, Place)
+        assert place.city == "New York"
+        assert place.state == "NY"
+
+    async def test_asend_to_sends_input(self, flow_run):
+        """Test that asend_to (explicit async) sends input correctly."""
+        flow_run_input = FlowRunInput(
+            flow_run_id=uuid4(),
+            key="person-response",
+            value=orjson.dumps(
+                {"name": "Bob", "email": "bob@example.com", "human": True}
+            ).decode(),
+        )
+
+        person = Person.load_from_flow_run_input(flow_run_input)
+        await person.asend_to(flow_run_id=flow_run.id)
+
+        received = await Person.receive(flow_run_id=flow_run.id, timeout=0.1).next()
+        assert isinstance(received, Person)
+        assert person.name == "Bob"
+        assert person.email == "bob@example.com"
+        assert person.human is True
+
+    async def test_asend_input_sends_input(self, flow_run):
+        """Test that asend_input (explicit async) sends input correctly."""
+        from prefect.input.run_input import asend_input
+
+        await asend_input(1, flow_run_id=flow_run.id)
+
+        received = await receive_input(int, flow_run_id=flow_run.id, timeout=0.1).next()
+        assert received == 1
+
+    async def test_anext_returns_input(self, flow_run):
+        """Test that anext (explicit async) returns input correctly."""
+        await send_input(1, flow_run_id=flow_run.id)
+
+        handler = receive_input(int, flow_run_id=flow_run.id, timeout=0.1)
+        received = await handler.anext()
+        assert received == 1
+
+    async def test_filter_for_inputs_returns_inputs(self, flow_run):
+        """Test that filter_for_inputs (async) returns inputs correctly."""
+        await send_input(1, flow_run_id=flow_run.id)
+
+        handler = receive_input(int, flow_run_id=flow_run.id, timeout=0.1)
+        inputs = await handler.filter_for_inputs()
+        assert len(inputs) == 1
+
+    def test_filter_for_inputs_sync_returns_inputs(self, flow_run):
+        """Test that filter_for_inputs_sync returns inputs correctly."""
+
+        @flow(name=f"test_filter_for_inputs_sync_returns_inputs_{uuid4()}")
+        def test_flow():
+            send_input(1, flow_run_id=flow_run.id)
+            handler = receive_input(int, flow_run_id=flow_run.id, timeout=0.1)
+            inputs = handler.filter_for_inputs_sync()
+            assert len(inputs) == 1
 
         test_flow()

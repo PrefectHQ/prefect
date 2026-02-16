@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncContextManager, AsyncGenerator, Callable, Optional, Type
 
 import pytest
-from sqlalchemy.exc import InterfaceError
+from sqlalchemy.exc import DBAPIError, InterfaceError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
@@ -109,7 +109,7 @@ async def clear_db(db, request):
                     for table in reversed(orm_models.Base.metadata.sorted_tables):
                         await session.execute(table.delete())
                     break
-            except InterfaceError:
+            except (InterfaceError, DBAPIError):
                 if attempt < max_retries - 1:
                     print(
                         "Connection issue. Retrying entire deletion operation"
@@ -118,6 +118,15 @@ async def clear_db(db, request):
                     await asyncio.sleep(retry_delay)
                 else:
                     raise
+
+    # Also clear the memory lease storage singleton to prevent test pollution
+    from prefect.server.concurrency.lease_storage.memory import (
+        ConcurrencyLeaseStorage,
+    )
+
+    storage = ConcurrencyLeaseStorage()
+    storage.leases.clear()
+    storage.expirations.clear()
 
     yield
 
@@ -850,6 +859,7 @@ async def block_type_x(session):
     block_type = await models.block_types.create_block_type(
         session=session,
         block_type=schemas.actions.BlockTypeCreate(name="x", slug="x-fixture"),
+        override=True,
     )
     await session.commit()
     return block_type
@@ -858,7 +868,9 @@ async def block_type_x(session):
 @pytest.fixture
 async def block_type_y(session):
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="y", slug="y")
+        session=session,
+        block_type=schemas.actions.BlockTypeCreate(name="y", slug="y"),
+        override=True,
     )
     await session.commit()
     return block_type
@@ -867,7 +879,9 @@ async def block_type_y(session):
 @pytest.fixture
 async def block_type_z(session):
     block_type = await models.block_types.create_block_type(
-        session=session, block_type=schemas.actions.BlockTypeCreate(name="z", slug="z")
+        session=session,
+        block_type=schemas.actions.BlockTypeCreate(name="z", slug="z"),
+        override=True,
     )
     await session.commit()
     return block_type
@@ -935,7 +949,7 @@ async def block_document(session, block_schema, block_type_x):
         session=session,
         block_document=schemas.actions.BlockDocumentCreate(
             block_schema_id=block_schema.id,
-            name="block-1",
+            name=f"block-{uuid.uuid4().hex[:8]}",
             block_type_id=block_type_x.id,
             data=dict(foo="bar"),
         ),
@@ -1249,7 +1263,7 @@ async def concurrency_limit_v2(session: AsyncSession) -> ConcurrencyLimitV2:
     concurrency_limit = await create_concurrency_limit(
         session=session,
         concurrency_limit=ConcurrencyLimitV2(
-            name="my-limit",
+            name=f"my-limit-{uuid.uuid4()}",
             limit=42,
         ),
     )

@@ -43,6 +43,7 @@ from prefect.types import (
     StrictVariableValue,
 )
 from prefect.types._datetime import now
+from prefect.types._schema import ParameterSchema
 from prefect.types.names import (
     ArtifactKey,
     BlockDocumentName,
@@ -103,6 +104,10 @@ class DeploymentScheduleCreate(ActionBaseModel):
         default=None,
         description="A unique identifier for the schedule.",
     )
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
+    )
 
     @field_validator("max_scheduled_runs")
     @classmethod
@@ -132,6 +137,10 @@ class DeploymentScheduleUpdate(ActionBaseModel):
     slug: Optional[str] = Field(
         default=None,
         description="A unique identifier for the schedule.",
+    )
+    replaces: Optional[str] = Field(
+        default=None,
+        description="The slug of an existing schedule that this schedule replaces. Used for renaming slugs.",
     )
 
     @field_validator("max_scheduled_runs")
@@ -178,8 +187,8 @@ class DeploymentCreate(ActionBaseModel):
             "Whether or not the deployment should enforce the parameter schema."
         ),
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
-        default_factory=dict,
+    parameter_openapi_schema: Optional[ParameterSchema] = Field(
+        default_factory=lambda: {"type": "object", "properties": {}},
         description="The parameter schema of the flow, including defaults.",
         json_schema_extra={"additionalProperties": True},
     )
@@ -258,9 +267,11 @@ class DeploymentCreate(ActionBaseModel):
         values["parameters"] = validate_parameters_conform_to_schema(
             values.get("parameters", {}), values
         )
-        values["parameter_openapi_schema"] = validate_parameter_openapi_schema(
+        schema = validate_parameter_openapi_schema(
             values.get("parameter_openapi_schema"), values
         )
+        if schema is not None:
+            values["parameter_openapi_schema"] = schema
         return values
 
     @model_validator(mode="before")
@@ -306,7 +317,7 @@ class DeploymentUpdate(ActionBaseModel):
         default=None,
         description="Parameters for flow runs scheduled by the deployment.",
     )
-    parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
+    parameter_openapi_schema: Optional[ParameterSchema] = Field(
         default=None,
         description="The parameter schema of the flow, including defaults.",
     )

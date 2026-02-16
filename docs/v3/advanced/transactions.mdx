@@ -13,7 +13,7 @@ These records can be shared across tasks and flows.
 
 Under the hood, every Prefect task run is governed by a transaction.
 In the default mode of task execution, all you need to understand about transactions are [the policies
-determining the task's cache key computation](/v3/develop/task-caching).
+determining the task's cache key computation](/v3/concepts/caching).
 
 <Tip>
 **Transactions and states**
@@ -129,7 +129,7 @@ def confirmation(transaction):
 
 ## Idempotency
 
-You can ensure sections of code are functionally idempotent by wrapping them in a transaction. By specifying a `key` for your transaction, you can ensure that 
+You can ensure sections of code are functionally idempotent by wrapping them in a transaction. By specifying a `key` for your transaction, you can ensure that
 your code is executed only once.
 
 For example, here's a flow that downloads some data from an API and writes it to a file:
@@ -222,11 +222,11 @@ if __name__ == "__main__":
     thread_1.join()
     thread_2.join()
 ```
-    
-If you run this script, you will see that sometimes "Thread 1 is the winner!" is written to the file and sometimes "Thread 2 is the winner!" is written 
+
+If you run this script, you will see that sometimes "Thread 1 is the winner!" is written to the file and sometimes "Thread 2 is the winner!" is written
 **even though the transactions have the same key**. You can ensure subsequent runs don't exit early by changing the `key` argument between runs.
 
-To prevent race conditions, you can set the `isolation_level` of a transaction to `SERIALIZABLE`. This will cause each transaction to take a lock on the 
+To prevent race conditions, you can set the `isolation_level` of a transaction to `SERIALIZABLE`. This will cause each transaction to take a lock on the
 provided key. This will prevent other transactions from starting until the first transaction has completed.
 
 Here's an updated example that uses `SERIALIZABLE` isolation:
@@ -283,8 +283,8 @@ if __name__ == "__main__":
     thread_2.join()
 ```
 
-To use a transaction with the `SERIALIZABLE` isolation level, you must also provide a `lock_manager` to the `transaction` context manager. The 
-lock manager is responsible for acquiring and releasing locks on the transaction key. In the example above, we use a `FileSystemLockManager` which 
+To use a transaction with the `SERIALIZABLE` isolation level, you must also provide a `lock_manager` to the `transaction` context manager. The
+lock manager is responsible for acquiring and releasing locks on the transaction key. In the example above, we use a `FileSystemLockManager` which
 will manage locks as files on the current instance's filesystem.
 
 Prefect offers several lock managers for different concurrency use cases:

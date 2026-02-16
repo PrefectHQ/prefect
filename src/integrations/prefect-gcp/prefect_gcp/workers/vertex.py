@@ -32,6 +32,7 @@ from jsonpatch import JsonPatch
 from pydantic import Field, field_validator
 from slugify import slugify
 
+from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -62,6 +63,8 @@ except ModuleNotFoundError:
 _DISALLOWED_GCP_LABEL_CHARACTERS = re.compile(r"[^-a-zA-Z0-9_]+")
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
 
@@ -323,8 +326,11 @@ class VertexAIWorkerJobConfiguration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
+        worker_id: Optional["UUID"] = None,
     ):
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
+        )
 
         self._inject_formatted_env_vars()
         self._inject_formatted_command()
@@ -683,3 +689,44 @@ class VertexAIWorker(
                 regex_pattern=_DISALLOWED_GCP_LABEL_CHARACTERS,
             )
         return compatible_labels
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: VertexAIWorkerJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Vertex AI Custom Job by cancelling it.
+
+        Args:
+            infrastructure_pid: The full job name
+                (e.g., "projects/123/locations/us-central1/customJobs/456").
+            configuration: The job configuration used to connect to GCP.
+            grace_seconds: Not used for Vertex AI (GCP handles graceful shutdown).
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        full_job_name = infrastructure_pid
+
+        client_options = ClientOptions(
+            api_endpoint=f"{configuration.region}-aiplatform.googleapis.com"
+        )
+        job_service_async_client = (
+            configuration.credentials.get_job_service_async_client(
+                client_options=client_options
+            )
+        )
+
+        try:
+            await job_service_async_client.cancel_custom_job(name=full_job_name)
+            self._logger.info(f"Cancelled Vertex AI job {full_job_name!r}")
+        except Exception as exc:
+            # Handle NotFound errors from the GCP API
+            error_str = str(exc)
+            if "404" in error_str or "not found" in error_str.lower():
+                raise InfrastructureNotFound(
+                    f"Vertex AI job {full_job_name!r} not found"
+                )
+            raise

@@ -1,0 +1,161 @@
+---
+title: memory
+sidebarTitle: memory
+---
+
+# `prefect.server.events.ordering.memory`
+
+## Classes
+
+### `EventBeingProcessed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Indicates that an event is currently being processed and should not be processed
+until it is finished. This may happen due to concurrent processing.
+
+
+### `CausalOrdering` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `clear` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear(self) -> None
+```
+
+Clear all data for this scope.
+
+
+#### `clear_all_scopes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear_all_scopes(cls) -> None
+```
+
+Clear all data for all scopes - useful for testing.
+
+
+#### `event_has_been_seen` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+event_has_been_seen(self, event: UUID | Event) -> bool
+```
+
+#### `event_has_started_processing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+event_has_started_processing(self, event: UUID | Event) -> bool
+```
+
+#### `event_is_processing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+event_is_processing(self, event: ReceivedEvent) -> AsyncGenerator[None, None]
+```
+
+Mark an event as being processed for the duration of its lifespan through
+the ordering system.
+
+
+#### `followers_by_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+followers_by_id(self, follower_ids: list[UUID]) -> list[ReceivedEvent]
+```
+
+Returns the events with the given IDs, in the order they occurred.
+
+
+#### `forget_event_is_processing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+forget_event_is_processing(self, event: ReceivedEvent) -> None
+```
+
+#### `forget_follower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+forget_follower(self, follower: ReceivedEvent) -> None
+```
+
+Forget that this event is waiting on another event to arrive.
+
+
+#### `get_followers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_followers(self, leader: ReceivedEvent) -> list[ReceivedEvent]
+```
+
+Returns events that were waiting on this leader event to arrive.
+
+
+#### `get_lost_followers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_lost_followers(self) -> list[ReceivedEvent]
+```
+
+Returns events that were waiting on a leader event that never arrived.
+
+
+#### `preceding_event_confirmed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+preceding_event_confirmed(self, handler: event_handler, event: ReceivedEvent, depth: int = 0) -> AsyncGenerator[None, None]
+```
+
+Events may optionally declare that they logically follow another event, so that
+we can preserve important event orderings in the face of unreliable delivery and
+ordering of messages from the queues.
+
+This function keeps track of the ID of each event that this shard has
+successfully processed going back to the PRECEDING_EVENT_LOOKBACK period. If an
+event arrives that must follow another one, confirm that we have recently seen
+and processed that event before proceeding.
+
+**Args:**
+- `handler`: The function to call when an out-of-order event is
+ready to be processed
+- `event`: The event to be processed. This object should include
+metadata indicating if and what event it follows.
+- `depth`: The current recursion depth, used to prevent infinite
+recursion due to cyclic dependencies between events. Defaults to 0.
+
+Raises EventArrivedEarly if the current event shouldn't be processed yet.
+
+
+#### `record_event_as_processing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+record_event_as_processing(self, event: ReceivedEvent) -> bool
+```
+
+Record that an event is being processed, returning False if already processing.
+
+
+#### `record_event_as_seen` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+record_event_as_seen(self, event: ReceivedEvent) -> None
+```
+
+#### `record_follower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+record_follower(self, event: ReceivedEvent) -> None
+```
+
+Remember that this event is waiting on another event to arrive.
+
+
+#### `wait_for_leader` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/ordering/memory.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_leader(self, event: ReceivedEvent) -> None
+```
+
+Given an event, wait for its leader to be processed before proceeding, or
+raise EventArrivedEarly if we would wait too long in this attempt.
+

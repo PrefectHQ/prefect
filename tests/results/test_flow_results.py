@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 
 import pytest
@@ -176,7 +177,7 @@ async def test_flow_result_serializer(serializer, prefect_client):
 
 async def test_flow_result_storage_by_instance(prefect_client):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
-    await storage.save("test-storage-stuff")
+    await storage.save(f"test-storage-{uuid.uuid4()}")
 
     @flow(result_storage=storage, persist_result=True)
     def foo():
@@ -194,8 +195,11 @@ async def test_flow_result_storage_by_instance(prefect_client):
 
 
 async def test_flow_result_storage_by_slug(prefect_client):
-    await LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage").save("test")
-    slug = LocalFileSystem.get_block_type_slug() + "/test"
+    block_name = f"test-{uuid.uuid4()}"
+    await LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage").save(
+        block_name
+    )
+    slug = LocalFileSystem.get_block_type_slug() + f"/{block_name}"
 
     @flow(result_storage=slug, persist_result=True)
     def foo():
@@ -261,7 +265,7 @@ async def test_child_flow_result_serializer(prefect_client, source):
 @pytest.mark.parametrize("source", ["child", "parent"])
 async def test_child_flow_result_storage(prefect_client, source):
     storage = LocalFileSystem(basepath=PREFECT_HOME.value() / "test-storage")
-    await storage.save("child-flow-test")
+    await storage.save(f"child-flow-test-{uuid.uuid4()}")
 
     @flow(result_storage=storage if source == "parent" else None)
     def foo():
@@ -351,11 +355,12 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
         return result_fac.result_storage
 
     block = LocalFileSystem(basepath=tmp_path)
-    await block.save("my-result-storage")
+    block_name = f"my-result-storage-{uuid.uuid4()}"
+    await block.save(block_name)
 
     with temporary_settings(
         {
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{block_name}",
         }
     ):
         storage_block = await foo()
@@ -365,7 +370,8 @@ async def test_root_flow_default_remote_storage(tmp_path: Path):
 
 
 async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
-    await LocalFileSystem(basepath=tmp_path).save("my-result-storage")
+    block_name = f"my-result-storage-{uuid.uuid4()}"
+    await LocalFileSystem(basepath=tmp_path).save(block_name)
 
     @task(result_storage_key="my-result.pkl", persist_result=True)
     async def bar():
@@ -377,13 +383,13 @@ async def test_root_flow_default_remote_storage_saves_correct_result(tmp_path):
 
     with temporary_settings(
         {
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: "local-file-system/my-result-storage",
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{block_name}",
         }
     ):
         result = await foo()
 
     assert result == {"foo": "bar"}
-    local_storage = await LocalFileSystem.load("my-result-storage")
+    local_storage = await LocalFileSystem.load(block_name)
     result_bytes = await local_storage.read_path(f"{tmp_path / 'my-result.pkl'}")
     saved_python_result = ResultRecord.deserialize(result_bytes).result
 
@@ -409,25 +415,23 @@ async def test_root_flow_nonexistent_default_storage_block_fails():
 
 
 async def test_root_flow_explicit_result_storage_settings_overrides_default():
-    await LocalFileSystem(basepath="~/.prefect/results").save("explicit-storage")
-    await LocalFileSystem(basepath="~/.prefect/other-results").save(
-        "default-result-storage"
-    )
+    explicit_name = f"explicit-storage-{uuid.uuid4()}"
+    default_name = f"default-result-storage-{uuid.uuid4()}"
+    await LocalFileSystem(basepath="~/.prefect/results").save(explicit_name)
+    await LocalFileSystem(basepath="~/.prefect/other-results").save(default_name)
 
-    @flow(result_storage=await LocalFileSystem.load("explicit-storage"))
+    @flow(result_storage=await LocalFileSystem.load(explicit_name))
     async def foo():
         return get_run_context().result_store.result_storage
 
     with temporary_settings(
         {
-            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: (
-                "local-file-system/default-result-storage"
-            ),
+            PREFECT_DEFAULT_RESULT_STORAGE_BLOCK: f"local-file-system/{default_name}",
         }
     ):
         result = await foo()
 
-    assert_blocks_equal(result, await LocalFileSystem.load("explicit-storage"))
+    assert_blocks_equal(result, await LocalFileSystem.load(explicit_name))
 
 
 def test_flow_version_result_storage_key():
@@ -447,3 +451,38 @@ def test_flow_version_result_storage_key():
         storage_block.read_path("somespecialflowversion")
     ).result
     assert result == "hello"
+
+
+def test_subflow_in_task_uses_own_result_serializer():
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19449
+    When a subflow runs inside a task, it should use its own result_serializer,
+    not inherit from the parent flow.
+    """
+    from prefect.context import FlowRunContext
+
+    @flow(result_serializer="json")
+    def child_flow():
+        # Both FlowRunContext and get_run_context should return the child's context
+        flow_ctx = FlowRunContext.get()
+        run_ctx = get_run_context()
+
+        assert flow_ctx is not None
+        assert run_ctx is not None
+
+        # Verify we're in the child flow context
+        assert flow_ctx.flow.name == "child-flow"
+        assert run_ctx.flow.name == "child-flow"
+
+        # Both should use JSON serializer
+        assert flow_ctx.result_store.serializer.type == "json"
+        assert run_ctx.result_store.serializer.type == "json"
+
+        return {"message": "child result"}
+
+    @flow(result_serializer="pickle")
+    def parent_flow():
+        result = task(child_flow)()
+        return result
+
+    parent_flow()

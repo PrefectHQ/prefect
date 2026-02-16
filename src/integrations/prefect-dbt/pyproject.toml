@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "prefect-dbt"
 description = "Prefect integrations for working with dbt"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
@@ -16,7 +16,6 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -24,9 +23,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "prefect>=3.4.7",
+  "prefect>=3.6.17",
   "dbt-core>=1.7.0",
-  "prefect_shell>=0.3.0",
+  "prefect_shell>=0.3.2",
   "sgqlc>=16.0.0",
 ]
 dynamic = ["version"]
@@ -67,6 +66,12 @@ dev = [
   "pytest-xdist",
   "respx",
 ]
+integration = [
+    "dbt-duckdb>=1.7",
+    "duckdb>=1.4.4",
+    "dbt-postgres>=1.7",
+    "psycopg2-binary",
+]
 
 [project.urls]
 Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-dbt"
@@ -99,6 +104,7 @@ show_missing = true
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
+markers = ["integration: integration tests requiring dbt-duckdb"]
 
 [tool.uv.sources]
 prefect = { path = "../../../" }

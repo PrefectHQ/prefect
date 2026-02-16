@@ -7,48 +7,49 @@ from __future__ import annotations
 import asyncio
 import inspect
 import os
-import shlex
 import signal
-import socket
 import subprocess
 import sys
-import textwrap
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
-import uvicorn
 from rich.table import Table
 from rich.text import Text
 
-import prefect
-import prefect.settings
-from prefect.cli._prompts import prompt
+from prefect.cli._server_utils import (
+    SERVER_PID_FILE_NAME,
+    SERVICES_PID_FILE,
+    _cleanup_pid_file,
+    _format_host_for_url,
+    _is_process_running,
+    _read_pid_file,
+    _run_all_services,
+    _run_in_background,
+    _run_in_foreground,
+    _validate_multi_worker,
+    _write_pid_file,
+    generate_welcome_blurb,
+    prestart_check,
+)
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.cloud import prompt_select_from_list
 from prefect.cli.root import app, is_interactive
+from prefect.client.orchestration import get_client
 from prefect.logging import get_logger
-from prefect.server.services.base import Service
 from prefect.settings import (
     PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_API_SERVICES_SCHEDULER_ENABLED,
-    PREFECT_API_URL,
     PREFECT_HOME,
     PREFECT_SERVER_ANALYTICS_ENABLED,
-    PREFECT_SERVER_API_BASE_PATH,
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
     PREFECT_SERVER_API_PORT,
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_UI_ENABLED,
-    Profile,
-    load_current_profile,
-    load_profiles,
-    save_profiles,
-    update_current_profile,
+    get_current_settings,
 )
-from prefect.settings.context import temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 if TYPE_CHECKING:
@@ -70,156 +71,7 @@ app.add_typer(server_app)
 
 logger: "logging.Logger" = get_logger(__name__)
 
-SERVER_PID_FILE_NAME = "server.pid"
-SERVICES_PID_FILE = Path(PREFECT_HOME.value()) / "services.pid"
-
-
-def generate_welcome_blurb(base_url: str, ui_enabled: bool) -> str:
-    if PREFECT_SERVER_API_BASE_PATH:
-        suffix = PREFECT_SERVER_API_BASE_PATH.value()
-    else:
-        suffix = "/api"
-
-    blurb = textwrap.dedent(
-        r"""
-         ___ ___ ___ ___ ___ ___ _____
-        | _ \ _ \ __| __| __/ __|_   _|
-        |  _/   / _|| _|| _| (__  | |
-        |_| |_|_\___|_| |___\___| |_|
-
-        Configure Prefect to communicate with the server with:
-
-            prefect config set PREFECT_API_URL={api_url}
-
-        View the API reference documentation at {docs_url}
-        """
-    ).format(api_url=base_url + suffix, docs_url=base_url + "/docs")
-
-    visit_dashboard = textwrap.dedent(
-        f"""
-        Check out the dashboard at {base_url}
-        """
-    )
-
-    dashboard_not_built = textwrap.dedent(
-        """
-        The dashboard is not built. It looks like you're on a development version.
-        See `prefect dev` for development commands.
-        """
-    )
-
-    dashboard_disabled = textwrap.dedent(
-        """
-        The dashboard is disabled. Set `PREFECT_UI_ENABLED=1` to re-enable it.
-        """
-    )
-
-    if not os.path.exists(prefect.__ui_static_path__):
-        blurb += dashboard_not_built
-    elif not ui_enabled:
-        blurb += dashboard_disabled
-    else:
-        blurb += visit_dashboard
-
-    return blurb
-
-
-def prestart_check(base_url: str) -> None:
-    """
-    Check if `PREFECT_API_URL` is set in the current profile. If not, prompt the user to set it.
-
-    Args:
-        base_url: The base URL the server will be running on
-    """
-    api_url = f"{base_url}/api"
-    current_profile = load_current_profile()
-    profiles = load_profiles()
-    if current_profile and PREFECT_API_URL not in current_profile.settings:
-        profiles_with_matching_url = [
-            name
-            for name, profile in profiles.items()
-            if profile.settings.get(PREFECT_API_URL) == api_url
-        ]
-        if len(profiles_with_matching_url) == 1:
-            profiles.set_active(profiles_with_matching_url[0])
-            save_profiles(profiles)
-            app.console.print(
-                f"Switched to profile {profiles_with_matching_url[0]!r}",
-                style="green",
-            )
-            return
-        elif len(profiles_with_matching_url) > 1:
-            app.console.print(
-                "Your current profile doesn't have `PREFECT_API_URL` set to the address"
-                " of the server that's running. Some of your other profiles do."
-            )
-            selected_profile = prompt_select_from_list(
-                app.console,
-                "Which profile would you like to switch to?",
-                sorted(
-                    [profile for profile in profiles_with_matching_url],
-                ),
-            )
-            profiles.set_active(selected_profile)
-            save_profiles(profiles)
-            app.console.print(
-                f"Switched to profile {selected_profile!r}", style="green"
-            )
-            return
-
-        app.console.print(
-            "The `PREFECT_API_URL` setting for your current profile doesn't match the"
-            " address of the server that's running. You need to set it to communicate"
-            " with the server.",
-            style="yellow",
-        )
-
-        choice = prompt_select_from_list(
-            app.console,
-            "How would you like to proceed?",
-            [
-                (
-                    "create",
-                    "Create a new profile with `PREFECT_API_URL` set and switch to it",
-                ),
-                (
-                    "set",
-                    f"Set `PREFECT_API_URL` in the current profile: {current_profile.name!r}",
-                ),
-            ],
-        )
-
-        if choice == "create":
-            while True:
-                profile_name = prompt("Enter a new profile name")
-                if profile_name in profiles:
-                    app.console.print(
-                        f"Profile {profile_name!r} already exists. Please choose a different name.",
-                        style="red",
-                    )
-                else:
-                    break
-
-            profiles.add_profile(
-                Profile(
-                    name=profile_name, settings={PREFECT_API_URL: f"{base_url}/api"}
-                )
-            )
-            profiles.set_active(profile_name)
-            save_profiles(profiles)
-
-            app.console.print(
-                f"Switched to new profile {profile_name!r}", style="green"
-            )
-        elif choice == "set":
-            api_url = prompt(
-                "Enter the `PREFECT_API_URL` value", default="http://127.0.0.1:4200/api"
-            )
-            update_current_profile({PREFECT_API_URL: api_url})
-            app.console.print(
-                f"Set `PREFECT_API_URL` to {api_url!r} in the current profile {current_profile.name!r}",
-                style="green",
-            )
+_monotonic = time.monotonic
 
 
 @server_app.command()
@@ -240,16 +92,27 @@ def start(
     background: bool = typer.Option(
         False, "--background", "-b", help="Run the server in the background"
     ),
+    workers: int = typer.Option(
+        1,
+        "--workers",
+        help="Number of worker processes to run. Only runs the webserver API and UI",
+    ),
 ):
     """
     Start a Prefect server instance
     """
-    base_url = f"http://{host}:{port}"
+    import socket
+
+    base_url = f"http://{_format_host_for_url(host)}:{port}"
     if is_interactive():
         try:
-            prestart_check(base_url)
+            prestart_check(app.console, base_url)
         except Exception:
             pass
+
+    if workers > 1:
+        no_services = True
+    _validate_multi_worker(workers, exit_with_error)
 
     server_settings = {
         "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),
@@ -265,9 +128,12 @@ def start(
     pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
     # check if port is already in use
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        # use getaddrinfo to support both IPv4 and IPv6 addresses
+        info = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        family, socktype, proto, canonname, sockaddr = info[0]
+        with socket.socket(family, socktype, proto) as s:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind((host, port))
+            s.bind(sockaddr)
     except socket.gaierror:
         exit_with_error(
             f"Invalid host '{host}'. Please specify a valid hostname or IP address."
@@ -297,84 +163,134 @@ def start(
     app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
     app.console.print("\n")
 
+    if workers > 1:
+        app.console.print(
+            f"Starting server with {workers} worker processes.\n", style="blue"
+        )
+
     if background:
         _run_in_background(
-            pid_file, server_settings, host, port, keep_alive_timeout, no_services
+            app.console,
+            pid_file,
+            server_settings,
+            host,
+            port,
+            keep_alive_timeout,
+            no_services,
+            workers,
         )
     else:
-        _run_in_foreground(server_settings, host, port, keep_alive_timeout, no_services)
+        _run_in_foreground(
+            app.console,
+            server_settings,
+            host,
+            port,
+            keep_alive_timeout,
+            no_services,
+            workers,
+        )
 
 
-def _run_in_background(
-    pid_file: Path,
-    server_settings: dict[str, str],
-    host: str,
-    port: int,
-    keep_alive_timeout: int,
-    no_services: bool,
-) -> None:
-    command = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "--app-dir",
-        str(prefect.__module_path__.parent),
-        "--factory",
-        "prefect.server.api.server:create_app",
-        "--host",
-        str(host),
-        "--port",
-        str(port),
-        "--timeout-keep-alive",
-        str(keep_alive_timeout),
-    ]
-    logger.debug("Opening server process with command: %s", shlex.join(command))
+@server_app.command()
+async def status(
+    wait: bool = typer.Option(
+        False,
+        "--wait",
+        help="Wait for the server to become available before returning.",
+    ),
+    timeout: int = typer.Option(
+        0,
+        "--timeout",
+        "-t",
+        help=(
+            "Maximum number of seconds to wait when using --wait. "
+            "A value of 0 means wait indefinitely."
+        ),
+    ),
+    output: str | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
+    """Check the status of the Prefect server."""
+    import json as json_mod
 
-    env = {**os.environ, **server_settings, "PREFECT__SERVER_FINAL": "1"}
-    if no_services:
-        env["PREFECT__SERVER_WEBSERVER_ONLY"] = "1"
+    if output is not None and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
-    process = subprocess.Popen(
-        command,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    is_json = output is not None
 
-    process_id = process.pid
-    pid_file.write_text(str(process_id))
+    api_url = get_current_settings().api.url
+    if api_url is None:
+        exit_with_error(
+            "No API URL configured. Set PREFECT_API_URL to the address of your server."
+        )
 
-    app.console.print(
-        "The Prefect server is running in the background. Run `prefect"
-        " server stop` to stop it."
-    )
+    if not is_json:
+        app.console.print(f"Connecting to server at {api_url}...")
 
+    start_time = _monotonic()
 
-def _run_in_foreground(
-    server_settings: dict[str, str],
-    host: str,
-    port: int,
-    keep_alive_timeout: int,
-    no_services: bool,
-) -> None:
-    from prefect.server.api.server import create_app
+    async with get_client() as client:
+        while True:
+            healthcheck_exc = await client.api_healthcheck()
 
-    try:
-        with temporary_settings(
-            {getattr(prefect.settings, k): v for k, v in server_settings.items()}
-        ):
-            uvicorn.run(
-                app=create_app(final=True, webserver_only=no_services),
-                app_dir=str(prefect.__module_path__.parent),
-                host=host,
-                port=port,
-                timeout_keep_alive=keep_alive_timeout,
-                log_level=server_settings.get(
-                    "PREFECT_SERVER_LOGGING_LEVEL", "info"
-                ).lower(),
-            )
-    finally:
-        app.console.print("Server stopped!")
+            elapsed = _monotonic() - start_time
+            deadline_exceeded = wait and timeout > 0 and elapsed >= timeout
+
+            if deadline_exceeded and healthcheck_exc is not None:
+                result: dict[str, object] = {
+                    "status": "timed_out",
+                    "api_url": api_url,
+                    "timeout": timeout,
+                    "error": str(healthcheck_exc),
+                }
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                    raise typer.Exit(1)
+                exit_with_error(
+                    f"Timed out after {timeout} seconds waiting for server "
+                    f"at {api_url}."
+                )
+
+            if healthcheck_exc is None:
+                try:
+                    server_version = await client.api_version()
+                except Exception:
+                    server_version = None
+
+                result = {
+                    "status": "available",
+                    "api_url": api_url,
+                }
+                if server_version is not None:
+                    result["server_version"] = server_version
+
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                else:
+                    app.console.print("Server is available.")
+                    app.console.print(f"  API URL: {api_url}")
+                    if server_version is not None:
+                        app.console.print(f"  Server version: {server_version}")
+                return
+
+            if not wait:
+                result = {
+                    "status": "unavailable",
+                    "api_url": api_url,
+                    "error": str(healthcheck_exc),
+                }
+                if is_json:
+                    app.console.print(json_mod.dumps(result, indent=2))
+                    raise typer.Exit(1)
+                exit_with_error(
+                    f"Server is not available at {api_url}. Error: {healthcheck_exc}"
+                )
+
+            await asyncio.sleep(1)
 
 
 @server_app.command()
@@ -533,38 +449,6 @@ async def stamp(revision: str):
     exit_with_success("Stamping database with revision succeeded!")
 
 
-def _is_process_running(pid: int) -> bool:
-    """Check if a process is running by attempting to send signal 0."""
-    try:
-        os.kill(pid, 0)
-        return True
-    except (ProcessLookupError, OSError):
-        return False
-
-
-def _read_pid_file(path: Path) -> int | None:
-    """Read and validate a PID from a file."""
-    try:
-        return int(path.read_text())
-    except (ValueError, OSError, FileNotFoundError):
-        return None
-
-
-def _write_pid_file(path: Path, pid: int) -> None:
-    """Write a PID to a file, creating parent directories if needed."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(str(pid))
-
-
-def _cleanup_pid_file(path: Path) -> None:
-    """Remove PID file and try to cleanup empty parent directory."""
-    path.unlink(missing_ok=True)
-    try:
-        path.parent.rmdir()
-    except OSError:
-        pass
-
-
 # this is a hidden command used by the `prefect server services start --background` command
 @services_app.command(hidden=True, name="manager")
 def run_manager_process():
@@ -574,13 +458,15 @@ def run_manager_process():
 
     We do everything in sync so that the child won't exit until the user kills it.
     """
+    from prefect.server.services.base import Service
+
     if not Service.enabled_services():
         logger.error("No services are enabled! Exiting manager.")
         sys.exit(1)
 
     logger.debug("Manager process started. Starting services...")
     try:
-        asyncio.run(Service.run_services())
+        asyncio.run(_run_all_services())
     except KeyboardInterrupt:
         pass
     finally:
@@ -591,6 +477,8 @@ def run_manager_process():
 @services_app.command(aliases=["ls"])
 def list_services():
     """List all available services and their status."""
+    from prefect.server.services.base import Service
+
     table = Table(title="Available Services", expand=True)
     table.add_column("Name", no_wrap=True)
     table.add_column("Enabled?", no_wrap=True)
@@ -618,6 +506,8 @@ def start_services(
     ),
 ):
     """Start all enabled Prefect services in one process."""
+    from prefect.server.services.base import Service
+
     SERVICES_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     if SERVICES_PID_FILE.exists():
@@ -639,7 +529,7 @@ def start_services(
     if not background:
         app.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
         try:
-            asyncio.run(Service.run_services())
+            asyncio.run(_run_all_services())
         except KeyboardInterrupt:
             pass
         app.console.print("\n[green]All services stopped.[/]")

@@ -32,6 +32,16 @@ Namespaces = Annotated[
 class KubernetesObserverSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "kubernetes", "observer"))
 
+    enabled: bool = Field(
+        default=True,
+        description="Whether the Kubernetes observer is enabled to watch for Prefect-submitted Kubernetes pod and job events.",
+    )
+
+    replicate_pod_events: bool = Field(
+        default=True,
+        description="Whether the Kubernetes observer should replicate Prefect-submitted Kubernetes pod events, which can be used for Prefect Automations.",
+    )
+
     namespaces: Namespaces = Field(
         default_factory=set,
         description="The namespaces to watch for Prefect-submitted Kubernetes "
@@ -44,6 +54,13 @@ class KubernetesObserverSettings(PrefectBaseSettings):
         "Prefect-submitted Kubernetes jobs and pods. If not provided, the watch will "
         "include all pods and jobs with the `prefect.io/flow-run-id` label. Labels "
         "should be provided in the format `key=value`.",
+    )
+
+    startup_event_concurrency: int = Field(
+        default=5,
+        description="Maximum number of concurrent API calls when checking for "
+        "duplicate events during observer startup. This helps prevent overloading "
+        "the API server when there are many existing pods/jobs in the cluster.",
     )
 
 

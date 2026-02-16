@@ -12,13 +12,13 @@ Module containing the base workflow class and decorator - for most use cases, us
 
 ## Functions
 
-### `bind_flow_to_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2394" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bind_flow_to_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2674" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-bind_flow_to_infrastructure(flow: Flow[P, R], work_pool: str, worker_cls: type['BaseWorker[Any, Any, Any]'], job_variables: dict[str, Any] | None = None) -> InfrastructureBoundFlow[P, R]
+bind_flow_to_infrastructure(flow: Flow[P, R], work_pool: str, worker_cls: type['BaseWorker[Any, Any, Any]'], job_variables: dict[str, Any] | None = None, include_files: Sequence[str] | None = None) -> InfrastructureBoundFlow[P, R]
 ```
 
-### `select_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `select_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2711" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 select_flow(flows: Iterable[Flow[P, R]], flow_name: Optional[str] = None, from_message: Optional[str] = None) -> Flow[P, R]
@@ -36,7 +36,7 @@ Returns
 - `UnspecifiedFlowError`: If multiple flows exist but no flow name was provided
 
 
-### `load_flow_from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2475" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `load_flow_from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2757" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_flow_from_entrypoint(entrypoint: str, use_placeholder_flow: bool = True) -> Flow[P, Any]
@@ -60,7 +60,7 @@ cannot be loaded from the entrypoint (e.g. dependencies are missing)
 - `MissingFlowError`: If the flow function specified in the entrypoint does not exist
 
 
-### `load_function_and_convert_to_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2527" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `load_function_and_convert_to_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2809" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_function_and_convert_to_flow(entrypoint: str) -> Flow[P, Any]
@@ -70,7 +70,7 @@ load_function_and_convert_to_flow(entrypoint: str) -> Flow[P, Any]
 Loads a function from an entrypoint and converts it to a flow if it is not already a flow.
 
 
-### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2550" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2832" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serve(*args: 'RunnerDeployment', **kwargs: Any) -> None
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 ```
 
 
-### `aserve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2628" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aserve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2910" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aserve(*args: 'RunnerDeployment', **kwargs: Any) -> None
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 
 
-### `load_flow_from_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2736" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `load_flow_from_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L3018" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_flow_from_flow_run(client: 'PrefectClient', flow_run: 'FlowRun', ignore_storage: bool = False, storage_base_path: Optional[str] = None, use_placeholder_flow: bool = True) -> Flow[..., Any]
@@ -194,7 +194,7 @@ If `ignore_storage=True` is provided, no pull from remote storage occurs.  This 
 is largely for testing, and assumes the flow is already available locally.
 
 
-### `load_placeholder_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2840" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `load_placeholder_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L3126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_placeholder_flow(entrypoint: str, raises: Exception) -> Flow[P, Any]
@@ -213,7 +213,7 @@ or a module path to a flow function
 - `raises`: an exception to raise when the flow is called
 
 
-### `safe_load_flow_from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2875" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `safe_load_flow_from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L3161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 safe_load_flow_from_entrypoint(entrypoint: str) -> Optional[Flow[P, Any]]
@@ -233,7 +233,7 @@ Safely load a Prefect flow from an entrypoint string. Returns None if loading fa
 - (e.g. unresolved dependencies, syntax errors, or missing objects).
 
 
-### `load_flow_arguments_from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L3045" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `load_flow_arguments_from_entrypoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L3331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_flow_arguments_from_entrypoint(entrypoint: str, arguments: Optional[Union[list[str], set[str]]] = None) -> dict[str, Any]
@@ -250,7 +250,7 @@ from the `flow` decorator.
 or a module path to a flow function
 
 
-### `is_entrypoint_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L3125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_entrypoint_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L3411" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_entrypoint_async(entrypoint: str) -> bool
@@ -269,13 +269,13 @@ a module path to a function.
 
 ## Classes
 
-### `FlowStateHook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowStateHook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A callable that is invoked when a flow enters a given state.
 
 
-### `Flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A Prefect workflow definition.
@@ -315,9 +315,13 @@ should be persisted to result storage. Defaults to `None`, which indicates
 that Prefect should choose whether the result should be persisted depending on
 the features being used.
 - `result_storage`: An optional block to use to persist the result of this flow.
-This value will be used as the default for any tasks in this flow.
-If not provided, the local file system will be used unless called as
-a subflow, at which point the default will be loaded from the parent flow.
+This can be either a saved block instance or a string reference (e.g.,
+"local-file-system/my-storage"). Block instances must have `.save()` called
+first since decorators execute at import time. String references are resolved
+at runtime and recommended for testing scenarios. This value will be used as
+the default for any tasks in this flow. If not provided, the local file system
+will be used unless called as a subflow, at which point the default will be
+loaded from the parent flow.
 - `result_serializer`: An optional serializer to use to serialize the result of this
 flow for persistence. This value will be used as the default for any tasks
 in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
@@ -332,7 +336,94 @@ loaded from the parent flow.
 
 **Methods:**
 
-#### `afrom_source` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adeploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adeploy(self, name: str, work_pool_name: Optional[str] = None, image: Optional[Union[str, 'DockerImage']] = None, build: bool = True, push: bool = True, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, interval: Optional[Union[int, float, datetime.timedelta]] = None, cron: Optional[str] = None, rrule: Optional[str] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional[list[Schedule]] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, parameters: Optional[dict[str, Any]] = None, description: Optional[str] = None, tags: Optional[list[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, print_next_steps: bool = True, ignore_warnings: bool = False, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> UUID
+```
+
+Deploys a flow to run on dynamic infrastructure via a work pool.
+
+This is the async version of deploy().
+
+By default, calling this method will build a Docker image for the flow, push it to a registry,
+and create a deployment via the Prefect API that will run the flow on the given schedule.
+
+If you want to use an existing image, you can pass `build=False` to skip building and pushing
+an image.
+
+**Args:**
+- `name`: The name to give the created deployment.
+- `work_pool_name`: The name of the work pool to use for this deployment. Defaults to
+the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+- `image`: The name of the Docker image to build, including the registry and
+repository. Pass a DockerImage instance to customize the Dockerfile used
+and build arguments.
+- `build`: Whether or not to build a new image for the flow. If False, the provided
+image will be used as-is and pulled at runtime.
+- `push`: Whether or not to skip pushing the built image to a registry.
+- `work_queue_name`: The name of the work queue to use for this deployment's scheduled runs.
+If not provided the default work queue for the work pool will be used.
+- `job_variables`: Settings used to override the values specified default base job template
+of the chosen work pool. Refer to the base job template of the chosen work pool for
+available settings.
+- `interval`: An interval on which to execute the deployment. Accepts a number or a
+timedelta object to create a single schedule. If a number is given, it will be
+interpreted as seconds. Also accepts an iterable of numbers or timedelta to create
+multiple schedules.
+- `cron`: A cron schedule string of when to execute runs of this deployment.
+Also accepts an iterable of cron schedule strings to create multiple schedules.
+- `rrule`: An rrule schedule string of when to execute runs of this deployment.
+Also accepts an iterable of rrule schedule strings to create multiple schedules.
+- `triggers`: A list of triggers that will kick off runs of this deployment.
+- `paused`: Whether or not to set this deployment as paused.
+- `schedule`: A schedule object defining when to execute runs of this deployment.
+Used to provide additional scheduling options like `timezone` or `parameters`.
+- `schedules`: A list of schedule objects defining when to execute runs of this deployment.
+Used to define multiple schedules or additional scheduling options like `timezone`.
+- `concurrency_limit`: The maximum number of runs that can be executed concurrently.
+- `parameters`: A dictionary of default parameter values to pass to runs of this deployment.
+- `description`: A description for the created deployment. Defaults to the flow's
+description if not provided.
+- `tags`: A list of tags to associate with the created deployment for organizational
+purposes.
+- `version`: A version for the created deployment. Defaults to the flow's version.
+- `version_type`: The type of version to use for the created deployment. The version type
+will be inferred if not provided.
+- `enforce_parameter_schema`: Whether or not the Prefect API should enforce the
+parameter schema for the created deployment.
+- `entrypoint_type`: Type of entrypoint to use for the deployment. When using a module path
+entrypoint, ensure that the module will be importable in the execution environment.
+- `print_next_steps_message`: Whether or not to print a message with next steps
+after deploying the deployments.
+- `ignore_warnings`: Whether or not to ignore warnings about the work pool type.
+- `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
+
+Returns:
+    The ID of the created/updated deployment.
+
+**Examples:**
+
+Deploy a local flow to a work pool:
+
+```python
+import asyncio
+from prefect import flow
+
+@flow
+def my_flow(name):
+    print(f"hello {name}")
+
+if __name__ == "__main__":
+    asyncio.run(my_flow.adeploy(
+        "example-deployment",
+        work_pool_name="my-work-pool",
+        image="my-repository/my-image:dev",
+    ))
+```
+
+
+#### `afrom_source` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 afrom_source(cls, source: Union[str, Path, 'RunnerStorage', ReadableDeploymentStorage], entrypoint: str) -> 'Flow[..., Any]'
@@ -408,7 +499,7 @@ if __name__ == "__main__":
 ```
 
 
-#### `ato_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L693" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ato_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ato_deployment(self, name: str, interval: Optional[Union[Iterable[Union[int, float, datetime.timedelta]], int, float, datetime.timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[list[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -470,7 +561,22 @@ if __name__ == "__main__":
 ```
 
 
-#### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `avisualize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1857" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+avisualize(self, *args: 'P.args', **kwargs: 'P.kwargs') -> None
+```
+
+Generates a graphviz object representing the current flow. In IPython notebooks,
+it's rendered inline, otherwise in a new window as a PNG.
+
+**Raises:**
+- `- ImportError`: If `graphviz` isn't installed.
+- `- GraphvizExecutableNotFoundError`: If the `dot` executable isn't found.
+- `- FlowVisualizationError`: If the flow can't be visualized for any other reason.
+
+
+#### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deploy(self, name: str, work_pool_name: Optional[str] = None, image: Optional[Union[str, 'DockerImage']] = None, build: bool = True, push: bool = True, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, interval: Optional[Union[int, float, datetime.timedelta]] = None, cron: Optional[str] = None, rrule: Optional[str] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional[list[Schedule]] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, parameters: Optional[dict[str, Any]] = None, description: Optional[str] = None, tags: Optional[list[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, print_next_steps: bool = True, ignore_warnings: bool = False, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> UUID
@@ -570,7 +676,7 @@ if __name__ == "__main__":
 ```
 
 
-#### `from_source` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1267" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_source` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_source(cls, source: Union[str, Path, 'RunnerStorage', ReadableDeploymentStorage], entrypoint: str) -> 'Flow[..., Any]'
@@ -646,55 +752,55 @@ if __name__ == "__main__":
 ```
 
 
-#### `isclassmethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `isclassmethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 isclassmethod(self) -> bool
 ```
 
-#### `ismethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L408" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ismethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L415" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ismethod(self) -> bool
 ```
 
-#### `isstaticmethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L416" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `isstaticmethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 isstaticmethod(self) -> bool
 ```
 
-#### `on_cancellation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L982" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `on_cancellation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1001" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 on_cancellation(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]
 ```
 
-#### `on_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L978" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `on_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L997" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 on_completion(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]
 ```
 
-#### `on_crashed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L986" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `on_crashed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1005" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 on_crashed(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]
 ```
 
-#### `on_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L994" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `on_failure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1013" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 on_failure(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]
 ```
 
-#### `on_running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L990" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `on_running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1009" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 on_running(self, fn: FlowStateHook[P, R]) -> FlowStateHook[P, R]
 ```
 
-#### `serialize_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L656" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L675" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize_parameters(self, parameters: dict[str, Any | PrefectFuture[Any] | State]) -> dict[str, Any]
@@ -707,7 +813,7 @@ converting everything directly to a string. This maintains basic types like
 integers during API roundtrips.
 
 
-#### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L998" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serve(self, name: Optional[str] = None, interval: Optional[Union[Iterable[Union[int, float, datetime.timedelta]], int, float, datetime.timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, global_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, parameters: Optional[dict[str, Any]] = None, description: Optional[str] = None, tags: Optional[list[str]] = None, version: Optional[str] = None, enforce_parameter_schema: bool = True, pause_on_shutdown: bool = True, print_starting_message: bool = True, limit: Optional[int] = None, webserver: bool = False, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH) -> None
@@ -777,7 +883,7 @@ if __name__ == "__main__":
 ```
 
 
-#### `to_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L834" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `to_deployment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L853" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 to_deployment(self, name: str, interval: Optional[Union[Iterable[Union[int, float, datetime.timedelta]], int, float, datetime.timedelta]] = None, cron: Optional[Union[Iterable[str], str]] = None, rrule: Optional[Union[Iterable[str], str]] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional['FlexibleScheduleList'] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, parameters: Optional[dict[str, Any]] = None, triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, description: Optional[str] = None, tags: Optional[list[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, work_pool_name: Optional[str] = None, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> 'RunnerDeployment'
@@ -839,7 +945,7 @@ if __name__ == "__main__":
 ```
 
 
-#### `validate_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L585" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]
@@ -855,10 +961,10 @@ associated types specified by the function's type annotations.
 - `ParameterTypeError`: if the provided parameters are not valid
 
 
-#### `visualize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `visualize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1916" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-visualize(self, *args: 'P.args', **kwargs: 'P.kwargs')
+visualize(self, *args: 'P.args', **kwargs: 'P.kwargs') -> None
 ```
 
 Generates a graphviz object representing the current flow. In IPython notebooks,
@@ -870,7 +976,7 @@ it's rendered inline, otherwise in a new window as a PNG.
 - `- FlowVisualizationError`: If the flow can't be visualized for any other reason.
 
 
-#### `with_options` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L440" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `with_options` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_options(self) -> 'Flow[P, R]'
@@ -936,17 +1042,45 @@ Examples:
     ```
 
 
-### `FlowDecorator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1769" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowDecorator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1976" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `InfrastructureBoundFlow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2029" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InfrastructureBoundFlow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A flow that is bound to running on a specific infrastructure.
 
+**Attributes:**
+- `work_pool`: The name of the work pool to run the flow on. The base job
+configuration of the work pool will determine the configuration of the
+infrastructure the flow will run on.
+- `job_variables`: Infrastructure configuration that will override the base job
+configuration of the work pool.
+- `worker_cls`: The class of the worker to use to spin up infrastructure and submit
+the flow to it.
+
 
 **Methods:**
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2407" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+retry(self, flow_run: 'FlowRun') -> R | State[R]
+```
+
+Retry an existing flow run on remote infrastructure.
+
+This method allows retrying a flow run that was previously executed,
+reusing the same flow run ID and incrementing the run_count.
+
+**Args:**
+- `flow_run`: The existing flow run to retry
+- `return_state`: If True, return the final state instead of the result
+
+**Returns:**
+- The flow result or final state
+
+
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2360" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]
@@ -984,7 +1118,7 @@ print(result)
 ```
 
 
-#### `submit_to_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit_to_work_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit_to_work_pool(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]
@@ -1021,7 +1155,7 @@ print(result)
 ```
 
 
-#### `with_options` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `with_options` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2612" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_options(self) -> 'InfrastructureBoundFlow[P, R]'

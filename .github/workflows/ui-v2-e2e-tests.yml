@@ -1,0 +1,181 @@
+name: UI v2 E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ui-v2-e2e-tests.yml
+      - ui-v2/**
+      - src/prefect/server/**
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# Limit concurrency by workflow/branch combination.
+#
+# For pull request builds, pushing additional changes to the
+# branch will cancel prior in-progress and pending builds.
+#
+# For builds triggered on a branch push, additional changes
+# will wait for prior builds to complete before starting.
+#
+# https://docs.github.com/en/actions/using-jobs/using-concurrency
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  e2e-tests:
+    name: E2E Tests (Shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: prefect
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U prefect -d prefect"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install Prefect
+        run: uv sync --locked
+
+      - name: Start Prefect server
+        run: |
+          uv run prefect server start --analytics-off --host 0.0.0.0 > server.log 2>&1 &
+          echo "Server PID: $!"
+        env:
+          PREFECT_SERVER_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost:5432/prefect"
+
+      - name: Wait for server health
+        run: uv run python scripts/wait-for-server.py
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: "ui-v2/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install UI dependencies
+        working-directory: ./ui-v2
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ./ui-v2
+        run: npx playwright install chromium
+
+      - name: Run Playwright tests
+        working-directory: ./ui-v2
+        run: npx playwright test --shard=${{ matrix.shard }}/3
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: playwright-report-shard-${{ matrix.shard }}
+          path: ui-v2/playwright-report/
+          retention-days: 30
+
+      - name: Upload server logs
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: server-log-shard-${{ matrix.shard }}
+          path: server.log
+          retention-days: 30
+
+  e2e-tests-auth:
+    name: E2E Tests (Auth Enabled)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install Prefect
+        run: uv sync --locked
+
+      - name: Start Prefect server
+        run: |
+          uv run prefect server start --analytics-off --host 0.0.0.0 > server.log 2>&1 &
+          echo "Server PID: $!"
+        env:
+          PREFECT_SERVER_API_AUTH_STRING: admin:secret
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: "ui-v2/.nvmrc"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+
+      - name: Install UI dependencies
+        working-directory: ./ui-v2
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ./ui-v2
+        run: npx playwright install chromium
+
+      - name: Wait for server health
+        run: uv run python scripts/wait-for-server.py
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+
+      - name: Run Playwright tests
+        working-directory: ./ui-v2
+        run: npx playwright test e2e/auth/
+        env:
+          PREFECT_API_URL: http://127.0.0.1:4200/api
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: playwright-report-auth
+          path: ui-v2/playwright-report/
+          retention-days: 30
+
+      - name: Upload server logs
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: server-log-auth
+          path: server.log
+          retention-days: 30

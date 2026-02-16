@@ -17,6 +17,8 @@ from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import sync_compatible
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
+    DbtCloudCreateJobFailed,
+    DbtCloudDeleteJobFailed,
     DbtCloudGetJobFailed,
     DbtCloudGetRunArtifactFailed,
     DbtCloudGetRunFailed,
@@ -91,6 +93,129 @@ async def get_dbt_cloud_job_info(
     except HTTPStatusError as ex:
         raise DbtCloudGetJobFailed(extract_user_message(ex)) from ex
     return response.json()["data"]
+
+
+@task(
+    name="Create dbt Cloud job",
+    description="Creates a new dbt Cloud job.",
+    retries=3,
+    retry_delay_seconds=10,
+)
+async def create_dbt_cloud_job(
+    dbt_cloud_credentials: DbtCloudCredentials,
+    project_id: int,
+    environment_id: int,
+    name: str,
+    execute_steps: Optional[List[str]] = None,
+    **kwargs: Any,
+) -> Dict:
+    """
+    A task to create a new dbt Cloud job.
+
+    Args:
+        dbt_cloud_credentials: Credentials for authenticating with dbt Cloud.
+        project_id: The ID of the project to create the job in.
+        environment_id: The ID of the environment for the job.
+        name: The name of the job.
+        execute_steps: List of dbt commands to execute (e.g. ["dbt run", "dbt test"]).
+            Defaults to ["dbt build"].
+        **kwargs: Additional job configuration options.
+
+    Returns:
+        The job data returned by the dbt Cloud administrative API.
+
+    Example:
+        Create a dbt Cloud job:
+        ```python
+        from prefect import flow
+
+        from prefect_dbt.cloud import DbtCloudCredentials
+        from prefect_dbt.cloud.jobs import create_dbt_cloud_job
+
+        @flow
+        def create_job_flow():
+            credentials = DbtCloudCredentials(api_key="my_api_key", account_id=123456789)
+
+            return create_dbt_cloud_job(
+                dbt_cloud_credentials=credentials,
+                project_id=12345,
+                environment_id=67890,
+                name="My New Job",
+                execute_steps=["dbt run -s my_model", "dbt test -s my_model"],
+            )
+
+        create_job_flow()
+        ```
+    """
+    logger = get_run_logger()
+
+    logger.info(f"Creating dbt Cloud job '{name}' in project {project_id}")
+
+    try:
+        async with dbt_cloud_credentials.get_administrative_client() as client:
+            response = await client.create_job(
+                project_id=project_id,
+                environment_id=environment_id,
+                name=name,
+                execute_steps=execute_steps,
+                **kwargs,
+            )
+    except HTTPStatusError as ex:
+        raise DbtCloudCreateJobFailed(extract_user_message(ex)) from ex
+
+    job_data = response.json()["data"]
+    logger.info(f"Created dbt Cloud job with ID {job_data.get('id')}")
+    return job_data
+
+
+@task(
+    name="Delete dbt Cloud job",
+    description="Deletes a dbt Cloud job.",
+    retries=3,
+    retry_delay_seconds=10,
+)
+async def delete_dbt_cloud_job(
+    dbt_cloud_credentials: DbtCloudCredentials,
+    job_id: int,
+) -> None:
+    """
+    A task to delete a dbt Cloud job.
+
+    Args:
+        dbt_cloud_credentials: Credentials for authenticating with dbt Cloud.
+        job_id: The ID of the job to delete.
+
+    Example:
+        Delete a dbt Cloud job:
+        ```python
+        from prefect import flow
+
+        from prefect_dbt.cloud import DbtCloudCredentials
+        from prefect_dbt.cloud.jobs import delete_dbt_cloud_job
+
+        @flow
+        def delete_job_flow():
+            credentials = DbtCloudCredentials(api_key="my_api_key", account_id=123456789)
+
+            delete_dbt_cloud_job(
+                dbt_cloud_credentials=credentials,
+                job_id=42,
+            )
+
+        delete_job_flow()
+        ```
+    """
+    logger = get_run_logger()
+
+    logger.info(f"Deleting dbt Cloud job with ID {job_id}")
+
+    try:
+        async with dbt_cloud_credentials.get_administrative_client() as client:
+            await client.delete_job(job_id=job_id)
+    except HTTPStatusError as ex:
+        raise DbtCloudDeleteJobFailed(extract_user_message(ex)) from ex
+
+    logger.info(f"Deleted dbt Cloud job with ID {job_id}")
 
 
 @task(
@@ -347,6 +472,14 @@ async def trigger_dbt_cloud_job_run_and_wait_for_completion(
         ```
     """  # noqa
     logger = get_run_logger()
+
+    if (
+        trigger_job_run_options is not None
+        and trigger_job_run_options.timeout_seconds_override is not None
+    ):
+        max_wait_seconds = max(
+            max_wait_seconds, trigger_job_run_options.timeout_seconds_override
+        )
 
     triggered_run_data_future = await trigger_dbt_cloud_job_run(
         dbt_cloud_credentials=dbt_cloud_credentials,

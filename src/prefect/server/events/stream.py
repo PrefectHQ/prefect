@@ -16,7 +16,7 @@ from typing import (
 from prefect.logging import get_logger
 from prefect.server.events.filters import EventFilter
 from prefect.server.events.schemas.events import ReceivedEvent
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities import messaging
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
@@ -136,7 +136,7 @@ async def stop_distributor() -> None:
         pass
 
 
-class Distributor(RunInAllServers, Service):
+class Distributor(RunInEphemeralServers, RunInWebservers, Service):
     name: str = "Distributor"
 
     @classmethod

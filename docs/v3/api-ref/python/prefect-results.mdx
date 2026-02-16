@@ -131,7 +131,7 @@ default_cache() -> LRUCache[str, 'ResultRecord[Any]']
 result_storage_discriminator(x: Any) -> str
 ```
 
-### `get_result_store` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1023" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_result_store` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_result_store() -> ResultStore
@@ -148,10 +148,21 @@ Get the current result store.
 
 Manages the storage and retrieval of results.
 
+**Attributes:**
+- `result_storage`: The storage for result records. If not provided, the default
+result storage will be used.
+- `metadata_storage`: The storage for result record metadata. If not provided,
+the metadata will be stored alongside the results.
+- `lock_manager`: The lock manager to use for locking result records. If not provided,
+the store cannot be used in transactions with the SERIALIZABLE isolation level.
+- `cache_result_in_memory`: Whether to cache results in memory.
+- `serializer`: The serializer to use for results.
+- `storage_key_fn`: The function to generate storage keys.
+
 
 **Methods:**
 
-#### `aacquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L883" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aacquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aacquire_lock(self, key: str, holder: str | None = None, timeout: float | None = None) -> bool
@@ -169,7 +180,7 @@ current host, process, and thread will be used.
 - True if the lock was successfully acquired; False otherwise.
 
 
-#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L860" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1089" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acquire_lock(self, key: str, holder: str | None = None, timeout: float | None = None) -> bool
@@ -187,7 +198,7 @@ current host, process, and thread will be used.
 - True if the lock was successfully acquired; False otherwise.
 
 
-#### `aexists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L528" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aexists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L645" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aexists(self, key: str) -> bool
@@ -202,7 +213,7 @@ Check if a result record exists in storage.
 - True if the result record exists, False otherwise.
 
 
-#### `apersist_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L827" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `apersist_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 apersist_result_record(self, result_record: 'ResultRecord[Any]', holder: str | None = None) -> None
@@ -214,7 +225,7 @@ Persist a result record to storage.
 - `result_record`: The result record to persist.
 
 
-#### `aread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L639" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L812" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aread(self, key: str, holder: str | None = None) -> 'ResultRecord[Any]'
@@ -230,7 +241,37 @@ Read a result record from storage.
 - A result record.
 
 
-#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L967" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aupdate_for_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupdate_for_flow(self, flow: 'Flow[..., Any]') -> Self
+```
+
+Create a new result store for a flow with updated settings.
+
+**Args:**
+- `flow`: The flow to update the result store for.
+
+**Returns:**
+- An updated result store.
+
+
+#### `aupdate_for_task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L421" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupdate_for_task(self: Self, task: 'Task[P, R]') -> Self
+```
+
+Create a new result store for a task.
+
+**Args:**
+- `task`: The task to update the result store for.
+
+**Returns:**
+- An updated result store.
+
+
+#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 await_for_lock(self, key: str, timeout: float | None = None) -> bool
@@ -239,7 +280,7 @@ await_for_lock(self, key: str, timeout: float | None = None) -> bool
 Wait for the corresponding transaction record to become free.
 
 
-#### `awrite` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L721" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite(self, obj: Any, key: str | None = None, expiration: DateTime | None = None, holder: str | None = None) -> None
@@ -254,7 +295,7 @@ Write a result to storage.
 - `holder`: The holder of the lock if a lock was set on the record.
 
 
-#### `create_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L657" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L830" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_result_record(self, obj: Any, key: str | None = None, expiration: DateTime | None = None) -> 'ResultRecord[Any]'
@@ -268,7 +309,7 @@ Create a result record.
 - `expiration`: The expiration time for the result record.
 
 
-#### `exists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L516" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `exists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L633" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 exists(self, key: str) -> bool
@@ -283,7 +324,7 @@ Check if a result record exists in storage.
 - True if the result record exists, False otherwise.
 
 
-#### `generate_default_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L452" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `generate_default_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L527" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 generate_default_holder() -> str
@@ -295,7 +336,7 @@ Generate a default holder string using hostname, PID, and thread ID.
 - A unique identifier string.
 
 
-#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L936" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_lock_holder(self, key: str, holder: str | None = None) -> bool
@@ -312,7 +353,7 @@ current host, process, and thread will be used.
 - True if the current holder is the lock holder; False otherwise.
 
 
-#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L925" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_locked(self, key: str) -> bool
@@ -321,7 +362,7 @@ is_locked(self, key: str) -> bool
 Check if a result record is locked.
 
 
-#### `persist_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `persist_result_record` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 persist_result_record(self, result_record: 'ResultRecord[Any]', holder: str | None = None) -> None
@@ -333,7 +374,7 @@ Persist a result record to storage.
 - `result_record`: The result record to persist.
 
 
-#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L621" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L794" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read(self, key: str, holder: str | None = None) -> 'ResultRecord[Any]'
@@ -349,13 +390,7 @@ Read a result record from storage.
 - A result record.
 
 
-#### `read_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1007" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-read_parameters(self, identifier: UUID) -> dict[str, Any]
-```
-
-#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L907" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release_lock(self, key: str, holder: str | None = None) -> None
@@ -376,13 +411,7 @@ thread will be used.
 result_storage_block_id(self) -> UUID | None
 ```
 
-#### `store_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L986" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-store_parameters(self, identifier: UUID, parameters: dict[str, Any])
-```
-
-#### `supports_isolation_level` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L841" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `supports_isolation_level` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1070" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 supports_isolation_level(self, level: 'IsolationLevel') -> bool
@@ -397,7 +426,7 @@ Check if the result store supports a given isolation level.
 - True if the isolation level is supported, False otherwise.
 
 
-#### `update_for_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L375" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_for_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L398" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_for_flow(self, flow: 'Flow[..., Any]') -> Self
@@ -412,7 +441,7 @@ Create a new result store for a flow with updated settings.
 - An updated result store.
 
 
-#### `update_for_task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_for_task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_for_task(self: Self, task: 'Task[P, R]') -> Self
@@ -427,7 +456,7 @@ Create a new result store for a task.
 - An updated result store.
 
 
-#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L956" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L1185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_lock(self, key: str, timeout: float | None = None) -> bool
@@ -436,7 +465,7 @@ wait_for_lock(self, key: str, timeout: float | None = None) -> bool
 Wait for the corresponding transaction record to become free.
 
 
-#### `write` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L694" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/results.py#L867" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write(self, obj: Any, key: str | None = None, expiration: DateTime | None = None, holder: str | None = None) -> None

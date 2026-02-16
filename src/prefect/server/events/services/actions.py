@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 from prefect.logging import get_logger
 from prefect.server.events import actions
-from prefect.server.services.base import RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, Service
 from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.server.utilities.messaging._consumer_names import (
     generate_unique_consumer_name,
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class Actions(RunInAllServers, Service):
+class Actions(RunInEphemeralServers, Service):
     """Runs the actions triggered by automations"""
 
     consumer_task: asyncio.Task[None] | None = None
@@ -51,5 +51,6 @@ class Actions(RunInAllServers, Service):
         except asyncio.CancelledError:
             pass
         finally:
+            await self.consumer.cleanup()
             self.consumer_task = None
         logger.debug("Actions stopped")

@@ -3,7 +3,7 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 
-For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
+For more user-accessible information about the current run, see [`prefect.runtime`](https://docs.prefect.io/v3/api-ref/python/prefect-runtime-flow_run).
 """
 
 import asyncio
@@ -75,6 +75,10 @@ def serialize_context(
     tags_context = TagsContext.get()
     settings_context = SettingsContext.get()
 
+    # Serialize deployment ContextVars for cross-process context propagation
+    deployment_id = _deployment_id.get()
+    deployment_params = _deployment_parameters.get()
+
     return {
         "flow_run_context": flow_run_context.serialize() if flow_run_context else {},
         "task_run_context": task_run_context.serialize() if task_run_context else {},
@@ -85,6 +89,8 @@ def serialize_context(
         ).serialize()
         if asset_ctx_kwargs
         else {},
+        "deployment_id": str(deployment_id) if deployment_id else None,
+        "deployment_parameters": deployment_params,
     }
 
 
@@ -138,6 +144,15 @@ def hydrated_context(
             # Set up asset context
             if asset_context := serialized_context.get("asset_context"):
                 stack.enter_context(AssetContext(**asset_context))
+            # Restore deployment ContextVars for cross-process context propagation
+            if deployment_id_str := serialized_context.get("deployment_id"):
+                from uuid import UUID
+
+                deployment_id_token = _deployment_id.set(UUID(deployment_id_str))
+                stack.callback(_deployment_id.reset, deployment_id_token)
+            if deployment_params := serialized_context.get("deployment_parameters"):
+                deployment_params_token = _deployment_parameters.set(deployment_params)
+                stack.callback(_deployment_parameters.reset, deployment_params_token)
         yield
 
 
@@ -457,7 +472,7 @@ class TaskRunContext(RunContext):
     __var__: ClassVar[ContextVar[Self]] = ContextVar("task_run")
 
     def serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]:
-        return self.model_dump(
+        serialized = self.model_dump(
             include={
                 "task_run",
                 "task",
@@ -465,13 +480,18 @@ class TaskRunContext(RunContext):
                 "log_prints",
                 "start_time",
                 "input_keyset",
-                "result_store",
                 "persist_result",
             },
             exclude_unset=True,
-            serialize_as_any=True,
             context={"include_secrets": include_secrets},
         )
+        if self.result_store:
+            serialized["result_store"] = self.result_store.model_dump(
+                serialize_as_any=True,
+                exclude_unset=True,
+                context={"include_secrets": include_secrets},
+            )
+        return serialized
 
 
 class AssetContext(ContextModel):
@@ -738,6 +758,13 @@ class SettingsContext(ContextModel):
             return None
 
 
+# Root deployment context vars for O(1) access in nested flows
+_deployment_id: ContextVar[UUID | None] = ContextVar("deployment_id", default=None)
+_deployment_parameters: ContextVar[dict[str, Any] | None] = ContextVar(
+    "deployment_parameters", default=None
+)
+
+
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     """
     Get the current run context from within a task or flow function.
@@ -749,10 +776,23 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
         RuntimeError: If called outside of a flow or task run.
     """
     task_run_ctx = TaskRunContext.get()
+    flow_run_ctx = FlowRunContext.get()
+
+    # When both contexts exist, determine which represents the currently executing code.
+    # If the flow_run_id from the flow context differs from the task's flow_run_id,
+    # we're in a subflow running inside a task, so prefer the flow context.
+    # Otherwise, we're in a regular task within the flow, so prefer the task context.
+    if task_run_ctx and flow_run_ctx:
+        if (
+            flow_run_ctx.flow_run
+            and flow_run_ctx.flow_run.id != task_run_ctx.task_run.flow_run_id
+        ):
+            return flow_run_ctx
+        return task_run_ctx
+
     if task_run_ctx:
         return task_run_ctx
 
-    flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
         return flow_run_ctx
 
@@ -948,6 +988,17 @@ def root_settings_context() -> SettingsContext:
 
 
 GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
+
+
+def refresh_global_settings_context() -> None:
+    """
+    Refresh the global settings context to pick up environment variable changes.
+
+    This is called after plugins run to ensure any environment variables they set
+    are reflected in get_current_settings().
+    """
+    global GLOBAL_SETTINGS_CONTEXT
+    GLOBAL_SETTINGS_CONTEXT = root_settings_context()
 
 
 # 2024-07-02: This surfaces an actionable error message for removed objects

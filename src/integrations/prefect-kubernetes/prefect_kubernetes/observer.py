@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import sys
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -39,12 +40,11 @@ _last_event_cache: TTLCache[str, Event] = TTLCache(
     maxsize=1000, ttl=60 * 5
 )  # 5 minutes
 
-logging.getLogger("kopf.objects").setLevel(logging.INFO)
-
 settings = KubernetesSettings()
 
 events_client: EventsClient | None = None
 orchestration_client: PrefectClient | None = None
+_startup_event_semaphore: asyncio.Semaphore | None = None
 
 
 @kopf.on.startup()
@@ -57,6 +57,10 @@ async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
     logger.info("Initializing clients")
     global events_client
     global orchestration_client
+    global _startup_event_semaphore
+    _startup_event_semaphore = asyncio.Semaphore(
+        settings.observer.startup_event_concurrency
+    )
     orchestration_client = await get_client().__aenter__()
     events_client = await get_events_client().__aenter__()
     logger.info("Clients successfully initialized")
@@ -70,13 +74,6 @@ async def cleanup_fn(logger: kopf.Logger, **kwargs: Any):
     logger.info("Clients successfully cleaned up")
 
 
-@kopf.on.event(
-    "pods",
-    labels={
-        "prefect.io/flow-run-id": kopf.PRESENT,
-        **settings.observer.additional_label_filters,
-    },
-)  # type: ignore
 async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
     uid: str,
@@ -132,30 +129,37 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     if event_type is None:
         if orchestration_client is None:
             raise RuntimeError("Orchestration client not initialized")
+        if _startup_event_semaphore is None:
+            raise RuntimeError("Startup event semaphore not initialized")
 
-        # Use the Kubernetes event timestamp for the filter to avoid "Query time range is too large" error
-        event_filter = EventFilter(
-            event=EventNameFilter(name=[f"prefect.kubernetes.pod.{phase.lower()}"]),
-            resource=EventResourceFilter(
-                id=[f"prefect.kubernetes.pod.{uid}"],
-            ),
-            occurred=EventOccurredFilter(
-                since=(
-                    k8s_created_time
-                    if k8s_created_time
-                    else (datetime.now(timezone.utc) - timedelta(hours=1))
-                )
-            ),
-        )
+        # Use semaphore to limit concurrent API calls during startup to prevent
+        # overwhelming the API server when there are many existing pods/jobs
+        async with _startup_event_semaphore:
+            # Use the Kubernetes event timestamp for the filter to avoid "Query time range is too large" error
+            event_filter = EventFilter(
+                event=EventNameFilter(name=[f"prefect.kubernetes.pod.{phase.lower()}"]),
+                resource=EventResourceFilter(
+                    id=[f"prefect.kubernetes.pod.{uid}"],
+                ),
+                occurred=EventOccurredFilter(
+                    since=(
+                        k8s_created_time
+                        if k8s_created_time
+                        else (datetime.now(timezone.utc) - timedelta(hours=1))
+                    )
+                ),
+            )
 
-        response = await orchestration_client.request(
-            "POST",
-            "/events/filter",
-            json=event_filter.model_dump(exclude_unset=True, mode="json"),
-        )
-        # If the event already exists, we don't need to emit a new one.
-        if response.json()["events"]:
-            return
+            response = await orchestration_client.request(
+                "POST",
+                "/events/filter",
+                json=dict(
+                    filter=event_filter.model_dump(exclude_unset=True, mode="json")
+                ),
+            )
+            # If the event already exists, we don't need to emit a new one.
+            if response.json()["events"]:
+                return
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",
@@ -192,6 +196,16 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         raise RuntimeError("Events client not initialized")
     await events_client.emit(event=prefect_event)
     _last_event_cache[uid] = prefect_event
+
+
+if settings.observer.replicate_pod_events:
+    kopf.on.event(
+        "pods",
+        labels={
+            "prefect.io/flow-run-id": kopf.PRESENT,
+            **settings.observer.additional_label_filters,
+        },
+    )(_replicate_pod_event)  # type: ignore
 
 
 async def _get_kubernetes_client() -> ApiClient:
@@ -280,9 +294,15 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
 
     assert flow_run.state is not None, "Expected flow run state to be set"
 
-    # Exit early for terminal/final/scheduled states
-    if flow_run.state.is_final() or flow_run.state.is_scheduled():
-        logger.debug(f"Flow run {flow_run_id} is in final or scheduled state, skipping")
+    # Exit early for terminal/final/scheduled/paused states
+    if (
+        flow_run.state.is_final()
+        or flow_run.state.is_scheduled()
+        or flow_run.state.is_paused()
+    ):
+        logger.debug(
+            f"Flow run {flow_run_id} is in final, scheduled, or paused state, skipping"
+        )
         return
 
     # In the case where a flow run is rescheduled due to a SIGTERM, it will show up as another active job if the
@@ -445,6 +465,28 @@ def start_observer():
             )
 
     logging.getLogger("kopf._core.reactor.running").addFilter(ThreadWarningFilter())
+
+    # Configure kopf logging to match Prefect's logging format
+    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG
+
+    if PROCESS_LOGGING_CONFIG:
+        console_formatter = (
+            PROCESS_LOGGING_CONFIG.get("handlers", {})
+            .get("console", {})
+            .get("formatter")
+        )
+        if console_formatter == "json":
+            # Configure kopf to use its own JSON formatter instead of Prefect's
+            # which cannot serialize kopf internal objects
+            from prefect_kubernetes._logging import KopfObjectJsonFormatter
+
+            kopf_logger = logging.getLogger("kopf")
+            kopf_handler = logging.StreamHandler(sys.stderr)
+            kopf_handler.setFormatter(KopfObjectJsonFormatter())
+            kopf_logger.addHandler(kopf_handler)
+            # Turn off propagation to prevent kopf logs from being propagated to Prefect's JSON formatter
+            # which cannot serialize kopf internal objects
+            kopf_logger.propagate = False
 
     if _observer_thread is not None:
         return

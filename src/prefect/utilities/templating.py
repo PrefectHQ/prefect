@@ -102,6 +102,7 @@ def apply_values(
     values: dict[str, Any],
     remove_notset: Literal[True] = True,
     warn_on_notset: bool = False,
+    skip_prefixes: Optional[list[str]] = None,
 ) -> T: ...
 
 
@@ -111,6 +112,7 @@ def apply_values(
     values: dict[str, Any],
     remove_notset: Literal[False] = False,
     warn_on_notset: bool = False,
+    skip_prefixes: Optional[list[str]] = None,
 ) -> Union[T, type[NotSet]]: ...
 
 
@@ -120,6 +122,7 @@ def apply_values(
     values: dict[str, Any],
     remove_notset: bool = False,
     warn_on_notset: bool = False,
+    skip_prefixes: Optional[list[str]] = None,
 ) -> Union[T, type[NotSet]]: ...
 
 
@@ -128,6 +131,7 @@ def apply_values(
     values: dict[str, Any],
     remove_notset: bool = True,
     warn_on_notset: bool = False,
+    skip_prefixes: Optional[list[str]] = None,
 ) -> Union[T, type[NotSet]]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
@@ -153,6 +157,8 @@ def apply_values(
         values: The values to apply to placeholders in the template
         remove_notset: If True, remove keys with an unset value
         warn_on_notset: If True, warn when a placeholder is not found in `values`
+        skip_prefixes: If provided, placeholders whose names start with any of
+            these prefixes will be left untouched in the template.
 
     Returns:
         The template with the values applied
@@ -164,7 +170,18 @@ def apply_values(
         if not placeholders:
             # If there are no values, we can just use the template
             return template
-        elif (
+
+        # Filter out placeholders that match skip_prefixes
+        if skip_prefixes:
+            placeholders = {
+                p
+                for p in placeholders
+                if not any(p.name.startswith(prefix) for prefix in skip_prefixes)
+            }
+            if not placeholders:
+                return template
+
+        if (
             len(placeholders) == 1
             and list(placeholders)[0].full_match == template
             and list(placeholders)[0].type is PlaceholderType.STANDARD
@@ -209,6 +226,7 @@ def apply_values(
                 values,
                 remove_notset=remove_notset,
                 warn_on_notset=warn_on_notset,
+                skip_prefixes=skip_prefixes,
             )
             if updated_value is not NotSet:
                 updated_template[key] = updated_value
@@ -224,6 +242,7 @@ def apply_values(
                 values,
                 remove_notset=remove_notset,
                 warn_on_notset=warn_on_notset,
+                skip_prefixes=skip_prefixes,
             )
             if updated_value is not NotSet:
                 updated_list.append(updated_value)

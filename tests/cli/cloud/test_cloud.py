@@ -52,12 +52,24 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
     def readchar() -> str:
         sys.stdin.flush()
         position = sys.stdin.tell()
-        if not sys.stdin.read():
+        remaining_input = sys.stdin.read()
+
+        if not remaining_input:
             print("TEST ERROR: CLI is attempting to read input but stdin is empty.")
             raise Exit(-2)
-        else:
+
+        # Take the first character and put the rest back
+        char = remaining_input[0]
+        rest = remaining_input[1:]
+
+        # Reset stdin position and write back the remaining input
+        sys.stdin.seek(position)
+        sys.stdin.truncate()
+        if rest:
+            sys.stdin.write(rest)
             sys.stdin.seek(position)
-        return sys.stdin.read(1)
+
+        return char
 
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
 
@@ -571,11 +583,12 @@ def test_login_already_logged_in_to_current_profile_no_reauth(
         )
     )
 
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
                 Profile(
-                    name="logged-in-profile",
+                    name=profile_name,
                     settings={
                         PREFECT_API_URL: foo_workspace.api_url(),
                         PREFECT_API_KEY: "foo",
@@ -586,7 +599,7 @@ def test_login_already_logged_in_to_current_profile_no_reauth(
         )
     )
 
-    with use_profile("logged-in-profile"):
+    with use_profile(profile_name):
         invoke_and_assert(
             ["cloud", "login"],
             expected_code=0,
@@ -621,11 +634,12 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(
         )
     )
 
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
                 Profile(
-                    name="logged-in-profile",
+                    name=profile_name,
                     settings={
                         PREFECT_API_URL: foo_workspace.api_url(),
                         PREFECT_API_KEY: "foo",
@@ -636,7 +650,7 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(
         )
     )
 
-    with use_profile("logged-in-profile"):
+    with use_profile(profile_name):
         invoke_and_assert(
             ["cloud", "login"],
             expected_code=0,
@@ -681,11 +695,12 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(
         )
     )
 
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
                 Profile(
-                    name="logged-in-profile",
+                    name=profile_name,
                     settings={
                         PREFECT_API_URL: foo_workspace.api_url(),
                         PREFECT_API_KEY: "foo",
@@ -696,7 +711,7 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(
         )
     )
 
-    with use_profile("logged-in-profile"):
+    with use_profile(profile_name):
         invoke_and_assert(
             ["cloud", "login"],
             expected_code=0,
@@ -747,11 +762,12 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
         )
     )
 
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
                 Profile(
-                    name="logged-in-profile",
+                    name=profile_name,
                     settings={
                         PREFECT_API_URL: "oh-no",
                         PREFECT_API_KEY: "foo",
@@ -762,7 +778,7 @@ def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
         )
     )
 
-    with use_profile("logged-in-profile"):
+    with use_profile(profile_name):
         invoke_and_assert(
             ["cloud", "login"],
             expected_code=0,
@@ -806,11 +822,12 @@ def test_login_already_logged_in_to_another_profile(respx_mock: respx.MockRouter
 
     current_profile = load_current_profile()
 
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
                 Profile(
-                    name="logged-in-profile",
+                    name=profile_name,
                     settings={
                         PREFECT_API_URL: foo_workspace.api_url(),
                         PREFECT_API_KEY: "foo",
@@ -835,13 +852,13 @@ def test_login_already_logged_in_to_another_profile(respx_mock: respx.MockRouter
         expected_output_contains=[
             "? Would you like to switch profiles? [Y/n]:",
             "? Which authenticated profile would you like to switch to?",
-            "logged-in-profile",
-            "Switched to authenticated profile 'logged-in-profile'.",
+            profile_name,
+            f"Switched to authenticated profile '{profile_name}'.",
         ],
     )
 
     profiles = load_profiles()
-    assert profiles.active_name == "logged-in-profile"
+    assert profiles.active_name == profile_name
     assert profiles.active_profile
     settings = profiles.active_profile.settings
     assert settings[PREFECT_API_KEY] == "foo"
@@ -867,11 +884,12 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(
 
     current_profile = load_current_profile()
 
+    profile_name = f"logged-in-profile-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
                 Profile(
-                    name="logged-in-profile",
+                    name=profile_name,
                     settings={
                         PREFECT_API_URL: foo_workspace.api_url(),
                         PREFECT_API_KEY: "foo",
@@ -896,7 +914,7 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(
         expected_output_contains=[
             "? Would you like to switch profiles? [Y/n]:",
             "? Which authenticated profile would you like to switch to?",
-            "logged-in-profile",
+            profile_name,
         ],
     )
 
@@ -904,7 +922,7 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(
     profiles = load_profiles()
 
     # The active profile should not have changed
-    assert profiles.active_name != "logged-in-profile"
+    assert profiles.active_name != profile_name
     assert profiles.active_name == current_profile.name
 
     # The current profile settings are not mutated
@@ -917,7 +935,7 @@ def test_login_already_logged_in_to_another_profile_cancel_during_select(
 
 
 def test_logout_current_profile_is_not_logged_in():
-    cloud_profile = "cloud-foo"
+    cloud_profile = f"cloud-foo-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection([Profile(name=cloud_profile, settings={})], active=None)
     )
@@ -934,7 +952,7 @@ def test_logout_current_profile_is_not_logged_in():
 
 def test_logout_reset_prefect_api_key_and_prefect_api_url():
     profile = None
-    cloud_profile = "cloud-foo"
+    cloud_profile = f"cloud-foo-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
@@ -962,7 +980,7 @@ def test_logout_reset_prefect_api_key_and_prefect_api_url():
 
 
 def test_cannot_set_workspace_if_you_are_not_logged_in():
-    cloud_profile = "cloud-foo"
+    cloud_profile = f"cloud-foo-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection([Profile(name=cloud_profile, settings={})], active=None)
     )
@@ -992,7 +1010,7 @@ def test_set_workspace_updates_profile(respx_mock: respx.MockRouter):
         )
     )
 
-    cloud_profile = "cloud-foo"
+    cloud_profile = f"cloud-foo-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
@@ -1043,7 +1061,7 @@ def test_set_workspace_with_account_selection():
             )
         )
 
-        cloud_profile = "cloud-foo"
+        cloud_profile = f"cloud-foo-{uuid.uuid4()}"
         save_profiles(
             ProfilesCollection(
                 [
@@ -1091,7 +1109,7 @@ def test_set_workspace_with_less_than_10_workspaces(respx_mock: respx.MockRouter
         )
     )
 
-    cloud_profile = "cloud-foo"
+    cloud_profile = f"cloud-foo-{uuid.uuid4()}"
     save_profiles(
         ProfilesCollection(
             [
@@ -1144,7 +1162,7 @@ class TestCloudWorkspaceLs:
             )
         )
 
-        cloud_profile = "cloud-foo"
+        cloud_profile = f"cloud-foo-{uuid.uuid4()}"
         save_profiles(
             ProfilesCollection(
                 [
@@ -1179,7 +1197,7 @@ class TestCloudWorkspaceLs:
         Regression test for https://github.com/PrefectHQ/prefect/issues/16098
         """
         _, _ = workspaces
-        wonky_profile = "wonky-profile"
+        wonky_profile = f"wonky-profile-{uuid.uuid4()}"
         save_profiles(
             ProfilesCollection(
                 [
@@ -1254,7 +1272,7 @@ def test_set_workspace_with_go_back_to_account_selection():
             )
         )
 
-        cloud_profile = "cloud-foo"
+        cloud_profile = f"cloud-foo-{uuid.uuid4()}"
         save_profiles(
             ProfilesCollection(
                 [

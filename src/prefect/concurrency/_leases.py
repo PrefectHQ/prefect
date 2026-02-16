@@ -40,6 +40,7 @@ def maintain_concurrency_lease(
     lease_id: UUID,
     lease_duration: float,
     raise_on_lease_renewal_failure: bool = False,
+    suppress_warnings: bool = False,
 ) -> Generator[None, None, None]:
     """
     Maintain a concurrency lease for the given lease ID.
@@ -61,6 +62,8 @@ def maintain_concurrency_lease(
     with WatcherThreadCancelScope() as cancel_scope:
 
         def handle_lease_renewal_failure(future: concurrent.futures.Future[None]):
+            if future.cancelled():
+                return
             exc = future.exception()
             if exc:
                 try:
@@ -74,9 +77,14 @@ def maintain_concurrency_lease(
                     )
                     assert cancel_scope.cancel()
                 else:
-                    logger.warning(
-                        "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
-                    )
+                    if suppress_warnings:
+                        logger.debug(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
+                    else:
+                        logger.warning(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
 
         lease_renewal_call.future.add_done_callback(handle_lease_renewal_failure)
 
@@ -92,6 +100,7 @@ async def amaintain_concurrency_lease(
     lease_id: UUID,
     lease_duration: float,
     raise_on_lease_renewal_failure: bool = False,
+    suppress_warnings: bool = False,
 ) -> AsyncGenerator[None, None]:
     """
     Maintain a concurrency lease for the given lease ID.
@@ -107,6 +116,9 @@ async def amaintain_concurrency_lease(
     with AsyncCancelScope() as cancel_scope:
 
         def handle_lease_renewal_failure(task: asyncio.Task[None]):
+            if task.cancelled():
+                # Cancellation is the expected way for this loop to stop
+                return
             exc = task.exception()
             if exc:
                 try:
@@ -120,9 +132,14 @@ async def amaintain_concurrency_lease(
                     )
                     cancel_scope.cancel()
                 else:
-                    logger.warning(
-                        "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
-                    )
+                    if suppress_warnings:
+                        logger.debug(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
+                    else:
+                        logger.warning(
+                            "Concurrency lease renewal failed - slots are no longer reserved. Execution will continue, but concurrency limits may be exceeded."
+                        )
 
         # Add a callback to stop execution if the lease renewal fails and strict is True
         lease_renewal_task.add_done_callback(handle_lease_renewal_failure)

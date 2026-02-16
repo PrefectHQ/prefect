@@ -3,6 +3,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildConcurrenyLimitDetailsActiveRunsQuery } from "@/api/task-run-concurrency-limits";
 import { TaskRunConcurrencyLimitPage } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limit-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 /**
  * Schema for validating URL search parameters for the Task Run Concurrency Limit Details page.
@@ -18,15 +19,14 @@ export const Route = createFileRoute(
 	"/concurrency-limits/concurrency-limit/$id",
 )({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		return <TaskRunConcurrencyLimitPage id={id} />;
+	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 	loader: ({ context, params }) =>
 		context.queryClient.ensureQueryData(
 			buildConcurrenyLimitDetailsActiveRunsQuery(params.id),
 		),
 });
-
-function RouteComponent() {
-	const { id } = Route.useParams();
-	return <TaskRunConcurrencyLimitPage id={id} />;
-}

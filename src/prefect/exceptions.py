@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 
 
 def _trim_traceback(
-    tb: Optional[TracebackType], remove_modules: Iterable[ModuleType]
-) -> Optional[TracebackType]:
+    tb: TracebackType | None, remove_modules: Iterable[ModuleType]
+) -> TracebackType | None:
     """
     Utility to remove frames from specific modules from a traceback.
 
@@ -240,6 +240,26 @@ class ObjectAlreadyExists(PrefectException):
         super().__init__(*args, **kwargs)
 
 
+class ObjectLimitReached(PrefectException):
+    """
+    Raised when the client receives a 403 (forbidden) from the API due to reaching an object limit (e.g. maximum number of deployments).
+    """
+
+    def __init__(self, http_exc: Exception, *args: Any, **kwargs: Any) -> None:
+        self.http_exc = http_exc
+        super().__init__(*args, **kwargs)
+
+
+class ObjectUnsupported(PrefectException):
+    """
+    Raised when the client receives a 403 (forbidden) from the API due to an unsupported object (i.e. requires a specific Prefect Cloud tier).
+    """
+
+    def __init__(self, http_exc: Exception, *args: Any, **kwargs: Any) -> None:
+        self.http_exc = http_exc
+        super().__init__(*args, **kwargs)
+
+
 class UpstreamTaskError(PrefectException):
     """
     Raised when a task relies on the result of another task but that task is not
@@ -424,6 +444,17 @@ class ConfigurationError(PrefectException):
     """
     Raised when a configuration is invalid.
     """
+
+
+class EventTooLarge(PrefectException):
+    """
+    Raised when an event exceeds the configured maximum size.
+    """
+
+    def __init__(self, size: int, maximum: int):
+        super().__init__(f"Event is too large to emit ({size} > {maximum} bytes)")
+        self.size = size
+        self.maximum = maximum
 
 
 class ProfileSettingsValidationError(PrefectException):

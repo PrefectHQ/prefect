@@ -6,7 +6,6 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import (
-    BackgroundTasks,
     Body,
     Depends,
     Header,
@@ -46,7 +45,7 @@ async def create_work_queue(
     If a work queue with the same name already exists, an error
     will be raised.
 
-    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
+    For more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.
     """
 
     try:
@@ -131,7 +130,7 @@ async def read_work_queue(
 
 @router.post("/{id:uuid}/get_runs")
 async def read_work_queue_runs(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     limit: int = dependencies.LimitBody(),
     scheduled_before: DateTime = Body(
@@ -162,18 +161,20 @@ async def read_work_queue_runs(
     if x_prefect_ui:
         return flow_runs
 
-    background_tasks.add_task(
+    await docket.add(
         mark_work_queues_ready,
-        db=db,
+        key=f"mark_work_queues_ready:{work_queue_id}",
+    )(
         polled_work_queue_ids=[work_queue_id],
         ready_work_queue_ids=(
             [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
         ),
     )
 
-    background_tasks.add_task(
+    await docket.add(
         mark_deployments_ready,
-        db=db,
+        key=f"mark_deployments_ready:work_queue:{work_queue_id}",
+    )(
         work_queue_ids=[work_queue_id],
     )
 

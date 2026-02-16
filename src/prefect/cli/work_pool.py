@@ -35,11 +35,12 @@ from prefect.client.schemas.objects import (
     WorkPool,
     WorkPoolStorageConfiguration,
 )
-from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.infrastructure.provisioners import (
-    _provisioners,
-    get_infrastructure_provisioner_for_work_pool_type,
+from prefect.exceptions import (
+    ObjectAlreadyExists,
+    ObjectNotFound,
+    PrefectHTTPStatusError,
 )
+from prefect.infrastructure import provisioners
 from prefect.settings import update_current_profile
 from prefect.types._datetime import now as now_fn
 from prefect.utilities import urls
@@ -76,7 +77,7 @@ def has_provisioner_for_type(work_pool_type: str) -> bool:
     Returns:
         bool: True if a provisioner exists for the given type, False otherwise.
     """
-    return work_pool_type in _provisioners
+    return work_pool_type in provisioners._provisioners
 
 
 @work_pool_app.command()
@@ -202,7 +203,9 @@ async def create(
 
         if provision_infrastructure:
             try:
-                provisioner = get_infrastructure_provisioner_for_work_pool_type(type)
+                provisioner = (
+                    provisioners.get_infrastructure_provisioner_for_work_pool_type(type)
+                )
                 provisioner.console = app.console
                 template_contents = await provisioner.provision(
                     work_pool_name=name, base_job_template=template_contents
@@ -263,6 +266,12 @@ async def create(
             exit_with_error(
                 f"Work pool named {name!r} already exists. Please use --overwrite to update it."
             )
+        except PrefectHTTPStatusError as exc:
+            detail = exc.response.json().get("detail")
+            if detail:
+                exit_with_error(detail)
+            else:
+                raise
 
 
 @work_pool_app.command()
@@ -492,8 +501,10 @@ async def provision_infrastructure(
             exit_with_error(f"Failed to read work pool {name!r}: {exc}")
 
         try:
-            provisioner = get_infrastructure_provisioner_for_work_pool_type(
-                work_pool.type
+            provisioner = (
+                provisioners.get_infrastructure_provisioner_for_work_pool_type(
+                    work_pool.type
+                )
             )
             provisioner.console = app.console
             new_base_job_template = await provisioner.provision(

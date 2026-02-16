@@ -71,3 +71,74 @@ printed as text by passing `--format text`.
 </Accordion>
 
 </AccordionGroup>
+
+
+
+## `prefect events emit`
+
+
+
+```command
+prefect events emit [OPTIONS] EVENT
+```
+
+
+
+<Info>
+Emit a single event to Prefect.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="EVENT" type="string" required>
+    The name of the event  \[required]
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--resource">
+    Resource specification as 'key=value' or JSON. Can be used multiple times.
+</ResponseField>
+
+<ResponseField name="--resource-id">
+    The resource ID (shorthand for --resource prefect.resource.id=&lt;id&gt;)
+</ResponseField>
+
+<ResponseField name="--related">
+    Related resources as JSON string
+</ResponseField>
+
+<ResponseField name="--payload">
+    Event payload as JSON string
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+# Simple event with resource ID
+prefect event emit user.logged_in --resource-id user-123
+
+# Event with payload
+prefect event emit order.shipped --resource-id order-456 --payload '{"tracking": "ABC123"}'
+
+# Event with full resource specification
+prefect event emit customer.subscribed --resource '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp"}'
+```
+</Note>
+

@@ -10,6 +10,7 @@ import {
 } from "@/api/artifacts";
 import { ArtifactsPage } from "@/components/artifacts/artifacts-page";
 import type { filterType } from "@/components/artifacts/types";
+import { PrefectLoading } from "@/components/ui/loading";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
 
 /**
@@ -60,7 +61,27 @@ const buildFilterBody = (
 
 export const Route = createFileRoute("/artifacts/")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const search = Route.useSearch();
+		const { filters, onFilterChange } = useFilter();
+
+		const [{ data: artifactsCount }, { data: artifactsList }] =
+			useSuspenseQueries({
+				queries: [
+					buildCountArtifactsQuery(buildFilterBody(search)),
+					buildListArtifactsQuery(buildFilterBody(search)),
+				],
+			});
+
+		return (
+			<ArtifactsPage
+				filters={filters}
+				onFilterChange={onFilterChange}
+				artifactsCount={artifactsCount}
+				artifactsList={artifactsList}
+			/>
+		);
+	},
 	loaderDeps: ({ search }) => buildFilterBody(search),
 	loader: async ({ deps, context }) => {
 		const [artifactsCount, artifactsList] = await Promise.all([
@@ -71,6 +92,7 @@ export const Route = createFileRoute("/artifacts/")({
 		return { artifactsCount, artifactsList };
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
 
 const useFilter = () => {
@@ -112,25 +134,3 @@ const useFilter = () => {
 
 	return { filters, onFilterChange };
 };
-
-function RouteComponent() {
-	const search = Route.useSearch();
-	const { filters, onFilterChange } = useFilter();
-
-	const [{ data: artifactsCount }, { data: artifactsList }] =
-		useSuspenseQueries({
-			queries: [
-				buildCountArtifactsQuery(buildFilterBody(search)),
-				buildListArtifactsQuery(buildFilterBody(search)),
-			],
-		});
-
-	return (
-		<ArtifactsPage
-			filters={filters}
-			onFilterChange={onFilterChange}
-			artifactsCount={artifactsCount}
-			artifactsList={artifactsList}
-		/>
-	);
-}

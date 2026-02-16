@@ -1,0 +1,90 @@
+---
+title: perpetual_services
+sidebarTitle: perpetual_services
+---
+
+# `prefect.server.services.perpetual_services`
+
+
+
+Perpetual services are background services that run on a periodic schedule using docket.
+
+This module provides the registry and scheduling logic for perpetual services,
+using docket's Perpetual dependency for distributed, HA-aware task scheduling.
+
+
+## Functions
+
+### `perpetual_service` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/perpetual_services.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+perpetual_service(enabled_getter: EnabledGetter, run_in_ephemeral: bool = False, run_in_webserver: bool = False) -> Callable[[F], F]
+```
+
+
+Decorator to register a perpetual service function.
+
+**Args:**
+- `enabled_getter`: A callable that returns whether the service is enabled.
+- `run_in_ephemeral`: If True, this service runs in ephemeral server mode.
+- `run_in_webserver`: If True, this service runs in webserver-only mode.
+
+
+### `get_perpetual_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/perpetual_services.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_perpetual_services(ephemeral: bool = False, webserver_only: bool = False) -> list[PerpetualServiceConfig]
+```
+
+
+Get perpetual services that should run in the current mode.
+
+**Args:**
+- `ephemeral`: If True, only return services marked with run_in_ephemeral.
+- `webserver_only`: If True, only return services marked with run_in_webserver.
+
+**Returns:**
+- List of perpetual service configurations to run.
+
+
+### `get_enabled_perpetual_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/perpetual_services.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_enabled_perpetual_services(ephemeral: bool = False, webserver_only: bool = False) -> list[PerpetualServiceConfig]
+```
+
+
+Get perpetual services that are enabled and should run in the current mode.
+
+**Args:**
+- `ephemeral`: If True, only return services marked with run_in_ephemeral.
+- `webserver_only`: If True, only return services marked with run_in_webserver.
+
+**Returns:**
+- List of enabled perpetual service configurations.
+
+
+### `register_and_schedule_perpetual_services` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/perpetual_services.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+register_and_schedule_perpetual_services(docket: Docket, ephemeral: bool = False, webserver_only: bool = False) -> None
+```
+
+
+Register enabled perpetual service functions with docket and schedule them.
+
+Disabled services are not registered at all, so they never run.
+
+**Args:**
+- `docket`: The docket instance to register functions with.
+- `ephemeral`: If True, only register services for ephemeral mode.
+- `webserver_only`: If True, only register services for webserver mode.
+
+
+## Classes
+
+### `PerpetualServiceConfig` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/perpetual_services.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Configuration for a perpetual service function.
+

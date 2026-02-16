@@ -8,10 +8,12 @@ on:
 jobs:
   nightly-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -79,4 +81,4 @@ jobs:
           draft: false
           prerelease: true
           generate_release_notes: true
-          token: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}
+          token: ${{ secrets.PREFECT_CONTENTS_RW }}

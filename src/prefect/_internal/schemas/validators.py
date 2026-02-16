@@ -134,12 +134,12 @@ def convert_to_strings(value: Union[Any, Iterable[Any]]) -> Union[str, list[str]
 
 def reconcile_schedules_runner(values: MM) -> MM:
     from prefect.deployments.schedules import (
-        normalize_to_deployment_schedule_create,
+        normalize_to_deployment_schedule,
     )
 
     schedules = values.get("schedules")
     if schedules is not None and len(schedules) > 0:
-        values["schedules"] = normalize_to_deployment_schedule_create(schedules)
+        values["schedules"] = normalize_to_deployment_schedule(schedules)
 
     return values
 

@@ -372,6 +372,10 @@ Delete an automation.
     An automation's id
 </ResponseField>
 
+<ResponseField name="--all">
+    Delete all automations
+</ResponseField>
+
 </Accordion>
 
 </AccordionGroup>
@@ -382,6 +386,7 @@ Delete an automation.
 
 `$ prefect automation delete "my-automation"`
 `$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
+`$ prefect automation delete --all`
 </Note>
 
 
@@ -433,5 +438,59 @@ Create one or more automations from a file or JSON string.
 `$ prefect automation create -f automation.json`
 `$ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'`
 `$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'`
+</Note>
+
+
+
+
+## `prefect automations update`
+
+
+
+```command
+prefect automations update [OPTIONS]
+```
+
+
+
+<Info>
+Update an existing automation from a file or JSON string.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    The ID of the automation to update
+</ResponseField>
+
+<ResponseField name="--from-file">
+    Path to YAML or JSON file containing the updated automation
+</ResponseField>
+
+<ResponseField name="--from-json">
+    JSON string containing the updated automation
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-file automation.yaml`
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -f automation.json`
+`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-json '{"name": "updated-automation", "trigger": {...}, "actions": [...]}'`
 </Note>
 

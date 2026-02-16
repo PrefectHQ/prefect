@@ -25,6 +25,7 @@ from prefect.server.schemas.states import Paused, Suspended
 from prefect.settings import (
     PREFECT_API_AUTH_STRING,
     PREFECT_SERVER_API_AUTH_STRING,
+    PREFECT_SERVER_API_BASE_PATH,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     temporary_settings,
 )
@@ -108,6 +109,13 @@ async def test_includes_csrf_support(enable_csrf: bool, deployment: "ORMDeployme
     with temporary_settings(
         updates={PREFECT_SERVER_CSRF_PROTECTION_ENABLED: str(enable_csrf)}
     ):
+        async with OrchestrationClient() as client:
+            response = await client.pause_deployment(deployment.id)
+            assert response.status_code == 200
+
+
+async def test_respects_api_base_path(deployment: "ORMDeployment"):
+    with temporary_settings(updates={PREFECT_SERVER_API_BASE_PATH: "/my-prefix/api"}):
         async with OrchestrationClient() as client:
             response = await client.pause_deployment(deployment.id)
             assert response.status_code == 200

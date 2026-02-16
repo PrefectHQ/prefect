@@ -18,7 +18,7 @@
     <p-context-nav-item title="Concurrency" :to="routes.concurrencyLimits()" />
 
     <template #footer>
-      <a href="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none" target="_blank">
+      <a v-if="showPromotionalContent" href="https://www.prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none" target="_blank">
         <p-context-nav-item>
           <div>
             Ready to scale?
@@ -29,7 +29,7 @@
         </p-context-nav-item>
       </a>
 
-      <p-context-nav-item @click="openJoinCommunityModal">
+      <p-context-nav-item v-if="showPromotionalContent" @click="openJoinCommunityModal">
         Join the Community
         <JoinTheCommunityModal :show-modal="showJoinCommunityModal || !joinTheCommunityModalDismissed" @update:show-modal="updateShowModal" />
       </p-context-nav-item>
@@ -42,6 +42,7 @@
 <script lang="ts" setup>
   import JoinTheCommunityModal from '@/components/JoinTheCommunityModal.vue'
   import { useCan } from '@/compositions/useCan'
+  import { usePrefectApi } from '@/compositions/usePrefectApi'
   import { routes } from '@/router'
   import { PContextNavItem, PContextSidebar } from '@prefecthq/prefect-design'
   import { localization, useShowModal } from '@prefecthq/prefect-ui-library'
@@ -49,6 +50,12 @@
   import { computed } from 'vue'
 
   const can = useCan()
+  const api = usePrefectApi()
+  const serverSettings = await api.admin.getSettings()
+  const showPromotionalContent = computed(() => serverSettings.server.ui.show_promotional_content)
+
+  // Cache to localStorage for use in error toasts
+  localStorage.setItem('prefect-show-promotional-content', String(showPromotionalContent.value))
   const canSeeWorkPools = computed(() => can.read.work_pool)
 
   const { showModal: showJoinCommunityModal, open: openJoinCommunityModal } = useShowModal()

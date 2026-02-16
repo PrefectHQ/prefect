@@ -2,7 +2,7 @@
 Core primitives for managing Prefect deployments via `prefect deploy`, providing a minimally opinionated
 build system for managing flows and deployments.
 
-To get started, follow along with [the deloyments tutorial](/tutorials/deployments/).
+To get started, follow along with [the deployments tutorial](https://docs.prefect.io/v3/how-to-guides/deployments/create-deployments).
 """
 
 from __future__ import annotations
@@ -229,14 +229,15 @@ def _format_deployment_for_saving_to_prefect_file(
     if deployment.get("schedules"):
         schedules: list[dict[str, Any]] = []
         for deployment_schedule in deployment["schedules"]:
-            if isinstance(deployment_schedule.schedule, IntervalSchedule):
+            if isinstance(deployment_schedule["schedule"], IntervalSchedule):
                 schedule_config = _interval_schedule_to_dict(
-                    deployment_schedule.schedule
+                    deployment_schedule["schedule"]
                 )
             else:  # all valid SCHEDULE_TYPES are subclasses of BaseModel
-                schedule_config = deployment_schedule.schedule.model_dump()
+                schedule_config = deployment_schedule["schedule"].model_dump()
 
-            schedule_config["active"] = deployment_schedule.active
+            if "active" in deployment_schedule:
+                schedule_config["active"] = deployment_schedule["active"]
             schedules.append(schedule_config)
 
         deployment["schedules"] = schedules
@@ -250,6 +251,9 @@ def _format_deployment_for_saving_to_prefect_file(
                 concurrency_limit["collision_strategy"] = str(
                     concurrency_limit["collision_strategy"].value
                 )
+            concurrency_limit = {
+                k: v for k, v in concurrency_limit.items() if v is not None
+            }
         deployment["concurrency_limit"] = concurrency_limit
 
     return deployment

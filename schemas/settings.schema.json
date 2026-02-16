@@ -287,6 +287,15 @@
                     "title": "Enable Orchestration Telemetry",
                     "type": "boolean"
                 },
+                "max_log_size": {
+                    "default": 25000,
+                    "description": "Maximum size in characters for a single log when sending logs to Prefect Cloud.",
+                    "supported_environment_variables": [
+                        "PREFECT_CLOUD_MAX_LOG_SIZE"
+                    ],
+                    "title": "Max Log Size",
+                    "type": "integer"
+                },
                 "ui_url": {
                     "anyOf": [
                         {
@@ -365,14 +374,10 @@
                     "title": "Warn",
                     "type": "boolean"
                 },
-                "lineage_events_enabled": {
-                    "default": false,
-                    "description": "If `True`, enables emitting lineage events. Set to `False` to disable lineage event emission.",
-                    "supported_environment_variables": [
-                        "PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED"
-                    ],
-                    "title": "Lineage Events Enabled",
-                    "type": "boolean"
+                "plugins": {
+                    "$ref": "#/$defs/PluginsSettings",
+                    "description": "Settings for the experimental plugin system",
+                    "supported_environment_variables": []
                 }
             },
             "title": "ExperimentsSettings",
@@ -381,6 +386,24 @@
         "FlowsSettings": {
             "description": "Settings for controlling flow behavior",
             "properties": {
+                "heartbeat_frequency": {
+                    "anyOf": [
+                        {
+                            "minimum": 30,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Number of seconds between flow run heartbeats. Heartbeats are used to detect crashed flow runs.",
+                    "supported_environment_variables": [
+                        "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
+                        "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                    ],
+                    "title": "Heartbeat Frequency"
+                },
                 "default_retries": {
                     "default": 0,
                     "description": "This value sets the default number of retries for all flows.",
@@ -560,7 +583,7 @@
                 },
                 "max_log_size": {
                     "default": 1000000,
-                    "description": "The maximum size in bytes for a single log.",
+                    "description": "The maximum size in characters for a single log. When connected to Prefect Cloud, this value is capped at `PREFECT_CLOUD_MAX_LOG_SIZE` (default 25,000).",
                     "supported_environment_variables": [
                         "PREFECT_LOGGING_TO_API_MAX_LOG_SIZE"
                     ],
@@ -583,6 +606,89 @@
                 }
             },
             "title": "LoggingToAPISettings",
+            "type": "object"
+        },
+        "PluginsSettings": {
+            "description": "Settings for configuring the experimental plugin system",
+            "properties": {
+                "enabled": {
+                    "default": false,
+                    "description": "Enable the experimental plugin system.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "allow": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array",
+                            "uniqueItems": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_ALLOW"
+                    ],
+                    "title": "Allow"
+                },
+                "deny": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array",
+                            "uniqueItems": true
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "Comma-separated list of plugin names to deny. These plugins will not be loaded.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_DENY"
+                    ],
+                    "title": "Deny"
+                },
+                "setup_timeout_seconds": {
+                    "default": 20.0,
+                    "description": "Maximum time in seconds for all plugins to complete their setup hooks.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"
+                    ],
+                    "title": "Setup Timeout Seconds",
+                    "type": "number"
+                },
+                "strict": {
+                    "default": false,
+                    "description": "If True, exit if a required plugin fails during setup.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_STRICT"
+                    ],
+                    "title": "Strict",
+                    "type": "boolean"
+                },
+                "safe_mode": {
+                    "default": false,
+                    "description": "If True, load plugins but do not execute their hooks. Useful for testing.",
+                    "supported_environment_variables": [
+                        "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"
+                    ],
+                    "title": "Safe Mode",
+                    "type": "boolean"
+                }
+            },
+            "title": "PluginsSettings",
             "type": "object"
         },
         "ResultsSettings": {
@@ -717,22 +823,14 @@
                     "title": "Poll Frequency",
                     "type": "integer"
                 },
-                "heartbeat_frequency": {
-                    "anyOf": [
-                        {
-                            "minimum": 30,
-                            "type": "integer"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "description": "Number of seconds a runner should wait between heartbeats for flow runs.",
+                "crash_on_cancellation_failure": {
+                    "default": false,
+                    "description": "Whether to crash flow runs and shut down the runner when cancellation observing fails. When enabled, if both websocket and polling mechanisms for detecting cancellation events fail, all in-flight flow runs will be marked as crashed and the runner will shut down. When disabled (default), the runner will log an error but continue executing flow runs.",
                     "supported_environment_variables": [
-                        "PREFECT_RUNNER_HEARTBEAT_FREQUENCY"
+                        "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE"
                     ],
-                    "title": "Heartbeat Frequency"
+                    "title": "Crash On Cancellation Failure",
+                    "type": "boolean"
                 },
                 "server": {
                     "$ref": "#/$defs/RunnerServerSettings",
@@ -760,6 +858,22 @@
                         "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_APPLICATION_NAME"
                     ],
                     "title": "Application Name"
+                },
+                "search_path": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "PostgreSQL schema name to set in search_path when using a PostgreSQL database with the Prefect backend. Note: The public schema should be included in the search path (e.g. 'myschema, public') to ensure that pg_trgm and other extensions remain available.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_SQLALCHEMY_CONNECT_ARGS_SEARCH_PATH"
+                    ],
+                    "title": "Search Path"
                 },
                 "statement_cache_size": {
                     "anyOf": [
@@ -1074,6 +1188,27 @@
                     ],
                     "title": "Lease Storage",
                     "type": "string"
+                },
+                "initial_deployment_lease_duration": {
+                    "default": 300.0,
+                    "description": "Initial duration for deployment concurrency lease in seconds.",
+                    "maximum": 3600.0,
+                    "minimum": 30.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION"
+                    ],
+                    "title": "Initial Deployment Lease Duration",
+                    "type": "number"
+                },
+                "maximum_concurrency_slot_wait_seconds": {
+                    "default": 30,
+                    "description": "The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.",
+                    "minimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_CONCURRENCY_MAXIMUM_CONCURRENCY_SLOT_WAIT_SECONDS"
+                    ],
+                    "title": "Maximum Concurrency Slot Wait Seconds",
+                    "type": "number"
                 }
             },
             "title": "ServerConcurrencySettings",
@@ -1289,6 +1424,31 @@
             "title": "ServerDeploymentsSettings",
             "type": "object"
         },
+        "ServerDocketSettings": {
+            "description": "Settings for controlling Docket behavior",
+            "properties": {
+                "name": {
+                    "default": "prefect-server",
+                    "description": "The name of the Docket instance.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DOCKET_NAME"
+                    ],
+                    "title": "Name",
+                    "type": "string"
+                },
+                "url": {
+                    "default": "memory://",
+                    "description": "The URL of the Redis server to use for Docket.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DOCKET_URL"
+                    ],
+                    "title": "Url",
+                    "type": "string"
+                }
+            },
+            "title": "ServerDocketSettings",
+            "type": "object"
+        },
         "ServerEphemeralSettings": {
             "description": "Settings for controlling ephemeral server behavior",
             "properties": {
@@ -1444,6 +1604,15 @@
                     "title": "Messaging Cache",
                     "type": "string"
                 },
+                "causal_ordering": {
+                    "default": "prefect.server.events.ordering.memory",
+                    "description": "Which causal ordering implementation to use for the events system. Should point to a module that exports a CausalOrdering class.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_EVENTS_CAUSAL_ORDERING"
+                    ],
+                    "title": "Causal Ordering",
+                    "type": "string"
+                },
                 "maximum_event_name_length": {
                     "default": 1024,
                     "description": "The maximum length of an event name.",
@@ -1578,6 +1747,17 @@
                     "title": "Batch Size",
                     "type": "integer"
                 },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of events the event persister will attempt to read from the message broker in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE",
+                        "PREFECT_API_SERVICES_EVENT_PERSISTER_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
+                },
                 "flush_interval": {
                     "default": 5,
                     "description": "The maximum number of seconds between flushes of the event persister.",
@@ -1597,6 +1777,26 @@
                         "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_BATCH_SIZE_DELETE"
                     ],
                     "title": "Batch Size Delete",
+                    "type": "integer"
+                },
+                "queue_max_size": {
+                    "default": 50000,
+                    "description": "The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_QUEUE_MAX_SIZE"
+                    ],
+                    "title": "Queue Max Size",
+                    "type": "integer"
+                },
+                "max_flush_retries": {
+                    "default": 5,
+                    "description": "The maximum number of consecutive flush failures before events are dropped instead of being re-queued.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_EVENT_PERSISTER_MAX_FLUSH_RETRIES"
+                    ],
+                    "title": "Max Flush Retries",
                     "type": "integer"
                 }
             },
@@ -1917,6 +2117,36 @@
                     ],
                     "title": "Enabled",
                     "type": "boolean"
+                },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of task runs the task run recorder will attempt to read from the message broker in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
+                },
+                "batch_size": {
+                    "default": 1,
+                    "description": "The number of task runs the task run recorder will attempt to insert in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_BATCH_SIZE"
+                    ],
+                    "title": "Batch Size",
+                    "type": "integer"
+                },
+                "flush_interval": {
+                    "default": 5,
+                    "description": "The maximum number of seconds between flushes of the task run recorder.",
+                    "exclusiveMinimum": 0.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER_FLUSH_INTERVAL"
+                    ],
+                    "title": "Flush Interval",
+                    "type": "number"
                 }
             },
             "title": "ServerServicesTaskRunRecorderSettings",
@@ -1934,6 +2164,16 @@
                     ],
                     "title": "Enabled",
                     "type": "boolean"
+                },
+                "read_batch_size": {
+                    "default": 1,
+                    "description": "The number of events the triggers service will attempt to read from the message broker in one batch.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_TRIGGERS_READ_BATCH_SIZE"
+                    ],
+                    "title": "Read Batch Size",
+                    "type": "integer"
                 },
                 "pg_notify_reconnect_interval_seconds": {
                     "default": 10,
@@ -2064,6 +2304,11 @@
                     "description": "Settings for controlling server deployments behavior",
                     "supported_environment_variables": []
                 },
+                "docket": {
+                    "$ref": "#/$defs/ServerDocketSettings",
+                    "description": "Settings for controlling server Docket behavior",
+                    "supported_environment_variables": []
+                },
                 "ephemeral": {
                     "$ref": "#/$defs/ServerEphemeralSettings",
                     "supported_environment_variables": []
@@ -2184,6 +2429,15 @@
                     "title": "Enabled",
                     "type": "boolean"
                 },
+                "v2_enabled": {
+                    "default": false,
+                    "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_UI_V2_ENABLED"
+                    ],
+                    "title": "V2 Enabled",
+                    "type": "boolean"
+                },
                 "api_url": {
                     "anyOf": [
                         {
@@ -2227,6 +2481,15 @@
                         "PREFECT_UI_STATIC_DIRECTORY"
                     ],
                     "title": "Static Directory"
+                },
+                "show_promotional_content": {
+                    "default": true,
+                    "description": "Whether or not to display promotional content in the UI, including upgrade prompts and marketing banners.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT"
+                    ],
+                    "title": "Show Promotional Content",
+                    "type": "boolean"
                 }
             },
             "title": "ServerUISettings",
@@ -2251,6 +2514,23 @@
                         "PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS"
                     ],
                     "title": "Thread Pool Max Workers"
+                },
+                "process_pool_max_workers": {
+                    "anyOf": [
+                        {
+                            "exclusiveMinimum": 0,
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "The maximum number of workers for ProcessPoolTaskRunner.",
+                    "supported_environment_variables": [
+                        "PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS"
+                    ],
+                    "title": "Process Pool Max Workers"
                 }
             },
             "title": "TasksRunnerSettings",
@@ -2468,6 +2748,24 @@
                     "title": "Prefetch Seconds",
                     "type": "number"
                 },
+                "enable_cancellation": {
+                    "default": false,
+                    "description": "Enable worker-side flow run cancellation for pending flow runs. When enabled, the worker will terminate infrastructure for flow runs that are cancelled while still in PENDING state (before the runner starts).",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_ENABLE_CANCELLATION"
+                    ],
+                    "title": "Enable Cancellation",
+                    "type": "boolean"
+                },
+                "cancellation_poll_seconds": {
+                    "default": 120,
+                    "description": "Number of seconds between polls for cancelling flow runs. Used as a fallback when the WebSocket connection for real-time cancellation events is unavailable.",
+                    "supported_environment_variables": [
+                        "PREFECT_WORKER_CANCELLATION_POLL_SECONDS"
+                    ],
+                    "title": "Cancellation Poll Seconds",
+                    "type": "number"
+                },
                 "webserver": {
                     "$ref": "#/$defs/WorkerWebserverSettings",
                     "description": "Settings for a worker's webserver",
@@ -2515,7 +2813,7 @@
             "type": "string"
         },
         "profiles_path": {
-            "description": "The path to a profiles configuration file. Supports $PREFECT_HOME templating. Defaults to $PREFECT_HOME/profiles.toml.",
+            "description": "The path to a profiles configuration file. Supports \\$PREFECT_HOME templating. Defaults to \\$PREFECT_HOME/profiles.toml.",
             "format": "path",
             "supported_environment_variables": [
                 "PREFECT_PROFILES_PATH"

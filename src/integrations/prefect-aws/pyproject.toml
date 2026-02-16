@@ -6,57 +6,56 @@ build-backend = "setuptools.build_meta"
 name = "prefect-aws"
 description = "Prefect integrations for interacting with Amazon Web Services."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
 classifiers = [
-  "Natural Language :: English",
-  "Intended Audience :: Developers",
-  "Intended Audience :: System Administrators",
-  "License :: OSI Approved :: Apache Software License",
-  "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Topic :: Software Development :: Libraries",
+    "Natural Language :: English",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-  "boto3>=1.24.53",
-  "botocore>=1.27.53",
-  "mypy_boto3_s3>=1.24.94",
-  "mypy_boto3_secretsmanager>=1.26.49",
-  "prefect>=3.4.7",
-  "pyparsing>=3.1.1",
-  "tenacity>=8.0.0",
+    "aiobotocore>=2.23.2",
+    "boto3>=1.24.53",
+    "botocore>=1.27.53",
+    "prefect>=3.6.17",
+    "pyparsing>=3.1.1",
+    "tenacity>=8.0.0",
+    "typer>=0.9.0",
+    "rich>=10.0.0",
 ]
 dynamic = ["version"]
 
 [dependency-groups]
 dev = [
-  "black",
-  "boto3-stubs >= 1.24.39",
-  "coverage",
-  "flake8",
-  "interrogate",
-  "isort",
-  "mkdocs",
-  "mkdocs-gen-files",
-  "mkdocs-material",
-  "mkdocstrings-python-legacy",
-  # moto 4.2.5 broke something fairly deep in our test suite https://github.com/PrefectHQ/prefect-aws/issues/318
-  "moto >= 3.1.16, < 4.2.5",
-  "mypy",
-  "pillow",
-  "pre-commit",
-  "pytest >= 8.3",
-  "pytest-asyncio >= 0.18.2, != 0.22.0, < 0.23.0", # Cannot override event loop in 0.23.0. See https://github.com/pytest-dev/pytest-asyncio/issues/706 for more details.
-  "pytest-cov",
-  "pytest-env",
-  "pytest-xdist",
-  "types-boto3 >= 1.0.2",
+    "boto3-stubs[full] >= 1.24.39",
+    "types-aiobotocore[essential,ecs] >= 1.24.39",
+    "coverage",
+    "interrogate",
+    "isort",
+    "mkdocs",
+    "mkdocs-gen-files",
+    "mkdocs-material",
+    "mkdocstrings-python-legacy",
+    "moto[cloudformation]>=5",
+    "mypy",
+    "pillow",
+    "pytest >= 8.3",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-env",
+    "pytest-xdist",
+    "types-boto3 >= 1.0.2",
+    "ruff>=0.12.8",
+    "aws-cdk-lib>=2.212.0",
 ]
 
 [project.urls]
@@ -64,6 +63,18 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 
 [project.entry-points."prefect.collections"]
 prefect_aws = "prefect_aws"
+
+[project.entry-points."prefect.plugins"]
+aws = "prefect_aws.plugins"
+
+[project.scripts]
+prefect-aws = "prefect_aws._cli.main:app"
+
+[tool.setuptools]
+packages = ["prefect_aws"]
+
+[tool.setuptools.package-data]
+prefect_aws = ["templates/**/*.json"]
 
 [tool.setuptools_scm]
 version_file = "prefect_aws/_version.py"
@@ -87,6 +98,7 @@ fail_under = 80
 show_missing = true
 
 [tool.pytest.ini_options]
+testpaths = ["tests", "infra/tests"]
 asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]

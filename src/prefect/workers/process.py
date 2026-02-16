@@ -11,7 +11,7 @@ Replace `my-work-pool` with the name of the work pool you want the worker
 to poll for flow runs.
 
 For more information about work pools and workers,
-checkout out the [Prefect docs](/concepts/work-pools/).
+checkout out the [Prefect docs](https://docs.prefect.io/v3/concepts/work-pools/).
 """
 
 from __future__ import annotations
@@ -34,7 +34,11 @@ from prefect.runner.runner import Runner
 from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
 from prefect.states import Pending
 from prefect.utilities.processutils import get_sys_executable
-from prefect.utilities.services import critical_service_loop
+from prefect.utilities.services import (
+    critical_service_loop,
+    start_client_metrics_server,
+    stop_client_metrics_server,
+)
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -43,6 +47,8 @@ from prefect.workers.base import (
 )
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.flows import Flow
@@ -68,8 +74,16 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
+        worker_id: "UUID | None" = None,
     ) -> None:
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run,
+            deployment,
+            flow,
+            work_pool,
+            worker_name,
+            worker_id=worker_id,
+        )
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
         self.command: str | None = (
@@ -180,6 +194,8 @@ class ProcessWorker(
 
                     self._started_event = await self._emit_worker_started_event()
 
+                    start_client_metrics_server()
+
                     if with_healthcheck:
                         from prefect.workers.server import build_healthcheck_server
 
@@ -196,7 +212,18 @@ class ProcessWorker(
                         )
                         healthcheck_thread.start()
                     printer(f"Worker {worker.name!r} started!")
+
+                # If running once, wait for active runs to complete before exiting
+                if run_once and self._limiter:
+                    while self.limiter.borrowed_tokens > 0:
+                        self._logger.debug(
+                            "Waiting for %s active run(s) to finish before shutdown...",
+                            self.limiter.borrowed_tokens,
+                        )
+                        await anyio.sleep(0.1)
         finally:
+            stop_client_metrics_server()
+
             if healthcheck_server and healthcheck_thread:
                 self._logger.debug("Stopping healthcheck server...")
                 healthcheck_server.should_exit = True
@@ -229,12 +256,16 @@ class ProcessWorker(
                 task_status=task_status,
             )
 
-        if process is None or process.returncode is None:
+        status_code = (
+            getattr(process, "returncode", None)
+            if getattr(process, "returncode", None) is not None
+            else getattr(process, "exitcode", None)
+        )
+
+        if process is None or status_code is None:
             raise RuntimeError("Failed to start flow run process.")
 
-        return ProcessWorkerResult(
-            status_code=process.returncode, identifier=str(process.pid)
-        )
+        return ProcessWorkerResult(status_code=status_code, identifier=str(process.pid))
 
     async def _submit_adhoc_run(
         self,
@@ -242,18 +273,27 @@ class ProcessWorker(
         parameters: dict[str, Any] | None = None,
         job_variables: dict[str, Any] | None = None,
         task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
+        flow_run: "FlowRun | None" = None,
     ):
         from prefect._experimental.bundles import (
             create_bundle_for_flow_run,
         )
 
-        flow_run = await self.client.create_flow_run(
-            flow,
-            parameters=parameters,
-            state=Pending(),
-            job_variables=job_variables,
-            work_pool_name=self.work_pool.name,
-        )
+        if flow_run is None:
+            flow_run = await self.client.create_flow_run(
+                flow,
+                parameters=parameters,
+                state=Pending(),
+                job_variables=job_variables,
+                work_pool_name=self.work_pool.name,
+            )
+        else:
+            # Reuse existing flow run - set state to Pending for retry
+            await self.client.set_flow_run_state(
+                flow_run.id,
+                Pending(),
+                force=True,
+            )
         if task_status is not None:
             # Emit the flow run object to .submit to allow it to return a future as soon as possible
             task_status.started(flow_run)
@@ -273,12 +313,12 @@ class ProcessWorker(
             worker_name=self.name,
         )
 
-        bundle = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
 
         logger.debug("Executing flow run bundle in subprocess...")
         try:
             await self._runner.execute_bundle(
-                bundle=bundle,
+                bundle=result["bundle"],
                 cwd=configuration.working_dir,
                 env=configuration.env,
             )

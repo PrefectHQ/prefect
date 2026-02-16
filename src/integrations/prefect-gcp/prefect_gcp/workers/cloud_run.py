@@ -154,6 +154,8 @@ Read more about configuring work pools
     ```
 """
 
+from __future__ import annotations
+
 import re
 import shlex
 import time
@@ -169,7 +171,8 @@ from googleapiclient.discovery import Resource
 from jsonpatch import JsonPatch
 from pydantic import Field, field_validator
 
-from prefect.logging.loggers import PrefectLogAdapter
+from prefect.exceptions import InfrastructureNotFound
+from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import (
@@ -179,9 +182,12 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 from prefect_gcp.credentials import GcpCredentials
+from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
 from prefect_gcp.utilities import Execution, Job, slugify_name
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from prefect.client.schemas.objects import Flow, FlowRun, WorkPool
     from prefect.client.schemas.responses import DeploymentResponse
 
@@ -273,6 +279,8 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
             will actively try to mark it failed and kill associated containers
             (maximum of 3600 seconds, 1 hour).
         keep_job: Whether to delete the Cloud Run Job after it completes.
+        prefect_api_key_secret: A GCP secret containing a Prefect API Key.
+        prefect_api_auth_string_secret: A GCP secret containing a Prefect API authorization string.
     """
 
     region: str = Field(
@@ -284,6 +292,25 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         description="The GCP Credentials used to connect to Cloud Run. "
         "If not provided credentials will be inferred from "
         "the local environment.",
+    )
+    prefect_api_key_secret: Optional[SecretKeySelector] = Field(
+        title="Prefect API Key Secret",
+        default=None,
+        description=(
+            "A GCP secret containing a Prefect API Key. This key will be used "
+            "to authenticate Cloud Run tasks with Prefect Cloud. If not provided, the "
+            "PREFECT_API_KEY environment variable will be used if the worker has one."
+        ),
+    )
+    prefect_api_auth_string_secret: Optional[SecretKeySelector] = Field(
+        title="Prefect API Auth String Secret",
+        default=None,
+        description=(
+            "A GCP secret containing a Prefect API authorization string. This "
+            "string will be used to authenticate Cloud Run tasks with Prefect Cloud. "
+            "If not provided, the PREFECT_API_AUTH_STRING environment variable will be "
+            "used if the worker has one."
+        ),
     )
     job_body: Dict[str, Any] = Field(
         json_schema_extra=dict(template=_get_default_job_body_template())
@@ -314,6 +341,23 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         """property for accessing the name from the job metadata."""
         return self.job_body["metadata"]["name"]
 
+    def _get_flow_run_logger(
+        self,
+        flow_run: "FlowRun",
+        work_pool: "WorkPool | None" = None,
+        worker_name: str | None = None,
+    ) -> PrefectLogAdapter:
+        extra = {
+            "work_pool_name": (work_pool.name if work_pool else "<unknown>"),
+            "worker_name": worker_name if worker_name else "<unknown>",
+            "work_pool_id": str(work_pool.id if work_pool else "unknown"),
+        }
+
+        return flow_run_logger(flow_run=flow_run).getChild(
+            "worker",
+            extra=extra,
+        )
+
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
@@ -321,6 +365,7 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         flow: Optional["Flow"] = None,
         work_pool: Optional["WorkPool"] = None,
         worker_name: Optional[str] = None,
+        worker_id: Optional["UUID"] = None,
     ):
         """
         Prepares the job configuration for a flow run.
@@ -334,9 +379,12 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
                 preparation.
             flow: The flow associated with the flow run used for preparation.
         """
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
+        )
 
         self._populate_envs()
+        self._warn_about_plaintext_credentials(flow_run, worker_name, work_pool)
         self._populate_or_format_command()
         self._format_args_if_present()
         self._populate_image_if_not_present()
@@ -346,10 +394,83 @@ class CloudRunWorkerJobConfiguration(BaseJobConfiguration):
         """Populate environment variables. BaseWorker.prepare_for_flow_run handles
         putting the environment variables in the `env` attribute. This method
         moves them into the jobs body"""
-        envs = [{"name": k, "value": v} for k, v in self.env.items()]
+
+        # Create a copy of the environment variables to avoid modifying the original
+        env_copy = self.env.copy()
+
+        # Remove Prefect API credentials from environment if secrets are provided
+        if self.prefect_api_key_secret:
+            env_copy.pop("PREFECT_API_KEY", None)
+        if self.prefect_api_auth_string_secret:
+            env_copy.pop("PREFECT_API_AUTH_STRING", None)
+
+        # Set regular environment variables
+        envs = [{"name": k, "value": v} for k, v in env_copy.items()]
+
+        # Add secret-based environment variables
+        if self.prefect_api_key_secret:
+            envs.append(
+                {
+                    "name": "PREFECT_API_KEY",
+                    "valueFrom": {
+                        "secretKeyRef": {
+                            "name": self.prefect_api_key_secret.secret,
+                            "key": self.prefect_api_key_secret.version,
+                        }
+                    },
+                }
+            )
+
+        if self.prefect_api_auth_string_secret:
+            envs.append(
+                {
+                    "name": "PREFECT_API_AUTH_STRING",
+                    "valueFrom": {
+                        "secretKeyRef": {
+                            "name": self.prefect_api_auth_string_secret.secret,
+                            "key": self.prefect_api_auth_string_secret.version,
+                        }
+                    },
+                }
+            )
+
         self.job_body["spec"]["template"]["spec"]["template"]["spec"]["containers"][0][
             "env"
         ] = envs
+
+    def _warn_about_plaintext_credentials(
+        self,
+        flow_run: "FlowRun",
+        worker_name: str | None = None,
+        work_pool: "WorkPool | None" = None,
+    ):
+        """
+        Warns about plaintext credentials when no secrets are configured.
+        """
+        if "PREFECT_API_KEY" in self.env and not self.prefect_api_key_secret:
+            self._get_flow_run_logger(
+                flow_run=flow_run,
+                worker_name=worker_name,
+                work_pool=work_pool,
+            ).warning(
+                "PREFECT_API_KEY is provided as a plaintext environment variable. "
+                "For better security, consider providing it as a secret using "
+                "'prefect_api_key_secret' in your base job template."
+            )
+
+        if (
+            "PREFECT_API_AUTH_STRING" in self.env
+            and not self.prefect_api_auth_string_secret
+        ):
+            self._get_flow_run_logger(
+                flow_run=flow_run,
+                worker_name=worker_name,
+                work_pool=work_pool,
+            ).warning(
+                "PREFECT_API_AUTH_STRING is provided as a plaintext environment variable. "
+                "For better security, consider providing it as a secret using "
+                "'prefect_api_auth_string_secret' in your base job template."
+            )
 
     def _populate_name_if_not_present(self):
         """Adds the flow run name to the job if one is not already provided."""
@@ -464,6 +585,25 @@ class CloudRunWorkerVariables(BaseVariables):
         description="The GCP Credentials used to initiate the "
         "Cloud Run Job. If not provided credentials will be "
         "inferred from the local environment.",
+    )
+    prefect_api_key_secret: Optional[SecretKeySelector] = Field(
+        title="Prefect API Key Secret",
+        default=None,
+        description=(
+            "A GCP secret containing a Prefect API Key. This key will be used "
+            "to authenticate Cloud Run tasks with Prefect Cloud. If not provided, the "
+            "PREFECT_API_KEY environment variable will be used if the worker has one."
+        ),
+    )
+    prefect_api_auth_string_secret: Optional[SecretKeySelector] = Field(
+        title="Prefect API Auth String Secret",
+        default=None,
+        description=(
+            "A GCP secret containing a Prefect API authorization string. This "
+            "string will be used to authenticate Cloud Run tasks with Prefect Cloud. "
+            "If not provided, the PREFECT_API_AUTH_STRING environment variable will be "
+            "used if the worker has one."
+        ),
     )
     image: Optional[str] = Field(
         default=None,
@@ -725,6 +865,14 @@ class CloudRunWorker(BaseWorker):
                 job_execution=execution,
                 poll_interval=poll_interval,
             )
+        except InfrastructureNotFound:
+            logger.info(
+                f"Cloud Run Job {configuration.job_name!r} was deleted. "
+                "The flow run will be marked based on its current state."
+            )
+            return CloudRunWorkerResult(
+                identifier=configuration.job_name, status_code=-1
+            )
         except Exception:
             logger.exception(
                 "Received an unexpected exception while monitoring Cloud Run Job "
@@ -771,13 +919,23 @@ class CloudRunWorker(BaseWorker):
     ):
         """
         Update job_execution status until it is no longer running.
+
+        Raises:
+            InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
         while job_execution.is_running():
-            job_execution = Execution.get(
-                client=client,
-                namespace=job_execution.namespace,
-                execution_name=job_execution.name,
-            )
+            try:
+                job_execution = Execution.get(
+                    client=client,
+                    namespace=job_execution.namespace,
+                    execution_name=job_execution.name,
+                )
+            except googleapiclient.errors.HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run execution {job_execution.name!r} was deleted."
+                    ) from exc
+                raise
 
             time.sleep(poll_interval)
 
@@ -811,3 +969,54 @@ class CloudRunWorker(BaseWorker):
             )
 
             time.sleep(poll_interval)
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: CloudRunWorkerJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Kill a Cloud Run Job by deleting it.
+
+        Args:
+            infrastructure_pid: The job name.
+            configuration: The job configuration used to connect to GCP.
+            grace_seconds: Not used for Cloud Run (GCP handles graceful shutdown).
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        job_name = infrastructure_pid
+
+        await run_sync_in_worker_thread(self._delete_job, job_name, configuration)
+
+    def _delete_job(
+        self, job_name: str, configuration: CloudRunWorkerJobConfiguration
+    ) -> None:
+        """
+        Delete a Cloud Run Job.
+
+        Args:
+            job_name: The name of the job to delete.
+            configuration: The job configuration used to connect to GCP.
+
+        Raises:
+            InfrastructureNotFound: If the job doesn't exist.
+        """
+        with self._get_client(configuration) as client:
+            try:
+                Job.delete(
+                    client=client,
+                    namespace=configuration.project,
+                    job_name=job_name,
+                )
+                self._logger.info(
+                    f"Deleted Cloud Run Job {job_name!r} in project {configuration.project!r}"
+                )
+            except googleapiclient.errors.HttpError as exc:
+                if exc.status_code == 404:
+                    raise InfrastructureNotFound(
+                        f"Cloud Run Job {job_name!r} not found in project {configuration.project!r}"
+                    )
+                raise

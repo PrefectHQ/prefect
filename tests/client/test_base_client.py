@@ -2,15 +2,16 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Dict, List, Tuple
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
 from httpx import AsyncClient, Request, Response
-from starlette import status
 
 import prefect
 import prefect.client
 import prefect.client.constants
+from prefect._internal.compatibility.starlette import status
 from prefect.client.base import (
     PrefectHttpxAsyncClient,
     PrefectResponse,
@@ -29,7 +30,6 @@ from prefect.settings import (
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     temporary_settings,
 )
-from prefect.testing.utilities import AsyncMock
 
 now = datetime.now(timezone.utc)
 
@@ -498,6 +498,64 @@ class TestPrefectHttpxAsyncClient:
                 )
 
         mock_anyio_sleep.assert_not_called()
+
+    async def test_prefect_httpx_client_does_not_retry_connect_error_on_first_request(
+        self, mock_anyio_sleep, monkeypatch
+    ):
+        """ConnectError should NOT be retried on the first request (before any successful connection)."""
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxAsyncClient()
+
+        # Simulate connection refused on first attempt
+        base_client_send.side_effect = [httpx.ConnectError("Connection refused")]
+
+        with pytest.raises(httpx.ConnectError, match="Connection refused"):
+            async with client:
+                await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
+
+        # Should not have retried
+        assert base_client_send.call_count == 1
+        mock_anyio_sleep.assert_not_called()
+
+    @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
+    async def test_prefect_httpx_client_retries_connect_error_after_successful_connection(
+        self, monkeypatch, caplog
+    ):
+        """ConnectError SHOULD be retried after a successful connection has been made."""
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        client = PrefectHttpxAsyncClient()
+
+        # First request succeeds, subsequent requests fail with ConnectError then succeed
+        base_client_send.side_effect = [
+            RESPONSE_200,  # First request succeeds, sets _has_connected=True
+            httpx.ConnectError("Connection refused"),  # Second request fails
+            httpx.ConnectError("Connection refused"),  # Retry 1
+            httpx.ConnectError("Connection refused"),  # Retry 2
+            RESPONSE_200,  # Retry 3 succeeds
+        ]
+
+        async with client:
+            # First request - establishes connection
+            response1 = await client.get(url="fake.url/fake/route")
+            assert response1.status_code == status.HTTP_200_OK
+
+            # Second request - should retry on ConnectError
+            response2 = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
+            assert response2.status_code == status.HTTP_200_OK
+
+        # 1 initial + 1 failed + 3 retries (2 failures + 1 success) = 5
+        assert base_client_send.call_count == 5
+
+        # We should see retry logging
+        assert "Encountered retryable exception during request" in caplog.text
 
     async def test_prefect_httpx_client_returns_prefect_response(self, monkeypatch):
         """Test that the PrefectHttpxAsyncClient returns a PrefectResponse"""

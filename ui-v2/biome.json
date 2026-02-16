@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.0/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -30,7 +30,8 @@
 			"correctness": {
 				"noUnusedVariables": "error",
 				"noUnusedImports": "error",
-				"noUnusedFunctionParameters": "error"
+				"noUnusedFunctionParameters": "error",
+				"noUnknownPseudoElement": "off"
 			},
 			"style": {
 				"noParameterAssign": "error",
@@ -49,6 +50,12 @@
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "double"
+		}
+	},
+	"css": {
+		"parser": {
+			"cssModules": true,
+			"tailwindDirectives": true
 		}
 	}
 }

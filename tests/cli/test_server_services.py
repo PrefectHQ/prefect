@@ -23,6 +23,7 @@ def enable_all_services():
 @pytest.fixture
 def pid_file(monkeypatch: pytest.MonkeyPatch) -> Path:
     pid_file = Path(PREFECT_HOME.value()) / "services.pid"
+    monkeypatch.setattr("prefect.cli._server_utils.SERVICES_PID_FILE", pid_file)
     monkeypatch.setattr("prefect.cli.server.SERVICES_PID_FILE", pid_file)
     return pid_file
 
@@ -124,10 +125,9 @@ class TestBackgroundServices:
             ],
             expected_output_contains=[
                 "Available Services",
-                "MarkLateRuns",
-                "PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED",
-                "Telemetry",
-                "PREFECT_SERVER_ANALYTICS_ENABLED",
+                "TaskRunRecorder",
+                # May be truncated in table display
+                "PREFECT_SERVER_SERVICES_TASK_RUN_RECORDER",
             ],
             expected_code=0,
         )

@@ -299,14 +299,55 @@ async def test_listing_blocks_after_saving_a_block():
     )
 
 
+def test_listing_blocks_when_none_are_registered_not_json_output():
+    invoke_and_assert(
+        ["block", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
+def test_listing_blocks_when_none_are_registered_json_output():
+    invoke_and_assert(
+        ["block", "ls", "-o", "json"],
+        expected_output_contains="[]",
+        expected_code=0,
+    )
+
+
+async def test_listing_blocks_after_saving_a_block_json_output():
+    block_id = await system.Secret(value="a casual test block").save("wildblock")
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "json"],
+        expected_output_contains=[
+            "id",
+            "type",
+            "name",
+            "slug",
+            str(block_id),
+            "secret",
+            "wildblock",
+        ],
+    )
+
+
+async def test_listing_blocks_after_saving_a_block_not_json_output():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["block", "ls", "-o", "xml"],
+        expected_output_contains="Only 'json' output format is supported.",
+        expected_code=1,
+    )
+
+
 def test_listing_system_block_types(register_block_types):
     expected_output = (
         "Block Types",
         "Slug",
         "Description",
         "slack",
-        "date-time",
-        "json",
         "local-file-system",
         "remote-file-system",
         "secret",
@@ -320,14 +361,32 @@ def test_listing_system_block_types(register_block_types):
     )
 
 
-async def test_inspecting_a_block(ignore_prefect_deprecation_warnings):
-    await system.JSON(value="a simple json blob").save("jsonblob")
+def test_listing_system_block_types_json_output(register_block_types):
+    expected_output = (
+        "slug",
+        "description",
+        "slack",
+        "local-file-system",
+        "remote-file-system",
+        "secret",
+        "slack-webhook",
+    )
 
-    expected_output = ("Block Type", "Block id", "value", "a simple json blob")
+    invoke_and_assert(
+        ["block", "type", "ls", "-o", "json"],
+        expected_code=0,
+        expected_output_contains=expected_output,
+    )
+
+
+async def test_inspecting_a_block():
+    await system.Secret(value="sk-1234567890").save("secretblob")
+
+    expected_output = ("Block Type", "Block id", "value", "********")
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        ["block", "inspect", "json/jsonblob"],
+        ["block", "inspect", "secret/secretblob"],
         expected_code=0,
         expected_output_contains=expected_output,
     )
@@ -432,7 +491,7 @@ def test_deleting_a_protected_block_type(
     expected_output = "is a protected block"
 
     invoke_and_assert(
-        ["block", "type", "delete", "json"],
+        ["block", "type", "delete", "secret"],
         expected_code=1,
         user_input="y",
         expected_output_contains=expected_output,

@@ -6,6 +6,7 @@ from conftest import CosmosClientMock
 from prefect_azure.credentials import (
     AzureBlobStorageCredentials,
     AzureCosmosDbCredentials,
+    AzureDevopsCredentials,
     AzureMlCredentials,
 )
 from pydantic import SecretStr
@@ -135,3 +136,166 @@ def test_get_workspace(monkeypatch):
         assert isinstance(workspace, MagicMock)
 
     test_flow()
+
+
+def test_get_azuredevops_auth_header_valid_token():
+    @flow
+    def test_flow():
+        creds = AzureDevopsCredentials(token=SecretStr("fake-pat"))
+        auth_header = creds.get_auth_header()
+
+        import base64
+
+        expected_token = base64.b64encode(b":fake-pat").decode()
+        assert auth_header == {"Authorization": f"Basic {expected_token}"}
+
+    test_flow()
+
+
+def test_get_azuredevops_auth_header_missing_token():
+    @flow
+    def test_flow():
+        creds = AzureDevopsCredentials(token=None)
+        creds.get_auth_header()
+
+    with pytest.raises(ValueError, match="Azure DevOps Personal Access Token.*not set"):
+        test_flow()
+
+
+# Service Principal Authentication Tests for AzureBlobStorageCredentials
+
+
+def test_spn_requires_all_fields():
+    """Test that partial SPN credentials raise an error."""
+    with pytest.raises(
+        ValueError,
+        match="If any of `client_id`, `tenant_id`, or `client_secret` are provided",
+    ):
+        AzureBlobStorageCredentials(
+            account_url="https://test.blob.core.windows.net",
+            client_id="client-id",
+            # Missing tenant_id and client_secret
+        )
+
+
+def test_spn_requires_account_url():
+    """Test that SPN credentials without account_url raise an error."""
+    with pytest.raises(
+        ValueError, match="Must provide `account_url` when using service principal"
+    ):
+        AzureBlobStorageCredentials(
+            client_id="client-id",
+            tenant_id="tenant-id",
+            client_secret=SecretStr("client-secret"),
+        )
+
+
+def test_spn_cannot_combine_with_connection_string():
+    """Test that SPN credentials cannot be combined with connection string."""
+    with pytest.raises(
+        ValueError,
+        match="Cannot provide both a connection string and service principal",
+    ):
+        AzureBlobStorageCredentials(
+            account_url="https://test.blob.core.windows.net",
+            connection_string="connection-string",
+            client_id="client-id",
+            tenant_id="tenant-id",
+            client_secret=SecretStr("client-secret"),
+        )
+
+
+def test_spn_get_service_client(account_url, monkeypatch):
+    """Test that SPN credentials work with get_client."""
+    mock_client_secret_credential = MagicMock()
+    monkeypatch.setattr(
+        "prefect_azure.credentials.AClientSecretCredential",
+        mock_client_secret_credential,
+    )
+
+    creds = AzureBlobStorageCredentials(
+        account_url=account_url,
+        client_id="client-id",
+        tenant_id="tenant-id",
+        client_secret=SecretStr("client-secret"),
+    )
+    client = creds.get_client()
+    assert isinstance(client, BlobServiceClient)
+    mock_client_secret_credential.assert_called_once_with(
+        tenant_id="tenant-id",
+        client_id="client-id",
+        client_secret="client-secret",
+    )
+
+
+def test_spn_get_blob_client(account_url, monkeypatch):
+    """Test that SPN credentials work with get_blob_client."""
+    mock_client_secret_credential = MagicMock()
+    monkeypatch.setattr(
+        "prefect_azure.credentials.AClientSecretCredential",
+        mock_client_secret_credential,
+    )
+
+    creds = AzureBlobStorageCredentials(
+        account_url=account_url,
+        client_id="client-id",
+        tenant_id="tenant-id",
+        client_secret=SecretStr("client-secret"),
+    )
+    client = creds.get_blob_client("container", "blob")
+    assert isinstance(client, BlobClient)
+    assert client.container_name == "container"
+    assert client.blob_name == "blob"
+    mock_client_secret_credential.assert_called_once_with(
+        tenant_id="tenant-id",
+        client_id="client-id",
+        client_secret="client-secret",
+    )
+
+
+def test_spn_get_container_client(account_url, monkeypatch):
+    """Test that SPN credentials work with get_container_client."""
+    mock_client_secret_credential = MagicMock()
+    monkeypatch.setattr(
+        "prefect_azure.credentials.AClientSecretCredential",
+        mock_client_secret_credential,
+    )
+
+    creds = AzureBlobStorageCredentials(
+        account_url=account_url,
+        client_id="client-id",
+        tenant_id="tenant-id",
+        client_secret=SecretStr("client-secret"),
+    )
+    client = creds.get_container_client("container")
+    assert isinstance(client, ContainerClient)
+    assert client.container_name == "container"
+    mock_client_secret_credential.assert_called_once_with(
+        tenant_id="tenant-id",
+        client_id="client-id",
+        client_secret="client-secret",
+    )
+
+
+def test_spn_credential_reuse(account_url, monkeypatch):
+    """Test that the credential is reused across multiple client calls."""
+    mock_client_secret_credential = MagicMock()
+    monkeypatch.setattr(
+        "prefect_azure.credentials.AClientSecretCredential",
+        mock_client_secret_credential,
+    )
+
+    creds = AzureBlobStorageCredentials(
+        account_url=account_url,
+        client_id="client-id",
+        tenant_id="tenant-id",
+        client_secret=SecretStr("client-secret"),
+    )
+
+    # Make multiple client calls
+    creds.get_client()
+    creds.get_blob_client("container", "blob")
+    creds.get_container_client("container")
+
+    # Credential should only be created once
+    mock_client_secret_credential.assert_called_once()

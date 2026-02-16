@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
 Tasks are defined as decorated Python functions. Above, `explain_tasks` is an instance of a task.
 
-Tasks are cache-able and retryable units of work that are easy to execute concurrently, in parallel, and/or with [transactional semantics](/v3/concepts/transactions/).
+Tasks are cache-able and retryable units of work that are easy to execute concurrently, in parallel, and/or with [transactional semantics](/v3/advanced/transactions).
 
 Like flows, tasks are free to call other tasks or flows, there is no required nesting pattern.
 
@@ -57,14 +57,14 @@ flowchart TD
     B -.->|💥 Infrastructure failure| E[Crashed]
     D -->|🔄 Retry attempt| B
     D -.->|😵 Retries exhausted| F[Failed]
-    
+
     style A fill:#f9f,stroke:#333,stroke-width:2px,color:#000
     style B fill:#9ff,stroke:#333,stroke-width:2px,color:#000
     style C fill:#9f9,stroke:#333,stroke-width:2px,color:#000
     style D fill:#ff9,stroke:#333,stroke-width:2px,color:#000
     style E fill:#f66,stroke:#333,stroke-width:2px,color:#fff
     style F fill:#f99,stroke:#333,stroke-width:2px,color:#000
-    
+
     classDef default fill-opacity:0.9
 ```
 
@@ -76,7 +76,11 @@ When using `.delay()`, background tasks start in a `Scheduled` state before tran
 
 ### Different ways to create a task run
 
-The simplest way to create a task run is to call a `@task` decorated function (i.e. `__call__`), just like a normal Python function.
+There are three primary ways to invoke a task, each suited to different execution patterns:
+
+#### Calling a task directly (`__call__`)
+
+The simplest way to create a task run is to call a `@task` decorated function directly, just like a normal Python function. This blocks the calling thread until the task completes and returns the result.
 
 ```python
 from prefect import task
@@ -86,13 +90,61 @@ def add_integers(a: int, b: int) -> int:
     return a + b
 
 if __name__ == "__main__":
-    add_integers(1, 2)
+    result = add_integers(1, 2)  # blocks until complete, returns 3
 ```
 
-Tasks may be submitted to a [task runner](/v3/how-to-guides/workflows/run-work-concurrently#task-runners) for concurrent execution where the eventual result is desired.
+Use direct calls when you need the result immediately and don't require concurrent execution.
 
+#### Submitting a task (`.submit()`)
 
-When the result of a task is not required by the caller, it may be delayed to static infrastructure in the background for execution by an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#task-workers).
+Tasks may be submitted to a [task runner](/v3/concepts/task-runners) for concurrent execution. Calling `.submit()` returns a `PrefectFuture` immediately, allowing the calling code to continue while the task runs in the background.
+
+```python
+from prefect import flow, task
+
+@task
+def add_integers(a: int, b: int) -> int:
+    return a + b
+
+@flow
+def my_flow():
+    future = add_integers.submit(1, 2)  # returns immediately
+    # do other work...
+    result = future.result()  # blocks until complete, returns 3
+```
+
+The future should be resolved (via `.result()` or `.wait()`) from the same context that submitted it. Use `.submit()` when you want to run multiple tasks concurrently within a flow or need fine-grained control over when to wait for results.
+
+For more details on concurrent execution patterns, see [how to run work concurrently](/v3/how-to-guides/workflows/run-work-concurrently).
+
+#### Delaying a task (`.delay()`)
+
+When the result of a task is not required by the caller, it may be delayed to run on separate infrastructure by an available [task worker](/v3/how-to-guides/workflows/run-background-tasks#task-workers). Like `.submit()`, calling `.delay()` returns a `PrefectFuture` immediately, but this future does not need to be resolved from the context that submitted it.
+
+```python
+from prefect import task
+
+@task
+def send_email(to: str, subject: str):
+    # send email...
+    pass
+
+# In a web endpoint handler:
+future = send_email.delay("user@example.com", "Welcome!")  # returns immediately
+# The HTTP response can return without waiting for the email to send
+```
+
+Use `.delay()` for fire-and-forget scenarios like web applications where you need to dispatch work without blocking the response, or when you want to scale task execution independently from the main application.
+
+For implementation details, see [how to run background tasks](/v3/how-to-guides/workflows/run-background-tasks).
+
+#### Comparison summary
+
+| Method | Blocks? | Returns | Resolve from same context? | Use case |
+|--------|---------|---------|---------------------------|----------|
+| `task()` | Yes | Result | N/A | Simple, sequential execution |
+| `task.submit()` | No | `PrefectFuture` | Yes | Concurrent execution within a flow |
+| `task.delay()` | No | `PrefectFuture` | No | Background execution on separate infrastructure |
 
 ## Task orchestration model
 ### Client-side orchestration
@@ -115,14 +167,14 @@ Each task offers isolated observability within the Prefect UI. Task-level metric
 <Note>
 **How big should a task be?**
 
-Prefect encourages "small tasks." As a rule of thumb, each task should represent a logical step or significant "side effect" in your workflow. 
+Prefect encourages "small tasks." As a rule of thumb, each task should represent a logical step or significant "side effect" in your workflow.
 This allows task-level observability and orchestration to narrate your workflow out-of-the-box.
 
 <img src="/v3/img/concepts/narrative-encapsulation.png" alt="Narrative encapsulation" />
 
 </Note>
 
-For detailed configuration options and implementation guidance, see [how to write and run workflows](/v3/how-to-guides/workflows/write-and-run). 
+For detailed configuration options and implementation guidance, see [how to write and run workflows](/v3/how-to-guides/workflows/write-and-run).
 
 ## Background tasks
 

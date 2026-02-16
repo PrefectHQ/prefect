@@ -3,11 +3,13 @@ from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
 from typing import AsyncGenerator
-from uuid import UUID
+from unittest.mock import AsyncMock, patch
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.server.events.ordering import PRECEDING_EVENT_LOOKBACK
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
 from prefect.server.models.task_run_states import (
@@ -20,6 +22,7 @@ from prefect.server.schemas.states import StateDetails, StateType
 from prefect.server.services import task_run_recorder
 from prefect.server.utilities.messaging import MessageHandler, create_publisher
 from prefect.server.utilities.messaging.memory import MemoryMessage
+from prefect.types._datetime import now
 
 
 async def test_start_and_stop_service():
@@ -39,7 +42,9 @@ async def test_start_and_stop_service():
 
 @pytest.fixture
 async def task_run_recorder_handler() -> AsyncGenerator[MessageHandler, None]:
-    async with task_run_recorder.consumer() as handler:
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=1, max_persist_retries=5
+    ) as handler:
         yield handler
 
 
@@ -159,7 +164,7 @@ async def test_handle_client_orchestrated_task_run_event(
     with caplog.at_level("DEBUG"):
         await task_run_recorder_handler(message(client_orchestrated_task_run_event))
 
-    assert "Recorded task run state change" in caplog.text
+    assert "Recorded 1 task run state change(s)" in caplog.text
     assert str(client_orchestrated_task_run_event.id) in caplog.text
 
 
@@ -761,7 +766,7 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
 
     service = task_run_recorder.TaskRunRecorder()
 
-    service_task = asyncio.create_task(service.start())
+    service_task = asyncio.create_task(service.start(max_persist_retries=0))
     await service.started_event.wait()
     service.consumer.subscription.dead_letter_queue_path = tmp_path / "dlq"
 
@@ -791,3 +796,442 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
         await service_task
     except asyncio.CancelledError:
         pass
+
+
+async def test_record_lost_follower_task_run_events_skips_old_events(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    frozen_now = now("UTC")
+
+    old_event = ReceivedEvent(
+        occurred=frozen_now - timedelta(days=1, minutes=1),
+        received=frozen_now - timedelta(days=1),
+        resource={
+            "prefect.resource.id": "prefect.old.12345",
+        },
+        event="old.event",
+        follows=uuid4(),
+        id=uuid4(),
+    )
+
+    get_lost_followers_mock = AsyncMock()
+    get_lost_followers_mock.return_value = [old_event]
+    monkeypatch.setattr(
+        "prefect.server.events.ordering.CausalOrdering.get_lost_followers",
+        get_lost_followers_mock,
+    )
+    record_task_run_event_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_task_run_event",
+        record_task_run_event_mock,
+    )
+
+    await task_run_recorder.record_lost_follower_task_run_events()
+    record_task_run_event_mock.assert_not_awaited()
+
+
+async def test_lost_followers_are_recorded(monkeypatch: pytest.MonkeyPatch):
+    frozen_now = now("UTC")
+    event = ReceivedEvent(
+        occurred=(frozen_now - PRECEDING_EVENT_LOOKBACK) + timedelta(seconds=2),
+        received=(frozen_now - PRECEDING_EVENT_LOOKBACK) + timedelta(seconds=4),
+        event="prefect.task-run.Running",
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{str(uuid4())}",
+            "prefect.state-name": "Running",
+            "prefect.state-type": "RUNNING",
+            "prefect.state-timestamp": (
+                (frozen_now - PRECEDING_EVENT_LOOKBACK) + timedelta(seconds=2)
+            ).isoformat(),
+        },
+        payload={
+            "validated_state": {"type": "RUNNING", "name": "Running", "message": ""},
+            "task_run": {
+                "name": "lost_follower_task",
+                "task_key": "lost-follower-task-xyz",
+                "dynamic_key": "lost-follower-task-xyz-123",
+            },
+        },
+        follows=uuid4(),
+        id=uuid4(),
+    )
+    # record a follower that never sees its leader
+    await task_run_recorder.handle_task_run_events([event])
+
+    record_task_run_event_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_task_run_event",
+        record_task_run_event_mock,
+    )
+
+    # move time forward so we can record the lost follower
+    with patch("prefect.types._datetime.now") as the_future:
+        the_future.return_value = frozen_now + (PRECEDING_EVENT_LOOKBACK * 2)
+        await task_run_recorder.record_lost_follower_task_run_events()
+
+    record_task_run_event_mock.assert_awaited_with(event)
+
+
+async def test_lost_followers_are_recorded_periodically(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    record_lost_follower_task_run_events_mock = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_lost_follower_task_run_events",
+        record_lost_follower_task_run_events_mock,
+    )
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=1, max_persist_retries=5
+    ):
+        await asyncio.sleep(1)
+        assert record_lost_follower_task_run_events_mock.await_count >= 1
+
+
+async def test_batch_recording_of_task_run_events(
+    session: AsyncSession,
+    pending_event: ReceivedEvent,
+    running_event: ReceivedEvent,
+    completed_event: ReceivedEvent,
+    caplog: pytest.LogCaptureFixture,
+):
+    frozen_now = now("UTC")
+    pending_event.occurred = frozen_now
+    running_event.occurred = frozen_now + timedelta(minutes=1)
+    completed_event.occurred = frozen_now + timedelta(minutes=2)
+
+    async with task_run_recorder.consumer(
+        write_batch_size=3, flush_every=10, max_persist_retries=5
+    ) as handler:
+        with caplog.at_level("DEBUG"):
+            await handler(message(pending_event))
+            await handler(message(running_event))
+            await handler(message(completed_event))
+
+    task_run = await read_task_run(
+        session=session,
+        task_run_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+    )
+
+    assert task_run
+    assert task_run.state_type == StateType.COMPLETED
+    assert task_run.state_name == "Completed"
+    assert task_run.state_timestamp == completed_event.occurred
+
+    states = await read_task_run_states(session, task_run.id)
+    assert len(states) == 3
+
+
+async def test_batch_record_timer_flush(
+    session: AsyncSession,
+    pending_event: ReceivedEvent,
+    running_event: ReceivedEvent,
+    completed_event: ReceivedEvent,
+    caplog: pytest.LogCaptureFixture,
+):
+    frozen_now = now("UTC")
+    pending_event.occurred = frozen_now
+    running_event.occurred = frozen_now + timedelta(minutes=1)
+    completed_event.occurred = frozen_now + timedelta(minutes=2)
+
+    async with task_run_recorder.consumer(
+        write_batch_size=10, flush_every=1, max_persist_retries=5
+    ) as handler:
+        with caplog.at_level("DEBUG"):
+            await handler(message(pending_event))
+            await handler(message(running_event))
+            await handler(message(completed_event))
+
+    task_run = await read_task_run(
+        session=session,
+        task_run_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+    )
+
+    assert task_run
+    assert task_run.state_type == StateType.COMPLETED
+    assert task_run.state_name == "Completed"
+    assert task_run.state_timestamp == completed_event.occurred
+
+    states = await read_task_run_states(session, task_run.id)
+    assert len(states) == 3
+
+
+def generate_uuid_with_number(number):
+    return str(number).zfill(8) + str(__import__("uuid").uuid4())[8:]
+
+
+def make_event(
+    i: int, state_ts: datetime, state_type=StateType.RUNNING
+) -> ReceivedEvent:
+    state_ts_str = state_ts.isoformat()
+    task_run_id = generate_uuid_with_number(i)
+    return ReceivedEvent(
+        occurred=state_ts_str,
+        event="prefect.task-run.Running",
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{task_run_id}",
+            "prefect.resource.name": "test-task-run",
+            "prefect.state-message": "",
+            "prefect.state-name": state_type.name.title(),
+            "prefect.state-timestamp": state_ts_str,
+            "prefect.state-type": state_type.name,
+            "prefect.orchestration": "client",
+        },
+        related=[],
+        payload={
+            "intended": {"from": "PENDING", "to": state_type.name},
+            "validated_state": {
+                "type": state_type.name,
+                "name": state_type.name.title(),
+                "message": "",
+            },
+            "task_run": {
+                "name": "test-task-run",
+                "task_key": f"test-task-run-{i}",
+                "dynamic_key": f"test-task-run-{i}-dynamic",
+            },
+        },
+        account=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        workspace=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        received=state_ts_str,
+        id=uuid4(),
+        follows=None,
+    )
+
+
+async def test_record_bulk_task_run_events(session: AsyncSession):
+    """Check we can bulk record task run events and that the task runs and states are created/updated correctly."""
+
+    _NUM_EVENTS = 100
+    base_time = datetime(2022, 1, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
+
+    events = [make_event(i, base_time) for i in range(_NUM_EVENTS)]
+    await task_run_recorder.record_bulk_task_run_events(events)
+
+    for i in range(_NUM_EVENTS):
+        task_run_id = events[i].resource["prefect.resource.id"].split(".")[-1]
+        task_run = await read_task_run(
+            session=session,
+            task_run_id=task_run_id,
+        )
+        assert task_run is not None
+        assert task_run.task_key == f"test-task-run-{i}"
+        assert task_run.dynamic_key == f"test-task-run-{i}-dynamic"
+        assert task_run.state_type == StateType.RUNNING
+
+        states = await read_task_run_states(session, task_run.id)
+        assert len(states) == 1
+        state = states[0]
+        assert state is not None
+        assert state.type == StateType.RUNNING
+        assert state.name == "Running"
+
+    later_time = base_time + timedelta(minutes=1)
+    for i, event in enumerate(events):
+        event.id = UUID(generate_uuid_with_number(i + _NUM_EVENTS))
+        event.occurred = later_time
+        event.resource["prefect.state-timestamp"] = later_time.isoformat()
+        event.resource["prefect.state-type"] = "COMPLETED"
+        event.resource["prefect.state-name"] = "Completed"
+        event.payload["validated_state"] = {
+            "type": "COMPLETED",
+            "name": "Completed",
+            "message": "",
+        }
+        event.event = "prefect.task-run.Completed"
+        event.received = later_time.isoformat()
+
+    await task_run_recorder.record_bulk_task_run_events(events)
+
+    for i in range(_NUM_EVENTS):
+        task_run_id = events[i].resource["prefect.resource.id"].split(".")[-1]
+        task_run = await read_task_run(
+            session=session,
+            task_run_id=task_run_id,
+        )
+        assert task_run is not None
+        assert task_run.state_type == StateType.COMPLETED
+
+        states = await read_task_run_states(session, task_run.id)
+        assert len(states) == 2
+
+        completed_state = next(
+            state for state in states if state.type == StateType.COMPLETED
+        )
+        assert completed_state is not None
+        assert completed_state.name == "Completed"
+
+
+async def test_record_bulk_task_run_events_with_coalescing(session: AsyncSession):
+    """Check that bulk recording of task run events coalesces multiple events for the same task run, keeping only the latest."""
+
+    _NUM_EVENTS = 100
+    base_time = datetime(2022, 1, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
+
+    events = []
+    for i in range(_NUM_EVENTS):
+        running_event = make_event(i, base_time)
+        events.append(running_event)
+
+        completed_event = ReceivedEvent(**running_event.model_dump())
+        completed_time = base_time + timedelta(minutes=15)
+        completed_event.occurred = completed_time.isoformat()
+        completed_event.id = UUID(generate_uuid_with_number(i + _NUM_EVENTS))
+        completed_event.resource["prefect.state-timestamp"] = completed_time.isoformat()
+        completed_event.resource["prefect.state-type"] = "COMPLETED"
+        completed_event.resource["prefect.state-name"] = "Completed"
+        completed_event.payload["validated_state"] = {
+            "type": "COMPLETED",
+            "name": "Completed",
+            "message": "",
+        }
+        completed_event.event = "prefect.task-run.Completed"
+        completed_event.received = completed_time.isoformat()
+        events.append(completed_event)
+
+    await task_run_recorder.record_bulk_task_run_events(events)
+
+    for event in events:
+        task_run_id = event.resource["prefect.resource.id"].split(".")[-1]
+        task_run = await read_task_run(
+            session=session,
+            task_run_id=task_run_id,
+        )
+        assert task_run is not None
+        assert task_run.state_type == StateType.COMPLETED
+
+        states = await read_task_run_states(session, task_run.id)
+        assert len(states) == 2
+        assert set(state.type for state in states) == {
+            StateType.RUNNING,
+            StateType.COMPLETED,
+        }
+
+
+async def test_record_bulk_task_run_events_with_different_column_sets(
+    session: AsyncSession,
+):
+    _NUM_EVENTS = 50
+    base_time = datetime(2022, 1, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
+
+    events = []
+    for i in range(_NUM_EVENTS):
+        if i % 4 == 0:
+            events.append(
+                make_event(i, base_time + timedelta(minutes=2), StateType.COMPLETED)
+            )
+        elif i % 2 == 0:
+            events.append(
+                make_event(i, base_time + timedelta(minutes=1), StateType.RUNNING)
+            )
+        else:
+            events.append(make_event(i, base_time, StateType.PENDING))
+
+    await task_run_recorder.record_bulk_task_run_events(events)
+
+    for i, event in enumerate(events):
+        task_run_id = event.resource["prefect.resource.id"].split(".")[-1]
+        task_run = await read_task_run(
+            session=session,
+            task_run_id=task_run_id,
+        )
+        assert task_run is not None
+
+        states = await read_task_run_states(session, task_run.id)
+        assert len(states) == 1
+
+        if i % 4 == 0:
+            assert states[0].type == StateType.COMPLETED
+        elif i % 2 == 0:
+            assert states[0].type == StateType.RUNNING
+        else:
+            assert states[0].type == StateType.PENDING
+
+
+async def test_subsequent_updates_move_update_timestamp(session: AsyncSession):
+    # Note this timestamp is not what we're asserting on - we're checking the DB insert time via the updated field
+    frozen_now = now("UTC")
+    first_event = make_event(1, frozen_now, StateType.PENDING)
+    second_event = make_event(1, frozen_now, StateType.RUNNING)
+
+    await task_run_recorder.record_bulk_task_run_events([first_event])
+    task_run = await read_task_run(
+        session=session,
+        task_run_id=first_event.resource["prefect.resource.id"].split(".")[-1],
+    )
+    assert task_run is not None
+    first_update_timestamp = task_run.updated
+    assert first_update_timestamp is not None
+
+    await asyncio.sleep(0.1)  # Ensure time difference for updated timestamp
+    await task_run_recorder.record_bulk_task_run_events([second_event])
+    task_run = await read_task_run(
+        session=session,
+        task_run_id=second_event.resource["prefect.resource.id"].split(".")[-1],
+    )
+    assert task_run is not None
+    second_update_timestamp = task_run.updated
+    assert second_update_timestamp is not None
+
+    assert second_update_timestamp > first_update_timestamp
+
+
+async def test_event_retried_on_persist_failure(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that events are retried when handle_task_run_events fails."""
+    call_count = 0
+
+    async def mock_handle_task_run_events(events, depth=0):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("Simulated DB failure")
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.handle_task_run_events",
+        mock_handle_task_run_events,
+    )
+
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=1, max_persist_retries=2
+    ) as handler:
+        with caplog.at_level("ERROR"):
+            await handler(message(pending_event))
+            await asyncio.sleep(1.5)
+
+    assert call_count == 2
+    assert "1 to retry" in caplog.text
+    assert "0 dropped" in caplog.text
+
+
+async def test_event_dropped_after_max_retries_exceeded(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Test that events are dropped after exceeding max_persist_retries."""
+    call_count = 0
+
+    async def mock_handle_task_run_events(events, depth=0):
+        nonlocal call_count
+        call_count += 1
+        raise Exception("Simulated persistent DB failure")
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.handle_task_run_events",
+        mock_handle_task_run_events,
+    )
+
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=1, max_persist_retries=1
+    ) as handler:
+        with caplog.at_level("ERROR"):
+            await handler(message(pending_event))
+            await asyncio.sleep(1.5)
+
+    assert call_count == 2
+    assert "Dropping event" in caplog.text
+    assert "after 2 failed attempts" in caplog.text
+    assert "1 dropped" in caplog.text

@@ -60,9 +60,10 @@ class Settings(PrefectBaseSettings):
 
     profiles_path: Annotated[Path, BeforeValidator(substitute_home_template)] = Field(
         default_factory=default_profiles_path,
+        # Escaped backslashes are to prevent latex rendering
         description=(
-            "The path to a profiles configuration file. Supports $PREFECT_HOME templating."
-            " Defaults to $PREFECT_HOME/profiles.toml."
+            "The path to a profiles configuration file. Supports \\$PREFECT_HOME templating."
+            " Defaults to \\$PREFECT_HOME/profiles.toml."
         ),
     )
 
@@ -236,6 +237,12 @@ class Settings(PrefectBaseSettings):
             self.server.database.connection_url = SecretStr(db_url)
             self.server.database.__pydantic_fields_set__.remove("connection_url")
 
+        if self.connected_to_cloud:
+            # Ensure we don't exceed Cloud's maximum log size
+            self.logging.to_api.max_log_size = min(
+                self.logging.to_api.max_log_size, self.cloud.max_log_size
+            )
+
         return self
 
     @model_validator(mode="after")
@@ -244,6 +251,15 @@ class Settings(PrefectBaseSettings):
         if not self.silence_api_url_misconfiguration:
             _warn_on_misconfigured_api_url(self)
         return self
+
+    @property
+    def connected_to_cloud(self) -> bool:
+        """True when the API URL points at the configured Prefect Cloud API."""
+        return bool(
+            self.api.url
+            and self.cloud.api_url
+            and self.api.url.startswith(self.cloud.api_url)
+        )
 
     ##########################################################################
     # Settings methods

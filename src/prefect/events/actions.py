@@ -1,4 +1,5 @@
 import abc
+from datetime import timedelta
 from typing import Any, Dict, Optional, Union
 from uuid import UUID
 
@@ -7,6 +8,7 @@ from typing_extensions import Literal, Self, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import StateType
+from prefect.types import NonNegativeTimeDelta
 
 
 class Action(PrefectBaseModel, abc.ABC):
@@ -74,6 +76,13 @@ class RunDeployment(DeploymentAction):
             "to use the deployment's default job variables"
         ),
     )
+    schedule_after: NonNegativeTimeDelta = Field(
+        default_factory=lambda: timedelta(0),
+        description=(
+            "The amount of time to wait before running the deployment. "
+            "Defaults to running the deployment immediately."
+        ),
+    )
 
 
 class PauseDeployment(DeploymentAction):
@@ -93,7 +102,7 @@ class ChangeFlowRunState(Action):
 
     type: Literal["change-flow-run-state"] = "change-flow-run-state"
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         None,
         description="The name of the state to change the flow run to",
     )
@@ -101,9 +110,13 @@ class ChangeFlowRunState(Action):
         ...,
         description="The type of the state to change the flow run to",
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None,
         description="An optional message to associate with the state change",
+    )
+    force: bool = Field(
+        False,
+        description="Force the state change even if the transition is not allowed",
     )
 
 
@@ -279,6 +292,7 @@ ActionTypes: TypeAlias = Union[
     RunDeployment,
     PauseDeployment,
     ResumeDeployment,
+    ResumeFlowRun,
     CancelFlowRun,
     ChangeFlowRunState,
     PauseWorkQueue,

@@ -6,24 +6,23 @@ from typing import List, Optional, Type
 
 import typer
 
-from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.cli._prompts import confirm
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
+from prefect.cli._worker_utils import (
+    _check_work_pool_paused,
+    _check_work_queues_paused,
+    _find_package_for_worker_type,
+    _install_package,
+    _load_worker_class,
+    _retrieve_worker_type_from_pool,
+)
 from prefect.cli.root import app, is_interactive
-from prefect.client.collections import get_collections_metadata_client
-from prefect.client.orchestration import get_client
-from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
-from prefect.exceptions import ObjectNotFound
-from prefect.plugins import load_prefect_collections
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
 )
-from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.processutils import (
-    get_sys_executable,
-    run_process,
     setup_signal_handlers_worker,
 )
 from prefect.workers.base import BaseWorker
@@ -88,7 +87,7 @@ async def start(
         None,
         "-l",
         "--limit",
-        help="Maximum number of flow runs to start simultaneously.",
+        help="Maximum number of flow runs to execute concurrently.",
     ),
     with_healthcheck: bool = typer.Option(
         False, help="Start a healthcheck server for the worker."
@@ -175,112 +174,6 @@ async def start(
         app.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
 
 
-async def _check_work_pool_paused(work_pool_name: str) -> bool:
-    try:
-        async with get_client() as client:
-            work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
-            return work_pool.is_paused
-    except ObjectNotFound:
-        return False
-
-
-async def _check_work_queues_paused(
-    work_pool_name: str, work_queues: Optional[List[str]]
-) -> bool:
-    """
-    Check if all work queues in the work pool are paused. If work queues are specified,
-    only those work queues are checked.
-
-    Args:
-        - work_pool_name (str): the name of the work pool to check
-        - work_queues (Optional[List[str]]): the names of the work queues to check
-
-    Returns:
-        - bool: True if work queues are paused, False otherwise
-    """
-    try:
-        work_queues_filter = (
-            WorkQueueFilter(name=WorkQueueFilterName(any_=work_queues))
-            if work_queues
-            else None
-        )
-        async with get_client() as client:
-            wqs = await client.read_work_queues(
-                work_pool_name=work_pool_name, work_queue_filter=work_queues_filter
-            )
-            return all(queue.is_paused for queue in wqs) if wqs else False
-    except ObjectNotFound:
-        return False
-
-
-async def _retrieve_worker_type_from_pool(work_pool_name: Optional[str] = None) -> str:
-    try:
-        async with get_client() as client:
-            work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
-
-        worker_type = work_pool.type
-        app.console.print(
-            f"Discovered type {worker_type!r} for work pool {work_pool.name!r}."
-        )
-
-        if work_pool.is_push_pool or work_pool.is_managed_pool:
-            exit_with_error(
-                "Workers are not required for push work pools. "
-                "See https://docs.prefect.io/latest/deploy/infrastructure-examples/serverless "
-                "for more details."
-            )
-
-    except ObjectNotFound:
-        app.console.print(
-            (
-                f"Work pool {work_pool_name!r} does not exist and no worker type was"
-                " provided. Starting a process worker..."
-            ),
-            style="yellow",
-        )
-        worker_type = "process"
-    return worker_type
-
-
-def _load_worker_class(worker_type: str) -> Optional[Type[BaseWorker]]:
-    try:
-        load_prefect_collections()
-        return lookup_type(BaseWorker, worker_type)
-    except KeyError:
-        return None
-
-
-async def _install_package(
-    package: str, upgrade: bool = False
-) -> Optional[Type[BaseWorker]]:
-    app.console.print(f"Installing {package}...")
-    install_package = KNOWN_EXTRAS_FOR_PACKAGES.get(package, package)
-    command = [get_sys_executable(), "-m", "pip", "install", install_package]
-    if upgrade:
-        command.append("--upgrade")
-    await run_process(command, stream_output=True)
-
-
-async def _find_package_for_worker_type(worker_type: str) -> Optional[str]:
-    async with get_collections_metadata_client() as client:
-        worker_metadata = await client.read_worker_metadata()
-
-    worker_types_with_packages = {
-        worker_type: package_name
-        for package_name, worker_dict in worker_metadata.items()
-        for worker_type in worker_dict
-        if worker_type != "prefect-agent"
-    }
-    try:
-        return worker_types_with_packages[worker_type]
-    except KeyError:
-        app.console.print(
-            f"Could not find a package for worker type {worker_type!r}.",
-            style="yellow",
-        )
-        return None
-
-
 async def _get_worker_class(
     worker_type: Optional[str] = None,
     work_pool_name: Optional[str] = None,
@@ -290,7 +183,9 @@ async def _get_worker_class(
         raise ValueError("Must provide either worker_type or work_pool_name.")
 
     if worker_type is None:
-        worker_type = await _retrieve_worker_type_from_pool(work_pool_name)
+        worker_type = await _retrieve_worker_type_from_pool(
+            app.console, exit_with_error, work_pool_name
+        )
 
     if worker_type == "prefect-agent":
         exit_with_error(
@@ -299,15 +194,15 @@ async def _get_worker_class(
         )
 
     if install_policy == InstallPolicy.ALWAYS:
-        package = await _find_package_for_worker_type(worker_type)
+        package = await _find_package_for_worker_type(app.console, worker_type)
         if package:
-            await _install_package(package, upgrade=True)
+            await _install_package(app.console, package, upgrade=True)
             worker_cls = _load_worker_class(worker_type)
 
     worker_cls = _load_worker_class(worker_type)
 
     if worker_cls is None:
-        package = await _find_package_for_worker_type(worker_type)
+        package = await _find_package_for_worker_type(app.console, worker_type)
         # Check if the package exists
         if package:
             # Prompt to install if the package is not present
@@ -329,7 +224,7 @@ async def _get_worker_class(
 
             # If should_install is True, install the package
             if should_install:
-                await _install_package(package)
+                await _install_package(app.console, package)
                 worker_cls = _load_worker_class(worker_type)
 
     return worker_cls

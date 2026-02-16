@@ -8,9 +8,9 @@ description: Learn how to define automations that trigger actions based on event
 
 On the **Automations** page, select the **+** icon to create a new automation. You'll be prompted to configure:
 
-- A [trigger](#triggers) condition that causes the automation to execute.
-- One or more [actions](#actions) carried out by the automation.
-- [Details](#details) about the automation, such as a name and description.
+- A [trigger](/v3/concepts/automations#triggers) condition that causes the automation to execute.
+- One or more [actions](/v3/concepts/automations#actions) carried out by the automation.
+- Details about the automation, such as a name and description.
 
 import { COMBINED } from "/snippets/resource-management/combined.mdx"
 import { automations } from "/snippets/resource-management/vars.mdx"
@@ -47,9 +47,13 @@ description: Cancels flows running longer than 5 minutes
 enabled: true
 trigger:
   type: event
-  posture: Reactive
-  match_state_name: RUNNING
-  match_state_duration_s: 300  # 5 minutes
+  posture: Proactive
+  expect:
+    - prefect.flow-run.Completed
+  threshold: 1
+  within: 300  # 5 minutes
+  for_each:
+    - prefect.resource.id
 actions:
   - type: cancel-flow-run
 ```

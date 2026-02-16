@@ -5,6 +5,7 @@ from pydantic import AliasChoices, AliasPath, Field
 from pydantic_settings import SettingsConfigDict
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
+from prefect.types import SecondsTimeDelta
 
 
 class ServicesBaseSetting(PrefectBaseSettings):
@@ -74,6 +75,17 @@ class ServerServicesEventPersisterSettings(ServicesBaseSetting):
         ),
     )
 
+    read_batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of events the event persister will attempt to read from the message broker in one batch.",
+        validation_alias=AliasChoices(
+            AliasPath("read_batch_size"),
+            "prefect_server_services_event_persister_read_batch_size",
+            "prefect_api_services_event_persister_read_batch_size",
+        ),
+    )
+
     flush_interval: float = Field(
         default=5,
         gt=0.0,
@@ -93,6 +105,18 @@ class ServerServicesEventPersisterSettings(ServicesBaseSetting):
             AliasPath("batch_size_delete"),
             "prefect_server_services_event_persister_batch_size_delete",
         ),
+    )
+
+    queue_max_size: int = Field(
+        default=50_000,
+        gt=0,
+        description="The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.",
+    )
+
+    max_flush_retries: int = Field(
+        default=5,
+        gt=0,
+        description="The maximum number of consecutive flush failures before events are dropped instead of being re-queued.",
     )
 
 
@@ -228,7 +252,7 @@ class ServerServicesLateRunsSettings(ServicesBaseSetting):
         ),
     )
 
-    after_seconds: timedelta = Field(
+    after_seconds: SecondsTimeDelta = Field(
         default=timedelta(seconds=15),
         description="""
         The late runs service will mark runs as late after they have exceeded their scheduled start time by this many seconds. Defaults to `5` seconds.
@@ -448,6 +472,24 @@ class ServerServicesTaskRunRecorderSettings(ServicesBaseSetting):
         ),
     )
 
+    read_batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of task runs the task run recorder will attempt to read from the message broker in one batch.",
+    )
+
+    batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of task runs the task run recorder will attempt to insert in one batch.",
+    )
+
+    flush_interval: float = Field(
+        default=5,
+        gt=0.0,
+        description="The maximum number of seconds between flushes of the task run recorder.",
+    )
+
 
 class ServerServicesTriggersSettings(ServicesBaseSetting):
     """
@@ -466,6 +508,12 @@ class ServerServicesTriggersSettings(ServicesBaseSetting):
             "prefect_server_services_triggers_enabled",
             "prefect_api_services_triggers_enabled",
         ),
+    )
+
+    read_batch_size: int = Field(
+        default=1,
+        gt=0,
+        description="The number of events the triggers service will attempt to read from the message broker in one batch.",
     )
 
     pg_notify_reconnect_interval_seconds: int = Field(

@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import type { Deployment } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
 import { DeploymentScheduleItem } from "./deployment-schedule-item";
 import { DeploymentScheduleToggle } from "./deployment-schedule-toggle";
 
@@ -38,9 +37,7 @@ export const DeploymentSchedules = ({
 	return (
 		<div className="flex flex-col gap-1">
 			<div className="flex items-center justify-between">
-				<Typography variant="bodySmall" className="text-muted-foreground">
-					Schedules
-				</Typography>
+				<p className="text-sm text-muted-foreground">Schedules</p>
 				{(deploymentSchedulesSorted.length > NUM_SCHEDULES_TO_TOGGLE ||
 					deployment.paused) && (
 					<DeploymentScheduleToggle deployment={deployment} />

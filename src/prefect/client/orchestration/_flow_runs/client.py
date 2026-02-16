@@ -317,6 +317,54 @@ class FlowRunClient(BaseClient):
 
         return FlowRun.model_validate_list(response.json())
 
+    def count_flow_runs(
+        self,
+        *,
+        flow_filter: "FlowFilter | None" = None,
+        flow_run_filter: "FlowRunFilter | None" = None,
+        task_run_filter: "TaskRunFilter | None" = None,
+        deployment_filter: "DeploymentFilter | None" = None,
+        work_pool_filter: "WorkPoolFilter | None" = None,
+        work_queue_filter: "WorkQueueFilter | None" = None,
+    ) -> int:
+        """
+        Returns the count of flow runs matching all criteria for flow runs.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            work_pool_filter: filter criteria for work pools
+            work_queue_filter: filter criteria for work pool queues
+
+        Returns:
+            count of flow runs
+        """
+        body: dict[str, Any] = {
+            "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
+            "flow_runs": (
+                flow_run_filter.model_dump(mode="json", exclude_unset=True)
+                if flow_run_filter
+                else None
+            ),
+            "task_runs": (
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.model_dump(mode="json") if deployment_filter else None
+            ),
+            "work_pools": (
+                work_pool_filter.model_dump(mode="json") if work_pool_filter else None
+            ),
+            "work_pool_queues": (
+                work_queue_filter.model_dump(mode="json") if work_queue_filter else None
+            ),
+        }
+
+        response = self.request("POST", "/flow_runs/count", json=body)
+        return response.json()
+
     def set_flow_run_state(
         self,
         flow_run_id: "UUID | str",
@@ -408,6 +456,7 @@ class FlowRunClient(BaseClient):
             value: The input value.
             sender: The sender of the input.
         """
+        from prefect.client.schemas.objects import FlowRunInput
 
         # Initialize the input to ensure that the key is valid.
         FlowRunInput(flow_run_id=flow_run_id, key=key, value=value)
@@ -766,6 +815,54 @@ class FlowRunAsyncClient(BaseAsyncClient):
         from prefect.client.schemas.objects import FlowRun
 
         return FlowRun.model_validate_list(response.json())
+
+    async def count_flow_runs(
+        self,
+        *,
+        flow_filter: "FlowFilter | None" = None,
+        flow_run_filter: "FlowRunFilter | None" = None,
+        task_run_filter: "TaskRunFilter | None" = None,
+        deployment_filter: "DeploymentFilter | None" = None,
+        work_pool_filter: "WorkPoolFilter | None" = None,
+        work_queue_filter: "WorkQueueFilter | None" = None,
+    ) -> int:
+        """
+        Returns the count of flow runs matching all criteria for flow runs.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            work_pool_filter: filter criteria for work pools
+            work_queue_filter: filter criteria for work pool queues
+
+        Returns:
+            count of flow runs
+        """
+        body: dict[str, Any] = {
+            "flows": flow_filter.model_dump(mode="json") if flow_filter else None,
+            "flow_runs": (
+                flow_run_filter.model_dump(mode="json", exclude_unset=True)
+                if flow_run_filter
+                else None
+            ),
+            "task_runs": (
+                task_run_filter.model_dump(mode="json") if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.model_dump(mode="json") if deployment_filter else None
+            ),
+            "work_pools": (
+                work_pool_filter.model_dump(mode="json") if work_pool_filter else None
+            ),
+            "work_pool_queues": (
+                work_queue_filter.model_dump(mode="json") if work_queue_filter else None
+            ),
+        }
+
+        response = await self.request("POST", "/flow_runs/count", json=body)
+        return response.json()
 
     async def set_flow_run_state(
         self,

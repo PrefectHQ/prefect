@@ -2,10 +2,11 @@ import contextlib
 import datetime
 import math
 import random
-from datetime import timedelta
+from datetime import timedelta, timezone
 from itertools import product
 from typing import Optional
 from unittest import mock
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -26,7 +27,6 @@ from prefect.server.orchestration.core_policy import (
     BypassCancellingFlowRunsWithNoInfra,
     CacheInsertion,
     CacheRetrieval,
-    CopyDeploymentConcurrencyLeaseID,
     CopyScheduledTime,
     CopyTaskParametersID,
     EnforceCancellingToCancelledTransition,
@@ -47,6 +47,7 @@ from prefect.server.orchestration.core_policy import (
     SecureFlowConcurrencySlots,
     SecureTaskConcurrencySlots,
     UpdateFlowRunTrackerOnTasks,
+    ValidateDeploymentConcurrencyAtRunning,
     WaitForScheduledTime,
 )
 from prefect.server.orchestration.rules import (
@@ -58,8 +59,12 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import actions, states
 from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS
-from prefect.testing.utilities import AsyncMock
+from prefect.settings import (
+    PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS,
+    PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION,
+    get_current_settings,
+    temporary_settings,
+)
 from prefect.types._datetime import DateTime, now, parse_datetime
 
 # Convert constants from sets to lists for deterministic ordering of tests
@@ -3138,6 +3143,43 @@ class TestHandleCancellingStateTransitions:
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.CANCELLING
 
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        sorted(
+            list(set(ALL_ORCHESTRATION_STATES) - {states.StateType.CANCELLED, None})
+        ),
+    )
+    async def test_does_not_block_cancelled_to_other_states(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        """
+        The EnforceCancellingToCancelledTransition rule should only apply to
+        CANCELLING states, not CANCELLED states. CANCELLED flows should be
+        allowed to transition to other states (e.g., for retry functionality).
+
+        This is a regression test for https://github.com/PrefectHQ/prefect/issues/20271
+        """
+        initial_state_type = states.StateType.CANCELLED
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with EnforceCancellingToCancelledTransition(
+            ctx, *intended_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        # The rule should NOT reject transitions from CANCELLED state
+        # because this rule is specifically for CANCELLING -> CANCELLED enforcement
+        assert ctx.response_status != SetStateStatus.REJECT
+
 
 class TestBypassCancellingFlowRunsWithNoInfra:
     async def test_rejects_cancelling_scheduled_flow_and_sets_to_cancelled(
@@ -3456,16 +3498,22 @@ class TestFlowConcurrencyLimits:
         limit,
         flow,
         collision_strategy: Optional[schemas.core.ConcurrencyLimitStrategy] = None,
+        grace_period_seconds: Optional[int] = None,
     ):
         deployment_kwargs = {
             "name": f"test-deployment-{uuid4()}",
             "flow_id": flow.id,
             "concurrency_limit": limit,
         }
-        if collision_strategy:
+        if collision_strategy or grace_period_seconds is not None:
             deployment_kwargs["concurrency_options"] = {
                 "collision_strategy": collision_strategy
+                or schemas.core.ConcurrencyLimitStrategy.ENQUEUE
             }
+            if grace_period_seconds is not None:
+                deployment_kwargs["concurrency_options"]["grace_period_seconds"] = (
+                    grace_period_seconds
+                )
 
         deployment = await deployments.create_deployment(
             session=session,
@@ -3743,7 +3791,9 @@ class TestFlowConcurrencyLimits:
 
             async with contextlib.AsyncExitStack() as stack:
                 ctx1_running = await stack.enter_async_context(
-                    CopyDeploymentConcurrencyLeaseID(ctx1_running, *running_transition)
+                    ValidateDeploymentConcurrencyAtRunning(
+                        ctx1_running, *running_transition
+                    )
                 )
                 await ctx1_running.validate_proposed_state()
 
@@ -4555,3 +4605,164 @@ class TestFlowConcurrencyLimits:
 
         lease_ids = await lease_storage.read_active_lease_ids()
         assert len(lease_ids) == 1
+
+    async def test_configurable_initial_lease_duration(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """Test that SecureFlowConcurrencySlots uses configurable initial lease timeout."""
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        # Use temporary_settings to set custom initial lease timeout
+        with temporary_settings(
+            updates={
+                PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION: 123.0
+            }
+        ):
+            ctx = await initialize_orchestration(
+                session, "flow", *pending_transition, deployment_id=deployment.id
+            )
+
+            created_at = datetime.datetime.now(timezone.utc)
+
+            async with contextlib.AsyncExitStack() as stack:
+                ctx = await stack.enter_async_context(
+                    SecureFlowConcurrencySlots(ctx, *pending_transition)
+                )
+                await ctx.validate_proposed_state()
+
+            assert ctx.response_status == SetStateStatus.ACCEPT
+            lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+            assert lease_id is not None
+
+            # Verify the lease was created with updated TTL
+            lease_storage = get_concurrency_lease_storage()
+            lease = await lease_storage.read_lease(lease_id=lease_id)
+            assert lease is not None
+
+            actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
+            assert abs(actual_ttl_seconds - 123.0) < 1  # Within 1 second
+
+    async def test_uses_server_setting_when_concurrency_options_not_set(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """Test that server setting is used when concurrency_options is not set."""
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        created_at = datetime.datetime.now(timezone.utc)
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.read_lease(lease_id=lease_id)
+        assert lease is not None
+
+        expected_seconds = (
+            get_current_settings().server.concurrency.initial_deployment_lease_duration
+        )
+        actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
+        assert abs(actual_ttl_seconds - expected_seconds) < 5
+
+    async def test_uses_server_setting_when_grace_period_seconds_not_set(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """Test that server setting is used when concurrency_options exists but grace_period_seconds is not set."""
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session,
+            1,
+            flow,
+            collision_strategy=schemas.core.ConcurrencyLimitStrategy.ENQUEUE,
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        created_at = datetime.datetime.now(timezone.utc)
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.read_lease(lease_id=lease_id)
+        assert lease is not None
+
+        # Should use server setting (300s by default) when grace_period_seconds is not explicitly set
+        expected_seconds = (
+            get_current_settings().server.concurrency.initial_deployment_lease_duration
+        )
+        actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
+        assert abs(actual_ttl_seconds - expected_seconds) < 5
+
+    async def test_uses_custom_grace_period_when_configured(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """Test that custom grace period is used when configured."""
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow, grace_period_seconds=720
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        created_at = datetime.datetime.now(timezone.utc)
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.read_lease(lease_id=lease_id)
+        assert lease is not None
+
+        actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
+        assert abs(actual_ttl_seconds - 720.0) < 5

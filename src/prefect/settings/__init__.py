@@ -10,11 +10,8 @@ After https://github.com/pydantic/pydantic/issues/9789 is resolved, we will be a
 for settings, at which point we will not need to use the "after" model_validator.
 """
 
-from prefect.settings.legacy import (
-    Setting,
-    _get_settings_fields,
-    _get_valid_setting_names,
-)
+from typing import TYPE_CHECKING
+
 from prefect.settings.models.root import Settings, canonical_environment_prefix
 
 from prefect.settings.profiles import (
@@ -29,11 +26,18 @@ from prefect.settings.profiles import (
 from prefect.settings.context import get_current_settings, temporary_settings
 from prefect.settings.constants import DEFAULT_PROFILES_PATH
 
+if TYPE_CHECKING:
+    from prefect.settings.legacy import Setting
 ############################################################################
 # Allow traditional env var access
 
 
-def __getattr__(name: str) -> Setting:
+def __getattr__(name: str) -> "Setting":
+    from prefect.settings.legacy import (
+        _get_settings_fields,
+        _get_valid_setting_names,
+    )
+
     if name in _get_valid_setting_names(Settings):
         return _get_settings_fields(Settings)[name]
     raise AttributeError(f"{name} is not a Prefect setting.")
@@ -42,7 +46,6 @@ def __getattr__(name: str) -> Setting:
 __all__ = [  # noqa: F822
     "Profile",
     "ProfilesCollection",
-    "Setting",
     "Settings",
     "load_current_profile",
     "update_current_profile",

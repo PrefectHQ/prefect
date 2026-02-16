@@ -16,7 +16,7 @@ from prefect._internal.schemas.validators import (
     validate_basepath,
 )
 from prefect.blocks.core import Block
-from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import filter_files
 
 from ._internal.compatibility.migration import getattr_migration
@@ -159,7 +159,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         else:
             ignore_func = None
 
-        copytree(from_path, local_path, dirs_exist_ok=True, ignore=ignore_func)
+        copytree(
+            from_path, local_path, dirs_exist_ok=True, ignore=ignore_func, symlinks=True
+        )
 
     @async_dispatch(aget_directory)
     def get_directory(
@@ -203,7 +205,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         else:
             ignore_func = None
 
-        copytree(from_path, local_path, dirs_exist_ok=True, ignore=ignore_func)
+        copytree(
+            from_path, local_path, dirs_exist_ok=True, ignore=ignore_func, symlinks=True
+        )
 
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file) as f:
@@ -424,8 +428,32 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
 
-    @sync_compatible
-    async def get_directory(
+    async def aget_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """
+        Downloads a directory from a given remote path to a local directory.
+
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        if from_path is None:
+            from_path = str(self.basepath)
+        else:
+            from_path = self._resolve_path(from_path)
+
+        if local_path is None:
+            local_path = Path(".").absolute()
+
+        # validate that from_path has a trailing slash for proper fsspec behavior across versions
+        if not from_path.endswith("/"):
+            from_path += "/"
+
+        return await run_sync_in_worker_thread(
+            self.filesystem.get, from_path, local_path, recursive=True
+        )
+
+    @async_dispatch(aget_directory)
+    def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
@@ -447,8 +475,63 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return self.filesystem.get(from_path, local_path, recursive=True)
 
-    @sync_compatible
-    async def put_directory(
+    async def aput_directory(
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
+        overwrite: bool = True,
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote directory.
+
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        if to_path is None:
+            to_path = str(self.basepath)
+        else:
+            to_path = self._resolve_path(to_path)
+
+        if local_path is None:
+            local_path = "."
+
+        included_files = None
+        if ignore_file:
+            with open(ignore_file) as f:
+                ignore_patterns = f.readlines()
+
+            included_files = filter_files(
+                local_path, ignore_patterns, include_dirs=True
+            )
+
+        counter = 0
+        for f in Path(local_path).rglob("*"):
+            relative_path = f.relative_to(local_path)
+            if included_files and str(relative_path) not in included_files:
+                continue
+
+            if to_path.endswith("/"):
+                fpath = to_path + relative_path.as_posix()
+            else:
+                fpath = to_path + "/" + relative_path.as_posix()
+
+            if f.is_dir():
+                pass
+            else:
+                f = f.as_posix()
+                if overwrite:
+                    await run_sync_in_worker_thread(
+                        self.filesystem.put_file, f, fpath, overwrite=True
+                    )
+                else:
+                    await run_sync_in_worker_thread(self.filesystem.put_file, f, fpath)
+
+                counter += 1
+
+        return counter
+
+    @async_dispatch(aput_directory)
+    def put_directory(
         self,
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
@@ -501,8 +584,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return counter
 
-    @sync_compatible
-    async def read_path(self, path: str) -> bytes:
+    async def aread_path(self, path: str) -> bytes:
         path = self._resolve_path(path)
 
         with self.filesystem.open(path, "rb") as file:
@@ -510,15 +592,42 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         return content
 
-    @sync_compatible
-    async def write_path(self, path: str, content: bytes) -> str:
+    @async_dispatch(aread_path)
+    def read_path(self, path: str) -> bytes:
+        path = self._resolve_path(path)
+
+        with self.filesystem.open(path, "rb") as file:
+            content = file.read()
+
+        return content
+
+    async def awrite_path(self, path: str, content: bytes) -> str:
         path = self._resolve_path(path)
         dirpath = path[: path.rindex("/")]
+
+        if self.basepath.startswith("smb://"):
+            parsed = urllib.parse.urlparse(dirpath)
+            dirpath = parsed.path
 
         self.filesystem.makedirs(dirpath, exist_ok=True)
 
         with self.filesystem.open(path, "wb") as file:
             await run_sync_in_worker_thread(file.write, content)
+        return path
+
+    @async_dispatch(awrite_path)
+    def write_path(self, path: str, content: bytes) -> str:
+        path = self._resolve_path(path)
+        dirpath = path[: path.rindex("/")]
+
+        if self.basepath.startswith("smb://"):
+            parsed = urllib.parse.urlparse(dirpath)
+            dirpath = parsed.path
+
+        self.filesystem.makedirs(dirpath, exist_ok=True)
+
+        with self.filesystem.open(path, "wb") as file:
+            file.write(content)
         return path
 
     @property
@@ -602,20 +711,28 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         )
         return self._remote_file_system
 
-    @sync_compatible
-    async def get_directory(
+    async def aget_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> bytes:
         """
         Downloads a directory from a given remote path to a local directory.
         Defaults to downloading the entire contents of the block's basepath to the current working directory.
         """
-        return await self.filesystem.get_directory(
+        return await self.filesystem.aget_directory(
             from_path=from_path, local_path=local_path
         )
 
-    @sync_compatible
-    async def put_directory(
+    @async_dispatch(aget_directory)
+    def get_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> bytes:
+        """
+        Downloads a directory from a given remote path to a local directory.
+        Defaults to downloading the entire contents of the block's basepath to the current working directory.
+        """
+        return self.filesystem.get_directory(from_path=from_path, local_path=local_path)
+
+    async def aput_directory(
         self,
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
@@ -625,20 +742,44 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
         Uploads a directory from a given local path to a remote directory.
         Defaults to uploading the entire contents of the current working directory to the block's basepath.
         """
-        return await self.filesystem.put_directory(
+        return await self.filesystem.aput_directory(
             local_path=local_path,
             to_path=to_path,
             ignore_file=ignore_file,
             overwrite=False,
         )
 
-    @sync_compatible
-    async def read_path(self, path: str) -> bytes:
-        return await self.filesystem.read_path(path)
+    @async_dispatch(aput_directory)
+    def put_directory(
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
+    ) -> int:
+        """
+        Uploads a directory from a given local path to a remote directory.
+        Defaults to uploading the entire contents of the current working directory to the block's basepath.
+        """
+        return self.filesystem.put_directory(
+            local_path=local_path,
+            to_path=to_path,
+            ignore_file=ignore_file,
+            overwrite=False,
+        )
 
-    @sync_compatible
-    async def write_path(self, path: str, content: bytes) -> str:
-        return await self.filesystem.write_path(path=path, content=content)
+    async def aread_path(self, path: str) -> bytes:
+        return await self.filesystem.aread_path(path)
+
+    @async_dispatch(aread_path)
+    def read_path(self, path: str) -> bytes:
+        return self.filesystem.read_path(path)
+
+    async def awrite_path(self, path: str, content: bytes) -> str:
+        return await self.filesystem.awrite_path(path=path, content=content)
+
+    @async_dispatch(awrite_path)
+    def write_path(self, path: str, content: bytes) -> str:
+        return self.filesystem.write_path(path=path, content=content)
 
 
 class NullFileSystem(BaseModel):

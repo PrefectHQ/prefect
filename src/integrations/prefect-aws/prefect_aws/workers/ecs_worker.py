@@ -51,20 +51,16 @@ import copy
 import json
 import logging
 import shlex
-import sys
-import time
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
-    Generator,
     List,
     NamedTuple,
     Optional,
     Tuple,
-    Type,
-    Union,
+    cast,
 )
 from uuid import UUID
 
@@ -77,6 +73,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
 
 from prefect.client.schemas.objects import FlowRun
+from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.templating import find_placeholders
@@ -86,13 +83,16 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
-from prefect_aws.credentials import AwsCredentials, ClientType
+from prefect_aws.credentials import AwsCredentials
+from prefect_aws.observers.ecs import start_observer, stop_observer
 
 if TYPE_CHECKING:
-    from prefect.client.schemas.objects import APIFlow, DeploymentResponse, WorkPool
+    from uuid import UUID
 
-# Internal type alias for ECS clients which are generated dynamically in botocore
-_ECSClient = Any
+    from mypy_boto3_ecs import ECSClient
+    from mypy_boto3_ecs.type_defs import TaskDefinitionTypeDef
+
+    from prefect.client.schemas.objects import APIFlow, DeploymentResponse, WorkPool
 
 ECS_DEFAULT_CONTAINER_NAME = "prefect"
 ECS_DEFAULT_CPU = 1024
@@ -177,9 +177,13 @@ def _drop_empty_keys_from_dict(taskdef: dict):
     Recursively drop keys with 'empty' values from a task definition dict.
 
     Mutates the task definition in place. Only supports recursion into dicts and lists.
+
+    Removes keys with truly empty values (None, empty strings, empty lists, empty dicts)
+    but preserves boolean False values which are meaningful.
     """
     for key, value in tuple(taskdef.items()):
-        if not value:
+        # Only remove truly empty values, not boolean False
+        if not value and value is not False:
             taskdef.pop(key)
         if isinstance(value, dict):
             _drop_empty_keys_from_dict(value)
@@ -254,7 +258,9 @@ def mask_sensitive_env_values(
 
 def mask_api_key(task_run_request):
     return mask_sensitive_env_values(
-        deepcopy(task_run_request), ["PREFECT_API_KEY"], keep_length=6
+        deepcopy(task_run_request),
+        ["PREFECT_API_KEY", "PREFECT_API_AUTH_STRING"],
+        keep_length=6,
     )
 
 
@@ -286,15 +292,28 @@ class ECSJobConfiguration(BaseJobConfiguration):
     cloudwatch_logs_options: Dict[str, str] = Field(default_factory=dict)
     cloudwatch_logs_prefix: Optional[str] = Field(default=None)
     network_configuration: Dict[str, Any] = Field(default_factory=dict)
-    stream_output: Optional[bool] = Field(default=None)
-    task_start_timeout_seconds: int = Field(default=300)
-    task_watch_poll_interval: float = Field(default=5.0)
+    stream_output: Optional[bool] = Field(
+        default=None,
+        json_schema_extra=dict(template=False),
+        deprecated="This field is no longer used and will be removed in a future release.",
+    )
+    task_start_timeout_seconds: int = Field(
+        default=300,
+        json_schema_extra=dict(template=0),
+        deprecated="This field is no longer used and will be removed in a future release.",
+    )
+    task_watch_poll_interval: float = Field(
+        default=5.0,
+        json_schema_extra=dict(template=0),
+        deprecated="This field is no longer used and will be removed in a future release.",
+    )
     auto_deregister_task_definition: bool = Field(default=False)
     vpc_id: Optional[str] = Field(default=None)
     container_name: Optional[str] = Field(default=None)
     cluster: Optional[str] = Field(default=None)
     match_latest_revision_in_family: bool = Field(default=False)
     prefect_api_key_secret_arn: Optional[str] = Field(default=None)
+    prefect_api_auth_string_secret_arn: Optional[str] = Field(default=None)
 
     execution_role_arn: Optional[str] = Field(
         title="Execution Role ARN",
@@ -307,6 +326,33 @@ class ECSJobConfiguration(BaseJobConfiguration):
         ),
     )
 
+    @classmethod
+    def json_template(cls) -> dict[str, Any]:
+        """Returns a dict with job configuration as keys and the corresponding templates as values
+
+        Defaults to using the job configuration parameter name as the template variable name.
+
+        e.g.
+        ```python
+        {
+            key1: '{{ key1 }}',     # default variable template
+            key2: '{{ template2 }}', # `template2` specifically provide as template
+        }
+        ```
+        """
+        # This is overridden because the base class was incorrectly handling `False`
+        # TODO: Update the base class, remove this override, and bump the minimum `prefect` version
+        configuration: dict[str, Any] = {}
+        properties = cls.model_json_schema()["properties"]
+        for k, v in properties.items():
+            if v.get("template") is not None:
+                template = v["template"]
+            else:
+                template = "{{ " + k + " }}"
+            configuration[k] = template
+
+        return configuration
+
     def prepare_for_flow_run(
         self,
         flow_run: "FlowRun",
@@ -314,11 +360,18 @@ class ECSJobConfiguration(BaseJobConfiguration):
         flow: "APIFlow | None" = None,
         work_pool: "WorkPool | None" = None,
         worker_name: str | None = None,
+        worker_id: "UUID | None" = None,
     ) -> None:
-        super().prepare_for_flow_run(flow_run, deployment, flow, work_pool, worker_name)
+        super().prepare_for_flow_run(
+            flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
+        )
         if self.prefect_api_key_secret_arn:
             # Remove the PREFECT_API_KEY from the environment variables because it will be provided via a secret
             del self.env["PREFECT_API_KEY"]
+        if self.prefect_api_auth_string_secret_arn:
+            # Remove the PREFECT_API_AUTH_STRING from the environment variables because it will be provided via a secret
+            if "PREFECT_API_AUTH_STRING" in self.env:
+                del self.env["PREFECT_API_AUTH_STRING"]
 
     @model_validator(mode="after")
     def task_run_request_requires_arn_if_no_task_definition_given(self) -> Self:
@@ -353,16 +406,19 @@ class ECSJobConfiguration(BaseJobConfiguration):
         return self
 
     @model_validator(mode="after")
-    def set_default_configure_cloudwatch_logs(self) -> Self:
+    def at_least_one_container_is_essential(self) -> Self:
         """
-        Streaming output generally requires CloudWatch logs to be configured.
-
-        To avoid entangled arguments in the simple case, `configure_cloudwatch_logs`
-        defaults to matching the value of `stream_output`.
+        Ensures that at least one container will be marked as essential
+        in the task definition.
         """
-        configure_cloudwatch_logs = self.configure_cloudwatch_logs
-        if configure_cloudwatch_logs is None:
-            self.configure_cloudwatch_logs = self.stream_output
+        container_definitions = self.task_definition.get("containerDefinitions", [])
+        if container_definitions and all(
+            container.get("essential") is False for container in container_definitions
+        ):
+            raise ValueError(
+                "At least one container in the task definition must be marked as "
+                "essential."
+            )
         return self
 
     @model_validator(mode="after")
@@ -524,6 +580,15 @@ class ECSVariables(BaseVariables):
             "PREFECT_API_KEY environment variable will be used if the worker has one."
         ),
     )
+    prefect_api_auth_string_secret_arn: Optional[str] = Field(
+        title="Prefect API Auth String Secret ARN",
+        default=None,
+        description=(
+            "An ARN of an AWS secret containing a Prefect API auth string. This string will be used "
+            "to authenticate ECS tasks with Prefect Cloud. If not provided, the "
+            "PREFECT_API_AUTH_STRING environment variable will be used if the worker has one."
+        ),
+    )
     task_role_arn: Optional[str] = Field(
         title="Task Role ARN",
         default=None,
@@ -559,8 +624,7 @@ class ECSVariables(BaseVariables):
             "If enabled, the Prefect container will be configured to send its output "
             "to the AWS CloudWatch logs service. This functionality requires an "
             "execution role with logs:CreateLogStream, logs:CreateLogGroup, and "
-            "logs:PutLogEvents permissions. The default for this field is `False` "
-            "unless `stream_output` is set."
+            "logs:PutLogEvents permissions. The default for this field is `False`."
         ),
     )
     cloudwatch_logs_options: Dict[str, str] = Field(
@@ -593,31 +657,6 @@ class ECSVariables(BaseVariables):
             " for available options."
         ),
     )
-
-    stream_output: Optional[bool] = Field(
-        default=None,
-        description=(
-            "If enabled, logs will be streamed from the Prefect container to the local "
-            "console. Unless you have configured AWS CloudWatch logs manually on your "
-            "task definition, this requires the same prerequisites outlined in "
-            "`configure_cloudwatch_logs`."
-        ),
-    )
-    task_start_timeout_seconds: int = Field(
-        default=300,
-        description=(
-            "The amount of time to watch for the start of the ECS task "
-            "before marking it as failed. The task must enter a RUNNING state to be "
-            "considered started."
-        ),
-    )
-    task_watch_poll_interval: float = Field(
-        default=5.0,
-        description=(
-            "The amount of time to wait between AWS API calls while monitoring the "
-            "state of an ECS task."
-        ),
-    )
     auto_deregister_task_definition: bool = Field(
         default=False,
         description=(
@@ -645,14 +684,14 @@ class ECSWorkerResult(BaseWorkerResult):
     """
 
 
-class ECSWorker(BaseWorker):
+class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
     """
     A Prefect worker to run flow runs as ECS tasks.
     """
 
     type: str = "ecs"
-    job_configuration: Type[ECSJobConfiguration] = ECSJobConfiguration
-    job_configuration_variables: Type[ECSVariables] = ECSVariables
+    job_configuration: type[ECSJobConfiguration] = ECSJobConfiguration
+    job_configuration_variables: type[ECSVariables] | None = ECSVariables
     _description: str = (
         "Execute flow runs within containers on AWS ECS. Works with EC2 "
         "and Fargate clusters. Requires an AWS account."
@@ -670,13 +709,13 @@ class ECSWorker(BaseWorker):
         Initiates a flow run on AWS ECS. This method does not wait for the flow run to complete.
         """
         ecs_client = await run_sync_in_worker_thread(
-            self._get_client, configuration, "ecs"
+            configuration.aws_credentials.get_client, "ecs"
         )
 
-        logger = self.get_flow_run_logger(flow_run)
+        logger = cast(logging.Logger, self.get_flow_run_logger(flow_run))
 
         await run_sync_in_worker_thread(
-            self._create_task_and_wait_for_start,
+            self._prepare_and_create_task,
             logger,
             ecs_client,
             configuration,
@@ -693,18 +732,16 @@ class ECSWorker(BaseWorker):
         Runs a given flow run on the current worker.
         """
         ecs_client = await run_sync_in_worker_thread(
-            self._get_client, configuration, "ecs"
+            configuration.aws_credentials.get_client, "ecs"
         )
 
-        logger = self.get_flow_run_logger(flow_run)
+        logger = cast(logging.Logger, self.get_flow_run_logger(flow_run))
 
         (
             task_arn,
             cluster_arn,
-            task_definition,
-            is_new_task_definition,
         ) = await run_sync_in_worker_thread(
-            self._create_task_and_wait_for_start,
+            self._prepare_and_create_task,
             logger,
             ecs_client,
             configuration,
@@ -724,36 +761,17 @@ class ECSWorker(BaseWorker):
         if task_status:
             task_status.started(identifier)
 
-        status_code = await run_sync_in_worker_thread(
-            self._watch_task_and_get_exit_code,
-            logger,
-            configuration,
-            task_arn,
-            cluster_arn,
-            task_definition,
-            is_new_task_definition and configuration.auto_deregister_task_definition,
-            ecs_client,
-        )
-
         return ECSWorkerResult(
             identifier=identifier,
-            # If the container does not start the exit code can be null but we must
-            # still report a status code. We use a -1 to indicate a special code.
-            status_code=status_code if status_code is not None else -1,
+            # The observer will handle crash detection, so we can always return 1 if the task
+            # was created successfully
+            status_code=0,
         )
 
-    def _get_client(
-        self, configuration: ECSJobConfiguration, client_type: Union[str, ClientType]
-    ) -> _ECSClient:
-        """
-        Get a boto3 client of client_type. Will use a cached client if one exists.
-        """
-        return configuration.aws_credentials.get_client(client_type)
-
-    def _create_task_and_wait_for_start(
+    def _prepare_and_create_task(
         self,
         logger: logging.Logger,
-        ecs_client: _ECSClient,
+        ecs_client: "ECSClient",
         configuration: ECSJobConfiguration,
         flow_run: FlowRun,
     ) -> Tuple[str, str, dict, bool]:
@@ -805,6 +823,8 @@ class ECSWorker(BaseWorker):
                         + ", ".join(placeholders)
                     )
 
+        # Note: _prepare_task_definition (called later) mutates the task definition so
+        # validation needs to account for the mutation logic
         self._validate_task_definition(task_definition, configuration)
 
         if flow_run.deployment_id:
@@ -821,6 +841,7 @@ class ECSWorker(BaseWorker):
             configuration,
             task_definition,
             task_definition_arn,
+            new_task_definition_registered,
         )
 
         logger.info("Creating ECS task run...")
@@ -837,22 +858,49 @@ class ECSWorker(BaseWorker):
             self._report_task_run_creation_failure(configuration, task_run_request, exc)
             raise
 
-        logger.info("Waiting for ECS task run to start...")
-        self._wait_for_task_start(
-            logger,
-            configuration,
-            task_arn,
-            cluster_arn,
-            ecs_client,
-            timeout=configuration.task_start_timeout_seconds,
-        )
+        return task_arn, cluster_arn
 
-        return task_arn, cluster_arn, task_definition, new_task_definition_registered
+    def _report_task_run_creation_failure(
+        self, configuration: ECSJobConfiguration, task_run: dict, exc: Exception
+    ) -> None:
+        """
+        Wrap common AWS task run creation failures with nicer user-facing messages.
+        """
+        # AWS generates exception types at runtime so they must be captured a bit
+        # differently than normal.
+        if "ClusterNotFoundException" in str(exc):
+            cluster = task_run.get("cluster", "default")
+            raise RuntimeError(
+                f"Failed to run ECS task, cluster {cluster!r} not found. "
+                "Confirm that the cluster is configured in your region."
+            ) from exc
+        elif (
+            "No Container Instances" in str(exc) and task_run.get("launchType") == "EC2"
+        ):
+            cluster = task_run.get("cluster", "default")
+            raise RuntimeError(
+                f"Failed to run ECS task, cluster {cluster!r} does not appear to "
+                "have any container instances associated with it. Confirm that you "
+                "have EC2 container instances available."
+            ) from exc
+        elif (
+            "failed to validate logger args" in str(exc)
+            and "AccessDeniedException" in str(exc)
+            and configuration.configure_cloudwatch_logs
+        ):
+            raise RuntimeError(
+                "Failed to run ECS task, the attached execution role does not appear"
+                " to have sufficient permissions. Ensure that the execution role"
+                f" {configuration.execution_role!r} has permissions"
+                " logs:CreateLogStream, logs:CreateLogGroup, and logs:PutLogEvents."
+            )
+        else:
+            raise
 
     def _get_or_register_task_definition(
         self,
         logger: logging.Logger,
-        ecs_client: _ECSClient,
+        ecs_client: "ECSClient",
         configuration: ECSJobConfiguration,
         flow_run: FlowRun,
         task_definition: dict[str, Any],
@@ -920,106 +968,6 @@ class ECSWorker(BaseWorker):
 
         return task_definition_arn, new_task_definition_registered
 
-    def _watch_task_and_get_exit_code(
-        self,
-        logger: logging.Logger,
-        configuration: ECSJobConfiguration,
-        task_arn: str,
-        cluster_arn: str,
-        task_definition: dict,
-        deregister_task_definition: bool,
-        ecs_client: _ECSClient,
-    ) -> Optional[int]:
-        """
-        Wait for the task run to complete and retrieve the exit code of the Prefect
-        container.
-        """
-
-        # Wait for completion and stream logs
-        task = self._wait_for_task_finish(
-            logger,
-            configuration,
-            task_arn,
-            cluster_arn,
-            task_definition,
-            ecs_client,
-        )
-
-        if deregister_task_definition:
-            ecs_client.deregister_task_definition(
-                taskDefinition=task["taskDefinitionArn"]
-            )
-
-        container_name = (
-            configuration.container_name
-            or _container_name_from_task_definition(task_definition)
-            or ECS_DEFAULT_CONTAINER_NAME
-        )
-
-        # Check the status code of the Prefect container
-        container = _get_container(task["containers"], container_name)
-        assert container is not None, (
-            f"'{container_name}' container missing from task: {task}"
-        )
-        status_code = container.get("exitCode")
-        self._report_container_status_code(logger, container_name, status_code)
-
-        return status_code
-
-    def _report_container_status_code(
-        self, logger: logging.Logger, name: str, status_code: Optional[int]
-    ) -> None:
-        """
-        Display a log for the given container status code.
-        """
-        if status_code is None:
-            logger.error(
-                f"Task exited without reporting an exit status for container {name!r}."
-            )
-        elif status_code == 0:
-            logger.info(f"Container {name!r} exited successfully.")
-        else:
-            logger.warning(
-                f"Container {name!r} exited with non-zero exit code {status_code}."
-            )
-
-    def _report_task_run_creation_failure(
-        self, configuration: ECSJobConfiguration, task_run: dict, exc: Exception
-    ) -> None:
-        """
-        Wrap common AWS task run creation failures with nicer user-facing messages.
-        """
-        # AWS generates exception types at runtime so they must be captured a bit
-        # differently than normal.
-        if "ClusterNotFoundException" in str(exc):
-            cluster = task_run.get("cluster", "default")
-            raise RuntimeError(
-                f"Failed to run ECS task, cluster {cluster!r} not found. "
-                "Confirm that the cluster is configured in your region."
-            ) from exc
-        elif (
-            "No Container Instances" in str(exc) and task_run.get("launchType") == "EC2"
-        ):
-            cluster = task_run.get("cluster", "default")
-            raise RuntimeError(
-                f"Failed to run ECS task, cluster {cluster!r} does not appear to "
-                "have any container instances associated with it. Confirm that you "
-                "have EC2 container instances available."
-            ) from exc
-        elif (
-            "failed to validate logger args" in str(exc)
-            and "AccessDeniedException" in str(exc)
-            and configuration.configure_cloudwatch_logs
-        ):
-            raise RuntimeError(
-                "Failed to run ECS task, the attached execution role does not appear"
-                " to have sufficient permissions. Ensure that the execution role"
-                f" {configuration.execution_role!r} has permissions"
-                " logs:CreateLogStream, logs:CreateLogGroup, and logs:PutLogEvents."
-            )
-        else:
-            raise
-
     def _validate_task_definition(
         self, task_definition: dict, configuration: ECSJobConfiguration
     ) -> None:
@@ -1028,28 +976,6 @@ class ECSWorker(BaseWorker):
 
         Raises `ValueError` on incompatibility. Returns `None` on success.
         """
-        launch_type = configuration.task_run_request.get(
-            "launchType", ECS_DEFAULT_LAUNCH_TYPE
-        )
-        if (
-            launch_type != "EC2"
-            and "FARGATE" not in task_definition["requiresCompatibilities"]
-        ):
-            raise ValueError(
-                "Task definition does not have 'FARGATE' in 'requiresCompatibilities'"
-                f" and cannot be used with launch type {launch_type!r}"
-            )
-
-        if launch_type == "FARGATE" or launch_type == "FARGATE_SPOT":
-            # Only the 'awsvpc' network mode is supported when using FARGATE
-            network_mode = task_definition.get("networkMode")
-            if network_mode != "awsvpc":
-                raise ValueError(
-                    f"Found network mode {network_mode!r} which is not compatible with "
-                    f"launch type {launch_type!r}. Use either the 'EC2' launch "
-                    "type or the 'awsvpc' network mode."
-                )
-
         if configuration.configure_cloudwatch_logs and not task_definition.get(
             "executionRoleArn"
         ):
@@ -1059,10 +985,56 @@ class ECSWorker(BaseWorker):
                 "was found on the task definition."
             )
 
+        launch_type = configuration.task_run_request.get("launchType")
+        capacity_provider_strategy = configuration.task_run_request.get(
+            "capacityProviderStrategy"
+        )
+        requires_ec2 = "EC2" in task_definition.get("requiresCompatibilities", [])
+
+        # Users may submit a job with a custom capacity provider strategy which requires
+        # launch type to be empty. EC2 task definitions may also omit launch type to use
+        # the cluster's default capacity provider.
+        if not launch_type and not capacity_provider_strategy:
+            if not requires_ec2:
+                launch_type = ECS_DEFAULT_LAUNCH_TYPE
+
+        # Fargate spot requires a launch type and a capacity provider strategy
+        # otherwise we're valid with a capacity provider strategy alone
+        if capacity_provider_strategy and launch_type != "FARGATE_SPOT":
+            return
+
+        # EC2 task definitions with null launch_type are valid - they use the cluster's
+        # default capacity provider. See https://github.com/PrefectHQ/prefect/issues/19627
+        if requires_ec2 and not launch_type:
+            return
+
+        # Default launch type in compatibilities to maintain functionality with
+        # _prepare_task_definition which sets requiresCompatibilties to FARGATE
+        # which is the default launch type.
+        if launch_type != "EC2" and "FARGATE" not in task_definition.get(
+            "requiresCompatibilities", [ECS_DEFAULT_LAUNCH_TYPE]
+        ):
+            raise ValueError(
+                "Task definition does not have 'FARGATE' in 'requiresCompatibilities'"
+                f" and cannot be used with launch type {launch_type!r}"
+            )
+
+        if launch_type == "FARGATE" or launch_type == "FARGATE_SPOT":
+            # Only the 'awsvpc' network mode is supported when using FARGATE
+            # Default to 'awsvpc' if not provided to maintain functionality with
+            # _prepare_task_definition which sets network mode to 'awsvpc' if not provided.
+            network_mode = task_definition.get("networkMode", "awsvpc")
+            if network_mode != "awsvpc":
+                raise ValueError(
+                    f"Found network mode {network_mode!r} which is not compatible with "
+                    f"launch type {launch_type!r}. Use either the 'EC2' launch "
+                    "type or the 'awsvpc' network mode."
+                )
+
     def _register_task_definition(
         self,
         logger: logging.Logger,
-        ecs_client: _ECSClient,
+        ecs_client: "ECSClient",
         task_definition: dict,
     ) -> str:
         """
@@ -1082,7 +1054,7 @@ class ECSWorker(BaseWorker):
     def _retrieve_task_definition(
         self,
         logger: logging.Logger,
-        ecs_client: _ECSClient,
+        ecs_client: "ECSClient",
         task_definition: str,
     ):
         """
@@ -1097,243 +1069,6 @@ class ECSWorker(BaseWorker):
             )
         response = ecs_client.describe_task_definition(taskDefinition=task_definition)
         return response["taskDefinition"]
-
-    def _wait_for_task_start(
-        self,
-        logger: logging.Logger,
-        configuration: ECSJobConfiguration,
-        task_arn: str,
-        cluster_arn: str,
-        ecs_client: _ECSClient,
-        timeout: int,
-    ) -> dict:
-        """
-        Waits for an ECS task run to reach a RUNNING status.
-
-        If a STOPPED status is reached instead, an exception is raised indicating the
-        reason that the task run did not start.
-        """
-        for task in self._watch_task_run(
-            logger,
-            configuration,
-            task_arn,
-            cluster_arn,
-            ecs_client,
-            until_status="RUNNING",
-            timeout=timeout,
-        ):
-            # TODO: It is possible that the task has passed _through_ a RUNNING
-            #       status during the polling interval. In this case, there is not an
-            #       exception to raise.
-            if task["lastStatus"] == "STOPPED":
-                code = task.get("stopCode")
-                reason = task.get("stoppedReason")
-                # Generate a dynamic exception type from the AWS name
-                raise type(code, (RuntimeError,), {})(reason)
-
-        return task
-
-    def _wait_for_task_finish(
-        self,
-        logger: logging.Logger,
-        configuration: ECSJobConfiguration,
-        task_arn: str,
-        cluster_arn: str,
-        task_definition: dict,
-        ecs_client: _ECSClient,
-    ):
-        """
-        Watch an ECS task until it reaches a STOPPED status.
-
-        If configured, logs from the Prefect container are streamed to stderr.
-
-        Returns a description of the task on completion.
-        """
-        can_stream_output = False
-        container_name = (
-            configuration.container_name
-            or _container_name_from_task_definition(task_definition)
-            or ECS_DEFAULT_CONTAINER_NAME
-        )
-
-        if configuration.stream_output:
-            container_def = _get_container(
-                task_definition["containerDefinitions"], container_name
-            )
-            if not container_def:
-                logger.warning(
-                    "Prefect container definition not found in "
-                    "task definition. Output cannot be streamed."
-                )
-            elif not container_def.get("logConfiguration"):
-                logger.warning(
-                    "Logging configuration not found on task. "
-                    "Output cannot be streamed."
-                )
-            elif not container_def["logConfiguration"].get("logDriver") == "awslogs":
-                logger.warning(
-                    "Logging configuration uses unsupported "
-                    " driver {container_def['logConfiguration'].get('logDriver')!r}. "
-                    "Output cannot be streamed."
-                )
-            else:
-                # Prepare to stream the output
-                log_config = container_def["logConfiguration"]["options"]
-                logs_client = self._get_client(configuration, "logs")
-                can_stream_output = True
-                # Track the last log timestamp to prevent double display
-                last_log_timestamp: Optional[int] = None
-                # Determine the name of the stream as "prefix/container/run-id"
-                stream_name = "/".join(
-                    [
-                        log_config["awslogs-stream-prefix"],
-                        container_name,
-                        task_arn.rsplit("/")[-1],
-                    ]
-                )
-                self._logger.info(
-                    f"Streaming output from container {container_name!r}..."
-                )
-
-        for task in self._watch_task_run(
-            logger,
-            configuration,
-            task_arn,
-            cluster_arn,
-            ecs_client,
-            current_status="RUNNING",
-        ):
-            if configuration.stream_output and can_stream_output:
-                # On each poll for task run status, also retrieve available logs
-                last_log_timestamp = self._stream_available_logs(
-                    logger,
-                    logs_client,
-                    log_group=log_config["awslogs-group"],
-                    log_stream=stream_name,
-                    last_log_timestamp=last_log_timestamp,
-                )
-
-        return task
-
-    def _stream_available_logs(
-        self,
-        logger: logging.Logger,
-        logs_client: Any,
-        log_group: str,
-        log_stream: str,
-        last_log_timestamp: Optional[int] = None,
-    ) -> Optional[int]:
-        """
-        Stream logs from the given log group and stream since the last log timestamp.
-
-        Will continue on paginated responses until all logs are returned.
-
-        Returns the last log timestamp which can be used to call this method in the
-        future.
-        """
-        last_log_stream_token = "NO-TOKEN"
-        next_log_stream_token = None
-
-        # AWS will return the same token that we send once the end of the paginated
-        # response is reached
-        while last_log_stream_token != next_log_stream_token:
-            last_log_stream_token = next_log_stream_token
-
-            request = {
-                "logGroupName": log_group,
-                "logStreamName": log_stream,
-            }
-
-            if last_log_stream_token is not None:
-                request["nextToken"] = last_log_stream_token
-
-            if last_log_timestamp is not None:
-                # Bump the timestamp by one ms to avoid retrieving the last log again
-                request["startTime"] = last_log_timestamp + 1
-
-            try:
-                response = logs_client.get_log_events(**request)
-            except Exception:
-                logger.error(
-                    f"Failed to read log events with request {request}",
-                    exc_info=True,
-                )
-                return last_log_timestamp
-
-            log_events = response["events"]
-            for log_event in log_events:
-                # TODO: This doesn't forward to the local logger, which can be
-                #       bad for customizing handling and understanding where the
-                #       log is coming from, but it avoid nesting logger information
-                #       when the content is output from a Prefect logger on the
-                #       running infrastructure
-                print(log_event["message"], file=sys.stderr)
-
-                if (
-                    last_log_timestamp is None
-                    or log_event["timestamp"] > last_log_timestamp
-                ):
-                    last_log_timestamp = log_event["timestamp"]
-
-            next_log_stream_token = response.get("nextForwardToken")
-            if not log_events:
-                # Stop reading pages if there was no data
-                break
-
-        return last_log_timestamp
-
-    def _watch_task_run(
-        self,
-        logger: logging.Logger,
-        configuration: ECSJobConfiguration,
-        task_arn: str,
-        cluster_arn: str,
-        ecs_client: _ECSClient,
-        current_status: str = "UNKNOWN",
-        until_status: Optional[str] = None,
-        timeout: Optional[int] = None,
-    ) -> Generator[None, None, dict]:
-        """
-        Watches an ECS task run by querying every `poll_interval` seconds. After each
-        query, the retrieved task is yielded. This function returns when the task run
-        reaches a STOPPED status or the provided `until_status`.
-
-        Emits a log each time the status changes.
-        """
-        last_status = status = current_status
-        t0 = time.time()
-        while status != until_status:
-            tasks = ecs_client.describe_tasks(
-                tasks=[task_arn], cluster=cluster_arn, include=["TAGS"]
-            )["tasks"]
-
-            if tasks:
-                task = tasks[0]
-
-                status = task["lastStatus"]
-                if status != last_status:
-                    logger.info(f"ECS task status is {status}.")
-
-                yield task
-
-                # No point in continuing if the status is final
-                if status == "STOPPED":
-                    break
-
-                last_status = status
-
-            else:
-                # Intermittently, the task will not be described. We wat to respect the
-                # watch timeout though.
-                logger.debug("Task not found.")
-
-            elapsed_time = time.time() - t0
-            if timeout is not None and elapsed_time > timeout:
-                raise RuntimeError(
-                    f"Timed out after {elapsed_time}s while watching task for status "
-                    f"{until_status or 'STOPPED'}."
-                )
-            time.sleep(configuration.task_watch_poll_interval)
 
     def _get_or_generate_family(
         self, task_definition: dict[str, Any], flow_run: FlowRun
@@ -1438,9 +1173,7 @@ class ECSWorker(BaseWorker):
         cpu = task_definition.get("cpu") or ECS_DEFAULT_CPU
         memory = task_definition.get("memory") or ECS_DEFAULT_MEMORY
 
-        launch_type = configuration.task_run_request.get(
-            "launchType", ECS_DEFAULT_LAUNCH_TYPE
-        )
+        launch_type = configuration.task_run_request.get("launchType")
 
         if launch_type == "FARGATE" or launch_type == "FARGATE_SPOT":
             # Task level memory and cpu are required when using fargate
@@ -1458,14 +1191,10 @@ class ECSWorker(BaseWorker):
             # However, we will not enforce that here if the user has set it
             task_definition.setdefault("networkMode", "awsvpc")
 
-        elif launch_type == "EC2":
-            # Container level memory and cpu are required when using ec2
-            container.setdefault("cpu", cpu)
-            container.setdefault("memory", memory)
-
-            # Ensure set values are cast to integers
-            container["cpu"] = int(container["cpu"])
-            container["memory"] = int(container["memory"])
+        else:
+            # Container level memory and cpu are required when using non-FARGATE launch types
+            container.setdefault("cpu", int(cpu))
+            container.setdefault("memory", int(memory))
 
         # Ensure set values are cast to strings
         if task_definition.get("cpu"):
@@ -1475,18 +1204,34 @@ class ECSWorker(BaseWorker):
 
         _drop_empty_keys_from_dict(task_definition)
 
+        # Handle secrets for both API key and auth string
+        secrets = []
         if configuration.prefect_api_key_secret_arn:
-            # Add the PREFECT_API_KEY to the secrets
-            container["secrets"] = [
+            secrets.append(
                 {
                     "name": "PREFECT_API_KEY",
                     "valueFrom": configuration.prefect_api_key_secret_arn,
                 }
-            ]
+            )
             # Remove the PREFECT_API_KEY from the environment variables
             for item in tuple(container.get("environment", [])):
                 if item["name"] == "PREFECT_API_KEY":
                     container["environment"].remove(item)  # type: ignore
+
+        if configuration.prefect_api_auth_string_secret_arn:
+            secrets.append(
+                {
+                    "name": "PREFECT_API_AUTH_STRING",
+                    "valueFrom": configuration.prefect_api_auth_string_secret_arn,
+                }
+            )
+            # Remove the PREFECT_API_AUTH_STRING from the environment variables
+            for item in tuple(container.get("environment", [])):
+                if item["name"] == "PREFECT_API_AUTH_STRING":
+                    container["environment"].remove(item)  # type: ignore
+
+        if secrets:
+            container["secrets"] = secrets
 
         return task_definition
 
@@ -1497,7 +1242,7 @@ class ECSWorker(BaseWorker):
         Load settings from a specific VPC or the default VPC and generate a task
         run request's network configuration.
         """
-        ec2_client = self._get_client(configuration, "ec2")
+        ec2_client = configuration.aws_credentials.get_client("ec2")
         vpc_message = "the default VPC" if not vpc_id else f"VPC with ID {vpc_id}"
 
         if not vpc_id:
@@ -1546,7 +1291,7 @@ class ECSWorker(BaseWorker):
         Load settings from a specific VPC or the default VPC and generate a task
         run request's network configuration.
         """
-        ec2_client = self._get_client(configuration, "ec2")
+        ec2_client = configuration.aws_credentials.get_client("ec2")
         vpc_message = f"VPC with ID {vpc_id}"
 
         vpcs = ec2_client.describe_vpcs(VpcIds=[vpc_id]).get("Vpcs")
@@ -1583,8 +1328,9 @@ class ECSWorker(BaseWorker):
     def _prepare_task_run_request(
         self,
         configuration: ECSJobConfiguration,
-        task_definition: dict,
+        task_definition: dict[str, Any] | TaskDefinitionTypeDef,
         task_definition_arn: str,
+        new_task_definition_registered: bool,
     ) -> dict:
         """
         Prepare a task run request payload.
@@ -1597,6 +1343,31 @@ class ECSWorker(BaseWorker):
             f"Task definition ARN mismatch: {task_run_request['taskDefinition']!r} "
             f"!= {task_definition_arn!r}"
         )
+
+        # Explicitly add cluster from configuration if set and not already in task_run_request
+        # or if the value in task_run_request is empty/None
+        # This ensures cluster is included even when template variables resolve to empty/None
+        if configuration.cluster:
+            existing_cluster = task_run_request.get("cluster")
+            if not existing_cluster:
+                task_run_request["cluster"] = configuration.cluster
+
+        # Explicitly add launchType if missing or empty in task_run_request
+        # This ensures launchType is included even when template variables resolve to empty/None
+        # AWS expects camelCase "launchType" not snake_case "launch_type"
+        # Default to FARGATE if not specified, which matches the default launch_type variable
+        # Note: launchType may be removed later if capacityProviderStrategy is set
+        # Exception: EC2 task definitions may omit launchType to use cluster capacity providers
+        existing_launch_type = task_run_request.get("launchType")
+        requires_ec2 = "EC2" in task_definition.get("requiresCompatibilities", [])
+        if not existing_launch_type and not requires_ec2:
+            # Default to FARGATE if launchType is missing, matching the default launch_type variable
+            task_run_request["launchType"] = ECS_DEFAULT_LAUNCH_TYPE
+        elif not existing_launch_type and requires_ec2:
+            # EC2 task definitions may omit launchType to use cluster capacity providers
+            # Ensure the key is removed entirely, not just set to None
+            task_run_request.pop("launchType", None)
+
         capacityProviderStrategy = task_run_request.get("capacityProviderStrategy")
 
         if capacityProviderStrategy:
@@ -1720,6 +1491,13 @@ class ECSWorker(BaseWorker):
             }
             for item in tags
         ]
+        if (
+            new_task_definition_registered
+            and configuration.auto_deregister_task_definition
+        ):
+            tags.append(
+                {"key": "prefect.io/degregister-task-definition", "value": "true"}
+            )
 
         if tags:
             task_run_request["tags"] = tags
@@ -1752,7 +1530,7 @@ class ECSWorker(BaseWorker):
         ),
         reraise=True,
     )
-    def _create_task_run(self, ecs_client: _ECSClient, task_run_request: dict) -> str:
+    def _create_task_run(self, ecs_client: "ECSClient", task_run_request: dict) -> str:
         """
         Create a run of a task definition.
 
@@ -1790,17 +1568,15 @@ class ECSWorker(BaseWorker):
         for taskdef in (taskdef_1, taskdef_2):
             # Set defaults that AWS would set after registration
             container_definitions = taskdef.get("containerDefinitions", [])
-            essential = any(
-                container.get("essential") for container in container_definitions
-            )
-            if not essential:
-                container_definitions[0].setdefault("essential", True)
 
             taskdef.setdefault("networkMode", "bridge")
 
             # Normalize ordering of lists that ECS considers unordered
             # ECS stores these in unordered data structures, so order shouldn't matter for comparison
             for container in container_definitions:
+                # If essential is not explicitly set, AWS will default to setting it to True
+                container.setdefault("essential", True)
+
                 # Sort environment variables by name for consistent comparison
                 if "environment" in container:
                     container["environment"] = sorted(
@@ -1857,3 +1633,73 @@ class ECSWorker(BaseWorker):
                     logger.debug(f" Retrieved: {taskdef_2[key]}")
 
         return taskdef_1 == taskdef_2
+
+    async def kill_infrastructure(
+        self,
+        infrastructure_pid: str,
+        configuration: ECSJobConfiguration,
+        grace_seconds: int = 30,
+    ) -> None:
+        """
+        Stop an ECS task.
+
+        Args:
+            infrastructure_pid: The infrastructure identifier in format
+                "cluster::task_arn".
+            configuration: The job configuration used to connect to AWS.
+            grace_seconds: Not used for ECS (ECS handles graceful shutdown internally).
+
+        Raises:
+            InfrastructureNotFound: If the task doesn't exist.
+        """
+        cluster, task_arn = parse_identifier(infrastructure_pid)
+
+        await run_sync_in_worker_thread(
+            self._stop_task, cluster, task_arn, configuration
+        )
+
+    def _stop_task(
+        self, cluster: str, task_arn: str, configuration: ECSJobConfiguration
+    ) -> None:
+        """
+        Stop an ECS task.
+
+        Args:
+            cluster: The ECS cluster name or ARN.
+            task_arn: The ARN of the task to stop.
+            configuration: The job configuration used to connect to AWS.
+
+        Raises:
+            InfrastructureNotFound: If the task doesn't exist.
+        """
+        ecs_client: "ECSClient" = configuration.aws_credentials.get_client("ecs")
+
+        try:
+            ecs_client.stop_task(
+                cluster=cluster,
+                task=task_arn,
+                reason="Stopped by Prefect worker",
+            )
+            self._logger.info(f"Stopped ECS task {task_arn!r} in cluster {cluster!r}")
+        except ecs_client.exceptions.InvalidParameterException as exc:
+            # Task not found or already stopped
+            if "task was not found" in str(exc).lower():
+                raise InfrastructureNotFound(
+                    f"ECS task {task_arn!r} not found in cluster {cluster!r}"
+                )
+            raise
+        except Exception as exc:
+            # Handle other AWS exceptions
+            if "InvalidParameterException" in str(type(exc).__name__):
+                raise InfrastructureNotFound(
+                    f"ECS task {task_arn!r} not found in cluster {cluster!r}"
+                )
+            raise
+
+    async def __aenter__(self) -> Self:
+        await start_observer()
+        return await super().__aenter__()
+
+    async def __aexit__(self, *exc_info: Any) -> None:
+        await stop_observer()
+        return await super().__aexit__(*exc_info)

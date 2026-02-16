@@ -1,4 +1,5 @@
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -13,6 +14,8 @@ export type WorkPoolsFilter =
 export type WorkPoolsCountFilter =
 	components["schemas"]["Body_count_work_pools_work_pools_count_post"];
 export type WorkPoolWorker = components["schemas"]["WorkerResponse"];
+export type WorkPoolStatus = components["schemas"]["WorkPoolStatus"];
+export type WorkPoolUpdate = components["schemas"]["WorkPoolUpdate"];
 
 /**
  * Query key factory for work pools-related queries
@@ -44,7 +47,9 @@ export const queryKeyFactory = {
 	count: (filter: WorkPoolsCountFilter) =>
 		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
-	detail: (name: string) => [...queryKeyFactory.counts(), name] as const,
+	detail: (name: string) => [...queryKeyFactory.details(), name] as const,
+	detailByName: (name: string) =>
+		[...queryKeyFactory.details(), "by-name", name] as const,
 	workersLists: () => [...queryKeyFactory.all(), "workers"] as const,
 	workersList: (workPoolName: string) =>
 		[...queryKeyFactory.workersLists(), workPoolName] as const,
@@ -78,7 +83,7 @@ export const buildFilterWorkPoolsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/work_pools/filter", {
+			const res = await (await getQueryService()).POST("/work_pools/filter", {
 				body: filter,
 			});
 			if (!res.data) {
@@ -87,6 +92,7 @@ export const buildFilterWorkPoolsQuery = (
 			return res.data;
 		},
 		enabled,
+		placeholderData: keepPreviousData,
 	});
 
 /**
@@ -114,36 +120,12 @@ export const buildCountWorkPoolsQuery = (filter: WorkPoolsCountFilter = {}) =>
 	queryOptions({
 		queryKey: queryKeyFactory.count(filter),
 		queryFn: async (): Promise<number> => {
-			const res = await getQueryService().POST("/work_pools/count", {
+			const res = await (await getQueryService()).POST("/work_pools/count", {
 				body: filter,
 			});
 			return res.data ?? 0;
 		},
-	});
-
-/**
- * Builds a query configuration for getting a work pool details
- *
- * @param name - Work pool name to get details of
- * @returns Query configuration object for use with TanStack Query
- *
- * @example
- * ```ts
- * const query = useQuery(buildWorkPoolDetailsQuery('myWorkPool');
- * ```
- */
-export const buildWorkPoolDetailsQuery = (name: string) =>
-	queryOptions({
-		queryKey: queryKeyFactory.detail(name),
-		queryFn: async () => {
-			const res = await getQueryService().GET("/work_pools/{name}", {
-				params: { path: { name } },
-			});
-			if (!res.data) {
-				throw new Error("'data' expected");
-			}
-			return res.data;
-		},
+		placeholderData: keepPreviousData,
 	});
 
 /**
@@ -156,7 +138,7 @@ export const buildGetWorkPoolQuery = (name: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(name),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/work_pools/{name}", {
+			const res = await (await getQueryService()).GET("/work_pools/{name}", {
 				params: { path: { name } },
 			});
 			if (!res.data) {
@@ -164,6 +146,7 @@ export const buildGetWorkPoolQuery = (name: string) =>
 			}
 			return res.data;
 		},
+		placeholderData: keepPreviousData,
 	});
 
 /**
@@ -174,8 +157,8 @@ export const usePauseWorkPool = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: pauseWorkPool, ...rest } = useMutation({
-		mutationFn: (name: string) =>
-			getQueryService().PATCH("/work_pools/{name}", {
+		mutationFn: async (name: string) =>
+			(await getQueryService()).PATCH("/work_pools/{name}", {
 				params: { path: { name } },
 				body: {
 					is_paused: true,
@@ -197,8 +180,8 @@ export const useResumeWorkPool = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: resumeWorkPool, ...rest } = useMutation({
-		mutationFn: (name: string) =>
-			getQueryService().PATCH("/work_pools/{name}", {
+		mutationFn: async (name: string) =>
+			(await getQueryService()).PATCH("/work_pools/{name}", {
 				params: { path: { name } },
 				body: {
 					is_paused: false,
@@ -221,8 +204,8 @@ export const useDeleteWorkPool = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: deleteWorkPool, ...rest } = useMutation({
-		mutationFn: (name: string) =>
-			getQueryService().DELETE("/work_pools/{name}", {
+		mutationFn: async (name: string) =>
+			(await getQueryService()).DELETE("/work_pools/{name}", {
 				params: { path: { name } },
 			}),
 		onSettled: () =>
@@ -242,8 +225,8 @@ export const useCreateWorkPool = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: createWorkPool, ...rest } = useMutation({
-		mutationFn: (workPool: WorkPoolCreate) =>
-			getQueryService().POST("/work_pools/", {
+		mutationFn: async (workPool: WorkPoolCreate) =>
+			(await getQueryService()).POST("/work_pools/", {
 				body: workPool,
 			}),
 		onSuccess: () => {
@@ -257,6 +240,38 @@ export const useCreateWorkPool = () => {
 	});
 
 	return { createWorkPool, ...rest };
+};
+
+/**
+ * Hook for updating a work pool
+ * @returns Mutation for updating a work pool
+ */
+export const useUpdateWorkPool = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: updateWorkPool, ...rest } = useMutation({
+		mutationFn: async ({
+			name,
+			workPool,
+		}: {
+			name: string;
+			workPool: WorkPoolUpdate;
+		}) =>
+			(await getQueryService()).PATCH("/work_pools/{name}", {
+				params: { path: { name } },
+				body: workPool,
+			}),
+		onSuccess: (_, { name }) => {
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.detail(name),
+			});
+		},
+	});
+
+	return { updateWorkPool, ...rest };
 };
 
 /**
@@ -274,7 +289,7 @@ export const buildListWorkPoolWorkersQuery = (workPoolName: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.workersList(workPoolName),
 		queryFn: async (): Promise<WorkPoolWorker[]> => {
-			const res = await getQueryService().POST(
+			const res = await (await getQueryService()).POST(
 				"/work_pools/{work_pool_name}/workers/filter",
 				{
 					params: { path: { work_pool_name: workPoolName } },
@@ -288,5 +303,48 @@ export const buildListWorkPoolWorkersQuery = (workPoolName: string) =>
 			}
 			return res.data;
 		},
-		refetchInterval: 30000, // 30 seconds for real-time updates
+		refetchInterval: 30000,
+		placeholderData: keepPreviousData,
 	});
+
+/**
+ * Hook for deleting a work pool worker
+ * @returns Mutation for deleting a work pool worker
+ */
+export const useDeleteWorker = () => {
+	const queryClient = useQueryClient();
+
+	const { mutate: deleteWorker, ...rest } = useMutation({
+		mutationFn: async ({
+			workPoolName,
+			workerName,
+		}: {
+			workPoolName: string;
+			workerName: string;
+		}) =>
+			(await getQueryService()).DELETE(
+				"/work_pools/{work_pool_name}/workers/{name}",
+				{
+					params: {
+						path: {
+							work_pool_name: workPoolName,
+							name: workerName,
+						},
+					},
+				},
+			),
+		onSuccess: (_, { workPoolName }) => {
+			// Invalidate workers list for the work pool
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.workersList(workPoolName),
+			});
+
+			// Also invalidate work pool details which may show worker count
+			void queryClient.invalidateQueries({
+				queryKey: queryKeyFactory.lists(),
+			});
+		},
+	});
+
+	return { deleteWorker, ...rest };
+};

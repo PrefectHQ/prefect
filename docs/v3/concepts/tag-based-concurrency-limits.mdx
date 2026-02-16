@@ -1,0 +1,35 @@
+---
+title: Tag-based concurrency limits
+description: Understand how tag-based concurrency limits prevent too many tasks from running simultaneously.
+keywords: [concurrency, concurrency limits, task tags, task orchestration, execution behavior, resource management, parallel processing]
+---
+
+Tag-based concurrency limits prevent too many tasks from running simultaneously by using [task tags](/v3/how-to-guides/workflows/tag-based-concurrency-limits). You can specify a maximum number of concurrent task runs in a `Running` state for tasks with a given tag.
+
+<Note>
+As of Prefect 3.4.19, tag-based concurrency limits are backed by [global concurrency limits](/v3/concepts/global-concurrency-limits). When you create a tag-based limit, Prefect automatically creates a corresponding global concurrency limit with the name `tag:{tag_name}`. This implementation detail is generally transparent to users, but you may see these global limits in your UI or API responses.
+</Note>
+
+## How tag-based limits work
+
+If a task has multiple tags, it will run only if **_all_** tags have available concurrency.
+
+Tags without specified concurrency limits are treated as unlimited. Setting a tag's concurrency limit to 0 causes immediate abortion of any task runs with that tag, rather than delaying them.
+
+<Tip>
+Tag-based task concurrency is different from manually created global concurrency limits, though they can be used to achieve similar outcomes. Global concurrency limits are a more general way to control concurrency for any Python-based operation, whereas tag-based concurrency limits are specific to Prefect tasks.
+</Tip>
+
+## Execution behavior
+
+Task tag limits are checked whenever a task run attempts to enter a `Running` state.
+
+If there are no concurrency slots available for any one of your task's tags, it delays the transition to a `Running` state and instructs the client to try entering a `Running` state again in 30 seconds (or the value specified by the `PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS` setting).
+
+## Use cases
+
+Tag-based concurrency limits are useful when you have tasks that interact with shared resources. For example:
+
+- **Database connections**: If many tasks across multiple flows interact with a database that only allows 10 connections, you can tag all database tasks with `database` and set a limit of 10.
+- **API rate limiting**: Tasks that call external APIs can be tagged and limited to respect rate limits.
+- **Resource contention**: Tasks that use memory-intensive operations can be limited to prevent system overload.

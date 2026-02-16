@@ -5,8 +5,10 @@ Intended for internal use by the Prefect REST API.
 
 import datetime
 from typing import (
+    Any,
     Awaitable,
     Callable,
+    Dict,
     Iterable,
     Optional,
     Sequence,
@@ -17,16 +19,25 @@ from typing import (
 from uuid import UUID
 
 import sqlalchemy as sa
+from docket import Depends, Retry
 from pydantic import TypeAdapter
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.database import (
+    PrefectDBInterface,
+    db_injector,
+    orm_models,
+    provide_database_interface,
+)
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
-from prefect.server.models.events import work_queue_status_event
+from prefect.server.models.events import (
+    work_queue_status_event,
+    work_queue_updated_event,
+)
 from prefect.server.models.workers import (
     DEFAULT_AGENT_WORK_POOL_NAME,
     bulk_update_work_queue_priorities,
@@ -236,22 +247,28 @@ async def update_work_queue(
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
     update_data = work_queue.model_dump_for_orm(exclude_unset=True)
+    current_work_queue = await read_work_queue(
+        session=session, work_queue_id=work_queue_id
+    )
+    if current_work_queue is None:
+        return False
+
+    session.expunge(current_work_queue)
 
     if "is_paused" in update_data:
-        wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
-        if wq is None:
-            return False
-
         # Only update the status to paused if it's not already paused. This ensures a work queue that is already
         # paused will not get a status update if it's paused again
-        if update_data.get("is_paused") and wq.status != WorkQueueStatus.PAUSED:
+        if (
+            update_data.get("is_paused")
+            and current_work_queue.status != WorkQueueStatus.PAUSED
+        ):
             update_data["status"] = WorkQueueStatus.PAUSED
 
         # If unpausing, only update status if it's currently paused. This ensures a work queue that is already
         # unpaused will not get a status update if it's unpaused again
         if (
             update_data.get("is_paused") is False
-            and wq.status == WorkQueueStatus.PAUSED
+            and current_work_queue.status == WorkQueueStatus.PAUSED
         ):
             # Default status if unpaused
             update_data["status"] = WorkQueueStatus.NOT_READY
@@ -261,7 +278,7 @@ async def update_work_queue(
             if "last_polled" in update_data:
                 last_polled = cast(DateTime, update_data["last_polled"])
             else:
-                last_polled = wq.last_polled
+                last_polled = current_work_queue.last_polled
 
             # Check if last polled is recent and set status to READY if so
             if is_last_polled_recent(last_polled):
@@ -276,9 +293,42 @@ async def update_work_queue(
     updated = result.rowcount > 0
 
     if updated:
+        wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
+        assert wq is not None
+        assert current_work_queue is not wq
+        WORK_QUEUE_EVENT_FIELDS = {
+            "name",
+            "description",
+            "concurrency_limit",
+            "priority",
+            # Exclude "is_paused" - handled with status
+            # Exclude "last_polled" - usually auto-updated
+            # Exclude "filter" - deprecated
+        }
+        # Detect which fields actually changed
+        changed_fields = {}
+        for field in update_data.keys():
+            if field not in WORK_QUEUE_EVENT_FIELDS or field == "status":
+                continue
+
+            old_value = getattr(current_work_queue, field, None)
+            new_value = getattr(wq, field, None)
+
+            if old_value != new_value:
+                changed_fields[field] = {
+                    "from": old_value,
+                    "to": new_value,
+                }
+
+        # Emit event for non-status field changes
+        if changed_fields:
+            await emit_work_queue_updated_event(
+                session=session,
+                work_queue=wq,
+                changed_fields=changed_fields,
+            )
+
         if "status" in update_data and emit_status_change:
-            wq = await read_work_queue(session=session, work_queue_id=work_queue_id)
-            assert wq
             await emit_status_change(wq)
 
     return updated
@@ -534,9 +584,11 @@ async def record_work_queue_polls(
 
 
 async def mark_work_queues_ready(
-    db: PrefectDBInterface,
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
     polled_work_queue_ids: Sequence[UUID],
     ready_work_queue_ids: Sequence[UUID],
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         await record_work_queue_polls(
@@ -613,12 +665,31 @@ async def emit_work_queue_status_event(
     db: PrefectDBInterface,
     work_queue: orm_models.WorkQueue,
 ) -> None:
+    """Emit an event when work queue fields are updated."""
     async with db.session_context() as session:
         event = await work_queue_status_event(
             session=session,
             work_queue=work_queue,
             occurred=now("UTC"),
         )
-
     async with PrefectServerEventsClient() as events_client:
         await events_client.emit(event)
+
+
+async def emit_work_queue_updated_event(
+    session: AsyncSession,
+    work_queue: orm_models.WorkQueue,
+    changed_fields: Dict[str, Dict[str, Any]],
+) -> None:
+    if not changed_fields:
+        return
+
+    async with PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_queue_updated_event(
+                session=session,
+                work_queue=work_queue,
+                changed_fields=changed_fields,
+                occurred=now("UTC"),
+            )
+        )

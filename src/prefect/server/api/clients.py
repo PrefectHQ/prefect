@@ -50,7 +50,7 @@ class BaseClient:
         self._http_client = PrefectHttpxAsyncClient(
             transport=httpx.ASGITransport(app=api_app, raise_app_exceptions=False),
             headers={**additional_headers},
-            base_url="http://prefect-in-memory/api",
+            base_url=f"http://prefect-in-memory{settings.server.api.base_path or '/api'}",
             enable_csrf_support=settings.server.api.csrf_protection_enabled,
             raise_on_all_errors=False,
         )
@@ -114,13 +114,13 @@ class OrchestrationClient(BaseClient):
         )
 
     async def set_flow_run_state(
-        self, flow_run_id: UUID, state: StateCreate
+        self, flow_run_id: UUID, state: StateCreate, force: bool = False
     ) -> Response:
         return await self._http_client.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json={
                 "state": state.model_dump(mode="json"),
-                "force": False,
+                "force": force,
             },
         )
 

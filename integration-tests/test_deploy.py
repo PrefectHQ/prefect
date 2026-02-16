@@ -1,6 +1,7 @@
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import anyio
@@ -8,6 +9,7 @@ import uv
 
 import prefect
 from prefect.deployments import run_deployment
+from prefect.runner.storage import GitRepository
 
 
 async def read_flow_run(flow_run_id):
@@ -16,6 +18,10 @@ async def read_flow_run(flow_run_id):
 
 
 def test_deploy():
+    tmp_dir = Path(tempfile.mkdtemp())
+    runner_dir = tmp_dir / "runner"
+    runner_dir.mkdir()
+
     try:
         subprocess.check_call(
             [
@@ -33,9 +39,16 @@ def test_deploy():
             stderr=sys.stderr,
         )
 
+        # Create GitRepository and set base path to temp directory
+        # to avoid race conditions with parallel tests
+        git_repo = GitRepository(
+            url="https://github.com/PrefectHQ/examples.git",
+        )
+        git_repo.set_base_path(tmp_dir)
+
         flow_instance = prefect.flow.from_source(
-            source="https://github.com/PrefectHQ/prefect-recipes.git",
-            entrypoint="flows-starter/hello.py:hello",
+            source=git_repo,
+            entrypoint="flows/hello_world.py:hello",
         )
 
         flow_instance.deploy(
@@ -58,6 +71,7 @@ def test_deploy():
             ],
             stdout=sys.stdout,
             stderr=sys.stderr,
+            cwd=runner_dir,
         )
 
         flow_run = anyio.run(read_flow_run, flow_run.id)
@@ -79,6 +93,5 @@ def test_deploy():
             stderr=sys.stderr,
         )
 
-        shutil.rmtree(
-            Path(__file__).parent.parent / "prefect-recipes", ignore_errors=True
-        )
+        # Clean up temp directory
+        shutil.rmtree(tmp_dir, ignore_errors=True)

@@ -1,21 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { cva } from "class-variance-authority";
+import { scaleSymlog } from "d3-scale";
 import { format, formatDistanceStrict } from "date-fns";
-import { Calendar, ChevronRight, Clock, Rocket } from "lucide-react";
+import { Calendar, ChevronRight, Clock } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-	type RefObject,
-	useCallback,
-	useContext,
-	useEffect,
-	useRef,
-	useState,
-} from "react";
-import { createPortal } from "react-dom";
-import { Bar, BarChart, Cell, type TooltipProps } from "recharts";
-import type { Coordinate } from "recharts/types/util/types";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { Bar, BarChart, Cell, type TooltipContentProps } from "recharts";
 import type { components } from "@/api/prefect";
+import { DeploymentIconText } from "@/components/deployments/deployment-icon-text";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { cn } from "@/utils";
 import {
 	Card,
 	CardContent,
@@ -36,22 +30,21 @@ type CustomShapeProps = {
 	radius?: number[];
 	role?: string;
 	flowRun?: EnrichedFlowRun;
-	containerHeight?: number;
 };
 
 const barVariants = cva("gap-1 z-1", {
 	variants: {
 		state: {
-			COMPLETED: "fill-green-600",
-			FAILED: "fill-red-600",
-			RUNNING: "fill-blue-700",
-			CANCELLED: "fill-gray-500",
-			CANCELLING: "fill-gray-600",
-			CRASHED: "fill-orange-600",
-			PAUSED: "fill-gray-500",
-			PENDING: "fill-gray-400",
-			SCHEDULED: "fill-yellow-400",
-			NONE: "fill-gray-300",
+			COMPLETED: "fill-state-completed-600",
+			FAILED: "fill-state-failed-700",
+			RUNNING: "fill-state-running-700",
+			CANCELLED: "fill-state-cancelled-500",
+			CANCELLING: "fill-state-cancelling-600",
+			CRASHED: "fill-state-crashed-600",
+			PAUSED: "fill-state-paused-600",
+			PENDING: "fill-state-pending-500",
+			SCHEDULED: "fill-state-scheduled-600",
+			NONE: "fill-state-cancelled-100",
 		} satisfies Record<components["schemas"]["StateType"] | "NONE", string>,
 	},
 	defaultVariants: {
@@ -63,15 +56,16 @@ const CustomBar = (props: CustomShapeProps) => {
 	const minHeight = 8; // Minimum height for zero values
 	const {
 		x = 0,
+		y = 0,
 		width = 0,
 		height = minHeight,
 		radius = [0, 0, 0, 0],
 		role,
 		flowRun,
-		containerHeight = 32,
 	} = props;
 	const effectiveHeight = Math.max(height, minHeight);
-	const yPosition = containerHeight - effectiveHeight;
+	// Shift the bar up if we're inflating its height, so it still rests on the baseline
+	const yPosition = y + (height - effectiveHeight);
 
 	return (
 		<g role={role}>
@@ -80,7 +74,7 @@ const CustomBar = (props: CustomShapeProps) => {
 				x={x}
 				y={yPosition}
 				width={width}
-				height={Math.max(height, minHeight)}
+				height={effectiveHeight}
 				rx={radius[0]}
 				ry={radius[0]}
 				className={barVariants({ state: flowRun?.state_type })}
@@ -89,8 +83,8 @@ const CustomBar = (props: CustomShapeProps) => {
 	);
 };
 
-type EnrichedFlowRun = components["schemas"]["FlowRun"] & {
-	deployment: components["schemas"]["DeploymentResponse"];
+type EnrichedFlowRun = components["schemas"]["FlowRunResponse"] & {
+	deployment?: components["schemas"]["DeploymentResponse"];
 	flow?: components["schemas"]["Flow"];
 };
 
@@ -205,31 +199,58 @@ export const FlowRunActivityBarChart = ({
 	className,
 }: FlowRunActivityBarChartProps) => {
 	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
-	const containerRef = useRef<HTMLDivElement>(null);
+
+	// Cap flow runs to prevent crash when there are more runs than bars.
+	// The chart can only display one run per bar, so we take the first N runs
+	// (which are typically the most recent due to query sort order).
+	const cappedFlowRuns = enrichedFlowRuns.slice(0, numberOfBars);
 
 	const buckets = organizeFlowRunsWithGaps(
-		enrichedFlowRuns,
+		cappedFlowRuns,
 		startDate,
 		endDate,
 		numberOfBars,
 	);
 
-	const data = buckets.map((flowRun) => ({
-		value: flowRun?.total_run_time,
-		id: flowRun?.id,
-		stateType: flowRun?.state_type,
-		flowRun,
-	}));
-	const containerHeight = containerRef.current?.getBoundingClientRect().height;
+	// Calculate max duration for scaling
+	const maxDuration = useMemo(() => {
+		return cappedFlowRuns.reduce((max, flowRun) => {
+			const duration = flowRun.total_run_time ?? 0;
+			return duration > max ? duration : max;
+		}, 0);
+	}, [cappedFlowRuns]);
+
+	// Create symlog scale for logarithmic scaling that handles zero values gracefully
+	// This matches the Vue implementation's use of d3's scaleSymlog
+	const yScale = useMemo(() => {
+		const scale = scaleSymlog();
+		scale.domain([0, maxDuration]);
+		// Range is normalized to [0, 1] since recharts handles the actual pixel scaling
+		scale.range([0, 1]);
+		return scale;
+	}, [maxDuration]);
+
+	const data = buckets.map((flowRun, index) => {
+		const rawValue = flowRun?.total_run_time ?? 0;
+		// Apply symlog scale to the value, then multiply by maxDuration to preserve
+		// the relative scale that recharts expects
+		const scaledValue = maxDuration > 0 ? yScale(rawValue) * maxDuration : 0;
+		return {
+			value: scaledValue,
+			id: flowRun?.id ?? `empty-${index}`,
+			stateType: flowRun?.state_type,
+			flowRun,
+		};
+	});
+
 	return (
 		<ChartContainer
-			ref={containerRef}
 			config={{
 				inactivity: {
 					color: "hsl(210 40% 45%)",
 				},
 			}}
-			className={className}
+			className={cn("relative", className, isTooltipActive && "z-20")}
 		>
 			<BarChart
 				data={data}
@@ -243,10 +264,7 @@ export const FlowRunActivityBarChart = ({
 				}}
 			>
 				<ChartTooltip
-					content={<FlowRunTooltip containerRef={containerRef} />}
-					position={{
-						y: containerHeight ?? 0,
-					}}
+					content={<FlowRunTooltip />}
 					isAnimationActive={false}
 					allowEscapeViewBox={{ x: true, y: true }}
 					active={isTooltipActive}
@@ -255,7 +273,7 @@ export const FlowRunActivityBarChart = ({
 				/>
 				<Bar
 					dataKey="value"
-					shape={<CustomBar containerHeight={containerHeight} />}
+					shape={<CustomBar />}
 					radius={[5, 5, 5, 5]}
 					onMouseEnter={() => setIsTooltipActive(true)}
 					onMouseLeave={() => setIsTooltipActive(undefined)}
@@ -272,82 +290,14 @@ export const FlowRunActivityBarChart = ({
 
 FlowRunActivityBarChart.displayName = "FlowRunActivityBarChart";
 
-/**
- * TooltipPortal is a component that renders tooltips in a portal at the correct position relative to their trigger element.
- * This is necessary because tooltips rendered inside charts can be clipped by the chart's parent's boundaries.
- * By rendering in a portal at the document root, we ensure the tooltip is always visible and correctly positioned.
- *
- * The component takes a containerRef to calculate positioning relative to the chart container,
- * along with position and coordinate data from the chart tooltip to determine exact placement.
- * It handles scroll position and viewport coordinates to ensure the tooltip stays aligned with the chart bars.
- */
-const TooltipPortal = ({
-	containerRef,
-	position,
-	coordinate,
-	children,
-}: {
-	children: ReactNode;
-	position: Partial<Coordinate>;
-	coordinate: Partial<Coordinate>;
-	containerRef: RefObject<HTMLDivElement | null>;
-}) => {
-	const [internalPosition, setInternalPosition] = useState<{
-		x: number;
-		y: number;
-	} | null>(null);
+type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>>;
 
-	useEffect(() => {
-		if (containerRef.current && position && coordinate) {
-			const container = containerRef.current;
-			const rect = container.getBoundingClientRect();
-
-			// Calculate position relative to viewport and scroll
-			const x =
-				rect.left + (coordinate.x ?? 0) + window.scrollX - rect.width / 2;
-			const y = rect.top + (position.y ?? 0) + window.scrollY;
-
-			setInternalPosition({ x, y });
-		} else {
-			setInternalPosition(null);
-		}
-	}, [coordinate, containerRef, position]);
-
-	if (!internalPosition) {
+const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
+	if (!active || !payload || !payload.length) {
 		return null;
 	}
-
-	return createPortal(
-		<div
-			style={{
-				position: "absolute",
-				left: 0,
-				top: 0,
-				transform: `translate3d(${internalPosition.x}px, ${internalPosition.y}px, 0)`,
-				zIndex: 9999,
-			}}
-		>
-			{children}
-		</div>,
-		document.body,
-	);
-};
-
-type FlowRunTooltipProps = TooltipProps<number, string> & {
-	containerRef: RefObject<HTMLDivElement | null>;
-};
-
-const FlowRunTooltip = ({
-	payload,
-	active,
-	containerRef,
-	coordinate,
-	position,
-}: FlowRunTooltipProps) => {
-	if (!active || !payload || !payload.length || !position || !coordinate) {
-		return null;
-	}
-	const nestedPayload: unknown = payload[0]?.payload;
+	const firstPayloadItem = payload[0] as { payload?: unknown } | undefined;
+	const nestedPayload: unknown = firstPayloadItem?.payload;
 	if (
 		!nestedPayload ||
 		typeof nestedPayload !== "object" ||
@@ -361,9 +311,6 @@ const FlowRunTooltip = ({
 	}
 
 	const flow = flowRun.flow;
-	if (!flow || !flow.id) {
-		return null;
-	}
 	const deployment = flowRun.deployment;
 
 	const startTime = flowRun.start_time
@@ -373,15 +320,11 @@ const FlowRunTooltip = ({
 			: null;
 
 	return (
-		<TooltipPortal
-			position={position}
-			coordinate={coordinate}
-			containerRef={containerRef}
-		>
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-1">
-						{flow && (
+		<Card>
+			<CardHeader>
+				<CardTitle className="flex items-center gap-1">
+					{flow?.id && (
+						<>
 							<Link
 								to={"/flows/flow/$id"}
 								params={{ id: flow.id }}
@@ -389,57 +332,49 @@ const FlowRunTooltip = ({
 							>
 								{flow.name}
 							</Link>
-						)}
-						<ChevronRight className="size-4" />
-						<Link
-							to={"/runs/flow-run/$id"}
-							params={{ id: flowRun.id }}
-							className="text-base font-medium"
-						>
-							{flowRun.name}
-						</Link>
-					</CardTitle>
-					{flowRun.state && (
-						<CardDescription>
-							<StateBadge type={flowRun.state.type} name={flowRun.state.name} />
-						</CardDescription>
+							<ChevronRight className="size-4" />
+						</>
 					)}
-				</CardHeader>
-				<CardContent className="flex flex-col gap-1">
-					{deployment?.id && (
-						<Link
-							to={"/deployments/deployment/$id"}
-							params={{ id: deployment.id }}
-							className="flex items-center gap-1"
-						>
-							<Rocket className="size-4" />
-							<p className="text-sm font-medium whitespace-nowrap">
-								{deployment.name}
-							</p>
-						</Link>
-					)}
+					<Link
+						to={"/runs/flow-run/$id"}
+						params={{ id: flowRun.id }}
+						className="text-base font-medium"
+					>
+						{flowRun.name}
+					</Link>
+				</CardTitle>
+				{flowRun.state && (
+					<CardDescription>
+						<StateBadge type={flowRun.state.type} name={flowRun.state.name} />
+					</CardDescription>
+				)}
+			</CardHeader>
+			<CardContent className="flex flex-col gap-1">
+				{deployment?.id && (
+					<DeploymentIconText
+						deployment={deployment}
+						className="flex items-center gap-1 text-sm font-medium whitespace-nowrap"
+					/>
+				)}
+				<span className="flex items-center gap-1">
+					<Clock className="size-4" />
+					<p className="text-sm whitespace-nowrap">
+						{formatDistanceStrict(0, flowRun.total_run_time * 1000, {
+							addSuffix: false,
+						})}
+					</p>
+				</span>
+				{startTime && (
 					<span className="flex items-center gap-1">
-						<Clock className="size-4" />
-						<p className="text-sm whitespace-nowrap">
-							{formatDistanceStrict(0, flowRun.total_run_time * 1000, {
-								addSuffix: false,
-							})}
-						</p>
+						<Calendar className="size-4" />
+						<p className="text-sm">{format(startTime, "yyyy/MM/dd hh:mm a")}</p>
 					</span>
-					{startTime && (
-						<span className="flex items-center gap-1">
-							<Calendar className="size-4" />
-							<p className="text-sm">
-								{format(startTime, "yyyy/MM/dd hh:mm a")}
-							</p>
-						</span>
-					)}
-					<div>
-						<TagBadgeGroup tags={flowRun.tags ?? []} maxTagsDisplayed={5} />
-					</div>
-				</CardContent>
-			</Card>
-		</TooltipPortal>
+				)}
+				<div>
+					<TagBadgeGroup tags={flowRun.tags ?? []} maxTagsDisplayed={5} />
+				</div>
+			</CardContent>
+		</Card>
 	);
 };
 

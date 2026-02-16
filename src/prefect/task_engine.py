@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import inspect
 import logging
 import threading
@@ -27,26 +28,40 @@ from typing import (
     Union,
     overload,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 from opentelemetry import trace
 from typing_extensions import ParamSpec, Self
 
+import prefect.states
 import prefect.types._datetime
+from prefect._internal.compatibility import deprecated
+from prefect._internal.uuid7 import uuid7
+from prefect._states import (
+    exception_to_crashed_state_sync,
+    exception_to_failed_state_sync,
+    return_value_to_state_sync,
+)
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
-from prefect.client.schemas.objects import RunInput, State
+from prefect.client.schemas.objects import (
+    ConcurrencyLeaseHolder,
+    RunInput,
+    State,
+    StateDetails,
+    TaskRunPolicy,
+)
+from prefect.concurrency._asyncio import concurrency as _aconcurrency
+from prefect.concurrency._sync import concurrency as _concurrency
 from prefect.concurrency.context import ConcurrencyContext
-from prefect.concurrency.v1.asyncio import concurrency as aconcurrency
-from prefect.concurrency.v1.context import ConcurrencyContext as ConcurrencyContextV1
-from prefect.concurrency.v1.sync import concurrency
 from prefect.context import (
     AssetContext,
     AsyncClientContext,
     FlowRunContext,
     SyncClientContext,
+    TagsContext,
     TaskRunContext,
     hydrated_context,
 )
@@ -89,12 +104,13 @@ from prefect.transactions import (
     atransaction,
     transaction,
 )
-from prefect.utilities._engine import get_hook_name
+from prefect.utilities._engine import dynamic_key_for_task_run, get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
 from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
+    collect_task_run_inputs_sync,
     emit_task_run_state_change_event,
     link_state_to_task_run_result,
     resolve_to_final_result,
@@ -109,6 +125,102 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 BACKOFF_MAX = 10
+
+
+def _create_task_run_locally(
+    task: "Task[Any, Any]",
+    id: Optional[UUID] = None,
+    parameters: Optional[dict[str, Any]] = None,
+    flow_run_context: Optional[FlowRunContext] = None,
+    parent_task_run_context: Optional[TaskRunContext] = None,
+    wait_for: Optional["OneOrManyFutureOrResult[Any]"] = None,
+    extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
+) -> TaskRun:
+    """
+    Create a local TaskRun object for use by SyncTaskRunEngine.
+
+    This function creates a TaskRun in memory without persisting to the server.
+    It is used for sync task execution to avoid async overhead.
+
+    Note: This function does not support deferred tasks.
+    """
+    # Import here to avoid circular imports
+    from prefect.tasks import _infer_parent_task_runs
+
+    if flow_run_context is None:
+        flow_run_context = FlowRunContext.get()
+    if parent_task_run_context is None:
+        parent_task_run_context = TaskRunContext.get()
+    if parameters is None:
+        parameters = {}
+
+    if not flow_run_context:
+        dynamic_key = f"{task.task_key}-{str(uuid4().hex)}"
+        task_run_name = task.name
+    else:
+        dynamic_key = dynamic_key_for_task_run(
+            context=flow_run_context, task=task, stable=False
+        )
+        task_run_name = f"{task.name}-{dynamic_key[:3]}"
+
+    # collect task inputs
+    task_inputs: dict[str, set[RunInput]] = {
+        k: collect_task_run_inputs_sync(v) for k, v in parameters.items()
+    }
+
+    # collect all parent dependencies
+    if task_parents := _infer_parent_task_runs(
+        flow_run_context=flow_run_context,
+        task_run_context=parent_task_run_context,
+        parameters=parameters,
+    ):
+        task_inputs["__parents__"] = set(task_parents)
+
+    # check wait for dependencies
+    if wait_for:
+        task_inputs["wait_for"] = collect_task_run_inputs_sync(wait_for)
+
+    # Join extra task inputs
+    for k, extras in (extra_task_inputs or {}).items():
+        task_inputs[k] = task_inputs[k].union(extras)
+
+    flow_run_id = (
+        getattr(flow_run_context.flow_run, "id", None)
+        if flow_run_context and flow_run_context.flow_run
+        else None
+    )
+    task_run_id = id or uuid7()
+
+    state = prefect.states.Pending(
+        state_details=StateDetails(
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+        )
+    )
+    task_run = TaskRun(
+        id=task_run_id,
+        name=task_run_name,
+        flow_run_id=flow_run_id,
+        task_key=task.task_key,
+        dynamic_key=str(dynamic_key),
+        task_version=task.version,
+        empirical_policy=TaskRunPolicy(
+            retries=task.retries,
+            retry_delay=task.retry_delay_seconds,
+            retry_jitter_factor=task.retry_jitter_factor,
+        ),
+        tags=list(set(task.tags).union(TagsContext.get().current_tags or [])),
+        task_inputs=task_inputs or {},
+        expected_start_time=state.timestamp,
+        state_id=state.id,
+        state_type=state.type,
+        state_name=state.name,
+        state=state,
+        created=state.timestamp,
+        updated=state.timestamp,
+    )
+
+    return task_run
 
 
 class TaskRunTimeoutError(TimeoutError):
@@ -202,7 +314,8 @@ class BaseTaskRunEngine(Generic[P, R]):
                 raise PrefectException(
                     f"Failed to resolve inputs in parameter {parameter!r}. If your"
                     " parameter type is not supported, consider using the `quote`"
-                    " annotation to skip resolution of inputs."
+                    " annotation to skip resolution of inputs, or the `opaque`"
+                    " annotation to resolve the value without traversing its contents."
                 ) from exc
 
         self.parameters = resolved_parameters
@@ -237,6 +350,11 @@ class BaseTaskRunEngine(Generic[P, R]):
             context={"current_task_run": self.task_run, "current_task": self.task},
         )
 
+    @deprecated.deprecated_callable(
+        start_date=datetime.datetime(2025, 8, 21),
+        end_date=datetime.datetime(2025, 11, 21),
+        help="This method is no longer used and will be removed in a future version.",
+    )
     def record_terminal_state_timing(self, state: State) -> None:
         if self.task_run and self.task_run.start_time and not self.task_run.end_time:
             self.task_run.end_time = state.timestamp
@@ -333,7 +451,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc_or_state,
                 message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
-            if asyncio.iscoroutinefunction(retry_condition):
+            if inspect.iscoroutinefunction(retry_condition):
                 should_retry = run_coro_as_sync(
                     retry_condition(self.task, self.task_run, state)
                 )
@@ -365,6 +483,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             hooks = task.on_failure_hooks
         elif state.is_completed() and task.on_completion_hooks:
             hooks = task.on_completion_hooks
+        elif state.is_running() and task.on_running_hooks:
+            hooks = task.on_running_hooks
         else:
             hooks = None
 
@@ -423,6 +543,10 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             time.sleep(interval)
             state = self.set_state(new_state)
 
+        # Call on_running hooks after the task has entered the Running state
+        if state.is_running():
+            self.call_hooks(state)
+
     def set_state(self, state: State[R], force: bool = False) -> State[R]:
         last_state = self.state
         if not self.task_run:
@@ -443,11 +567,20 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.task_run.state_id = new_state.id
         self.task_run.state_type = new_state.type
         self.task_run.state_name = new_state.name
+        if last_state.is_running():
+            self.task_run.total_run_time += new_state.timestamp - last_state.timestamp
 
         if new_state.is_running():
             self.task_run.run_count += 1
 
         if new_state.is_final():
+            if (
+                self.task_run
+                and self.task_run.start_time
+                and not self.task_run.end_time
+            ):
+                self.task_run.end_time = new_state.timestamp
+
             if isinstance(state.data, ResultRecord):
                 result = state.data.result
             else:
@@ -494,13 +627,11 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         else:
             expiration = None
 
-        terminal_state = run_coro_as_sync(
-            return_value_to_state(
-                result,
-                result_store=get_result_store(),
-                key=transaction.key,
-                expiration=expiration,
-            )
+        terminal_state = return_value_to_state_sync(
+            result,
+            result_store=get_result_store(),
+            key=transaction.key,
+            expiration=expiration,
         )
 
         # Avoid logging when running this rollback hook since it is not user-defined
@@ -515,7 +646,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             terminal_state.name = "Cached"
 
-        self.record_terminal_state_timing(terminal_state)
         self.set_state(terminal_state)
         self._return_value = result
 
@@ -556,18 +686,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             self.set_state(new_state, force=True)
+            # Call on_running hooks if we transitioned to a Running state (immediate retry)
+            if new_state.is_running():
+                self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
-            retry_message_suffix = (
-                "Retries are exhausted"
-                if self.task.retries > 0
-                else "No retries configured for this task."
-            )
-            self.logger.error(
-                f"Task run failed with {failure_type}: {exc_or_state!r} - {retry_message_suffix}",
-                exc_info=True,
-            )
+            if self.task.retries > 0:
+                self.logger.error(
+                    f"Task run failed with {failure_type}: {exc_or_state!r} - Retries are exhausted",
+                    exc_info=True,
+                )
+            else:
+                self.logger.error(
+                    f"Task run failed with {failure_type}: {exc_or_state!r}",
+                    exc_info=True,
+                )
             return False
 
         return False
@@ -577,15 +711,12 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         if not self.handle_retry(exc):
             # If the task has no retries left, or the retry condition is not met, set the task to failed.
-            state = run_coro_as_sync(
-                exception_to_failed_state(
-                    exc,
-                    message="Task run encountered an exception",
-                    result_store=get_result_store(),
-                    write_result=True,
-                )
+            state = exception_to_failed_state_sync(
+                exc,
+                message="Task run encountered an exception",
+                result_store=get_result_store(),
+                write_result=True,
             )
-            self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
             self._telemetry.end_span_on_failure(state.message if state else None)
@@ -602,15 +733,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message=message,
                 name="TimedOut",
             )
-            self.record_terminal_state_timing(state)
             self.set_state(state)
             self._raised = exc
 
     def handle_crash(self, exc: BaseException) -> None:
-        state = run_coro_as_sync(exception_to_crashed_state(exc))
+        state = exception_to_crashed_state_sync(exc)
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
-        self.record_terminal_state_timing(state)
         self.set_state(state, force=True)
         self._raised = exc
         self._telemetry.record_exception(exc)
@@ -652,7 +781,6 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     persist_result=persist_result,
                 )
             )
-            stack.enter_context(ConcurrencyContextV1())
             stack.enter_context(ConcurrencyContext())
 
             self.logger: "logging.Logger" = task_run_logger(
@@ -697,25 +825,31 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 parent_task_run_context = TaskRunContext.get()
 
                 try:
+                    _emit_pending = False
                     if not self.task_run:
-                        self.task_run = run_coro_as_sync(
-                            self.task.create_local_run(
-                                id=task_run_id,
-                                parameters=self.parameters,
-                                flow_run_context=parent_flow_run_context,
-                                parent_task_run_context=parent_task_run_context,
-                                wait_for=self.wait_for,
-                                extra_task_inputs=dependencies,
-                            )
+                        self.task_run = _create_task_run_locally(
+                            task=self.task,
+                            id=task_run_id,
+                            parameters=self.parameters,
+                            flow_run_context=parent_flow_run_context,
+                            parent_task_run_context=parent_task_run_context,
+                            wait_for=self.wait_for,
+                            extra_task_inputs=dependencies,
                         )
-                        # Emit an event to capture that the task run was in the `PENDING` state.
-                        self._last_event = emit_task_run_state_change_event(
-                            task_run=self.task_run,
-                            initial_state=None,
-                            validated_state=self.task_run.state,
-                        )
+                        _emit_pending = True
 
                     with self.setup_run_context():
+                        # Emit the Pending event inside setup_run_context so that
+                        # copy_context() captures this task's TaskRunContext,
+                        # rather than whatever TaskRunContext may be active from
+                        # an enclosing scope (e.g. a parent task).
+                        if _emit_pending:
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
+
                         # setup_run_context might update the task run name, so log creation here
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
@@ -754,18 +888,21 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self._is_started = False
                     self._client = None
 
-    async def wait_until_ready(self) -> None:
-        """Waits until the scheduled time (if its the future), then enters Running."""
+    def wait_until_ready(self) -> None:
+        """Sync version: Waits until the scheduled time (if its the future), then enters Running."""
         if scheduled_time := self.state.state_details.scheduled_time:
             sleep_time = (
                 scheduled_time - prefect.types._datetime.now("UTC")
             ).total_seconds()
-            await anyio.sleep(sleep_time if sleep_time > 0 else 0)
+            time.sleep(sleep_time if sleep_time > 0 else 0)
             new_state = Retrying() if self.state.name == "AwaitingRetry" else Running()
             self.set_state(
                 new_state,
                 force=True,
             )
+            # Call on_running hooks if we transitioned to a Running state
+            if self.state.is_running():
+                self.call_hooks()
 
     # --------------------------
     #
@@ -803,9 +940,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     self.call_hooks()
                     return
 
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                with concurrency(list(self.task_run.tags), self.task_run.id):
+                with _concurrency(
+                    names=[f"tag:{tag}" for tag in self.task_run.tags],
+                    occupy=1,
+                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+                    lease_duration=60,
+                    suppress_warnings=True,
+                ):
                     self.begin_run()
                     try:
                         yield
@@ -844,6 +985,22 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         # reenter the run context to ensure it is up to date for every run
         with self.setup_run_context():
             try:
+                # Warn if timeout is set but we're not on the main thread
+                if (
+                    self.task.timeout_seconds is not None
+                    and threading.current_thread() is not threading.main_thread()
+                ):
+                    self.logger.warning(
+                        "Timeout of %s seconds configured for this task, but the task is "
+                        "running in a worker thread. Timeouts in worker threads cannot "
+                        "interrupt blocking operations like `time.sleep()`, network "
+                        "requests, or file I/O. The timeout will only take effect after "
+                        "the blocking operation completes. Consider using an async task "
+                        "with `await` statements for reliable timeout behavior. "
+                        "See https://docs.prefect.io/v3/how-to-guides/workflows/"
+                        "write-and-run#task-timeout-behavior for more information.",
+                        self.task.timeout_seconds,
+                    )
                 with timeout(
                     seconds=self.task.timeout_seconds,
                     timeout_exc_type=TaskRunTimeoutError,
@@ -905,7 +1062,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 data=exc_or_state,
                 message=f"Task run encountered unexpected {failure_type}: {repr(exc_or_state)}",
             )
-            if asyncio.iscoroutinefunction(retry_condition):
+            if inspect.iscoroutinefunction(retry_condition):
                 should_retry = await retry_condition(self.task, self.task_run, state)
             elif inspect.isfunction(retry_condition):
                 should_retry = retry_condition(self.task, self.task_run, state)
@@ -936,6 +1093,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             hooks = task.on_failure_hooks
         elif state.is_completed() and task.on_completion_hooks:
             hooks = task.on_completion_hooks
+        elif state.is_running() and task.on_running_hooks:
+            hooks = task.on_running_hooks
         else:
             hooks = None
 
@@ -1008,6 +1167,10 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             await anyio.sleep(interval)
             state = await self.set_state(new_state)
 
+        # Call on_running hooks after the task has entered the Running state
+        if state.is_running():
+            await self.call_hooks(state)
+
     async def set_state(self, state: State, force: bool = False) -> State:
         last_state = self.state
         if not self.task_run:
@@ -1029,10 +1192,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         self.task_run.state_type = new_state.type
         self.task_run.state_name = new_state.name
 
+        if last_state.is_running():
+            self.task_run.total_run_time += new_state.timestamp - last_state.timestamp
+
         if new_state.is_running():
             self.task_run.run_count += 1
 
         if new_state.is_final():
+            if (
+                self.task_run
+                and self.task_run.start_time
+                and not self.task_run.end_time
+            ):
+                self.task_run.end_time = new_state.timestamp
+
             if isinstance(new_state.data, ResultRecord):
                 result = new_state.data.result
             else:
@@ -1097,7 +1270,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         if transaction.is_committed():
             terminal_state.name = "Cached"
 
-        self.record_terminal_state_timing(terminal_state)
         await self.set_state(terminal_state)
         self._return_value = result
         self._telemetry.end_span_on_success()
@@ -1140,18 +1312,22 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             )
 
             await self.set_state(new_state, force=True)
+            # Call on_running hooks if we transitioned to a Running state (immediate retry)
+            if new_state.is_running():
+                await self.call_hooks(new_state)
             self.retries: int = self.retries + 1
             return True
         elif self.retries >= self.task.retries:
-            retry_message_suffix = (
-                "Retries are exhausted"
-                if self.task.retries > 0
-                else "No retries configured for this task."
-            )
-            self.logger.error(
-                f"Task run failed with {failure_type}: {exc_or_state!r} - {retry_message_suffix}",
-                exc_info=True,
-            )
+            if self.task.retries > 0:
+                self.logger.error(
+                    f"Task run failed with {failure_type}: {exc_or_state!r} - Retries are exhausted",
+                    exc_info=True,
+                )
+            else:
+                self.logger.error(
+                    f"Task run failed with {failure_type}: {exc_or_state!r}",
+                    exc_info=True,
+                )
             return False
 
         return False
@@ -1166,7 +1342,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message="Task run encountered an exception",
                 result_store=get_result_store(),
             )
-            self.record_terminal_state_timing(state)
             await self.set_state(state)
             self._raised = exc
 
@@ -1185,7 +1360,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 message=message,
                 name="TimedOut",
             )
-            self.record_terminal_state_timing(state)
             await self.set_state(state)
             self._raised = exc
             self._telemetry.end_span_on_failure(state.message)
@@ -1194,7 +1368,6 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         state = await exception_to_crashed_state(exc)
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
-        self.record_terminal_state_timing(state)
         await self.set_state(state, force=True)
         self._raised = exc
 
@@ -1230,9 +1403,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=await get_result_store().update_for_task(
-                        self.task, _sync=False
-                    ),
+                    result_store=await get_result_store().aupdate_for_task(self.task),
                     client=client,
                     persist_result=persist_result,
                 )
@@ -1281,6 +1452,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 parent_task_run_context = TaskRunContext.get()
 
                 try:
+                    _emit_pending = False
                     if not self.task_run:
                         self.task_run = await self.task.create_local_run(
                             id=task_run_id,
@@ -1290,14 +1462,20 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                             wait_for=self.wait_for,
                             extra_task_inputs=dependencies,
                         )
-                        # Emit an event to capture that the task run was in the `PENDING` state.
-                        self._last_event = emit_task_run_state_change_event(
-                            task_run=self.task_run,
-                            initial_state=None,
-                            validated_state=self.task_run.state,
-                        )
+                        _emit_pending = True
 
                     async with self.setup_run_context():
+                        # Emit the Pending event inside setup_run_context so that
+                        # copy_context() captures this task's TaskRunContext,
+                        # rather than whatever TaskRunContext may be active from
+                        # an enclosing scope (e.g. a parent task).
+                        if _emit_pending:
+                            self._last_event = emit_task_run_state_change_event(
+                                task_run=self.task_run,
+                                initial_state=None,
+                                validated_state=self.task_run.state,
+                            )
+
                         # setup_run_context might update the task run name, so log creation here
                         self.logger.debug(
                             f"Created task run {self.task_run.name!r} for task {self.task.name!r}"
@@ -1348,6 +1526,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                 new_state,
                 force=True,
             )
+            # Call on_running hooks if we transitioned to a Running state
+            if self.state.is_running():
+                await self.call_hooks()
 
     # --------------------------
     #
@@ -1386,9 +1567,14 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     yield
                     await self.call_hooks()
                     return
-                # Acquire a concurrency slot for each tag, but only if a limit
-                # matching the tag already exists.
-                async with aconcurrency(list(self.task_run.tags), self.task_run.id):
+
+                async with _aconcurrency(
+                    names=[f"tag:{tag}" for tag in self.task_run.tags],
+                    occupy=1,
+                    holder=ConcurrencyLeaseHolder(type="task_run", id=self.task_run.id),
+                    lease_duration=60,
+                    suppress_warnings=True,
+                ):
                     await self.begin_run()
                     try:
                         yield
@@ -1478,7 +1664,7 @@ def run_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
-            run_coro_as_sync(engine.wait_until_ready())
+            engine.wait_until_ready()
             with (
                 engine.asset_context(),
                 engine.run_context(),
@@ -1543,7 +1729,7 @@ def run_generator_task_sync(
 
     with engine.start(task_run_id=task_run_id, dependencies=dependencies):
         while engine.is_running():
-            run_coro_as_sync(engine.wait_until_ready())
+            engine.wait_until_ready()
             with (
                 engine.asset_context(),
                 engine.run_context(),

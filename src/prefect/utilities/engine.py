@@ -302,7 +302,8 @@ async def resolve_inputs(
             raise PrefectException(
                 f"Failed to resolve inputs in parameter {parameter!r}. If your"
                 " parameter type is not supported, consider using the `quote`"
-                " annotation to skip resolution of inputs."
+                " annotation to skip resolution of inputs, or the `opaque`"
+                " annotation to resolve the value without traversing its contents."
             ) from exc
 
     return resolved_parameters
@@ -703,6 +704,13 @@ def emit_task_run_state_change_event(
             "prefect.state-type": str(validated_state.type.value),
             "prefect.orchestration": "client",
         },
+        related=[
+            {
+                "prefect.resource.id": f"prefect.tag.{tag}",
+                "prefect.resource.role": "tag",
+            }
+            for tag in sorted(task_run.tags)
+        ],
         follows=follows,
     )
 
@@ -812,7 +820,8 @@ def resolve_inputs_sync(
             raise PrefectException(
                 f"Failed to resolve inputs in parameter {parameter!r}. If your"
                 " parameter type is not supported, consider using the `quote`"
-                " annotation to skip resolution of inputs."
+                " annotation to skip resolution of inputs, or the `opaque`"
+                " annotation to resolve the value without traversing its contents."
             ) from exc
 
     return resolved_parameters

@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 import uuid
+from unittest import mock
 from unittest.mock import Mock
 
+import googleapiclient.errors
 import pydantic
 import pytest
 from prefect_gcp.credentials import GcpCredentials
-from prefect_gcp.utilities import slugify_name
+from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
+from prefect_gcp.utilities import Execution, slugify_name
 from prefect_gcp.workers.cloud_run import (
     CloudRunWorker,
     CloudRunWorkerJobConfiguration,
@@ -12,6 +17,8 @@ from prefect_gcp.workers.cloud_run import (
 )
 
 from prefect.client.schemas.objects import FlowRun
+from prefect.exceptions import InfrastructureNotFound
+from prefect.logging.loggers import PrefectLogAdapter
 from prefect.server.schemas.actions import DeploymentCreate
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.schema_tools.validation import (
@@ -101,6 +108,207 @@ class TestCloudRunWorkerJobConfiguration:
         assert len(container["env"]) == 1
         assert container["env"][0]["name"] == "a"
         assert container["env"][0]["value"] == "b"
+
+    def test_populate_envs_with_prefect_api_key_secret(
+        self,
+        cloud_run_worker_job_config,
+    ):
+        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]
+
+        # Set up environment with API key
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_KEY": "test-api-key",
+            "OTHER_VAR": "other-value",
+        }
+        cloud_run_worker_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="my-secret", version="latest"
+        )
+
+        cloud_run_worker_job_config._populate_envs()
+
+        assert "env" in container
+        assert len(container["env"]) == 2
+
+        # Should have OTHER_VAR as regular env var
+        regular_env = [env for env in container["env"] if env["name"] == "OTHER_VAR"][0]
+        assert regular_env["value"] == "other-value"
+
+        # Should have PREFECT_API_KEY as secret
+        secret_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_KEY"
+        ][0]
+        assert "value" not in secret_env  # Should not have plaintext value
+        assert "valueFrom" in secret_env
+        assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
+        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
+
+    def test_populate_envs_with_prefect_api_auth_string_secret(
+        self,
+        cloud_run_worker_job_config,
+    ):
+        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]
+
+        # Set up environment with auth string
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_AUTH_STRING": "test-auth-string",
+            "OTHER_VAR": "other-value",
+        }
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = SecretKeySelector(
+            secret="my-auth-secret", version="latest"
+        )
+
+        cloud_run_worker_job_config._populate_envs()
+
+        assert "env" in container
+        assert len(container["env"]) == 2
+
+        # Should have OTHER_VAR as regular env var
+        regular_env = [env for env in container["env"] if env["name"] == "OTHER_VAR"][0]
+        assert regular_env["value"] == "other-value"
+
+        # Should have PREFECT_API_AUTH_STRING as secret
+        secret_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_AUTH_STRING"
+        ][0]
+        assert "value" not in secret_env  # Should not have plaintext value
+        assert "valueFrom" in secret_env
+        assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-auth-secret"
+        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
+
+    def test_populate_envs_with_both_secrets(
+        self,
+        cloud_run_worker_job_config,
+    ):
+        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]
+
+        # Set up environment with both API key and auth string
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_KEY": "test-api-key",
+            "PREFECT_API_AUTH_STRING": "test-auth-string",
+            "OTHER_VAR": "other-value",
+        }
+        cloud_run_worker_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="my-secret", version="latest"
+        )
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = SecretKeySelector(
+            secret="my-auth-secret", version="latest"
+        )
+
+        cloud_run_worker_job_config._populate_envs()
+
+        assert "env" in container
+        assert len(container["env"]) == 3
+
+        # Should have OTHER_VAR as regular env var
+        regular_env = [env for env in container["env"] if env["name"] == "OTHER_VAR"][0]
+        assert regular_env["value"] == "other-value"
+
+        # Should have PREFECT_API_KEY as secret
+        api_key_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_KEY"
+        ][0]
+        assert "value" not in api_key_env
+        assert api_key_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
+        assert api_key_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
+
+        # Should have PREFECT_API_AUTH_STRING as secret
+        auth_string_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_AUTH_STRING"
+        ][0]
+        assert "value" not in auth_string_env
+        assert auth_string_env["valueFrom"]["secretKeyRef"]["name"] == "my-auth-secret"
+        assert auth_string_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
+
+    def test_populate_envs_with_secret_but_no_env_var(
+        self,
+        cloud_run_worker_job_config,
+    ):
+        """Test that secret is added even when the corresponding env var doesn't exist"""
+        container = cloud_run_worker_job_config.job_body["spec"]["template"]["spec"][
+            "template"
+        ]["spec"]["containers"][0]
+
+        # No PREFECT_API_KEY in env, but secret is configured
+        cloud_run_worker_job_config.env = {"OTHER_VAR": "other-value"}
+        cloud_run_worker_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="my-secret", version="latest"
+        )
+
+        cloud_run_worker_job_config._populate_envs()
+
+        assert "env" in container
+        assert len(container["env"]) == 2
+
+        # Should have PREFECT_API_KEY from secret
+        secret_env = [
+            env for env in container["env"] if env["name"] == "PREFECT_API_KEY"
+        ][0]
+        assert secret_env["valueFrom"]["secretKeyRef"]["name"] == "my-secret"
+        assert secret_env["valueFrom"]["secretKeyRef"]["key"] == "latest"
+
+    def test_populate_envs_no_warning_when_secrets_configured(
+        self, cloud_run_worker_job_config, caplog
+    ):
+        """Test that no warnings are logged when secrets are properly configured"""
+        # Set up environment with both plaintext and secret
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_KEY": "test-api-key",
+            "PREFECT_API_AUTH_STRING": "test-auth-string",
+            "OTHER_VAR": "other-value",
+        }
+        cloud_run_worker_job_config.prefect_api_key_secret = SecretKeySelector(
+            secret="my-secret", version="latest"
+        )
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = SecretKeySelector(
+            secret="my-auth-secret", version="latest"
+        )
+
+        with caplog.at_level("WARNING"):
+            cloud_run_worker_job_config._populate_envs()
+
+        # Check that no warnings were logged since secrets are configured
+        assert len(caplog.records) == 0
+
+    def test_populate_envs_logs_warning_when_plaintext_without_secret(
+        self, cloud_run_worker_job_config, caplog, flow_run
+    ):
+        """Test that warnings are logged when plaintext credentials are provided without secrets"""
+        # Set up environment with plaintext credentials but no secrets
+        cloud_run_worker_job_config.env = {
+            "PREFECT_API_KEY": "test-api-key",
+            "PREFECT_API_AUTH_STRING": "test-auth-string",
+            "OTHER_VAR": "other-value",
+        }
+        # No secrets configured
+        cloud_run_worker_job_config.prefect_api_key_secret = None
+        cloud_run_worker_job_config.prefect_api_auth_string_secret = None
+
+        cloud_run_worker_job_config.prepare_for_flow_run(
+            flow_run=flow_run,
+        )
+
+        assert (
+            "PREFECT_API_KEY is provided as a plaintext environment variable"
+            in caplog.text
+        )
+        assert (
+            "PREFECT_API_AUTH_STRING is provided as a plaintext environment variable"
+            in caplog.text
+        )
+        assert (
+            "consider providing it as a secret using 'prefect_api_key_secret' in your base job template"
+            in caplog.text
+        )
+        assert (
+            "consider providing it as a secret using 'prefect_api_auth_string_secret' in your base job template"
+            in caplog.text
+        )
 
     def test_populate_image_if_not_present(self, cloud_run_worker_job_config):
         cloud_run_worker_job_config._populate_image_if_not_present()
@@ -637,3 +845,143 @@ class TestCloudRunWorker:
             calls = list_mock_calls(mock_client, 2)
             for call, expected_call in zip(calls, expected_calls):
                 assert call.startswith(expected_call)
+
+    async def test_kill_infrastructure_deletes_job(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that kill_infrastructure successfully deletes a Cloud Run job."""
+        job_name = "test-job-name"
+
+        with mock.patch("prefect_gcp.workers.cloud_run.Job.delete") as mock_delete:
+            async with CloudRunWorker("my-work-pool") as worker:
+                await worker.kill_infrastructure(
+                    infrastructure_pid=job_name,
+                    configuration=cloud_run_worker_job_config,
+                    grace_seconds=30,
+                )
+
+            mock_delete.assert_called_once_with(
+                client=mock_client,
+                namespace=cloud_run_worker_job_config.project,
+                job_name=job_name,
+            )
+
+    async def test_kill_infrastructure_raises_not_found(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that kill_infrastructure raises InfrastructureNotFound for missing job."""
+        job_name = "nonexistent-job"
+
+        # Create a proper mock response with status attribute
+        mock_resp = Mock()
+        mock_resp.status = 404
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Not found"
+        )
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run.Job.delete", side_effect=mock_http_error
+        ):
+            async with CloudRunWorker("my-work-pool") as worker:
+                with pytest.raises(InfrastructureNotFound):
+                    await worker.kill_infrastructure(
+                        infrastructure_pid=job_name,
+                        configuration=cloud_run_worker_job_config,
+                        grace_seconds=30,
+                    )
+
+    def test_watch_job_execution_raises_not_found_on_404(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that _watch_job_execution raises InfrastructureNotFound when execution is deleted."""
+        # Create a mock execution that is initially running
+        mock_execution = Mock()
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a 404 error for when we try to get the execution
+        mock_resp = Mock()
+        mock_resp.status = 404
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Execution not found"
+        )
+
+        with mock.patch.object(Execution, "get", side_effect=mock_http_error):
+            worker = CloudRunWorker("my-work-pool")
+            with pytest.raises(InfrastructureNotFound) as exc_info:
+                worker._watch_job_execution(
+                    client=mock_client,
+                    job_execution=mock_execution,
+                    poll_interval=0,
+                )
+
+            assert "was deleted" in str(exc_info.value)
+
+    def test_watch_job_execution_and_get_result_handles_deleted_execution(
+        self, mock_client, cloud_run_worker_job_config, flow_run
+    ):
+        """Test that _watch_job_execution_and_get_result handles InfrastructureNotFound gracefully."""
+        # Prepare config so it has a proper job_name
+        cloud_run_worker_job_config.prepare_for_flow_run(flow_run, None, None)
+
+        # Create a mock execution
+        mock_execution = Mock(spec=Execution)
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a mock logger
+        mock_logger = Mock(spec=PrefectLogAdapter)
+
+        worker = CloudRunWorker("my-work-pool")
+
+        # Mock _watch_job_execution on the instance to raise InfrastructureNotFound
+        with mock.patch.object(
+            worker,
+            "_watch_job_execution",
+            side_effect=InfrastructureNotFound("Execution was deleted"),
+        ):
+            result = worker._watch_job_execution_and_get_result(
+                configuration=cloud_run_worker_job_config,
+                client=mock_client,
+                execution=mock_execution,
+                logger=mock_logger,
+                poll_interval=0,
+            )
+
+            # Should return a result with status_code=-1, not raise an exception
+            assert isinstance(result, CloudRunWorkerResult)
+            assert result.status_code == -1
+
+            # Should log an info message, not an error
+            mock_logger.info.assert_called_once()
+            assert "was deleted" in mock_logger.info.call_args[0][0]
+
+    def test_watch_job_execution_reraises_non_404_errors(
+        self, mock_client, cloud_run_worker_job_config
+    ):
+        """Test that _watch_job_execution re-raises non-404 HTTP errors."""
+        # Create a mock execution that is initially running
+        mock_execution = Mock()
+        mock_execution.is_running.return_value = True
+        mock_execution.namespace = "test-namespace"
+        mock_execution.name = "test-execution"
+
+        # Create a 500 error (not 404)
+        mock_resp = Mock()
+        mock_resp.status = 500
+        mock_http_error = googleapiclient.errors.HttpError(
+            resp=mock_resp, content=b"Internal server error"
+        )
+
+        with mock.patch.object(Execution, "get", side_effect=mock_http_error):
+            worker = CloudRunWorker("my-work-pool")
+            with pytest.raises(googleapiclient.errors.HttpError) as exc_info:
+                worker._watch_job_execution(
+                    client=mock_client,
+                    job_execution=mock_execution,
+                    poll_interval=0,
+                )
+
+            assert exc_info.value.status_code == 500

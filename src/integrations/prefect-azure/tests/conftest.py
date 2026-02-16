@@ -1,11 +1,11 @@
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.blob.aio import ContainerClient
 from prefect_azure.credentials import AzureBlobStorageCredentials
 
-from prefect.testing.utilities import AsyncMock, prefect_test_harness
+from prefect.testing.utilities import prefect_test_harness
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -93,14 +93,14 @@ def blob_storage_credentials():
     blob_storage_credentials.__aenter__ = AsyncMock(
         return_value=blob_storage_credentials
     )
-    blob_storage_credentials.get_client.side_effect = (
-        lambda: BlobStorageClientMethodsMock()
+    blob_storage_credentials.get_client.side_effect = lambda: (
+        BlobStorageClientMethodsMock()
     )
-    blob_storage_credentials.get_blob_client.side_effect = (
-        lambda container, blob: BlobStorageClientMethodsMock(blob)
+    blob_storage_credentials.get_blob_client.side_effect = lambda container, blob: (
+        BlobStorageClientMethodsMock(blob)
     )
-    blob_storage_credentials.get_container_client.side_effect = (
-        lambda container: BlobStorageClientMethodsMock()
+    blob_storage_credentials.get_container_client.side_effect = lambda container: (
+        BlobStorageClientMethodsMock()
     )
     return blob_storage_credentials
 
@@ -174,13 +174,11 @@ def datastore(monkeypatch):
     DatastoreMock.get_default.side_effect = lambda workspace: DatastoreMethodsMock(
         workspace
     )
-    DatastoreMock.get.side_effect = (
-        lambda workspace, datastore_name: DatastoreMethodsMock(
-            workspace, datastore_name=datastore_name
-        )
+    DatastoreMock.get.side_effect = lambda workspace, datastore_name: (
+        DatastoreMethodsMock(workspace, datastore_name=datastore_name)
     )
-    DatastoreMock.register_azure_blob_container.side_effect = (
-        lambda **kwargs: "registered"
+    DatastoreMock.register_azure_blob_container.side_effect = lambda **kwargs: (
+        "registered"
     )
 
     monkeypatch.setattr("prefect_azure.ml_datastore.Datastore", DatastoreMock)

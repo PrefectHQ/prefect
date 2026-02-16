@@ -1,9 +1,9 @@
 import type { Automation } from "@/api/automations";
 import { useGetAutomationActionResources } from "@/api/automations/use-get-automation-action-resources";
 import { ActionDetails } from "@/components/automations/action-details";
+import { TriggerDetails } from "@/components/automations/trigger-details";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Typography } from "@/components/ui/typography";
 import { pluralize } from "@/utils";
 
 type AutomationDetailsProps = {
@@ -15,12 +15,10 @@ export const AutomationDescription = ({
 }: AutomationDetailsProps) => {
 	return (
 		<div className="flex flex-col gap-1">
-			<Typography className="text-muted-foreground" variant="bodySmall">
-				Description
-			</Typography>
-			<Typography className="text-muted-foreground">
+			<p className="text-sm text-muted-foreground">Description</p>
+			<p className="text-base text-muted-foreground">
 				{automation.description || "None"}
-			</Typography>
+			</p>
 		</div>
 	);
 };
@@ -29,10 +27,8 @@ export const AutomationTrigger = ({ automation }: AutomationDetailsProps) => {
 	const { trigger } = automation;
 	return (
 		<div className="flex flex-col gap-1">
-			<Typography>Trigger</Typography>
-			<Typography variant="bodySmall">
-				TODO: {JSON.stringify(trigger)}
-			</Typography>
+			<p className="text-base">Trigger</p>
+			<TriggerDetails trigger={trigger} />
 		</div>
 	);
 };
@@ -51,7 +47,9 @@ export const AutomationActions = ({ automation }: AutomationDetailsProps) => {
 
 	return (
 		<div className="flex flex-col gap-1">
-			<Typography>{pluralize(automation.actions.length, "Action")}</Typography>
+			<p className="text-base">
+				{pluralize(automation.actions.length, "Action")}
+			</p>
 			<ul className="flex flex-col gap-2">
 				{loading
 					? Array.from({ length: automation.actions.length }, (_, i) => (

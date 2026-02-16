@@ -34,6 +34,7 @@ from prefect.settings import (
     PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
 )
+from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     import logging
@@ -145,6 +146,10 @@ class Event(PrefectBaseModel):
     )
 
     @property
+    def size_bytes(self) -> int:
+        return len(self.model_dump_json().encode())
+
+    @property
     def involved_resources(self) -> Sequence[Resource]:
         return [self.resource] + list(self.related)
 
@@ -207,6 +212,12 @@ class ReceivedEvent(Event):
         default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="When the event was received by Prefect Cloud",
     )
+
+    @property
+    def url(self) -> Optional[str]:
+        """Returns the UI URL for this event, allowing users to link to events
+        in automation templates without parsing date strings."""
+        return url_for(self, url_type="ui")
 
     def as_database_row(self) -> dict[str, Any]:
         row = self.model_dump()

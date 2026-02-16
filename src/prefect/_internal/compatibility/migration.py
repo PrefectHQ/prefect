@@ -56,11 +56,10 @@ MOVED_IN_V3 = {
     "prefect.engine:pause_flow_run": "prefect.flow_runs:pause_flow_run",
     "prefect.engine:resume_flow_run": "prefect.flow_runs:resume_flow_run",
     "prefect.engine:suspend_flow_run": "prefect.flow_runs:suspend_flow_run",
-    "prefect.engine:_in_process_pause": "prefect.flow_runs:_in_process_pause",
     "prefect.client:get_client": "prefect.client.orchestration:get_client",
 }
 
-upgrade_guide_msg = "Refer to the upgrade guide for more information: https://docs.prefect.io/latest/resources/upgrade-agents-to-workers."
+upgrade_guide_msg = "Refer to the upgrade guide for more information: https://docs.prefect.io/v3/how-to-guides/migrate/upgrade-agents-to-workers."
 
 REMOVED_IN_V3 = {
     "prefect.client.schemas.objects:MinimalDeploymentSchedule": "Use `prefect.client.schemas.actions.DeploymentScheduleCreate` instead.",
@@ -72,6 +71,7 @@ REMOVED_IN_V3 = {
     "prefect.filesystems:S3": "Use `prefect_aws.S3Bucket` instead.",
     "prefect.filesystems:GitHub": "Use `prefect_github.GitHubRepository` instead.",
     "prefect.engine:_out_of_process_pause": "Use `prefect.flow_runs.pause_flow_run` instead.",
+    "prefect.engine:_in_process_pause": "Use `prefect.flow_runs.pause_flow_run` instead.",
     "prefect.agent:PrefectAgent": "Use workers instead. " + upgrade_guide_msg,
     "prefect.infrastructure:KubernetesJob": "Use workers instead. " + upgrade_guide_msg,
     "prefect.infrastructure.base:Infrastructure": "Use the `BaseWorker` class to create custom infrastructure integrations instead. "

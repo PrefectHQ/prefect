@@ -4,7 +4,7 @@ import { RunCard } from "@/components/ui/run-card";
 type TaskRunConcurrencyLimitActiveTaskRunsProps = {
 	data: Array<{
 		taskRun: components["schemas"]["TaskRun"];
-		flowRun?: components["schemas"]["FlowRun"] | null;
+		flowRun?: components["schemas"]["FlowRunResponse"] | null;
 		flow?: components["schemas"]["Flow"] | null;
 	}>;
 };

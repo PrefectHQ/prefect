@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import sys
 import uuid
 from datetime import timedelta
 from typing import Any, Dict, Optional, Type
 from unittest import mock
-from unittest.mock import ANY, MagicMock, Mock
+from unittest.mock import ANY, AsyncMock, MagicMock, Mock
 
 import anyio.abc
 import cloudpickle
@@ -53,8 +54,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_RESULTS_PERSIST_BY_DEFAULT,
     PREFECT_TEST_MODE,
-    PREFECT_WORKER_PREFETCH_SECONDS,
-    Setting,
+    PREFECT_WORKER_ENABLE_CANCELLATION,
     get_current_settings,
     temporary_settings,
 )
@@ -66,7 +66,6 @@ from prefect.states import (
     Scheduled,
     State,
 )
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import now as now_fn
 from prefect.types._datetime import travel_to
 from prefect.utilities.pydantic import parse_obj_as
@@ -76,6 +75,8 @@ from prefect.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
+
+pytestmark = pytest.mark.usefixtures("asserting_events_worker")
 
 
 class WorkerTestImpl(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
@@ -175,18 +176,12 @@ async def test_worker_does_not_creates_work_pool_when_create_pool_is_false(
         await prefect_client.read_work_pool("test-work-pool")
 
 
-@pytest.mark.parametrize(
-    "setting,attr",
-    [
-        (PREFECT_WORKER_PREFETCH_SECONDS, "prefetch_seconds"),
-    ],
-)
-async def test_worker_respects_settings(setting: Setting, attr: str):
+async def test_worker_respects_prefetch_seconds():
     assert (
         WorkerTestImpl(name="test", work_pool_name="test-work-pool").get_status()[
             "settings"
-        ][attr]
-        == setting.value()
+        ]["prefetch_seconds"]
+        == get_current_settings().worker.prefetch_seconds
     )
 
 
@@ -476,6 +471,36 @@ async def test_worker_releases_limit_slot_when_aborting_a_change_to_pending(
     release_mock.assert_called_once_with(flow_run.id)
 
 
+async def test_worker_handles_double_release_gracefully(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/19157"""
+
+    def create_run_with_deployment(state: State):
+        return prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+
+    flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.run = AsyncMock(side_effect=Exception("Docker API error"))
+        worker._work_pool = work_pool
+
+        # Attempt to submit the flow run - should handle double-release gracefully
+        await worker.get_and_submit_flow_runs()
+
+    # After exiting the context, all tasks should be complete and token released
+    # Verify the flow run ended up in a crashed state
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_crashed()
+
+
 async def test_worker_with_work_pool_and_limit(
     prefect_client: PrefectClient,
     worker_deployment_wq1: WorkQueue,
@@ -682,7 +707,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     "title": "Name",
                     "description": (
                         "Name given to infrastructure created by the worker using this "
-                        "job configuration."
+                        "job configuration. Supports templates using {{ ctx.flow.* }} and "
+                        "{{ ctx.flow_run.* }} when prepared for a flow run."
                     ),
                 },
                 "other": {
@@ -1327,6 +1353,147 @@ async def test_base_job_configuration_converts_falsey_values_to_none(falsey_valu
     assert template.command is None
 
 
+async def test_base_job_configuration_transforms_dot_delimited_env_vars():
+    """Test that dot-delimited keys like 'env.FOO' are transformed to nested dicts"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": "{{ env }}",
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={"env.EXTRA_PIP_PACKAGES": "s3fs"},
+    )
+    assert config.env == {"EXTRA_PIP_PACKAGES": "s3fs"}
+
+
+async def test_base_job_configuration_transforms_multiple_dot_delimited_keys():
+    """Test that multiple dot-delimited keys are all transformed correctly"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": "{{ env }}",
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={
+            "env.FOO": "bar",
+            "env.BAZ": "qux",
+        },
+    )
+    assert config.env == {"FOO": "bar", "BAZ": "qux"}
+
+
+async def test_base_job_configuration_nested_format_takes_precedence_over_dot_delimited():
+    """Test that nested format takes precedence over dot-delimited format for same key"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": "{{ env }}",
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={
+            "env.FOO": "from_dot",
+            "env": {"FOO": "from_nested", "BAR": "also_nested"},
+        },
+    )
+    # Nested format should take precedence
+    assert config.env == {"FOO": "from_nested", "BAR": "also_nested"}
+
+
+async def test_base_job_configuration_merges_dot_delimited_with_nested():
+    """Test that dot-delimited and nested formats are merged when keys don't conflict"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": "{{ env }}",
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={
+            "env.FOO": "from_dot",
+            "env": {"BAR": "from_nested"},
+        },
+    )
+    # Both should be present, with nested taking precedence for conflicts
+    assert config.env == {"FOO": "from_dot", "BAR": "from_nested"}
+
+
+async def test_base_job_configuration_dot_delimited_with_base_config_env():
+    """Test that dot-delimited env vars merge correctly with base config env"""
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+                "env": {"BASE_VAR": "base_value"},
+                "labels": "{{ labels }}",
+                "name": "{{ name }}",
+            },
+            "variables": {
+                "properties": {
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        values={"env.EXTRA_PIP_PACKAGES": "s3fs"},
+    )
+    assert config.env == {"BASE_VAR": "base_value", "EXTRA_PIP_PACKAGES": "s3fs"}
+
+
 @pytest.mark.parametrize(
     "field_template_value,expected_final_template",
     [
@@ -1434,7 +1601,8 @@ class TestWorkerProperties:
                         "default": None,
                         "description": (
                             "Name given to infrastructure created by the worker using "
-                            "this job configuration."
+                            "this job configuration. Supports templates using {{ ctx.flow.* }} "
+                            "and {{ ctx.flow_run.* }} when prepared for a flow run."
                         ),
                     },
                 },
@@ -1601,6 +1769,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1618,6 +1787,7 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1638,6 +1808,9 @@ class TestPrepareForFlowRun:
             **get_current_settings().to_environment_variables(exclude_unset=True),
             "MY_VAR": "foo",
             "PREFECT__FLOW_RUN_ID": str(flow_run.id),
+            "PREFECT__FLOW_ID": str(flow_run.flow_id),
+            "PREFECT__FLOW_NAME": flow.name,
+            "PREFECT__DEPLOYMENT_NAME": deployment.name,
         }
         assert job_config.labels == {
             "my-label": "foo",
@@ -1651,6 +1824,15 @@ class TestPrepareForFlowRun:
         }
         assert job_config.name == "my-job-name"
         assert job_config.command == "prefect flow-run execute"
+
+    def test_prepare_for_flow_run_renders_name_template(self, flow_run, flow):
+        job_config = BaseJobConfiguration(
+            name="worker-1/{{ ctx.flow.name }}/{{ ctx.flow_run.name }}"
+        )
+
+        job_config.prepare_for_flow_run(flow_run, flow=flow)
+
+        assert job_config.name == f"worker-1/{flow.name}/{flow_run.name}"
 
 
 async def test_get_flow_run_logger_without_worker_id_set(
@@ -1920,7 +2102,7 @@ async def test_env_merge_logic_is_deep(
             flow_id=flow.id,
             path="./subdir",
             entrypoint="/file.py:flow",
-            parameter_openapi_schema={},
+            parameter_openapi_schema={"type": "object", "properties": {}},
             job_variables={"env": deployment_env},
             work_queue_id=work_pool.default_queue_id,
         ),
@@ -1944,6 +2126,82 @@ async def test_env_merge_logic_is_deep(
 
     for key, value in expected_env.items():
         assert config.env[key] == value
+
+
+async def test_work_pool_env_from_job_configuration_merges_with_variable_defaults(
+    prefect_client, session, flow, work_pool
+):
+    """
+    Test for issue #19256: Work pool env vars should merge from both job_configuration
+    and variable defaults, then merge with deployment env vars.
+
+    When a work pool has env vars in BOTH job_configuration.env AND
+    variables.properties.env.default, they should all be merged together along with
+    deployment env vars.
+    """
+    # Configure work pool with env vars in BOTH places
+    base_job_template = {
+        "job_configuration": {
+            "env": {
+                "WORK_POOL_BASE_VAR": "from-job-config",  # Should NOT be lost
+            }
+        },
+        "variables": {
+            "properties": {
+                "env": {
+                    "type": "object",
+                    "default": {"WORK_POOL_DEFAULT_VAR": "from-variable-defaults"},
+                }
+            }
+        },
+    }
+
+    await models.workers.update_work_pool(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_pool=ServerWorkPoolUpdate(
+            base_job_template=base_job_template,
+            description="test",
+            is_paused=False,
+            concurrency_limit=None,
+        ),
+    )
+    await session.commit()
+
+    # Create deployment with its own env vars
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=Deployment(
+            name="env-testing-merge",
+            tags=["test"],
+            flow_id=flow.id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema={"type": "object", "properties": {}},
+            job_variables={"env": {"DEPLOYMENT_VAR": "from-deployment"}},
+            work_queue_id=work_pool.default_queue_id,
+        ),
+    )
+    await session.commit()
+
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=Pending(),
+    )
+
+    async with WorkerTestImpl(
+        name="test",
+        work_pool_name=work_pool.name,
+    ) as worker:
+        await worker.sync_with_backend()
+        config = await worker._get_configuration(
+            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        )
+
+    # All env vars should be present: job_configuration + variable defaults + deployment
+    assert config.env["WORK_POOL_BASE_VAR"] == "from-job-config"
+    assert config.env["WORK_POOL_DEFAULT_VAR"] == "from-variable-defaults"
+    assert config.env["DEPLOYMENT_VAR"] == "from-deployment"
 
 
 class TestBaseWorkerHeartbeat:
@@ -2577,6 +2835,102 @@ class TestSubmit:
 
         assert initiate_run_spy.call_count == 1
 
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_with_existing_flow_run_reuses_flow_run_id(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        """Test that submit() with an existing flow_run reuses the flow run ID."""
+
+        class RetryableWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
+            type = "retryable"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow():
+            return "success"
+
+        async with RetryableWorker(work_pool_name=work_pool.name) as worker:
+            # First submit to create a flow run
+            with pytest.warns(FutureWarning):
+                initial_future = await worker.submit(test_flow)
+                assert isinstance(initial_future, PrefectFlowRunFuture)
+
+            initial_flow_run = await prefect_client.read_flow_run(
+                initial_future.flow_run_id
+            )
+
+            # Now submit again with the existing flow run to retry it
+            with pytest.warns(FutureWarning):
+                retry_future = await worker.submit(test_flow, flow_run=initial_flow_run)
+                assert isinstance(retry_future, PrefectFlowRunFuture)
+
+            # Should reuse the same flow run ID
+            assert retry_future.flow_run_id == initial_future.flow_run_id
+
+            # The state should be set to Pending for retry
+            retried_flow_run = await prefect_client.read_flow_run(
+                retry_future.flow_run_id
+            )
+            assert retried_flow_run.state is not None
+            assert retried_flow_run.state.type == StateType.PENDING
+
+    @pytest.mark.usefixtures("mock_run_process")
+    async def test_submit_with_existing_flow_run_sets_state_to_pending(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+    ):
+        """Test that submit() with an existing flow_run sets the state to Pending."""
+
+        class StateTrackingWorker(
+            BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]
+        ):
+            type = "state-tracking"
+            job_configuration = BaseJobConfiguration
+            observed_states: list[str] = []
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ):
+                # Record the state when the run method is called
+                current_run = await self.client.read_flow_run(flow_run.id)
+                if current_run.state:
+                    self.observed_states.append(current_run.state.type.value)
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow():
+            return "done"
+
+        async with StateTrackingWorker(work_pool_name=work_pool.name) as worker:
+            # First submit creates a new flow run
+            with pytest.warns(FutureWarning):
+                initial_future = await worker.submit(test_flow)
+
+            initial_flow_run = await prefect_client.read_flow_run(
+                initial_future.flow_run_id
+            )
+
+            # Now submit again with the existing flow run
+            with pytest.warns(FutureWarning):
+                await worker.submit(test_flow, flow_run=initial_flow_run)
+
+            # The state should have been set to Pending before the retry
+            assert "PENDING" in worker.observed_states
+
 
 class TestBackwardsCompatibility:
     async def test_backwards_compatibility_with_old_prepare_for_flow_run(
@@ -2619,3 +2973,266 @@ class TestBackwardsCompatibility:
         with pytest.warns(PrefectDeprecationWarning):
             async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
                 await worker._get_configuration(flow_run=flow_run)
+
+
+class TestWorkerCancellationHandling:
+    """Tests for worker-side flow run cancellation handling."""
+
+    async def test_cancellation_disabled_by_default(
+        self,
+        prefect_client: PrefectClient,
+    ):
+        """Test that cancellation handling is disabled by default."""
+        async with WorkerTestImpl(
+            work_pool_name="test-pool",
+            name="test-worker",
+        ) as worker:
+            # Should not have set up cancellation observer
+            assert worker._cancelling_observer is None
+
+    async def test_cancellation_enabled_with_setting(
+        self,
+        prefect_client: PrefectClient,
+    ):
+        """Test that cancellation handling can be enabled via settings."""
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with WorkerTestImpl(
+                work_pool_name="test-pool",
+                name="test-worker",
+            ) as worker:
+                # Should have set up cancellation observer
+                assert worker._cancelling_observer is not None
+
+    async def test_cancel_run_skips_non_pending_flow_runs(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test that _cancel_run skips flow runs that were not pending."""
+
+        @flow
+        def test_flow():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(
+            test_flow, work_pool_name=work_pool.name
+        )
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            # Create a flow run with start_time set (already started)
+            flow_run_with_start_time = FlowRun(
+                id=flow_run.id,
+                flow_id=flow_run.flow_id,
+                name=flow_run.name,
+                state=Running(),
+                start_time=now_fn("UTC"),
+            )
+
+            with mock.patch.object(
+                worker.client, "read_flow_run", new_callable=AsyncMock
+            ) as mock_read:
+                mock_read.return_value = flow_run_with_start_time
+                with mock.patch.object(worker, "kill_infrastructure") as mock_kill:
+                    with mock.patch.object(
+                        worker, "_mark_flow_run_as_cancelled"
+                    ) as mock_mark:
+                        await worker._cancel_run(flow_run.id)
+                        mock_kill.assert_not_called()
+                        mock_mark.assert_not_called()
+
+    async def test_cancellation_observer_filters_by_work_pool(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test that the cancellation observer is configured to filter by work pool ID."""
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with WorkerTestImpl(
+                work_pool_name=work_pool.name,
+                name="test-worker",
+            ) as worker:
+                observer = worker._cancelling_observer
+                assert observer is not None
+
+                # Verify the event filter includes the work pool ID (not name)
+                event_filter = observer._event_filter
+                assert event_filter.event is not None
+                assert event_filter.event.name == ["prefect.flow-run.Cancelling"]
+                assert event_filter.any_resource is not None
+                assert event_filter.any_resource.id == [
+                    f"prefect.work-pool.{work_pool.id}"
+                ]
+
+    async def test_cancel_run_marks_cancelled_when_no_infrastructure(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """Test that flow runs without infrastructure_pid are marked as cancelled."""
+
+        @flow
+        def test_flow():
+            pass
+
+        flow_run = await prefect_client.create_flow_run(
+            test_flow, work_pool_name=work_pool.name
+        )
+        # No infrastructure_pid and no start_time (pending)
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with mock.patch.object(
+                worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
+            ) as mock_mark_cancelled:
+                await worker._cancel_run(flow_run.id)
+                mock_mark_cancelled.assert_called_once()
+
+    async def test_cancel_run_calls_kill_infrastructure(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+    ):
+        """Test that _cancel_run calls kill_infrastructure."""
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        # Set infrastructure_pid but no start_time (pending)
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test-pid")
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with mock.patch.object(
+                worker, "kill_infrastructure", new_callable=AsyncMock
+            ) as mock_kill:
+                with mock.patch.object(
+                    worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
+                ):
+                    await worker._cancel_run(flow_run.id)
+                    mock_kill.assert_called_once()
+                    assert mock_kill.call_args[1]["infrastructure_pid"] == "test-pid"
+                    assert mock_kill.call_args[1]["grace_seconds"] == 30
+
+    async def test_cancel_run_handles_not_implemented(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+    ):
+        """Test that _cancel_run handles NotImplementedError gracefully by returning early."""
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test-pid")
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with mock.patch.object(
+                worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
+            ) as mock_mark:
+                # kill_infrastructure raises NotImplementedError by default
+                await worker._cancel_run(flow_run.id)
+                # Should return early without marking as cancelled since worker
+                # doesn't support killing infrastructure
+                mock_mark.assert_not_called()
+
+    async def test_teardown_cancellation_handling_cleans_up(self):
+        """Test that teardown properly cleans up cancellation resources."""
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            worker = WorkerTestImpl(
+                work_pool_name="test-pool",
+                name="test-worker",
+            )
+
+            async with worker:
+                assert worker._cancelling_observer is not None
+                consumer_task = worker._cancelling_observer._consumer_task
+
+            # After exit, task should be cancelled or done
+            assert consumer_task.cancelled() or consumer_task.done()
+
+    async def test_base_worker_kill_infrastructure_raises_not_implemented(self):
+        """Test that base worker kill_infrastructure raises NotImplementedError."""
+        worker = WorkerTestImpl(
+            work_pool_name="test-pool",
+            name="test-worker",
+        )
+
+        with pytest.raises(NotImplementedError, match="does not support killing"):
+            await worker.kill_infrastructure(
+                infrastructure_pid="test-pid",
+                configuration=BaseJobConfiguration(),
+                grace_seconds=30,
+            )
+
+    async def test_websocket_failure_falls_back_to_polling(
+        self,
+        prefect_client: PrefectClient,
+    ):
+        """Test that when the WebSocket consumer fails, we fall back to polling."""
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with WorkerTestImpl(
+                work_pool_name="test-pool",
+                name="test-worker",
+            ) as worker:
+                observer = worker._cancelling_observer
+                assert observer is not None
+                assert observer._consumer_task is not None
+                assert observer._polling_task is None
+
+                # Simulate WebSocket consumer task failing
+                observer._consumer_task.cancel()
+                try:
+                    await observer._consumer_task
+                except asyncio.CancelledError:
+                    pass
+
+                # Manually trigger the done callback with an exception
+                failed_task = MagicMock()
+                failed_task.cancelled.return_value = False
+                failed_task.exception.return_value = RuntimeError("WebSocket failed")
+
+                observer._start_polling_task(failed_task)
+
+                # Should have started the polling task
+                assert observer._polling_task is not None
+
+    async def test_flow_run_ids_registered_with_observer(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+    ):
+        """Test that flow run IDs are registered with the observer when submitted."""
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with WorkerTestImpl(
+                work_pool_name=work_pool.name,
+                name="test-worker",
+            ) as worker:
+                observer = worker._cancelling_observer
+                assert observer is not None
+
+                # Initially no in-flight flow runs
+                assert flow_run.id not in observer._in_flight_flow_run_ids
+
+                # Submit the flow run
+                await worker.get_and_submit_flow_runs()
+
+                # Flow run should be registered
+                # Note: it may be removed quickly after submission completes
+                # so we just verify the observer exists and is functioning
+                assert observer._in_flight_flow_run_ids is not None

@@ -12,6 +12,8 @@ import {
 } from "@/api/block-documents";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
 import { BlocksPage } from "@/components/blocks/blocks-page";
+import { PrefectLoading } from "@/components/ui/loading";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
@@ -22,7 +24,63 @@ const searchParams = z.object({
 
 export const Route = createFileRoute("/blocks/")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		usePageTitle("Blocks");
+		const [search, onSearch] = useSearch();
+		const [blockTypeSlugs, onSetBlockTypeSlugs] = useFilterByBlockTypes();
+		const [pagination, onPaginationChange] = usePagination();
+
+		const { data: allBlockDocumentsCount } = useSuspenseQuery(
+			buildCountAllBlockDocumentsQuery(),
+		);
+
+		const { data: blockDocuments } = useQuery(
+			buildListFilterBlockDocumentsQuery({
+				sort: "NAME_ASC",
+				include_secrets: false,
+				block_documents: {
+					name: { like_: search },
+					operator: "and_",
+					is_anonymous: { eq_: false },
+				},
+				block_types: {
+					slug: {
+						any_: blockTypeSlugs.length > 0 ? blockTypeSlugs : undefined,
+					},
+				},
+				offset: pagination.pageIndex * pagination.pageSize,
+				limit: pagination.pageSize,
+			}),
+		);
+
+		const handleRemoveBlockType = (id: string) => {
+			const newValue = blockTypeSlugs.filter((blockId) => blockId !== id);
+			onSetBlockTypeSlugs(newValue);
+		};
+
+		const handleToggleBlockType = (id: string) => {
+			// Remove block id if its in the list
+			if (blockTypeSlugs.includes(id)) {
+				return handleRemoveBlockType(id);
+			}
+			// Else add it to the list
+			onSetBlockTypeSlugs([...blockTypeSlugs, id]);
+		};
+
+		return (
+			<BlocksPage
+				allCount={allBlockDocumentsCount}
+				blockDocuments={blockDocuments}
+				onSearch={onSearch}
+				search={search}
+				blockTypeSlugsFilter={blockTypeSlugs}
+				onRemoveBlockTypeSlug={handleRemoveBlockType}
+				onToggleBlockTypeSlug={handleToggleBlockType}
+				pagination={pagination}
+				onPaginationChange={onPaginationChange}
+			/>
+		);
+	},
 	loaderDeps: ({ search: { blockName, blockTypes, page, limit } }) => ({
 		blockName,
 		blockTypes,
@@ -54,64 +112,8 @@ export const Route = createFileRoute("/blocks/")({
 		]);
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
-
-function RouteComponent() {
-	const [search, onSearch] = useSearch();
-	const [blockTypeSlugs, onSetBlockTypeSlugs] = useFilterByBlockTypes();
-	const [pagination, onPaginationChange] = usePagination();
-
-	const { data: allBlockDocumentsCount } = useSuspenseQuery(
-		buildCountAllBlockDocumentsQuery(),
-	);
-
-	const { data: blockDocuments } = useQuery(
-		buildListFilterBlockDocumentsQuery({
-			sort: "NAME_ASC",
-			include_secrets: false,
-			block_documents: {
-				name: { like_: search },
-				operator: "and_",
-				is_anonymous: { eq_: false },
-			},
-			block_types: {
-				slug: {
-					any_: blockTypeSlugs.length > 0 ? blockTypeSlugs : undefined,
-				},
-			},
-			offset: pagination.pageIndex * pagination.pageSize,
-			limit: pagination.pageSize,
-		}),
-	);
-
-	const handleRemoveBlockType = (id: string) => {
-		const newValue = blockTypeSlugs.filter((blockId) => blockId !== id);
-		onSetBlockTypeSlugs(newValue);
-	};
-
-	const handleToggleBlockType = (id: string) => {
-		// Remove block id if its in the list
-		if (blockTypeSlugs.includes(id)) {
-			return handleRemoveBlockType(id);
-		}
-		// Else add it to the list
-		onSetBlockTypeSlugs([...blockTypeSlugs, id]);
-	};
-
-	return (
-		<BlocksPage
-			allCount={allBlockDocumentsCount}
-			blockDocuments={blockDocuments}
-			onSearch={onSearch}
-			search={search}
-			blockTypeSlugsFilter={blockTypeSlugs}
-			onRemoveBlockTypeSlug={handleRemoveBlockType}
-			onToggleBlockTypeSlug={handleToggleBlockType}
-			pagination={pagination}
-			onPaginationChange={onPaginationChange}
-		/>
-	);
-}
 
 function useSearch() {
 	const { blockName } = Route.useSearch();

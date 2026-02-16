@@ -10,8 +10,14 @@ import signal
 import threading
 import webbrowser
 from types import FrameType
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
+
+from prefect.utilities.callables import get_call_parameters, parameters_to_args_kwargs
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import FlowRun
 
 import httpx
 import orjson
@@ -32,7 +38,7 @@ from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import ObjectNotFound
 from prefect.logging import get_logger
 from prefect.runner import Runner
-from prefect.states import State
+from prefect.states import State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.urls import url_for
@@ -43,6 +49,65 @@ flow_run_app: PrefectTyper = PrefectTyper(
 app.add_typer(flow_run_app, aliases=["flow-runs"])
 
 LOGS_DEFAULT_PAGE_SIZE = 200
+
+
+async def _get_flow_run_by_id_or_name(
+    client: "PrefectClient",
+    id_or_name: str,
+) -> "FlowRun":
+    """
+    Resolve a flow run identifier that could be either a UUID or a name.
+
+    Flow run names are not guaranteed to be unique, so this function will
+    error if multiple flow runs match the given name.
+
+    Args:
+        client: The Prefect client to use for API calls
+        id_or_name: Either a UUID string or a flow run name
+
+    Returns:
+        The matching FlowRun object
+
+    Raises:
+        typer.Exit: If flow run not found, or if multiple flow runs match the name
+    """
+    from prefect.client.schemas.filters import FlowRunFilterName
+
+    # First, try parsing as UUID
+    try:
+        flow_run_id = UUID(id_or_name)
+        try:
+            return await client.read_flow_run(flow_run_id)
+        except ObjectNotFound:
+            exit_with_error(f"Flow run '{id_or_name}' not found!")
+    except ValueError:
+        # Not a valid UUID, treat as a name
+        pass
+
+    # Query by name (exact match)
+    flow_runs = await client.read_flow_runs(
+        flow_run_filter=FlowRunFilter(name=FlowRunFilterName(any_=[id_or_name])),
+        limit=100,  # Reasonable limit for displaying matches
+    )
+
+    if not flow_runs:
+        exit_with_error(f"Flow run '{id_or_name}' not found!")
+
+    if len(flow_runs) == 1:
+        return flow_runs[0]
+
+    # Multiple matches - show all and exit with error
+    lines = [f"Multiple flow runs found with name '{id_or_name}':\n"]
+    for fr in flow_runs:
+        state_name = fr.state.name if fr.state else "unknown"
+        timestamp = fr.start_time or fr.created
+        timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S") if timestamp else "N/A"
+        lines.append(f"  - {fr.id} ({state_name}, {timestamp_str})")
+
+    lines.append("\nPlease retry using an explicit flow run ID.")
+    exit_with_error("\n".join(lines))
+
+
 LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
 
 logger: "logging.Logger" = get_logger(__name__)
@@ -104,6 +169,12 @@ async def ls(
     limit: int = typer.Option(15, help="Maximum number of flow runs to list"),
     state: List[str] = typer.Option(None, help="Name of the flow run's state"),
     state_type: List[str] = typer.Option(None, help="Type of the flow run's state"),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     View recent flow runs or flow runs for specific flows.
@@ -128,6 +199,8 @@ async def ls(
 
     $ prefect flow-runs ls --state-type RUNNING --state-type FAILED
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     # Handling `state` and `state_type` argument validity in the function instead of by specifying
     # List[StateType] and List[StateName] in the type hints, allows users to provide
@@ -193,31 +266,39 @@ async def ls(
         }
 
         if not flow_runs:
+            if output and output.lower() == "json":
+                app.console.print("[]")
+                return
             exit_with_success("No flow runs found.")
 
-    table = Table(title="Flow Runs")
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Flow", style="blue", no_wrap=True)
-    table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("State", no_wrap=True)
-    table.add_column("When", style="bold", no_wrap=True)
+    if output and output.lower() == "json":
+        flow_runs_json = [flow_run.model_dump(mode="json") for flow_run in flow_runs]
+        json_output = orjson.dumps(flow_runs_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(title="Flow Runs")
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Flow", style="blue", no_wrap=True)
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("State", no_wrap=True)
+        table.add_column("When", style="bold", no_wrap=True)
 
-    for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
-        flow = flows_by_id[flow_run.flow_id]
-        timestamp = (
-            flow_run.state.state_details.scheduled_time
-            if flow_run.state.is_scheduled()
-            else flow_run.state.timestamp
-        )
-        table.add_row(
-            str(flow_run.id),
-            str(flow.name),
-            str(flow_run.name),
-            str(flow_run.state.type.value),
-            human_friendly_diff(timestamp),
-        )
+        for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
+            flow = flows_by_id[flow_run.flow_id]
+            timestamp = (
+                flow_run.state.state_details.scheduled_time
+                if flow_run.state.is_scheduled()
+                else flow_run.state.timestamp
+            )
+            table.add_row(
+                str(flow_run.id),
+                str(flow.name),
+                str(flow_run.name),
+                str(flow_run.state.type.value),
+                human_friendly_diff(timestamp),
+            )
 
-    app.console.print(table)
+        app.console.print(table)
 
 
 @flow_run_app.command()
@@ -258,6 +339,189 @@ async def cancel(id: UUID):
         )
 
     exit_with_success(f"Flow run '{id}' was successfully scheduled for cancellation.")
+
+
+@flow_run_app.command()
+async def retry(
+    id_or_name: str = typer.Argument(
+        ...,
+        help="The flow run ID (UUID) or name to retry.",
+    ),
+    entrypoint: Optional[str] = typer.Option(
+        None,
+        "--entrypoint",
+        "-e",
+        help=(
+            "The path to a file containing the flow to run, and the name of the flow "
+            "function, in the format `path/to/file.py:flow_function_name`. "
+            "Required if the flow run does not have an associated deployment."
+        ),
+    ),
+):
+    """
+    Retry a failed or completed flow run.
+
+    The flow run can be specified by either its UUID or its name. If multiple
+    flow runs have the same name, you must use the UUID to disambiguate.
+
+    If the flow run has an associated deployment, it will be scheduled for retry
+    and a worker will pick it up. If there is no deployment, you must provide
+    an --entrypoint to the flow code, and the flow will execute locally.
+
+    \b
+    Examples:
+        $ prefect flow-run retry abc123-def456-7890-...
+        $ prefect flow-run retry my-flow-run-name
+        $ prefect flow-run retry abc123 --entrypoint ./flows/my_flow.py:my_flow
+    """
+    from prefect.flow_engine import run_flow
+    from prefect.flows import load_flow_from_entrypoint
+    from prefect.states import Scheduled
+
+    terminal_states = {
+        StateType.COMPLETED,
+        StateType.FAILED,
+        StateType.CANCELLED,
+        StateType.CRASHED,
+    }
+
+    async with get_client() as client:
+        # Resolve flow run by ID or name
+        flow_run = await _get_flow_run_by_id_or_name(client, id_or_name)
+        flow_run_id = flow_run.id
+
+        # Validate flow run is in terminal state
+        if flow_run.state is None or flow_run.state.type not in terminal_states:
+            current_state = flow_run.state.type.value if flow_run.state else "unknown"
+            exit_with_error(
+                f"Flow run '{flow_run_id}' is in state '{current_state}' and cannot be retried. "
+                f"Only flow runs in terminal states (COMPLETED, FAILED, CANCELLED, CRASHED) can be retried."
+            )
+
+        # Branch based on deployment association
+        if flow_run.deployment_id:
+            # Deployment-based retry: set state to Scheduled and exit
+            # Use force=True to bypass orchestration rules that prevent state transitions
+            # from terminal states (e.g., CANCELLED -> SCHEDULED)
+            scheduled_state = Scheduled(message="Retried via CLI")
+            try:
+                result = await client.set_flow_run_state(
+                    flow_run_id=flow_run_id, state=scheduled_state, force=True
+                )
+            except ObjectNotFound:
+                exit_with_error(f"Flow run '{flow_run_id}' not found!")
+
+            if result.status == SetStateStatus.ABORT:
+                exit_with_error(
+                    f"Flow run '{flow_run_id}' could not be retried. Reason: '{result.details.reason}'"
+                )
+
+            exit_with_success(
+                f"Flow run '{flow_run_id}' has been scheduled for retry. "
+                "A worker will pick it up shortly."
+            )
+        else:
+            # Local retry: require entrypoint and execute synchronously
+            if not entrypoint:
+                exit_with_error(
+                    f"Flow run '{flow_run_id}' does not have an associated deployment. "
+                    "Please provide an --entrypoint to the flow code.\n\n"
+                    f"Example: prefect flow-run retry {flow_run_id} --entrypoint ./flows/my_flow.py:my_flow"
+                )
+
+            # Load the flow from entrypoint
+            try:
+                flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+            except Exception as exc:
+                exit_with_error(
+                    f"Failed to load flow from entrypoint '{entrypoint}': {exc}"
+                )
+
+            # Check if this is an infrastructure-bound flow
+            from prefect.flows import InfrastructureBoundFlow
+
+            if isinstance(flow, InfrastructureBoundFlow):
+                app.console.print(
+                    f"Retrying flow run '{flow_run_id}' on remote infrastructure "
+                    f"(work pool: {flow.work_pool})..."
+                )
+
+                try:
+                    # Use the retry method which handles remote execution
+                    await flow.retry(flow_run)
+                except Exception as exc:
+                    exit_with_error(f"Flow run failed: {exc}")
+
+                # Re-fetch to get final state
+                flow_run = await client.read_flow_run(flow_run_id)
+                final_state = flow_run.state.type.value if flow_run.state else "unknown"
+
+                if flow_run.state and flow_run.state.is_completed():
+                    exit_with_success(
+                        f"Flow run '{flow_run_id}' completed successfully."
+                    )
+                else:
+                    exit_with_error(
+                        f"Flow run '{flow_run_id}' finished with state: {final_state}"
+                    )
+            else:
+                # Regular local execution path
+                # Set state to Scheduled with force=True to bypass deployment check
+                scheduled_state = Scheduled(message="Retried via CLI (local execution)")
+                try:
+                    result = await client.set_flow_run_state(
+                        flow_run_id=flow_run_id, state=scheduled_state, force=True
+                    )
+                except ObjectNotFound:
+                    exit_with_error(f"Flow run '{flow_run_id}' not found!")
+
+                if result.status == SetStateStatus.ABORT:
+                    exit_with_error(
+                        f"Flow run '{flow_run_id}' could not be retried. Reason: '{result.details.reason}'"
+                    )
+
+                app.console.print(f"Executing flow run '{flow_run_id}' locally...")
+
+                # Re-fetch the flow run to get updated state
+                flow_run = await client.read_flow_run(flow_run_id)
+
+                try:
+                    call_args, call_kwargs = parameters_to_args_kwargs(
+                        flow.fn, flow_run.parameters if flow_run else {}
+                    )
+                    parameters = get_call_parameters(flow.fn, call_args, call_kwargs)
+                except Exception as exc:
+                    state = await exception_to_crashed_state(exc)
+                    await client.set_flow_run_state(
+                        flow_run_id=flow_run_id, state=state, force=True
+                    )
+                    exit_with_error(
+                        "Failed to use parameters from previous attempt. Please ensure the flow signature has not changed since the last run."
+                    )
+
+                # Execute the flow synchronously, reusing the existing flow run
+                try:
+                    run_flow(
+                        flow=flow,
+                        flow_run=flow_run,
+                        return_type="state",
+                        parameters=parameters,
+                    )
+                except Exception as exc:
+                    exit_with_error(f"Flow run failed: {exc}")
+
+                # Re-fetch to get final state
+                flow_run = await client.read_flow_run(flow_run_id)
+                final_state = flow_run.state.type.value if flow_run.state else "unknown"
+
+                if flow_run.state and flow_run.state.is_completed():
+                    exit_with_success(
+                        f"Flow run '{flow_run_id}' completed successfully."
+                    )
+                else:
+                    exit_with_error(
+                        f"Flow run '{flow_run_id}' finished with state: {final_state}"
+                    )
 
 
 @flow_run_app.command()

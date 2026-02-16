@@ -8,8 +8,8 @@ There are several ways to create a schedule for a deployment:
 
 - Through the Prefect UI
 - With the `cron`, `interval`, or `rrule` parameters if building your deployment with the
-[`serve` method](/v3/how-to-guides/deployments/run-flows-in-local-processes#serve-a-flow) of the `Flow` object or
-[the `serve` utility](/v3/how-to-guides/deployments/run-flows-in-local-processes#serve-multiple-flows-at-once) for managing multiple flows simultaneously
+[`serve` method](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes#serve-a-flow) of the `Flow` object or
+[the `serve` utility](/v3/how-to-guides/deployment_infra/run-flows-in-local-processes#serve-multiple-flows-at-once) for managing multiple flows simultaneously
 - If using [worker-based deployments](/v3/deploy/infrastructure-concepts/workers/)
   - When you define a deployment with `flow.serve` or `flow.deploy`
   - Through the interactive `prefect deploy` command
@@ -97,6 +97,11 @@ my_flow.serve(
 
 </CodeGroup>
 
+
+<Tip>
+Keyword arguments for schedules are also accepted by the `to_deployment` method that converts a flow to a deployment.
+</Tip>
+
 ### Create schedules with the CLI
 
 You can create a schedule through the interactive `prefect deploy` command. You will be prompted to choose which type of schedule to create.
@@ -104,7 +109,7 @@ You can create a schedule through the interactive `prefect deploy` command. You 
 You can also create schedules for existing deployments using the `prefect deployment schedule create` command. This command allows you to specify schedule details directly without going through the interactive flow.
 
 <Note>
-By default `prefect deployment schedule create` adds _additional_ schedules to your deployment. 
+By default `prefect deployment schedule create` adds _additional_ schedules to your deployment.
 Use the `--replace` flag to remove old schedules and update with the new one.
 </Note>
 
@@ -152,6 +157,37 @@ deployments:
       timezone: "Europe/London"
       active: true
 ```
+
+### Renaming schedule slugs
+
+If you need to rename a schedule's slug, use the `replaces` field to indicate which existing schedule should be updated:
+
+```yaml
+deployments:
+  - name: send-emails
+    entrypoint: flows.py:send_email
+    schedules:
+      - cron: "0 8 * * *"
+        slug: "daily-team-digest"    # The new slug
+        replaces: "morning-emails"   # The old slug being replaced
+        parameters:
+          to: "team@company.com"
+```
+
+When you run `prefect deploy`:
+- The existing schedule with slug "morning-emails" will be updated
+- Its slug will change to "daily-team-digest"
+- No new schedule is created, and no orphaned schedule remains
+
+After a successful deploy, you can remove the `replaces` field from your YAML - it becomes a no-op once the old slug no longer exists.
+
+<Note>
+If `replaces` points to a slug that doesn't exist, the schedule will be created normally and a warning will be logged.
+</Note>
+
+<Warning>
+Two schedules cannot have `replaces` pointing to the same slug. This will result in a validation error.
+</Warning>
 
 ### Create schedules with Terraform
 
@@ -232,3 +268,9 @@ deployments:
         to: "dwight.schrute@dundermifflin.com"
         message: "Stop goofing off! You're assistant _to_ the regional manager!"
 ```
+
+## See also
+
+- [Manage deployment schedules](/v3/how-to-guides/deployments/manage-schedules) - Learn how to pause and resume deployment schedules
+- [Schedules concept](/v3/concepts/schedules) - Deep dive into schedule types and options
+- [Deployments](/v3/concepts/deployments) - Learn more about deployments

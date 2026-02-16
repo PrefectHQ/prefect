@@ -8,7 +8,14 @@ from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect._result_records import ResultRecordMetadata
-from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
+from prefect.flow_runs import (
+    apause_flow_run,
+    aresume_flow_run,
+    asuspend_flow_run,
+    pause_flow_run,
+    resume_flow_run,
+    suspend_flow_run,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.cloud import get_cloud_client
 import prefect.variables  # pyright: ignore[reportUnusedImport] # TODO: Does this need to be imported here?
@@ -45,11 +52,6 @@ prefect.logging.get_logger("profiles").debug(
     f"Using profile {prefect.context.get_settings_context().profile.name!r}"
 )
 
-# Configure telemetry
-import prefect.telemetry.bootstrap
-
-prefect.telemetry.bootstrap.setup_telemetry()
-
 
 from prefect._internal.compatibility.deprecated import (
     inject_renamed_module_alias_finder,
@@ -63,20 +65,23 @@ flow: FlowDecorator
 # Declare API for type-checkers
 __all__ = [
     "allow_failure",
+    "apause_flow_run",
+    "aresume_flow_run",
+    "aserve",
+    "asuspend_flow_run",
     "flow",
     "Flow",
     "get_client",
     "get_cloud_client",
     "get_run_logger",
+    "pause_flow_run",
+    "resume_flow_run",
+    "serve",
     "State",
+    "suspend_flow_run",
     "tags",
     "task",
     "Task",
     "Transaction",
     "unmapped",
-    "serve",
-    "aserve",
-    "pause_flow_run",
-    "resume_flow_run",
-    "suspend_flow_run",
 ]

@@ -2,13 +2,15 @@ import { useWatch } from "react-hook-form";
 import type { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icons";
-import { Typography } from "@/components/ui/typography";
 import { ActionTypeSelect } from "./action-type-select";
+import { CallWebhookFields } from "./call-webhook-fields";
 import { ChangeFlowRunStateFields } from "./change-flow-run-fields";
+import { FlowRunActionDescription } from "./flow-run-action-description";
 import { SelectAutomationsFields } from "./select-automations-fields";
 import { SelectDeploymentsFields } from "./select-deployments-fields";
 import { SelectWorkPoolsFields } from "./select-work-pools-fields";
 import { SelectWorkQueuesFields } from "./select-work-queues-fields";
+import { SendNotificationFields } from "./send-notification-fields";
 
 type ActionStepProps = {
 	index: number;
@@ -17,11 +19,9 @@ type ActionStepProps = {
 
 export const ActionStep = ({ index, onRemove }: ActionStepProps) => {
 	return (
-		<div key={index} className="flex flex-col gap-2">
+		<div key={index} className="space-y-2">
 			<div className="flex justify-between items-center">
-				<Typography variant="body" className="font-semibold">
-					Action {index + 1}
-				</Typography>
+				<p className="text-base font-semibold">Action {index + 1}</p>
 				<Button
 					size="icon"
 					aria-label={`remove action ${index + 1}`}
@@ -33,7 +33,7 @@ export const ActionStep = ({ index, onRemove }: ActionStepProps) => {
 			</div>
 			<ActionTypeSelect index={index} />
 			<ActionTypeAdditionalFields index={index} />
-			<hr className="my-10" />
+			<hr className="my-8" />
 		</div>
 	);
 };
@@ -70,13 +70,15 @@ const ActionTypeAdditionalFields = ({
 		case "resume-automation":
 			return <SelectAutomationsFields action="Resume" index={index} />;
 		case "send-notification":
-			return <div>TODO send notification</div>;
+			return <SendNotificationFields index={index} />;
+		case "call-webhook":
+			return <CallWebhookFields index={index} />;
 		case "cancel-flow-run":
-			return <div>TODO cancel flow run</div>;
+			return <FlowRunActionDescription action="Cancel" />;
 		case "suspend-flow-run":
-			return <div>TODO suspend flow run</div>;
+			return <FlowRunActionDescription action="Suspend" />;
 		case "resume-flow-run":
-			return <div>TODO resume flow run</div>;
+			return <FlowRunActionDescription action="Resume" />;
 		default:
 			return null;
 	}

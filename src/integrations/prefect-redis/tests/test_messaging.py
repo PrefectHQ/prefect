@@ -4,9 +4,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import AsyncGenerator, Generator, Optional
+from unittest.mock import patch
 
 import anyio
 import pytest
+from prefect_redis.client import _client_cache, clear_cached_clients
 from prefect_redis.messaging import (
     Cache,
     Consumer,
@@ -15,8 +17,11 @@ from prefect_redis.messaging import (
     RedisMessagingConsumerSettings,
     RedisMessagingPublisherSettings,
     StopConsumer,
+    _cleanup_empty_consumer_groups,
+    _trim_stream_to_lowest_delivered_id,
 )
 from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from prefect.server.events import Event
 from prefect.server.events.clients import PrefectServerEventsClient
@@ -493,7 +498,6 @@ class TestRedisMessagingSettings:
 
 async def test_trimming_with_no_delivered_messages(redis: Redis):
     """Test that stream trimming handles the case where no messages have been delivered."""
-    from prefect_redis.messaging import _trim_stream_to_lowest_delivered_id
 
     stream_name = "test-trim-stream"
 
@@ -512,5 +516,236 @@ async def test_trimming_with_no_delivered_messages(redis: Redis):
     length = await redis.xlen(stream_name)
     assert length == 2
 
-    # Clean up
-    await redis.delete(stream_name)
+
+async def test_trimming_skips_idle_consumer_groups(
+    redis: Redis, monkeypatch: pytest.MonkeyPatch
+):
+    """Test that stream trimming skips consumer groups with all consumers idle beyond threshold."""
+
+    stream_name = "test-trim-idle-stream"
+
+    # Create a stream with 10 messages
+    message_ids = []
+    for i in range(10):
+        msg_id = await redis.xadd(stream_name, {"data": f"test{i}"})
+        message_ids.append(msg_id)
+
+    # Create two consumer groups
+    await redis.xgroup_create(stream_name, "active-group", id="0")
+    await redis.xgroup_create(stream_name, "stuck-group", id="0")
+
+    # Active group consumes all messages
+    messages = await redis.xreadgroup(
+        groupname="active-group",
+        consumername="consumer-1",
+        streams={stream_name: ">"},
+        count=10,
+    )
+    for stream, msgs in messages:
+        for msg_id, data in msgs:
+            await redis.xack(stream_name, "active-group", msg_id)
+
+    # Stuck group only consumes first 3 messages
+    messages = await redis.xreadgroup(
+        groupname="stuck-group",
+        consumername="consumer-2",
+        streams={stream_name: ">"},
+        count=3,
+    )
+    stuck_last_id = None
+    for stream, msgs in messages:
+        for msg_id, data in msgs:
+            await redis.xack(stream_name, "stuck-group", msg_id)
+            stuck_last_id = msg_id
+
+    # Wait to make consumers idle (need to wait longer than the threshold)
+    await asyncio.sleep(1.5)
+
+    # Set a very short idle threshold for testing (1 second)
+    # The setting expects seconds as an integer
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD", "1")
+
+    # Create a new active consumer to allow trimming
+    # This simulates an active consumer that keeps processing
+    await redis.xreadgroup(
+        groupname="active-group",
+        consumername="consumer-3",  # New consumer with fresh idle time
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    # Trim the stream - should skip the stuck group but use the active group
+    await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    # Check results
+    stream_info = await redis.xinfo_stream(stream_name)
+    first_entry_id = (
+        stream_info["first-entry"][0] if stream_info["first-entry"] else None
+    )
+
+    # The stream should be trimmed past the stuck group's position
+    assert first_entry_id is not None
+    assert first_entry_id > stuck_last_id
+
+    # Should have trimmed most messages (keeping only the last one or few)
+    assert (
+        stream_info["length"] <= 2
+    )  # Redis might keep 1-2 messages due to trimming behavior
+
+
+async def test_cleanup_empty_consumer_groups(redis: Redis):
+    """Test that empty consumer groups that have consumed messages are cleaned up."""
+
+    stream_name = "test-cleanup-stream"
+
+    # Create a stream with a message
+    await redis.xadd(stream_name, {"data": "test"})
+
+    # Create multiple consumer groups
+    await redis.xgroup_create(stream_name, "ephemeral-active-group", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-abandoned-group", id="0")
+
+    # Add a consumer to the active group and consume a message
+    await redis.xreadgroup(
+        groupname="ephemeral-active-group",
+        consumername="consumer-1",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    # Add a consumer to the abandoned group, consume a message, then remove the consumer
+    # This simulates a group that was used but is now abandoned
+    await redis.xreadgroup(
+        groupname="ephemeral-abandoned-group",
+        consumername="temp-consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+    # Remove the consumer from the abandoned group (simulating it leaving)
+    await redis.xgroup_delconsumer(
+        stream_name, "ephemeral-abandoned-group", "temp-consumer"
+    )
+
+    # Verify both groups exist
+    groups_before = await redis.xinfo_groups(stream_name)
+    assert len(groups_before) == 2
+    group_names_before = {g["name"] for g in groups_before}
+    assert group_names_before == {
+        "ephemeral-active-group",
+        "ephemeral-abandoned-group",
+    }
+
+    # Run cleanup
+    await _cleanup_empty_consumer_groups(stream_name)
+
+    # Verify only the active group remains (abandoned group was deleted)
+    groups_after = await redis.xinfo_groups(stream_name)
+    assert len(groups_after) == 1
+    assert groups_after[0]["name"] == "ephemeral-active-group"
+
+
+async def test_cleanup_preserves_newly_created_empty_groups(redis: Redis):
+    """Test that newly created empty consumer groups are NOT deleted.
+
+    This is a regression test for the issue where empty ephemeral groups were
+    deleted before users had a chance to add consumers to them. Groups with
+    last-delivered-id of "0-0" (haven't consumed any messages yet) should be
+    preserved to allow time for consumers to be added.
+    """
+
+    stream_name = "test-preserve-new-groups-stream"
+
+    # Create a stream with a message
+    await redis.xadd(stream_name, {"data": "test"})
+
+    # Create empty ephemeral groups (simulating deployment scenario where groups
+    # are created but consumers haven't been added yet)
+    await redis.xgroup_create(stream_name, "ephemeral-new-group-1", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-new-group-2", id="0")
+
+    # Also create a non-ephemeral group to verify it's not affected
+    await redis.xgroup_create(stream_name, "permanent-group", id="0")
+
+    # Verify all groups exist and have last-delivered-id of "0-0"
+    groups_before = await redis.xinfo_groups(stream_name)
+    assert len(groups_before) == 3
+    for group in groups_before:
+        assert group["last-delivered-id"] == "0-0"
+
+    # Run cleanup
+    await _cleanup_empty_consumer_groups(stream_name)
+
+    # Verify ALL groups still exist - none should be deleted because they
+    # haven't consumed any messages yet (last-delivered-id == "0-0")
+    groups_after = await redis.xinfo_groups(stream_name)
+    assert len(groups_after) == 3
+    group_names_after = {g["name"] for g in groups_after}
+    assert group_names_after == {
+        "ephemeral-new-group-1",
+        "ephemeral-new-group-2",
+        "permanent-group",
+    }
+
+
+async def test_consumer_recovers_from_redis_connection_error(
+    broker: str, publisher: Publisher
+):
+    """Test that consumer reconnects after Redis connection error (issue #19080)."""
+    captured_messages: list[Message] = []
+    connection_error_count = 0
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        if len(captured_messages) >= 2:
+            raise StopConsumer(ack=True)
+
+    consumer = create_consumer("message-tests")
+
+    # We'll simulate a connection error by patching xreadgroup to fail once
+    original_xreadgroup = Redis.xreadgroup
+
+    async def failing_xreadgroup(self, *args, **kwargs):
+        nonlocal connection_error_count
+        if connection_error_count == 0:
+            connection_error_count += 1
+            raise RedisConnectionError("Simulated connection error")
+        return await original_xreadgroup(self, *args, **kwargs)
+
+    with patch.object(Redis, "xreadgroup", failing_xreadgroup):
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        # Give the consumer time to hit the error and reconnect
+        await asyncio.sleep(0.5)
+
+        # Publish messages - these should be received after reconnection
+        async with publisher as p:
+            await p.publish_data(b"message-1", {"id": "1"})
+            await p.publish_data(b"message-2", {"id": "2"})
+
+        # Wait for consumer to process messages
+        with anyio.move_on_after(5.0):
+            await consumer_task
+
+    # Verify the connection error was raised and recovered from
+    assert connection_error_count == 1, "Should have encountered one connection error"
+
+    # Verify messages were received after recovery
+    assert len(captured_messages) == 2, (
+        "Should have received both messages after recovery"
+    )
+    assert captured_messages[0].data == "message-1"
+    assert captured_messages[1].data == "message-2"
+
+
+async def test_clear_cached_clients():
+    """Test that clear_cached_clients clears the cache."""
+    # Get a client to populate the cache
+    from prefect_redis.client import get_async_redis_client
+
+    get_async_redis_client()  # Populate cache
+    assert len(_client_cache) > 0, "Cache should have at least one client"
+
+    # Clear the cache
+    await clear_cached_clients()
+
+    assert len(_client_cache) == 0, "Cache should be empty after clearing"

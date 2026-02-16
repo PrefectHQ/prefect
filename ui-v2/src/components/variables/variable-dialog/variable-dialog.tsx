@@ -4,15 +4,16 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import type { components } from "@/api/prefect";
+import { useCreateVariable, useUpdateVariable } from "@/api/variables";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
+	DialogClose,
 	DialogContent,
 	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-	DialogTrigger,
 } from "@/components/ui/dialog";
 import {
 	Form,
@@ -23,10 +24,16 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { TagsInput } from "@/components/ui/tags-input";
-import { useCreateVariable, useUpdateVariable } from "@/hooks/variables";
-import type { JSONValue } from "@/lib/types";
+
+export type JSONValue =
+	| string
+	| number
+	| boolean
+	| Record<string, never>
+	| unknown[]
+	| null;
 
 const formSchema = z.object({
 	name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -184,9 +191,11 @@ export const VariableDialog = ({
 							)}
 						/>
 						<DialogFooter>
-							<DialogTrigger asChild>
-								<Button variant="outline">Close</Button>
-							</DialogTrigger>
+							<DialogClose asChild>
+								<Button type="button" variant="outline">
+									Close
+								</Button>
+							</DialogClose>
 							<Button type="submit" loading={isCreating || isUpdating}>
 								{variableToEdit ? "Save" : "Create"}
 							</Button>

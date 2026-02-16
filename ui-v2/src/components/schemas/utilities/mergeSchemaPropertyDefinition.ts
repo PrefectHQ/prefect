@@ -41,7 +41,7 @@ export function getSchemaDefinition(
 		return definitionSchema;
 	}
 
-	throw new Error("Schema does not contain definitions");
+	return {} as SchemaObject;
 }
 
 export function mergeSchemaPropertyDefinition(

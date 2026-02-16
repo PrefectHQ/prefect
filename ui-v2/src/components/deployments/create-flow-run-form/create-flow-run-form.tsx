@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
-import type { PrefectSchemaObject } from "@/components/schemas";
-import { SchemaForm } from "@/components/schemas";
+import { LazySchemaForm, type PrefectSchemaObject } from "@/components/schemas";
 import {
 	Accordion,
 	AccordionContent,
@@ -18,11 +17,10 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { JsonInput } from "@/components/ui/json-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import { Switch } from "@/components/ui/switch";
 import { TagsInput } from "@/components/ui/tags-input";
 import { Textarea } from "@/components/ui/textarea";
-import { Typography } from "@/components/ui/typography";
 import { WorkQueueSelect } from "@/components/work-pools/work-queue-select";
 import { FlowRunNameInput } from "./flow-run-name-input";
 import { FlowRunStartInput } from "./flow-run-start-input";
@@ -72,11 +70,11 @@ export const CreateFlowRunForm = ({
 
 				{parametersOpenAPISchema && (
 					<div className="pt-4 border-t">
-						<Typography variant="h3" className="mb-4">
+						<h3 className="text-2xl font-semibold tracking-tight mb-4">
 							Parameters
-						</Typography>
+						</h3>
 
-						<SchemaForm
+						<LazySchemaForm
 							schema={parametersOpenAPISchema as unknown as PrefectSchemaObject}
 							errors={parameterFormErrors}
 							values={parametersFormValues}
@@ -111,13 +109,11 @@ export const CreateFlowRunForm = ({
 						render={({ field }) => (
 							<FormItem>
 								<FormLabel>
-									<Typography variant="bodyLarge" className="mb-4">
-										Start
-									</Typography>
+									<p className="text-lg mb-4">Start</p>
 								</FormLabel>
 								<FormControl>
 									<FlowRunStartInput
-										value={field.value}
+										value={field.value ?? null}
 										onValueChange={field.onChange}
 									/>
 								</FormControl>
@@ -130,7 +126,7 @@ export const CreateFlowRunForm = ({
 				<Accordion type="single" collapsible>
 					<AccordionItem value="item-1">
 						<AccordionTrigger>
-							<Typography variant="bodyLarge">Additional Options</Typography>
+							<p className="text-lg">Additional Options</p>
 						</AccordionTrigger>
 						<AccordionContent className="flex flex-col gap-4">
 							<FormField
@@ -217,9 +213,9 @@ export const CreateFlowRunForm = ({
 															{...field}
 														/>
 													</FormControl>
-													<Typography className="border rounded-sm rounded-l-none p-1.25">
+													<p className="text-base border rounded-sm rounded-l-none p-1.25">
 														Seconds
-													</Typography>
+													</p>
 												</div>
 												<FormMessage />
 											</FormItem>

@@ -1,12 +1,12 @@
 import type React from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
-interface LogoImageProps {
+type LogoImageProps = {
 	url: string | null;
 	alt: string;
 	size?: "sm" | "md" | "lg";
 	className?: string;
-}
+};
 
 const sizeClasses = {
 	sm: "h-4 w-4",

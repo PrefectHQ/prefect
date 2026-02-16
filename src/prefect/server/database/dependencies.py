@@ -2,7 +2,6 @@
 Injected database interface dependencies
 """
 
-import sys
 from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from functools import wraps
@@ -32,12 +31,12 @@ from prefect.server.database.configurations import (
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.schemas import PrefectDescriptorBase
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 if TYPE_CHECKING:
-    from prefect.server.database.interface import PrefectDBInterface
     from prefect.server.database.orm_models import BaseORMConfiguration
     from prefect.server.database.query_components import BaseQueryComponents
 
@@ -66,7 +65,7 @@ MODELS_DEPENDENCIES: _ModelDependencies = {
 }
 
 
-def provide_database_interface() -> "PrefectDBInterface":
+def provide_database_interface() -> PrefectDBInterface:
     """
     Get the current Prefect REST API database interface.
 
@@ -232,20 +231,6 @@ class _FuncWrapper(Generic[P, R]):
 
         def __delattr__(self, name: str) -> None:
             delattr(self._func, name)
-
-        if sys.version_info < (3, 10):
-            # Python 3.9 inspect.iscoroutinefunction tests are not flexible
-            # enough to accept this decorator, unfortunately enough. But
-            # asyncio.iscoroutinefunction does check for a marker object that,
-            # when found as func._is_coroutine lets you pass the test anyway.
-
-            @property
-            def _is_coroutine(self):
-                """Python 3.9 asyncio.iscoroutinefunction work-around"""
-                from asyncio import coroutines, iscoroutinefunction
-
-                if iscoroutinefunction(self._func):
-                    return getattr(coroutines, "_is_coroutine", None)
 
 
 # Descriptor object responsible for injecting the PrefectDBInterface instance.

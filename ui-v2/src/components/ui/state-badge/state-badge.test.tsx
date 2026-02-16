@@ -57,29 +57,38 @@ describe("StateBadge", () => {
 		},
 	];
 
-	test.each(states)(
-		"renders correct icon and classes for $type state",
-		({ type, name }) => {
-			render(<StateBadge type={type} name={name} />);
+	test.each(states)("renders correct icon and classes for $type state", ({
+		type,
+		name,
+	}) => {
+		render(<StateBadge type={type} name={name} />);
 
-			// Check if state name is rendered
-			expect(screen.getByText(name)).toBeInTheDocument();
+		// Check if state name is rendered
+		expect(screen.getByText(name)).toBeInTheDocument();
 
-			// Check if correct classes are applied based on the CLASSES mapping
-			const badge = screen.getByText(name).closest("span");
-			const expectedClasses = {
-				COMPLETED: "bg-green-50 text-green-600 hover:bg-green-50",
-				FAILED: "bg-red-50 text-red-600 hover:bg-red-50",
-				RUNNING: "bg-blue-100 text-blue-700 hover:bg-blue-100",
-				CANCELLED: "bg-gray-300 text-gray-800 hover:bg-gray-300",
-				CANCELLING: "bg-gray-300 text-gray-800 hover:bg-gray-300",
-				CRASHED: "bg-orange-50 text-orange-600 hover:bg-orange-50",
-				PAUSED: "bg-gray-300 text-gray-800 hover:bg-gray-300",
-				PENDING: "bg-gray-300 text-gray-800 hover:bg-gray-300",
-				SCHEDULED: "bg-yellow-100 text-yellow-700 hover:bg-yellow-100",
-			}[type];
+		// Check if correct classes are applied based on the CLASSES mapping
+		const badge = screen.getByText(name).closest("span");
+		const expectedClasses = {
+			COMPLETED:
+				"bg-state-completed-50 text-state-completed-600 hover:bg-state-completed-100",
+			FAILED:
+				"bg-state-failed-50 text-state-failed-700 hover:bg-state-failed-100",
+			RUNNING:
+				"bg-state-running-50 text-state-running-700 hover:bg-state-running-100",
+			CANCELLED:
+				"bg-state-cancelled-50 text-state-cancelled-600 hover:bg-state-cancelled-100",
+			CANCELLING:
+				"bg-state-cancelling-50 text-state-cancelling-600 hover:bg-state-cancelling-100",
+			CRASHED:
+				"bg-state-crashed-50 text-state-crashed-600 hover:bg-state-crashed-100",
+			PAUSED:
+				"bg-state-paused-100 text-state-paused-700 hover:bg-state-paused-200",
+			PENDING:
+				"bg-state-pending-100 text-state-pending-700 hover:bg-state-pending-200",
+			SCHEDULED:
+				"bg-state-scheduled-50 text-state-scheduled-700 hover:bg-state-scheduled-100",
+		}[type];
 
-			expect(badge).toHaveClass(...expectedClasses.split(" "));
-		},
-	);
+		expect(badge).toHaveClass(...expectedClasses.split(" "));
+	});
 });

@@ -1,8 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { Deployment } from "@/api/deployments";
 import { GlobalConcurrencyLimitSelect } from "@/components/global-concurrency-limit/global-concurrency-limit-select";
-import type { PrefectSchemaObject } from "@/components/schemas";
-import { SchemaForm } from "@/components/schemas";
+import { LazySchemaForm, type PrefectSchemaObject } from "@/components/schemas";
 import { Button } from "@/components/ui/button";
 import {
 	Form,
@@ -13,11 +12,10 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { JsonInput } from "@/components/ui/json-input";
-import { MarkdownInput } from "@/components/ui/markdown-input";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
+import { LazyMarkdownInput as MarkdownInput } from "@/components/ui/markdown-input-lazy";
 import { Switch } from "@/components/ui/switch";
 import { TagsInput } from "@/components/ui/tags-input";
-import { Typography } from "@/components/ui/typography";
 import { WorkPoolSelect } from "@/components/work-pools/work-pool-select";
 import { WorkQueueSelect } from "@/components/work-pools/work-queue-select";
 import { LimitCollissionStrategySelect } from "./limit-collision-strategy-select";
@@ -47,7 +45,7 @@ export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
 			>
 				<FormMessage>{form.formState.errors.root?.message}</FormMessage>
 
-				<Typography variant="h3">General</Typography>
+				<h3 className="text-2xl font-semibold tracking-tight">General</h3>
 
 				<FormField
 					control={form.control}
@@ -145,16 +143,13 @@ export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
 						<FormItem>
 							<FormLabel>
 								<div className="col gap-1 mb-0.5">
-									<Typography variant="bodySmall">
+									<p className="text-sm">
 										Concurrency Limit Collision Strategy (Optional)
-									</Typography>
-									<Typography
-										variant="bodySmall"
-										className="text-muted-foreground"
-									>
+									</p>
+									<p className="text-sm text-muted-foreground">
 										Configure behavior for runs once the concurrency limit is
 										reached.
-									</Typography>
+									</p>
 								</div>
 							</FormLabel>
 							<FormControl>
@@ -187,11 +182,11 @@ export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
 				/>
 
 				<div className="pt-4 border-t">
-					<Typography variant="h3" className="mb-4">
+					<h3 className="text-2xl font-semibold tracking-tight mb-4">
 						Parameters
-					</Typography>
+					</h3>
 					{parametersOpenAPISchema && (
-						<SchemaForm
+						<LazySchemaForm
 							schema={parametersOpenAPISchema as unknown as PrefectSchemaObject}
 							errors={parameterFormErrors}
 							values={parametersFormValues}
@@ -219,9 +214,9 @@ export const DeploymentForm = ({ deployment, mode }: DeploymentFormProps) => {
 				</div>
 
 				<div className="pt-4 border-t">
-					<Typography variant="h3" className="mb-4">
+					<h3 className="text-2xl font-semibold tracking-tight mb-4">
 						Job Variables
-					</Typography>
+					</h3>
 					<FormField
 						control={form.control}
 						name="job_variables"

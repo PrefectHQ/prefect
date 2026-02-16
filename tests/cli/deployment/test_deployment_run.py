@@ -12,6 +12,7 @@ import pytest
 from whenever import DateDelta, DateTimeDelta, TimeDelta, ZonedDateTime
 
 import prefect
+import prefect.cli.deployment as _deployment_mod
 from prefect.client.schemas.objects import Deployment, FlowRun
 from prefect.exceptions import FlowRunWaitTimeout
 from prefect.states import Completed, Failed
@@ -289,8 +290,8 @@ def test_start_in_option_invalid_input(
     [
         (
             "20 minutes",
-            "in 19 minutes" if sys.version_info < (3, 13) else "19 minutes from now",
-        ),  # difference due to different libraries used for parsing and display
+            "in 19 minutes" if sys.version_info < (3, 13) else "20 minutes from now",
+        ),
         ("5 days", "in 5 days" if sys.version_info < (3, 13) else "4 days from now"),
         (
             "3 seconds",
@@ -299,7 +300,7 @@ def test_start_in_option_invalid_input(
         (None, "now"),
         (
             "1 year and 3 months",
-            "in 1 year" if sys.version_info < (3, 13) else "1 year, 2 months from now",
+            "in 1 year" if sys.version_info < (3, 13) else "1 year, 3 months from now",
         ),
         (
             "2 weeks & 1 day",
@@ -481,7 +482,7 @@ async def test_print_parameter_validation_error(
 
 
 @pytest.mark.parametrize(
-    "test_case, mock_wait_for_flow_run, timeout, expected_output, expected_code",
+    "test_case, mock_watch_flow_run, timeout, expected_output, expected_code",
     [
         (
             "pass",
@@ -513,14 +514,12 @@ async def test_run_deployment_watch(
     deployment_name: str,
     prefect_client: prefect.client.orchestration.PrefectClient,
     test_case: str,
-    mock_wait_for_flow_run: AsyncMock,
+    mock_watch_flow_run: AsyncMock,
     timeout: int | None,
     expected_output: str,
     expected_code: int,
 ):
-    monkeypatch.setattr(
-        "prefect.cli.deployment.wait_for_flow_run", mock_wait_for_flow_run
-    )
+    monkeypatch.setattr(_deployment_mod, "watch_flow_run", mock_watch_flow_run)
 
     deployment_run_with_watch_command = partial(
         invoke_and_assert,
@@ -544,11 +543,10 @@ async def test_run_deployment_watch(
     assert flow_run.state.is_scheduled()
 
     assert set(flow_run.tags) == set(["cool-tag", "test"])
-    mock_wait_for_flow_run.assert_awaited_once_with(
+    mock_watch_flow_run.assert_awaited_once_with(
         flow_run.id,
+        ANY,
         timeout=timeout,
-        poll_interval=ANY,
-        log_states=ANY,
     )
 
 
@@ -580,3 +578,35 @@ async def test_deployment_runs_with_job_variables(
     flow_runs = await prefect_client.read_flow_runs()
     this_run = flow_runs[0]
     assert this_run.job_variables == job_vars
+
+
+async def test_deployment_run_without_parameter_openapi_schema(
+    flow: Any,
+    prefect_client: prefect.client.orchestration.PrefectClient,
+):
+    """
+    Verify that deployments created without a parameter_openapi_schema
+    can still be run via the CLI without crashing.
+
+    Regression test for issue where deployments created via client.create_deployment
+    without an explicit parameter_openapi_schema would cause a KeyError when
+    running via `prefect deployment run`.
+    """
+    flow_id = await prefect_client.create_flow(flow=flow)
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment-no-schema",
+    )
+
+    deployment = await prefect_client.read_deployment(deployment_id)
+    deployment_name = f"{flow.name}/{deployment.name}"
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=["deployment", "run", deployment_name],
+        expected_output_contains="Created flow run",
+    )
+
+    flow_runs = await prefect_client.read_flow_runs()
+    assert len(flow_runs) == 1
+    assert flow_runs[0].deployment_id == deployment_id

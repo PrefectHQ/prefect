@@ -91,6 +91,12 @@ export function SchemaFormProperty({
 		value,
 	]);
 
+	useEffect(() => {
+		if (isDefined(value)) {
+			setInternalValue(value);
+		}
+	}, [value]);
+
 	function getInitialValue() {
 		if (isDefined(value)) {
 			return value;
@@ -121,6 +127,8 @@ export function SchemaFormProperty({
 							onValueChange={handleValueChange}
 							property={property}
 							disableKinds={unknownPropertyType}
+							defaultValue={property.default}
+							hasDefaultValue={isDefined(property.default)}
 						>
 							<DropdownMenuItem onClick={handleOmittedChange}>
 								{omitted ? "Include value" : "Omit value"}

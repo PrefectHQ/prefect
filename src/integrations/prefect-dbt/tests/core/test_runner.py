@@ -4,6 +4,7 @@ Tests for the PrefectDbtRunner class and related functionality.
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -133,6 +134,11 @@ def mock_settings_context_manager():
     with patch.object(PrefectDbtSettings, "resolve_profiles_yml") as mock_cm:
         mock_cm.return_value.__enter__.return_value = "/profiles/dir"
         yield mock_cm
+
+
+def two_consecutive_items_in_list(item1: Any, item2: Any, list_to_check: list) -> bool:
+    """Helper function to check if a mock was called with a param name and its value"""
+    return (item1, item2) in zip(list_to_check, list_to_check[1:])
 
 
 class TestPrefectDbtRunnerInitialization:
@@ -475,10 +481,10 @@ class TestPrefectDbtRunnerInvoke:
             result = test_flow()
 
         assert result.success is True
-        # Verify callbacks were created
+        # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 3
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_with_force_nodes_as_tasks(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -494,10 +500,10 @@ class TestPrefectDbtRunnerInvoke:
             result = runner.invoke(["run"])
 
         assert result.success is True
-        # Verify callbacks were created
+        # Verify callbacks were created (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 3
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_sets_log_level_none_in_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -518,7 +524,8 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to "none"
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert call_args[1]["log_level"] == "none"
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list("--log-level", "none", args_list)
 
     def test_invoke_uses_original_log_level_outside_context(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -535,7 +542,10 @@ class TestPrefectDbtRunnerInvoke:
 
         # Verify log_level was set to the original value
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert call_args[1]["log_level"] == str(runner.log_level.value)
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list(
+            "--log-level", str(runner.log_level.value), args_list
+        )
 
     def test_invoke_handles_dbt_exceptions(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -609,7 +619,11 @@ class TestPrefectDbtRunnerInvoke:
         assert result.success is True
         # Verify the CLI flags take precedence (processed after kwargs)
         call_args = mock_dbt_runner_class.return_value.invoke.call_args
-        assert call_args[1]["target_path"] == "/cli/path"
+        args_list = call_args.args[0]
+        assert two_consecutive_items_in_list("--target-path", "/cli/path", args_list)
+        assert not two_consecutive_items_in_list(
+            "--target-path", "/kwargs/path", args_list
+        )
 
     def test_invoke_uses_resolve_profiles_yml_context_manager(
         self, mock_dbt_runner_class, mock_settings_context_manager
@@ -623,6 +637,59 @@ class TestPrefectDbtRunnerInvoke:
         runner.invoke(["run"])
 
         mock_settings_context_manager.assert_called_once()
+
+    def test_invoke_omits_target_path_for_deps_with_flags_before_command(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that target_path is not passed to deps when flags appear before command.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19686
+
+        When flags with values appear before the command (e.g., --log-format json deps),
+        the command detection should correctly identify 'deps' as the command, not 'json'.
+        Since 'deps' doesn't support --target-path, it should be omitted.
+        """
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        runner.invoke(
+            [
+                "--no-use-colors",
+                "--log-format",
+                "json",
+                "deps",
+                "--vars",
+                '{"foo": "bar"}',
+            ]
+        )
+
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        args_list = call_args.args[0]
+        assert "--target-path" not in args_list, (
+            f"--target-path should not be passed to 'deps' command, got: {args_list}"
+        )
+
+    def test_invoke_handles_multi_word_commands(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that multi-word commands include all necessary parameters."""
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        result = runner.invoke(["source", "freshness"])
+
+        assert result.success
+        mock_dbt_runner_class.assert_called_once()
+
+        call_args = mock_dbt_runner_class.return_value.invoke.call_args
+        args_list = call_args.args[0]
+        assert "--profiles-dir" in args_list
+        # --project-dir is accepted by `source freshness`, but not by `source`
+        assert "--project-dir" in args_list
 
 
 class TestPrefectDbtRunnerCallbackCreation:
@@ -651,17 +718,19 @@ class TestPrefectDbtRunnerCallbackCreation:
     def test_create_node_finished_callback_returns_callable(self, mock_task_state):
         """Test that node finished callback creation returns a callable."""
         runner = PrefectDbtRunner()
+        context = {"test": "context"}
 
-        callback = runner._create_node_finished_callback(mock_task_state)
+        callback = runner._create_node_finished_callback(mock_task_state, context)
 
         assert callable(callback)
 
     def test_create_node_finished_callback_with_add_test_edges(self, mock_task_state):
         """Test that node finished callback works with add_test_edges."""
         runner = PrefectDbtRunner()
+        context = {"test": "context"}
 
         callback = runner._create_node_finished_callback(
-            mock_task_state, add_test_edges=True
+            mock_task_state, context, add_test_edges=True
         )
 
         assert callable(callback)
@@ -690,6 +759,11 @@ class TestPrefectDbtRunnerCallbackCreation:
             mock_event.data.node_info.unique_id = mock_manifest_node.unique_id
 
             callback(mock_event)
+
+            # Wait for the queue to process the callback (since callbacks are now async)
+            if runner_disabled._event_queue:
+                runner_disabled._event_queue.join()
+                runner_disabled._stop_callback_processor()
 
             mock_call_task.assert_called_once_with(
                 mock_task_state, mock_manifest_node, context, False
@@ -736,28 +810,80 @@ class TestPrefectDbtRunnerManifestNodeOperations:
 
         assert result == []
 
-    def test_get_upstream_manifest_nodes_and_configs_handles_missing_relation_name(
-        self, mock_manifest, mock_manifest_node
+    @pytest.mark.parametrize(
+        "depends_on",
+        [
+            # 1 level
+            ["model.test_project.ephemeral_staging"],
+            # 2 levels
+            ["model.test_project.another_ephemeral_staging"],
+            # multiple paths, duplicates
+            [
+                "model.test_project.another_ephemeral_staging",
+                "model.test_project.ephemeral_staging",
+            ],
+            # multiple paths, duplicates, including regular
+            [
+                "model.test_project.another_ephemeral_staging",
+                "model.test_project.ephemeral_staging",
+                "model.test_project.regular_model",
+            ],
+        ],
+    )
+    def test_get_upstream_manifest_nodes_and_configs_skips_ephemeral_models(
+        self, mock_manifest, mock_manifest_node, depends_on
     ):
-        """Test that missing relation_name is handled gracefully."""
+        """
+        Ephemeral models must be transparent dependency nodes.
+
+        For any depth and any number of paths, only real upstream models
+        should be returned, without duplicates.
+        """
         runner = PrefectDbtRunner(manifest=mock_manifest)
 
-        # Create a node without relation_name
-        upstream_node = Mock(spec=ManifestNode)
-        upstream_node.unique_id = "model.test_project.upstream_model"
-        upstream_node.config = Mock()
-        upstream_node.config.meta = {"prefect": {}}
-        upstream_node.config.materialized = "view"
-        upstream_node.relation_name = None
-        upstream_node.resource_type = NodeType.Model
-        upstream_node.depends_on_nodes = []
+        regular_node = Mock(spec=ManifestNode)
+        regular_node.unique_id = "model.test_project.regular_model"
+        regular_node.config = Mock()
+        regular_node.config.meta = {"prefect": {}}
+        regular_node.config.materialized = "view"
+        regular_node.relation_name = "test_db.test_schema.regular_model"
+        regular_node.resource_type = NodeType.Model
+        regular_node.depends_on_nodes = []
 
-        mock_manifest.nodes = {"model.test_project.upstream_model": upstream_node}
-        mock_manifest_node.depends_on_nodes = ["model.test_project.upstream_model"]
+        ephemeral_node = Mock(spec=ManifestNode)
+        ephemeral_node.unique_id = "model.test_project.ephemeral_staging"
+        ephemeral_node.config = Mock()
+        ephemeral_node.config.meta = {"prefect": {}}
+        ephemeral_node.config.materialized = "ephemeral"
+        ephemeral_node.relation_name = None  # Expected for ephemeral models
+        ephemeral_node.resource_type = NodeType.Model
+        ephemeral_node.depends_on_nodes = ["model.test_project.regular_model"]
 
-        # Should raise ValueError
-        with pytest.raises(ValueError, match="Relation name not found in manifest"):
-            runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+        another_ephemeral_node = Mock(spec=ManifestNode)
+        another_ephemeral_node.unique_id = (
+            "model.test_project.another_ephemeral_staging"
+        )
+        another_ephemeral_node.config = Mock()
+        another_ephemeral_node.config.meta = {"prefect": {}}
+        another_ephemeral_node.config.materialized = "ephemeral"
+        another_ephemeral_node.relation_name = None
+        another_ephemeral_node.resource_type = NodeType.Model
+        another_ephemeral_node.depends_on_nodes = [
+            "model.test_project.ephemeral_staging"
+        ]
+
+        mock_manifest.nodes = {
+            "model.test_project.another_ephemeral_staging": another_ephemeral_node,
+            "model.test_project.ephemeral_staging": ephemeral_node,
+            "model.test_project.regular_model": regular_node,
+        }
+
+        mock_manifest_node.depends_on_nodes = depends_on
+
+        result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+
+        assert len(result) == 1
+        assert result[0][0].unique_id == "model.test_project.regular_model"
 
     def test_get_upstream_manifest_nodes_and_configs_with_source_definition(
         self, mock_manifest, mock_manifest_node, mock_source_definition
@@ -840,7 +966,7 @@ class TestPrefectDbtRunnerManifestNodeOperations:
     def test_get_upstream_manifest_nodes_and_configs_source_definition_missing_relation_name(
         self, mock_manifest, mock_manifest_node, mock_source_definition
     ):
-        """Test that source definitions without relation_name raise an error."""
+        """Test that source definitions without relation_name are skipped."""
         runner = PrefectDbtRunner(manifest=mock_manifest)
 
         # Remove relation_name from source definition
@@ -850,8 +976,9 @@ class TestPrefectDbtRunnerManifestNodeOperations:
         }
         mock_manifest_node.depends_on_nodes = ["source.test_project.test_source"]
 
-        with pytest.raises(ValueError, match="Relation name not found in manifest"):
-            runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+        # Should skip sources without relation_name rather than raising
+        result = runner._get_upstream_manifest_nodes_and_configs(mock_manifest_node)
+        assert result == []
 
 
 class TestPrefectDbtRunnerTaskCreation:
@@ -915,21 +1042,32 @@ class TestPrefectDbtRunnerTaskCreation:
     def test_call_task_handles_missing_relation_name_for_assets(
         self, mock_task_state, mock_manifest_node, mock_manifest
     ):
-        """Test that missing relation_name is handled when creating assets."""
+        """Test that missing relation_name creates a regular Task instead of MaterializingTask.
+
+        Ephemeral models in dbt have relation_name=None because they're CTEs that
+        don't create database objects. When enable_assets=True but relation_name is
+        missing, we should fall back to creating a regular Task instead of raising
+        an error.
+
+        See: https://github.com/PrefectHQ/prefect/issues/19821
+        """
         runner = PrefectDbtRunner(manifest=mock_manifest)
         context = {"test": "context"}
 
-        # Remove relation_name from manifest node
+        # Remove relation_name from manifest node (simulates ephemeral model)
         mock_manifest_node.relation_name = None
 
         with patch("prefect_dbt.core.runner.Task") as mock_task_class:
             mock_task = Mock(spec=Task)
             mock_task_class.return_value = mock_task
 
-            with pytest.raises(ValueError, match="Relation name not found in manifest"):
-                runner._call_task(
-                    mock_task_state, mock_manifest_node, context, enable_assets=True
-                )
+            # Should NOT raise - should create a regular Task instead
+            runner._call_task(
+                mock_task_state, mock_manifest_node, context, enable_assets=True
+            )
+
+            # Verify that a regular Task was created (not MaterializingTask)
+            mock_task_class.assert_called_once()
 
     def test_call_task_with_source_definition_upstream_nodes(
         self, mock_task_state, mock_manifest_node, mock_manifest, mock_source_definition
@@ -1013,10 +1151,10 @@ class TestPrefectDbtRunnerBuildCommands:
             mock_context.return_value = {"flow_run_context": {"id": "test"}}
             runner.invoke(["build"])
 
-        # Verify callbacks were created with add_test_edges=True
+        # Verify callbacks were created with add_test_edges=True (unified callback approach uses 1 callback)
         mock_dbt_runner_class.assert_called_once()
         call_args = mock_dbt_runner_class.call_args
-        assert len(call_args[1]["callbacks"]) == 3
+        assert len(call_args.kwargs["callbacks"]) == 1
 
     def test_invoke_retry_build_command_sets_add_test_edges_true(
         self, mock_dbt_runner_class, mock_settings_context_manager, tmp_path: Path
@@ -1285,3 +1423,72 @@ class TestPrefectDbtRunnerManifestNodeLookup:
 
         assert result_node is None
         assert result_config == {}
+
+
+class TestPrefectDbtRunnerCallbackProcessorReset:
+    """Test that callback processor state is properly reset between invoke() calls.
+
+    Regression tests for https://github.com/PrefectHQ/prefect/pull/19601
+    """
+
+    def test_stop_callback_processor_resets_state(self):
+        """Test that _stop_callback_processor resets all instance variables."""
+        import queue
+        import threading
+
+        runner = PrefectDbtRunner()
+
+        # Simulate state that would exist after an invoke() call
+        runner._event_queue = queue.PriorityQueue()
+        runner._callback_thread = threading.Thread(target=lambda: None)
+        runner._shutdown_event = threading.Event()
+        runner._queue_counter = 42
+        runner._skipped_nodes = {"node1", "node2"}
+        runner._started_nodes = {"node3", "node4"}
+
+        # Stop should reset all state
+        runner._stop_callback_processor()
+
+        assert runner._event_queue is None
+        assert runner._callback_thread is None
+        assert runner._shutdown_event is None
+        assert runner._queue_counter == 0
+        assert runner._skipped_nodes == set()
+        assert runner._started_nodes == set()
+
+    def test_multiple_invokes_create_fresh_callback_processors(
+        self, mock_dbt_runner_class, mock_settings_context_manager
+    ):
+        """Test that multiple invoke() calls create fresh callback processors.
+
+        This is a regression test for a bug where the second invoke() would
+        hang because it tried to use the dead queue/thread from the first invoke().
+        """
+        runner = PrefectDbtRunner()
+        mock_dbt_runner_class.return_value.invoke.return_value = Mock(
+            success=True, result=None
+        )
+
+        @flow
+        def test_flow():
+            # First invoke
+            result1 = runner.invoke(["run"])
+
+            # After first invoke, state should be reset
+            assert runner._event_queue is None
+            assert runner._callback_thread is None
+            assert runner._shutdown_event is None
+
+            # Second invoke should work (not hang)
+            result2 = runner.invoke(["run"])
+
+            return result1, result2
+
+        with patch("prefect_dbt.core.runner.serialize_context") as mock_context:
+            mock_context.return_value = {"flow_run_context": {"id": "test"}}
+            result1, result2 = test_flow()
+
+        assert result1.success is True
+        assert result2.success is True
+        # Verify invoke was called twice
+        assert mock_dbt_runner_class.return_value.invoke.call_count == 2

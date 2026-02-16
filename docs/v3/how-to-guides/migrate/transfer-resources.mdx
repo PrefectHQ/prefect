@@ -1,0 +1,177 @@
+---
+title: How to transfer resources between Prefect environments
+sidebarTitle: Transfer resources between environments
+description: Migrate flows, deployments, work pools, and other resources between Prefect profiles
+---
+
+The `prefect transfer` command enables you to migrate resources between different Prefect environments, whether moving from development to production, from self-hosted to cloud, or between cloud workspaces.
+
+The command accepts a `--from` and `--to` [profile](/v3/concepts/settings-and-profiles#profiles), and transfers all resources from the source to the destination.
+
+<Info>
+The transfer command is available in Prefect [3.4.14](/v3/release-notes/oss/version-3-4) and later.
+</Info>
+
+## Quick start
+
+Transfer all resources from a development environment to production:
+
+```bash
+prefect transfer --from local --to cloud
+```
+
+The command will:
+1. Discover all resources in the source profile
+2. Transfer resources to the destination profile
+3. Report success, failures, and skipped resources
+
+## What gets transferred
+
+The transfer command moves the following resources:
+- [Flows](/v3/concepts/flows) and [deployments](/v3/concepts/deployments)
+- [Work pools](/v3/concepts/work-pools) and [work queues](/v3/concepts/work-pools#work-queues)
+- [Blocks](/v3/concepts/blocks) and their associated schemas/types
+- [Variables](/v3/concepts/variables)
+- [Global concurrency limits](/v3/concepts/global-concurrency-limits)
+- [Automations](/v3/concepts/automations)
+
+Resources are transferred in the correct order to preserve relationships between them.
+
+## Common transfer scenarios
+
+### Development to production
+
+Transfer resources between different environments:
+
+```bash
+prefect transfer --from dev-profile --to prod-profile
+```
+
+### Self-hosted to cloud migration
+
+Move from a self-hosted Prefect server to Prefect Cloud:
+
+```bash
+prefect transfer --from self-hosted-profile --to cloud-profile
+```
+
+<Warning>
+When transferring to Prefect Cloud Hobby tier workspaces, certain resource types may be skipped due to tier limitations.
+</Warning>
+
+### Workspace consolidation
+
+Resources can be transferred between multiple workspaces. Resources that already exist in the destination will be skipped.
+
+## Resource handling
+
+### Work pools
+
+The transfer command handles different work pool types according to the destination:
+
+- **Hybrid pools** (process, docker, kubernetes): Transfer to any destination (except Prefect Cloud Hobby tier workspaces)
+- **Push pools**: Transfer only to Prefect Cloud destinations (except Prefect Cloud Hobby tier workspaces)
+- **Managed pools**: Never transferred
+
+### Existing resources
+
+Resources that already exist in the destination are skipped you can run it multiple times safely.
+
+```bash
+# First run
+prefect transfer --from dev --to prod
+# Output: 25 succeeded, 0 skipped
+
+# Second run (idempotent)
+prefect transfer --from dev --to prod
+# Output: 0 succeeded, 25 skipped
+```
+
+### Resource limits
+
+When transferring to Prefect Cloud workspaces, certain resources may be skipped based on tier limitations. The transfer command will provide clear messages explaining why resources were skipped.
+
+
+## Limitations
+
+### Resources not transferred
+
+Certain resources are not transferred between environments:
+- Flow run history and logs
+- Result artifacts and cached data  
+- Cloud-specific infrastructure resources
+- Credentials and secrets (must be recreated in the destination)
+
+### Environment-specific configuration
+
+Some resources may require manual configuration after transfer to work correctly in the new environment, particularly those that reference external systems or credentials.
+
+## Best practices
+
+### Pre-transfer checklist
+
+1. **Verify profiles**: Ensure both source and destination profiles are correctly configured
+   ```bash
+   prefect profile inspect source-profile
+   prefect profile inspect dest-profile
+   ```
+
+2. **Test connectivity**: Confirm you can connect to both environments
+   ```bash
+   prefect --profile source-profile config view
+   prefect --profile dest-profile config view
+   ```
+
+3. **Check tier limitations**: Understand destination workspace capabilities
+   - Hobby tier: Managed pools only, 5 deployment limit
+   - Standard/Pro tier: Full resource support
+
+### Post-transfer validation
+
+After transferring resources:
+
+1. **Verify critical resources**:
+   ```bash
+   prefect --profile dest-profile work-pool ls
+   prefect --profile dest-profile deployment ls
+   ```
+
+2. **Test a deployment**:
+   ```bash
+   prefect --profile dest-profile deployment run my-deployment/my-flow
+   ```
+
+3. **Check automation status**:
+   ```bash
+   prefect --profile dest-profile automation ls
+   ```
+
+## Troubleshooting
+
+### Common issues
+
+**Resources skipped as "already exists"**
+- This is expected when resources already exist in the destination
+- The transfer can be run multiple times safely
+
+**Resources skipped due to tier limitations**
+- Some resource types require specific Prefect Cloud tiers
+- Check your workspace tier and capabilities
+
+**Connection errors**
+- Verify both profiles are correctly configured
+- Check network connectivity and authentication
+
+### Debug mode
+
+For detailed transfer information, enable debug logging:
+
+```bash
+PREFECT_LOGGING_LEVEL=DEBUG prefect transfer --from source --to dest
+```
+
+## See also
+
+- [Settings and profiles](/v3/concepts/settings-and-profiles) for configuring source and destination profiles
+- [Work pools](/v3/concepts/work-pools) for understanding pool types
+- [Prefect Cloud pricing](https://www.prefect.io/pricing) for workspace capabilities

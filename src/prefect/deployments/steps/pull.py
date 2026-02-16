@@ -30,10 +30,10 @@ def set_working_directory(directory: str) -> dict[str, str]:
 
     Returns:
         dict: a dictionary containing a `directory` key of the
-            directory that was set
+            absolute path of the directory that was set
     """
     os.chdir(directory)
-    return dict(directory=directory)
+    return dict(directory=os.getcwd())
 
 
 @retry_async_fn(
@@ -55,6 +55,7 @@ async def agit_clone(
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
+    clone_directory_name: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Asynchronously clones a git repository into the current working directory.
@@ -68,6 +69,8 @@ async def agit_clone(
             the repository will be cloned using the default git credentials
         credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
             credentials to use for cloning the repository.
+        clone_directory_name: the name of the local directory to clone into; if not provided,
+            the name will be inferred from the repository URL and branch
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -89,6 +92,7 @@ async def agit_clone(
         commit_sha=commit_sha,
         include_submodules=include_submodules,
         directories=directories,
+        name=clone_directory_name,
     )
 
     await _pull_git_repository_with_retries(storage)
@@ -105,6 +109,7 @@ def git_clone(
     access_token: Optional[str] = None,
     credentials: Optional["Block"] = None,
     directories: Optional[list[str]] = None,
+    clone_directory_name: Optional[str] = None,
 ) -> dict[str, str]:
     """
     Clones a git repository into the current working directory.
@@ -119,6 +124,8 @@ def git_clone(
         credentials: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
             credentials to use for cloning the repository.
         directories: Specify directories you want to be included (uses git sparse-checkout)
+        clone_directory_name: the name of the local directory to clone into; if not provided,
+            the name will be inferred from the repository URL and branch
 
     Returns:
         dict: a dictionary containing a `directory` key of the new directory that was created
@@ -157,7 +164,7 @@ def git_clone(
                 repository: https://github.com/org/repo.git
                 access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
         ```
-        Note that you will need to [create a Secret block](/concepts/blocks/#using-existing-block-types) to store the
+        Note that you will need to [create a Secret block](https://docs.prefect.io/v3/concepts/blocks/#pre-registered-blocks) to store the
         value of your git credentials. You can also store a username/password combo or token prefix (e.g. `x-token-auth`)
         in your secret block. Refer to your git providers documentation for the correct authentication schema.
 
@@ -184,6 +191,15 @@ def git_clone(
                 repository: https://github.com/org/repo.git
                 directories: ["dir_1", "dir_2", "prefect"]
         ```
+
+        Clone a repository with a custom directory name:
+        ```yaml
+        pull:
+            - prefect.deployments.steps.git_clone:
+                repository: https://github.com/org/repo.git
+                branch: dev
+                clone_directory_name: my-custom-name
+        ```
     """
     if access_token and credentials:
         raise ValueError(
@@ -199,6 +215,7 @@ def git_clone(
         commit_sha=commit_sha,
         include_submodules=include_submodules,
         directories=directories,
+        name=clone_directory_name,
     )
 
     run_coro_as_sync(_pull_git_repository_with_retries(storage))

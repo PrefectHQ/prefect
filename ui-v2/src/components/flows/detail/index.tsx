@@ -1,198 +1,190 @@
 import { useNavigate } from "@tanstack/react-router";
-import {
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import type { JSX } from "react";
+import { type JSX, useCallback, useState } from "react";
 import type { FlowRun } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import type { components } from "@/api/prefect";
-import FlowRunsBarChart from "@/components/flow-runs/activity-chart/activity-chart";
-import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/ui/data-table";
+import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Icon } from "@/components/ui/icons";
-import { Input } from "@/components/ui/input";
+	FlowRunsList,
+	FlowRunsPagination,
+	FlowRunsRowCount,
+	type PaginationState,
+	type SortFilters,
+	useFlowRunsSelectedRows,
+} from "@/components/flow-runs/flow-runs-list";
+import { SortFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/sort-filter";
+import { StateFilter } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter";
+import type { FlowRunState } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filters.constants";
+import { SearchInput } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { columns as deploymentColumns } from "./deployment-columns";
-import {
-	getFlowMetadata,
-	columns as metadataColumns,
-} from "./metadata-columns";
-import { columns as flowRunColumns } from "./runs-columns";
-
-const SearchComponent = () => {
-	const navigate = useNavigate();
-
-	return (
-		<div className="relative">
-			<Input
-				placeholder="Run names"
-				className="pl-10"
-				onChange={(e) =>
-					void navigate({
-						to: ".",
-						search: (prev) => ({
-							...prev,
-							"runs.flowRuns.nameLike": e.target.value,
-						}),
-					})
-				}
-			/>
-			<Icon
-				id="Search"
-				className="absolute left-3 top-2.5 text-muted-foreground"
-				size={18}
-			/>
-		</div>
-	);
-};
-
-const SortComponent = () => {
-	const navigate = useNavigate();
-
-	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Button variant="outline">
-					Sort <Icon id="ChevronDown" className="ml-2 size-4" />
-				</Button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent>
-				<DropdownMenuItem
-					onClick={() =>
-						void navigate({
-							to: ".",
-							search: (prev) => ({ ...prev, "runs.sort": "START_TIME_DESC" }),
-						})
-					}
-				>
-					Newest
-				</DropdownMenuItem>
-				<DropdownMenuItem
-					onClick={() =>
-						void navigate({
-							to: ".",
-							search: (prev) => ({ ...prev, "runs.sort": "START_TIME_ASC" }),
-						})
-					}
-				>
-					Oldest
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
-	);
-};
+import { DeleteFlowDialog } from "./delete-flow-dialog";
+import { FlowDeploymentsTab } from "./flow-deployments-tab";
+import { FlowDetails } from "./flow-details";
+import { FlowPageHeader } from "./flow-page-header";
+import { FlowStatsSummary } from "./flow-stats-summary";
 
 export default function FlowDetail({
 	flow,
 	flowRuns,
-	activity,
+	flowRunsCount,
+	flowRunsPages,
 	deployments,
+	deploymentsCount,
+	deploymentsPages,
 	tab = "runs",
+	pagination,
+	onPaginationChange,
+	onPrefetchPage,
+	sort,
+	onSortChange,
+	flowRunSearch,
+	onFlowRunSearchChange,
+	selectedStates,
+	onSelectFilter,
+	deploymentSearch,
+	onDeploymentSearchChange,
+	deploymentTags,
+	onDeploymentTagsChange,
+	deploymentSort,
+	onDeploymentSortChange,
+	deploymentPagination,
+	onDeploymentPaginationChange,
 }: {
 	flow: Flow;
 	flowRuns: FlowRun[];
-	activity: FlowRun[];
+	flowRunsCount: number;
+	flowRunsPages: number;
 	deployments: components["schemas"]["DeploymentResponse"][];
+	deploymentsCount: number;
+	deploymentsPages: number;
 	tab: "runs" | "deployments" | "details";
+	pagination: PaginationState;
+	onPaginationChange: (pagination: PaginationState) => void;
+	onPrefetchPage: (page: number) => void;
+	sort: SortFilters;
+	onSortChange: (sort: SortFilters) => void;
+	flowRunSearch: string | undefined;
+	onFlowRunSearchChange: (search: string) => void;
+	selectedStates: Set<FlowRunState>;
+	onSelectFilter: (states: Set<FlowRunState>) => void;
+	deploymentSearch: string | undefined;
+	onDeploymentSearchChange: (search: string) => void;
+	deploymentTags: string[];
+	onDeploymentTagsChange: (tags: string[]) => void;
+	deploymentSort: components["schemas"]["DeploymentSort"];
+	onDeploymentSortChange: (
+		sort: components["schemas"]["DeploymentSort"],
+	) => void;
+	deploymentPagination: { page: number; limit: number };
+	onDeploymentPaginationChange: (pagination: {
+		page: number;
+		limit: number;
+	}) => void;
 }): JSX.Element {
 	const navigate = useNavigate();
+	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+	const [selectedRows, setSelectedRows, { onSelectRow, clearSet }] =
+		useFlowRunsSelectedRows();
 
-	const flowRunTable = useReactTable({
-		data: flowRuns,
-		columns: flowRunColumns,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 10,
-			},
-		},
-	});
+	// Enrich paginated flow runs with flow object for the list
+	const enrichedFlowRuns: FlowRunCardData[] = flowRuns.map((flowRun) => ({
+		...flowRun,
+		flow: flow,
+	}));
 
-	const deploymentsTable = useReactTable({
-		data: deployments,
-		columns: deploymentColumns,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 10,
-			},
-		},
-	});
-
-	const metadataTable = useReactTable({
-		columns: metadataColumns,
-		data: getFlowMetadata(flow),
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		onPaginationChange: (pagination) => {
-			console.log(pagination);
-			return pagination;
-		},
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 10,
-			},
-		},
-	});
+	// Handler to clear filters
+	const onClearFilters = useCallback(() => {
+		onFlowRunSearchChange("");
+		onSelectFilter(new Set());
+		clearSet();
+	}, [onFlowRunSearchChange, onSelectFilter, clearSet]);
 
 	return (
-		<div className="container mx-auto">
-			<div className="h-[200px] mb-2">
-				<FlowRunsBarChart
-					className="mb-2"
-					flowName={flow.name}
-					flowRuns={activity}
-					endWindow={new Date(Date.now())}
-					startWindow={new Date(Date.now() - 1000 * 60 * 24 * 7)}
+		<>
+			<div className="container mx-auto flex flex-col gap-4">
+				<FlowPageHeader
+					flow={flow}
+					onDelete={() => setShowDeleteDialog(true)}
 				/>
-			</div>
-			<Tabs
-				value={tab}
-				onValueChange={(value) =>
-					void navigate({
-						to: ".",
-						search: (prev) => ({
-							...prev,
-							tab: value as "runs" | "deployments" | "details",
-						}),
-					})
-				}
-			>
-				<TabsList>
-					<TabsTrigger value="runs">Runs</TabsTrigger>
-					<TabsTrigger value="deployments">Deployments</TabsTrigger>
-					<TabsTrigger value="details">Details</TabsTrigger>
-				</TabsList>
-				<TabsContent value="runs">
-					<header className="mb-2 flex flex-row justify-between">
-						<SearchComponent />
-						<div className="flex space-x-4">
-							{/* <FilterComponent /> */}
-							<SortComponent />
+				<FlowStatsSummary flowId={flow.id} flow={flow} />
+				<Tabs
+					value={tab}
+					onValueChange={(value) =>
+						void navigate({
+							to: ".",
+							search: (prev) => ({
+								...prev,
+								tab: value as "runs" | "deployments" | "details",
+							}),
+						})
+					}
+				>
+					<TabsList>
+						<TabsTrigger value="runs">Runs</TabsTrigger>
+						<TabsTrigger value="deployments">Deployments</TabsTrigger>
+						<TabsTrigger value="details">Details</TabsTrigger>
+					</TabsList>
+					<TabsContent value="runs" className="flex flex-col gap-4">
+						<div className="flex items-center justify-between">
+							<FlowRunsRowCount
+								count={flowRunsCount}
+								results={enrichedFlowRuns}
+								selectedRows={selectedRows}
+								setSelectedRows={setSelectedRows}
+							/>
+							<div className="flex items-center gap-4">
+								<SearchInput
+									placeholder="Search by run name"
+									value={flowRunSearch ?? ""}
+									onChange={(e) => onFlowRunSearchChange(e.target.value)}
+									className="w-64"
+								/>
+								<StateFilter
+									selectedFilters={selectedStates}
+									onSelectFilter={onSelectFilter}
+								/>
+								<SortFilter value={sort} onSelect={onSortChange} />
+							</div>
 						</div>
-					</header>
-					<DataTable table={flowRunTable} />
-				</TabsContent>
-				<TabsContent value="deployments">
-					<DataTable table={deploymentsTable} />
-				</TabsContent>
-				<TabsContent value="details">
-					<DataTable table={metadataTable} />
-				</TabsContent>
-			</Tabs>
-		</div>
+						<FlowRunsList
+							flowRuns={enrichedFlowRuns}
+							selectedRows={selectedRows}
+							onSelect={onSelectRow}
+							onClearFilters={onClearFilters}
+						/>
+						<FlowRunsPagination
+							count={flowRunsCount}
+							pages={flowRunsPages}
+							pagination={pagination}
+							onChangePagination={onPaginationChange}
+							onPrefetchPage={onPrefetchPage}
+						/>
+					</TabsContent>
+					<TabsContent value="deployments">
+						<FlowDeploymentsTab
+							deployments={deployments}
+							deploymentsCount={deploymentsCount}
+							deploymentsPages={deploymentsPages}
+							deploymentSearch={deploymentSearch}
+							onDeploymentSearchChange={onDeploymentSearchChange}
+							deploymentTags={deploymentTags}
+							onDeploymentTagsChange={onDeploymentTagsChange}
+							deploymentSort={deploymentSort}
+							onDeploymentSortChange={onDeploymentSortChange}
+							deploymentPagination={deploymentPagination}
+							onDeploymentPaginationChange={onDeploymentPaginationChange}
+						/>
+					</TabsContent>
+					<TabsContent value="details">
+						<FlowDetails flow={flow} />
+					</TabsContent>
+				</Tabs>
+			</div>
+			<DeleteFlowDialog
+				flow={flow}
+				open={showDeleteDialog}
+				onOpenChange={setShowDeleteDialog}
+			/>
+		</>
 	);
 }

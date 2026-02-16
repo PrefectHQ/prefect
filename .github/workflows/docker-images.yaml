@@ -3,9 +3,9 @@ name: Docker images
 on:
   # On release events (also when a published release is converted from/to prerelease), push all patterns
   release:
-    types: [released, prereleased]
+    types: [published]
 
-  # On workflow_dispatch, allow publishing 3-latest images
+  # On workflow_dispatch, allow publishing 3-latest images or a specific tag
   workflow_dispatch:
     inputs:
       publish_3_latest:
@@ -13,12 +13,15 @@ on:
         required: false
         type: boolean
         default: false
+      tag:
+        description: 'Build dev images for a specific tag (e.g., 3.6.6.dev5)'
+        required: false
+        type: string
 
 jobs:
   publish-docker-images:
     name: Build and publish to DockerHub
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'release' && github.event.release.prerelease && 'pre-release' || github.event_name == 'release' && 'prod' || 'dev' }}
     strategy:
       fail-fast: false
       matrix:
@@ -26,11 +29,11 @@ jobs:
           - "prefecthq/prefect"
           - "prefecthq/prefect-client"
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
+          - "3.14"
         flavor:
         - ""
         - "-conda"
@@ -50,34 +53,34 @@ jobs:
             echo "Error: Tag $TAG_NAME does not match prerelease version pattern."
             exit 1
           fi
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: image=moby/buildkit:v0.12.5
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_TOKEN_RW }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Generate tags for ${{ matrix.image }}-dev
+      - name: Generate tags for ${{ matrix.image }} (dev)
         id: metadata-dev
         uses: docker/metadata-action@v5
-        # do not generate the development tags on true release events, only pre-releases
-        if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
+        # generate dev tags on pre-releases or when manually triggered with a tag input
+        if: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') }}
         with:
-          images: ${{ matrix.image }}-dev
+          images: ${{ matrix.image }}
           tags: |
-            type=raw,value=${{ github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
+            type=raw,value=${{ github.event.inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=sha,suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
           flavor: |
             latest=false
@@ -125,6 +128,7 @@ jobs:
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
+            VITE_AMPLITUDE_API_KEY=${{ secrets.AMPLITUDE_API_KEY }}
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
             ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[redis,kubernetes]' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
@@ -132,3 +136,35 @@ jobs:
           push: true
           pull: true
           provenance: false
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }},ignore-error=true
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }},ignore-error=true
+
+  get-prefect-aws-version:
+    name: Get latest prefect-aws version
+    needs: publish-docker-images
+    runs-on: ubuntu-latest
+    # Only trigger on actual releases (not workflow_dispatch)
+    if: github.event_name == 'release'
+    outputs:
+      PREFECT_AWS_VERSION: ${{ steps.get_version.outputs.PREFECT_AWS_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get latest prefect-aws version from tags
+        id: get_version
+        run: |
+          PREFECT_AWS_VERSION=$(git tag --list 'prefect-aws-*' --sort=-version:refname | head -1 | sed 's/^prefect-aws-//')
+          echo "PREFECT_AWS_VERSION=$PREFECT_AWS_VERSION" >> $GITHUB_OUTPUT
+
+  trigger-prefect-aws-build:
+    name: Build prefect-aws Docker images
+    needs: [publish-docker-images, get-prefect-aws-version]
+    if: github.event_name == 'release' && needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION != ''
+    uses: ./.github/workflows/prefect-aws-docker-images.yaml
+    with:
+      prefect_version: ${{ github.ref_name }}
+      prefect_aws_version: ${{ needs.get-prefect-aws-version.outputs.PREFECT_AWS_VERSION }}
+    secrets: inherit

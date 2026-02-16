@@ -2,17 +2,17 @@
 
 ## Welcome!
 
-`prefect-slack` is a collection of prebuilt Prefect tasks that can be used to quickly construct Prefect flows.
+`prefect-slack` is a collection of prebuilt Prefect tasks and blocks that can be used to quickly send Slack messages in your Prefect flows.
 
 ## Getting Started
 
 ### Python setup
 
-Requires an installation of Python 3.9+
+Requires an installation of Python 3.10+
 
-We recommend using a Python virtual environment manager such as pipenv, conda or virtualenv.
+We recommend using a Python virtual environment manager such as [uv](https://docs.astral.sh/uv/), pipenv, conda, or virtualenv.
 
-These tasks are designed to work with Prefect 2.0. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
+These tasks are designed to work with Prefect 3.x. For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
 
 ### Installation
 

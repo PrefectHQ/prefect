@@ -21,6 +21,7 @@ from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import (
     FlowRun,
     State,
+    StateType,
     WorkPool,
     WorkPoolStorageConfiguration,
 )
@@ -35,7 +36,7 @@ from prefect.flows import (
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.settings import PREFECT_RESULTS_PERSIST_BY_DEFAULT
 from prefect.settings.context import temporary_settings
-from prefect.states import Completed
+from prefect.states import Completed, Failed
 from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect.workers.process import ProcessWorker
@@ -53,7 +54,7 @@ class FakeResultStorageBlock(WritableFileSystem):
 
 
 class TestInfrastructureBoundFlow:
-    @pytest.fixture
+    @pytest.fixture(autouse=True)
     def mock_subprocess_check_call(self, monkeypatch: pytest.MonkeyPatch):
         mock = MagicMock()
         monkeypatch.setattr(subprocess, "check_call", mock)
@@ -85,7 +86,9 @@ class TestInfrastructureBoundFlow:
         }
 
         result_storage_block = FakeResultStorageBlock(place="test-place")
-        maybe_coro = result_storage_block.save(name="my-result-storage-block")
+        maybe_coro = result_storage_block.save(
+            name=f"my-result-storage-block-{uuid.uuid4()}"
+        )
         if inspect.isawaitable(maybe_coro):
             block_document_id = await maybe_coro
         else:
@@ -555,3 +558,293 @@ class TestInfrastructureBoundFlow:
 
         # Return value is hardcoded in the FakeResultStorage to ensure it is used as expected
         assert future.result() == "Here you go chief!"
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    async def test_retry_existing_flow_run(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """Test that retry() method reuses an existing flow run."""
+
+        @flow(result_storage=result_storage)
+        def my_flow(x: int = 1):
+            return x * 2
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        # First, run the flow to create an initial flow run
+        result = infrastructure_bound_flow(x=5)
+        assert result == 10
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    async def test_retry_reuses_flow_run_id(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that retry() method reuses the same flow run ID and sets state to Pending."""
+        from unittest.mock import AsyncMock
+
+        # Mock execute_bundle to avoid race conditions with aresult
+        mock_execute_bundle = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+        )
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "success"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        # Create an initial flow run using the client directly
+        initial_flow_run = await prefect_client.create_flow_run(
+            my_flow,
+            parameters={},
+            state=Completed(data="success"),
+        )
+
+        # Use the worker directly to test retry with existing flow_run
+        async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(
+                flow=infrastructure_bound_flow,
+                parameters={},
+                flow_run=initial_flow_run,
+            )
+
+        # Verify the flow run was reused and state was set to Pending
+        retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
+        assert retried_flow_run.id == initial_flow_run.id
+        # The state should be Pending (since we mocked execute_bundle)
+        assert retried_flow_run.state is not None
+        assert retried_flow_run.state.type == StateType.PENDING
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    async def test_retry_with_return_state(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Test that retry() properly sets state to Pending when retrying a flow run."""
+        from unittest.mock import AsyncMock
+
+        # Mock execute_bundle to avoid race conditions with aresult
+        mock_execute_bundle = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.runner.runner.Runner.execute_bundle", mock_execute_bundle
+        )
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "done"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        # Create an initial flow run using the client directly
+        initial_flow_run = await prefect_client.create_flow_run(
+            my_flow,
+            parameters={},
+            state=Failed(message="Failed initially"),
+        )
+        assert initial_flow_run.state.type == StateType.FAILED
+
+        # Use the worker directly to test retry with existing flow_run
+        async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(
+                flow=infrastructure_bound_flow,
+                parameters={},
+                flow_run=initial_flow_run,
+            )
+
+        # Verify the state was set to Pending for retry
+        retried_flow_run = await prefect_client.read_flow_run(initial_flow_run.id)
+        assert retried_flow_run.state is not None
+        assert retried_flow_run.state.type == StateType.PENDING
+
+    def test_include_files_defaults_to_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files defaults to None when not provided."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow, work_pool=work_pool.name, worker_cls=ProcessWorker
+        )
+
+        assert infrastructure_bound_flow.include_files is None
+
+    def test_include_files_with_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files stores the provided list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["config.yaml", "data/*.json"],
+        )
+
+        assert infrastructure_bound_flow.include_files == ["config.yaml", "data/*.json"]
+
+    def test_include_files_with_empty_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files stores empty list when provided."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=[],
+        )
+
+        assert infrastructure_bound_flow.include_files == []
+
+    def test_include_files_tuple_converted_to_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """include_files converts tuple to list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=("config.yaml", "data.txt"),
+        )
+
+        assert infrastructure_bound_flow.include_files == ["config.yaml", "data.txt"]
+        assert isinstance(infrastructure_bound_flow.include_files, list)
+
+    def test_with_options_preserves_include_files_when_not_provided(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options() without include_files preserves original include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt", "b.yaml"],
+        )
+
+        new_flow = original_flow.with_options(name="new-name")
+
+        assert new_flow.include_files == ["a.txt", "b.yaml"]
+        assert new_flow.name == "new-name"
+
+    def test_with_options_replaces_include_files(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[...]) replaces original include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=["b.txt", "c.yaml"])
+
+        assert new_flow.include_files == ["b.txt", "c.yaml"]
+        # Verify original is unchanged
+        assert original_flow.include_files == ["a.txt"]
+
+    def test_with_options_clears_include_files_with_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=None) clears include_files."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=None)
+
+        assert new_flow.include_files is None
+        # Verify original is unchanged
+        assert original_flow.include_files == ["a.txt"]
+
+    def test_with_options_sets_include_files_from_none(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[...]) sets include_files when original is None."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+        )
+        assert original_flow.include_files is None
+
+        new_flow = original_flow.with_options(include_files=["a.txt"])
+
+        assert new_flow.include_files == ["a.txt"]
+
+    def test_with_options_sets_include_files_to_empty_list(
+        self, work_pool: WorkPool, result_storage: LocalFileSystem
+    ):
+        """with_options(include_files=[]) sets include_files to empty list."""
+
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+        )
+
+        new_flow = original_flow.with_options(include_files=[])
+
+        assert new_flow.include_files == []
+        # Empty list is different from None
+        assert new_flow.include_files is not None

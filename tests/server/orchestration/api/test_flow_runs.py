@@ -14,8 +14,8 @@ import sqlalchemy as sa
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
+from prefect._internal.compatibility.starlette import status
 from prefect.client.schemas import actions as client_actions
 from prefect.input import RunInput, keyset_from_paused_state
 from prefect.server import models, schemas
@@ -28,7 +28,10 @@ from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.responses import FlowRunResponse, OrchestrationResult
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE
+from prefect.settings import (
+    PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
+    PREFECT_SERVER_DOCKET_NAME,
+)
 from prefect.settings.context import temporary_settings
 from prefect.states import (
     Completed,
@@ -1275,9 +1278,9 @@ class TestReadFlowRunGraph:
 
 
 class TestDeleteFlowRuns:
-    async def test_delete_flow_runs(self, flow_run, client, session):
+    async def test_delete_flow_runs(self, flow_run, hosted_api_client, session):
         # delete the flow run
-        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        response = await hosted_api_client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == 204, response.text
 
         # make sure it's deleted (first grab its ID)
@@ -1288,11 +1291,13 @@ class TestDeleteFlowRuns:
             session=session, flow_run_id=flow_run_id
         )
         assert run is None
-        response = await client.get(f"/flow_runs/{flow_run_id}")
+        response = await hosted_api_client.get(f"/flow_runs/{flow_run_id}")
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
-    async def test_delete_flow_run_returns_404_if_does_not_exist(self, client):
-        response = await client.delete(f"/flow_runs/{uuid4()}")
+    async def test_delete_flow_run_returns_404_if_does_not_exist(
+        self, hosted_api_client
+    ):
+        response = await hosted_api_client.delete(f"/flow_runs/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
     @pytest.mark.parametrize(
@@ -1310,7 +1315,7 @@ class TestDeleteFlowRuns:
     )
     async def test_delete_flow_run_releases_concurrency_slots(
         self,
-        client,
+        hosted_api_client,
         session,
         flow,
         deployment_with_concurrency_limit,
@@ -1347,19 +1352,21 @@ class TestDeleteFlowRuns:
         assert concurrency_limit.active_slots == 1
 
         # delete the flow run
-        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        response = await hosted_api_client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == 204, response.text
 
         await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == expected_slots
 
-    async def test_delete_flow_run_deletes_logs(self, flow_run, logs, client, session):
+    async def test_delete_flow_run_deletes_logs(
+        self, flow_run, logs, hosted_api_client, session
+    ):
         # make sure we have flow run logs
         flow_run_logs = [log for log in logs if log.flow_run_id is not None]
         assert len(flow_run_logs) > 0
 
         # delete the flow run
-        response = await client.delete(f"/flow_runs/{flow_run.id}")
+        response = await hosted_api_client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
 
         async def read_logs():
@@ -2039,7 +2046,11 @@ class TestSetFlowRunState:
         def app(
             self, use_filesystem_lease_storage: None
         ) -> Generator[FastAPI, Any, None]:
-            yield create_app(ephemeral=True)
+            # Use a unique Docket name for each test to avoid Redis key collisions
+            # when using memory:// backend (fakeredis) which shares a single FakeServer
+            unique_name = f"test-docket-{uuid4().hex[:8]}"
+            with temporary_settings({PREFECT_SERVER_DOCKET_NAME: unique_name}):
+                yield create_app(ephemeral=True)
 
         @pytest.fixture
         async def client(self, app: FastAPI) -> AsyncGenerator[AsyncClient, Any]:

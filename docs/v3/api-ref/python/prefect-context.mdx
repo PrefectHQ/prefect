@@ -11,7 +11,7 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 
-For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
+For more user-accessible information about the current run, see [`prefect.runtime`](https://docs.prefect.io/v3/api-ref/python/prefect-runtime-flow_run).
 
 
 ## Functions
@@ -30,13 +30,13 @@ in the remote execution environment. This is useful for TaskRunners, who rely on
 task run in the remote environment.
 
 
-### `hydrated_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `hydrated_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 hydrated_context(serialized_context: Optional[dict[str, Any]] = None, client: Union[PrefectClient, SyncPrefectClient, None] = None) -> Generator[None, Any, None]
 ```
 
-### `get_run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L741" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L768" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_run_context() -> Union[FlowRunContext, TaskRunContext]
@@ -52,7 +52,7 @@ Get the current run context from within a task or flow function.
 - `RuntimeError`: If called outside of a flow or task run.
 
 
-### `get_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L764" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L804" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_settings_context() -> SettingsContext
@@ -66,7 +66,7 @@ Generally, the settings that are being used are a combination of values from the
 profile and environment. See `prefect.context.use_profile` for more details.
 
 
-### `tags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `tags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 tags(*new_tags: str) -> Generator[set[str], None, None]
@@ -130,7 +130,7 @@ with tags("a", "b"):
 ```
 
 
-### `use_profile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L848" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `use_profile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 use_profile(profile: Union[Profile, str], override_environment_variables: bool = False, include_current_context: bool = True) -> Generator[SettingsContext, Any, None]
@@ -151,7 +151,7 @@ with the current settings context as a base. If not set, the use_base settings
 will be loaded from the environment and defaults.
 
 
-### `root_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L900" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `root_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L940" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 root_settings_context() -> SettingsContext
@@ -166,9 +166,22 @@ The profile to use is determined with the following precedence
 - Profiles file via the 'active' key
 
 
+### `refresh_global_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+refresh_global_settings_context() -> None
+```
+
+
+Refresh the global settings context to pick up environment variable changes.
+
+This is called after plugins run to ensure any environment variables they set
+are reflected in get_current_settings().
+
+
 ## Classes
 
-### `ContextModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ContextModel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A base model for context data that forbids mutation and extra data while providing
@@ -177,7 +190,7 @@ a context manager
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -186,7 +199,7 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -194,11 +207,18 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]
@@ -207,7 +227,7 @@ serialize(self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the context model to a dictionary that can be pickled with cloudpickle.
 
 
-### `SyncClientContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SyncClientContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A context for managing the sync Prefect client instances.
@@ -230,7 +250,7 @@ with SyncClientContext.get_or_create() as ctx:
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -239,13 +259,13 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_or_create(cls) -> Generator[Self, None, None]
 ```
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -253,11 +273,18 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]
@@ -266,7 +293,7 @@ serialize(self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the context model to a dictionary that can be pickled with cloudpickle.
 
 
-### `AsyncClientContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AsyncClientContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A context for managing the async Prefect client instances.
@@ -289,7 +316,7 @@ with AsyncClientContext.get_or_create() as ctx:
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -298,13 +325,13 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_or_create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_or_create(cls) -> AsyncGenerator[Self, None]
 ```
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -312,11 +339,18 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]
@@ -325,16 +359,20 @@ serialize(self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the context model to a dictionary that can be pickled with cloudpickle.
 
 
-### `RunContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RunContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L344" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The base context for a flow or task run. Data in this context will always be
 available when `get_run_context` is called.
 
+**Attributes:**
+- `start_time`: The time the run context was entered
+- `client`: The Prefect client instance being used for API communication
+
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -343,7 +381,7 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -351,17 +389,24 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 ```
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]
@@ -370,58 +415,84 @@ serialize(self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the context model to a dictionary that can be pickled with cloudpickle.
 
 
-### `EngineContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EngineContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The context for a flow run. Data in this context is only available from within a
 flow run function.
 
+**Attributes:**
+- `flow`: The flow instance associated with the run
+- `flow_run`: The API metadata for the flow run
+- `task_runner`: The task runner instance being used for the flow run
+- `run_results`: A mapping of result ids to run states for this flow run
+- `log_prints`: Whether to log print statements from the flow run
+- `parameters`: The parameters passed to the flow run
+- `detached`: Flag indicating if context has been serialized and sent to remote infrastructure
+- `result_store`: The result store used to persist results
+- `persist_result`: Whether to persist the flow run result
+- `task_run_dynamic_keys`: Counter for task calls allowing unique keys
+- `observed_flow_pauses`: Counter for flow pauses
+- `events`: Events worker to emit events
+
 
 **Methods:**
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L427" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 ```
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 ```
 
-### `TaskRunContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The context for a task run. Data in this context is only available from within a
 task run function.
 
+**Attributes:**
+- `task`: The task instance associated with the task run
+- `task_run`: The API metadata for this task run
+
 
 **Methods:**
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L459" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 ```
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L365" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 ```
 
-### `AssetContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L477" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AssetContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L497" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The asset context for a materializing task run. Contains all asset-related information needed
 for asset event emission and downstream asset dependency propagation.
 
+**Attributes:**
+- `direct_asset_dependencies`: Assets that this task directly depends on (from task.asset_deps)
+- `downstream_assets`: Assets that this task will create/materialize (from MaterializingTask.assets)
+- `upstream_assets`: Assets from upstream task dependencies
+- `materialized_by`: Tool that materialized the assets (from MaterializingTask.materialized_by)
+- `task_run_id`: ID of the associated task run
+- `materialization_metadata`: Metadata for materialized assets
+
 
 **Methods:**
 
-#### `add_asset_metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L558" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `add_asset_metadata` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 add_asset_metadata(self, asset_key: str, metadata: dict[str, Any]) -> None
@@ -437,7 +508,7 @@ Add metadata for a materialized asset.
 - `ValueError`: If asset_key is not in downstream_assets
 
 
-#### `asset_as_related` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L601" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asset_as_related` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L621" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asset_as_related(asset: Asset) -> dict[str, str]
@@ -446,7 +517,7 @@ asset_as_related(asset: Asset) -> dict[str, str]
 Convert Asset to event related format.
 
 
-#### `asset_as_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L579" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asset_as_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L599" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asset_as_resource(asset: Asset) -> dict[str, str]
@@ -455,7 +526,7 @@ asset_as_resource(asset: Asset) -> dict[str, str]
 Convert Asset to event resource format.
 
 
-#### `emit_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L616" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `emit_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L636" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_events(self, state: State) -> None
@@ -464,7 +535,7 @@ emit_events(self, state: State) -> None
 Emit asset events
 
 
-#### `from_task_and_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L502" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_task_and_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_task_and_inputs(cls, task: 'Task[Any, Any]', task_run_id: UUID, task_inputs: Optional[dict[str, set[Any]]] = None, copy_to_child_ctx: bool = False) -> 'AssetContext'
@@ -482,7 +553,7 @@ Create an AssetContext from a task and its resolved inputs.
 - Configured AssetContext
 
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -491,7 +562,7 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -499,11 +570,18 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
 
-#### `related_materialized_by` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L609" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `related_materialized_by` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 related_materialized_by(by: str) -> dict[str, str]
@@ -512,7 +590,7 @@ related_materialized_by(by: str) -> dict[str, str]
 Create a related resource for the tool that performed the materialization
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L680" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L700" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
@@ -521,7 +599,7 @@ serialize(self: Self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the AssetContext for distributed execution.
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]
@@ -530,7 +608,7 @@ serialize(self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the context model to a dictionary that can be pickled with cloudpickle.
 
 
-#### `update_tracked_assets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_tracked_assets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L679" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_tracked_assets(self) -> None
@@ -539,21 +617,24 @@ update_tracked_assets(self) -> None
 Update the flow run context with assets that should be propagated downstream.
 
 
-### `TagsContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L692" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TagsContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The context for `prefect.tags` management.
 
+**Attributes:**
+- `current_tags`: A set of current tags in the context
+
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L703" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L723" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls) -> Self
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -562,7 +643,7 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -570,11 +651,18 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]
@@ -583,23 +671,27 @@ serialize(self, include_secrets: bool = True) -> dict[str, Any]
 Serialize the context model to a dictionary that can be pickled with cloudpickle.
 
 
-### `SettingsContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SettingsContext` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L730" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The context for a Prefect settings.
 
 This allows for safe concurrent access and modification of settings.
 
+**Attributes:**
+- `profile`: The profile that is in use.
+- `settings`: The complete settings model.
+
 
 **Methods:**
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L730" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L750" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls) -> Optional['SettingsContext']
 ```
 
-#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get(cls: type[Self]) -> Optional[Self]
@@ -608,7 +700,7 @@ get(cls: type[Self]) -> Optional[Self]
 Get the current context instance
 
 
-#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_copy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_copy(self: Self) -> Self
@@ -616,11 +708,18 @@ model_copy(self: Self) -> Self
 
 Duplicate the context model, optionally choosing which fields to include, exclude, or change.
 
+**Attributes:**
+- `include`: Fields to include in new model.
+- `exclude`: Fields to exclude from new model, as with values this takes precedence over include.
+- `update`: Values to change/add in the new model. Note\: the data is not validated before creating
+the new model - you should trust this data.
+- `deep`: Set to `True` to make a deep copy of the model.
+
 **Returns:**
 - A new model instance.
 
 
-#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serialize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serialize(self, include_secrets: bool = True) -> dict[str, Any]

@@ -7,21 +7,60 @@ sidebarTitle: redis
 
 ## Classes
 
-### `RedisStorageContainer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RedisStorageContainer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Block used to interact with Redis as a filesystem
 
+**Attributes:**
+- `host`: The value to store.
+- `port`: The value to store.
+- `db`: The value to store.
+- `username`: The value to store.
+- `password`: The value to store.
+- `connection_string`: The value to store.
+
 
 **Methods:**
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread_path(self, path: Path | str) -> Optional[bytes]
+```
+
+Read the redis content at `path`
+
+**Args:**
+- `path`: Redis key to read from
+
+**Returns:**
+- Contents at key as bytes, or None if key does not exist
+
+
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_path(self, path: Path | str, content: bytes) -> bool
+```
+
+Write `content` to the redis at `path`
+
+**Args:**
+- `path`: Redis key to write to
+- `content`: Binary object to write
+
+**Returns:**
+- True if the key was set successfully
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L67" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `from_connection_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_connection_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_connection_string(cls, connection_string: str | SecretStr) -> Self
@@ -45,7 +84,7 @@ See [Redis docs](https://redis.readthedocs.io/en/stable/examples
 - `RedisStorageContainer` instance
 
 
-#### `from_host` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_host` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_host(cls, host: str, port: int = 6379, db: int = 0, username: None | str | SecretStr = None, password: None | str | SecretStr = None) -> Self
@@ -63,10 +102,10 @@ Create block from hostname, username and password
 - `RedisStorageContainer` instance
 
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_path(self, path: Path | str)
+read_path(self, path: Path | str) -> Optional[bytes]
 ```
 
 Read the redis content at `path`
@@ -75,7 +114,7 @@ Read the redis content at `path`
 - `path`: Redis key to read from
 
 **Returns:**
-- Contents at key as bytes
+- Contents at key as bytes, or None if key does not exist
 
 
 #### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -84,10 +123,10 @@ Read the redis content at `path`
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/redis.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-write_path(self, path: Path | str, content: bytes)
+write_path(self, path: Path | str, content: bytes) -> bool
 ```
 
 Write `content` to the redis at `path`
@@ -95,6 +134,9 @@ Write `content` to the redis at `path`
 **Args:**
 - `path`: Redis key to write to
 - `content`: Binary object to write
+
+**Returns:**
+- True if the key was set successfully
 
 
 #### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L41" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

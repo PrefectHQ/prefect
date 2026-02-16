@@ -419,6 +419,73 @@ async def work_pool_status_event(
     )
 
 
+async def work_pool_updated_event(
+    session: AsyncSession,
+    work_pool: "ORMWorkPool",
+    changed_fields: Dict[
+        str, Dict[str, Any]
+    ],  # {"field_name": {"from": value, "to": value}}
+    occurred: DateTime,
+) -> Event:
+    """Create an event for work pool field updates (non-status)."""
+    return Event(
+        occurred=occurred,
+        event="prefect.work-pool.updated",
+        resource={
+            "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+            "prefect.resource.name": work_pool.name,
+            "prefect.work-pool.type": work_pool.type,
+            "prefect.resource.role": "work-pool",
+        },
+        payload={
+            "updated_fields": list(changed_fields.keys()),
+            "updates": changed_fields,
+        },
+        id=uuid7(),
+    )
+
+
+async def work_queue_updated_event(
+    session: AsyncSession,
+    work_queue: "ORMWorkQueue",
+    changed_fields: Dict[str, Dict[str, Any]],
+    occurred: DateTime,
+) -> Event:
+    """Create an event for work queue field updates (non-status)."""
+    related_work_pool_info: List[Dict[str, Any]] = []
+
+    if work_queue.work_pool_id:
+        work_pool = await models.workers.read_work_pool(
+            session=session,
+            work_pool_id=work_queue.work_pool_id,
+        )
+        if work_pool and work_pool.id and work_pool.name:
+            related_work_pool_info.append(
+                {
+                    "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                    "prefect.resource.name": work_pool.name,
+                    "prefect.work-pool.type": work_pool.type,
+                    "prefect.resource.role": "work-pool",
+                }
+            )
+
+    return Event(
+        occurred=occurred,
+        event="prefect.work-queue.updated",
+        resource={
+            "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+            "prefect.resource.name": work_queue.name,
+            "prefect.resource.role": "work-queue",
+        },
+        related=related_work_pool_info,
+        payload={
+            "updated_fields": list(changed_fields.keys()),
+            "updates": changed_fields,
+        },
+        id=uuid7(),
+    )
+
+
 def _get_recent_preceding_work_pool_event_id(
     work_pool: Optional["ORMWorkPool"],
 ) -> Optional[UUID]:

@@ -1,0 +1,38 @@
+---
+title: docket
+sidebarTitle: docket
+---
+
+# `prefect.settings.models.server.docket`
+
+## Classes
+
+### `ServerDocketSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/docket.py#L9" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Settings for controlling Docket behavior
+
+
+**Methods:**
+
+#### `settings_customise_sources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+settings_customise_sources(cls, settings_cls: type[BaseSettings], init_settings: PydanticBaseSettingsSource, env_settings: PydanticBaseSettingsSource, dotenv_settings: PydanticBaseSettingsSource, file_secret_settings: PydanticBaseSettingsSource) -> tuple[PydanticBaseSettingsSource, ...]
+```
+
+Define an order for Prefect settings sources.
+
+The order of the returned callables decides the priority of inputs; first item is the highest priority.
+
+See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
+
+
+#### `to_environment_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+to_environment_variables(self, exclude_unset: bool = False, include_secrets: bool = True, include_aliases: bool = False) -> dict[str, str]
+```
+
+Convert the settings object to a dictionary of environment variables.
+

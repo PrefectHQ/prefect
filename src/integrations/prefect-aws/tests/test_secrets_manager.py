@@ -1,8 +1,8 @@
-from datetime import timedelta
+from datetime import timedelta, timezone
 
 import boto3
 import pytest
-from moto import mock_secretsmanager
+from moto import mock_aws
 from prefect_aws.secrets_manager import (
     AwsSecret,
     create_secret,
@@ -15,7 +15,7 @@ from prefect.types._datetime import now
 
 @pytest.fixture
 def secretsmanager_client():
-    with mock_secretsmanager():
+    with mock_aws():
         yield boto3.client("secretsmanager", "us-east-1")
 
 
@@ -265,7 +265,7 @@ async def test_delete_secret_task(
             result.get()
     else:
         assert result.get("Name") == secret_under_test["secret_name"]
-        deletion_date = result.get("DeletionDate")
+        deletion_date = result.get("DeletionDate").astimezone(timezone.utc)
 
         if not force_delete_without_recovery:
             assert deletion_date.date() == (

@@ -3,10 +3,11 @@ import logging
 import signal
 import time
 import uuid
+from contextlib import asynccontextmanager, contextmanager
 from textwrap import dedent
 from typing import Literal, Optional
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import UUID
 
 import anyio
@@ -41,6 +42,8 @@ from prefect.flow_engine import (
     run_flow_async,
     run_flow_in_subprocess,
     run_flow_sync,
+    send_heartbeats_async,
+    send_heartbeats_sync,
 )
 from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
@@ -48,7 +51,6 @@ from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 from prefect.utilities.filesystem import tmpchdir
@@ -213,6 +215,22 @@ class TestFlowRunsAsync:
             ParameterTypeError, match="Flow run received invalid parameters"
         ):
             await state.result()
+
+    async def test_param_validation_failure_sets_start_and_end_time(
+        self, sync_prefect_client
+    ):
+        @flow
+        async def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
+        state = await run_flow(bar, parameters=parameters, return_type="state")
+
+        assert state.is_failed()
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.start_time is not None
+        assert flow_run.end_time is not None
+        assert flow_run.start_time == flow_run.end_time
 
     async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")
@@ -397,6 +415,22 @@ class TestFlowRunsSync:
             ParameterTypeError, match="Flow run received invalid parameters"
         ):
             await state.result()
+
+    async def test_param_validation_failure_sets_start_and_end_time(
+        self, sync_prefect_client
+    ):
+        @flow
+        def bar(x: int):
+            return x
+
+        parameters = get_call_parameters(bar.fn, tuple(), dict(x="FAIL!"))
+        state = run_flow_sync(bar, parameters=parameters, return_type="state")
+
+        assert state.is_failed()
+        flow_run = sync_prefect_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.start_time is not None
+        assert flow_run.end_time is not None
+        assert flow_run.start_time == flow_run.end_time
 
     async def test_flow_run_name(self, sync_prefect_client):
         @flow(flow_run_name="name is {x}")
@@ -712,8 +746,9 @@ class TestFlowRetries:
     ):
         child_flow_run_count = 0
         flow_run_count = 0
+        child_flow_name = f"child-flow-{uuid.uuid4()}"
 
-        @flow
+        @flow(name=child_flow_name)
         def child_flow():
             nonlocal child_flow_run_count
             child_flow_run_count += 1
@@ -747,7 +782,7 @@ class TestFlowRetries:
             child_state.state_details.flow_run_id
         )
         child_flow_runs = sync_prefect_client.read_flow_runs(
-            flow_filter=FlowFilter(id={"any_": [child_flow_run.flow_id]}),
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[child_flow_name])),
             sort=FlowRunSort.EXPECTED_START_TIME_ASC,
         )
 
@@ -940,14 +975,18 @@ class TestFlowCrashDetection:
     async def test_interrupt_in_flow_function_crashes_flow(
         self, prefect_client, interrupt_type
     ):
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         async def my_flow():
             raise interrupt_type()
 
         with pytest.raises(interrupt_type):
             await my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -960,14 +999,18 @@ class TestFlowCrashDetection:
     async def test_interrupt_in_flow_function_crashes_flow_sync(
         self, prefect_client, interrupt_type
     ):
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         def my_flow():
             raise interrupt_type()
 
         with pytest.raises(interrupt_type):
             my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -984,14 +1027,18 @@ class TestFlowCrashDetection:
             FlowRunEngine, "begin_run", MagicMock(side_effect=interrupt_type)
         )
 
-        @flow
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
         def my_flow():
             pass
 
         with pytest.raises(interrupt_type):
             my_flow()
 
-        flow_runs = await prefect_client.read_flow_runs()
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
         assert len(flow_runs) == 1
         flow_run = flow_runs[0]
         assert flow_run.state.is_crashed()
@@ -1000,20 +1047,234 @@ class TestFlowCrashDetection:
         with pytest.raises(CrashedRun, match="Execution was aborted"):
             await flow_run.state.result()
 
+    async def test_base_exception_after_user_code_finishes_does_not_crash_sync(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        """
+        Test that a BaseException raised after user code finishes executing
+        does not crash the flow run (sync flow).
+        """
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
+        def my_flow():
+            return 42
+
+        # Mock the flow run engine to raise a BaseException after handle_success
+        original_handle_success = FlowRunEngine.handle_success
+
+        def handle_success_with_exception(self, result):
+            original_handle_success(self, result)
+            # At this point the flow run state is final (Completed)
+            raise BaseException("Post-execution error")
+
+        monkeypatch.setattr(
+            FlowRunEngine, "handle_success", handle_success_with_exception
+        )
+
+        # The flow should complete successfully and return the result
+        result = my_flow()
+        assert result == 42
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        # The flow run should be completed, not crashed
+        assert flow_run.state.is_completed()
+        assert not flow_run.state.is_crashed()
+        # Verify the debug log message was recorded
+        assert (
+            "BaseException was raised after user code finished executing" in caplog.text
+        )
+
+    async def test_base_exception_after_user_code_finishes_does_not_crash_async(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        """
+        Test that a BaseException raised after user code finishes executing
+        does not crash the flow run (async flow).
+        """
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
+        async def my_flow():
+            return 42
+
+        # Mock the flow run engine to raise a BaseException after handle_success
+        original_handle_success = AsyncFlowRunEngine.handle_success
+
+        async def handle_success_with_exception(self, result):
+            await original_handle_success(self, result)
+            # At this point the flow run state is final (Completed)
+            raise BaseException("Post-execution error")
+
+        monkeypatch.setattr(
+            AsyncFlowRunEngine, "handle_success", handle_success_with_exception
+        )
+
+        # The flow should complete successfully and return the result
+        result = await my_flow()
+        assert result == 42
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        # The flow run should be completed, not crashed
+        assert flow_run.state.is_completed()
+        assert not flow_run.state.is_crashed()
+        # Verify the debug log message was recorded
+        assert (
+            "BaseException was raised after user code finished executing" in caplog.text
+        )
+
+    async def test_base_exception_before_user_code_finishes_crashes_sync(
+        self, prefect_client, monkeypatch
+    ):
+        """
+        Test that a BaseException raised before user code finishes executing
+        still crashes the flow run (sync flow).
+        """
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
+        def my_flow():
+            return 42
+
+        # Mock the flow run engine to raise a BaseException during begin_run
+        monkeypatch.setattr(
+            FlowRunEngine,
+            "begin_run",
+            MagicMock(side_effect=BaseException("Pre-execution error")),
+        )
+
+        with pytest.raises(BaseException, match="Pre-execution error"):
+            my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        # The flow run should be crashed
+        assert flow_run.state.is_crashed()
+
+    async def test_base_exception_before_user_code_finishes_crashes_async(
+        self, prefect_client, monkeypatch
+    ):
+        """
+        Test that a BaseException raised before user code finishes executing
+        still crashes the flow run (async flow).
+        """
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
+        async def my_flow():
+            return 42
+
+        # Mock the flow run engine to raise a BaseException during begin_run
+        async def begin_run_with_exception(self):
+            raise BaseException("Pre-execution error")
+
+        monkeypatch.setattr(AsyncFlowRunEngine, "begin_run", begin_run_with_exception)
+
+        with pytest.raises(BaseException, match="Pre-execution error"):
+            await my_flow()
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        # The flow run should be crashed
+        assert flow_run.state.is_crashed()
+
 
 class TestPauseFlowRun:
-    async def test_tasks_cannot_be_paused(self):
+    async def test_pause_flow_run_from_task_pauses_parent_flow(
+        self, prefect_client, events_pipeline
+    ):
+        """Test that calling pause_flow_run from within a task pauses the parent flow."""
+        flow_run_id = None
+
         @task
-        async def the_little_task_that_pauses():
-            await pause_flow_run()
+        async def task_that_pauses():
+            await pause_flow_run(timeout=0.1)
             return True
 
         @flow
-        async def the_mountain():
-            return await the_little_task_that_pauses()
+        async def flow_with_pausing_task():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+            return await task_that_pauses()
 
-        with pytest.raises(RuntimeError, match="Cannot pause task runs.*"):
-            await the_mountain()
+        # The flow should timeout because it gets paused and never resumed
+        with pytest.raises(FlowPauseTimeout):
+            await flow_with_pausing_task()
+
+        # Verify the flow run was actually paused
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_paused() or flow_run.state.is_failed()
+
+    async def test_pause_flow_run_from_task_with_input(self, prefect_client):
+        """Test that pause_flow_run from within a task can receive input and resume."""
+        flow_run_id = None
+
+        class ApprovalInput(RunInput):
+            approved: bool
+
+        @task
+        async def get_approval():
+            approval = await pause_flow_run(
+                timeout=10, poll_interval=2, wait_for_input=ApprovalInput
+            )
+            return approval.approved
+
+        @flow(persist_result=False)
+        async def flow_with_approval_task():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
+
+            approved = await get_approval()
+            return approved
+
+        async def flow_resumer():
+            # Wait on flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait on flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await asyncio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            keyset = flow_run.state.state_details.run_input_keyset
+            assert keyset
+
+            # Wait for the flow run input schema to be saved
+            while not (await read_flow_run_input(keyset["schema"], flow_run_id)):
+                await asyncio.sleep(0.1)
+
+            await resume_flow_run(flow_run_id, run_input={"approved": True})
+
+        flow_run_state, _ = await asyncio.gather(
+            flow_with_approval_task(return_state=True),
+            flow_resumer(),
+        )
+        approved = await flow_run_state.result()
+        assert approved is True
+
+        # Ensure that the flow run did create the corresponding schema input
+        schema = await read_flow_run_input(
+            key="paused-1-schema", flow_run_id=flow_run_id
+        )
+        assert schema is not None
 
     async def test_paused_flows_fail_if_not_resumed(self):
         @task
@@ -1064,12 +1325,17 @@ class TestPauseFlowRun:
         assert len(task_runs) == 2, "only two tasks should have completed"
 
     async def test_paused_flows_can_be_resumed(self, prefect_client, events_pipeline):
+        flow_run_id = None
+
         @task
         async def foo():
             return 42
 
         @flow
         async def pausing_flow():
+            nonlocal flow_run_id
+            context = FlowRunContext.get()
+            flow_run_id = context.flow_run.id
             await foo()
             await foo()
             await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
@@ -1079,16 +1345,22 @@ class TestPauseFlowRun:
             await foo()
 
         async def flow_resumer():
-            await anyio.sleep(3)
-            flow_runs = await prefect_client.read_flow_runs(limit=1)
-            active_flow_run = flow_runs[0]
-            await resume_flow_run(active_flow_run.id)
+            # Wait for the flow run to start
+            while not flow_run_id:
+                await anyio.sleep(0.1)
+
+            # Wait for the flow run to pause
+            flow_run = await prefect_client.read_flow_run(flow_run_id)
+            while not flow_run.state.is_paused():
+                await anyio.sleep(0.1)
+                flow_run = await prefect_client.read_flow_run(flow_run_id)
+
+            await resume_flow_run(flow_run_id)
 
         flow_run_state, the_answer = await asyncio.gather(
             pausing_flow(return_state=True),
             flow_resumer(),
         )
-        flow_run_id = flow_run_state.state_details.flow_run_id
         await events_pipeline.process_events()
         task_runs = await prefect_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
@@ -1853,10 +2125,15 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_sync(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=0.5)
+        @flow(timeout_seconds=1)
         def expensive_flow():
             with concurrency(concurrency_limit_v2.name):
-                time.sleep(1)
+                # Use a time-bounded busy loop instead of time.sleep()
+                # because sleep is a C-level call that cannot be interrupted
+                # by WatcherThreadCancelScope.
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    pass
 
         with pytest.raises(TimeoutError):
             expensive_flow()
@@ -1869,10 +2146,10 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_async(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=0.5)
+        @flow(timeout_seconds=1)
         async def expensive_flow():
             async with aconcurrency(concurrency_limit_v2.name):
-                await asyncio.sleep(1)
+                await asyncio.sleep(10)
 
         with pytest.raises(TimeoutError):
             await expensive_flow()
@@ -2109,6 +2386,53 @@ class TestRunFlowInSubprocess:
         # Stays in running state because the flow run is aborted manually
         assert flow_run.state.is_running()
 
+    async def test_deployment_parameters_accessible_in_subprocess(
+        self, engine_type: Literal["sync", "async"], prefect_client: PrefectClient
+    ):
+        """Test that deployment.parameters is accessible in subprocess (issue #19329)."""
+        deployment_params = {
+            "source_name": "ABC",
+            "database_export_date": "2025-08-27",
+            "bucket_name": "data-migration",
+        }
+
+        if engine_type == "sync":
+
+            @flow(name=f"test_deployment_params_{uuid.uuid4()}", persist_result=True)
+            def foo(source_name: str, database_export_date: str, bucket_name: str):
+                from prefect.runtime import deployment
+
+                return deployment.parameters
+        else:
+
+            @flow(name=f"test_deployment_params_{uuid.uuid4()}", persist_result=True)
+            async def foo(
+                source_name: str, database_export_date: str, bucket_name: str
+            ):
+                from prefect.runtime import deployment
+
+                return deployment.parameters
+
+        flow_id = await prefect_client.create_flow(foo)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"test_deployment_params_{uuid.uuid4()}",
+            parameters=deployment_params,
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        process = run_flow_in_subprocess(foo, flow_run)
+        process.join()
+        assert process.exitcode == 0
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
+        # deployment.parameters should match what we set
+        result = await flow_run.state.result()
+        assert result == deployment_params
+
     async def test_flow_raises_a_base_exception(
         self, engine_type: Literal["sync", "async"]
     ):
@@ -2252,7 +2576,9 @@ class TestLeaseRenewal:
 
         run_flow(foo, flow_run)
 
-        mock_maintain_concurrency_lease.assert_called_once()
+        mock_maintain_concurrency_lease.assert_called_once_with(
+            ANY, 300, raise_on_lease_renewal_failure=True
+        )
 
     async def test_lease_renewal_async(
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
@@ -2285,4 +2611,424 @@ class TestLeaseRenewal:
 
         await run_flow(foo, flow_run)
 
-        mock_maintain_concurrency_lease.assert_called_once()
+        mock_maintain_concurrency_lease.assert_called_once_with(
+            ANY, 300, raise_on_lease_renewal_failure=True
+        )
+
+
+class TestFlowRunEngineHeartbeat:
+    """Tests for heartbeat integration in the flow run engine."""
+
+    def test_heartbeat_context_manager_used_during_flow_execution_sync(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that heartbeat context manager is used during sync flow execution."""
+        context_entered = []
+        context_exited = []
+
+        @contextmanager
+        def mock_send_heartbeats_sync(engine):
+            context_entered.append(engine)
+            try:
+                yield
+            finally:
+                context_exited.append(engine)
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_sync", mock_send_heartbeats_sync
+        )
+
+        # Set heartbeat_frequency to enable heartbeats
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
+        )
+
+        @flow
+        def my_flow():
+            return 42
+
+        result = my_flow()
+        assert result == 42
+
+        # Heartbeat context manager should have been entered and exited
+        assert len(context_entered) == 1
+        assert len(context_exited) == 1
+        assert isinstance(context_entered[0], FlowRunEngine)
+
+    async def test_heartbeat_context_manager_used_during_flow_execution_async(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that heartbeat context manager is used during async flow execution."""
+        context_entered = []
+        context_exited = []
+
+        @asynccontextmanager
+        async def mock_send_heartbeats_async(engine):
+            context_entered.append(engine)
+            try:
+                yield
+            finally:
+                context_exited.append(engine)
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_async", mock_send_heartbeats_async
+        )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
+        )
+
+        @flow
+        async def my_flow():
+            return 42
+
+        result = await my_flow()
+        assert result == 42
+
+        assert len(context_entered) == 1
+        assert len(context_exited) == 1
+        assert isinstance(context_entered[0], AsyncFlowRunEngine)
+
+    def test_heartbeat_not_emitted_when_frequency_is_none_sync(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that heartbeats are not emitted when frequency is None."""
+        emitted_events = []
+
+        def mock_emit_event(**kwargs):
+            if kwargs.get("event") == "prefect.flow-run.heartbeat":
+                emitted_events.append(kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
+
+        # Set heartbeat_frequency to None (disabled)
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=None)),
+        )
+
+        @flow
+        def my_flow():
+            return 42
+
+        result = my_flow()
+        assert result == 42
+
+        # No heartbeat events should have been emitted
+        assert len(emitted_events) == 0
+
+    async def test_heartbeat_not_emitted_when_frequency_is_none_async(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that heartbeats are not emitted when frequency is None."""
+        emitted_events = []
+
+        def mock_emit_event(**kwargs):
+            if kwargs.get("event") == "prefect.flow-run.heartbeat":
+                emitted_events.append(kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
+
+        # Set heartbeat_frequency to None (disabled)
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=None)),
+        )
+
+        @flow
+        async def my_flow():
+            return 42
+
+        result = await my_flow()
+        assert result == 42
+
+        assert len(emitted_events) == 0
+
+    def test_heartbeat_emits_event_sync(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that heartbeat actually emits events for sync flows."""
+        emitted_events = []
+
+        def mock_emit_event(**kwargs):
+            emitted_events.append(kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
+
+        @flow
+        def my_flow():
+            return 42
+
+        engine = FlowRunEngine(flow=my_flow)
+
+        with engine.initialize_run():
+            # Manually call emit to test the method directly
+            engine._emit_flow_run_heartbeat()
+
+        assert len(emitted_events) == 1
+        assert emitted_events[0]["event"] == "prefect.flow-run.heartbeat"
+        assert (
+            "prefect.flow-run" in emitted_events[0]["resource"]["prefect.resource.id"]
+        )
+
+    async def test_heartbeat_emits_event_async(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that heartbeat actually emits events for async flows."""
+        emitted_events = []
+
+        def mock_emit_event(**kwargs):
+            emitted_events.append(kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
+
+        @flow
+        async def my_flow():
+            return 42
+
+        engine = AsyncFlowRunEngine(flow=my_flow)
+
+        async with engine.initialize_run():
+            engine._emit_flow_run_heartbeat()
+
+        assert len(emitted_events) == 1
+        assert emitted_events[0]["event"] == "prefect.flow-run.heartbeat"
+        assert (
+            "prefect.flow-run" in emitted_events[0]["resource"]["prefect.resource.id"]
+        )
+
+    def test_heartbeat_cleanup_on_exception_sync(self, monkeypatch: pytest.MonkeyPatch):
+        """Test that heartbeat context manager cleans up even when an exception occurs."""
+        context_entered = []
+        context_exited = []
+
+        @contextmanager
+        def mock_send_heartbeats_sync(engine):
+            context_entered.append(engine)
+            try:
+                yield
+            finally:
+                context_exited.append(engine)
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_sync", mock_send_heartbeats_sync
+        )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
+        )
+
+        @flow
+        def my_flow():
+            raise ValueError("test error")
+
+        with pytest.raises(ValueError, match="test error"):
+            my_flow()
+
+        # Heartbeat context manager should have been entered and exited (cleanup)
+        assert len(context_entered) == 1
+        assert len(context_exited) == 1
+
+    async def test_heartbeat_cleanup_on_exception_async(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that heartbeat context manager cleans up even when an exception occurs."""
+        context_entered = []
+        context_exited = []
+
+        @asynccontextmanager
+        async def mock_send_heartbeats_async(engine):
+            context_entered.append(engine)
+            try:
+                yield
+            finally:
+                context_exited.append(engine)
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_async", mock_send_heartbeats_async
+        )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
+        )
+
+        @flow
+        async def my_flow():
+            raise ValueError("test error")
+
+        with pytest.raises(ValueError, match="test error"):
+            await my_flow()
+
+        assert len(context_entered) == 1
+        assert len(context_exited) == 1
+
+    def test_heartbeat_includes_flow_related_resource(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that heartbeat event includes flow as related resource."""
+        emitted_events = []
+
+        def mock_emit_event(**kwargs):
+            emitted_events.append(kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
+
+        @flow
+        def my_flow():
+            return 42
+
+        engine = FlowRunEngine(flow=my_flow)
+
+        with engine.initialize_run():
+            engine._emit_flow_run_heartbeat()
+
+        assert len(emitted_events) == 1
+        related = emitted_events[0]["related"]
+        flow_related = [r for r in related if r.get("prefect.resource.role") == "flow"]
+        assert len(flow_related) == 1
+        assert flow_related[0]["prefect.resource.name"] == "my-flow"
+
+    async def test_heartbeat_includes_deployment_related_resource(
+        self, monkeypatch: pytest.MonkeyPatch, prefect_client: PrefectClient
+    ):
+        """Test that heartbeat event includes deployment as related resource when present."""
+        emitted_events = []
+
+        def mock_emit_event(**kwargs):
+            emitted_events.append(kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
+
+        @flow
+        async def my_flow():
+            return 42
+
+        # Create a flow run with a deployment
+        flow_id = await prefect_client.create_flow(my_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="test-deployment",
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        engine = AsyncFlowRunEngine(flow=my_flow, flow_run=flow_run)
+
+        async with engine.initialize_run():
+            engine._emit_flow_run_heartbeat()
+
+        assert len(emitted_events) == 1
+        related = emitted_events[0]["related"]
+        deployment_related = [
+            r for r in related if r.get("prefect.resource.role") == "deployment"
+        ]
+        assert len(deployment_related) == 1
+        assert (
+            f"prefect.deployment.{deployment_id}"
+            in deployment_related[0]["prefect.resource.id"]
+        )
+
+    def test_no_heartbeat_after_terminal_state_sync(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19598
+
+        Verifies that the heartbeat context manager checks flow state before
+        emitting heartbeats and stops if the state is terminal. This prevents
+        the race condition where heartbeats could be emitted after a flow run
+        completes, incorrectly triggering zombie flow detection automations.
+        """
+        heartbeat_state_checks = []
+
+        # Track the original send_heartbeats_sync to wrap it
+        original_send_heartbeats = send_heartbeats_sync
+
+        @contextmanager
+        def tracking_send_heartbeats_sync(engine):
+            # Record state when entering context
+            heartbeat_state_checks.append(
+                ("enter", engine.flow_run.state.type if engine.flow_run else None)
+            )
+            with original_send_heartbeats(engine):
+                yield
+            # Record state when exiting context
+            heartbeat_state_checks.append(
+                ("exit", engine.flow_run.state.type if engine.flow_run else None)
+            )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_sync", tracking_send_heartbeats_sync
+        )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
+        )
+
+        @flow
+        def my_flow():
+            return 42
+
+        result = my_flow()
+        assert result == 42
+
+        # Context manager should have been entered and exited
+        assert len(heartbeat_state_checks) >= 2
+        # The context manager should exit when the flow completes
+        exit_states = [s for action, s in heartbeat_state_checks if action == "exit"]
+        assert any(
+            state_type in (StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED)
+            for state_type in exit_states
+            if state_type is not None
+        )
+
+    async def test_no_heartbeat_after_terminal_state_async(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/19598
+
+        Async version: Verifies that the heartbeat context manager checks flow
+        state before emitting heartbeats and stops if the state is terminal.
+        """
+        heartbeat_state_checks = []
+
+        # Track the original send_heartbeats_async to wrap it
+        original_send_heartbeats = send_heartbeats_async
+
+        @asynccontextmanager
+        async def tracking_send_heartbeats_async(engine):
+            # Record state when entering context
+            heartbeat_state_checks.append(
+                ("enter", engine.flow_run.state.type if engine.flow_run else None)
+            )
+            async with original_send_heartbeats(engine):
+                yield
+            # Record state when exiting context
+            heartbeat_state_checks.append(
+                ("exit", engine.flow_run.state.type if engine.flow_run else None)
+            )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.send_heartbeats_async", tracking_send_heartbeats_async
+        )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
+        )
+
+        @flow
+        async def my_flow():
+            return 42
+
+        result = await my_flow()
+        assert result == 42
+
+        assert len(heartbeat_state_checks) >= 2
+        exit_states = [s for action, s in heartbeat_state_checks if action == "exit"]
+        assert any(
+            state_type in (StateType.COMPLETED, StateType.FAILED, StateType.CANCELLED)
+            for state_type in exit_states
+            if state_type is not None
+        )

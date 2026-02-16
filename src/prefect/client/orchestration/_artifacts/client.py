@@ -48,15 +48,52 @@ class ArtifactClient(BaseClient):
             json=artifact.model_dump(mode="json", exclude_unset=True),
         )
         from prefect.client.schemas.objects import Artifact
+        from prefect.events.utilities import emit_event
 
-        return Artifact.model_validate(response.json())
+        created = Artifact.model_validate(response.json())
+
+        # Emit an event for artifact creation
+        resource = {
+            "prefect.resource.id": f"prefect.artifact.{created.id}",
+        }
+        if created.key:
+            resource["prefect.resource.name"] = created.key
+
+        payload = {
+            k: v
+            for k, v in {
+                "key": created.key,
+                "type": created.type,
+                "description": created.description,
+            }.items()
+        }
+
+        emit_event(
+            event="prefect.artifact.created",
+            resource=resource,
+            payload=payload,
+        )
+
+        return created
 
     def update_artifact(self, artifact_id: "UUID", artifact: "ArtifactUpdate") -> None:
+        from prefect.events.utilities import emit_event
+
         self.request(
             "PATCH",
             "/artifacts/{id}",
             json=artifact.model_dump(mode="json", exclude_unset=True),
             path_params={"id": artifact_id},
+        )
+        # Emit an event for artifact update
+        resource = {
+            "prefect.resource.id": f"prefect.artifact.{artifact_id}",
+        }
+        payload = artifact.model_dump(mode="json", exclude_unset=True)
+        emit_event(
+            event="prefect.artifact.updated",
+            resource=resource,
+            payload=payload,
         )
         return None
 
@@ -114,17 +151,55 @@ class ArtifactAsyncClient(BaseAsyncClient):
             json=artifact.model_dump(mode="json", exclude_unset=True),
         )
         from prefect.client.schemas.objects import Artifact
+        from prefect.events.utilities import emit_event
 
-        return Artifact.model_validate(response.json())
+        created = Artifact.model_validate(response.json())
+
+        # Emit an event for artifact creation
+        resource = {
+            "prefect.resource.id": f"prefect.artifact.{created.id}",
+        }
+        if created.key:
+            resource["prefect.resource.name"] = created.key
+
+        payload = {
+            k: v
+            for k, v in {
+                "key": created.key,
+                "type": created.type,
+                "description": created.description,
+            }.items()
+            if v is not None
+        }
+
+        emit_event(
+            event="prefect.artifact.created",
+            resource=resource,
+            payload=payload,
+        )
+
+        return created
 
     async def update_artifact(
         self, artifact_id: "UUID", artifact: "ArtifactUpdate"
     ) -> None:
+        from prefect.events.utilities import emit_event
+
         await self.request(
             "PATCH",
             "/artifacts/{id}",
             path_params={"id": artifact_id},
             json=artifact.model_dump(mode="json", exclude_unset=True),
+        )
+        # Emit an event for artifact update
+        resource = {
+            "prefect.resource.id": f"prefect.artifact.{artifact_id}",
+        }
+        payload = artifact.model_dump(mode="json", exclude_unset=True)
+        emit_event(
+            event="prefect.artifact.updated",
+            resource=resource,
+            payload=payload or None,
         )
         return None
 

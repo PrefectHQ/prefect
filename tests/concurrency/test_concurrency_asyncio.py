@@ -33,11 +33,11 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.asyncio.aacquire_concurrency_slots_with_lease",
+        "prefect.concurrency._asyncio.aacquire_concurrency_slots_with_lease",
         wraps=aacquire_concurrency_slots_with_lease,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio.arelease_concurrency_slots_with_lease",
+            "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
             wraps=arelease_concurrency_slots_with_lease,
         ) as release_spy:
             await resource_heavy()
@@ -49,6 +49,8 @@ async def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimitV
                 max_retries=None,
                 lease_duration=300,
                 strict=False,
+                holder=None,
+                suppress_warnings=False,
             )
 
             lease_id = release_spy.call_args[1]["lease_id"]
@@ -120,9 +122,11 @@ async def test_concurrency_emits_events(
     for phase in ["acquired", "released"]:
         event = next(
             filter(
-                lambda e: e.event == f"prefect.concurrency-limit.{phase}"
-                and e.resource.id
-                == f"prefect.concurrency-limit.{concurrency_limit.id}",
+                lambda e: (
+                    e.event == f"prefect.concurrency-limit.{phase}"
+                    and e.resource.id
+                    == f"prefect.concurrency-limit.{concurrency_limit.id}"
+                ),
                 asserting_events_worker._client.events,
             )
         )
@@ -149,9 +153,11 @@ async def test_concurrency_emits_events(
     for phase in ["acquired", "released"]:
         event = next(
             filter(
-                lambda e: e.event == f"prefect.concurrency-limit.{phase}"
-                and e.resource.id
-                == f"prefect.concurrency-limit.{other_concurrency_limit.id}",
+                lambda e: (
+                    e.event == f"prefect.concurrency-limit.{phase}"
+                    and e.resource.id
+                    == f"prefect.concurrency-limit.{other_concurrency_limit.id}"
+                ),
                 asserting_events_worker._client.events,
             )
         )
@@ -294,8 +300,10 @@ async def test_rate_limit_emits_events(
     # Check the event for the `test` concurrency_limit.
     event = next(
         filter(
-            lambda e: e.resource.id
-            == f"prefect.concurrency-limit.{concurrency_limit_with_decay.id}",
+            lambda e: (
+                e.resource.id
+                == f"prefect.concurrency-limit.{concurrency_limit_with_decay.id}"
+            ),
             asserting_events_worker._client.events,
         )
     )
@@ -324,8 +332,10 @@ async def test_rate_limit_emits_events(
     # Check the event for the `other` concurrency_limit.
     event = next(
         filter(
-            lambda e: e.resource.id
-            == f"prefect.concurrency-limit.{other_concurrency_limit_with_decay.id}",
+            lambda e: (
+                e.resource.id
+                == f"prefect.concurrency-limit.{other_concurrency_limit_with_decay.id}"
+            ),
             asserting_events_worker._client.events,
         )
     )
@@ -374,6 +384,35 @@ async def test_rate_limit_without_limit_names(names):
     assert executed
 
 
+async def test_concurrency_skips_release_and_renewal_when_no_limits_exist():
+    """When no concurrency limits exist for the given names, the context manager
+    should skip lease renewal and release to avoid unnecessary API calls.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19367
+    """
+    executed = False
+
+    async def resource_heavy():
+        nonlocal executed
+        async with concurrency("nonexistent-limit", occupy=1):
+            executed = True
+
+    assert not executed
+
+    with mock.patch(
+        "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
+    ) as release_spy:
+        with mock.patch(
+            "prefect.concurrency._asyncio.amaintain_concurrency_lease",
+        ) as renew_spy:
+            await resource_heavy()
+
+            release_spy.assert_not_called()
+            renew_spy.assert_not_called()
+
+    assert executed
+
+
 @pytest.mark.parametrize("names", [[], None])
 async def test_concurrency_without_limit_names(names):
     executed = False
@@ -386,11 +425,11 @@ async def test_concurrency_without_limit_names(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.asyncio.aacquire_concurrency_slots_with_lease",
+        "prefect.concurrency._asyncio.aacquire_concurrency_slots_with_lease",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.asyncio.arelease_concurrency_slots_with_lease",
+            "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             await resource_heavy()

@@ -1,11 +1,14 @@
 import asyncio
 import json
 import os
+import signal
 import socket
+import subprocess
 import sys
 from contextlib import contextmanager
 from typing import Any, AsyncGenerator, Callable, Generator, List, Optional, Union
 from unittest import mock
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 import anyio
@@ -19,6 +22,7 @@ from websockets.asyncio.server import (
 )
 from websockets.exceptions import ConnectionClosed
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.events import Event
 from prefect.events.clients import (
     AssertingEventsClient,
@@ -30,15 +34,13 @@ from prefect.server.api.server import SubprocessASGIServer
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
     get_current_settings,
     temporary_settings,
 )
-from prefect.testing.utilities import AsyncMock
 from prefect.types._datetime import DateTime, now
-from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.processutils import open_process
 
 
@@ -65,6 +67,7 @@ def is_port_in_use(port: int) -> bool:
 @pytest.fixture(scope="session")
 async def hosted_api_server(
     unused_tcp_port_factory: Callable[[], int],
+    test_database_connection_url: Optional[str],
 ) -> AsyncGenerator[str, None]:
     """
     Runs an instance of the Prefect API server in a subprocess instead of the using the
@@ -75,11 +78,22 @@ async def hosted_api_server(
     Yields:
         The API URL
     """
+    # Ensure the per-worker database URL override is applied before we start the server
+    _ = test_database_connection_url
+
     port = unused_tcp_port_factory()
     print(f"Running hosted API server on port {port}")
 
     # Will connect to the same database as normal test clients
     settings = get_current_settings().to_environment_variables(exclude_unset=True)
+
+    # We must add creationflags to a dict so it is only passed as a function
+    # parameter on Windows, because the presence of creationflags causes
+    # errors on Unix even if set to None
+    kwargs: dict[str, object] = {}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
     async with open_process(
         command=[
             "uvicorn",
@@ -98,6 +112,7 @@ async def hosted_api_server(
             **os.environ,
             **settings,
         },
+        **kwargs,
     ) as process:
         api_url = f"http://localhost:{port}/api"
 
@@ -126,7 +141,13 @@ async def hosted_api_server(
 
         # Then shutdown the process
         try:
-            process.terminate()
+            # In a non-windows environment first send a SIGTERM via terminate().
+            # In Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
+            # https://bugs.python.org/issue26350
+            if sys.platform == "win32":
+                os.kill(process.pid, signal.CTRL_BREAK_EVENT)
+            else:
+                process.terminate()
 
             # Give the process a 10 second grace period to shutdown
             for _ in range(10):
@@ -282,6 +303,7 @@ class Puppeteer:
     outgoing_events: List[Event]
 
     def __init__(self):
+        self.token = None
         self.hard_auth_failure = False
         self.refuse_any_further_connections = False
         self.hard_disconnect_after = None
@@ -319,6 +341,23 @@ async def events_server(
             await outgoing_events(socket)
 
     async def incoming_events(socket: ServerConnection):
+        # 1. authentication (required when using the "prefect" subprotocol)
+        if socket.subprotocol == "prefect":
+            auth_message = json.loads(await socket.recv())
+
+            assert auth_message["type"] == "auth"
+            recorder.token = auth_message["token"]
+            if puppeteer.token is not None and puppeteer.token != recorder.token:
+                if not puppeteer.hard_auth_failure:
+                    await socket.send(
+                        json.dumps({"type": "auth_failure", "reason": "nope"})
+                    )
+                await socket.close(WS_1008_POLICY_VIOLATION)
+                return
+
+            await socket.send(json.dumps({"type": "auth_success"}))
+
+        # 2. receive events
         while True:
             try:
                 message = await socket.recv()
@@ -367,7 +406,20 @@ async def events_server(
                 puppeteer.hard_disconnect_after = None
                 raise ValueError("zonk")
 
-    async with serve(handler, host="localhost", port=unused_tcp_port) as server:
+    def select_subprotocol(
+        connection: ServerConnection, subprotocols: list[str]
+    ) -> str | None:
+        # Accept the "prefect" subprotocol if requested
+        if "prefect" in subprotocols:
+            return "prefect"
+        return None
+
+    async with serve(
+        handler,
+        host="localhost",
+        port=unused_tcp_port,
+        select_subprotocol=select_subprotocol,
+    ) as server:
         yield server
 
 
@@ -420,8 +472,7 @@ async def events_pipeline(
     asserting_events_worker: EventsWorker,
 ) -> AsyncGenerator[EventsPipeline, None]:
     class AssertingEventsPipeline(EventsPipeline):
-        @sync_compatible
-        async def process_events(
+        async def aprocess_events(
             self,
             dequeue_events: bool = True,
             min_events: int = 0,
@@ -449,6 +500,21 @@ async def events_pipeline(
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
 
+        @async_dispatch(aprocess_events)
+        def process_events(
+            self,
+            dequeue_events: bool = True,
+            min_events: int = 0,
+            timeout: int = 10,
+        ):
+            return run_coro_as_sync(
+                self.aprocess_events(
+                    dequeue_events=dequeue_events,
+                    min_events=min_events,
+                    timeout=timeout,
+                )
+            )
+
     yield AssertingEventsPipeline()
 
 
@@ -457,13 +523,16 @@ async def emitting_events_pipeline(
     asserting_and_emitting_events_worker: EventsWorker,
 ) -> AsyncGenerator[EventsPipeline, None]:
     class AssertingAndEmittingEventsPipeline(EventsPipeline):
-        @sync_compatible
-        async def process_events(self):
+        async def aprocess_events(self):
             asserting_and_emitting_events_worker.wait_until_empty()
             events = asserting_and_emitting_events_worker._client.pop_events()
 
             messages = self.events_to_messages(events)
             await self.process_messages(messages)
+
+        @async_dispatch(aprocess_events)
+        def process_events(self):
+            return run_coro_as_sync(self.aprocess_events())
 
     yield AssertingAndEmittingEventsPipeline()
 
@@ -475,10 +544,3 @@ def reset_worker_events(
     yield
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     asserting_events_worker._client.events = []
-
-
-@pytest.fixture
-def enable_lineage_events() -> Generator[None, None, None]:
-    """A fixture that ensures lineage events are enabled."""
-    with temporary_settings(updates={PREFECT_EXPERIMENTS_LINEAGE_EVENTS_ENABLED: True}):
-        yield

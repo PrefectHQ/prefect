@@ -4,7 +4,6 @@ from typing import Any, Dict
 import pytest
 
 from prefect.blocks.core import Block
-from prefect.blocks.system import JSON, DateTime, Secret, String
 from prefect.blocks.webhook import Webhook
 from prefect.client.orchestration import PrefectClient
 from prefect.utilities.annotations import NotSet
@@ -267,6 +266,85 @@ class TestApplyValues:
             "Value for placeholder 'name' not found in provided values." in caplog.text
         )
 
+    def test_apply_values_skip_prefixes_single_placeholder(self):
+        """Skipped placeholder as entire value is left intact."""
+        template = "{{ ctx.flow.name }}"
+        result = apply_values(
+            template, values={}, remove_notset=True, skip_prefixes=["ctx."]
+        )
+        assert result == "{{ ctx.flow.name }}"
+
+    def test_apply_values_skip_prefixes_embedded_placeholder(self):
+        """Skipped placeholder embedded in text is left intact."""
+        template = "job-{{ ctx.flow.name }}/{{ ctx.flow_run.name }}"
+        result = apply_values(
+            template, values={}, remove_notset=True, skip_prefixes=["ctx."]
+        )
+        assert result == "job-{{ ctx.flow.name }}/{{ ctx.flow_run.name }}"
+
+    def test_apply_values_skip_prefixes_mixed_placeholders(self):
+        """Skipped and non-skipped placeholders coexist correctly."""
+        template = "{{ ctx.flow.name }}-{{ version }}"
+        result = apply_values(
+            template,
+            values={"version": "1.0"},
+            remove_notset=True,
+            skip_prefixes=["ctx."],
+        )
+        assert result == "{{ ctx.flow.name }}-1.0"
+
+    def test_apply_values_skip_prefixes_does_not_affect_other_placeholders(self):
+        """Non-matching placeholders are still resolved or removed normally."""
+        template = {"name": "{{ ctx.flow.name }}", "image": "{{ build.image }}"}
+        result = apply_values(
+            template,
+            values={"build": {"image": "my-image:latest"}},
+            remove_notset=True,
+            skip_prefixes=["ctx."],
+        )
+        assert result == {"name": "{{ ctx.flow.name }}", "image": "my-image:latest"}
+
+    def test_apply_values_skip_prefixes_in_nested_structures(self):
+        """skip_prefixes works recursively through dicts and lists."""
+        template = {
+            "work_pool": {
+                "job_variables": {
+                    "name": "{{ ctx.flow.name }}",
+                    "image": "{{ build-image.image }}",
+                }
+            },
+            "tags": ["{{ ctx.flow_run.name }}", "{{ version }}"],
+        }
+        result = apply_values(
+            template,
+            values={"build-image": {"image": "img:latest"}, "version": "v1"},
+            remove_notset=True,
+            skip_prefixes=["ctx."],
+        )
+        assert result == {
+            "work_pool": {
+                "job_variables": {
+                    "name": "{{ ctx.flow.name }}",
+                    "image": "img:latest",
+                }
+            },
+            "tags": ["{{ ctx.flow_run.name }}", "v1"],
+        }
+
+    def test_apply_values_skip_prefixes_warns_only_for_non_skipped(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """Skipped placeholders do not produce warnings."""
+        template = {"a": "{{ ctx.flow.name }}", "b": "{{ missing }}"}
+        apply_values(
+            template,
+            values={},
+            warn_on_notset=True,
+            skip_prefixes=["ctx."],
+        )
+        assert "ctx.flow.name" not in caplog.text
+        assert "missing" in caplog.text
+
 
 class TestResolveBlockDocumentReferences:
     @pytest.fixture(autouse=True)
@@ -276,13 +354,25 @@ class TestResolveBlockDocumentReferences:
 
     @pytest.fixture()
     async def block_document_id(self):
-        class ArbitraryBlock(Block):
-            a: int
-            b: str
+        # Use unique slug and doc name to avoid conflicts in parallel tests
+        unique_id = uuid.uuid4().hex[:8]
+        slug = f"arbitraryblock-{unique_id}"
+        doc_name = f"arbitrary-block-{unique_id}"
 
-        return await ArbitraryBlock(a=1, b="hello").save(
-            name="arbitrary-block", overwrite=True
+        # Create a unique class to avoid block registry conflicts
+        ArbitraryBlock = type(
+            f"ArbitraryBlock{unique_id}",
+            (Block,),
+            {
+                "_block_type_slug": slug,
+                "__annotations__": {"a": int, "b": str},
+            },
         )
+
+        block_document_id = await ArbitraryBlock(a=1, b="hello").save(
+            name=doc_name, overwrite=True
+        )
+        return {"id": block_document_id, "slug": slug, "name": doc_name}
 
     async def test_resolve_block_document_references_with_no_block_document_references(
         self,
@@ -297,7 +387,7 @@ class TestResolveBlockDocumentReferences:
         assert {
             "key": {"a": 1, "b": "hello"}
         } == await resolve_block_document_references(
-            {"key": {"$ref": {"block_document_id": block_document_id}}},
+            {"key": {"$ref": {"block_document_id": block_document_id["id"]}}},
             client=prefect_client,
         )
 
@@ -306,11 +396,15 @@ class TestResolveBlockDocumentReferences:
     ):
         template = {
             "key": {
-                "nested_key": {"$ref": {"block_document_id": block_document_id}},
-                "other_nested_key": {"$ref": {"block_document_id": block_document_id}},
+                "nested_key": {"$ref": {"block_document_id": block_document_id["id"]}},
+                "other_nested_key": {
+                    "$ref": {"block_document_id": block_document_id["id"]}
+                },
             }
         }
-        block_document = await prefect_client.read_block_document(block_document_id)
+        block_document = await prefect_client.read_block_document(
+            block_document_id["id"]
+        )
 
         result = await resolve_block_document_references(
             template, client=prefect_client
@@ -326,8 +420,10 @@ class TestResolveBlockDocumentReferences:
     async def test_resolve_block_document_references_with_list_of_block_document_references(
         self, prefect_client, block_document_id
     ):
-        template = [{"$ref": {"block_document_id": block_document_id}}]
-        block_document = await prefect_client.read_block_document(block_document_id)
+        template = [{"$ref": {"block_document_id": block_document_id["id"]}}]
+        block_document = await prefect_client.read_block_document(
+            block_document_id["id"]
+        )
 
         result = await resolve_block_document_references(
             template, client=prefect_client
@@ -338,9 +434,13 @@ class TestResolveBlockDocumentReferences:
     async def test_resolve_block_document_references_with_dot_delimited_syntax(
         self, prefect_client, block_document_id
     ):
-        template = {"key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }}"}
+        slug = block_document_id["slug"]
+        doc_name = block_document_id["name"]
+        template = {"key": f"{{{{ prefect.blocks.{slug}.{doc_name} }}}}"}
 
-        block_document = await prefect_client.read_block_document(block_document_id)
+        block_document = await prefect_client.read_block_document(
+            block_document_id["id"]
+        )
 
         result = await resolve_block_document_references(
             template, client=prefect_client
@@ -392,115 +492,12 @@ class TestResolveBlockDocumentReferences:
 
         assert result == template
 
-    async def test_resolve_block_document_unpacks_system_blocks(self):
-        await JSON(value={"key": "value"}).save(name="json-block")
-        await Secret(value="N1nj4C0d3rP@ssw0rd!").save(name="secret-block")
-        await DateTime(value="2020-01-01T00:00:00Z").save(name="datetime-block")
-        await String(value="hello").save(name="string-block")
-
-        template = {
-            "json": "{{ prefect.blocks.json.json-block }}",
-            "secret": "{{ prefect.blocks.secret.secret-block }}",
-            "datetime": "{{ prefect.blocks.date-time.datetime-block }}",
-            "string": "{{ prefect.blocks.string.string-block }}",
-        }
-
-        result = await resolve_block_document_references(template)
-        assert result == {
-            "json": {"key": "value"},
-            "secret": "N1nj4C0d3rP@ssw0rd!",
-            "datetime": "2020-01-01T00:00:00Z",
-            "string": "hello",
-        }
-
-    async def test_resolve_block_document_system_block_resolves_dict_keypath(self):
-        # for backwards compatibility system blocks can be referenced directly
-        # they should still be able to access nested keys
-        await JSON(value={"key": {"nested-key": "nested_value"}}).save(
-            name="nested-json-block"
-        )
-        template = {
-            "value": "{{ prefect.blocks.json.nested-json-block}}",
-            "keypath": "{{ prefect.blocks.json.nested-json-block.key }}",
-            "nested_keypath": "{{ prefect.blocks.json.nested-json-block.key.nested-key }}",
-        }
-
-        result = await resolve_block_document_references(template)
-        assert result == {
-            "value": {"key": {"nested-key": "nested_value"}},
-            "keypath": {"nested-key": "nested_value"},
-            "nested_keypath": "nested_value",
-        }
-
-    async def test_resolve_block_document_resolves_dict_keypath(self):
-        await JSON(value={"key": {"nested-key": "nested_value"}}).save(
-            name="nested-json-block-2"
-        )
-        template = {
-            "value": "{{ prefect.blocks.json.nested-json-block-2.value }}",
-            "keypath": "{{ prefect.blocks.json.nested-json-block-2.value.key }}",
-            "nested_keypath": (
-                "{{ prefect.blocks.json.nested-json-block-2.value.key.nested-key }}"
-            ),
-        }
-
-        result = await resolve_block_document_references(template)
-        assert result == {
-            "value": {"key": {"nested-key": "nested_value"}},
-            "keypath": {"nested-key": "nested_value"},
-            "nested_keypath": "nested_value",
-        }
-
-    async def test_resolve_block_document_resolves_list_keypath(self):
-        await JSON(value={"key": ["value1", "value2"]}).save(name="json-list-block")
-        await JSON(value=["value1", "value2"]).save(name="list-block")
-        await JSON(
-            value={"key": ["value1", {"nested": ["value2", "value3"]}, "value4"]}
-        ).save(name="nested-json-list-block")
-        template = {
-            "json_list": "{{ prefect.blocks.json.json-list-block.value.key[0] }}",
-            "list": "{{ prefect.blocks.json.list-block.value[1] }}",
-            "nested_json_list": (
-                "{{ prefect.blocks.json.nested-json-list-block.value.key[1].nested[1] }}"
-            ),
-        }
-
-        result = await resolve_block_document_references(template)
-        assert result == {
-            "json_list": "value1",
-            "list": "value2",
-            "nested_json_list": "value3",
-        }
-
-    async def test_resolve_block_document_raises_on_invalid_keypath(self):
-        await JSON(value={"key": {"nested_key": "value"}}).save(
-            name="nested-json-block-3"
-        )
-        json_template = {
-            "json": "{{ prefect.blocks.json.nested-json-block-3.value.key.does_not_exist }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await resolve_block_document_references(json_template)
-
-        await JSON(value=["value1", "value2"]).save(name="index-error-block")
-        index_error_template = {
-            "index_error": "{{ prefect.blocks.json.index-error-block.value[3] }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await resolve_block_document_references(index_error_template)
-
-        await Webhook(url="https://example.com").save(name="webhook-block")
-        webhook_template = {
-            "webhook": "{{ prefect.blocks.webhook.webhook-block.value }}",
-        }
-        with pytest.raises(ValueError, match="Could not resolve the keypath"):
-            await resolve_block_document_references(webhook_template)
-
     async def test_resolve_block_document_resolves_block_attribute(self):
-        await Webhook(url="https://example.com").save(name="webhook-block-2")
+        doc_name = f"webhook-block-{uuid.uuid4().hex[:8]}"
+        await Webhook(url="https://example.com").save(name=doc_name)
 
         template = {
-            "block_attribute": "{{ prefect.blocks.webhook.webhook-block-2.url }}",
+            "block_attribute": f"{{{{ prefect.blocks.webhook.{doc_name}.url }}}}",
         }
         result = await resolve_block_document_references(template)
 

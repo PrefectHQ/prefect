@@ -90,6 +90,54 @@ Start a Prefect server instance
     Run the server in the background
 </ResponseField>
 
+<ResponseField name="--workers">
+    Number of worker processes to run. Only runs the webserver API and UI
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect server status`
+
+
+
+```command
+prefect server status [OPTIONS]
+```
+
+
+
+<Info>
+Check the status of the Prefect server.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--wait">
+    Wait for the server to become available before returning.
+</ResponseField>
+
+<ResponseField name="--timeout">
+    Maximum number of seconds to wait when using --wait. A value of 0 means wait indefinitely.
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
 </Accordion>
 
 </AccordionGroup>

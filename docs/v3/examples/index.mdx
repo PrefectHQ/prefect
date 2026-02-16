@@ -2,25 +2,58 @@
 title: Overview
 icon: bars
 ---
+
+
+{/*
+This page is automatically generated via the `generate_example_pages.py` script. Any changes to this page will be overwritten.
+*/}
+
+Have an example to share? Check out our [contributing guide](/contribute/docs-contribute#contributing-examples) to get started.
+
 <CardGroup cols={3}>
 
-          <Card title="Hello, world!" icon="play" href="/v3/examples/hello-world">
+        <Card title="Hello, world!" icon="play" href="/v3/examples/hello-world">
             Your first steps with Prefect – learn how to create a basic flow and understand core concepts.
-          </Card>
+        </Card>
 
-          
-          <Card title="Simple web scraper" icon="globe" href="/v3/examples/simple-web-scraper">
-            Learn how to scrape article content from web pages with Prefect tasks, retries, and automatic logging.
-          </Card>
 
-          
-          <Card title="API-sourced ETL with pandas" icon="database" href="/v3/examples/run-api-sourced-etl">
+        <Card title="API-sourced ETL" icon="database" href="/v3/examples/run-api-sourced-etl">
             Build a small ETL pipeline that fetches JSON from a public API, transforms it with pandas, and writes a CSV – all orchestrated by Prefect.
-          </Card>
+        </Card>
 
-          
-          <Card title="dbt Model Orchestration" icon="database" href="/v3/examples/run-dbt-with-prefect">
+
+        <Card title="dbt Model Orchestration" icon="database" href="/v3/examples/run-dbt-with-prefect">
             Orchestrate any dbt project with bullet-proof retries, observability, and a single Python file – no YAML or shell scripts required.
-          </Card>
+        </Card>
 
-          </CardGroup>
+
+        <Card title="Social Analytics Dashboard" icon="chart-bar" href="/v3/examples/atproto-dashboard-with-prefect-assets">
+            Build a social media analytics dashboard using Prefect Assets, ATProto/Bluesky APIs, dbt transformations, and Streamlit visualization.
+        </Card>
+
+
+        <Card title="Simple web scraper" icon="globe" href="/v3/examples/simple-web-scraper">
+            Learn how to scrape article content from web pages with Prefect tasks, retries, and automatic logging.
+        </Card>
+
+
+        <Card title="AI-Powered Data Analyst" icon="robot" href="/v3/examples/ai-data-analyst-with-pydantic-ai">
+            Build a resilient AI data analyst using Prefect and `pydantic-ai` to analyze datasets, detect anomalies, and generate insights.
+        </Card>
+
+
+        <Card title="Database Cleanup with Human or AI Approval" icon="database" href="/v3/examples/ai-database-cleanup-with-approval">
+            Build database cleanup workflows that evolve from human oversight to AI autonomy.
+        </Card>
+
+
+        <Card title="Per-worker task concurrency" icon="layer-group" href="/v3/examples/per-worker-task-concurrency">
+            Use Global Concurrency Limits to control how many tasks can use a worker's local resources simultaneously.
+        </Card>
+
+
+        <Card title="Resume Flow Run on PR Merge" icon="github" href="/v3/examples/resume-flow-run-on-pr-merge">
+            Automatically resume failed flow runs when a hotfix PR is merged in GitHub.
+        </Card>
+
+</CardGroup>

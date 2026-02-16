@@ -8,7 +8,7 @@ from httpx import HTTPStatusError, RequestError
 
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectLimitReached, ObjectNotFound
 
 if TYPE_CHECKING:
     import datetime
@@ -99,8 +99,6 @@ class DeploymentClient(BaseClient):
 
         from prefect.client.schemas.actions import DeploymentCreate
 
-        if parameter_openapi_schema is None:
-            parameter_openapi_schema = {}
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -115,7 +113,7 @@ class DeploymentClient(BaseClient):
             entrypoint=entrypoint,
             infrastructure_document_id=infrastructure_document_id,
             job_variables=dict(job_variables or {}),
-            parameter_openapi_schema=parameter_openapi_schema,
+            parameter_openapi_schema=parameter_openapi_schema or {},
             paused=paused,
             schedules=schedules or [],
             concurrency_limit=concurrency_limit,
@@ -159,8 +157,22 @@ class DeploymentClient(BaseClient):
             payload["version_info"] = deployment_create.version_info.model_dump(
                 mode="json"
             )
+        if deployment_create.concurrency_options:
+            payload["concurrency_options"] = (
+                deployment_create.concurrency_options.model_dump(
+                    mode="json", exclude_unset=True
+                )
+            )
 
-        response = self.request("POST", "/deployments/", json=payload)
+        try:
+            response = self.request("POST", "/deployments/", json=payload)
+        except HTTPStatusError as e:
+            if e.response.status_code == 403 and "maximum number" in str(e):
+                raise ObjectLimitReached(http_exc=e) from e
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
 
         deployment_id = response.json().get("id")
         if not deployment_id:
@@ -450,7 +462,12 @@ class DeploymentClient(BaseClient):
     def create_deployment_schedules(
         self,
         deployment_id: UUID,
-        schedules: list[tuple["SCHEDULE_TYPES", bool]],
+        schedules: (
+            list[tuple["SCHEDULE_TYPES", bool]] | list["DeploymentScheduleCreate"]
+        ),
+        max_scheduled_runs: int | None = None,
+        parameters: dict[str, Any] | None = None,
+        slug: str | None = None,
     ) -> list["DeploymentSchedule"]:
         """
         Create deployment schedules.
@@ -458,7 +475,14 @@ class DeploymentClient(BaseClient):
         Args:
             deployment_id: the deployment ID
             schedules: a list of tuples containing the schedule to create
-                       and whether or not it should be active.
+                       and whether or not it should be active, or a list of
+                       DeploymentScheduleCreate objects.
+            max_scheduled_runs: The maximum number of scheduled runs for the schedule.
+                Only used when schedules is a list of tuples.
+            parameters: Parameter overrides for the schedule.
+                Only used when schedules is a list of tuples.
+            slug: A unique identifier for the schedule.
+                Only used when schedules is a list of tuples.
 
         Raises:
             RequestError: if the schedules were not created for any reason
@@ -469,14 +493,24 @@ class DeploymentClient(BaseClient):
         from prefect.client.schemas.actions import DeploymentScheduleCreate
         from prefect.client.schemas.objects import DeploymentSchedule
 
-        deployment_schedule_create = [
-            DeploymentScheduleCreate(schedule=schedule[0], active=schedule[1])
-            for schedule in schedules
-        ]
+        deployment_schedule_create: list[DeploymentScheduleCreate]
+        if schedules and isinstance(schedules[0], tuple):
+            tuple_schedules: list[tuple[SCHEDULE_TYPES, bool]] = schedules  # type: ignore[assignment]
+            deployment_schedule_create = [
+                DeploymentScheduleCreate(
+                    schedule=sched[0],
+                    active=sched[1],
+                    max_scheduled_runs=max_scheduled_runs,
+                    parameters=parameters or {},
+                    slug=slug,
+                )
+                for sched in tuple_schedules
+            ]
+        else:
+            deployment_schedule_create = schedules  # type: ignore[assignment]
 
         json = [
-            deployment_schedule_create.model_dump(mode="json")
-            for deployment_schedule_create in deployment_schedule_create
+            schedule.model_dump(mode="json") for schedule in deployment_schedule_create
         ]
         response = self.request(
             "POST",
@@ -520,6 +554,9 @@ class DeploymentClient(BaseClient):
         schedule_id: UUID,
         active: bool | None = None,
         schedule: "SCHEDULE_TYPES | None" = None,
+        max_scheduled_runs: int | None = None,
+        parameters: dict[str, Any] | None = None,
+        slug: str | None = None,
     ) -> None:
         """
         Update a deployment schedule by ID.
@@ -529,6 +566,9 @@ class DeploymentClient(BaseClient):
             schedule_id: the deployment schedule ID of interest
             active: whether or not the schedule should be active
             schedule: the cron, rrule, or interval schedule this deployment schedule should use
+            max_scheduled_runs: The maximum number of scheduled runs for the schedule.
+            parameters: Parameter overrides for the schedule.
+            slug: A unique identifier for the schedule.
         """
         from prefect.client.schemas.actions import DeploymentScheduleUpdate
 
@@ -537,6 +577,12 @@ class DeploymentClient(BaseClient):
             kwargs["active"] = active
         if schedule is not None:
             kwargs["schedule"] = schedule
+        if max_scheduled_runs is not None:
+            kwargs["max_scheduled_runs"] = max_scheduled_runs
+        if parameters is not None:
+            kwargs["parameters"] = parameters
+        if slug is not None:
+            kwargs["slug"] = slug
 
         deployment_schedule_update = DeploymentScheduleUpdate(**kwargs)
         json = deployment_schedule_update.model_dump(mode="json", exclude_unset=True)
@@ -759,8 +805,6 @@ class DeploymentAsyncClient(BaseAsyncClient):
 
         from prefect.client.schemas.actions import DeploymentCreate
 
-        if parameter_openapi_schema is None:
-            parameter_openapi_schema = {}
         deployment_create = DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -775,7 +819,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             entrypoint=entrypoint,
             infrastructure_document_id=infrastructure_document_id,
             job_variables=dict(job_variables or {}),
-            parameter_openapi_schema=parameter_openapi_schema,
+            parameter_openapi_schema=parameter_openapi_schema or {},
             paused=paused,
             schedules=schedules or [],
             concurrency_limit=concurrency_limit,
@@ -819,8 +863,25 @@ class DeploymentAsyncClient(BaseAsyncClient):
             payload["version_info"] = deployment_create.version_info.model_dump(
                 mode="json"
             )
+        if deployment_create.concurrency_options:
+            payload["concurrency_options"] = (
+                deployment_create.concurrency_options.model_dump(
+                    mode="json", exclude_unset=True
+                )
+            )
 
-        response = await self.request("POST", "/deployments/", json=payload)
+        try:
+            response = await self.request("POST", "/deployments/", json=payload)
+        except HTTPStatusError as e:
+            if e.response.status_code == 403 and "maximum number of deployments" in str(
+                e
+            ):
+                raise ObjectLimitReached(http_exc=e) from e
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+
         deployment_id = response.json().get("id")
         if not deployment_id:
             raise RequestError(f"Malformed response: {response}")
@@ -1114,7 +1175,12 @@ class DeploymentAsyncClient(BaseAsyncClient):
     async def create_deployment_schedules(
         self,
         deployment_id: UUID,
-        schedules: list[tuple["SCHEDULE_TYPES", bool]],
+        schedules: (
+            list[tuple["SCHEDULE_TYPES", bool]] | list["DeploymentScheduleCreate"]
+        ),
+        max_scheduled_runs: int | None = None,
+        parameters: dict[str, Any] | None = None,
+        slug: str | None = None,
     ) -> list["DeploymentSchedule"]:
         """
         Create deployment schedules.
@@ -1122,7 +1188,14 @@ class DeploymentAsyncClient(BaseAsyncClient):
         Args:
             deployment_id: the deployment ID
             schedules: a list of tuples containing the schedule to create
-                       and whether or not it should be active.
+                       and whether or not it should be active, or a list of
+                       DeploymentScheduleCreate objects.
+            max_scheduled_runs: The maximum number of scheduled runs for the schedule.
+                Only used when schedules is a list of tuples.
+            parameters: Parameter overrides for the schedule.
+                Only used when schedules is a list of tuples.
+            slug: A unique identifier for the schedule.
+                Only used when schedules is a list of tuples.
 
         Raises:
             RequestError: if the schedules were not created for any reason
@@ -1133,14 +1206,24 @@ class DeploymentAsyncClient(BaseAsyncClient):
         from prefect.client.schemas.actions import DeploymentScheduleCreate
         from prefect.client.schemas.objects import DeploymentSchedule
 
-        deployment_schedule_create = [
-            DeploymentScheduleCreate(schedule=schedule[0], active=schedule[1])
-            for schedule in schedules
-        ]
+        deployment_schedule_create: list[DeploymentScheduleCreate]
+        if schedules and isinstance(schedules[0], tuple):
+            tuple_schedules: list[tuple[SCHEDULE_TYPES, bool]] = schedules  # type: ignore[assignment]
+            deployment_schedule_create = [
+                DeploymentScheduleCreate(
+                    schedule=sched[0],
+                    active=sched[1],
+                    max_scheduled_runs=max_scheduled_runs,
+                    parameters=parameters or {},
+                    slug=slug,
+                )
+                for sched in tuple_schedules
+            ]
+        else:
+            deployment_schedule_create = schedules  # type: ignore[assignment]
 
         json = [
-            deployment_schedule_create.model_dump(mode="json")
-            for deployment_schedule_create in deployment_schedule_create
+            schedule.model_dump(mode="json") for schedule in deployment_schedule_create
         ]
         response = await self.request(
             "POST",
@@ -1184,6 +1267,9 @@ class DeploymentAsyncClient(BaseAsyncClient):
         schedule_id: UUID,
         active: bool | None = None,
         schedule: "SCHEDULE_TYPES | None" = None,
+        max_scheduled_runs: int | None = None,
+        parameters: dict[str, Any] | None = None,
+        slug: str | None = None,
     ) -> None:
         """
         Update a deployment schedule by ID.
@@ -1193,6 +1279,9 @@ class DeploymentAsyncClient(BaseAsyncClient):
             schedule_id: the deployment schedule ID of interest
             active: whether or not the schedule should be active
             schedule: the cron, rrule, or interval schedule this deployment schedule should use
+            max_scheduled_runs: The maximum number of scheduled runs for the schedule.
+            parameters: Parameter overrides for the schedule.
+            slug: A unique identifier for the schedule.
         """
         from prefect.client.schemas.actions import DeploymentScheduleUpdate
 
@@ -1201,6 +1290,12 @@ class DeploymentAsyncClient(BaseAsyncClient):
             kwargs["active"] = active
         if schedule is not None:
             kwargs["schedule"] = schedule
+        if max_scheduled_runs is not None:
+            kwargs["max_scheduled_runs"] = max_scheduled_runs
+        if parameters is not None:
+            kwargs["parameters"] = parameters
+        if slug is not None:
+            kwargs["slug"] = slug
 
         deployment_schedule_update = DeploymentScheduleUpdate(**kwargs)
         json = deployment_schedule_update.model_dump(mode="json", exclude_unset=True)

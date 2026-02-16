@@ -10,7 +10,6 @@ from httpx import Response
 from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.blocks.core import Block
 from prefect.blocks.webhook import Webhook
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -29,7 +28,11 @@ from prefect.server.events.schemas.automations import (
     TriggeredAction,
     TriggerState,
 )
-from prefect.server.events.schemas.events import ReceivedEvent, RelatedResource
+from prefect.server.events.schemas.events import (
+    ReceivedEvent,
+    RelatedResource,
+    Resource,
+)
 from prefect.server.models import deployments, flow_runs, flows, work_queues
 from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import Deployment, Flow, FlowRun, WorkQueue
@@ -336,7 +339,10 @@ async def test_validation_error_loading_block(took_a_picture: TriggeredAction):
     assert isinstance(action, actions.CallWebhook)
     error = ValueError("woops")
     expected_reason = re.escape("The webhook block was invalid: ValueError('woops')")
-    with mock.patch.object(Block, "_from_block_document", side_effect=error):
+    with mock.patch(
+        "prefect.server.events.actions._load_block_from_block_document",
+        side_effect=error,
+    ):
         with pytest.raises(actions.ActionFailed, match=expected_reason):
             await action.act(took_a_picture)
 
@@ -355,10 +361,30 @@ async def test_success_event(
     await action.act(call_webhook)
     await action.succeed(call_webhook)
 
+    block_loaded_event = AssertingEventsClient.all[0].events[0]
+    assert block_loaded_event is not None
+
+    assert block_loaded_event.event == "prefect.block.webhook.loaded"
+    assert block_loaded_event.resource == Resource.model_validate(
+        {
+            "prefect.resource.id": f"prefect.block-document.{webhook_block_id}",
+            "prefect.resource.name": "webhook-test",
+        }
+    )
+    assert block_loaded_event.related == [
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": "prefect.block-type.webhook",
+                "prefect.resource.role": "block-type",
+            }
+        ),
+    ]
+
     assert AssertingEventsClient.last
     (triggered_event, executed_event) = AssertingEventsClient.last.events
 
     assert triggered_event.event == "prefect.automation.action.triggered"
+    assert call_webhook.triggering_event is not None
     assert triggered_event.related == [
         RelatedResource.model_validate(
             {
@@ -371,6 +397,12 @@ async def test_success_event(
             {
                 "prefect.resource.id": "prefect.block-type.webhook",
                 "prefect.resource.role": "block-type",
+            }
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{call_webhook.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
             }
         ),
     ]
@@ -393,6 +425,12 @@ async def test_success_event(
             {
                 "prefect.resource.id": "prefect.block-type.webhook",
                 "prefect.resource.role": "block-type",
+            }
+        ),
+        RelatedResource.model_validate(
+            {
+                "prefect.resource.id": f"prefect.event.{call_webhook.triggering_event.id}",
+                "prefect.resource.role": "triggering-event",
             }
         ),
     ]

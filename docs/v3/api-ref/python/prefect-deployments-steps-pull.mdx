@@ -26,13 +26,13 @@ Sets the working directory; works with both absolute and relative paths.
 
 **Returns:**
 - a dictionary containing a `directory` key of the
-directory that was set
+absolute path of the directory that was set
 
 
 ### `agit_clone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-agit_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None) -> dict[str, str]
+agit_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None, clone_directory_name: Optional[str] = None) -> dict[str, str]
 ```
 
 
@@ -47,6 +47,8 @@ Asynchronously clones a git repository into the current working directory.
 the repository will be cloned using the default git credentials
 - `credentials`: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
 credentials to use for cloning the repository.
+- `clone_directory_name`: the name of the local directory to clone into; if not provided,
+the name will be inferred from the repository URL and branch
 
 **Returns:**
 - a dictionary containing a `directory` key of the new directory that was created
@@ -55,10 +57,10 @@ credentials to use for cloning the repository.
 - `subprocess.CalledProcessError`: if the git clone command fails for any reason
 
 
-### `git_clone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `git_clone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-git_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None) -> dict[str, str]
+git_clone(repository: str, branch: Optional[str] = None, commit_sha: Optional[str] = None, include_submodules: bool = False, access_token: Optional[str] = None, credentials: Optional['Block'] = None, directories: Optional[list[str]] = None, clone_directory_name: Optional[str] = None) -> dict[str, str]
 ```
 
 
@@ -74,6 +76,8 @@ the repository will be cloned using the default git credentials
 - `credentials`: a GitHubCredentials, GitLabCredentials, or BitBucketCredentials block can be used to specify the
 credentials to use for cloning the repository.
 - `directories`: Specify directories you want to be included (uses git sparse-checkout)
+- `clone_directory_name`: the name of the local directory to clone into; if not provided,
+the name will be inferred from the repository URL and branch
 
 **Returns:**
 - a dictionary containing a `directory` key of the new directory that was created
@@ -113,7 +117,7 @@ pull:
         repository: https://github.com/org/repo.git
         access_token: "{{ prefect.blocks.secret.github-access-token }}" # Requires creation of a Secret block
 ```
-Note that you will need to [create a Secret block](/concepts/blocks/#using-existing-block-types) to store the
+Note that you will need to [create a Secret block](https://docs.prefect.io/v3/concepts/blocks/#pre-registered-blocks) to store the
 value of your git credentials. You can also store a username/password combo or token prefix (e.g. `x-token-auth`)
 in your secret block. Refer to your git providers documentation for the correct authentication schema.
 
@@ -141,8 +145,17 @@ pull:
         directories: ["dir_1", "dir_2", "prefect"]
 ```
 
+Clone a repository with a custom directory name:
+```yaml
+pull:
+    - prefect.deployments.steps.git_clone:
+        repository: https://github.com/org/repo.git
+        branch: dev
+        clone_directory_name: my-custom-name
+```
 
-### `pull_from_remote_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `pull_from_remote_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L226" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_from_remote_storage(url: str, **settings: Any) -> dict[str, Any]
@@ -182,7 +195,7 @@ pull:
 ```
 
 
-### `pull_with_block` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pull_with_block` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/steps/pull.py#L268" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pull_with_block(block_document_name: str, block_type_slug: str) -> dict[str, Any]

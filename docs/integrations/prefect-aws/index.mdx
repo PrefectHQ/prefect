@@ -1,9 +1,17 @@
 ---
 title: prefect-aws
+description: Build production-ready data workflows that seamlessly integrate with AWS services. `prefect-aws` provides battle-tested blocks, tasks, and infrastructure integrations for AWS, including ECS orchestration, S3 storage, Secrets Manager, Lambda functions, Batch computing, and Glue ETL operations.
+keywords: ["aws", "integration", "s3", "ecs", "lambda"]
 ---
 
-The `prefect-aws` integration makes it easy to leverage the capabilities of AWS in your workflows.
-For example, you can retrieve secrets using AWS Secrets Manager, read and write objects with AWS S3, and deploy your flows on AWS ECS.
+## Why use prefect-aws?
+
+`prefect-aws` offers significant advantages over direct boto3 integration:
+
+- **Production-ready integrations**: Pre-built, tested components that handle common AWS patterns and edge cases
+- **Unified credential management**: Secure, centralized authentication that works consistently across all AWS services
+- **Built-in observability**: Automatic logging, monitoring, and state tracking for all AWS operations
+- **Infrastructure as code**: Deploy and scale workflows on AWS ECS with minimal configuration
 
 ## Getting started
 
@@ -11,9 +19,9 @@ For example, you can retrieve secrets using AWS Secrets Manager, read and write 
 
 - An [AWS account](https://aws.amazon.com/account/) and the necessary permissions to access desired services.
 
-### Installation
+### Install prefect-aws
 
-Install `prefect-aws` as a dependency of Prefect. If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
+The following command will install a version of `prefect-aws` compatible with your installed version of `prefect`. If you don't already have `prefect` installed, it will install the newest version of `prefect` as well.
 
 ```bash
 pip install "prefect[aws]"
@@ -23,14 +31,6 @@ Upgrade to the latest versions of `prefect` and `prefect-aws`:
 
 ```bash
 pip install -U "prefect[aws]"
-```
-
-### Register newly installed block types
-
-Register the block types in `prefect-aws` to make them available for use.
-
-```bash
-prefect block register -m prefect_aws
 ```
 
 ## Blocks setup
@@ -61,6 +61,33 @@ AwsCredentials(
 Prefect uses the Boto3 library under the hood.
 To find credentials for authentication, any data not provided to the block are sourced at runtime in the order shown in the [Boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials).
 Prefect creates the session object using the values in the block and then, any missing values follow the sequence in the Boto3 docs.
+
+#### IAM Role Assumption
+
+`AwsCredentials` supports assuming IAM roles for cross-account access or enhanced security. When `assume_role_arn` is provided, `get_boto3_session()` automatically assumes the role and returns a session with temporary credentials.
+
+```python
+AwsCredentials(
+    aws_access_key_id="PLACEHOLDER",
+    aws_secret_access_key="PLACEHOLDER",
+    region_name="us-east-2",
+    assume_role_arn="arn:aws:iam::123456789012:role/MyRole",
+    assume_role_kwargs={
+        "RoleSessionName": "my-session",
+        "DurationSeconds": 3600,
+        "ExternalId": "unique-external-id"
+    }
+).save("BLOCK-NAME-PLACEHOLDER")
+```
+
+Available `assume_role_kwargs` parameters include:
+- `RoleSessionName`: Session name for the assumed role
+- `DurationSeconds`: Session duration (900-43200 seconds)
+- `ExternalId`: Unique identifier for third-party access
+- `Policy`: Inline session policy (JSON string)
+- `PolicyArns`: List of managed policy ARNs
+- `Tags`: Session tags for attribution
+- `SerialNumber` and `TokenCode`: For MFA authentication
 
 ### S3
 
@@ -103,14 +130,125 @@ AwsSecret(
 
 ```
 
+## RDS IAM Authentication (Experimental)
 
-## Run flows on AWS ECS
+`prefect-aws` includes a plugin to automatically handle authentication for AWS RDS PostgreSQL databases using IAM tokens.
 
-Run flows on [AWS Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) to dynamically scale your infrastructure.
+### Prerequisites
 
-Prefect Cloud offers [ECS push work pools](/v3/deploy/infrastructure-examples/serverless). Push work pools submit runs directly to ECS, instead of requiring a worker to actively poll for flow runs to execute.
+Before using RDS IAM authentication, you need to configure AWS:
 
-See the [ECS work pool guide](/integrations/prefect-aws/ecs_guide) for a walkthrough of using ECS in a hybrid work pool.
+1. **Enable IAM authentication on your RDS instance**: In the AWS Console, modify your RDS instance and enable "IAM database authentication".
+
+2. **Create an IAM policy** with the `rds-db:connect` permission:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": "rds-db:connect",
+         "Resource": "arn:aws:rds-db:<region>:<account-id>:dbuser:<db-resource-id>/<db-username>"
+       }
+     ]
+   }
+   ```
+
+3. **Create a database user** that uses IAM authentication:
+   ```sql
+   CREATE USER iam_user WITH LOGIN;
+   GRANT rds_iam TO iam_user;
+   ```
+
+### Enable the Plugin
+
+1. Enable the experimental plugin system:
+   ```bash
+   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true
+   ```
+
+2. Enable RDS IAM authentication:
+   ```bash
+   export PREFECT_INTEGRATIONS_AWS_RDS_IAM_ENABLED=true
+   ```
+
+3. (Optional) Set the AWS region:
+   ```bash
+   export PREFECT_INTEGRATIONS_AWS_RDS_IAM_REGION_NAME=us-west-2
+   ```
+
+4. Configure your database connection URL:
+   ```bash
+   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@your-rds-host:5432/prefect"
+   ```
+
+The plugin will automatically generate and inject an IAM authentication token as the password when connecting to the database.
+
+## Supported AWS services
+
+`prefect-aws` provides comprehensive integrations for key AWS services:
+
+| Service | Integration Type | Use Cases |
+|---------|-----------------|-----------|
+| **S3** | `S3Bucket` block | File storage, data lake operations, deployment storage |
+| **Secrets Manager** | `AwsSecret` block | Secure credential storage, API key management |
+| **Lambda** | `LambdaFunction` block | Serverless function execution, event-driven processing |
+| **Glue** | `GlueJobBlock` block | ETL operations, data transformation pipelines |
+| **ECS** | `ECSWorker` infrastructure | Container orchestration, scalable compute workloads |
+| **Batch** | `batch_submit` task | High-throughput computing, batch job processing |
+
+**Integration types:**
+- **Blocks**: Reusable configuration objects that can be saved and shared across flows
+- **Tasks**: Functions decorated with `@task` for direct use in flows
+- **Workers**: Infrastructure components for running flows on AWS compute services
+
+## Scale workflows with AWS infrastructure
+
+### ECS (Elastic Container Service)
+
+Deploy and scale your Prefect workflows on [AWS ECS](https://aws.amazon.com/ecs/) for production workloads. `prefect-aws` provides:
+
+- **ECS worker**: Long-running worker for hybrid deployments with full control over execution environment
+- **Auto-scaling**: Dynamic resource allocation based on workflow demands
+- **Cost optimization**: Pay only for compute resources when workflows are running
+
+See the [ECS worker deployment guide](/integrations/prefect-aws/ecs-worker) for a step-by-step walkthrough of deploying production-ready workers to your ECS cluster.
+
+### Docker Images
+
+Pre-built Docker images with `prefect-aws` are available for simplified deployment:
+
+```bash
+docker pull prefecthq/prefect-aws:latest
+```
+
+#### Available Tags
+
+Image tags have the following format:
+- `prefecthq/prefect-aws:latest` - Latest stable release with Python 3.12
+- `prefecthq/prefect-aws:latest-python3.11` - Latest stable with Python 3.11
+- `prefecthq/prefect-aws:0.5.9-python3.12` - Specific prefect-aws version with Python 3.12
+- `prefecthq/prefect-aws:0.5.9-python3.12-prefect3.4.9` - Full version specification
+
+#### Usage Examples
+
+**Running an ECS worker:**
+```bash
+docker run -d \
+  --name prefect-ecs-worker \
+  -e PREFECT_API_URL=https://api.prefect.cloud/api/accounts/your-account/workspaces/your-workspace \
+  -e PREFECT_API_KEY=your-api-key \
+  prefecthq/prefect-aws:latest \
+  prefect worker start --pool ecs-pool
+```
+
+**Local development:**
+```bash
+docker run -it --rm \
+  -v $(pwd):/opt/prefect \
+  prefecthq/prefect-aws:latest \
+  python your_flow.py
+```
 
 ## Examples
 
@@ -244,8 +382,12 @@ if __name__ == "__main__":
 
 ## Resources
 
-For assistance using AWS, consult the [AWS documentation](https://docs.aws.amazon.com/) and, in particular, the [Boto3 documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html).
+### Documentation
+- **[prefect-aws SDK Reference](https://reference.prefect.io/prefect_aws/)** - Complete API documentation for all blocks and tasks
+- **[ECS Deployment Guide](/integrations/prefect-aws/ecs-worker)** - Step-by-step guide for deploying workflows on ECS
+- **[Prefect Secrets Management](/v3/develop/secrets)** - Using AWS credentials with third-party services
 
-Refer to the `prefect-aws` [SDK documentation](https://reference.prefect.io/prefect_aws/) to explore all the capabilities of the `prefect-aws` library.
-
-Refer to the [secrets documentation](/v3/develop/secrets) to see an example of using the `AwsCredentials` block with a third-party service like Snowflake. The example does not require you to save your AWS credentials as part of the Snowflake block.
+### AWS Resources
+- **[AWS Documentation](https://docs.aws.amazon.com/)** - Official AWS service documentation
+- **[Boto3 Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)** - Python SDK reference for AWS services
+- **[AWS IAM Best Practices](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html)** - Security recommendations for AWS access

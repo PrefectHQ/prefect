@@ -39,6 +39,33 @@ deployments:
           param_1: "{{ event }}"
 ```
 
+### Scheduling delayed deployment runs
+
+You can configure deployment triggers to run after a specified delay using the `schedule_after` field. This is useful for implementing opt-out workflows or providing review windows before automated actions:
+
+```yaml
+deployments:
+  - name: campaign-execution
+    entrypoint: path/to/campaign.py:execute_campaign
+    work_pool:
+      name: my-work-pool
+    triggers:
+      - type: event
+        enabled: true
+        match:
+          prefect.resource.id: marketing.campaign
+        expect:
+          - campaign.proposal.created
+        schedule_after: "PT2H"  # Wait 2 hours before execution
+        parameters:
+          campaign_id: "{{ event.resource.id }}"
+```
+
+The `schedule_after` field accepts:
+- **ISO 8601 durations** (e.g., "PT2H" for 2 hours, "PT30M" for 30 minutes)
+- **Seconds as integer** (e.g., 7200 for 2 hours)
+- **Python timedelta objects** in code
+
 This deployment creates a flow run when an `external.resource.pinged` event _and_ an `external.resource.replied`
 event have been seen from `my.external.resource`:
 
@@ -53,6 +80,7 @@ deployments:
         require: all
         parameters:
           param_1: "{{ event }}"
+        schedule_after: "PT1H"  # Wait 1 hour before running
         triggers:
           - type: event
             match:
@@ -110,6 +138,7 @@ To create deployments with triggers in Python, the trigger types `DeploymentEven
 from `prefect.events`:
 
 ```python
+from datetime import timedelta
 from prefect import flow
 from prefect.events import DeploymentEventTrigger
 
@@ -127,6 +156,7 @@ if __name__=="__main__":
                 enabled=True,
                 match={"prefect.resource.id": "my.external.resource"},
                 expect=["external.resource.pinged"],
+                schedule_after=timedelta(hours=1),  # Wait 1 hour before running
                 parameters={
                     "param_1": "{{ event }}",
                 },
@@ -138,6 +168,7 @@ if __name__=="__main__":
 As with prior examples, you must supply composite triggers with a list of underlying triggers:
 
 ```python
+from datetime import timedelta
 from prefect import flow
 from prefect.events import DeploymentCompoundTrigger
 
@@ -156,6 +187,7 @@ if __name__=="__main__":
                 enabled=True,
                 name="my-compound-trigger",
                 require="all",
+                schedule_after=timedelta(minutes=30),  # Wait 30 minutes
                 triggers=[
                     {
                       "type": "event",

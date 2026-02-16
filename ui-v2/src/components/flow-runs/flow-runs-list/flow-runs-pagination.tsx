@@ -15,7 +15,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 
-const PAGINATION_INCREMENTS = [5, 10, 25, 50];
+const PAGINATION_INCREMENTS = [5, 10, 25, 50, 100];
 
 export type PaginationState = {
 	limit: number;
@@ -30,12 +30,14 @@ type FlowRunsPaginationProps = {
 	pages: number;
 	pagination: PaginationState;
 	onChangePagination: (pagination: PaginationState) => void;
+	onPrefetchPage?: (page: number) => void;
 };
 export const FlowRunsPagination = ({
 	count,
 	pages,
 	pagination,
 	onChangePagination,
+	onPrefetchPage,
 }: FlowRunsPaginationProps) => {
 	const handleFirstPage = () =>
 		onChangePagination({ limit: pagination.limit, page: 1 });
@@ -46,6 +48,19 @@ export const FlowRunsPagination = ({
 
 	const handleLastPage = () =>
 		onChangePagination({ limit: pagination.limit, page: pages });
+
+	const handlePrefetchFirstPage = () => {
+		if (pagination.page > 1) onPrefetchPage?.(1);
+	};
+	const handlePrefetchPreviousPage = () => {
+		if (pagination.page > 1) onPrefetchPage?.(pagination.page - 1);
+	};
+	const handlePrefetchNextPage = () => {
+		if (pagination.page < pages) onPrefetchPage?.(pagination.page + 1);
+	};
+	const handlePrefetchLastPage = () => {
+		if (pagination.page < pages) onPrefetchPage?.(pages);
+	};
 
 	const disablePreviousPage = pagination.page <= 1;
 	const disableNextPage = pagination.page >= pages;
@@ -85,25 +100,29 @@ export const FlowRunsPagination = ({
 					<PaginationItem>
 						<PaginationFirstButton
 							onClick={handleFirstPage}
+							onMouseEnter={handlePrefetchFirstPage}
 							disabled={disablePreviousPage}
 						/>
 						<PaginationPreviousButton
 							onClick={handlePreviousPage}
+							onMouseEnter={handlePrefetchPreviousPage}
 							disabled={disablePreviousPage}
 						/>
 					</PaginationItem>
 					<PaginationItem className="text-sm">
-						Page {pagination.page} of {pages}
+						Page {pages === 0 ? 0 : pagination.page} of {pages}
 					</PaginationItem>
 					<PaginationItem>
 						<PaginationNextButton
 							onClick={handleNextPage}
+							onMouseEnter={handlePrefetchNextPage}
 							disabled={disableNextPage}
 						/>
 					</PaginationItem>
 					<PaginationItem>
 						<PaginationLastButton
 							onClick={handleLastPage}
+							onMouseEnter={handlePrefetchLastPage}
 							disabled={disableNextPage}
 						/>
 					</PaginationItem>

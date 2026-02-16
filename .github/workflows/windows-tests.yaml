@@ -2,13 +2,16 @@ name: Windows Tests
 
 on:
   workflow_dispatch: {}
-  # pull_request:
-  #   branches:
-  #   paths:
-  #     - "pyproject.toml"
-  #     - "src/prefect/**/*.py"
-  #     - "scripts/test_unc_paths.py"
-  #     - ".github/workflows/windows-tests.yaml"
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - "src/prefect/testing/**/*.py"
+      - "tests/testing/**/*.py"
+      - "src/prefect/utilities/processutils.py"
+      - "src/prefect/runner/runner.py"
+      - "src/prefect/cli/server.py"
+      - "scripts/test_unc_paths.py"
+      - ".github/workflows/windows-tests.yaml"
 
 permissions: {}
 
@@ -19,8 +22,10 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - "3.9"
+          - "3.10"
+          - "3.11"
           - "3.12"
+          # Python 3.14 is excluded because asyncpg doesn't compile on Windows
 
       fail-fast: true
 
@@ -35,22 +40,22 @@ jobs:
       PY_COLORS: 1
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
           cache-dependency-glob: "pyproject.toml"
 
-      - name: Run tests
+      - name: Run Windows-specific tests
         run: |
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          uv run pytest tests -vv --numprocesses auto --dist worksteal --exclude-services --durations=25
+          # Only run tests marked with @pytest.mark.windows
+          uv run pytest tests -vv -m windows --durations=25
 
   test-unc-paths:
     name: Test Windows UNC Paths
@@ -61,13 +66,13 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Python
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: "3.12"

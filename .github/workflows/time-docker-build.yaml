@@ -16,7 +16,7 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -29,7 +29,7 @@ jobs:
       # For PRs, checkout the base branch to compare against
       - name: Checkout base branch
         if: github.base_ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.base_ref }}
           clean: true
@@ -49,6 +49,7 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             --no-cache \
             --progress=plain \
+            --build-arg NODE_VERSION=20.19.0 \
             .
           end_time=$(date +%s)
           base_time=$((end_time - start_time))
@@ -57,7 +58,7 @@ jobs:
       # For PRs, checkout back to the PR's HEAD
       - name: Checkout PR branch
         if: github.base_ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.head_ref }}
           clean: true
@@ -85,14 +86,14 @@ jobs:
         run: |
           CURRENT_TIME=${{ steps.build_time.outputs.build_time }}
 
-          if [ "${{ github.base_ref }}" != "" ]; then
+          if [ "$GITHUB_BASE_REF" != "" ]; then
             BASE_TIME=${{ steps.base_build_time.outputs.base_time }}
 
             echo "### 🏗️ Docker Build Time Comparison" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "| Branch | Build Time | Difference |" >> $GITHUB_STEP_SUMMARY
             echo "|--------|------------|------------|" >> $GITHUB_STEP_SUMMARY
-            echo "| base (${{ github.base_ref }}) | ${BASE_TIME}s | - |" >> $GITHUB_STEP_SUMMARY
+            echo "| base ($GITHUB_BASE_REF) | ${BASE_TIME}s | - |" >> $GITHUB_STEP_SUMMARY
 
             DIFF=$((CURRENT_TIME - BASE_TIME))
             PERCENT=$(echo "scale=2; ($CURRENT_TIME - $BASE_TIME) * 100 / $BASE_TIME" | bc)
@@ -105,7 +106,7 @@ jobs:
               DIFF_TEXT="✨ No change"
             fi
 
-            echo "| current (${{ github.head_ref }}) | ${CURRENT_TIME}s | $DIFF_TEXT |" >> $GITHUB_STEP_SUMMARY
+            echo "| current ($GITHUB_HEAD_REF) | ${CURRENT_TIME}s | $DIFF_TEXT |" >> $GITHUB_STEP_SUMMARY
 
             # Fail if build time increased by more than 5%
             if (( $(echo "$PERCENT > 5" | bc -l) )); then

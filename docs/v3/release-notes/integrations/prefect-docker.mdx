@@ -1,0 +1,31 @@
+---
+title: prefect-docker
+---
+
+## 0.7.1
+
+_Released on January 15, 2026_
+
+**Features**
+
+- Add `kill_infrastructure` method to worker integrations [#20075](https://github.com/PrefectHQ/prefect/pull/20075) by [@joshuastagner](https://github.com/joshuastagner)
+
+**Bug Fixes**
+
+- Fix `DockerRegistryCredentials` and `DockerHost` to fallback to standard logger [#20105](https://github.com/PrefectHQ/prefect/pull/20105) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+---
+
+## 0.7.0
+
+_Released on December 19, 2025_
+
+**Enhancements**
+
+- Only authenticate to Docker registry when image pull is required [#19869](https://github.com/PrefectHQ/prefect/pull/19869) by [@desertaxle](https://github.com/desertaxle)
+- Update ad hoc installations to use `uv` if available [#18618](https://github.com/PrefectHQ/prefect/pull/18618) by [@desertaxle](https://github.com/desertaxle)
+- Log warning if volumes set via create kwargs [#18233](https://github.com/PrefectHQ/prefect/pull/18233) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Breaking Changes**
+
+- Remove Python 3.9 support [#19273](https://github.com/PrefectHQ/prefect/pull/19273) by [@desertaxle](https://github.com/desertaxle)

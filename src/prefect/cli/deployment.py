@@ -8,7 +8,7 @@ import json
 import sys
 import textwrap
 import warnings
-from asyncio import iscoroutine
+from asyncio import gather, iscoroutine
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from uuid import UUID
@@ -24,9 +24,15 @@ import prefect.types._datetime
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.cli.root import app, is_interactive
 from prefect.client.orchestration import get_client
-from prefect.client.schemas.filters import FlowFilter, FlowFilterId, FlowFilterName
+from prefect.client.schemas.filters import (
+    DeploymentFilter,
+    FlowFilter,
+    FlowFilterId,
+    FlowFilterName,
+)
 from prefect.client.schemas.objects import DeploymentSchedule
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.client.schemas.schedules import (
@@ -40,7 +46,6 @@ from prefect.exceptions import (
     ObjectNotFound,
     PrefectHTTPStatusError,
 )
-from prefect.flow_runs import wait_for_flow_run
 from prefect.states import Scheduled
 from prefect.types._datetime import (
     DateTime,
@@ -501,68 +506,173 @@ async def delete_schedule(
         exit_with_success(f"Deleted deployment schedule {schedule_id}")
 
 
-@schedule_app.command("pause")
-async def pause_schedule(deployment_name: str, schedule_id: UUID):
-    """
-    Pause a deployment schedule.
-    """
-    assert_deployment_name_format(deployment_name)
+async def _set_schedule_activation(
+    deployment_name: Optional[str],
+    schedule_id: Optional[UUID],
+    _all: bool,
+    activate: bool,
+) -> None:
+    """Enable or disable deployment schedules for one or all deployments."""
+    past_tense = "resumed" if activate else "paused"
+    present_tense = "resume" if activate else "pause"
 
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(deployment_name)
-        except ObjectNotFound:
-            return exit_with_error(f"Deployment {deployment_name!r} not found!")
+    # Early argument validation
+    if _all and (deployment_name is not None or schedule_id is not None):
+        return exit_with_error(
+            "Cannot specify deployment name or schedule ID with --all"
+        )
+    if not _all and (deployment_name is None or schedule_id is None):
+        return exit_with_error(
+            "Must provide deployment name and schedule ID, or use --all"
+        )
 
-        try:
-            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
-        except IndexError:
-            return exit_with_error("Deployment schedule not found!")
+    if _all:
+        async with get_client() as client:
+            # Read all deployments with pagination to avoid truncation at default limits
+            deployments: list[DeploymentResponse] = []
+            page_limit = 200
+            offset = 0
+            while True:
+                page = await client.read_deployments(
+                    deployment_filter=DeploymentFilter(),
+                    limit=page_limit,
+                    offset=offset,
+                )
+                if not page:
+                    break
+                deployments.extend(page)
+                if len(page) < page_limit:
+                    break
+                offset += page_limit
 
-        if not schedule.active:
-            return exit_with_error(
-                f"Deployment schedule {schedule_id} is already inactive"
+            if not deployments:
+                return exit_with_success("No deployments found.")
+
+            schedules_to_update = sum(
+                1 for d in deployments for s in d.schedules if s.active != activate
             )
 
-        await client.update_deployment_schedule(
-            deployment.id, schedule_id, active=False
-        )
-        exit_with_success(
-            f"Paused schedule {schedule.schedule} for deployment {deployment_name}"
-        )
+            if schedules_to_update == 0:
+                state_msg = "inactive" if activate else "active"
+                return exit_with_success(
+                    f"No {state_msg} schedules found to {present_tense}."
+                )
+
+            if is_interactive() and not typer.confirm(
+                f"Are you sure you want to {present_tense} {schedules_to_update} schedule(s) across all deployments?",
+                default=False,
+            ):
+                return exit_with_error("Operation cancelled.")
+
+            update_tasks = []
+            deployment_names = []
+            for deployment in deployments:
+                if deployment.schedules:
+                    for schedule in deployment.schedules:
+                        if schedule.active != activate:
+                            update_tasks.append((deployment.id, schedule.id))
+                            deployment_names.append(deployment.name)
+
+            if update_tasks:
+                import asyncio
+
+                semaphore = asyncio.Semaphore(10)
+
+                async def limited_update(dep_id: UUID, sched_id: UUID):
+                    async with semaphore:
+                        await client.update_deployment_schedule(
+                            dep_id, sched_id, active=activate
+                        )
+
+                await gather(*[limited_update(did, sid) for did, sid in update_tasks])
+
+                # Display progress after all updates complete
+                for name in deployment_names:
+                    app.console.print(
+                        f"{past_tense.capitalize()} schedule for deployment [cyan]{name}[/cyan]"
+                    )
+
+            exit_with_success(
+                f"{past_tense.capitalize()} {len(update_tasks)} deployment schedule(s)."
+            )
+
+    else:
+        assert_deployment_name_format(deployment_name)
+
+        async with get_client() as client:
+            try:
+                deployment = await client.read_deployment_by_name(deployment_name)
+            except ObjectNotFound:
+                return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+            schedule = next(
+                (s for s in deployment.schedules if s.id == schedule_id), None
+            )
+            if schedule is None:
+                return exit_with_error("Deployment schedule not found!")
+
+            if schedule.active == activate:
+                state = "active" if activate else "inactive"
+                return exit_with_error(
+                    f"Deployment schedule {schedule_id} is already {state}"
+                )
+
+            await client.update_deployment_schedule(
+                deployment.id, schedule_id, active=activate
+            )
+            exit_with_success(
+                f"{past_tense.capitalize()} schedule {schedule.schedule} for deployment {deployment_name}"
+            )
+
+
+@schedule_app.command("pause")
+async def pause_schedule(
+    deployment_name: Optional[str] = typer.Argument(None),
+    schedule_id: Optional[UUID] = typer.Argument(None),
+    _all: bool = typer.Option(False, "--all", help="Pause all deployment schedules"),
+):
+    """
+    Pause deployment schedules.
+
+    Examples:
+        Pause a specific schedule:
+            $ prefect deployment schedule pause my-flow/my-deployment abc123-...
+
+        Pause all schedules:
+            $ prefect deployment schedule pause --all
+    """
+    await _set_schedule_activation(deployment_name, schedule_id, _all, activate=False)
 
 
 @schedule_app.command("resume")
-async def resume_schedule(deployment_name: str, schedule_id: UUID):
+async def resume_schedule(
+    deployment_name: Optional[str] = typer.Argument(None),
+    schedule_id: Optional[UUID] = typer.Argument(None),
+    _all: bool = typer.Option(False, "--all", help="Resume all deployment schedules"),
+):
     """
-    Resume a deployment schedule.
+    Resume deployment schedules.
+
+    Examples:
+        Resume a specific schedule:
+            $ prefect deployment schedule resume my-flow/my-deployment abc123-...
+
+        Resume all schedules:
+            $ prefect deployment schedule resume --all
     """
-    assert_deployment_name_format(deployment_name)
-
-    async with get_client() as client:
-        try:
-            deployment = await client.read_deployment_by_name(deployment_name)
-        except ObjectNotFound:
-            return exit_with_error(f"Deployment {deployment_name!r} not found!")
-
-        try:
-            schedule = [s for s in deployment.schedules if s.id == schedule_id][0]
-        except IndexError:
-            return exit_with_error("Deployment schedule not found!")
-
-        if schedule.active:
-            return exit_with_error(
-                f"Deployment schedule {schedule_id} is already active"
-            )
-
-        await client.update_deployment_schedule(deployment.id, schedule_id, active=True)
-        exit_with_success(
-            f"Resumed schedule {schedule.schedule} for deployment {deployment_name}"
-        )
+    await _set_schedule_activation(deployment_name, schedule_id, _all, activate=True)
 
 
 @schedule_app.command("ls")
-async def list_schedules(deployment_name: str):
+async def list_schedules(
+    deployment_name: str,
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     View all schedules for a deployment.
     """
@@ -572,6 +682,9 @@ async def list_schedules(deployment_name: str):
             deployment = await client.read_deployment_by_name(deployment_name)
         except ObjectNotFound:
             return exit_with_error(f"Deployment {deployment_name!r} not found!")
+
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     def sort_by_created_key(schedule: DeploymentSchedule):  # type: ignore
         assert schedule.created is not None, "All schedules should have a created time."
@@ -587,21 +700,32 @@ async def list_schedules(deployment_name: str):
         else:
             return "unknown"
 
-    table = Table(
-        title="Deployment Schedules",
-    )
-    table.add_column("ID", style="blue", no_wrap=True)
-    table.add_column("Schedule", style="cyan", no_wrap=False)
-    table.add_column("Active", style="purple", no_wrap=True)
-
-    for schedule in sorted(deployment.schedules, key=sort_by_created_key):
-        table.add_row(
-            str(schedule.id),
-            schedule_details(schedule),
-            str(schedule.active),
+    if output and output.lower() == "json":
+        schedules_json = [
+            {
+                **schedule.model_dump(mode="json"),
+                "schedule": schedule_details(schedule),
+            }
+            for schedule in deployment.schedules
+        ]
+        json_output = orjson.dumps(schedules_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(
+            title="Deployment Schedules",
         )
+        table.add_column("ID", style="blue", no_wrap=True)
+        table.add_column("Schedule", style="cyan", no_wrap=False)
+        table.add_column("Active", style="purple", no_wrap=True)
 
-    app.console.print(table)
+        for schedule in sorted(deployment.schedules, key=sort_by_created_key):
+            table.add_row(
+                str(schedule.id),
+                schedule_details(schedule),
+                str(schedule.active),
+            )
+
+        app.console.print(table)
 
 
 @schedule_app.command("clear")
@@ -642,10 +766,21 @@ async def clear_schedules(
 
 
 @deployment_app.command()
-async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
+async def ls(
+    flow_name: Optional[list[str]] = None,
+    by_created: bool = False,
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
+):
     """
     View all deployments or deployments for specific flows.
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
     async with get_client() as client:
         deployments = await client.read_deployments(
             flow_filter=FlowFilter(name=FlowFilterName(any_=flow_name))
@@ -668,26 +803,35 @@ async def ls(flow_name: Optional[list[str]] = None, by_created: bool = False):
         assert d.created is not None, "All deployments should have a created time."
         return DateTime.now("utc") - d.created
 
-    table = Table(
-        title="Deployments",
-        expand=True,
-    )
-    table.add_column("Name", style="blue", no_wrap=True, ratio=40)
-    table.add_column("ID", style="cyan", no_wrap=True, ratio=40)
-    table.add_column(
-        "Work Pool", style="green", no_wrap=True, ratio=20, overflow="crop"
-    )
-
-    for deployment in sorted(
-        deployments, key=sort_by_created_key if by_created else sort_by_name_keys
-    ):
-        table.add_row(
-            f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
-            str(deployment.id),
-            deployment.work_pool_name or "",
+    if output and output.lower() == "json":
+        deployments_json = [
+            deployment.model_dump(mode="json") for deployment in deployments
+        ]
+        json_output = orjson.dumps(
+            deployments_json, option=orjson.OPT_INDENT_2
+        ).decode()
+        app.console.print(json_output)
+    else:
+        table = Table(
+            title="Deployments",
+            expand=True,
+        )
+        table.add_column("Name", style="blue", no_wrap=True, ratio=40)
+        table.add_column("ID", style="cyan", no_wrap=True, ratio=40)
+        table.add_column(
+            "Work Pool", style="green", no_wrap=True, ratio=20, overflow="crop"
         )
 
-    app.console.print(table)
+        for deployment in sorted(
+            deployments, key=sort_by_created_key if by_created else sort_by_name_keys
+        ):
+            table.add_row(
+                f"{flows[deployment.flow_id].name}/[bold]{deployment.name}[/]",
+                str(deployment.id),
+                deployment.work_pool_name or "",
+            )
+
+        app.console.print(table)
 
 
 @deployment_app.command()
@@ -790,10 +934,6 @@ async def run(
             multi_params = json.loads(multiparams)
         except ValueError as exc:
             exit_with_error(f"Failed to parse JSON: {exc}")
-        if watch_interval and not watch:
-            exit_with_error(
-                "`--watch-interval` can only be used with `--watch`.",
-            )
     cli_params: dict[str, Any] = _load_json_key_values(params or [], "parameter")
     conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
     if conflicting_keys:
@@ -855,7 +995,11 @@ async def run(
 
         if TYPE_CHECKING:
             assert deployment.parameter_openapi_schema is not None
-        deployment_parameters = deployment.parameter_openapi_schema["properties"].keys()
+        deployment_parameters = (
+            deployment.parameter_openapi_schema.get("properties", {}).keys()
+            if deployment.parameter_openapi_schema
+            else []
+        )
         unknown_keys = set(parameters.keys()).difference(deployment_parameters)
         if unknown_keys:
             available_parameters = (
@@ -924,12 +1068,16 @@ async def run(
         soft_wrap=True,
     )
     if watch:
-        app.console.print(f"Watching flow run {flow_run.name!r}...")
-        finished_flow_run = await wait_for_flow_run(
-            flow_run.id,
-            timeout=watch_timeout,
-            poll_interval=watch_interval,
-            log_states=True,
+        if watch_interval is not None:
+            warnings.warn(
+                "The --watch-interval flag is deprecated and will be removed in a future release. "
+                "Flow run watching now uses real-time event streaming.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        finished_flow_run = await watch_flow_run(
+            flow_run.id, app.console, timeout=watch_timeout
         )
         finished_flow_run_state = finished_flow_run.state
         if finished_flow_run_state is None:

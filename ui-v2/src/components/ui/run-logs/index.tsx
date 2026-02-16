@@ -2,10 +2,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { cva } from "class-variance-authority";
 import { isSameDay } from "date-fns";
 import { format } from "date-fns-tz";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { components } from "@/api/prefect";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils";
 
 type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
@@ -31,20 +31,44 @@ export const RunLogs = ({
 	className,
 }: RunLogsProps) => {
 	const parentRef = useRef<HTMLDivElement>(null);
+
+	// Use a ref to store logs for stable getItemKey callback
+	const logsRef = useRef(logs);
+	logsRef.current = logs;
+
+	const getItemKey = useCallback(
+		(index: number) => logsRef.current[index]?.id ?? index,
+		[],
+	);
+
 	const virtualizer = useVirtualizer({
 		count: logs.length,
 		getScrollElement: () => parentRef.current,
-		estimateSize: () => 75,
+		estimateSize: () => 90,
 		overscan: 5,
+		getItemKey,
 	});
+
+	// Wrap measureElement in a stable callback to prevent infinite re-renders
+	const measureElement = useCallback(
+		(el: HTMLElement | null) => {
+			if (el) {
+				virtualizer.measureElement(el);
+			}
+		},
+		[virtualizer],
+	);
 
 	const virtualItems = virtualize
 		? virtualizer.getVirtualItems()
 		: Array.from({ length: logs.length }, (_, i) => ({
 				index: i,
-				size: 75,
-				start: i * 75,
+				size: 90,
+				start: i * 90,
 			}));
+
+	// Get the last visible item index for stable effect dependency
+	const lastVisibleIndex = virtualItems.at(-1)?.index;
 
 	/**
 	 * This effect detects when the user has scrolled to the bottom of the logs.
@@ -52,16 +76,14 @@ export const RunLogs = ({
 	 * When this condition is met, it calls the bottomReached callback to potentially load more logs.
 	 */
 	useEffect(() => {
-		const [lastItem] = [...virtualItems].reverse();
-
-		if (!lastItem) {
+		if (lastVisibleIndex === undefined) {
 			return;
 		}
 
-		if (lastItem.index >= logs.length - 1) {
+		if (lastVisibleIndex >= logs.length - 1) {
 			onBottomReached();
 		}
-	}, [logs.length, virtualItems, onBottomReached]);
+	}, [logs.length, lastVisibleIndex, onBottomReached]);
 
 	const showDivider = (index: number): boolean => {
 		if (index === 0) {
@@ -76,8 +98,8 @@ export const RunLogs = ({
 
 	if (logs.length === 0) {
 		return (
-			<div className="flex flex-col gap-2 bg-gray-100 p-2 rounded-md font-mono">
-				<span className="text-gray-500">No logs found</span>
+			<div className="flex flex-col gap-2 bg-muted p-2 rounded-md font-mono">
+				<span className="text-muted-foreground">No logs found</span>
 			</div>
 		);
 	}
@@ -86,7 +108,7 @@ export const RunLogs = ({
 		<div
 			ref={parentRef}
 			className={cn(
-				"bg-gray-100 rounded-md font-mono p-4 overflow-y-auto",
+				"bg-muted rounded-md font-mono p-4 overflow-y-auto",
 				className,
 			)}
 			role="log"
@@ -104,12 +126,13 @@ export const RunLogs = ({
 					return (
 						<li
 							key={log.id}
+							data-index={virtualRow.index}
+							ref={measureElement}
 							style={{
 								position: "absolute",
 								top: 0,
 								left: 0,
 								width: "100%",
-								height: `${virtualRow.size}px`,
 								transform: `translateY(${virtualRow.start}px)`,
 							}}
 						>
@@ -132,14 +155,14 @@ type RunLogRowProps = {
 
 const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 	return (
-		<div className="grid grid-cols-[84px_minmax(0,1fr)_150px] gap-2 text-sm">
+		<div className="grid grid-cols-[84px_minmax(0,1fr)_150px] gap-2 text-sm py-2">
 			<div>
 				<LogLevelBadge level={log.level} />
 			</div>
 			<div className="select-auto whitespace-pre-wrap break-words">
 				{log.message}
 			</div>
-			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-gray-500 truncate">
+			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-muted-foreground truncate">
 				<span>{format(log.timestamp, "pp")}</span>
 				{taskRunName && <span>{taskRunName}</span>}
 				<span className="font-bold break-all whitespace-normal">
@@ -196,11 +219,11 @@ function logLevelLabel(level: number): LogLevel {
 const LogDivider = ({ date }: { date: Date }) => {
 	return (
 		<div className="flex flex-row justify-center items-center gap-2">
-			<div className="h-[1px] w-full bg-gray-300" />
-			<span className="text-xs text-gray-500 whitespace-nowrap">
+			<div className="h-[1px] w-full bg-muted-foreground/30" />
+			<span className="text-xs text-muted-foreground whitespace-nowrap">
 				{format(date, "MMM d, yyyy")}
 			</span>
-			<div className="h-[1px] w-full bg-gray-300" />
+			<div className="h-[1px] w-full bg-muted-foreground/30" />
 		</div>
 	);
 };

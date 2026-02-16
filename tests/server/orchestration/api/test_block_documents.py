@@ -4,8 +4,8 @@ from uuid import uuid4
 
 import pytest
 from pydantic import SecretBytes, SecretStr
-from starlette import status
 
+from prefect._internal.compatibility.starlette import status
 from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from httpx import HTTPStatusError, RequestError
 
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
         GlobalConcurrencyLimitCreate,
         GlobalConcurrencyLimitUpdate,
     )
-    from prefect.client.schemas.objects import ConcurrencyLimit
+    from prefect.client.schemas.objects import ConcurrencyLeaseHolder, ConcurrencyLimit
     from prefect.client.schemas.responses import GlobalConcurrencyLimitResponse
 
 
@@ -269,6 +269,7 @@ class ConcurrencyLimitClient(BaseClient):
         slots: int,
         mode: Literal["concurrency", "rate_limit"],
         lease_duration: float,
+        holder: "ConcurrencyLeaseHolder | None" = None,
     ) -> "Response":
         """
         Increment concurrency slots for the specified limits with a lease.
@@ -278,16 +279,21 @@ class ConcurrencyLimitClient(BaseClient):
             slots: The number of concurrency slots to occupy.
             mode: The mode of the concurrency limits.
             lease_duration: The duration of the lease in seconds.
+            holder: Optional holder information for tracking who holds the slots.
         """
+        body: dict[str, Any] = {
+            "names": names,
+            "slots": slots,
+            "mode": mode,
+            "lease_duration": lease_duration,
+        }
+        if holder is not None:
+            body["holder"] = holder.model_dump(mode="json")
+
         return self.request(
             "POST",
             "/v2/concurrency_limits/increment-with-lease",
-            json={
-                "names": names,
-                "slots": slots,
-                "mode": mode,
-                "lease_duration": lease_duration,
-            },
+            json=body,
         )
 
     def renew_concurrency_lease(
@@ -356,11 +362,17 @@ class ConcurrencyLimitClient(BaseClient):
     def create_global_concurrency_limit(
         self, concurrency_limit: "GlobalConcurrencyLimitCreate"
     ) -> "UUID":
-        response = self.request(
-            "POST",
-            "/v2/concurrency_limits/",
-            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
-        )
+        try:
+            response = self.request(
+                "POST",
+                "/v2/concurrency_limits/",
+                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
         from uuid import UUID
 
         return UUID(response.json()["id"])
@@ -414,10 +426,12 @@ class ConcurrencyLimitClient(BaseClient):
             else:
                 raise
 
-    def upsert_global_concurrency_limit_by_name(self, name: str, limit: int) -> None:
+    def upsert_global_concurrency_limit_by_name(
+        self, name: str, limit: int, slot_decay_per_second: float | None = None
+    ) -> None:
         """Creates a global concurrency limit with the given name and limit if one does not already exist.
 
-        If one does already exist matching the name then update it's limit if it is different.
+        If one does already exist matching the name then update it's limit and/or slot_decay_per_second if they are different.
 
         Note: This is not done atomically.
         """
@@ -432,15 +446,22 @@ class ConcurrencyLimitClient(BaseClient):
             existing_limit = None
 
         if not existing_limit:
+            create_kwargs: dict[str, Any] = {"name": name, "limit": limit}
+            if slot_decay_per_second is not None:
+                create_kwargs["slot_decay_per_second"] = slot_decay_per_second
             self.create_global_concurrency_limit(
-                GlobalConcurrencyLimitCreate(
-                    name=name,
-                    limit=limit,
-                )
+                GlobalConcurrencyLimitCreate(**create_kwargs)
             )
-        elif existing_limit.limit != limit:
+        elif existing_limit.limit != limit or (
+            slot_decay_per_second is not None
+            and existing_limit.slot_decay_per_second != slot_decay_per_second
+        ):
+            update_kwargs: dict[str, Any] = {"limit": limit}
+            if slot_decay_per_second is not None:
+                update_kwargs["slot_decay_per_second"] = slot_decay_per_second
             self.update_global_concurrency_limit(
-                name, GlobalConcurrencyLimitUpdate(limit=limit)
+                name,
+                GlobalConcurrencyLimitUpdate(**update_kwargs),
             )
 
     def read_global_concurrency_limits(
@@ -709,6 +730,7 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
         slots: int,
         mode: Literal["concurrency", "rate_limit"],
         lease_duration: float,
+        holder: "ConcurrencyLeaseHolder | None" = None,
     ) -> "Response":
         """
         Increment concurrency slots for the specified limits with a lease.
@@ -718,16 +740,21 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             slots: The number of concurrency slots to occupy.
             mode: The mode of the concurrency limits.
             lease_duration: The duration of the lease in seconds.
+            holder: Optional holder information for tracking who holds the slots.
         """
+        body: dict[str, Any] = {
+            "names": names,
+            "slots": slots,
+            "mode": mode,
+            "lease_duration": lease_duration,
+        }
+        if holder is not None:
+            body["holder"] = holder.model_dump(mode="json")
+
         return await self.request(
             "POST",
             "/v2/concurrency_limits/increment-with-lease",
-            json={
-                "names": names,
-                "slots": slots,
-                "mode": mode,
-                "lease_duration": lease_duration,
-            },
+            json=body,
         )
 
     async def renew_concurrency_lease(
@@ -796,11 +823,18 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
     async def create_global_concurrency_limit(
         self, concurrency_limit: "GlobalConcurrencyLimitCreate"
     ) -> "UUID":
-        response = await self.request(
-            "POST",
-            "/v2/concurrency_limits/",
-            json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
-        )
+        try:
+            response = await self.request(
+                "POST",
+                "/v2/concurrency_limits/",
+                json=concurrency_limit.model_dump(mode="json", exclude_unset=True),
+            )
+        except HTTPStatusError as e:
+            if e.response.status_code == 409:
+                raise ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
+
         from uuid import UUID
 
         return UUID(response.json()["id"])
@@ -855,11 +889,11 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
                 raise
 
     async def upsert_global_concurrency_limit_by_name(
-        self, name: str, limit: int
+        self, name: str, limit: int, slot_decay_per_second: float | None = None
     ) -> None:
         """Creates a global concurrency limit with the given name and limit if one does not already exist.
 
-        If one does already exist matching the name then update it's limit if it is different.
+        If one does already exist matching the name then update it's limit and/or slot_decay_per_second if they are different.
 
         Note: This is not done atomically.
         """
@@ -874,15 +908,22 @@ class ConcurrencyLimitAsyncClient(BaseAsyncClient):
             existing_limit = None
 
         if not existing_limit:
+            create_kwargs: dict[str, Any] = {"name": name, "limit": limit}
+            if slot_decay_per_second is not None:
+                create_kwargs["slot_decay_per_second"] = slot_decay_per_second
             await self.create_global_concurrency_limit(
-                GlobalConcurrencyLimitCreate(
-                    name=name,
-                    limit=limit,
-                )
+                GlobalConcurrencyLimitCreate(**create_kwargs)
             )
-        elif existing_limit.limit != limit:
+        elif existing_limit.limit != limit or (
+            slot_decay_per_second is not None
+            and existing_limit.slot_decay_per_second != slot_decay_per_second
+        ):
+            update_kwargs: dict[str, Any] = {"limit": limit}
+            if slot_decay_per_second is not None:
+                update_kwargs["slot_decay_per_second"] = slot_decay_per_second
             await self.update_global_concurrency_limit(
-                name, GlobalConcurrencyLimitUpdate(limit=limit)
+                name,
+                GlobalConcurrencyLimitUpdate(**update_kwargs),
             )
 
     async def read_global_concurrency_limits(

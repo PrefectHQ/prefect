@@ -14,6 +14,7 @@ src/integrations/**/uv.lock
 # Build metadata
 src/prefect/_build_info.py
 src/prefect/_version.py
+src/prefect/_internal/analytics/_config.py
 
 # Test artifacts
 .benchmarks/
@@ -57,6 +58,8 @@ src/prefect/server/ui_build/*
 
 # Databases
 *.db
+local.duckdb
+local.duckdb.wal
 
 # API artifacts
 
@@ -69,6 +72,7 @@ dask-worker-space/
 # Editors
 .idea/
 .vscode/
+.zed/
 !ui/.vscode/
 
 # Prefect files
@@ -90,3 +94,6 @@ src/integrations/*/**/_version.py
 # Pyright type analysis report
 prefect-analysis.json
 CLAUDE.md
+
+# Local planning artifacts
+.planning/

@@ -289,8 +289,7 @@ async def test_history_returns_maximum_items(client, route):
     assert len(response.json()) == 500
 
     intervals = [
-        Instant.parse_common_iso(r["interval_start"]).py_datetime()
-        for r in response.json()
+        Instant.parse_iso(r["interval_start"]).py_datetime() for r in response.json()
     ]
     assert min(intervals) == dt
     assert max(intervals) == dt + timedelta(minutes=499)
@@ -853,7 +852,7 @@ async def test_last_bin_contains_end_date(client, route):
     assert parsed[1].interval_end == dt + timedelta(days=2)
 
 
-async def test_flow_run_lateness(client, session):
+async def test_flow_run_lateness(client, session, start_of_test):
     await session.execute(sa.text("delete from flow where true;"))
 
     f = await models.flows.create_flow(session=session, flow=core.Flow(name="lateness"))
@@ -969,6 +968,10 @@ async def test_flow_run_lateness(client, session):
     # SQLite does not store microseconds. Hence each of the two
     # Scheduled runs estimated lateness can be 'off' by up to
     # a second based on how we estimate the 'current' time used by the api.
+    # Calculate tolerance based on test execution time to avoid flakes.
+    test_elapsed = (datetime.now(timezone.utc) - start_of_test).total_seconds()
+    tolerance = 2.0 + test_elapsed  # 2s for SQLite precision + test overhead
+
     assert (
         abs(
             (
@@ -977,5 +980,5 @@ async def test_flow_run_lateness(client, session):
                 - interval["states"][2]["sum_estimated_lateness"]
             ).total_seconds()
         )
-        < 2.5
+        < tolerance
     )

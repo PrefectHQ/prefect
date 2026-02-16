@@ -18,7 +18,7 @@
         # required to write to the repo
         contents: write
       steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v6
   
         - name: Configure Git
           run: |
@@ -26,10 +26,13 @@
             git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
   
         - name: Create Branch For Dependency Version Updates
-          run: git checkout -b "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
+          run: git checkout -b "prefect-package-${PACKAGE_NAME}-${PACKAGE_VERSION}-update"
+          env:
+            PACKAGE_NAME: ${{ inputs.package_name }}
+            PACKAGE_VERSION: ${{ inputs.package_version }}
   
         - name: Setup NodeJS 
-          uses: actions/setup-node@v4
+          uses: actions/setup-node@v6
           with:
             node-version-file: ".nvmrc"
             cache-dependency-path: "**/package-lock.json"
@@ -40,27 +43,34 @@
   
         - name: Upgrade Package
           run: |
-            npm i @${{ inputs.package_name }}@${{ inputs.package_version }} --save-exact
+            npm i "@${PACKAGE_NAME}@${PACKAGE_VERSION}" --save-exact
           working-directory: ./ui
+          env:
+            PACKAGE_NAME: ${{ inputs.package_name }}
+            PACKAGE_VERSION: ${{ inputs.package_version }}
   
         - name: Commit Package Changes
           run: |
             git add .
-            git commit -m "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}"
-            git push --set-upstream origin "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
+            git commit -m "Update @${PACKAGE_NAME} to version ${PACKAGE_VERSION}"
+            git push --set-upstream origin "prefect-package-${PACKAGE_NAME}-${PACKAGE_VERSION}-update"
           env:
+            PACKAGE_NAME: ${{ inputs.package_name }}
+            PACKAGE_VERSION: ${{ inputs.package_version }}
             GITHUB_TOKEN: ${{ github.token }}
         
         - name: Create Pull Request
           run: |
-            git checkout "prefect-package-${{ inputs.package_name }}-${{ inputs.package_version }}-update"
+            git checkout "prefect-package-${PACKAGE_NAME}-${PACKAGE_VERSION}-update"
             gh pr create \
             --base main \
-            --title "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}" \
-            --body "Update @${{ inputs.package_name }} to version ${{ inputs.package_version }}.
-            Release information can be found at https://github.com/${{ inputs.package_name }}/releases/tag/${{ inputs.package_version }}." \
+            --title "Update @${PACKAGE_NAME} to version ${PACKAGE_VERSION}" \
+            --body "Update @${PACKAGE_NAME} to version ${PACKAGE_VERSION}.
+            Release information can be found at https://github.com/${PACKAGE_NAME}/releases/tag/${PACKAGE_VERSION}." \
             --label development \
             --label ui
           env:
+            PACKAGE_NAME: ${{ inputs.package_name }}
+            PACKAGE_VERSION: ${{ inputs.package_version }}
             GITHUB_TOKEN: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}
   

@@ -1,4 +1,4 @@
-default_install_hook_types: 
+default_install_hook_types:
   - pre-commit
   - pre-push
 
@@ -9,9 +9,9 @@ repos:
       - id: no-commit-to-branch
         args: [--branch, main]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.5
+    rev: v0.15.1
     hooks:
-      - id: ruff
+      - id: ruff-check
         language_version: python3
         args: [--fix, --exit-non-zero-on-fix, --show-fixes]
       - id: ruff-format
@@ -45,25 +45,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: auto-generate-documentation
-        name: Auto-generating Documentation
-        language: system
-        entry: uv run --isolated -p 3.9 --with 'pydantic>=2.9.0' ./scripts/run_precommit_generation_scripts.py
-        pass_filenames: false
-        files: |
-          (?x)^(
-              .pre-commit-config.yaml|
-              src/prefect/server/api/.*|
-              src/prefect/server/schemas/.*|
-              src/prefect/server/events/.*|
-              src/prefect/settings/models/.*|
-              scripts/generate_mintlify_openapi_docs.py|
-              scripts/generate_settings_schema.py|
-              scripts/generate_settings_ref.py|
-              scripts/run_precommit_generation_scripts.py
-          )$
-        stages:
-          - pre-push
       - id: check-ui-v2
         name: Check UI v2
         language: system

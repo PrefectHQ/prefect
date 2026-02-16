@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, NoReturn, Optional
+from typing import TYPE_CHECKING, NoReturn
+
+from docket import Perpetual
 
 from prefect.logging import get_logger
 from prefect.server.events import triggers
-from prefect.server.services.base import LoopService, RunInAllServers, Service
+from prefect.server.services.base import RunInEphemeralServers, Service
+from prefect.server.services.perpetual_services import perpetual_service
 from prefect.server.utilities.messaging import Consumer, create_consumer
 from prefect.server.utilities.messaging._consumer_names import (
     generate_unique_consumer_name,
 )
-from prefect.settings import PREFECT_EVENTS_PROACTIVE_GRANULARITY
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.server.services import ServicesBaseSetting
 
@@ -21,7 +23,7 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class ReactiveTriggers(RunInAllServers, Service):
+class ReactiveTriggers(RunInEphemeralServers, Service):
     """Evaluates reactive automation triggers"""
 
     consumer_task: asyncio.Task[None] | None = None
@@ -37,7 +39,10 @@ class ReactiveTriggers(RunInAllServers, Service):
             f"ReactiveTriggers starting with unique consumer name: {consumer_name}"
         )
         self.consumer: Consumer = create_consumer(
-            "events", group="reactive-triggers", name=consumer_name
+            "events",
+            group="reactive-triggers",
+            name=consumer_name,
+            read_batch_size=self.service_settings().read_batch_size,
         )
 
         async with triggers.consumer() as handler:
@@ -57,25 +62,20 @@ class ReactiveTriggers(RunInAllServers, Service):
         except asyncio.CancelledError:
             pass
         finally:
+            await self.consumer.cleanup()
             self.consumer_task = None
         logger.debug("Reactive triggers stopped")
 
 
-class ProactiveTriggers(RunInAllServers, LoopService):
-    """Evaluates proactive automation triggers"""
-
-    @classmethod
-    def service_settings(cls) -> ServicesBaseSetting:
-        return get_current_settings().server.services.triggers
-
-    def __init__(self, loop_seconds: Optional[float] = None, **kwargs: Any):
-        super().__init__(
-            loop_seconds=(
-                loop_seconds
-                or PREFECT_EVENTS_PROACTIVE_GRANULARITY.value().total_seconds()
-            ),
-            **kwargs,
-        )
-
-    async def run_once(self) -> None:
-        await triggers.evaluate_proactive_triggers()
+@perpetual_service(
+    enabled_getter=lambda: get_current_settings().server.services.triggers.enabled,
+    run_in_ephemeral=True,
+)
+async def evaluate_proactive_triggers_periodic(
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=get_current_settings().server.events.proactive_granularity,
+    ),
+) -> None:
+    """Evaluate proactive automation triggers on a periodic schedule."""
+    await triggers.evaluate_proactive_triggers()

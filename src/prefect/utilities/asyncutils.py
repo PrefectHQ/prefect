@@ -84,7 +84,7 @@ def is_async_fn(
     See https://github.com/microsoft/pyright/issues/2142 for an example use
     """
     func = inspect.unwrap(func)
-    return asyncio.iscoroutinefunction(func)
+    return inspect.iscoroutinefunction(func)
 
 
 def is_async_gen_fn(
@@ -514,7 +514,7 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         await self._task_group.__aenter__()
         return self
 
-    async def __aexit__(self, *tb: Any) -> Optional[bool]:
+    async def __aexit__(self, *tb: Any) -> Optional[bool]:  # pyright: ignore[reportIncompatibleMethodOverride]
         try:
             retval = await self._task_group.__aexit__(*tb)
             return retval

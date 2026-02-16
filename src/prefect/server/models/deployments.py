@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 from uuid import UUID
 
 import sqlalchemy as sa
+from docket import Depends, Retry
 from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +21,12 @@ from sqlalchemy.sql import Select
 from prefect._internal.uuid7 import uuid7
 from prefect.logging import get_logger
 from prefect.server import models, schemas
-from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.database import (
+    PrefectDBInterface,
+    db_injector,
+    orm_models,
+    provide_database_interface,
+)
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import deployment_status_event
@@ -601,6 +607,59 @@ async def _delete_related_concurrency_limit(
 
 
 @db_injector
+async def delete_deployments(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    deployment_ids: list[UUID],
+) -> list[UUID]:
+    """
+    Delete multiple deployments by their IDs.
+
+    Args:
+        session: A database session
+        deployment_ids: a list of deployment ids to delete
+
+    Returns:
+        List[UUID]: the IDs of the deployments that were deleted
+    """
+    if not deployment_ids:
+        return []
+
+    # Get existing deployment IDs
+    result = await session.execute(
+        select(db.Deployment.id).where(db.Deployment.id.in_(deployment_ids))
+    )
+    existing_ids = list(result.scalars().all())
+
+    if not existing_ids:
+        return []
+
+    # Delete scheduled runs for all deployments
+    for deployment_id in existing_ids:
+        await _delete_scheduled_runs(
+            session=session, deployment_id=deployment_id, auto_scheduled_only=False
+        )
+
+    # Delete related concurrency limits
+    await session.execute(
+        delete(db.ConcurrencyLimitV2).where(
+            db.ConcurrencyLimitV2.id.in_(
+                select(db.Deployment.concurrency_limit_id).where(
+                    db.Deployment.id.in_(existing_ids)
+                )
+            )
+        )
+    )
+
+    # Delete all deployments
+    await session.execute(
+        delete(db.Deployment).where(db.Deployment.id.in_(existing_ids))
+    )
+
+    return existing_ids
+
+
+@db_injector
 async def schedule_runs(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -935,7 +994,8 @@ async def create_deployment_schedules(
 
     schedules_with_deployment_id: list[dict[str, Any]] = []
     for schedule in schedules:
-        data = schedule.model_dump()
+        # Exclude 'replaces' as it's a deploy-time directive, not a persisted field
+        data = schedule.model_dump(exclude={"replaces"})
         data["deployment_id"] = deployment_id
         schedules_with_deployment_id.append(data)
 
@@ -1005,6 +1065,8 @@ async def update_deployment_schedule(
         deployment_schedule_id: a deployment schedule id
         schedule: a deployment schedule update action
     """
+    # Exclude 'replaces' as it's a deploy-time directive, not a persisted field
+    update_values = schedule.model_dump(exclude_none=True, exclude={"replaces"})
     if deployment_schedule_id:
         result = await session.execute(
             sa.update(db.DeploymentSchedule)
@@ -1014,7 +1076,7 @@ async def update_deployment_schedule(
                     db.DeploymentSchedule.deployment_id == deployment_id,
                 )
             )
-            .values(**schedule.model_dump(exclude_none=True))
+            .values(**update_values)
         )
     elif deployment_schedule_slug:
         result = await session.execute(
@@ -1025,7 +1087,7 @@ async def update_deployment_schedule(
                     db.DeploymentSchedule.deployment_id == deployment_id,
                 )
             )
-            .values(**schedule.model_dump(exclude_none=True))
+            .values(**update_values)
         )
     else:
         raise ValueError(
@@ -1088,59 +1150,63 @@ async def delete_deployment_schedule(
 
 
 async def mark_deployments_ready(
-    db: PrefectDBInterface,
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
     deployment_ids: Optional[Iterable[UUID]] = None,
     work_queue_ids: Optional[Iterable[UUID]] = None,
+    retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
-    try:
-        deployment_ids = deployment_ids or []
-        work_queue_ids = work_queue_ids or []
+    deployment_ids = deployment_ids or []
+    work_queue_ids = work_queue_ids or []
 
-        if not deployment_ids and not work_queue_ids:
+    if not deployment_ids and not work_queue_ids:
+        return
+
+    async with db.session_context(
+        begin_transaction=True,
+    ) as session:
+        result = await session.execute(
+            select(db.Deployment.id).where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                ),
+                db.Deployment.status == DeploymentStatus.NOT_READY,
+            )
+        )
+        unready_deployments = list(result.scalars().unique().all())
+
+        last_polled = now("UTC")
+
+        # keeps `updated` untouched to not trigger recent schedules calculation
+        await session.execute(
+            sa.update(db.Deployment)
+            .where(
+                sa.or_(
+                    db.Deployment.id.in_(deployment_ids),
+                    db.Deployment.work_queue_id.in_(work_queue_ids),
+                )
+            )
+            .values(
+                status=DeploymentStatus.READY,
+                last_polled=last_polled,
+                updated=db.Deployment.updated,
+            )
+        )
+
+        if not unready_deployments:
             return
 
-        async with db.session_context(
-            begin_transaction=True,
-        ) as session:
-            result = await session.execute(
-                select(db.Deployment.id).where(
-                    sa.or_(
-                        db.Deployment.id.in_(deployment_ids),
-                        db.Deployment.work_queue_id.in_(work_queue_ids),
-                    ),
-                    db.Deployment.status == DeploymentStatus.NOT_READY,
-                )
-            )
-            unready_deployments = list(result.scalars().unique().all())
-
-            last_polled = now("UTC")
-
-            await session.execute(
-                sa.update(db.Deployment)
-                .where(
-                    sa.or_(
-                        db.Deployment.id.in_(deployment_ids),
-                        db.Deployment.work_queue_id.in_(work_queue_ids),
+        async with PrefectServerEventsClient() as events:
+            for deployment_id in unready_deployments:
+                await events.emit(
+                    await deployment_status_event(
+                        session=session,
+                        deployment_id=deployment_id,
+                        status=DeploymentStatus.READY,
+                        occurred=last_polled,
                     )
                 )
-                .values(status=DeploymentStatus.READY, last_polled=last_polled)
-            )
-
-            if not unready_deployments:
-                return
-
-            async with PrefectServerEventsClient() as events:
-                for deployment_id in unready_deployments:
-                    await events.emit(
-                        await deployment_status_event(
-                            session=session,
-                            deployment_id=deployment_id,
-                            status=DeploymentStatus.READY,
-                            occurred=last_polled,
-                        )
-                    )
-    except Exception as exc:
-        logger.error(f"Error marking deployments as ready: {exc}", exc_info=True)
 
 
 @db_injector
@@ -1170,6 +1236,7 @@ async def mark_deployments_not_ready(
             )
             ready_deployments = list(result.scalars().unique().all())
 
+            # keeps `updated` untouched to not trigger recent schedules calculation
             await session.execute(
                 sa.update(db.Deployment)
                 .where(
@@ -1178,7 +1245,9 @@ async def mark_deployments_not_ready(
                         db.Deployment.work_queue_id.in_(work_queue_ids),
                     )
                 )
-                .values(status=DeploymentStatus.NOT_READY)
+                .values(
+                    status=DeploymentStatus.NOT_READY, updated=db.Deployment.updated
+                )
             )
 
             if not ready_deployments:

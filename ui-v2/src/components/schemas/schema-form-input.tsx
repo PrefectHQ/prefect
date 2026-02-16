@@ -2,12 +2,15 @@ import type { SchemaObject } from "openapi-typescript";
 import { SchemaFormInputAllOf } from "./schema-form-input-all-of";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
 import { SchemaFormInputArray } from "./schema-form-input-array";
+import { SchemaFormInputBlockDocument } from "./schema-form-input-block-document";
 import { SchemaFormInputBoolean } from "./schema-form-input-boolean";
 import { SchemaFormInputInteger } from "./schema-form-input-integer";
 import { SchemaFormInputNull } from "./schema-form-input-null";
 import { SchemaFormInputNumber } from "./schema-form-input-number";
 import { SchemaFormInputObject } from "./schema-form-input-object";
+import { SchemaFormInputPrefectKindJinja } from "./schema-form-input-prefect-kind-jinja";
 import { SchemaFormInputPrefectKindJson } from "./schema-form-input-prefect-kind-json";
+import { SchemaFormInputPrefectKindWorkspaceVariable } from "./schema-form-input-prefect-kind-workspace-variable";
 import { SchemaFormInputString } from "./schema-form-input-string";
 import { SchemaFormInputUnknown } from "./schema-form-input-unknown";
 import type { SchemaFormErrors } from "./types/errors";
@@ -36,27 +39,18 @@ export function SchemaFormInput({
 	id,
 	nested = true,
 }: SchemaFormInputProps) {
-	if (isPrefectKindValue(value)) {
-		if (isPrefectKindValue(value, "json")) {
+	if ("block_type_slug" in property) {
+		const blockTypeSlug = property.block_type_slug;
+		if (typeof blockTypeSlug === "string") {
 			return (
-				<SchemaFormInputPrefectKindJson
-					value={value}
+				<SchemaFormInputBlockDocument
+					value={value as { $ref: string } | undefined}
 					onValueChange={onValueChange}
+					blockTypeSlug={blockTypeSlug}
 					id={id}
 				/>
 			);
 		}
-
-		if (isPrefectKindValue(value, "jinja")) {
-			throw new Error("not implemented");
-		}
-
-		// @ts-expect-error This is an exhaustive check. If a prefect kind is not implemented this will get flaggged.
-		throw new Error(`Prefect kind not implemented: ${value.__prefect_kind}`);
-	}
-
-	if ("blockTypeSlug" in property) {
-		throw new Error("not implemented");
 	}
 
 	if (isAnyOfObject(property)) {
@@ -107,6 +101,41 @@ export function SchemaFormInput({
 				errors={errors}
 			/>
 		);
+	}
+
+	if (isPrefectKindValue(value)) {
+		if (isPrefectKindValue(value, "json")) {
+			return (
+				<SchemaFormInputPrefectKindJson
+					value={value}
+					onValueChange={onValueChange}
+					id={id}
+				/>
+			);
+		}
+
+		if (isPrefectKindValue(value, "jinja")) {
+			return (
+				<SchemaFormInputPrefectKindJinja
+					value={value}
+					onValueChange={onValueChange}
+					id={id}
+				/>
+			);
+		}
+
+		if (isPrefectKindValue(value, "workspace_variable")) {
+			return (
+				<SchemaFormInputPrefectKindWorkspaceVariable
+					value={value}
+					onValueChange={onValueChange}
+					id={id}
+				/>
+			);
+		}
+
+		// @ts-expect-error This is an exhaustive check. If a prefect kind is not implemented this will get flaggged.
+		throw new Error(`Prefect kind not implemented: ${value.__prefect_kind}`);
 	}
 
 	if (isAllOfObject(property)) {

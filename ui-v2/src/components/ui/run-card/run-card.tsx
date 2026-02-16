@@ -13,13 +13,12 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
-import { Typography } from "@/components/ui/typography";
 
 const getValues = ({
 	flowRun,
 	taskRun,
 }: {
-	flowRun: null | undefined | components["schemas"]["FlowRun"];
+	flowRun: null | undefined | components["schemas"]["FlowRunResponse"];
 	taskRun: null | undefined | components["schemas"]["TaskRun"];
 }) => {
 	if (taskRun) {
@@ -36,7 +35,7 @@ const getValues = ({
 
 type RunCardProps = {
 	flow?: components["schemas"]["Flow"] | null;
-	flowRun?: components["schemas"]["FlowRun"] | null;
+	flowRun?: components["schemas"]["FlowRunResponse"] | null;
 	/** If task run is included, uses fields from task run over flow run */
 	taskRun?: components["schemas"]["TaskRun"] | null;
 };
@@ -119,9 +118,9 @@ const TimeRan = ({ duration }: TimeRanProps) => {
 	return (
 		<div className="flex gap-1 items-center">
 			<Icon id="Clock" className="size-4" />
-			<Typography variant="bodySmall">
+			<p className="text-sm">
 				{humanizeDuration(duration, { maxDecimalPoints: 3, units: ["s"] })}
-			</Typography>
+			</p>
 		</div>
 	);
 };
@@ -132,9 +131,9 @@ type StartTimeProps = {
 const StartTime = ({ time }: StartTimeProps) => (
 	<div className="flex gap-1 items-center">
 		<Icon id="Calendar" className="size-4" />
-		<Typography variant="bodySmall" className="font-mono">
+		<p className="text-sm font-mono">
 			{format(parseISO(time), "yyyy/MM/dd pp")}
-		</Typography>
+		</p>
 	</div>
 );
 

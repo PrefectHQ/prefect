@@ -5,8 +5,9 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
+from prefect._internal.compatibility.starlette import status
+from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
@@ -203,7 +204,12 @@ class TestUpdateWorkQueue:
         events = [
             event for client in AssertingEventsClient.all for event in client.events
         ]
-        assert len(events) == 1
+        # Expect both status event and updated event for concurrency_limit
+        assert len(events) == 2
+        # Verify we have both a status event and an updated event
+        event_types = {event.event for event in events}
+        assert "prefect.work-queue.paused" in event_types
+        assert "prefect.work-queue.updated" in event_types
 
     async def test_update_work_queue_to_paused(
         self,
@@ -311,8 +317,26 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "PAUSED"
 
-        # ensure no events emitted for already paused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
+        # Since concurrency_limit changed, we should get an updated event
+        # (status didn't change, so no status event)
+        AssertingEventsClient.assert_emitted_event_count(1)
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{paused_work_queue.id}",
+                "prefect.resource.name": paused_work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
+                    "concurrency_limit": {
+                        "from": None,
+                        "to": 3,
+                    }
+                },
+            },
+        )
 
     async def test_update_work_queue_to_unpaused_when_already_unpaused_does_not_emit_event(
         self,
@@ -338,8 +362,26 @@ class TestUpdateWorkQueue:
         assert work_queue_response.status_code == 200
         assert work_queue_response.json()["status"] == "READY"
 
-        # ensure no events emitted for already unpaused work queue
-        AssertingEventsClient.assert_emitted_event_count(0)
+        # Since concurrency_limit changed, we should get an updated event
+        # (status didn't change, so no status event)
+        AssertingEventsClient.assert_emitted_event_count(1)
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{ready_work_queue.id}",
+                "prefect.resource.name": ready_work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
+                    "concurrency_limit": {
+                        "from": None,
+                        "to": 3,
+                    }
+                },
+            },
+        )
 
     async def test_update_work_queue_to_unpaused_with_no_last_polled_sets_not_ready_status(
         self,
@@ -556,6 +598,198 @@ class TestUpdateWorkQueue:
             ],
         )
 
+    async def test_update_work_queue_emits_updated_event_for_concurrency_limit(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that updating concurrency_limit emits prefect.work-queue.updated event."""
+        assert work_queue.concurrency_limit is None
+
+        new_data = schemas.actions.WorkQueueUpdate(concurrency_limit=10).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=new_data,
+        )
+
+        assert response.status_code == 204
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["concurrency_limit"],
+                "updates": {
+                    "concurrency_limit": {
+                        "from": None,
+                        "to": 10,
+                    }
+                },
+            },
+            related=[
+                {
+                    "prefect.resource.id": f"prefect.work-pool.{work_queue.work_pool.id}",
+                    "prefect.resource.name": work_queue.work_pool.name,
+                    "prefect.work-pool.type": work_queue.work_pool.type,
+                    "prefect.resource.role": "work-pool",
+                }
+            ],
+        )
+
+    async def test_update_work_queue_emits_updated_event_for_description(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that updating description emits prefect.work-queue.updated event."""
+        original_description = work_queue.description or ""
+
+        new_data = schemas.actions.WorkQueueUpdate(
+            description="Updated description"
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=new_data,
+        )
+
+        assert response.status_code == 204
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["description"],
+                "updates": {
+                    "description": {
+                        "from": original_description,
+                        "to": "Updated description",
+                    }
+                },
+            },
+        )
+
+    async def test_update_work_queue_emits_updated_event_for_priority(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that updating priority emits prefect.work-queue.updated event."""
+        original_priority = work_queue.priority
+
+        new_data = schemas.actions.WorkQueueUpdate(priority=5).model_dump(
+            mode="json", exclude_unset=True
+        )
+
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=new_data,
+        )
+
+        assert response.status_code == 204
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["priority"],
+                "updates": {
+                    "priority": {
+                        "from": original_priority,
+                        "to": 5,
+                    }
+                },
+            },
+        )
+
+    async def test_update_work_queue_emits_updated_event_for_multiple_fields(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that updating multiple fields emits single event with all changes."""
+        original_description = work_queue.description or ""
+        original_concurrency_limit = work_queue.concurrency_limit
+
+        new_data = schemas.actions.WorkQueueUpdate(
+            description="Multi update",
+            concurrency_limit=20,
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json=new_data,
+        )
+
+        assert response.status_code == 204
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{work_queue.id}",
+                "prefect.resource.name": work_queue.name,
+                "prefect.resource.role": "work-queue",
+            },
+            payload={
+                "updated_fields": ["description", "concurrency_limit"],
+                "updates": {
+                    "description": {
+                        "from": original_description,
+                        "to": "Multi update",
+                    },
+                    "concurrency_limit": {
+                        "from": original_concurrency_limit,
+                        "to": 20,
+                    },
+                },
+            },
+        )
+
+    async def test_update_work_queue_no_event_for_noop_update(
+        self,
+        client,
+        work_queue,
+    ):
+        """Test that no event is emitted when updating to the same value."""
+        # Set initial concurrency limit
+        await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json={"concurrency_limit": 10},
+        )
+        AssertingEventsClient.reset()
+
+        # Update to same value
+        response = await client.patch(
+            f"/work_queues/{work_queue.id}",
+            json={"concurrency_limit": 10},
+        )
+
+        assert response.status_code == 204
+
+        # Should not emit updated event (only status event if status changed)
+        events = [
+            event
+            for client in AssertingEventsClient.all
+            for event in client.events
+            if event.event == "prefect.work-queue.updated"
+        ]
+        assert len(events) == 0
+
 
 class TestReadWorkQueue:
     async def test_read_work_queue(self, client, work_queue):
@@ -749,11 +983,20 @@ class TestGetRunsInWorkQueue:
         await session.commit()
 
     async def test_get_runs_in_queue(
-        self, client, work_queue, work_queue_2, scheduled_flow_runs, running_flow_runs
+        self,
+        hosted_api_client,
+        work_queue,
+        work_queue_2,
+        scheduled_flow_runs,
+        running_flow_runs,
     ):
-        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+        response1 = await hosted_api_client.post(
+            f"/work_queues/{work_queue.id}/get_runs"
+        )
         assert response1.status_code == status.HTTP_200_OK
-        response2 = await client.post(f"/work_queues/{work_queue_2.id}/get_runs")
+        response2 = await hosted_api_client.post(
+            f"/work_queues/{work_queue_2.id}/get_runs"
+        )
         assert response2.status_code == status.HTTP_200_OK
 
         runs_wq1 = parse_obj_as(
@@ -771,13 +1014,13 @@ class TestGetRunsInWorkQueue:
     @pytest.mark.parametrize("limit", [2, 0])
     async def test_get_runs_in_queue_limit(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        response1 = await client.post(
+        response1 = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=limit)
         )
         runs_wq1 = parse_obj_as(
@@ -786,9 +1029,13 @@ class TestGetRunsInWorkQueue:
         assert len(runs_wq1) == limit
 
     async def test_get_runs_in_queue_scheduled_before(
-        self, client, work_queue, scheduled_flow_runs, running_flow_runs
+        self,
+        hosted_api_client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
     ):
-        response1 = await client.post(
+        response1 = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(scheduled_before=datetime.now(timezone.utc).isoformat()),
         )
@@ -798,51 +1045,65 @@ class TestGetRunsInWorkQueue:
         assert len(runs_wq1) == 1
 
     async def test_get_runs_in_queue_nonexistant(
-        self, client, work_queue, scheduled_flow_runs, running_flow_runs
+        self,
+        hosted_api_client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
     ):
-        response1 = await client.post(f"/work_queues/{uuid4()}/get_runs")
+        response1 = await hosted_api_client.post(f"/work_queues/{uuid4()}/get_runs")
         assert response1.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_get_runs_in_queue_paused(
-        self, client, work_queue, scheduled_flow_runs, running_flow_runs
+        self,
+        hosted_api_client,
+        work_queue,
+        scheduled_flow_runs,
+        running_flow_runs,
     ):
-        await client.patch(f"/work_queues/{work_queue.id}", json=dict(is_paused=True))
+        await hosted_api_client.patch(
+            f"/work_queues/{work_queue.id}", json=dict(is_paused=True)
+        )
 
-        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+        response1 = await hosted_api_client.post(
+            f"/work_queues/{work_queue.id}/get_runs"
+        )
         assert response1.json() == []
 
     @pytest.mark.parametrize("concurrency_limit", [10, 5, 1])
     async def test_get_runs_in_queue_concurrency_limit(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         concurrency_limit,
     ):
-        await client.patch(
+        await hosted_api_client.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=concurrency_limit),
         )
 
-        response1 = await client.post(f"/work_queues/{work_queue.id}/get_runs")
+        response1 = await hosted_api_client.post(
+            f"/work_queues/{work_queue.id}/get_runs"
+        )
 
         assert len(response1.json()) == max(0, min(3, concurrency_limit - 3))
 
     @pytest.mark.parametrize("limit", [10, 1])
     async def test_get_runs_in_queue_concurrency_limit_and_limit(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         scheduled_flow_runs,
         running_flow_runs,
         limit,
     ):
-        await client.patch(
+        await hosted_api_client.patch(
             f"/work_queues/{work_queue.id}",
             json=dict(concurrency_limit=5),
         )
-        response1 = await client.post(
+        response1 = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(limit=limit),
         )
@@ -851,26 +1112,29 @@ class TestGetRunsInWorkQueue:
 
     async def test_read_work_queue_runs_updates_work_queue_last_polled_time(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         session,
     ):
         now = datetime.now(timezone.utc)
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(),
         )
         assert response.status_code == status.HTTP_200_OK
 
-        session.expunge_all()
-        updated_work_queue = await models.work_queues.read_work_queue(
-            session=session, work_queue_id=work_queue.id
-        )
-        assert updated_work_queue.last_polled > now
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                session.expunge_all()
+                updated_work_queue = await models.work_queues.read_work_queue(
+                    session=session, work_queue_id=work_queue.id
+                )
+                assert updated_work_queue.last_polled is not None
+                assert updated_work_queue.last_polled > now
 
         # The Prefect UI often calls this route to see which runs are enqueued.
         # We do not want to record this as an actual poll event.
-        ui_response = await client.post(
+        ui_response = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(),
             headers={"X-PREFECT-UI": "true"},
@@ -885,52 +1149,65 @@ class TestGetRunsInWorkQueue:
 
     async def test_read_work_queue_runs_associated_deployments_return_status_of_ready(
         self,
-        client,
+        hosted_api_client,
         deployment,
     ):
         work_queue_id = deployment.work_queue_id
         # ensure deployment currently has a not ready status
-        deployment_response = await client.get(f"/deployments/{deployment.id}")
+        deployment_response = await hosted_api_client.get(
+            f"/deployments/{deployment.id}"
+        )
         assert deployment_response.status_code == status.HTTP_200_OK
         assert deployment_response.json()["status"] == "NOT_READY"
+        original_updated = deployment_response.json()["updated"]
 
         # trigger a poll of the work queue, which should update the deployment status
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/work_queues/{work_queue_id}/get_runs",
             json=dict(),
         )
         assert response.status_code == status.HTTP_200_OK
 
-        # check that the deployment status is now ready
-        updated_deployment_response = await client.get(f"/deployments/{deployment.id}")
-        assert updated_deployment_response.status_code == status.HTTP_200_OK
-        assert updated_deployment_response.json()["status"] == "READY"
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                # check that the deployment status is now ready
+                updated_deployment_response = await hosted_api_client.get(
+                    f"/deployments/{deployment.id}"
+                )
+                assert updated_deployment_response.status_code == status.HTTP_200_OK
+                assert updated_deployment_response.json()["status"] == "READY"
+                # Regression test for #14655 - updated should NOT change when polling
+                assert updated_deployment_response.json()["updated"] == original_updated
 
     async def test_read_work_queue_runs_updates_work_queue_status(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         session,
     ):
         # Verify the work queue is initially not ready
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "NOT_READY"
 
         # Trigger a polling operation
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
         )
         assert response.status_code == status.HTTP_200_OK
 
-        # Verify the work queue is now ready
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
-        assert wq_response.status_code == status.HTTP_200_OK
-        assert wq_response.json()["status"] == "READY"
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                # Verify the work queue is now ready
+                wq_response = await hosted_api_client.get(
+                    f"/work_queues/{work_queue.id}"
+                )
+                assert wq_response.status_code == status.HTTP_200_OK
+                assert wq_response.json()["status"] == "READY"
 
     async def test_read_work_queue_runs_does_not_update_a_paused_work_queues_status(
         self,
-        client,
+        hosted_api_client,
         work_queue,
         session,
     ):
@@ -938,23 +1215,25 @@ class TestGetRunsInWorkQueue:
         new_data = WorkQueueUpdate(is_paused=True).model_dump(
             mode="json", exclude_unset=True
         )
-        response = await client.patch(f"/work_queues/{work_queue.id}", json=new_data)
+        response = await hosted_api_client.patch(
+            f"/work_queues/{work_queue.id}", json=new_data
+        )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         # Verify the work queue is PAUSED
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
         assert wq_response.json()["is_paused"] is True
 
         # Trigger a polling operation
-        response = await client.post(
+        response = await hosted_api_client.post(
             f"/work_queues/{work_queue.id}/get_runs",
         )
         assert response.status_code == status.HTTP_200_OK
 
         # Verify the work queue status is still PAUSED
-        wq_response = await client.get(f"/work_queues/{work_queue.id}")
+        wq_response = await hosted_api_client.get(f"/work_queues/{work_queue.id}")
         assert wq_response.status_code == status.HTTP_200_OK
         assert wq_response.json()["status"] == "PAUSED"
 

@@ -238,15 +238,19 @@ Build a docker image for development.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--arch">
-    The architecture to build the container for. Defaults to the architecture of the host Python. [default: arm64]
+    The architecture to build the container for. Defaults to the architecture of the host Python. [default: x86_64]
 </ResponseField>
 
 <ResponseField name="--python-version">
-    The Python version to build the container for. Defaults to the version of the host Python. [default: 3.10]
+    The Python version to build the container for. Defaults to the version of the host Python. [default: 3.12]
 </ResponseField>
 
 <ResponseField name="--flavor">
     An alternative flavor to build, for example 'conda'. Defaults to the standard Python base image
+</ResponseField>
+
+<ResponseField name="--build-arg">
+    This will directly pass a --build-arg into the docker build process. Can be added to the command line multiple times.
 </ResponseField>
 
 <ResponseField name="--dry-run">

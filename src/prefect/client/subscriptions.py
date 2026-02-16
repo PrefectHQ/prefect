@@ -11,7 +11,7 @@ from starlette.status import WS_1008_POLICY_VIOLATION
 from typing_extensions import Self
 
 from prefect._internal.schemas.bases import IDBaseModel
-from prefect.events.clients import websocket_connect
+from prefect._internal.websockets import websocket_connect
 from prefect.logging import get_logger
 from prefect.settings import get_current_settings
 
@@ -90,7 +90,7 @@ class Subscription(Generic[S]):
             )
 
             auth: dict[str, Any] = orjson.loads(await websocket.recv())
-            assert auth["type"] == "auth_success", auth.get("message")
+            assert auth["type"] == "auth_success", auth.get("reason", "")
 
             message: dict[str, Any] = {"type": "subscribe", "keys": self.keys}
             if self.client_id:

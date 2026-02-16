@@ -1,4 +1,5 @@
 import builtins
+import logging
 
 import pytest
 
@@ -215,6 +216,32 @@ def test_subflow_can_opt_out_of_log_prints(caplog, capsys):
     assert "hello world!" in capsys.readouterr().out
 
 
+def test_subflow_in_task_can_opt_out_of_log_prints(caplog, capsys):
+    """
+    Regression test for https://github.com/PrefectHQ/prefect/issues/19449
+    When a subflow runs inside a task, it should respect its own log_prints
+    setting, not inherit from the parent flow.
+    """
+
+    @flow(log_prints=False)
+    def child_flow():
+        print("child print")
+
+    @flow(log_prints=True)
+    def parent_flow():
+        print("parent print")
+        task(child_flow)()
+
+    parent_flow()
+
+    # Parent flow's print should be logged
+    assert "parent print" in caplog.text
+
+    # Child flow opted out, so should NOT be logged
+    assert "child print" not in caplog.text
+    assert "child print" in capsys.readouterr().out
+
+
 # Check .with_options can update the value ---------------------------------------------
 
 
@@ -238,3 +265,38 @@ def test_flow_log_prints_updated_by_with_options(value):
 
     new_flow = test_flow.with_options(log_prints=value)
     assert new_flow.log_prints is value
+
+
+# Check log records report the caller's location, not print_as_log ----------------------
+
+
+def test_flow_log_prints_reports_caller_location(caplog):
+    @flow(log_prints=True)
+    def my_flow_with_print():
+        print("hello from flow")
+
+    with caplog.at_level(logging.INFO):
+        my_flow_with_print()
+
+    print_records = [r for r in caplog.records if r.message == "hello from flow"]
+    assert len(print_records) == 1
+    assert print_records[0].funcName == "my_flow_with_print"
+    assert print_records[0].filename == "test_log_prints.py"
+
+
+def test_task_log_prints_reports_caller_location(caplog):
+    @task(log_prints=True)
+    def my_task_with_print():
+        print("hello from task")
+
+    @flow
+    def wrapper():
+        my_task_with_print()
+
+    with caplog.at_level(logging.INFO):
+        wrapper()
+
+    print_records = [r for r in caplog.records if r.message == "hello from task"]
+    assert len(print_records) == 1
+    assert print_records[0].funcName == "my_task_with_print"
+    assert print_records[0].filename == "test_log_prints.py"

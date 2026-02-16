@@ -1,10 +1,11 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import type { FlowRun } from "@/api/flow-runs";
 import type { components } from "../prefect";
 import { getQueryService } from "../service";
 
 export type Artifact = components["schemas"]["Artifact"];
 export type ArtifactWithFlowRunAndTaskRun = Artifact & {
-	flow_run?: components["schemas"]["FlowRun"];
+	flow_run?: FlowRun;
 	task_run?: components["schemas"]["TaskRun"];
 };
 
@@ -29,6 +30,7 @@ export type ArtifactsFilter =
  * count			=>   ['artifacts', 'counts', { ...filter }]
  * details          =>   ['artifacts', 'details']
  * detail           =>   ['artifacts', 'details', id]
+ * task-run-result  =>   ['artifacts', 'task-run-result', taskRunId]
  * ```
  */
 export const queryKeyFactory = {
@@ -42,6 +44,8 @@ export const queryKeyFactory = {
 		[...queryKeyFactory.counts(), filter] as const,
 	details: () => [...queryKeyFactory.all(), "details"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	"task-run-result": (taskRunId: string) =>
+		[...queryKeyFactory.all(), "task-run-result", taskRunId] as const,
 };
 
 // ----------------------------
@@ -73,7 +77,7 @@ export const buildListArtifactsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory["list-filter"](filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/artifacts/filter", {
+			const res = await (await getQueryService()).POST("/artifacts/filter", {
 				body: filter,
 			});
 			return res.data ?? [];
@@ -104,7 +108,7 @@ export const buildCountArtifactsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.count(filter),
 		queryFn: async () => {
-			const res = await getQueryService().POST("/artifacts/count", {
+			const res = await (await getQueryService()).POST("/artifacts/count", {
 				body: filter,
 			});
 			return res.data ?? 0;
@@ -127,12 +131,45 @@ export const buildGetArtifactQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/artifacts/{id}", {
+			const res = await (await getQueryService()).GET("/artifacts/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
 				throw new Error("'data' expected");
 			}
 			return res.data;
+		},
+	});
+
+/**
+ * Builds a query configuration for fetching the result artifact for a task run
+ *
+ * @param taskRunId - ID of the task run to fetch the result artifact for
+ * @returns Query configuration object for use with TanStack Query that returns the first result artifact or null
+ *
+ * @example
+ * ```ts
+ * const query = buildGetTaskRunResultQuery("task-run-123");
+ * const { data } = useSuspenseQuery(query);
+ * // data is Artifact | null
+ * ```
+ */
+export const buildGetTaskRunResultQuery = (taskRunId: string) =>
+	queryOptions({
+		queryKey: queryKeyFactory["task-run-result"](taskRunId),
+		queryFn: async () => {
+			const res = await (await getQueryService()).POST("/artifacts/filter", {
+				body: {
+					artifacts: {
+						operator: "and_",
+						task_run_id: { any_: [taskRunId] },
+						type: { any_: ["result"] },
+					},
+					sort: "CREATED_DESC",
+					offset: 0,
+					limit: 1,
+				},
+			});
+			return res.data?.[0] ?? null;
 		},
 	});

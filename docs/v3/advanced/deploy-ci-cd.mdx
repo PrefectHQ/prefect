@@ -12,7 +12,7 @@ search:
 
 Many organizations deploy Prefect workflows through their CI/CD process.
 Each organization has their own unique CI/CD setup, but a common pattern is to use CI/CD to manage
-Prefect [deployments](/v3/deploy/infrastructure-examples/docker).
+Prefect [deployments](/v3/concepts/deployments).
 Combining Prefect's deployment features with CI/CD tools enables efficient management of flow code
 updates, scheduling changes, and container builds.
 This guide uses [GitHub Actions](https://docs.github.com/en/actions) to implement a CI/CD process,
@@ -67,14 +67,15 @@ For reference, the examples below live in their respective branches of
 <Tabs>
   <Tab title=".deploy">
 
-    ```
-    .
-    | -- .github/
-    |   |-- workflows/
-    |       |-- deploy-prefect-flow.yaml
-    |-- flow.py
-    |-- requirements.txt
-    ```
+    <Tree>
+      <Tree.Folder name=".github" defaultOpen>
+        <Tree.Folder name="workflows" defaultOpen>
+          <Tree.File name="deploy-prefect-flow.yaml" />
+        </Tree.Folder>
+      </Tree.Folder>
+      <Tree.File name="flow.py" />
+      <Tree.File name="requirements.txt" />
+    </Tree>
 
     `flow.py`
 
@@ -134,15 +135,16 @@ For reference, the examples below live in their respective branches of
   </Tab>
   <Tab title="prefect.yaml">
 
-    ```
-    .
-    |-- .github/
-    |   |-- workflows/
-    |       |-- deploy-prefect-flow.yaml
-    |-- flow.py
-    |-- prefect.yaml
-    |-- requirements.txt
-    ```
+    <Tree>
+      <Tree.Folder name=".github" defaultOpen>
+        <Tree.Folder name="workflows" defaultOpen>
+          <Tree.File name="deploy-prefect-flow.yaml" />
+        </Tree.Folder>
+      </Tree.Folder>
+      <Tree.File name="flow.py" />
+      <Tree.File name="prefect.yaml" />
+      <Tree.File name="requirements.txt" />
+    </Tree>
 
     `flow.py`
 
@@ -163,14 +165,14 @@ For reference, the examples below live in their respective branches of
     build:
       - prefect_docker.deployments.steps.build_docker_image:
           id: build-image
-          requires: prefect-docker>=0.3.1
+          requires: prefect-docker>=0.7.1
           image_name: my_registry/my_image
           tag: my_image_tag
           dockerfile: auto
 
     push:
       - prefect_docker.deployments.steps.push_docker_image:
-          requires: prefect-docker>=0.3.1
+          requires: prefect-docker>=0.7.1
           image_name: "{{ build-image.image_name }}"
           tag: "{{ build-image.tag }}"
 
@@ -291,15 +293,16 @@ The `prefect.yaml` file in each project folder depends on environment variables 
 selected job in each CI/CD workflow; enabling external code storage for Prefect deployments that is clearly
 separated across projects and environments.
 
-```
-  .
-  |--- cicd-example-workspaces-prod  # production bucket
-  |   |--- project_1
-  |   |---project_2
-  |---cicd-example-workspaces-stg  # staging bucket
-      |--- project_1
-      |---project_2
-```
+<Tree>
+  <Tree.Folder name="cicd-example-workspaces-prod" defaultOpen>
+    <Tree.Folder name="project_1" />
+    <Tree.Folder name="project_2" />
+  </Tree.Folder>
+  <Tree.Folder name="cicd-example-workspaces-stg" defaultOpen>
+    <Tree.Folder name="project_1" />
+    <Tree.Folder name="project_2" />
+  </Tree.Folder>
+</Tree>
 
 Deployments in this example use S3 for code storage. So it's important that push steps place flow files
 in separate locations depending upon their respective environment and project—so no deployment overwrites another
@@ -357,9 +360,8 @@ CACHED
 
 ## Prefect GitHub Actions
 
-Prefect provides its own GitHub Actions for [authentication](https://github.com/PrefectHQ/actions-prefect-auth)
-and [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy).
-These actions simplify deploying with CI/CD when using `prefect.yaml`,
+Prefect provides its own GitHub Action for [deployment creation](https://github.com/PrefectHQ/actions-prefect-deploy).
+This action simplifies deploying with CI/CD when using `prefect.yaml`,
 especially in cases where a repository contains flows used in multiple deployments across multiple
 Prefect Cloud workspaces.
 
@@ -393,17 +395,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Prefect Auth
-        uses: PrefectHQ/actions-prefect-auth@v1
-        with:
-          prefect-api-key: ${{ secrets.PREFECT_API_KEY }}
-          prefect-workspace: ${{ secrets.PREFECT_WORKSPACE }}
-
       - name: Run Prefect Deploy
         uses: PrefectHQ/actions-prefect-deploy@v4
         with:
           deployment-names: my-deployment
           requirements-file-paths: requirements.txt
+          deployment-file-path: prefect.yaml
+        env:
+          PREFECT_API_KEY: ${{ secrets.PREFECT_API_KEY }}
+          PREFECT_API_URL: ${{ secrets.PREFECT_API_URL }}
 ```
 
 ## Authenticate to other Docker image registries

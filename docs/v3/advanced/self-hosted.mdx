@@ -10,7 +10,7 @@ Running multiple Prefect server instances enables high availability and distribu
 
 Multi-server deployments require:
 
-- PostgreSQL database (SQLite does not support multi-server synchronization)
+- PostgreSQL database version 14.9 or higher (SQLite does not support multi-server synchronization)
 - Redis for event messaging
 - Load balancer for API traffic distribution
 
@@ -51,9 +51,9 @@ flowchart TB
         Users[Users / UI / API Clients]:::userClass
         Workers[Workers poll any available API server<br/>Process / K8s / Docker / Serverless]:::workerClass
     end
-    
+
     LB[Load Balancer<br/>NGINX / HAProxy / ALB<br/>Port 4200]:::lbClass
-    
+
     subgraph servers[Prefect Server Components]
         direction TB
         subgraph api[API Servers - Horizontal Scaling]
@@ -62,26 +62,26 @@ flowchart TB
             API2[API Server 2<br/>--no-services]:::apiClass
             API3[API Server N...<br/>--no-services]:::apiClass
         end
-        
+
         BG[Background Services<br/>prefect server services start<br/><br/>• Event Processing<br/>• Automation Triggers<br/>• Schedule Management]:::bgClass
     end
-    
+
     subgraph data[Data Layer]
         direction LR
         PG[(PostgreSQL<br/>• Flow/Task State<br/>• Configuration<br/>• History)]:::dataClass
         Redis[(Redis<br/>• Events<br/>• Automations<br/>• Real-time Updates)]:::dataClass
     end
-    
+
     %% Connections
     Users --> |HTTPS| LB
     LB --> |Round Robin| api
-    
+
     api --> |Read/Write| PG
     api --> |Publish| Redis
-    
+
     BG --> |Read/Write| PG
     BG --> |Subscribe| Redis
-    
+
     Workers -.-> |Poll Work| api
 ```
 
@@ -96,22 +96,84 @@ export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:password@h
 ```
 
 <Warning>
-PostgreSQL is required for multi-server deployments. SQLite does not support the features needed for state synchronization across multiple servers.
+PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLite does not support the features needed for state synchronization across multiple servers.
 </Warning>
+
+### AWS RDS IAM Authentication
+
+To use AWS IAM authentication for your PostgreSQL database (experimental):
+
+1. **Install the AWS integration**:
+   ```bash
+   pip install prefect-aws
+   ```
+
+2. **Create an IAM policy** with `rds-db:connect` permission and attach it to your IAM user/role.
+
+3. **Enable experimental plugins and IAM authentication**:
+   ```bash
+   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true
+   export PREFECT_INTEGRATIONS_AWS_RDS_IAM_ENABLED=true
+   # Optional: export PREFECT_INTEGRATIONS_AWS_RDS_IAM_REGION_NAME=us-east-1
+   ```
+
+4. **Configure your connection URL**:
+   ```bash
+   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@host:5432/prefect"
+   ```
 
 ### Redis setup
 
-Configure Redis as your message broker:
+Configure Redis as your server's message broker, cache, and lease storage:
 
 ```bash
 export PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
 export PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
+export PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
 export PREFECT_REDIS_MESSAGING_HOST="redis-host"
 export PREFECT_REDIS_MESSAGING_PORT="6379"
 export PREFECT_REDIS_MESSAGING_DB="0"
 ```
 
-Each server instance automatically generates a unique consumer name to prevent message delivery conflicts.
+If your Redis instance requires authentication, you may configure a username and password:
+
+```bash
+export PREFECT_REDIS_MESSAGING_USERNAME="marvin"
+export PREFECT_REDIS_MESSAGING_PASSWORD="dontpanic!"
+```
+
+For Redis instances that require an encrypted connection, you can enable SSL/TLS:
+
+```bash
+export PREFECT_REDIS_MESSAGING_SSL="true"
+```
+
+#### Docket URL for background services
+
+Prefect uses [Docket](https://github.com/PrefectHQ/docket) to coordinate background services like the scheduler, late run detection, and automation triggers. By default, Docket uses in-memory storage (`memory://`), which only works for single-server deployments.
+
+For high-availability deployments, configure Docket to use Redis:
+
+```bash
+export PREFECT_SERVER_DOCKET_URL="redis://redis-host:6379/0"
+```
+
+If your Redis instance requires authentication:
+
+```bash
+export PREFECT_SERVER_DOCKET_URL="redis://username:password@redis-host:6379/0"
+```
+
+For Redis instances that require SSL/TLS:
+
+```bash
+export PREFECT_SERVER_DOCKET_URL="rediss://redis-host:6379/0"
+```
+
+<Note>
+The Docket URL can use the same Redis instance as the messaging configuration above, but you may use a different database number (e.g., `/1` instead of `/0`) to keep the data separate.
+</Note>
 
 ### Service separation
 
@@ -126,6 +188,10 @@ prefect server start --host 0.0.0.0 --port 4200 --no-services
 ```bash
 prefect server services start
 ```
+
+<Tip>
+For high-volume deployments, consider reducing the event retention period from the default 7 days to prevent rapid database growth. See [database maintenance](/v3/advanced/database-maintenance#configure-event-retention) for configuration details.
+</Tip>
 
 ### Database migrations
 
@@ -161,13 +227,13 @@ upstream prefect_api {
 
 server {
     listen 4200;
-    
+
     location /api/health {
         proxy_pass http://prefect_api;
         proxy_connect_timeout 1s;
         proxy_read_timeout 1s;
     }
-    
+
     location / {
         proxy_pass http://prefect_api;
         proxy_set_header Host $host;
@@ -186,7 +252,7 @@ When hosting Prefect behind a reverse proxy, ensure proper header forwarding:
 server {
     listen 80;
     server_name prefect.example.com;
-    
+
     location / {
         return 301 https://$host$request_uri;
     }
@@ -203,15 +269,15 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Real-IP $remote_addr;
-        
+
         # WebSocket support
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        
+
         # Authentication headers
         proxy_set_header Authorization $http_authorization;
         proxy_pass_header Authorization;
-        
+
         proxy_pass http://prefect_api;
     }
 
@@ -272,20 +338,33 @@ services:
       POSTGRES_DB: prefect
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -h localhost -U $$POSTGRES_USER
+      interval: 2s
+      timeout: 5s
+      retries: 15
 
   redis:
     image: redis:7
 
   migrate:
-    image: prefecthq/prefect:latest
-    depends_on: [postgres]
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      postgres:
+        condition: service_healthy
     command: prefect server database upgrade -y
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
 
   prefect-api:
-    image: prefecthq/prefect:latest
-    depends_on: [migrate, postgres, redis]
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     deploy:
       replicas: 3
     command: prefect server start --host 0.0.0.0 --no-services
@@ -294,22 +373,34 @@ services:
       PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
       PREFECT_MESSAGING_BROKER: prefect_redis.messaging
       PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
+      PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
+      PREFECT_SERVER_DOCKET_URL: redis://redis:6379/1
     ports:
       - "4200-4202:4200"  # Maps to different ports for each replica
 
   prefect-background:
-    image: prefecthq/prefect:latest
-    depends_on: [migrate, postgres, redis]
+    image: prefecthq/prefect:3-latest
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     command: prefect server services start
     environment:
       PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
       PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
       PREFECT_MESSAGING_BROKER: prefect_redis.messaging
       PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
+      PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: "6379"
+      PREFECT_SERVER_DOCKET_URL: redis://redis:6379/1
 
 volumes:
   postgres_data:
@@ -397,5 +488,6 @@ Monitor your multi-server deployment:
 
 ## Further reading
 
+- [Database maintenance](/v3/advanced/database-maintenance) - Monitor table sizes, configure event retention, and manage data growth
 - [Server concepts](/v3/concepts/server)
 - Deploy [Helm charts](/v3/advanced/server-helm) for Kubernetes

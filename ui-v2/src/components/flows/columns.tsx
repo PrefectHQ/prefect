@@ -8,7 +8,6 @@ import {
 	FlowLastRun,
 	FlowName,
 	FlowNextRun,
-	FlowsTableHeaderCell,
 } from "./cells";
 
 type Flow = components["schemas"]["Flow"];
@@ -36,27 +35,27 @@ export const columns: ColumnDef<Flow>[] = [
 	},
 	{
 		accessorKey: "name",
-		header: () => <FlowsTableHeaderCell content="Flow" />,
+		header: () => <div className="pl-4">Flow</div>,
 		cell: FlowName,
 	},
 	{
 		accessorKey: "lastRuns",
-		header: () => <FlowsTableHeaderCell content="Last Run" />,
+		header: "Last Run",
 		cell: FlowLastRun,
 	},
 	{
 		accessorKey: "nextRuns",
-		header: () => <FlowsTableHeaderCell content="Next Run" />,
+		header: "Next Run",
 		cell: FlowNextRun,
 	},
 	{
 		accessorKey: "deployments",
-		header: () => <FlowsTableHeaderCell content="Deployments" />,
+		header: "Deployments",
 		cell: FlowDeploymentCount,
 	},
 	{
 		accessorKey: "activity",
-		header: () => <FlowsTableHeaderCell content="Activity" />,
+		header: "Activity",
 		cell: FlowActivity,
 	},
 	{

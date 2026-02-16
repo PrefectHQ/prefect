@@ -1,0 +1,514 @@
+---
+title: "3.0"
+---
+
+## 3.0.11 - Thread Carefully
+
+*Released on October 25, 2024*
+
+**Enhancements ➕➕**
+
+* Add setting to configure default max workers for `ThreadPoolTaskRunner` by [@soamicharan](https://github.com/soamicharan) in [#15719](https://github.com/PrefectHQ/prefect/pull/15719)
+* Improve handling of interrupts to `serve` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15727](https://github.com/PrefectHQ/prefect/pull/15727)
+* Checks for active workers when deploying by [@jeanluciano](https://github.com/jeanluciano) in [#15632](https://github.com/PrefectHQ/prefect/pull/15632)
+* Highlight `Cached` state in console logs by [@zzstoatzz](https://github.com/zzstoatzz) in [#15801](https://github.com/PrefectHQ/prefect/pull/15801)
+
+**Bug Fixes 🐞**
+
+* Fix origin repo check that bypasses Docker Login on PRs originating from forks by [@kzvezdarov](https://github.com/kzvezdarov) in [#15724](https://github.com/PrefectHQ/prefect/pull/15724)
+* Fix capture of pod logs for `run_namespaced_job` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15732](https://github.com/PrefectHQ/prefect/pull/15732)
+* Add `/api` to `PREFECT_UI_API_URL` in default case by [@zzstoatzz](https://github.com/zzstoatzz) in [#15736](https://github.com/PrefectHQ/prefect/pull/15736)
+* Pass lowercase log level to uvicorn server by [@gigaverse-oz](https://github.com/gigaverse-oz) in [#15680](https://github.com/PrefectHQ/prefect/pull/15680)
+* Fix handling of Dask DataFrame and other Awaitables passed to `run_coro_as_sync` by [@kzvezdarov](https://github.com/kzvezdarov) in [#15687](https://github.com/PrefectHQ/prefect/pull/15687)
+* Wraps `run_dbt_` functions in `sync_compatible` by [@EmilRex](https://github.com/EmilRex) in [#15740](https://github.com/PrefectHQ/prefect/pull/15740)
+* Fix custom task run name rendering by [@zzstoatzz](https://github.com/zzstoatzz) in [#15773](https://github.com/PrefectHQ/prefect/pull/15773)
+* Fix incorrect import in agents to workers guide by [@zzstoatzz](https://github.com/zzstoatzz) in [#15789](https://github.com/PrefectHQ/prefect/pull/15789)
+* Soft wrap deployment link by [@zzstoatzz](https://github.com/zzstoatzz) in [#15787](https://github.com/PrefectHQ/prefect/pull/15787)
+* Fix worker filter param by [@zangell44](https://github.com/zangell44) in [#15804](https://github.com/PrefectHQ/prefect/pull/15804)
+* Include env defaults from `variables.properties.env` in deep merge by [@kevingrismore](https://github.com/kevingrismore) in [#15692](https://github.com/PrefectHQ/prefect/pull/15692)
+* Fix wrong exception in lazy import __getattr__ by [@protagonyist](https://github.com/protagonyist) in [#15741](https://github.com/PrefectHQ/prefect/pull/15741)
+
+**Integrations & Dependencies 🤝**
+
+* Set minimum version of `pydantic-settings` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15797](https://github.com/PrefectHQ/prefect/pull/15797)
+
+**`prefect-gcp`**
+
+* Support CloudSQL volumes for cloud run jobs by [@matmiad](https://github.com/matmiad) in [#15778](https://github.com/PrefectHQ/prefect/pull/15778)
+
+**`prefect-dbt`**
+
+* Fix dbt CLI argument parsing for multipart commands by [@e1337us3r](https://github.com/e1337us3r) in [#15714](https://github.com/PrefectHQ/prefect/pull/15714)
+
+**`prefect-kubernetes`**
+
+* Avoid crashing flows when job watch exits but container is still running by [@soamicharan](https://github.com/soamicharan) in [#15728](https://github.com/PrefectHQ/prefect/pull/15728)
+* Add `_request_timeout` to Kubernetes watches by [@kevingrismore](https://github.com/kevingrismore) in [#15744](https://github.com/PrefectHQ/prefect/pull/15744)
+
+**Development & Tidiness 🧹**
+
+* Create settings models for CLI and client settings by [@desertaxle](https://github.com/desertaxle) in [#15640](https://github.com/PrefectHQ/prefect/pull/15640)
+* Create settings models for cloud, deployments, and logging  by [@desertaxle](https://github.com/desertaxle) in [#15749](https://github.com/PrefectHQ/prefect/pull/15749)
+* Create settings models for flows, results, and runners by [@desertaxle](https://github.com/desertaxle) in [#15754](https://github.com/PrefectHQ/prefect/pull/15754)
+* Create server settings models by [@desertaxle](https://github.com/desertaxle) in [#15758](https://github.com/PrefectHQ/prefect/pull/15758)
+* Create settings submodules by [@desertaxle](https://github.com/desertaxle) in [#15772](https://github.com/PrefectHQ/prefect/pull/15772)
+* Create settings models for services, events, tasks, and the flow run graph by [@desertaxle](https://github.com/desertaxle) in [#15776](https://github.com/PrefectHQ/prefect/pull/15776)
+* Create worker, tasks, testing, and UI settings models by [@desertaxle](https://github.com/desertaxle) in [#15784](https://github.com/PrefectHQ/prefect/pull/15784)
+* Fix failing work queue test by [@desertaxle](https://github.com/desertaxle) in [#15709](https://github.com/PrefectHQ/prefect/pull/15709)
+* Split out runner and worker tests to avoid hanging test suite by [@desertaxle](https://github.com/desertaxle) in [#15715](https://github.com/PrefectHQ/prefect/pull/15715)
+* Only authenticate with Docker when running on a branch by [@desertaxle](https://github.com/desertaxle) in [#15708](https://github.com/PrefectHQ/prefect/pull/15708)
+* Give more time for integration serve flow by [@zzstoatzz](https://github.com/zzstoatzz) in [#15720](https://github.com/PrefectHQ/prefect/pull/15720)
+* De-flake serve integration test by [@zzstoatzz](https://github.com/zzstoatzz) in [#15726](https://github.com/PrefectHQ/prefect/pull/15726)
+* Add code coverage generation and upload for Python tests by [@desertaxle](https://github.com/desertaxle) in [#15690](https://github.com/PrefectHQ/prefect/pull/15690)
+* Remove `setuptools` and update `pip` pin in Docker build by [@desertaxle](https://github.com/desertaxle) in [#15759](https://github.com/PrefectHQ/prefect/pull/15759)
+* Improve map typing by [@zzstoatzz](https://github.com/zzstoatzz) in [#15757](https://github.com/PrefectHQ/prefect/pull/15757)
+* Ignore errors when cleaning up after deploy integration test by [@desertaxle](https://github.com/desertaxle) in [#15768](https://github.com/PrefectHQ/prefect/pull/15768)
+* Disable automatic markdown tests by [@zzstoatzz](https://github.com/zzstoatzz) in [#15782](https://github.com/PrefectHQ/prefect/pull/15782)
+* Fix typing for triggers schemas by [@zzstoatzz](https://github.com/zzstoatzz) in [#15792](https://github.com/PrefectHQ/prefect/pull/15792)
+* Update instructions on bug report issue template by [@desertaxle](https://github.com/desertaxle) in [#15795](https://github.com/PrefectHQ/prefect/pull/15795)
+* Format example code in `README.md` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15807](https://github.com/PrefectHQ/prefect/pull/15807)
+* Fix typo in prefect-databricks by [@aaazzam](https://github.com/aaazzam) in [#15800](https://github.com/PrefectHQ/prefect/pull/15800)
+* Fix links to 3.0 docs that are missing a leading slash by [@sam-phinizy](https://github.com/sam-phinizy) in [#15704](https://github.com/PrefectHQ/prefect/pull/15704)
+* Add a few notes to Docker docs page by [@discdiver](https://github.com/discdiver) in [#15706](https://github.com/PrefectHQ/prefect/pull/15706)
+* Improve table formatting in docs by [@discdiver](https://github.com/discdiver) in [#15700](https://github.com/PrefectHQ/prefect/pull/15700)
+* Fix docs links for integrations by [@discdiver](https://github.com/discdiver) in [#15702](https://github.com/PrefectHQ/prefect/pull/15702)
+* More accessible wording for job variable overrides docs by [@zzstoatzz](https://github.com/zzstoatzz) in [#15669](https://github.com/PrefectHQ/prefect/pull/15669)
+* Fix `automation-assement.py` by [@jakekaplan](https://github.com/jakekaplan) in [#15710](https://github.com/PrefectHQ/prefect/pull/15710)
+* Give more time for state to integration flow to finish by [@jakekaplan](https://github.com/jakekaplan) in [#15723](https://github.com/PrefectHQ/prefect/pull/15723)
+* Fix a few spelling issues in docs by [@discdiver](https://github.com/discdiver) in [#15737](https://github.com/PrefectHQ/prefect/pull/15737)
+* Updated Docker push step in docs by [@zzstoatzz](https://github.com/zzstoatzz) in [#15748](https://github.com/PrefectHQ/prefect/pull/15748)
+* Clear up namespace selection in Kubernetes guide by [@zzstoatzz](https://github.com/zzstoatzz) in [#15765](https://github.com/PrefectHQ/prefect/pull/15765)
+* Update Docker image reference in aci_worker docs page by [@discdiver](https://github.com/discdiver) in [#15745](https://github.com/PrefectHQ/prefect/pull/15745)
+* Fix minor typo on "Deploy overview" page. by [@Noah-Haf](https://github.com/Noah-Haf) in [#15771](https://github.com/PrefectHQ/prefect/pull/15771)
+* Add note about schedule kwargs change from 2.x to 3.x by [@zzstoatzz](https://github.com/zzstoatzz) in [#15803](https://github.com/PrefectHQ/prefect/pull/15803)
+* Update @prefecthq/prefect-ui-library to version 3.11.3 by [@marvin-robot](https://github.com/marvin-robot) in [#15717](https://github.com/PrefectHQ/prefect/pull/15717)
+* Update @prefecthq/prefect-ui-library to version 3.11.4 by [@marvin-robot](https://github.com/marvin-robot) in [#15738](https://github.com/PrefectHQ/prefect/pull/15738)
+* Update @prefecthq/prefect-ui-library to version 3.11.7 by [@marvin-robot](https://github.com/marvin-robot) in [#15756](https://github.com/PrefectHQ/prefect/pull/15756)
+* Update @prefecthq/prefect-design to version 2.13.3 by [@marvin-robot](https://github.com/marvin-robot) in [#15721](https://github.com/PrefectHQ/prefect/pull/15721)
+* Update @prefecthq/prefect-design to version 2.13.4 by [@marvin-robot](https://github.com/marvin-robot) in [#15742](https://github.com/PrefectHQ/prefect/pull/15742)
+* Update @prefecthq/prefect-design to version 2.13.5 by [@marvin-robot](https://github.com/marvin-robot) in [#15785](https://github.com/PrefectHQ/prefect/pull/15785)
+* Update @prefecthq/prefect-ui-library to version 3.11.5 by [@marvin-robot](https://github.com/marvin-robot) in [#15743](https://github.com/PrefectHQ/prefect/pull/15743)
+* Update @prefecthq/prefect-ui-library to version 3.11.6 by [@marvin-robot](https://github.com/marvin-robot) in [#15746](https://github.com/PrefectHQ/prefect/pull/15746)
+* Bump tailwindcss from 3.4.13 to 3.4.14 in /ui by [@dependabot](https://github.com/dependabot) in [#15767](https://github.com/PrefectHQ/prefect/pull/15767)
+* Bump vite from 5.4.8 to 5.4.9 in /ui by [@dependabot](https://github.com/dependabot) in [#15766](https://github.com/PrefectHQ/prefect/pull/15766)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.10...3.0.11
+
+---
+
+## 3.0.10 - Serve returned
+
+*Released on October 15, 2024*
+
+This release fixes an issue where served flows would exit early and continues our reorganization of settings with `pydantic-settings`.
+
+**Bug Fixes 🐞**
+
+* Fix bug where `.serve` exits early and add integration test by [@zzstoatzz](https://github.com/zzstoatzz) in [#15691](https://github.com/PrefectHQ/prefect/pull/15691)
+
+**Development**
+
+* Add `APISettings` setting group by [@desertaxle](https://github.com/desertaxle) in [#15701](https://github.com/PrefectHQ/prefect/pull/15701)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.9...3.0.10
+
+---
+
+## 3.0.9 - There's no place like home
+
+*Released on October 15, 2024*
+
+**Enhancements ✨**
+
+* dont ask to confirm non-existent deployment by [@zzstoatzz](https://github.com/zzstoatzz) in [#15653](https://github.com/PrefectHQ/prefect/pull/15653)
+
+**Bug Fixes 🐞**
+
+* create `PREFECT_HOME` in `root_settings_context` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15696](https://github.com/PrefectHQ/prefect/pull/15696)
+* correctly await `config.load_kube_config` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15655](https://github.com/PrefectHQ/prefect/pull/15655)
+* Do not delete flow runs awaiting retry on deployment changes by [@kevingrismore](https://github.com/kevingrismore) in [#15688](https://github.com/PrefectHQ/prefect/pull/15688)
+* Ensure `TaskWorker` creates a `anyio.TaskGroup` in an `async` context by [@desertaxle](https://github.com/desertaxle) in [#15684](https://github.com/PrefectHQ/prefect/pull/15684)
+
+**Development & Tidiness 🧹**
+
+* Add tests to verify all settings via environment variables by [@desertaxle](https://github.com/desertaxle) in [#15657](https://github.com/PrefectHQ/prefect/pull/15657)
+* Update `versioneer.py` to ignore uncommitted changes by [@desertaxle](https://github.com/desertaxle) in [#15672](https://github.com/PrefectHQ/prefect/pull/15672)
+* Bump vue from 3.5.10 to 3.5.12 in /ui by [@dependabot](https://github.com/dependabot) in [#15675](https://github.com/PrefectHQ/prefect/pull/15675)
+* Add tests for specifying each setting via a profile by [@desertaxle](https://github.com/desertaxle) in [#15670](https://github.com/PrefectHQ/prefect/pull/15670)
+* Add tests to verify all supported settings can be set via a `.env` file by [@desertaxle](https://github.com/desertaxle) in [#15682](https://github.com/PrefectHQ/prefect/pull/15682)
+* Update @prefecthq/prefect-ui-library to version 3.11.2 by [@marvin-robot](https://github.com/marvin-robot) in [#15695](https://github.com/PrefectHQ/prefect/pull/15695)
+* Bump typescript from 5.6.2 to 5.6.3 in /ui by [@dependabot](https://github.com/dependabot) in [#15676](https://github.com/PrefectHQ/prefect/pull/15676)
+* Update @prefecthq/vue-compositions to version 1.11.5 by [@marvin-robot](https://github.com/marvin-robot) in [#15699](https://github.com/PrefectHQ/prefect/pull/15699)
+* remove note from 3.x docs about using `pydantic<2` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15642](https://github.com/PrefectHQ/prefect/pull/15642)
+* Update reference to name of profile in example by [@discdiver](https://github.com/discdiver) in [#15644](https://github.com/PrefectHQ/prefect/pull/15644)
+* follow on suggestion: simplify phrasing by [@zzstoatzz](https://github.com/zzstoatzz) in [#15651](https://github.com/PrefectHQ/prefect/pull/15651)
+* Edits to dbt integration page by [@discdiver](https://github.com/discdiver) in [#15540](https://github.com/PrefectHQ/prefect/pull/15540)
+* Minor updates to deploy overview by [@discdiver](https://github.com/discdiver) in [#15606](https://github.com/PrefectHQ/prefect/pull/15606)
+* chore: update secret ref by [@jamiezieziula](https://github.com/jamiezieziula) in [#15641](https://github.com/PrefectHQ/prefect/pull/15641)
+* Add link to release notes on What's new docs page by [@discdiver](https://github.com/discdiver) in [#15662](https://github.com/PrefectHQ/prefect/pull/15662)
+* Docs note about accessing flow run logs by [@EmilRex](https://github.com/EmilRex) in [#15683](https://github.com/PrefectHQ/prefect/pull/15683)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.8...3.0.9
+
+---
+
+## 3.0.8 - Revert a settings bug
+
+*Released on October 10, 2024*
+
+This release reverts a change that caused a loss of "set" environment variables in runtime environments.
+
+* Revert "Create `APISettings` to group to group API-specific client settings" by [@zzstoatzz](https://github.com/zzstoatzz) in [#15648](https://github.com/PrefectHQ/prefect/pull/15648)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.7...3.0.8
+
+---
+
+## 3.0.7 - Version of a down bug
+
+*Released on October 10, 2024*
+
+This release includes a couple of bug fixes, including a fix for generating the Docker image name for the installed version of `prefect`.
+
+**Enhancements ➕➕**
+
+* Link to docs on starting temporary server by [@zzstoatzz](https://github.com/zzstoatzz) in [#15636](https://github.com/PrefectHQ/prefect/pull/15636)
+
+**Bug Fixes 🐞**
+
+* Fix PagerDuty notification formatting by [@kevingrismore](https://github.com/kevingrismore) in [#15584](https://github.com/PrefectHQ/prefect/pull/15584)
+* Fix version parsing error when generating Docker image name by [@zzstoatzz](https://github.com/zzstoatzz) in [#15638](https://github.com/PrefectHQ/prefect/pull/15638)
+
+**Development & Tidiness 🧹**
+
+* Use the recommend approach for shallow dumping `pydantic` models by [@zzstoatzz](https://github.com/zzstoatzz) in [#15634](https://github.com/PrefectHQ/prefect/pull/15634)
+* Add note about actively developed version to enhancement request form by [@zzstoatzz](https://github.com/zzstoatzz) in [#15600](https://github.com/PrefectHQ/prefect/pull/15600)
+* Create `APISettings` to group to group API-specific client settings by [@desertaxle](https://github.com/desertaxle) in [#15580](https://github.com/PrefectHQ/prefect/pull/15580)
+* Update image in Quickstart  by [@discdiver](https://github.com/discdiver) in [#15635](https://github.com/PrefectHQ/prefect/pull/15635)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.6...3.0.7
+
+---
+
+## 3.0.6 - Client, know thyself
+
+*Released on October 09, 2024*
+
+This update focuses on fixing `prefect-client` compatibility checks. Key changes include adding version information to `prefect-client` and adjusting task logging levels.
+
+**Enhancements ➕➕**
+
+* Updated task creation and submission log level to `DEBUG` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15631](https://github.com/PrefectHQ/prefect/pull/15631)
+
+**Bug Fixes 🐞**
+
+* Eliminated date range filter from Flow page by [@dylanbhughes](https://github.com/dylanbhughes) in [#15630](https://github.com/PrefectHQ/prefect/pull/15630)
+* Accurately populate `__version__` for `prefect_client` by [@desertaxle](https://github.com/desertaxle) in [#15624](https://github.com/PrefectHQ/prefect/pull/15624)
+
+**Development & Tidiness 🧹**
+
+* Maintain typing information in `PrefectFuture` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15625](https://github.com/PrefectHQ/prefect/pull/15625)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.5...3.0.6
+
+---
+
+## 3.0.5 - Take care of the .environment
+
+*Released on October 08, 2024*
+
+This release introduces support for loading settings from `.env` files, offering greater flexibility and ease of use in managing your Prefect configurations between projects.
+
+**New Features 🎉**
+
+* Allow specifying settings overrides in a `.env` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15565](https://github.com/PrefectHQ/prefect/pull/15565)
+
+**Enhancements ➕➕**
+
+* Update settings to use `pydantic-settings` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15412](https://github.com/PrefectHQ/prefect/pull/15412)
+* Add a helpful message on 404 with deployment by name by [@zzstoatzz](https://github.com/zzstoatzz) in [#15578](https://github.com/PrefectHQ/prefect/pull/15578)
+
+**Bug Fixes 🐞**
+
+* Changed `TaskSource` key computation to handle `OSError("source not available")` by [@kzvezdarov](https://github.com/kzvezdarov) in [#15583](https://github.com/PrefectHQ/prefect/pull/15583)
+* Fail correctly if `lookup_type` throws a `KeyError` in `BaseResult.__new__` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15596](https://github.com/PrefectHQ/prefect/pull/15596)
+* Fix issue where transaction parent look up fails in rollback hooks by [@desertaxle](https://github.com/desertaxle) in [#15599](https://github.com/PrefectHQ/prefect/pull/15599)
+* Fix flow run parameters literally named `keys` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15611](https://github.com/PrefectHQ/prefect/pull/15611)
+* Ensure dynamic default values for settings are considered unset by `pydantic` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15613](https://github.com/PrefectHQ/prefect/pull/15613)
+* Fix errors when using `run_deployment` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15615](https://github.com/PrefectHQ/prefect/pull/15615)
+* Fix errors loading settings when profiles file can't be read by [@desertaxle](https://github.com/desertaxle) in [#15602](https://github.com/PrefectHQ/prefect/pull/15602)
+
+**Integrations & Dependencies 🤝**
+
+* Make database parameter optional in `ConnectionComponents`  #15511 by [@Ben-Taarit](https://github.com/Ben-Taarit) in [#15553](https://github.com/PrefectHQ/prefect/pull/15553)
+* Update `AwsClientParameters` validation for `verify` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15574](https://github.com/PrefectHQ/prefect/pull/15574)
+
+**Development & Tidiness 🧹**
+
+* Fix check to prerelease tag to allow nightly builds to publish Docker images by [@desertaxle](https://github.com/desertaxle) in [#15563](https://github.com/PrefectHQ/prefect/pull/15563)
+* Update format for nightly dev release names by [@desertaxle](https://github.com/desertaxle) in [#15568](https://github.com/PrefectHQ/prefect/pull/15568)
+* Add a note that deployments delegate ACLs to work pools by [@abrookins](https://github.com/abrookins) in [#15383](https://github.com/PrefectHQ/prefect/pull/15383)
+* Remove `await` for task submissions in global concurrency limits example by [@biancaines](https://github.com/biancaines) in [#15581](https://github.com/PrefectHQ/prefect/pull/15581)
+* Flow code storage docs improvements by [@discdiver](https://github.com/discdiver) in [#15519](https://github.com/PrefectHQ/prefect/pull/15519)
+* Update the store flow code docs  by [@discdiver](https://github.com/discdiver) in [#15604](https://github.com/PrefectHQ/prefect/pull/15604)
+* Update first docs example by [@discdiver](https://github.com/discdiver) in [#15605](https://github.com/PrefectHQ/prefect/pull/15605)
+* Add documentation for `.env` file support by [@zzstoatzz](https://github.com/zzstoatzz) in [#15617](https://github.com/PrefectHQ/prefect/pull/15617)
+* Update @prefecthq/prefect-design to version 2.13.2 by [@marvin-robot](https://github.com/marvin-robot) in [#15579](https://github.com/PrefectHQ/prefect/pull/15579)
+* Update @prefecthq/prefect-design to version 2.13.1 by [@marvin-robot](https://github.com/marvin-robot) in [#15576](https://github.com/PrefectHQ/prefect/pull/15576)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.4...3.0.5
+
+---
+
+## 3.0.4 - It's been.. one week since you updated me
+
+*Released on October 01, 2024*
+
+**Enhancements ➕➕**
+
+* update `prefect deployment ls` to show work pool by [@zzstoatzz](https://github.com/zzstoatzz) in [#15454](https://github.com/PrefectHQ/prefect/pull/15454)
+* Add --collision-strategy to `prefect deploy` CLI. by [@collincchoy](https://github.com/collincchoy) in [#15468](https://github.com/PrefectHQ/prefect/pull/15468)
+* Don't prompt custom image build for managed pools in `prefect deploy` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15484](https://github.com/PrefectHQ/prefect/pull/15484)
+* Deploy docs overview improvements by [@discdiver](https://github.com/discdiver) in [#15494](https://github.com/PrefectHQ/prefect/pull/15494)
+* Enforces deployment concurrency with orchestration polices. by [@jeanluciano](https://github.com/jeanluciano) in [#15504](https://github.com/PrefectHQ/prefect/pull/15504)
+* add `get_current_workspace` cloud client method by [@zzstoatzz](https://github.com/zzstoatzz) in [#15542](https://github.com/PrefectHQ/prefect/pull/15542)
+* Enhancement: Add `end_time` to flow run filters by [@znicholasbrown](https://github.com/znicholasbrown) in [#15502](https://github.com/PrefectHQ/prefect/pull/15502)
+* Write raw results from flows by [@desertaxle](https://github.com/desertaxle) in [#15434](https://github.com/PrefectHQ/prefect/pull/15434)
+* Update `transaction` context manager to default `write_on_commit` to `True` by [@desertaxle](https://github.com/desertaxle) in [#15515](https://github.com/PrefectHQ/prefect/pull/15515)
+
+**Bug Fixes 🐞**
+
+* Use correct JSON schema dialect for param validation by [@GfxKai](https://github.com/GfxKai) in [#15483](https://github.com/PrefectHQ/prefect/pull/15483)
+* Fix block reference load in async flow by [@GalLadislav](https://github.com/GalLadislav) in [#15487](https://github.com/PrefectHQ/prefect/pull/15487)
+* Add regression test for arbitrary state data by [@desertaxle](https://github.com/desertaxle) in [#15506](https://github.com/PrefectHQ/prefect/pull/15506)
+* Update tasks to inherit the lock manager from a parent transaction if present by [@desertaxle](https://github.com/desertaxle) in [#15505](https://github.com/PrefectHQ/prefect/pull/15505)
+* override `_coerce_env` for k8s worker by [@zzstoatzz](https://github.com/zzstoatzz) in [#15522](https://github.com/PrefectHQ/prefect/pull/15522)
+
+**Integrations & Dependencies 🤝**
+
+* Bumps `pytest` and `pytest-asyncio` to the latest versions by [@chrisguidry](https://github.com/chrisguidry) in [#15523](https://github.com/PrefectHQ/prefect/pull/15523)
+* Avoid shutting down Ray driver when running on a Ray worker by [@desertaxle](https://github.com/desertaxle) in [#15552](https://github.com/PrefectHQ/prefect/pull/15552)
+* Fix dbt source freshness fail state by [@e1337us3r](https://github.com/e1337us3r) in [#15510](https://github.com/PrefectHQ/prefect/pull/15510)
+* Allow oracle connection urls by [@zzstoatzz](https://github.com/zzstoatzz) in [#15496](https://github.com/PrefectHQ/prefect/pull/15496)
+* Use `ConnectionComponents` components from `prefect-sqlalchemy` in `prefect-dbt` by [@westford14](https://github.com/westford14) in [#15499](https://github.com/PrefectHQ/prefect/pull/15499)
+
+**Development & Tidiness 🧹**
+
+* Improve docstring `state.result` for when used with `run_deployment` by [@benjamincerigo](https://github.com/benjamincerigo) in [#15509](https://github.com/PrefectHQ/prefect/pull/15509)
+* Fix use of deprecated field on `websockets.exceptions.ConnectionClosedError` by [@desertaxle](https://github.com/desertaxle) in [#15467](https://github.com/PrefectHQ/prefect/pull/15467)
+* Set up pytest-markdown-docs for documentation testing by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#15457](https://github.com/PrefectHQ/prefect/pull/15457)
+* fix test by [@zzstoatzz](https://github.com/zzstoatzz) in [#15480](https://github.com/PrefectHQ/prefect/pull/15480)
+* one small type fix by [@zzstoatzz](https://github.com/zzstoatzz) in [#15479](https://github.com/PrefectHQ/prefect/pull/15479)
+* use internal logger for `get_lost_followers` retries by [@zzstoatzz](https://github.com/zzstoatzz) in [#15518](https://github.com/PrefectHQ/prefect/pull/15518)
+* Update weekly RC workflow to a nightly development workflow by [@desertaxle](https://github.com/desertaxle) in [#15545](https://github.com/PrefectHQ/prefect/pull/15545)
+* add note on terminal unawaited coro by [@zzstoatzz](https://github.com/zzstoatzz) in [#15439](https://github.com/PrefectHQ/prefect/pull/15439)
+* Add docs on securing webhooks with service accounts by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#15481](https://github.com/PrefectHQ/prefect/pull/15481)
+* Fix README code example by [@OverShifted](https://github.com/OverShifted) in [#15492](https://github.com/PrefectHQ/prefect/pull/15492)
+* Fixes ugly table formatting from bash output in docs by [@discdiver](https://github.com/discdiver) in [#15495](https://github.com/PrefectHQ/prefect/pull/15495)
+* Update global concurrency limits docs for removed create_if_missing behavior by [@collincchoy](https://github.com/collincchoy) in [#15517](https://github.com/PrefectHQ/prefect/pull/15517)
+* Warn if websocket connection can't be made by [@jakekaplan](https://github.com/jakekaplan) in [#15261](https://github.com/PrefectHQ/prefect/pull/15261)
+* Fix flow typing when passing return_state to a coroutine by [@williamjamir](https://github.com/williamjamir) in [#15528](https://github.com/PrefectHQ/prefect/pull/15528)
+* Docs for deployment concurrency limits by [@collincchoy](https://github.com/collincchoy) in [#15527](https://github.com/PrefectHQ/prefect/pull/15527)
+* Fix automations-triggers doc tests by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#15514](https://github.com/PrefectHQ/prefect/pull/15514)
+* Remove worker and runner handling for deployment concurrency by [@jeanluciano](https://github.com/jeanluciano) in [#15497](https://github.com/PrefectHQ/prefect/pull/15497)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.3...3.0.4
+
+---
+
+## 3.0.3 - Cache Rules Everything Around Me
+
+*Released on September 20, 2024*
+
+This release introduces improvements to cache policy configuration, offering developers more control and flexibility in managing task result caching:
+
+- Customizable Storage Location: Specify where cache entries are stored using the `key_storage` parameter.
+- Configurable Isolation Level: Set the isolation level for cache access with the `isolation_level` parameter.
+- Locking Mechanism: Implement concurrent access control using the `lock_manager` parameter.
+
+These enhancements allow for more sophisticated caching strategies, improving performance and resource management in complex workflows.
+
+To learn more about these changes, check out the [task caching docs](https://docs.prefect.io/3.0/develop/task-caching#customizing-the-cache).
+
+**New Features 🎉**
+
+* Add `key_storage`, `isolation_level` and `lock_manager` configuration to cache policies by [@desertaxle](https://github.com/desertaxle) in [#15382](https://github.com/PrefectHQ/prefect/pull/15382)
+
+**Enhancements ➕➕**
+
+* Adds settings to control server CORS configuration by [@desertaxle](https://github.com/desertaxle) in [#15396](https://github.com/PrefectHQ/prefect/pull/15396)
+* Add ability to specify `ConcurrencyOptions` by [@jeanluciano](https://github.com/jeanluciano) in [#15291](https://github.com/PrefectHQ/prefect/pull/15291)
+* Add `concurrency_limit` field to `flow.serve` by [@jeanluciano](https://github.com/jeanluciano) in [#15376](https://github.com/PrefectHQ/prefect/pull/15376)
+* Allow a rich object to be passed to `concurrency_limit` in client methods by [@jeanluciano](https://github.com/jeanluciano) in [#15425](https://github.com/PrefectHQ/prefect/pull/15425)
+* Add support for insecure webhooks by [@westford14](https://github.com/westford14) in [#15402](https://github.com/PrefectHQ/prefect/pull/15402)
+* Improve deployment concurrency GCL management by [@collincchoy](https://github.com/collincchoy) in [#15426](https://github.com/PrefectHQ/prefect/pull/15426)
+
+**Bug Fixes 🐞**
+
+* Preserve `flow.name` with `RunnerDeployment.from_storage` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15393](https://github.com/PrefectHQ/prefect/pull/15393)
+* Lazy import `ray` to fix server startup issues by [@desertaxle](https://github.com/desertaxle) in [#15392](https://github.com/PrefectHQ/prefect/pull/15392)
+* Handle unnamed lambdas for consistency by [@zzstoatzz](https://github.com/zzstoatzz) in [#15400](https://github.com/PrefectHQ/prefect/pull/15400)
+* Fix task linking by [@desertaxle](https://github.com/desertaxle) in [#15418](https://github.com/PrefectHQ/prefect/pull/15418)
+* Fix ephemeral server start command for Windows by [@desertaxle](https://github.com/desertaxle) in [#15421](https://github.com/PrefectHQ/prefect/pull/15421)
+* Fix task run count when a task is configured with `retry_delay_seconds` by [@desertaxle](https://github.com/desertaxle) in [#15424](https://github.com/PrefectHQ/prefect/pull/15424)
+* Fix bug where task cache storage is misconfigured by [@desertaxle](https://github.com/desertaxle) in [#15433](https://github.com/PrefectHQ/prefect/pull/15433)
+* Update task engine to increment `run_count` when entering `RUNNING` state by [@desertaxle](https://github.com/desertaxle) in [#15436](https://github.com/PrefectHQ/prefect/pull/15436)
+
+**Integrations & Dependencies 🤝**
+
+* Add environment variables from GCP secrets to cloud run job v2 workers by [@Ultramann](https://github.com/Ultramann) in [#15423](https://github.com/PrefectHQ/prefect/pull/15423)
+* Prepare `prefect-redis` for `0.2.0` release by [@desertaxle](https://github.com/desertaxle) in [#15409](https://github.com/PrefectHQ/prefect/pull/15409)
+* Add `AzureBlobStorageContainer.list_blobs` method by [@westford14](https://github.com/westford14) in [#15390](https://github.com/PrefectHQ/prefect/pull/15390)
+* Add `oracledb` driver support in `prefect-sqlalchemy` by [@Ben-Taarit](https://github.com/Ben-Taarit) in [#15385](https://github.com/PrefectHQ/prefect/pull/15385)
+
+**Development & Tidiness 🧹**
+
+* Add docs for configuring storage and isolation for cache policies by [@desertaxle](https://github.com/desertaxle) in [#15397](https://github.com/PrefectHQ/prefect/pull/15397)
+* Improve type hinting docs for sync_compatible by [@benjamincerigo](https://github.com/benjamincerigo) in [#15327](https://github.com/PrefectHQ/prefect/pull/15327)
+* Refactors `__add__` and `__sub__` on cache policies by [@desertaxle](https://github.com/desertaxle) in [#15379](https://github.com/PrefectHQ/prefect/pull/15379)
+* Add `mypy` type checking to `/models` by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#15062](https://github.com/PrefectHQ/prefect/pull/15062)
+* Only load collections once by [@abrookins](https://github.com/abrookins) in [#15344](https://github.com/PrefectHQ/prefect/pull/15344)
+* Bump vue from 3.5.4 to 3.5.5 in /ui by [@dependabot](https://github.com/dependabot) in [#15386](https://github.com/PrefectHQ/prefect/pull/15386)
+* Bump typescript from 5.5.4 to 5.6.2 in /ui by [@dependabot](https://github.com/dependabot) in [#15387](https://github.com/PrefectHQ/prefect/pull/15387)
+* Bump tailwindcss from 3.4.10 to 3.4.11 in /ui by [@dependabot](https://github.com/dependabot) in [#15388](https://github.com/PrefectHQ/prefect/pull/15388)
+* Bump vite from 5.4.2 to 5.4.5 in /ui by [@dependabot](https://github.com/dependabot) in [#15372](https://github.com/PrefectHQ/prefect/pull/15372)
+* Bump vue-router from 4.4.3 to 4.4.5 in /ui by [@dependabot](https://github.com/dependabot) in [#15389](https://github.com/PrefectHQ/prefect/pull/15389)
+* Update @prefecthq/prefect-ui-library to version 3.9.5 by [@marvin-robot](https://github.com/marvin-robot) in [#15411](https://github.com/PrefectHQ/prefect/pull/15411)
+* Bump vite from 5.4.5 to 5.4.6 in /ui by [@dependabot](https://github.com/dependabot) in [#15410](https://github.com/PrefectHQ/prefect/pull/15410)
+* Update @prefecthq/prefect-ui-library to version 3.10.0 by [@marvin-robot](https://github.com/marvin-robot) in [#15419](https://github.com/PrefectHQ/prefect/pull/15419)
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.2...3.0.3
+
+---
+
+## 3.0.2 - Groundlog day, tomorrow finally came
+
+*Released on September 13, 2024*
+
+**New Features 🎉**
+
+* Add a ResumeFlowRun automations action by [@abrookins](https://github.com/abrookins) in [#15269](https://github.com/PrefectHQ/prefect/pull/15269)
+
+**Enhancements ➕➕**
+
+* Notification security controls by [@cicdw](https://github.com/cicdw) in [#15272](https://github.com/PrefectHQ/prefect/pull/15272)
+* Create `FilesystemLockManager` by [@desertaxle](https://github.com/desertaxle) in [#15307](https://github.com/PrefectHQ/prefect/pull/15307)
+* Concurrency limit UX enhancements: add `strict` mode by [@cicdw](https://github.com/cicdw) in [#15297](https://github.com/PrefectHQ/prefect/pull/15297)
+* Make `prefect_test_harness` startup timeout configurable by [@desertaxle](https://github.com/desertaxle) in [#15354](https://github.com/PrefectHQ/prefect/pull/15354)
+* Fix deployment-concurrency-limiting-GCL lifecycle management by [@collincchoy](https://github.com/collincchoy) in [#15365](https://github.com/PrefectHQ/prefect/pull/15365)
+* `Runner` enforces `Deployment.concurrency_limit`  by [@jeanluciano](https://github.com/jeanluciano) in [#15085](https://github.com/PrefectHQ/prefect/pull/15085)
+* Disable HTTP2 by default by [@zangell44](https://github.com/zangell44) in [#15311](https://github.com/PrefectHQ/prefect/pull/15311)
+
+**Bug Fixes 🐞**
+
+* Move expensive filter to AND by [@cicdw](https://github.com/cicdw) in [#15286](https://github.com/PrefectHQ/prefect/pull/15286)
+* Fix deep merge for existing `env` on work-pools by [@zzstoatzz](https://github.com/zzstoatzz) in [#15325](https://github.com/PrefectHQ/prefect/pull/15325)
+* Ensure all tags are used in concurrency limiter by [@cicdw](https://github.com/cicdw) in [#15349](https://github.com/PrefectHQ/prefect/pull/15349)
+* Set propagate to false for extra loggers by [@cicdw](https://github.com/cicdw) in [#15348](https://github.com/PrefectHQ/prefect/pull/15348)
+* Allow child transactions to access parent values set after child transaction opens by [@desertaxle](https://github.com/desertaxle) in [#15342](https://github.com/PrefectHQ/prefect/pull/15342)
+* Fix resolution of implicit relative import when using `safe_load_namespace` by [@desertaxle](https://github.com/desertaxle) in [#15358](https://github.com/PrefectHQ/prefect/pull/15358)
+* Correctly handles recurring automations and future events by [@chrisguidry](https://github.com/chrisguidry) in [#15355](https://github.com/PrefectHQ/prefect/pull/15355)
+
+**Integrations & Dependencies 🤝**
+
+* reintroduce job model for `prefect-databricks` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15313](https://github.com/PrefectHQ/prefect/pull/15313)
+* Update `DbtCoreOperation` docstring by [@zzstoatzz](https://github.com/zzstoatzz) in [#15317](https://github.com/PrefectHQ/prefect/pull/15317)
+* Move import from `google` into import guard by [@desertaxle](https://github.com/desertaxle) in [#15334](https://github.com/PrefectHQ/prefect/pull/15334)
+* fix `S3Bucket.download_object_to_path` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15293](https://github.com/PrefectHQ/prefect/pull/15293)
+* Fix issue where `DaskTaskRunner` was attempting to create a duplicate cluster by [@desertaxle](https://github.com/desertaxle) in [#15341](https://github.com/PrefectHQ/prefect/pull/15341)
+
+**Development & Tidiness 🧹**
+
+* Add dedicated enhancements section by [@cicdw](https://github.com/cicdw) in [#15265](https://github.com/PrefectHQ/prefect/pull/15265)
+* Fix labeler job by [@cicdw](https://github.com/cicdw) in [#15114](https://github.com/PrefectHQ/prefect/pull/15114)
+* Update @prefecthq/prefect-ui-library to version 3.8.2 by [@marvin-robot](https://github.com/marvin-robot) in [#15283](https://github.com/PrefectHQ/prefect/pull/15283)
+* Refactor some concurrency utilities to be sync_compatible by [@cicdw](https://github.com/cicdw) in [#15273](https://github.com/PrefectHQ/prefect/pull/15273)
+* Add some more nuance to labeler by [@cicdw](https://github.com/cicdw) in [#15288](https://github.com/PrefectHQ/prefect/pull/15288)
+* Use `ResultStore` by default for task transactions by [@desertaxle](https://github.com/desertaxle) in [#15264](https://github.com/PrefectHQ/prefect/pull/15264)
+* Update @prefecthq/prefect-ui-library to version 3.8.3 by [@marvin-robot](https://github.com/marvin-robot) in [#15305](https://github.com/PrefectHQ/prefect/pull/15305)
+* Remove feature flag for nested task runs on the run graph by [@pleek91](https://github.com/pleek91) in [#15304](https://github.com/PrefectHQ/prefect/pull/15304)
+* Add deprecation warnings to all `RecordStore` implementations by [@desertaxle](https://github.com/desertaxle) in [#15314](https://github.com/PrefectHQ/prefect/pull/15314)
+* Remove some ancient deprecations by [@cicdw](https://github.com/cicdw) in [#15310](https://github.com/PrefectHQ/prefect/pull/15310)
+* Update @prefecthq/prefect-ui-library to version 3.9.1 by [@marvin-robot](https://github.com/marvin-robot) in [#15335](https://github.com/PrefectHQ/prefect/pull/15335)
+* Replace `RedisRecordStore` with `RedisLockManager` by [@desertaxle](https://github.com/desertaxle) in [#15320](https://github.com/PrefectHQ/prefect/pull/15320)
+* Add deprecation warnings to results classes and methods by [@desertaxle](https://github.com/desertaxle) in [#15323](https://github.com/PrefectHQ/prefect/pull/15323)
+* Update @prefecthq/prefect-ui-library to version 3.9.2 by [@marvin-robot](https://github.com/marvin-robot) in [#15346](https://github.com/PrefectHQ/prefect/pull/15346)
+* Update @prefecthq/prefect-ui-library to version 3.9.4 by [@marvin-robot](https://github.com/marvin-robot) in [#15356](https://github.com/PrefectHQ/prefect/pull/15356)
+* Bump vue from 3.4.38 to 3.5.4 in /ui by [@dependabot](https://github.com/dependabot) in [#15306](https://github.com/PrefectHQ/prefect/pull/15306)
+* Bump @vitejs/plugin-vue from 5.1.2 to 5.1.3 in /ui by [@dependabot](https://github.com/dependabot) in [#15173](https://github.com/PrefectHQ/prefect/pull/15173)
+* Bump vue-tsc from 2.0.29 to 2.1.6 in /ui by [@dependabot](https://github.com/dependabot) in [#15281](https://github.com/PrefectHQ/prefect/pull/15281)
+* Update transactions docs  by [@discdiver](https://github.com/discdiver) in [#15299](https://github.com/PrefectHQ/prefect/pull/15299)
+* Add unit test for accessing `self` as normal arg when setting task run name by [@jlowin](https://github.com/jlowin) in [#15324](https://github.com/PrefectHQ/prefect/pull/15324)
+* add `for_each` trigger example by [@zzstoatzz](https://github.com/zzstoatzz) in [#15326](https://github.com/PrefectHQ/prefect/pull/15326)
+* Update logging.mdx to fix title display by [@discdiver](https://github.com/discdiver) in [#15360](https://github.com/PrefectHQ/prefect/pull/15360)
+* quote type checked value by [@zzstoatzz](https://github.com/zzstoatzz) in [#15362](https://github.com/PrefectHQ/prefect/pull/15362)
+* fix: move the github conditional to the appropriate level by [@jamiezieziula](https://github.com/jamiezieziula) in [#15366](https://github.com/PrefectHQ/prefect/pull/15366)
+* Fix broken image link and update formatting in prefect-dbt by [@discdiver](https://github.com/discdiver) in [#15367](https://github.com/PrefectHQ/prefect/pull/15367)
+* Update integrations docs by [@zzstoatzz](https://github.com/zzstoatzz) in [#15303](https://github.com/PrefectHQ/prefect/pull/15303)
+* Rewrite block page in docs by [@cicdw](https://github.com/cicdw) in [#15254](https://github.com/PrefectHQ/prefect/pull/15254)
+* chore: only trigger helm release workflows on 3.x.x version releases by [@jamiezieziula](https://github.com/jamiezieziula) in [#15268](https://github.com/PrefectHQ/prefect/pull/15268)
+* better common error section by [@zzstoatzz](https://github.com/zzstoatzz) in [#15271](https://github.com/PrefectHQ/prefect/pull/15271)
+* fix inconsistent word in upgrade guide by [@zzstoatzz](https://github.com/zzstoatzz) in [#15277](https://github.com/PrefectHQ/prefect/pull/15277)
+* Minor edits to the upgrade and what's new docs by [@discdiver](https://github.com/discdiver) in [#15285](https://github.com/PrefectHQ/prefect/pull/15285)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.1...3.0.2
+
+---
+
+## 3.0.1 - The Director's Cut
+
+*Released on September 06, 2024*
+
+This release contains a large collection of relatively small improvements and bug fixes on the back of our major 3.0.0 release.  One particular set of improvements that I'd like to focus on are enhancements to server side logging and event handling.  We received [a few reports](https://github.com/PrefectHQ/prefect/issues/15153) of task run states not showing up in the UI/API.  It's important to note that events - and now task run states! - require a websocket connection to the API (the good news is that this will _not_ disrupt workflow execution).  Websockets are sometimes blocked by default in firewalls and network configuration, so we are working to raise failures to establish such a connection more prominently and potentially allow for alternative configurations.  If you notice any issues with this, [please let us know](https://github.com/PrefectHQ/prefect/issues/new/choose)!
+
+**Enhancements ➕➕**
+
+* update `prompt_select_from_table`  by [@zzstoatzz](https://github.com/zzstoatzz) in [#15202](https://github.com/PrefectHQ/prefect/pull/15202)
+* Adds ability to write result metadata separate from data when using `ResultStore` by [@desertaxle](https://github.com/desertaxle) in [#15214](https://github.com/PrefectHQ/prefect/pull/15214)
+* Remove `CausalOrdering` from `task-run-recorder` by [@jakekaplan](https://github.com/jakekaplan) in [#15244](https://github.com/PrefectHQ/prefect/pull/15244)
+* Disable griffe logging entirely when used by [@cicdw](https://github.com/cicdw) in [#15193](https://github.com/PrefectHQ/prefect/pull/15193)
+* Allow using a `ResultStore` with a `Transaction` by [@desertaxle](https://github.com/desertaxle) in [#15247](https://github.com/PrefectHQ/prefect/pull/15247)
+* Introduce `LockManager` protocol and add locking abilities to `ResultStore` by [@desertaxle](https://github.com/desertaxle) in [#15225](https://github.com/PrefectHQ/prefect/pull/15225)
+* check api compatibility when entering a client context by [@jakekaplan](https://github.com/jakekaplan) in [#15252](https://github.com/PrefectHQ/prefect/pull/15252)
+* Add debug logging for server side event handling by [@jakekaplan](https://github.com/jakekaplan) in [#15245](https://github.com/PrefectHQ/prefect/pull/15245)
+
+**Bug Fixes 🐞**
+
+* Fix task key comp by [@cicdw](https://github.com/cicdw) in [#15190](https://github.com/PrefectHQ/prefect/pull/15190)
+* Fix for Github clone on Windows by [@WWM-jschuba](https://github.com/WWM-jschuba) in [#15143](https://github.com/PrefectHQ/prefect/pull/15143)
+* remove duplicate `pull_code` instruction by [@zzstoatzz](https://github.com/zzstoatzz) in [#15215](https://github.com/PrefectHQ/prefect/pull/15215)
+* add function name to `prefect-docker` cache key by [@zzstoatzz](https://github.com/zzstoatzz) in [#15262](https://github.com/PrefectHQ/prefect/pull/15262)
+* Deployment.concurrency_limit cannot be zero. by [@collincchoy](https://github.com/collincchoy) in [#15228](https://github.com/PrefectHQ/prefect/pull/15228)
+
+**Integrations & Dependencies 🤝**
+
+* Add `KeepAliveClientRequest` class for k8s async client by [@kevingrismore](https://github.com/kevingrismore) in [#15220](https://github.com/PrefectHQ/prefect/pull/15220)
+* Kubernetes worker uses `enable_socket_keep_alive` by [@jeanluciano](https://github.com/jeanluciano) in [#15142](https://github.com/PrefectHQ/prefect/pull/15142)
+* `prefect-kubernetes`: add missing config loaders by [@srsapient](https://github.com/srsapient) in [#15209](https://github.com/PrefectHQ/prefect/pull/15209)
+* fix `prefect-azure` tests by [@zzstoatzz](https://github.com/zzstoatzz) in [#15211](https://github.com/PrefectHQ/prefect/pull/15211)
+
+**Development & Tidiness 🧹**
+
+* Fix test flake and add `uv` dev dependency by [@cicdw](https://github.com/cicdw) in [#15251](https://github.com/PrefectHQ/prefect/pull/15251)
+* Fix release pipeline for integration packages by [@desertaxle](https://github.com/desertaxle) in [#15189](https://github.com/PrefectHQ/prefect/pull/15189)
+* Touch up variable class inheritance by [@cicdw](https://github.com/cicdw) in [#15188](https://github.com/PrefectHQ/prefect/pull/15188)
+* Update @prefecthq/prefect-ui-library to version 3.8.1 by [@marvin-robot](https://github.com/marvin-robot) in [#15243](https://github.com/PrefectHQ/prefect/pull/15243)
+* Fix test failures for `pydantic==2.9.0` by [@desertaxle](https://github.com/desertaxle) in [#15249](https://github.com/PrefectHQ/prefect/pull/15249)
+* use `is not` for type comparison instead of `!=` by [@zzstoatzz](https://github.com/zzstoatzz) in [#15253](https://github.com/PrefectHQ/prefect/pull/15253)
+* Updates the worker integration tests for post-GA by [@chrisguidry](https://github.com/chrisguidry) in [#15199](https://github.com/PrefectHQ/prefect/pull/15199)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.0.0...3.0.1
+
+---
+
+## 3.0.0
+
+*Released on September 03, 2024*
+
+**Prefect 3.0.0**
+
+For more information see [our blog post on 3.0](https://www.prefect.io/blog/prefect-3-generally-available-september-3).
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/2.19.0...3.0.0
+
+---
+

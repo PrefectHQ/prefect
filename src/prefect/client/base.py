@@ -14,11 +14,12 @@ import anyio
 import httpx
 from asgi_lifespan import LifespanManager
 from httpx import HTTPStatusError, Request, Response
-from starlette import status
 from typing_extensions import Self
 
 import prefect
+from prefect._internal.compatibility.starlette import status
 from prefect.client import constants
+from prefect.client.attribution import get_attribution_headers
 from prefect.client.schemas.objects import CsrfToken
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
@@ -199,6 +200,9 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         self.csrf_token_expiration: Optional[datetime] = None
         self.csrf_client_id: uuid.UUID = uuid.uuid4()
         self.raise_on_all_errors: bool = raise_on_all_errors
+        # Track whether we've successfully connected to the server.
+        # Used to determine retry behavior for ConnectError.
+        self._has_connected: bool = False
 
         super().__init__(*args, **kwargs)
 
@@ -332,6 +336,16 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         # We ran out of retries, return the failed response
         return response
 
+    def _add_attribution_headers(self, request: Request) -> None:
+        """
+        Add attribution headers to identify the source of API requests.
+
+        These headers help Cloud track which flow runs, deployments, and workers
+        are generating API requests for usage attribution and rate limit debugging.
+        """
+        for header_name, header_value in get_attribution_headers().items():
+            request.headers[header_name] = header_value
+
     async def send(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Send a request with automatic retry behavior for the following status codes:
@@ -343,6 +357,29 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         - 503 Service unavailable
         - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
         """
+        # Add attribution headers for usage tracking
+        self._add_attribution_headers(request)
+
+        # Base exceptions that are always retried
+        retry_exceptions: tuple[type[Exception], ...] = (
+            httpx.ReadTimeout,
+            httpx.PoolTimeout,
+            httpx.ConnectTimeout,
+            # `ConnectionResetError` when reading socket raises as a `ReadError`
+            httpx.ReadError,
+            # Sockets can be closed during writes resulting in a `WriteError`
+            httpx.WriteError,
+            # Uvicorn bug, see https://github.com/PrefectHQ/prefect/issues/7512
+            httpx.RemoteProtocolError,
+            # HTTP2 bug, see https://github.com/PrefectHQ/prefect/issues/7442
+            httpx.LocalProtocolError,
+        )
+
+        # Only retry ConnectError after we've successfully connected once.
+        # This allows fast failure on initial connection issues (e.g., wrong URL)
+        # while still providing resilience during server restarts.
+        if self._has_connected:
+            retry_exceptions = retry_exceptions + (httpx.ConnectError,)
 
         super_send = super().send
         response = await self._send_with_retry(
@@ -357,20 +394,11 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 status.HTTP_408_REQUEST_TIMEOUT,
                 *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
-            retry_exceptions=(
-                httpx.ReadTimeout,
-                httpx.PoolTimeout,
-                httpx.ConnectTimeout,
-                # `ConnectionResetError` when reading socket raises as a `ReadError`
-                httpx.ReadError,
-                # Sockets can be closed during writes resulting in a `WriteError`
-                httpx.WriteError,
-                # Uvicorn bug, see https://github.com/PrefectHQ/prefect/issues/7512
-                httpx.RemoteProtocolError,
-                # HTTP2 bug, see https://github.com/PrefectHQ/prefect/issues/7442
-                httpx.LocalProtocolError,
-            ),
+            retry_exceptions=retry_exceptions,
         )
+
+        # Mark that we've successfully connected to the server
+        self._has_connected = True
 
         # Convert to a Prefect response to add nicer errors messages
         response = PrefectResponse.from_httpx_response(response)
@@ -442,6 +470,9 @@ class PrefectHttpxSyncClient(httpx.Client):
         self.csrf_token_expiration: Optional[datetime] = None
         self.csrf_client_id: uuid.UUID = uuid.uuid4()
         self.raise_on_all_errors: bool = raise_on_all_errors
+        # Track whether we've successfully connected to the server.
+        # Used to determine retry behavior for ConnectError.
+        self._has_connected: bool = False
 
         super().__init__(*args, **kwargs)
 
@@ -575,6 +606,16 @@ class PrefectHttpxSyncClient(httpx.Client):
         # We ran out of retries, return the failed response
         return response
 
+    def _add_attribution_headers(self, request: Request) -> None:
+        """
+        Add attribution headers to identify the source of API requests.
+
+        These headers help Cloud track which flow runs, deployments, and workers
+        are generating API requests for usage attribution and rate limit debugging.
+        """
+        for header_name, header_value in get_attribution_headers().items():
+            request.headers[header_name] = header_value
+
     def send(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         """
         Send a request with automatic retry behavior for the following status codes:
@@ -586,6 +627,29 @@ class PrefectHttpxSyncClient(httpx.Client):
         - 503 Service unavailable
         - Any additional status codes provided in `PREFECT_CLIENT_RETRY_EXTRA_CODES`
         """
+        # Add attribution headers for usage tracking
+        self._add_attribution_headers(request)
+
+        # Base exceptions that are always retried
+        retry_exceptions: tuple[type[Exception], ...] = (
+            httpx.ReadTimeout,
+            httpx.PoolTimeout,
+            httpx.ConnectTimeout,
+            # `ConnectionResetError` when reading socket raises as a `ReadError`
+            httpx.ReadError,
+            # Sockets can be closed during writes resulting in a `WriteError`
+            httpx.WriteError,
+            # Uvicorn bug, see https://github.com/PrefectHQ/prefect/issues/7512
+            httpx.RemoteProtocolError,
+            # HTTP2 bug, see https://github.com/PrefectHQ/prefect/issues/7442
+            httpx.LocalProtocolError,
+        )
+
+        # Only retry ConnectError after we've successfully connected once.
+        # This allows fast failure on initial connection issues (e.g., wrong URL)
+        # while still providing resilience during server restarts.
+        if self._has_connected:
+            retry_exceptions = retry_exceptions + (httpx.ConnectError,)
 
         super_send = super().send
         response = self._send_with_retry(
@@ -600,20 +664,11 @@ class PrefectHttpxSyncClient(httpx.Client):
                 status.HTTP_408_REQUEST_TIMEOUT,
                 *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
-            retry_exceptions=(
-                httpx.ReadTimeout,
-                httpx.PoolTimeout,
-                httpx.ConnectTimeout,
-                # `ConnectionResetError` when reading socket raises as a `ReadError`
-                httpx.ReadError,
-                # Sockets can be closed during writes resulting in a `WriteError`
-                httpx.WriteError,
-                # Uvicorn bug, see https://github.com/PrefectHQ/prefect/issues/7512
-                httpx.RemoteProtocolError,
-                # HTTP2 bug, see https://github.com/PrefectHQ/prefect/issues/7442
-                httpx.LocalProtocolError,
-            ),
+            retry_exceptions=retry_exceptions,
         )
+
+        # Mark that we've successfully connected to the server
+        self._has_connected = True
 
         # Convert to a Prefect response to add nicer errors messages
         response = PrefectResponse.from_httpx_response(response)

@@ -1,4 +1,6 @@
 import asyncio
+import threading
+import time
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
@@ -62,6 +64,42 @@ class TestUtilityFunctions:
         futures = wait(mock_futures, timeout=0.01)
         assert futures.not_done == {mock_futures[-1]}
 
+    def test_wait_monitors_all_futures_concurrently_with_timeout(self):
+        """Test that wait() with timeout monitors all futures concurrently, not sequentially."""
+        # Create a slow future first, then fast ones
+        # If wait() is sequential, it will timeout on the slow one and miss the fast ones
+        futures = []
+
+        # Slow future that won't complete within timeout
+        slow_future = Future()
+        futures.append(PrefectConcurrentFuture(uuid.uuid4(), slow_future))
+
+        # Fast futures that complete quickly
+        for i in range(1, 4):
+            future = Future()
+            wrapped = PrefectConcurrentFuture(uuid.uuid4(), future)
+            futures.append(wrapped)
+
+            # Complete after short delay
+            def complete_after(f, delay, result):
+                time.sleep(delay * 0.01)
+                f.set_result(Completed(data=result))
+
+            thread = threading.Thread(target=complete_after, args=(future, i, i))
+            thread.daemon = True
+            thread.start()
+
+        # Wait with timeout that allows fast futures to complete
+        done, not_done = wait(futures, timeout=0.1)
+
+        # Should have captured all 3 fast futures
+        assert len(done) == 3
+        assert len(not_done) == 1  # Just the slow future
+
+        # Verify we got the right futures
+        done_results = sorted([f.result() for f in done])
+        assert done_results == [1, 2, 3]
+
     def test_as_completed(self):
         mock_futures = [MockFuture(data=i) for i in range(5)]
         for future in as_completed(mock_futures):
@@ -85,8 +123,6 @@ class TestUtilityFunctions:
     def test_as_completed_yields_correct_order(self):
         @task
         def my_test_task(seconds):
-            import time
-
             time.sleep(seconds)
             return seconds
 
@@ -108,8 +144,6 @@ class TestUtilityFunctions:
     def test_as_completed_timeout(self):
         @task
         def my_test_task(seconds):
-            import time
-
             time.sleep(seconds)
             return seconds
 
@@ -131,8 +165,6 @@ class TestUtilityFunctions:
     async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task
         async def my_task(seconds):
-            import time
-
             time.sleep(seconds)
             return seconds
 
@@ -724,3 +756,61 @@ class TestPrefectFutureList:
 
         with pytest.raises(TimeoutError, match="oops"):
             futures.result()
+
+    def test_result_fail_fast(self):
+        """A fast failure should be raised even when a slow future precedes it."""
+        slow_future = Future()
+        fast_failing_future = Future()
+        fast_failing_future.set_exception(ValueError("fast fail"))
+
+        futures_list: List[PrefectFuture] = [
+            PrefectConcurrentFuture(uuid.uuid4(), slow_future),
+            PrefectConcurrentFuture(uuid.uuid4(), fast_failing_future),
+        ]
+        futures = PrefectFutureList(futures_list)
+
+        # Resolve the slow future in the background so as_completed can finish
+        def resolve_slow():
+            time.sleep(0.1)
+            slow_future.set_result(Completed(data=1))
+
+        t = threading.Thread(target=resolve_slow)
+        t.start()
+
+        with pytest.raises(ValueError, match="fast fail"):
+            futures.result()
+
+        t.join()
+
+    def test_result_preserves_order(self):
+        """Results should be returned in the original list order, not completion order."""
+        f1 = Future()
+        f2 = Future()
+
+        # f2 completes before f1
+        f2.set_result(Completed(data="second"))
+
+        futures_list: List[PrefectFuture] = [
+            PrefectConcurrentFuture(uuid.uuid4(), f1),
+            PrefectConcurrentFuture(uuid.uuid4(), f2),
+        ]
+        futures = PrefectFutureList(futures_list)
+
+        def resolve_f1():
+            time.sleep(0.05)
+            f1.set_result(Completed(data="first"))
+
+        t = threading.Thread(target=resolve_f1)
+        t.start()
+
+        result = futures.result()
+        assert result == ["first", "second"]
+
+        t.join()
+
+    def test_result_with_duplicate_futures(self):
+        """Duplicate future objects should produce the same result at each position."""
+        mock_future = MockFuture(data=42)
+        futures = PrefectFutureList([mock_future, MockFuture(data=1), mock_future])
+        result = futures.result()
+        assert result == [42, 1, 42]

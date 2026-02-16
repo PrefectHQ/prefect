@@ -12,7 +12,7 @@ description: Learn how to execute code in response to entering states in your wo
 | `on_failure` | ✓ | ✓ | Executes when a flow or task run enters a `Failed` state. |
 | <span class="no-wrap">`on_cancellation`</span> | ✓ | - | Executes when a flow run enters a `Cancelling` state. |
 | `on_crashed` | ✓ | - | Executes when a flow run enters a `Crashed` state. |
-| `on_running` | ✓ | - | Executes when a flow run enters a `Running` state. |
+| `on_running` | ✓ | ✓ | Executes when a flow or task run enters a `Running` state. |
 
 <Note>
 Note that the `on_rollback` hook for tasks is _not_ a proper state change hook but instead
@@ -27,7 +27,7 @@ To send a notification when a flow or task run fails, you can specify a `on_fail
 ```python
 from prefect import flow
 from prefect.blocks.core import Block
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import get_current_settings
 
 
 @flow(retries=1)
@@ -41,11 +41,13 @@ def notify_slack(flow, flow_run, state):
         "slack-webhook/my-slack-webhook"
     )
 
+    PREFECT_API_URL = get_current_settings().api.url
+
     slack_webhook_block.notify(
         (
             f"Your job {flow_run.name} entered {state.name} "
             f"with message:\n\n"
-            f"See <https://{PREFECT_API_URL.value()}/flow-runs/"
+            f"See <https://{PREFECT_API_URL}/flow-runs/"
             f"flow-run/{flow_run.id}|the flow run in the UI>\n\n"
             f"Tags: {flow_run.tags}\n\n"
             f"Scheduled start: {flow_run.expected_start_time}"
@@ -63,6 +65,40 @@ Retries are configured in this example, so the `on_failure` hook will not run un
 
 State change hooks run in the same process as your workflow and execution cannot be guaranteed. For more robust execution of logic in response to state changes, use an Automation.
 </Warning>
+
+### Execute code when a task starts running
+
+The `on_running` hook executes when a task enters a `Running` state, before the task body executes. This is useful for logging, metrics, or setting up runtime state:
+
+```python
+from prefect import flow, task
+import time
+
+def record_start_time(task, task_run, state):
+    print(f"Task {task.name} started at {time.time()}")
+
+@task(on_running=[record_start_time])
+def my_task():
+    return "hello"
+
+# Or use the decorator pattern
+@task
+def another_task():
+    return "world"
+
+@another_task.on_running
+def log_start(task, task_run, state):
+    print(f"Starting {task.name}!")
+
+@flow
+def my_flow():
+    my_task()
+    another_task()
+```
+
+Note that `on_running` hooks execute **synchronously** before the task body runs. If your hook takes 10 seconds, the task waits 10 seconds before starting.
+
+When retries are configured, `on_running` hooks fire on **each retry attempt**, including the initial run. For example, a task configured with `retries=2` will trigger its `on_running` hooks up to three times: once on the initial run and once for each retry attempt.
 
 ### Pass `kwargs` to state change hooks
 

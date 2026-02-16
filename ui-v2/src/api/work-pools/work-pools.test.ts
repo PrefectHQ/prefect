@@ -8,11 +8,11 @@ import {
 	buildCountWorkPoolsQuery,
 	buildFilterWorkPoolsQuery,
 	buildListWorkPoolWorkersQuery,
-	buildWorkPoolDetailsQuery,
 	queryKeyFactory,
 	useDeleteWorkPool,
 	usePauseWorkPool,
 	useResumeWorkPool,
+	useUpdateWorkPool,
 	type WorkPool,
 } from "./work-pools";
 
@@ -55,29 +55,6 @@ describe("work pools api", () => {
 			);
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toBe(1);
-		});
-	});
-
-	describe("buildWorkPoolDetailsQuery", () => {
-		const mockGetWorkPoolAPI = (workPool: WorkPool) => {
-			server.use(
-				http.get(buildApiUrl("/work_pools/:name"), () => {
-					return HttpResponse.json(workPool);
-				}),
-			);
-		};
-
-		it("fetches details about a work pool by name", async () => {
-			const MOCK_WORK_POOL = createFakeWorkPool({ name: "my-work-pool" });
-			mockGetWorkPoolAPI(MOCK_WORK_POOL);
-
-			const queryClient = new QueryClient();
-			const { result } = renderHook(
-				() => useSuspenseQuery(buildWorkPoolDetailsQuery(MOCK_WORK_POOL.name)),
-				{ wrapper: createWrapper({ queryClient }) },
-			);
-			await waitFor(() => expect(result.current.isSuccess).toBe(true));
-			expect(result.current.data).toEqual(MOCK_WORK_POOL);
 		});
 	});
 });
@@ -161,6 +138,38 @@ describe("work pool hooks", () => {
 
 		// ------------ Invoke mutation
 		act(() => result.current.deleteWorkPool(MOCK_WORK_POOL_NAME));
+
+		// ------------ Assert
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+	});
+
+	/**
+	 * Data Management:
+	 * - Asserts update mutation API is called
+	 * - Upon update mutation API being called, cache is invalidated
+	 */
+	it("useUpdateWorkPool() invalidates cache", async () => {
+		const queryClient = new QueryClient();
+
+		// ------------ Mock API requests
+		server.use(
+			http.patch(buildApiUrl(`/work_pools/${MOCK_WORK_POOL_NAME}`), () => {
+				return HttpResponse.json({});
+			}),
+		);
+
+		// ------------ Initialize hooks to test
+		const { result } = renderHook(useUpdateWorkPool, {
+			wrapper: createWrapper({ queryClient }),
+		});
+
+		// ------------ Invoke mutation
+		act(() =>
+			result.current.updateWorkPool({
+				name: MOCK_WORK_POOL_NAME,
+				workPool: { description: "Updated description" },
+			}),
+		);
 
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));

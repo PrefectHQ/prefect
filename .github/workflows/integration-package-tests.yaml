@@ -21,14 +21,14 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.9"
+          python-version: "3.10"
       - name: Generate matrix
         id: set-matrix
         run: |
@@ -58,20 +58,21 @@ jobs:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
+          version: latest
           enable-cache: true
           python-version: ${{ matrix.python-version }}
           cache-dependency-glob: " src/integrations/${{ matrix.package }}/pyproject.toml"
 
       - name: Build dev docker image
         if: matrix.package == 'prefect-docker'
-        run : uv run prefect dev build-image
+        run: uv run prefect dev build-image
 
       - name: Start redis
         if: matrix.package == 'prefect-redis'
@@ -88,7 +89,8 @@ jobs:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
         run: >
-          uv run pytest tests
+          uv run pytest
+          -m "not integration"
           --numprocesses auto
           --maxprocesses 4
           --dist worksteal
@@ -101,3 +103,52 @@ jobs:
         working-directory: src/integrations/${{ matrix.package }}
         run: >
           uv run pytest tests
+
+  run-prefect-dbt-integration-tests:
+    timeout-minutes: 20
+
+    name: Run prefect-dbt integration tests (Python ${{ matrix.python-version }})
+    needs: prepare-matrix
+    if: contains(toJSON(needs.prepare-matrix.outputs.matrix), 'prefect-dbt')
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: dbt_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U prefect -d dbt_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+          cache-dependency-glob: "src/integrations/prefect-dbt/pyproject.toml"
+
+      - name: Run integration tests
+        env:
+          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
+        working-directory: src/integrations/prefect-dbt
+        run: >
+          uv run --group integration pytest
+          -m integration
+          --verbose

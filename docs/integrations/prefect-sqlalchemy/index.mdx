@@ -91,21 +91,8 @@ Use the `SqlAlchemyConnector` as a context manager, to ensure that the SQLAlchem
 
 **Async support**
 
-`SqlAlchemyConnector`  supports async workflows. Just be sure to save, load, and use an async driver, as in the example below.
+For async workflows with async database drivers (like `AsyncDriver.SQLITE_AIOSQLITE` or `AsyncDriver.POSTGRESQL_ASYNCPG`), use `AsyncSqlAlchemyConnector` instead of `SqlAlchemyConnector`. See the **Async** tab below for a complete example.
 
-```python
-from prefect_sqlalchemy import SqlAlchemyConnector, ConnectionComponents, AsyncDriver
-
-connector = SqlAlchemyConnector(
-    connection_info=ConnectionComponents(
-        driver=AsyncDriver.SQLITE_AIOSQLITE,
-        database="DATABASE-PLACEHOLDER.db"
-    )
-)
-
-if __name__ == "__main__":
-    connector.save("BLOCK_NAME-PLACEHOLDER")
-```
 </Note>
 
 <Tabs>
@@ -164,13 +151,13 @@ if __name__ == "__main__":
 
 ```python
 from prefect import flow, task
-from prefect_sqlalchemy import SqlAlchemyConnector
+from prefect_sqlalchemy import AsyncSqlAlchemyConnector
 import asyncio
 
 
 @task
 async def setup_table(block_name: str) -> None:
-    async with await SqlAlchemyConnector.load(block_name) as connector:
+    async with await AsyncSqlAlchemyConnector.load(block_name) as connector:
         await connector.execute(
             "CREATE TABLE IF NOT EXISTS customers (name varchar, address varchar);"
         )
@@ -189,7 +176,7 @@ async def setup_table(block_name: str) -> None:
 @task
 async def fetch_data(block_name: str) -> list:
     all_rows = []
-    async with await SqlAlchemyConnector.load(block_name) as connector:
+    async with await AsyncSqlAlchemyConnector.load(block_name) as connector:
         while True:
             # Repeated fetch* calls using the same operation will
             # skip re-executing and instead return the next set of results

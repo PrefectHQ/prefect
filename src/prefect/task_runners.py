@@ -2,15 +2,19 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import concurrent.futures
+import multiprocessing
+import os
 import sys
 import threading
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from contextvars import copy_context
+from types import CoroutineType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Coroutine,
+    Callable,
     Generic,
     Iterable,
     overload,
@@ -26,11 +30,13 @@ from prefect.futures import (
     PrefectDistributedFuture,
     PrefectFuture,
     PrefectFutureList,
+    wait,
 )
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.settings import PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS
-from prefect.utilities.annotations import allow_failure, quote, unmapped
+from prefect.settings.context import get_current_settings
+from prefect.utilities.annotations import allow_failure, opaque, quote, unmapped
 from prefect.utilities.callables import (
+    cloudpickle_wrapped_call,
     collapse_variadic_parameters,
     explode_variadic_parameter,
     get_parameter_defaults,
@@ -78,7 +84,7 @@ class TaskRunner(abc.ABC, Generic[F]):
     @abc.abstractmethod
     def submit(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -97,7 +103,7 @@ class TaskRunner(abc.ABC, Generic[F]):
     @abc.abstractmethod
     def submit(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -105,7 +111,7 @@ class TaskRunner(abc.ABC, Generic[F]):
 
     def map(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any | unmapped[Any] | allow_failure[Any]],
         wait_for: Iterable[PrefectFuture[R]] | None = None,
     ) -> PrefectFutureList[F]:
@@ -150,7 +156,7 @@ class TaskRunner(abc.ABC, Generic[F]):
         static_parameters: dict[str, Any] = {}
         annotated_parameters: dict[str, Any] = {}
         for key, val in parameters.items():
-            if isinstance(val, (allow_failure, quote)):
+            if isinstance(val, (allow_failure, opaque, quote)):
                 # Unwrap annotated parameters to determine if they are iterable
                 annotated_parameters[key] = val
                 val = val.unwrap()
@@ -241,13 +247,70 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         file descriptors, potentially hitting OS limits (`OSError: Too many open files`).
         If this occurs, consider minimizing context changes within looped tasks or
         adjusting system limits for open file descriptors.
+
+    Examples:
+        Use a thread pool task runner with a flow:
+
+        ```python
+        from prefect import flow, task
+        from prefect.task_runners import ThreadPoolTaskRunner
+
+        @task
+        def some_io_bound_task(x: int) -> int:
+            # making a query to a database, reading a file, etc.
+            return x * 2
+
+        @flow(task_runner=ThreadPoolTaskRunner(max_workers=3)) # use at most 3 threads at a time
+        def my_io_bound_flow():
+            futures = []
+            for i in range(10):
+                future = some_io_bound_task.submit(i * 100)
+                futures.append(future)
+
+            return [future.result() for future in futures]
+        ```
+
+        Use a thread pool task runner as a context manager:
+
+        ```python
+        from prefect.task_runners import ThreadPoolTaskRunner
+
+        @task
+        def some_io_bound_task(x: int) -> int:
+            # making a query to a database, reading a file, etc.
+            return x * 2
+
+        # Use the runner directly
+        with ThreadPoolTaskRunner(max_workers=2) as runner:
+            future1 = runner.submit(some_io_bound_task, {"x": 1})
+            future2 = runner.submit(some_io_bound_task, {"x": 2})
+
+            result1 = future1.result()  # 2
+            result2 = future2.result()  # 4
+        ```
+
+        Configure max workers via settings:
+
+        ```python
+        # Set via environment variable
+        # export PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS=8
+
+        from prefect import flow
+        from prefect.task_runners import ThreadPoolTaskRunner
+
+        @flow(task_runner=ThreadPoolTaskRunner())  # Uses 8 workers from setting
+        def my_flow():
+            ...
+        ```
+
     """
 
     def __init__(self, max_workers: int | None = None):
         super().__init__()
+        current_settings = get_current_settings()
         self._executor: ThreadPoolExecutor | None = None
         self._max_workers = (
-            (PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS.value() or sys.maxsize)
+            (current_settings.tasks.runner.thread_pool_max_workers or sys.maxsize)
             if max_workers is None
             else max_workers
         )
@@ -259,7 +322,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
     @overload
     def submit(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -276,7 +339,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def submit(
         self,
-        task: "Task[P, R | Coroutine[Any, Any, R]]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -350,7 +413,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
     @overload
     def map(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
@@ -365,7 +428,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     def map(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
@@ -402,6 +465,430 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 ConcurrentTaskRunner = ThreadPoolTaskRunner
 
 
+def _run_task_in_subprocess(
+    *args: Any,
+    env: dict[str, str] | None = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    Wrapper function to update environment variables and settings before running a task in a subprocess.
+    """
+    from prefect.context import hydrated_context
+    from prefect.engine import handle_engine_signals
+    from prefect.task_engine import run_task_async, run_task_sync
+
+    # Update environment variables
+    os.environ.update(env or {})
+
+    # Extract context from kwargs
+    context = kwargs.pop("context", None)
+
+    with hydrated_context(context):
+        with handle_engine_signals(kwargs.get("task_run_id")):
+            # Determine if this is an async task
+            task = kwargs.get("task")
+            if task and task.isasync:
+                # For async tasks, we need to create a new event loop
+                import asyncio
+
+                maybe_coro = run_task_async(*args, **kwargs)
+                return asyncio.run(maybe_coro)
+            else:
+                return run_task_sync(*args, **kwargs)
+
+
+class _ChainedFuture(concurrent.futures.Future[bytes]):
+    """Wraps a future-of-future and unwraps the result."""
+
+    def __init__(
+        self,
+        resolution_future: concurrent.futures.Future[concurrent.futures.Future[bytes]],
+    ):
+        super().__init__()
+        self._resolution_future = resolution_future
+        self._process_future: concurrent.futures.Future[bytes] | None = None
+
+        # When resolution completes, hook up to the process future
+        def on_resolution_done(
+            fut: concurrent.futures.Future[concurrent.futures.Future[bytes]],
+        ) -> None:
+            try:
+                self._process_future = fut.result()
+
+                # Forward process future result to this future
+                def on_process_done(
+                    process_fut: concurrent.futures.Future[bytes],
+                ) -> None:
+                    try:
+                        result = process_fut.result()
+                        self.set_result(result)
+                    except Exception as e:
+                        self.set_exception(e)
+
+                self._process_future.add_done_callback(on_process_done)
+            except Exception as e:
+                self.set_exception(e)
+
+        resolution_future.add_done_callback(on_resolution_done)
+
+    def cancel(self) -> bool:
+        if self._process_future:
+            return self._process_future.cancel()
+        return self._resolution_future.cancel()
+
+    def cancelled(self) -> bool:
+        if self._process_future:
+            return self._process_future.cancelled()
+        return self._resolution_future.cancelled()
+
+
+class _UnpicklingFuture(concurrent.futures.Future[R]):
+    """Wrapper for a Future that unpickles the result returned by cloudpickle_wrapped_call."""
+
+    def __init__(self, wrapped_future: concurrent.futures.Future[bytes]):
+        self.wrapped_future = wrapped_future
+
+    def result(self, timeout: float | None = None) -> R:
+        pickled_result = self.wrapped_future.result(timeout)
+        import cloudpickle
+
+        return cloudpickle.loads(pickled_result)
+
+    def exception(self, timeout: float | None = None) -> BaseException | None:
+        return self.wrapped_future.exception(timeout)
+
+    def done(self) -> bool:
+        return self.wrapped_future.done()
+
+    def cancelled(self) -> bool:
+        return self.wrapped_future.cancelled()
+
+    def cancel(self) -> bool:
+        return self.wrapped_future.cancel()
+
+    def add_done_callback(
+        self, fn: Callable[[concurrent.futures.Future[R]], object]
+    ) -> None:
+        def _fn(wrapped_future: concurrent.futures.Future[bytes]) -> None:
+            import cloudpickle
+
+            result = cloudpickle.loads(wrapped_future.result())
+            fn(result)
+
+        return self.wrapped_future.add_done_callback(_fn)
+
+
+class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
+    """
+    A task runner that executes tasks in a separate process pool.
+
+    This task runner uses `ProcessPoolExecutor` to run tasks in separate processes,
+    providing true parallelism for CPU-bound tasks and process isolation. Tasks
+    are executed with proper context propagation and error handling.
+
+    Attributes:
+        max_workers: The maximum number of processes to use for executing tasks.
+            Defaults to `multiprocessing.cpu_count()` if `PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS` is not set.
+
+    Examples:
+        Use a process pool task runner with a flow:
+
+        ```python
+        from prefect import flow, task
+        from prefect.task_runners import ProcessPoolTaskRunner
+
+        @task
+        def compute_heavy_task(n: int) -> int:
+            # CPU-intensive computation that benefits from process isolation
+            return sum(i ** 2 for i in range(n))
+
+        @flow(task_runner=ProcessPoolTaskRunner(max_workers=4))
+        def my_flow():
+            futures = []
+            for i in range(10):
+                future = compute_heavy_task.submit(i * 1000)
+                futures.append(future)
+
+            return [future.result() for future in futures]
+        ```
+
+        Use a process pool task runner as a context manager:
+
+        ```python
+        from prefect.task_runners import ProcessPoolTaskRunner
+
+        @task
+        def my_task(x: int) -> int:
+            return x * 2
+
+        # Use the runner directly
+        with ProcessPoolTaskRunner(max_workers=2) as runner:
+            future1 = runner.submit(my_task, {"x": 1})
+            future2 = runner.submit(my_task, {"x": 2})
+
+            result1 = future1.result()  # 2
+            result2 = future2.result()  # 4
+        ```
+
+        Configure max workers via settings:
+
+        ```python
+        # Set via environment variable
+        # export PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS=8
+
+        from prefect import flow
+        from prefect.task_runners import ProcessPoolTaskRunner
+
+        @flow(task_runner=ProcessPoolTaskRunner())  # Uses 8 workers from setting
+        def my_flow():
+            ...
+        ```
+
+    Note:
+        Process pool task runners provide process isolation but have overhead for
+        inter-process communication. They are most beneficial for CPU-bound tasks
+        that can take advantage of multiple CPU cores. For I/O-bound tasks,
+        consider using `ThreadPoolTaskRunner` instead.
+
+        This runner uses the 'spawn' multiprocessing start method for cross-platform
+        consistency and to avoid issues with shared state between processes.
+
+        All task parameters and return values must be serializable with cloudpickle.
+        The runner automatically handles context propagation and environment
+        variable passing to subprocess workers.
+    """
+
+    def __init__(self, max_workers: int | None = None):
+        super().__init__()
+        current_settings = get_current_settings()
+        self._executor: ProcessPoolExecutor | None = None
+        self._resolver_executor: ThreadPoolExecutor | None = None
+        self._max_workers = (
+            max_workers
+            or current_settings.tasks.runner.process_pool_max_workers
+            or multiprocessing.cpu_count()
+        )
+        self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
+
+    def duplicate(self) -> Self:
+        return type(self)(max_workers=self._max_workers)
+
+    def _resolve_futures_and_submit(
+        self,
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
+        task_run_id: uuid.UUID,
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None,
+        dependencies: dict[str, set[RunInput]] | None,
+        context: dict[str, Any],
+        env: dict[str, str],
+    ) -> concurrent.futures.Future[bytes]:
+        """
+        Helper method that:
+        1. Waits for all futures in wait_for to complete
+        2. Resolves any futures in parameters to their actual values
+        3. Submits the task to the ProcessPoolExecutor with resolved values
+
+        This method runs in a background thread to keep submit() non-blocking.
+        """
+        from prefect.utilities.engine import resolve_inputs_sync
+
+        # Wait for all futures in wait_for to complete
+        if wait_for:
+            wait(list(wait_for))
+
+        # Resolve any futures in parameters to their actual values
+        resolved_parameters = resolve_inputs_sync(
+            parameters, return_data=True, max_depth=-1
+        )
+
+        # Now submit to the process pool with resolved values
+        submit_kwargs: dict[str, Any] = dict(
+            task=task,
+            task_run_id=task_run_id,
+            parameters=resolved_parameters,
+            wait_for=None,  # Already waited, no need to pass futures to subprocess
+            return_type="state",
+            dependencies=dependencies,
+            context=context,
+        )
+
+        # Prepare the cloudpickle wrapped call for subprocess execution
+        wrapped_call = cloudpickle_wrapped_call(
+            _run_task_in_subprocess,
+            env=env,
+            **submit_kwargs,
+        )
+
+        # Submit to executor
+        return self._executor.submit(wrapped_call)
+
+    @overload
+    def submit(
+        self,
+        task: "Task[P, CoroutineType[Any, Any, R]]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
+    ) -> PrefectConcurrentFuture[R]: ...
+
+    @overload
+    def submit(
+        self,
+        task: "Task[Any, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
+    ) -> PrefectConcurrentFuture[R]: ...
+
+    def submit(
+        self,
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+        dependencies: dict[str, set[RunInput]] | None = None,
+    ) -> PrefectConcurrentFuture[R]:
+        """
+        Submit a task to the task run engine running in a separate process.
+
+        Args:
+            task: The task to submit.
+            parameters: The parameters to use when running the task.
+            wait_for: A list of futures that the task depends on.
+            dependencies: A dictionary of dependencies for the task.
+
+        Returns:
+            A future object that can be used to wait for the task to complete and
+            retrieve the result.
+        """
+        if (
+            not self._started
+            or self._executor is None
+            or self._resolver_executor is None
+        ):
+            raise RuntimeError("Task runner is not started")
+
+        if wait_for and task.tags and (self._max_workers <= len(task.tags)):
+            self.logger.warning(
+                f"Task {task.name} has {len(task.tags)} tags but only {self._max_workers} workers available"
+                "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS` or `max_workers`."
+            )
+
+        from prefect.context import FlowRunContext
+
+        task_run_id = uuid7()
+
+        flow_run_ctx = FlowRunContext.get()
+        if flow_run_ctx:
+            get_run_logger(flow_run_ctx).debug(
+                f"Submitting task {task.name} to process pool executor..."
+            )
+        else:
+            self.logger.debug(
+                f"Submitting task {task.name} to process pool executor..."
+            )
+
+        # Serialize the current context for the subprocess
+        from prefect.context import serialize_context
+
+        context = serialize_context()
+        env = (
+            get_current_settings().to_environment_variables(exclude_unset=True)
+            | os.environ
+        )
+
+        # Submit the resolution and subprocess execution to a background thread
+        # This keeps submit() non-blocking while still resolving futures before pickling
+        resolution_future = self._resolver_executor.submit(
+            self._resolve_futures_and_submit,
+            task=task,
+            task_run_id=task_run_id,
+            parameters=parameters,
+            wait_for=wait_for,
+            dependencies=dependencies,
+            context=context,
+            env=env,
+        )
+
+        # Create a future that chains: thread resolution -> process execution -> unpickling
+        # We need to wrap the resolution_future's result (which will be a process future)
+        chained_future = _ChainedFuture(resolution_future)
+
+        # Create a PrefectConcurrentFuture that handles unpickling
+        prefect_future: PrefectConcurrentFuture[R] = PrefectConcurrentFuture(
+            task_run_id=task_run_id, wrapped_future=_UnpicklingFuture(chained_future)
+        )
+        return prefect_future
+
+    @overload
+    def map(
+        self,
+        task: "Task[P, CoroutineType[Any, Any, R]]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
+
+    @overload
+    def map(
+        self,
+        task: "Task[Any, R]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]: ...
+
+    def map(
+        self,
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
+        parameters: dict[str, Any],
+        wait_for: Iterable[PrefectFuture[Any]] | None = None,
+    ) -> PrefectFutureList[PrefectConcurrentFuture[R]]:
+        return super().map(task, parameters, wait_for)
+
+    def cancel_all(self) -> None:
+        # Clear cancel events first to avoid resource tracking issues
+        events_to_set = list(self._cancel_events.values())
+        self._cancel_events.clear()
+
+        for event in events_to_set:
+            try:
+                event.set()
+                self.logger.debug("Set cancel event")
+            except (OSError, ValueError):
+                # Ignore errors if event is already closed/invalid
+                pass
+
+        if self._executor is not None:
+            self._executor.shutdown(cancel_futures=True, wait=True)
+            self._executor = None
+
+    def __enter__(self) -> Self:
+        super().__enter__()
+        # Use spawn method for cross-platform consistency and avoiding shared state issues
+        mp_context = multiprocessing.get_context("spawn")
+        self._executor = ProcessPoolExecutor(
+            max_workers=self._max_workers, mp_context=mp_context
+        )
+        # Create a thread pool for resolving futures before submitting to process pool
+        self._resolver_executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        return self
+
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+        self.cancel_all()
+        # cancel_all() already shuts down the executor, but double-check
+        if self._executor is not None:
+            self._executor.shutdown(cancel_futures=True, wait=True)
+            self._executor = None
+        if self._resolver_executor is not None:
+            self._resolver_executor.shutdown(cancel_futures=True, wait=True)
+            self._resolver_executor = None
+        super().__exit__(exc_type, exc_value, traceback)
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, ProcessPoolTaskRunner):
+            return False
+        return self._max_workers == value._max_workers
+
+
 class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
     def __init__(self):
         super().__init__()
@@ -412,7 +899,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
     @overload
     def submit(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -429,7 +916,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
 
     def submit(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
         dependencies: dict[str, set[RunInput]] | None = None,
@@ -467,7 +954,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
     @overload
     def map(
         self,
-        task: "Task[P, Coroutine[Any, Any, R]]",
+        task: "Task[P, CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectDistributedFuture[R]]: ...
@@ -482,7 +969,7 @@ class PrefectTaskRunner(TaskRunner[PrefectDistributedFuture[R]]):
 
     def map(
         self,
-        task: "Task[P, R]",
+        task: "Task[P, R | CoroutineType[Any, Any, R]]",
         parameters: dict[str, Any],
         wait_for: Iterable[PrefectFuture[Any]] | None = None,
     ) -> PrefectFutureList[PrefectDistributedFuture[R]]:

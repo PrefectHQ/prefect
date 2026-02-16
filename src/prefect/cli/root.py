@@ -18,12 +18,8 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.client.base import determine_server_type
 from prefect.client.constants import SERVER_API_VERSION
-from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
-from prefect.settings import (
-    PREFECT_CLI_WRAP_LINES,
-    PREFECT_TEST_MODE,
-)
+from prefect.settings import get_current_settings
 from prefect.types._datetime import parse_datetime
 
 app: PrefectTyper = PrefectTyper(add_completion=True, no_args_is_help=True)
@@ -78,9 +74,9 @@ def main(
             exit(1)
 
     # Configure the output console after loading the profile
-    app.setup_console(soft_wrap=PREFECT_CLI_WRAP_LINES.value(), prompt=prompt)
+    app.setup_console(soft_wrap=get_current_settings().cli.wrap_lines, prompt=prompt)
 
-    if not PREFECT_TEST_MODE:
+    if not get_current_settings().testing.test_mode:
         # When testing, this entrypoint can be called multiple times per process which
         # can cause logging configuration conflicts. Logging is set up in conftest
         # during tests.
@@ -104,8 +100,10 @@ async def version(
     """Get the current Prefect version and integration information."""
     import sqlite3
 
+    import sqlalchemy as sa
+
+    from prefect.server.database.dependencies import provide_database_interface
     from prefect.server.utilities.database import get_dialect
-    from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
     if build_date_str := prefect.__version_info__.get("date", None):
         build_date = parse_datetime(build_date_str).strftime("%a, %b %d, %Y %I:%M %p")
@@ -132,11 +130,22 @@ async def version(
 
     version_info["Pydantic version"] = pydantic_version
 
-    if server_type == ServerType.EPHEMERAL.value:
-        database = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name
+    if connection_url_setting := get_current_settings().server.database.connection_url:
+        connection_url = connection_url_setting.get_secret_value()
+        database = get_dialect(connection_url).name
         version_info["Server"] = {"Database": database}
         if database == "sqlite":
             version_info["Server"]["SQLite version"] = sqlite3.sqlite_version
+        elif database == "postgresql":
+            try:
+                db = provide_database_interface()
+                async with db.session_context() as session:
+                    result = await session.execute(sa.text("SHOW server_version"))
+                    if postgres_version := result.scalar():
+                        version_info["Server"]["PostgreSQL version"] = postgres_version
+            except Exception:
+                # If we can't get the PostgreSQL version, don't print anything
+                pass
 
     if not omit_integrations:
         integrations = get_prefect_integrations()
@@ -174,4 +183,4 @@ def display(object: dict[str, Any], nesting: int = 0) -> None:
             display(value, nesting + 2)
         else:
             prefix = " " * nesting
-            app.console.print(f"{prefix}{key.ljust(20 - len(prefix))} {value}")
+            app.console.print(f"{prefix}{key.ljust(21 - len(prefix))} {value}")

@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
-from moto import mock_ec2
+from moto import mock_aws
 from prefect_aws.client_waiter import aclient_waiter, client_waiter
 
 from prefect import flow
@@ -32,7 +32,7 @@ def mock_client(monkeypatch, mock_waiter):
 
 
 class TestClientWaiter:
-    @mock_ec2
+    @mock_aws
     def test_client_waiter_custom(self, mock_waiter, aws_credentials):
         @flow
         def test_flow():
@@ -49,7 +49,7 @@ class TestClientWaiter:
         test_flow()
         mock_waiter().wait.assert_called_once_with()
 
-    @mock_ec2
+    @mock_aws
     def test_client_waiter_custom_no_definition(self, mock_waiter, aws_credentials):
         @flow
         def test_flow():
@@ -58,7 +58,7 @@ class TestClientWaiter:
         with pytest.raises(ValueError, match="The waiter name, JobExists"):
             test_flow()
 
-    @mock_ec2
+    @mock_aws
     def test_client_waiter_boto(self, mock_waiter, mock_client, aws_credentials):
         @flow
         def test_flow():

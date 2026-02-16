@@ -1,7 +1,7 @@
 import shlex
 import sys
+import uuid
 from unittest.mock import AsyncMock, MagicMock, call, patch
-from uuid import UUID
 
 import pytest
 
@@ -23,17 +23,24 @@ async def modal_credentials_block_cls():
 
 
 @pytest.fixture
-async def modal_credentials_block_id(modal_credentials_block_cls: Block):
+async def existing_modal_credentials_block(modal_credentials_block_cls: Block):
+    work_pool_name = f"work-pool-name-{uuid.uuid4()}"
+    block_name = f"{work_pool_name}-modal-credentials"
     block_doc_id = await modal_credentials_block_cls(
         token_id="existing_id", token_secret="existing_secret"
-    ).save("work-pool-name-modal-credentials", overwrite=True)
-
-    return block_doc_id
+    ).save(block_name, overwrite=True)
+    return {"block_id": block_doc_id, "work_pool_name": work_pool_name}
 
 
 @pytest.fixture
 def mock_run_process():
     with patch("prefect.infrastructure.provisioners.modal.run_process") as mock:
+        yield mock
+
+
+@pytest.fixture
+def mock_ainstall_packages():
+    with patch("prefect.infrastructure.provisioners.modal.ainstall_packages") as mock:
         yield mock
 
 
@@ -62,6 +69,7 @@ async def test_provision(
     mock_modal: MagicMock,
     mock_confirm: MagicMock,
     mock_importlib: MagicMock,
+    mock_ainstall_packages: AsyncMock,
 ):
     """
     Test provision from a clean slate:
@@ -106,11 +114,15 @@ async def test_provision(
         "default": {"$ref": {"block_document_id": str(block_document.id)}},
     }
 
+    mock_ainstall_packages.assert_has_calls(
+        [
+            call(["modal"]),
+        ]
+    )
+
     # Check expected CLI calls
     mock_run_process.assert_has_calls(
         [
-            # install modal
-            call([shlex.quote(sys.executable), "-m", "pip", "install", "modal"]),
             # create new token
             call([shlex.quote(sys.executable), "-m", "modal", "token", "new"]),
         ]
@@ -119,7 +131,7 @@ async def test_provision(
 
 async def test_provision_existing_modal_credentials_block(
     prefect_client: PrefectClient,
-    modal_credentials_block_id: UUID,
+    existing_modal_credentials_block: dict,
     mock_run_process: AsyncMock,
 ):
     """
@@ -127,7 +139,7 @@ async def test_provision_existing_modal_credentials_block(
     """
     provisioner = ModalPushProvisioner()
 
-    work_pool_name = "work-pool-name"
+    work_pool_name = existing_modal_credentials_block["work_pool_name"]
     base_job_template = {"variables": {"properties": {"modal_credentials": {}}}}
 
     result = await provisioner.provision(
@@ -136,7 +148,11 @@ async def test_provision_existing_modal_credentials_block(
 
     # Check if the base job template was updated
     assert result["variables"]["properties"]["modal_credentials"] == {
-        "default": {"$ref": {"block_document_id": str(modal_credentials_block_id)}},
+        "default": {
+            "$ref": {
+                "block_document_id": str(existing_modal_credentials_block["block_id"])
+            }
+        },
     }
 
     mock_run_process.assert_not_called()

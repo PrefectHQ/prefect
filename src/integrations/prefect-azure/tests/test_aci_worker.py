@@ -1,18 +1,21 @@
 import asyncio
+import datetime
 import uuid
 from typing import Dict, List, Tuple, Union
-from unittest.mock import MagicMock, Mock
+from unittest import mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import dateutil.parser
 import prefect_azure.container_instance
 import pytest
 from anyio.abc import TaskStatus
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.resource import ResourceManagementClient
 from prefect_azure import AzureContainerInstanceCredentials
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.workers.container_instance import (
+    ENV_SECRETS,
     AzureContainerJobConfiguration,
     AzureContainerVariables,  # noqa
     AzureContainerWorker,
@@ -25,9 +28,9 @@ from prefect_docker.credentials import DockerRegistryCredentials
 from pydantic import SecretStr
 
 from prefect.client.schemas import FlowRun
+from prefect.exceptions import InfrastructureNotFound
 from prefect.server.schemas.core import Flow
 from prefect.settings import get_current_settings
-from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dockerutils import get_prefect_image_name
 
 
@@ -208,8 +211,8 @@ def mock_aci_client(monkeypatch, mock_resource_client):
     container_groups = Mock(name="container_group")
     creation_status_poller = Mock(name="created container groups")
     creation_status_poller_result = Mock(name="created container groups result")
-    container_groups.begin_create_or_update.side_effect = (
-        lambda *args: creation_status_poller
+    container_groups.begin_create_or_update.side_effect = lambda *args: (
+        creation_status_poller
     )
     creation_status_poller.result.side_effect = lambda: creation_status_poller_result
     creation_status_poller_result.provisioning_state = (
@@ -1131,3 +1134,247 @@ async def test_consistent_container_group_naming(
     assert len(container_group_name) <= max_length, (
         f"Length: {len(container_group_name)}, Max: {max_length}"
     )
+
+
+def test_env_secrets_contains_auth_string():
+    """Test that ENV_SECRETS contains PREFECT_API_AUTH_STRING"""
+    assert "PREFECT_API_KEY" in ENV_SECRETS
+    assert "PREFECT_API_AUTH_STRING" in ENV_SECRETS
+
+
+def test_secure_auth_string_environment_variable(
+    raw_job_configuration, worker_flow_run, monkeypatch
+):
+    """Test that PREFECT_API_AUTH_STRING is handled as a secure variable"""
+    config = raw_job_configuration
+    # setup environment containing an API auth string we want to keep secret
+    base_env: Dict[str, str] = get_current_settings().to_environment_variables(
+        exclude_unset=True
+    )
+    base_env["PREFECT_API_AUTH_STRING"] = "my-auth-string"
+
+    config.env = base_env
+    config.prepare_for_flow_run(worker_flow_run)
+
+    container_group = config.arm_template["resources"][0]
+    container = container_group["properties"]["containers"][0]
+
+    # get the container's environment variables
+    container_env = container["properties"]["environmentVariables"]
+
+    auth_string_aci_env_variable: List[Dict] = list(
+        filter(lambda v: v["name"] == "PREFECT_API_AUTH_STRING", container_env)
+    )
+
+    # ensure the env variable made it into the list of env variables set in the
+    # ACI container
+    assert len(auth_string_aci_env_variable) == 1
+    auth_string_entry = auth_string_aci_env_variable[0]
+
+    expected = {
+        "name": "PREFECT_API_AUTH_STRING",
+        "secureValue": "my-auth-string",
+    }
+
+    assert auth_string_entry == expected
+
+
+def test_both_secrets_handled_as_secure_values(
+    raw_job_configuration, worker_flow_run, monkeypatch
+):
+    """Test that both PREFECT_API_KEY and PREFECT_API_AUTH_STRING are handled as secure values"""
+    config = raw_job_configuration
+    # setup environment containing both secrets
+    base_env: Dict[str, str] = get_current_settings().to_environment_variables(
+        exclude_unset=True
+    )
+    base_env["PREFECT_API_KEY"] = "my-api-key"
+    base_env["PREFECT_API_AUTH_STRING"] = "my-auth-string"
+
+    config.env = base_env
+    config.prepare_for_flow_run(worker_flow_run)
+
+    container_group = config.arm_template["resources"][0]
+    container = container_group["properties"]["containers"][0]
+
+    # get the container's environment variables
+    container_env = container["properties"]["environmentVariables"]
+
+    # Check PREFECT_API_KEY
+    api_key_vars = [v for v in container_env if v["name"] == "PREFECT_API_KEY"]
+    assert len(api_key_vars) == 1
+    assert api_key_vars[0] == {
+        "name": "PREFECT_API_KEY",
+        "secureValue": "my-api-key",
+    }
+
+    # Check PREFECT_API_AUTH_STRING
+    auth_string_vars = [
+        v for v in container_env if v["name"] == "PREFECT_API_AUTH_STRING"
+    ]
+    assert len(auth_string_vars) == 1
+    assert auth_string_vars[0] == {
+        "name": "PREFECT_API_AUTH_STRING",
+        "secureValue": "my-auth-string",
+    }
+
+
+def test_stream_output_handles_timezone_naive_timestamps(aci_worker):
+    """
+    Test that _stream_output correctly handles timezone-naive timestamps parsed from logs
+    when comparing against timezone-aware last_log_time.
+
+    This reproduces the TypeError: can't compare offset-naive and offset-aware datetimes
+    """
+    # Create timezone-aware last_log_time (like run_start_time from datetime.now(timezone.utc))
+    last_log_time = datetime.datetime(
+        2022, 10, 3, 20, 40, 5, 311952, tzinfo=datetime.timezone.utc
+    )
+
+    # Azure log content with timestamps that dateutil.parser.parse() will parse as timezone-naive
+    log_content = """2022-10-03T20:41:05.3119525 20:41:05.307 | INFO    | Flow run 'test' - Created task run
+2022-10-03T20:41:06.3119525 20:41:06.308 | INFO    | Flow run 'test' - Executing task
+2022-10-03T20:41:07.3119525 20:41:07.616 | INFO    | Task run 'test' - Test Message"""
+
+    # Before the fix, this would raise: TypeError: can't compare offset-naive and offset-aware datetimes
+    # After the fix, it should work correctly
+    result_time = aci_worker._stream_output(log_content, last_log_time)
+
+    # Verify the result is timezone-aware and represents the latest log time
+    assert result_time.tzinfo is not None
+    assert result_time.tzinfo == datetime.timezone.utc
+    # Should be the timestamp of the last log line
+    expected_time = datetime.datetime(
+        2022, 10, 3, 20, 41, 7, 311952, tzinfo=datetime.timezone.utc
+    )
+    assert result_time == expected_time
+
+
+async def test_kill_infrastructure_deletes_container_group_by_default(
+    aci_credentials, worker_flow_run
+):
+    """Test that kill_infrastructure deletes the container group when keep_container_group is False (default)."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+    # Ensure keep_container_group is False (the default)
+    job_configuration.keep_container_group = False
+
+    mock_aci_client = MagicMock()
+    mock_deletion_poller = MagicMock()
+    mock_deletion_poller.done.return_value = True
+    mock_aci_client.container_groups.begin_delete = MagicMock(
+        return_value=mock_deletion_poller
+    )
+
+    with mock.patch.object(
+        aci_credentials,
+        "get_container_client",
+        return_value=mock_aci_client,
+    ):
+        async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+            await worker.kill_infrastructure(
+                infrastructure_pid="flow-run-id:test-container-group",
+                configuration=job_configuration,
+                grace_seconds=30,
+            )
+
+    mock_aci_client.container_groups.begin_delete.assert_called_once_with(
+        resource_group_name=job_configuration.resource_group_name,
+        container_group_name="test-container-group",
+    )
+    # Ensure stop was NOT called
+    mock_aci_client.container_groups.stop.assert_not_called()
+
+
+async def test_kill_infrastructure_stops_container_group_when_keep_container_group_true(
+    aci_credentials, worker_flow_run
+):
+    """Test that kill_infrastructure stops (but doesn't delete) the container group when keep_container_group is True."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+    job_configuration.keep_container_group = True
+
+    mock_aci_client = MagicMock()
+    mock_aci_client.container_groups.stop = MagicMock()
+
+    with mock.patch.object(
+        aci_credentials,
+        "get_container_client",
+        return_value=mock_aci_client,
+    ):
+        async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+            await worker.kill_infrastructure(
+                infrastructure_pid="flow-run-id:test-container-group",
+                configuration=job_configuration,
+                grace_seconds=30,
+            )
+
+    mock_aci_client.container_groups.stop.assert_called_once_with(
+        resource_group_name=job_configuration.resource_group_name,
+        container_group_name="test-container-group",
+    )
+    # Ensure begin_delete was NOT called
+    mock_aci_client.container_groups.begin_delete.assert_not_called()
+
+
+async def test_kill_infrastructure_raises_not_found_on_stop(
+    aci_credentials, worker_flow_run
+):
+    """Test that kill_infrastructure raises InfrastructureNotFound when stop fails with ResourceNotFoundError."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+    job_configuration.keep_container_group = True
+
+    mock_aci_client = MagicMock()
+    mock_aci_client.container_groups.stop = MagicMock(
+        side_effect=ResourceNotFoundError("Container group not found")
+    )
+
+    with mock.patch.object(
+        aci_credentials,
+        "get_container_client",
+        return_value=mock_aci_client,
+    ):
+        async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+            with pytest.raises(InfrastructureNotFound):
+                await worker.kill_infrastructure(
+                    infrastructure_pid="flow-run-id:nonexistent-container",
+                    configuration=job_configuration,
+                    grace_seconds=30,
+                )
+
+
+async def test_kill_infrastructure_raises_not_found_on_delete(
+    aci_credentials, worker_flow_run
+):
+    """Test that kill_infrastructure raises InfrastructureNotFound when delete fails with ResourceNotFoundError."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+    job_configuration.keep_container_group = False
+
+    mock_aci_client = MagicMock()
+    mock_aci_client.container_groups.begin_delete = MagicMock(
+        side_effect=ResourceNotFoundError("Container group not found")
+    )
+
+    with mock.patch.object(
+        aci_credentials,
+        "get_container_client",
+        return_value=mock_aci_client,
+    ):
+        async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+            with pytest.raises(InfrastructureNotFound):
+                await worker.kill_infrastructure(
+                    infrastructure_pid="flow-run-id:nonexistent-container",
+                    configuration=job_configuration,
+                    grace_seconds=30,
+                )
+
+
+async def test_kill_infrastructure_invalid_pid_format(aci_credentials, worker_flow_run):
+    """Test that kill_infrastructure raises ValueError for invalid pid format."""
+    job_configuration = await create_job_configuration(aci_credentials, worker_flow_run)
+
+    async with AzureContainerWorker(work_pool_name="test_pool") as worker:
+        with pytest.raises(ValueError, match="Invalid infrastructure_pid format"):
+            await worker.kill_infrastructure(
+                infrastructure_pid="invalid-format-no-colon-separator",
+                configuration=job_configuration,
+                grace_seconds=30,
+            )

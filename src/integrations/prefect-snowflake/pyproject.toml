@@ -6,13 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "prefect-snowflake"
 dependencies = [
   "snowflake>=1.5.0",
-  "snowflake-connector-python>=3.0.4",
+  "snowflake-connector-python>=3.17.2",
   "prefect>=3.0.0",
 ]
 dynamic = ["version"]
 description = "Prefect integrations for interacting with Snowflake"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "Apache License 2.0" }
 keywords = ["prefect"]
 authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
@@ -22,7 +22,6 @@ classifiers = [
   "Intended Audience :: System Administrators",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",

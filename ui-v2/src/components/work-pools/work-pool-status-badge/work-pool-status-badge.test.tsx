@@ -5,7 +5,7 @@ import { WorkPoolStatusBadge } from "./work-pool-status-badge";
 
 describe("WorkPoolStatusBadge", () => {
 	it("renders ready status with correct label and styling", () => {
-		render(<WorkPoolStatusBadge status="ready" />);
+		render(<WorkPoolStatusBadge status="READY" />);
 
 		expect(screen.getByText("Ready")).toBeInTheDocument();
 		// Badge should have secondary variant (grey) classes
@@ -14,7 +14,7 @@ describe("WorkPoolStatusBadge", () => {
 	});
 
 	it("renders paused status with correct label and styling", () => {
-		render(<WorkPoolStatusBadge status="paused" />);
+		render(<WorkPoolStatusBadge status="PAUSED" />);
 
 		expect(screen.getByText("Paused")).toBeInTheDocument();
 		// Badge should have secondary variant classes
@@ -23,7 +23,7 @@ describe("WorkPoolStatusBadge", () => {
 	});
 
 	it("renders not_ready status with correct label and styling", () => {
-		render(<WorkPoolStatusBadge status="not_ready" />);
+		render(<WorkPoolStatusBadge status="NOT_READY" />);
 
 		expect(screen.getByText("Not Ready")).toBeInTheDocument();
 		// Badge should have secondary variant (grey) classes
@@ -31,26 +31,26 @@ describe("WorkPoolStatusBadge", () => {
 		expect(badge).toHaveClass("bg-secondary", "text-secondary-foreground");
 	});
 
-	it("includes status icon without tooltip", () => {
-		render(<WorkPoolStatusBadge status="ready" />);
+	it("includes status circle without tooltip", () => {
+		render(<WorkPoolStatusBadge status="READY" />);
 
-		// Should have an icon but no tooltip trigger button
-		const svg = document.querySelector("svg[aria-hidden='true']");
-		expect(svg).toBeInTheDocument();
+		// Should have a colored circle but no tooltip trigger button
+		const circle = document.querySelector(".h-2.w-2.rounded-full");
+		expect(circle).toBeInTheDocument();
 		expect(screen.queryByRole("button")).not.toBeInTheDocument();
 	});
 
 	it("applies custom className", () => {
-		render(<WorkPoolStatusBadge status="ready" className="custom-class" />);
+		render(<WorkPoolStatusBadge status="READY" className="custom-class" />);
 
 		const badge = document.querySelector("[data-slot='badge']");
 		expect(badge).toHaveClass("custom-class");
 	});
 
-	it("displays icon with correct size", () => {
-		render(<WorkPoolStatusBadge status="ready" />);
+	it("displays circle with correct color", () => {
+		render(<WorkPoolStatusBadge status="READY" />);
 
-		const icon = document.querySelector("svg[aria-hidden='true']");
-		expect(icon).toHaveClass("h-3", "w-3");
+		const circle = document.querySelector(".h-2.w-2.rounded-full");
+		expect(circle).toHaveClass("bg-green-500");
 	});
 });

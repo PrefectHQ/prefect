@@ -1,4 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { LogOut } from "lucide-react";
+import { useAuthSafe } from "@/auth";
 import { Button } from "@/components/ui/button";
 import {
 	Sidebar,
@@ -12,6 +14,16 @@ import {
 } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
+	const auth = useAuthSafe();
+	const navigate = useNavigate();
+
+	const handleLogout = () => {
+		auth?.logout();
+		void navigate({ to: "/login" });
+	};
+
+	const authRequired = auth?.authRequired ?? false;
+
 	return (
 		<Sidebar>
 			<SidebarHeader>
@@ -169,6 +181,14 @@ export function AppSidebar() {
 							)}
 						</Link>
 					</SidebarMenuItem>
+					{authRequired && (
+						<SidebarMenuItem>
+							<SidebarMenuButton onClick={handleLogout}>
+								<LogOut className="h-4 w-4" />
+								<span>Logout</span>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					)}
 				</SidebarMenu>
 			</SidebarFooter>
 		</Sidebar>

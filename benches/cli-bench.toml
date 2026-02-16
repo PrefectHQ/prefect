@@ -1,0 +1,62 @@
+# cli-bench configuration
+# see https://github.com/zzstoatzz/python-cli-bench
+
+[project]
+name = "prefect"
+import_path = "prefect.cli"
+version_module = "prefect"
+version_command = ["prefect", "--version"]
+
+[[commands]]
+name = "prefect --help"
+args = ["prefect", "--help"]
+category = "startup"
+description = "full CLI help output"
+
+[[commands]]
+name = "prefect --version"
+args = ["prefect", "--version"]
+category = "startup"
+description = "version flag"
+
+[[commands]]
+name = "prefect version"
+args = ["prefect", "version"]
+category = "startup"
+description = "version command"
+
+[[commands]]
+name = "prefect config view (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "config", "view"]
+category = "startup"
+description = "config view via cyclopts"
+
+[[commands]]
+name = "prefect version (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "version"]
+category = "startup"
+description = "version command via cyclopts"
+
+[[commands]]
+name = "prefect profile ls (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "profile", "ls"]
+category = "startup"
+description = "profile ls via cyclopts"
+
+[[commands]]
+name = "prefect server services ls (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "server", "services", "ls"]
+category = "startup"
+description = "server services ls via cyclopts"
+
+[[commands]]
+name = "prefect worker start --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "worker", "start", "--help"]
+category = "startup"
+description = "worker start help via cyclopts"
+
+[[commands]]
+name = "prefect shell --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "shell", "--help"]
+category = "startup"
+description = "shell help via cyclopts"

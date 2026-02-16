@@ -132,6 +132,7 @@ class DeploymentStatus(AutoEnum):
 
     READY = AutoEnum.auto()
     NOT_READY = AutoEnum.auto()
+    DISABLED = AutoEnum.auto()  # Prefect Cloud only
 
 
 class WorkQueueStatus(AutoEnum):
@@ -155,6 +156,12 @@ class ConcurrencyOptions(PrefectBaseModel):
     """
 
     collision_strategy: ConcurrencyLimitStrategy
+    grace_period_seconds: Optional[int] = Field(
+        default=None,
+        ge=60,
+        le=86400,
+        description="Grace period in seconds for infrastructure to start before concurrency slots are revoked. If not set, falls back to server setting.",
+    )
 
 
 class ConcurrencyLimitConfig(PrefectBaseModel):
@@ -164,6 +171,21 @@ class ConcurrencyLimitConfig(PrefectBaseModel):
 
     limit: int
     collision_strategy: ConcurrencyLimitStrategy = ConcurrencyLimitStrategy.ENQUEUE
+    grace_period_seconds: Optional[int] = Field(
+        default=None,
+        ge=60,
+        le=86400,
+        description="Grace period in seconds for infrastructure to start before concurrency slots are revoked",
+    )
+
+
+class ConcurrencyLeaseHolder(PrefectBaseModel):
+    """Model for validating concurrency lease holder information."""
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+
+    type: Literal["flow_run", "task_run", "deployment"]
+    id: UUID
 
 
 class StateDetails(PrefectBaseModel):
@@ -198,6 +220,12 @@ class StateDetails(PrefectBaseModel):
             return TaskRunResult(id=self.task_run_id)
         else:
             return None
+
+
+# Force model rebuild to prevent MockValSer errors when serializing with
+# serialize_as_any=True. PrefectBaseModel has defer_build=True, which can leave
+# nested models incomplete. See: https://github.com/PrefectHQ/prefect/issues/18053
+StateDetails.model_rebuild()
 
 
 def data_discriminator(x: Any) -> str:

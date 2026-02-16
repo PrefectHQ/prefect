@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { JsonInput } from "@/components/ui/json-input";
-import { Typography } from "@/components/ui/typography";
+import { LazyJsonInput as JsonInput } from "@/components/ui/json-input-lazy";
 import type { SchemaFormProps } from "../schema-form";
 import { SchemaForm } from "../schema-form";
 import type { PrefectSchemaObject } from "../types/schemas";
@@ -24,7 +23,7 @@ export function TestSchemaForm({
 	return (
 		<div className="grid grid-cols-2 gap-4 p-4 size-full">
 			<div className="flex flex-col gap-4">
-				<Typography variant="h2">Form</Typography>
+				<h2 className="text-3xl font-semibold tracking-tight">Form</h2>
 				<SchemaForm
 					schema={schema}
 					kinds={kinds}
@@ -34,13 +33,13 @@ export function TestSchemaForm({
 				/>
 			</div>
 			<div className="flex flex-col gap-4">
-				<Typography variant="h2">Values</Typography>
+				<h2 className="text-3xl font-semibold tracking-tight">Values</h2>
 				<JsonInput value={JSON.stringify(values, null, 2)} />
-				<Typography variant="h2">Schema</Typography>
+				<h2 className="text-3xl font-semibold tracking-tight">Schema</h2>
 				<JsonInput value={JSON.stringify(schema, null, 2)} />
 				{errors.length > 0 && (
 					<>
-						<Typography variant="h2">Errors</Typography>
+						<h2 className="text-3xl font-semibold tracking-tight">Errors</h2>
 						<JsonInput value={JSON.stringify(errors, null, 2)} />
 					</>
 				)}

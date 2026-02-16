@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import abc
-import asyncio
 import copy
 import inspect
 import logging
+import uuid
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
 from functools import partial
@@ -84,6 +84,7 @@ class BaseTransaction(ContextModel, abc.ABC):
     write_on_commit: bool = True
     _stored_values: dict[str, Any] = PrivateAttr(default_factory=dict)
     _staged_value: ResultRecord[Any] | Any = None
+    _holder: str = PrivateAttr(default_factory=lambda: str(uuid.uuid4()))
     __var__: ClassVar[ContextVar[Self]] = ContextVar("transaction")
 
     def set(self, name: str, value: Any) -> None:
@@ -249,6 +250,11 @@ class BaseTransaction(ContextModel, abc.ABC):
     def get_active(cls: Type[Self]) -> Optional[Self]:
         return cls.__var__.get(None)
 
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, BaseTransaction):
+            return False
+        return dict(self) == dict(other)
+
 
 class Transaction(BaseTransaction):
     """
@@ -297,7 +303,7 @@ class Transaction(BaseTransaction):
             and self.isolation_level == IsolationLevel.SERIALIZABLE
         ):
             self.logger.debug(f"Acquiring lock for transaction {self.key!r}")
-            self.store.acquire_lock(self.key)
+            self.store.acquire_lock(self.key, holder=self._holder)
         if (
             not self.overwrite
             and self.store
@@ -308,7 +314,7 @@ class Transaction(BaseTransaction):
 
     def read(self) -> ResultRecord[Any] | None:
         if self.store and self.key:
-            return self.store.read(key=self.key)
+            return self.store.read(key=self.key, holder=self._holder)
         return None
 
     def reset(self) -> None:
@@ -334,7 +340,7 @@ class Transaction(BaseTransaction):
                 and self.isolation_level == IsolationLevel.SERIALIZABLE
             ):
                 self.logger.debug(f"Releasing lock for transaction {self.key!r}")
-                self.store.release_lock(self.key)
+                self.store.release_lock(self.key, holder=self._holder)
 
             return False
 
@@ -350,9 +356,13 @@ class Transaction(BaseTransaction):
 
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self._staged_value, ResultRecord):
-                    self.store.persist_result_record(result_record=self._staged_value)
+                    self.store.persist_result_record(
+                        result_record=self._staged_value, holder=self._holder
+                    )
                 else:
-                    self.store.write(key=self.key, obj=self._staged_value)
+                    self.store.write(
+                        key=self.key, obj=self._staged_value, holder=self._holder
+                    )
 
             self.state = TransactionState.COMMITTED
             if (
@@ -361,7 +371,7 @@ class Transaction(BaseTransaction):
                 and self.isolation_level == IsolationLevel.SERIALIZABLE
             ):
                 self.logger.debug(f"Releasing lock for transaction {self.key!r}")
-                self.store.release_lock(self.key)
+                self.store.release_lock(self.key, holder=self._holder)
             return True
         except SerializationError as exc:
             if self.logger:
@@ -389,7 +399,7 @@ class Transaction(BaseTransaction):
             self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
-            if asyncio.iscoroutinefunction(hook):
+            if inspect.iscoroutinefunction(hook):
                 run_coro_as_sync(hook(self))
             else:
                 hook(self)
@@ -436,7 +446,7 @@ class Transaction(BaseTransaction):
                 and self.isolation_level == IsolationLevel.SERIALIZABLE
             ):
                 self.logger.debug(f"Releasing lock for transaction {self.key!r}")
-                self.store.release_lock(self.key)
+                self.store.release_lock(self.key, holder=self._holder)
 
 
 class AsyncTransaction(BaseTransaction):
@@ -451,7 +461,7 @@ class AsyncTransaction(BaseTransaction):
             and self.isolation_level == IsolationLevel.SERIALIZABLE
         ):
             self.logger.debug(f"Acquiring lock for transaction {self.key!r}")
-            await self.store.aacquire_lock(self.key)
+            await self.store.aacquire_lock(self.key, holder=self._holder)
         if (
             not self.overwrite
             and self.store
@@ -462,7 +472,7 @@ class AsyncTransaction(BaseTransaction):
 
     async def read(self) -> ResultRecord[Any] | None:
         if self.store and self.key:
-            return await self.store.aread(key=self.key)
+            return await self.store.aread(key=self.key, holder=self._holder)
         return None
 
     async def reset(self) -> None:
@@ -478,7 +488,9 @@ class AsyncTransaction(BaseTransaction):
 
         # do this below reset so that get_transaction() returns the relevant txn
         if parent and self.state == TransactionState.ROLLED_BACK:
-            await parent.rollback()
+            maybe_coro = parent.rollback()
+            if inspect.isawaitable(maybe_coro):
+                await maybe_coro
 
     async def commit(self) -> bool:
         if self.state in [TransactionState.ROLLED_BACK, TransactionState.COMMITTED]:
@@ -488,7 +500,7 @@ class AsyncTransaction(BaseTransaction):
                 and self.isolation_level == IsolationLevel.SERIALIZABLE
             ):
                 self.logger.debug(f"Releasing lock for transaction {self.key!r}")
-                self.store.release_lock(self.key)
+                self.store.release_lock(self.key, holder=self._holder)
 
             return False
 
@@ -505,10 +517,12 @@ class AsyncTransaction(BaseTransaction):
             if self.store and self.key and self.write_on_commit:
                 if isinstance(self._staged_value, ResultRecord):
                     await self.store.apersist_result_record(
-                        result_record=self._staged_value
+                        result_record=self._staged_value, holder=self._holder
                     )
                 else:
-                    await self.store.awrite(key=self.key, obj=self._staged_value)
+                    await self.store.awrite(
+                        key=self.key, obj=self._staged_value, holder=self._holder
+                    )
 
             self.state = TransactionState.COMMITTED
             if (
@@ -517,7 +531,7 @@ class AsyncTransaction(BaseTransaction):
                 and self.isolation_level == IsolationLevel.SERIALIZABLE
             ):
                 self.logger.debug(f"Releasing lock for transaction {self.key!r}")
-                self.store.release_lock(self.key)
+                self.store.release_lock(self.key, holder=self._holder)
             return True
         except SerializationError as exc:
             if self.logger:
@@ -545,7 +559,7 @@ class AsyncTransaction(BaseTransaction):
             self.logger.info(f"Running {hook_type} hook {hook_name!r}")
 
         try:
-            if asyncio.iscoroutinefunction(hook):
+            if inspect.iscoroutinefunction(hook):
                 await hook(self)
             else:
                 await anyio.to_thread.run_sync(hook, self)
@@ -592,7 +606,7 @@ class AsyncTransaction(BaseTransaction):
                 and self.isolation_level == IsolationLevel.SERIALIZABLE
             ):
                 self.logger.debug(f"Releasing lock for transaction {self.key!r}")
-                self.store.release_lock(self.key)
+                self.store.release_lock(self.key, holder=self._holder)
 
     async def __aenter__(self) -> Self:
         self.prepare_transaction()

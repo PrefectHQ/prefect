@@ -4,6 +4,7 @@ import { z } from "zod";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { buildFilterWorkPoolWorkQueuesQuery } from "@/api/work-queues";
 import { CustomRunPage } from "@/components/deployments/custom-run-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 // nb: Revisit search params to determine if we're decoding the parameters correctly. Or if there are stricter typings
 // We'll know stricter types as we write more of the webapp
@@ -18,7 +19,11 @@ const searchParams = z
 
 export const Route = createFileRoute("/deployments/deployment_/$id/run")({
 	validateSearch: zodValidator(searchParams),
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { id } = Route.useParams();
+		const search = Route.useSearch();
+		return <CustomRunPage id={id} overrideParameters={search?.parameters} />;
+	},
 	loader: async ({ params, context: { queryClient } }) => {
 		// ---- Critical data
 		const res = await queryClient.ensureQueryData(
@@ -35,10 +40,5 @@ export const Route = createFileRoute("/deployments/deployment_/$id/run")({
 		}
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
-
-function RouteComponent() {
-	const { id } = Route.useParams();
-	const search = Route.useSearch();
-	return <CustomRunPage id={id} overrideParameters={search?.parameters} />;
-}

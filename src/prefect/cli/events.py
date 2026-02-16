@@ -1,5 +1,7 @@
 import asyncio
+import json
 from enum import Enum
+from typing import Optional
 
 import orjson
 import typer
@@ -12,6 +14,7 @@ from prefect.cli.root import app
 from prefect.events import Event
 from prefect.events.clients import (
     PrefectCloudAccountEventSubscriber,
+    get_events_client,
     get_events_subscriber,
 )
 
@@ -83,3 +86,102 @@ def handle_error(exc: Exception) -> None:
         exit_with_error(f"Error writing to file: {exc}")
     else:
         exit_with_error(f"An unexpected error occurred: {exc}")
+
+
+@events_app.command()
+async def emit(
+    event: str = typer.Argument(help="The name of the event"),
+    resource: str = typer.Option(
+        None,
+        "--resource",
+        "-r",
+        help="Resource specification as 'key=value' or JSON. Can be used multiple times.",
+    ),
+    resource_id: str = typer.Option(
+        None,
+        "--resource-id",
+        help="The resource ID (shorthand for --resource prefect.resource.id=<id>)",
+    ),
+    related: Optional[str] = typer.Option(
+        None,
+        "--related",
+        help="Related resources as JSON string",
+    ),
+    payload: Optional[str] = typer.Option(
+        None,
+        "--payload",
+        "-p",
+        help="Event payload as JSON string",
+    ),
+):
+    """Emit a single event to Prefect.
+
+    Examples:
+        ```bash
+        # Simple event with resource ID
+        prefect event emit user.logged_in --resource-id user-123
+
+        # Event with payload
+        prefect event emit order.shipped --resource-id order-456 --payload '{"tracking": "ABC123"}'
+
+        # Event with full resource specification
+        prefect event emit customer.subscribed --resource '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp"}'
+        ```
+    """
+    resource_dict = {}
+
+    if resource:
+        try:
+            parsed = json.loads(resource)
+            if not isinstance(parsed, dict):
+                exit_with_error(
+                    "Resource must be a JSON object, not an array or string"
+                )
+            resource_dict = parsed
+        except json.JSONDecodeError:
+            if "=" in resource:
+                key, value = resource.split("=", 1)
+                resource_dict[key] = value
+            else:
+                exit_with_error("Resource must be JSON or 'key=value' format")
+
+    if resource_id:
+        resource_dict["prefect.resource.id"] = resource_id
+
+    if "prefect.resource.id" not in resource_dict:
+        exit_with_error("Resource must include 'prefect.resource.id'")
+
+    related_list = None
+    if related:
+        try:
+            parsed_related = json.loads(related)
+            if isinstance(parsed_related, dict):
+                related_list = [parsed_related]
+            elif isinstance(parsed_related, list):
+                related_list = parsed_related
+            else:
+                exit_with_error("Related resources must be a JSON object or array")
+        except json.JSONDecodeError:
+            exit_with_error("Related resources must be valid JSON")
+
+    payload_dict = None
+    if payload:
+        try:
+            parsed_payload = json.loads(payload)
+            if not isinstance(parsed_payload, dict):
+                exit_with_error("Payload must be a JSON object")
+            payload_dict = parsed_payload
+        except json.JSONDecodeError:
+            exit_with_error("Payload must be valid JSON")
+
+    event_obj = Event(
+        event=event,
+        resource=resource_dict,
+        related=related_list or [],
+        payload=payload_dict or {},
+    )
+
+    async with get_events_client() as events_client:
+        await events_client.emit(event_obj)
+
+    app.console.print(f"Successfully emitted event '{event}' with ID {event_obj.id}")

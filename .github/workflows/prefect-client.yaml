@@ -31,16 +31,16 @@ jobs:
     name: Build and run prefect-client
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          python-version: "3.9"
+          python-version: "3.10"
           cache-dependency-glob: "pyproject.toml"
           activate-environment: true
 
@@ -117,7 +117,7 @@ jobs:
 
       - name: Publish build artifacts
         if: ${{ inputs.upload-artifacts }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.artifact-name }}
           path: "${{ env.TMPDIR }}/dist"

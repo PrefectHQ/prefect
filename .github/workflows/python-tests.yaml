@@ -12,6 +12,7 @@ on:
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
       - pyproject.toml
+      - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
   push:
@@ -22,6 +23,7 @@ on:
       - "src/prefect/**/*.py"
       - "tests/**/*.py"
       - pyproject.toml
+      - uv.lock
       - Dockerfile
       - scripts/entrypoint.sh
 permissions:
@@ -71,11 +73,11 @@ jobs:
           - "postgres:14"
           - "sqlite"
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
+          - "3.14"
         exclude:
           - database: "sqlite"
             test-type:
@@ -95,6 +97,29 @@ jobs:
             test-type:
               name: Runner, Worker, Settings, Input, and CLI Tests
               modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
+        include:
+          # Cyclopts parity leg: re-runs native cyclopts command tests with
+          # PREFECT_CLI_FAST=1 so invoke_and_assert routes through the
+          # cyclopts runner.  Only includes test files for commands that have
+          # been migrated to cyclopts (config, profile, server, worker, shell,
+          # version).  Expand this list as more commands are migrated; when
+          # the migration is complete replace with tests/cli/.
+          - test-type:
+              name: CLI Tests (Cyclopts)
+              modules: >-
+                tests/cli/test_config.py
+                tests/cli/test_profile.py
+                tests/cli/test_worker.py
+                tests/cli/test_shell.py
+                tests/cli/test_start_server.py
+                tests/cli/test_server_services.py
+                tests/cli/test_version.py
+                tests/cli/test_root.py
+                tests/cli/test_cyclopts_runner.py
+                tests/cli/test_cyclopts_parity.py
+            database: "postgres:14"
+            python-version: "3.12"
+            cyclopts: true
 
     timeout-minutes: 15
 
@@ -102,13 +127,13 @@ jobs:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -152,9 +177,14 @@ jobs:
           --publish 6379:6379
           redis:latest
 
+      - name: Set cyclopts mode
+        if: ${{ matrix.cyclopts }}
+        run: echo "PREFECT_CLI_FAST=1" >> $GITHUB_ENV
+
       - name: Run tests
         run: |
           uv run pytest ${{ matrix.test-type.modules }} \
+          -m "not windows" \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
@@ -179,10 +209,11 @@ jobs:
         database:
           - "postgres:14"
         python-version:
-          - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
+          - "3.14"
 
       fail-fast: false
 
@@ -192,18 +223,16 @@ jobs:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: image=moby/buildkit:v0.12.5
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -241,6 +270,8 @@ jobs:
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
           tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha,scope=test-${{ matrix.python-version }},ignore-error=true
+          cache-to: type=gha,mode=max,scope=test-${{ matrix.python-version }},ignore-error=true
 
       - name: Test Docker image
         run: |
@@ -300,6 +331,7 @@ jobs:
       - name: Run tests
         run: |
           uv run pytest tests --ignore=tests/typesafety \
+          -m "not windows" \
           --numprocesses auto \
           --maxprocesses 6 \
           --dist worksteal \
@@ -320,13 +352,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           python-version: "3.12"

@@ -1,0 +1,97 @@
+---
+title: prefect-kubernetes
+---
+
+## 0.7.5
+
+_Released on February 12, 2026_
+
+**Features**
+
+- Add attribution headers to SDK API requests [#20508](https://github.com/PrefectHQ/prefect/pull/20508) by [@zangell44](https://github.com/zangell44)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
+- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@app/dependabot](https://github.com/app/dependabot)
+
+---
+
+## 0.7.4
+
+_Released on February 03, 2026_
+
+**Other**
+
+- migrate prefect-kubernetes from [@sync](https://github.com/sync)_compatible to [@async](https://github.com/async)_dispatch [#20414](https://github.com/PrefectHQ/prefect/pull/20414) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+---
+
+## 0.7.3
+
+_Released on January 15, 2026_
+
+**Features**
+
+- Add worker-side cancellation for pending flow runs [#20022](https://github.com/PrefectHQ/prefect/pull/20022) by [@joshuastagner](https://github.com/joshuastagner)
+
+---
+
+## 0.7.2
+
+_Released on December 24, 2025_
+
+**Features**
+
+- Add semaphore to limit concurrent API calls during Kubernetes observer startup [#19957](https://github.com/PrefectHQ/prefect/pull/19957) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
+## 0.7.1
+
+_Released on November 07, 2025_
+
+**Bug Fixes**
+
+- Fix event filter in Kubernetes observer to improve CPU utilization [#19333](https://github.com/PrefectHQ/prefect/pull/19333) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
+## 0.7.0
+
+_Released on October 31, 2025_
+
+**Features**
+
+- Add options to disable the Kubernetes worker observer and pod event replication [#19282](https://github.com/PrefectHQ/prefect/pull/19282) by [@levzem](https://github.com/levzem)
+
+**Breaking Changes**
+
+- Remove Python 3.9 support [#19273](https://github.com/PrefectHQ/prefect/pull/19273) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
+## 0.6.6
+
+_Released on October 23, 2025_
+
+**Features**
+
+- Allow opt-out of rescheduling on `SIGTERM` by setting `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` [#19223](https://github.com/PrefectHQ/prefect/pull/19223) by [@svatopluk-sperka](https://github.com/svatopluk-sperka)
+
+**Bug Fixes**
+
+- Configure `kopf` to use its own JSON formatter when Prefect uses JSON logging [#19265](https://github.com/PrefectHQ/prefect/pull/19265) by [@desertaxle](https://github.com/desertaxle)
+- Fix duplicate environment variables from work pools in Kubernetes jobs [#19171](https://github.com/PrefectHQ/prefect/pull/19171) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Remove log level set in Kubernetes observer [#19060](https://github.com/PrefectHQ/prefect/pull/19060) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+
+---
+
+## 0.6.5
+
+_Released on September 17, 2025_
+
+**Bug Fixes**
+
+- Preserve casing of Kubernetes label values [#18841](https://github.com/PrefectHQ/prefect/pull/18841) by [@raniasev](https://github.com/raniasev)

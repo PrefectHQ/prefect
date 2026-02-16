@@ -10,6 +10,9 @@ import { getQueryService } from "@/api/service";
 export type Flow = components["schemas"]["Flow"];
 export type FlowsFilter =
 	components["schemas"]["Body_read_flows_flows_filter_post"];
+export type FlowsPaginateFilter =
+	components["schemas"]["Body_paginate_flows_flows_paginate_post"];
+export type SimpleNextFlowRun = components["schemas"]["SimpleNextFlowRun"];
 
 /**
  * Query key factory for flows-related queries
@@ -32,8 +35,18 @@ export const queryKeyFactory = {
 	all: () => ["flows"] as const,
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: FlowsFilter) => [...queryKeyFactory.lists(), filter] as const,
+	paginate: (filter: FlowsPaginateFilter) =>
+		[...queryKeyFactory.lists(), "paginate", filter] as const,
 	details: () => [...queryKeyFactory.all(), "detail"] as const,
 	detail: (id: string) => [...queryKeyFactory.details(), id] as const,
+	deploymentsCount: (flowIds: string[]) =>
+		[
+			...queryKeyFactory.all(),
+			"deploymentsCount",
+			[...flowIds].sort(),
+		] as const,
+	nextRuns: (flowIds: string[]) =>
+		[...queryKeyFactory.all(), "nextRuns", [...flowIds].sort()] as const,
 };
 
 /**
@@ -63,7 +76,7 @@ export const buildListFlowsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const result = await getQueryService().POST("/flows/filter", {
+			const result = await (await getQueryService()).POST("/flows/filter", {
 				body: filter,
 			});
 			return result.data ?? [];
@@ -72,6 +85,41 @@ export const buildListFlowsQuery = (
 		placeholderData: keepPreviousData,
 		enabled,
 	});
+
+/**
+ * Builds a query configuration for fetching paginated flows
+ *
+ * @param filter - Filter parameters for the flows pagination query.
+ * @returns Query configuration object for use with TanStack Query
+ *
+ * @example
+ * ```ts
+ * const { data } = useQuery(buildPaginateFlowsQuery({ page: 1, limit: 10 }));
+ * ```
+ */
+export const buildPaginateFlowsQuery = (
+	filter: FlowsPaginateFilter = {
+		page: 1,
+		sort: "NAME_ASC",
+	},
+	refetchInterval = 30_000,
+) => {
+	return queryOptions({
+		queryKey: queryKeyFactory.paginate(filter),
+		queryFn: async () => {
+			const res = await (await getQueryService()).POST("/flows/paginate", {
+				body: filter,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
+			}
+			return res.data;
+		},
+		placeholderData: keepPreviousData,
+		staleTime: 1000,
+		refetchInterval,
+	});
+};
 
 /**
  * Builds a query configuration for getting a flow's details
@@ -89,7 +137,7 @@ export const buildFLowDetailsQuery = (id: string) =>
 	queryOptions({
 		queryKey: queryKeyFactory.detail(id),
 		queryFn: async () => {
-			const res = await getQueryService().GET("/flows/{id}", {
+			const res = await (await getQueryService()).GET("/flows/{id}", {
 				params: { path: { id } },
 			});
 			if (!res.data) {
@@ -121,11 +169,85 @@ export const buildCountFlowsFilteredQuery = (filter: FlowsFilter) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const result = await getQueryService().POST("/flows/count", {
+			const result = await (await getQueryService()).POST("/flows/count", {
 				body: filter,
 			});
 			return result.data ?? 0;
 		},
+	});
+
+/**
+ * Builds a query configuration for fetching deployment counts by flow ID
+ *
+ * @param flowIds - Array of flow IDs to get deployment counts for
+ * @param options - Optional configuration with enabled flag
+ * @returns Query configuration object with:
+ *   - queryKey: Unique key for caching (sorted flowIds for consistency)
+ *   - queryFn: Function to fetch deployment counts
+ *   - enabled: Whether the query should run (defaults to flowIds.length > 0)
+ *
+ * @example
+ * ```ts
+ * const query = buildDeploymentsCountByFlowQuery(['flow-id-1', 'flow-id-2']);
+ * const { data } = useQuery(query);
+ * // data: { 'flow-id-1': 5, 'flow-id-2': 3 }
+ * ```
+ */
+export const buildDeploymentsCountByFlowQuery = (
+	flowIds: string[],
+	{ enabled = true }: { enabled?: boolean } = {},
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.deploymentsCount(flowIds),
+		queryFn: async () => {
+			const result = await (await getQueryService()).POST(
+				"/ui/flows/count-deployments",
+				{
+					body: { flow_ids: flowIds },
+				},
+			);
+			return (result.data ?? {}) as Record<string, number>;
+		},
+		staleTime: 1000,
+		placeholderData: keepPreviousData,
+		enabled: enabled && flowIds.length > 0,
+	});
+
+/**
+ * Builds a query configuration for fetching next scheduled runs by flow ID
+ *
+ * @param flowIds - Array of flow IDs to get next runs for
+ * @param options - Optional configuration with enabled flag
+ * @returns Query configuration object with:
+ *   - queryKey: Unique key for caching (sorted flowIds for consistency)
+ *   - queryFn: Function to fetch next runs
+ *   - enabled: Whether the query should run (defaults to flowIds.length > 0)
+ *
+ * @example
+ * ```ts
+ * const query = buildNextRunsByFlowQuery(['flow-id-1', 'flow-id-2']);
+ * const { data } = useQuery(query);
+ * // data: { 'flow-id-1': { id: '...', name: '...', ... }, 'flow-id-2': null }
+ * ```
+ */
+export const buildNextRunsByFlowQuery = (
+	flowIds: string[],
+	{ enabled = true }: { enabled?: boolean } = {},
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.nextRuns(flowIds),
+		queryFn: async () => {
+			const result = await (await getQueryService()).POST(
+				"/ui/flows/next-runs",
+				{
+					body: { flow_ids: flowIds },
+				},
+			);
+			return (result.data ?? {}) as Record<string, SimpleNextFlowRun | null>;
+		},
+		staleTime: 1000,
+		placeholderData: keepPreviousData,
+		enabled: enabled && flowIds.length > 0,
 	});
 
 /**
@@ -153,8 +275,8 @@ export const useDeleteFlowById = () => {
 	const queryClient = useQueryClient();
 
 	const { mutate: deleteFlow, ...rest } = useMutation({
-		mutationFn: (id: string) =>
-			getQueryService().DELETE("/flows/{id}", {
+		mutationFn: async (id: string) =>
+			(await getQueryService()).DELETE("/flows/{id}", {
 				params: { path: { id } },
 			}),
 		onSettled: () =>

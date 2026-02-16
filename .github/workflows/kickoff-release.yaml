@@ -1,0 +1,59 @@
+# Kickoff Release Workflow
+#
+# This workflow automates weekly patch releases by triggering a Devin.ai playbook that:
+#   1. Gets the latest release version and increments the patch number
+#   2. Generates release notes using `just prepare-release`
+#   3. Cleans up formatting and creates a PR for review
+#   4. After PR merge, creates a GitHub release for the new version
+#
+# Schedule: Every Thursday at 1PM CST (7PM UTC)
+# Manual trigger: Available via workflow_dispatch
+
+name: Kickoff Release
+
+on:
+  schedule:
+    - cron: "0 19 * * 4"
+  workflow_dispatch:
+
+env:
+  DEVIN_API_URL: https://api.devin.ai/v1/sessions
+  DEVIN_SNAPSHOT_ID: snapshot-0542554d5aed43f8801e3464286c89cf
+  DEVIN_PLAYBOOK_ID: playbook-1ff3099b139a4a548aba2a104b18e22d
+
+jobs:
+  trigger-devin-playbook:
+    name: Trigger Devin.ai Release Playbook
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Devin.ai playbook
+        env:
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+        run: |
+          prompt="Run the Prefect Patch Release Notes playbook to create release notes for the next patch release. Get the latest release version, increment the patch number, generate release notes using just prepare-release, clean up the formatting, and create a PR for review. Once the PR is merged, create a GitHub release for the new version."
+
+          response=$(curl -s -w "\n%{http_code}" -X POST "$DEVIN_API_URL" \
+            -H "Authorization: Bearer $DEVIN_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"prompt\": \"$prompt\",
+              \"snapshot_id\": \"$DEVIN_SNAPSHOT_ID\",
+              \"playbook_id\": \"$DEVIN_PLAYBOOK_ID\"
+            }")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+            echo "✅ Successfully triggered Devin playbook"
+            session_url=$(echo "$body" | jq -r '.url // empty')
+            if [ -n "$session_url" ]; then
+              echo "📎 Session URL: $session_url"
+              echo "### Devin Session" >> "$GITHUB_STEP_SUMMARY"
+              echo "[$session_url]($session_url)" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            echo "❌ Failed to trigger playbook (HTTP $http_code)"
+            echo "Response: $body"
+            exit 1
+          fi

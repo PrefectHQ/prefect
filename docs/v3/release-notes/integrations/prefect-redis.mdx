@@ -1,0 +1,80 @@
+---
+title: prefect-redis
+---
+
+## 0.2.8
+
+_Released on December 19, 2025_
+
+**Enhancements ➕➕**
+
+- Add retry logic for consumer reconnection on Redis errors [#19817](https://github.com/PrefectHQ/prefect/pull/19817) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Unify definition of `EventBeingProcessed` type [#19585](https://github.com/PrefectHQ/prefect/pull/19585) by [@saschwartz](https://github.com/saschwartz)
+
+**Bug Fixes 🐞**
+- Fix `anyio` `fail_after` usage [#19583](https://github.com/PrefectHQ/prefect/pull/19583) by [@saschwartz](https://github.com/saschwartz)
+
+---
+
+## 0.2.7
+
+_Released on November 26, 2025_
+
+**Features**
+
+- Parametrize xreadgroup batch size in consumer; Add EventPersister service setting for it [#19545](https://github.com/PrefectHQ/prefect/pull/19545) by [@saschwartz](https://github.com/saschwartz)
+- Also parametrize xautoclaim batch size [#19557](https://github.com/PrefectHQ/prefect/pull/19557) by [@saschwartz](https://github.com/saschwartz)
+
+**Breaking Changes**
+
+- Remove Python 3.9 support [#19273](https://github.com/PrefectHQ/prefect/pull/19273) by [@desertaxle](https://github.com/desertaxle)
+
+
+---
+
+## 0.2.6
+
+_Released on October 16, 2025_
+
+**Features**
+
+- Fix race conditions in concurrency lease renewal [#19187](https://github.com/PrefectHQ/prefect/pull/19187) by [@bunchesofdonald](https://github.com/bunchesofdonald)
+
+---
+
+## 0.2.5
+
+_Released on September 19, 2025_
+
+**Enhancements**
+
+- Update task concurrency slot orchestration rules to work with global concurrency limits [#18983](https://github.com/PrefectHQ/prefect/pull/18983) by [@desertaxle](https://github.com/desertaxle)
+- Add pagination support to lease storage `read_active_lease_ids` [#18973](https://github.com/PrefectHQ/prefect/pull/18973) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Add `list_holders_for_limit` to `ConcurrencyLeaseStorage` protocol [#18970](https://github.com/PrefectHQ/prefect/pull/18970) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Add holder parameter to V2 concurrency endpoints [#18887](https://github.com/PrefectHQ/prefect/pull/18887) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Removes followers log from Redis `CausalOrdering` implementation [#18870](https://github.com/PrefectHQ/prefect/pull/18870) by [@desertaxle](https://github.com/desertaxle)
+- Update lease storage to include holder indexing and lookup via Lua scripts [#18897](https://github.com/PrefectHQ/prefect/pull/18897) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+---
+
+## 0.2.4
+
+*Released on August 14, 2025*
+
+**Enhancements ➕➕**
+
+- Add Redis-based concurrency lease storage implementation by [@desertaxle](https://github.com/desertaxle) in [#18646](https://github.com/PrefectHQ/prefect/pull/18646)
+  - New `ConcurrencyLeaseStorage` class for managing task and flow concurrency limits
+  - Atomic lease operations using Redis pipelines
+  - Support for lease expiration tracking and management
+
+**Bug Fixes 🐞**
+
+- Fix Redis stream trimming blocked by inactive consumer groups by [@zzstoatzz](https://github.com/zzstoatzz) in [#18642](https://github.com/PrefectHQ/prefect/pull/18642)
+  - Added idle threshold checking to prevent abandoned consumer groups from blocking stream trimming
+  - Automatic cleanup of empty consumer groups with `ephemeral` prefix
+  - New `PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD` setting (default: 5 minutes)
+
+**Development & Tidiness 🧹**
+
+- Bump minimum `prefect` version to 3.4.9 by [@desertaxle](https://github.com/desertaxle) in [#18709](https://github.com/PrefectHQ/prefect/pull/18709)

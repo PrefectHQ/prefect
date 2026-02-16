@@ -65,7 +65,7 @@ def bar_task():
 @pytest.fixture
 def mock_task_worker_start(monkeypatch):
     monkeypatch.setattr(
-        "prefect.task_worker.TaskWorker.start", mock_start := AsyncMock()
+        "prefect.task_worker.TaskWorker.astart", mock_start := AsyncMock()
     )
     return mock_start
 
@@ -108,7 +108,7 @@ async def test_handle_sigterm(mock_create_subscription):
 
     with (
         patch("sys.exit") as mock_exit,
-        patch.object(task_worker, "stop", new_callable=AsyncMock) as mock_stop,
+        patch.object(task_worker, "astop", new_callable=AsyncMock) as mock_stop,
     ):
         await task_worker.start()
 
@@ -665,6 +665,49 @@ class TestTaskWorkerNestedTasks:
 
         assert await updated_task_run.state.result() == 42
 
+    async def test_nested_task_delay_serialization(
+        self, prefect_client, events_pipeline
+    ):
+        """
+        Test that calling task.delay() from within a task that was itself called with delay
+        works correctly. This tests the fix for the serialization issue where
+        TaskRunContext.serialize() with serialize_as_any=True would fail with:
+        TypeError: 'MockValSer' object cannot be converted to 'SchemaSerializer'
+
+        The error occurred when tasks were defined in separate modules, but we can
+        test the serialization path directly.
+        """
+
+        @task
+        def inner_task(value: str) -> str:
+            return f"processed: {value}"
+
+        @task
+        def outer_task(value: str) -> str:
+            # Calling delay from within a task that was itself delayed
+            # This would trigger the serialization error if TaskRunContext.serialize()
+            # uses serialize_as_any=True globally
+            inner_task.delay(value)
+            # Just return a marker that we successfully called delay
+            return f"scheduled_{value}"
+
+        # Create worker with both tasks
+        task_worker = TaskWorker(outer_task, inner_task)
+
+        # Submit outer task using apply_async (equivalent to delay)
+        future = outer_task.apply_async(("test_value",))
+        task_run = await prefect_client.read_task_run(future.task_run_id)
+
+        # Execute - this would fail with serialization error before fix
+        await task_worker.execute_task_run(task_run)
+        await events_pipeline.process_events()
+
+        # Verify it completed successfully
+        updated_task_run = await prefect_client.read_task_run(future.task_run_id)
+        assert updated_task_run.state.is_completed()
+        result = await updated_task_run.state.result()
+        assert result == "scheduled_test_value"
+
 
 class TestTaskWorkerLimit:
     @pytest.fixture(autouse=True)
@@ -904,3 +947,91 @@ class TestTaskWorkerLimit:
 
         assert updated_task_run_1.state.is_completed()
         assert updated_task_run_2.state.is_scheduled()
+
+
+class TestAsyncDispatchMigration:
+    """Tests for the sync_compatible to async_dispatch migration."""
+
+    def test_aio_attributes_exist(self):
+        """Test that the .aio attributes exist for backward compatibility."""
+        assert hasattr(TaskWorker.start, "aio")
+        assert hasattr(TaskWorker.stop, "aio")
+        assert hasattr(serve, "aio")
+
+    async def test_astart_works_in_async_context(
+        self, foo_task, mock_create_subscription
+    ):
+        """Test that astart works when awaited directly."""
+        task_worker = TaskWorker(foo_task)
+
+        with anyio.move_on_after(0.1):
+            await task_worker.astart()
+
+        mock_create_subscription.assert_called_once()
+
+    async def test_start_works_in_async_context(
+        self, foo_task, mock_create_subscription
+    ):
+        """Test that start dispatches to astart in async context."""
+        task_worker = TaskWorker(foo_task)
+
+        with anyio.move_on_after(0.1):
+            await task_worker.start()
+
+        mock_create_subscription.assert_called_once()
+
+    async def test_astop_raises_stop_task_worker(
+        self, foo_task, mock_create_subscription
+    ):
+        """Test that astop raises StopTaskWorker to signal shutdown."""
+        from prefect.task_worker import StopTaskWorker
+
+        task_worker = TaskWorker(foo_task)
+
+        async with task_worker:
+            with pytest.raises(StopTaskWorker):
+                await task_worker.astop()
+
+    async def test_stop_dispatches_to_astop(self, foo_task, mock_create_subscription):
+        """Test that stop dispatches to astop in async context."""
+        from prefect.task_worker import StopTaskWorker
+
+        task_worker = TaskWorker(foo_task)
+
+        async with task_worker:
+            with pytest.raises(StopTaskWorker):
+                await task_worker.stop()
+
+    async def test_aserve_works_in_async_context(
+        self, foo_task, mock_task_worker_start
+    ):
+        """Test that aserve works when awaited directly."""
+        from prefect.task_worker import aserve
+
+        await aserve(foo_task)
+        mock_task_worker_start.assert_called_once()
+
+    async def test_serve_dispatches_to_aserve_in_async_context(
+        self, foo_task, mock_task_worker_start
+    ):
+        """Test that serve dispatches to aserve in async context."""
+        await serve(foo_task)
+        mock_task_worker_start.assert_called_once()
+
+    def test_task_serve_aio_attribute_exists(self, foo_task):
+        """Test that Task.serve has .aio attribute for backward compatibility."""
+        assert hasattr(foo_task.serve, "aio")
+
+    async def test_task_aserve_works_in_async_context(
+        self, foo_task, mock_task_worker_start
+    ):
+        """Test that Task.aserve works when awaited directly."""
+        await foo_task.aserve()
+        mock_task_worker_start.assert_called_once()
+
+    async def test_task_serve_dispatches_to_aserve_in_async_context(
+        self, foo_task, mock_task_worker_start
+    ):
+        """Test that Task.serve dispatches to aserve in async context."""
+        await foo_task.serve()
+        mock_task_worker_start.assert_called_once()

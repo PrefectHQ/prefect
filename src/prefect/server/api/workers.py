@@ -7,7 +7,6 @@ from uuid import UUID
 
 import sqlalchemy as sa
 from fastapi import (
-    BackgroundTasks,
     Body,
     Depends,
     HTTPException,
@@ -167,7 +166,7 @@ async def create_work_pool(
     Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
 
-    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools.
+    For more information, see https://docs.prefect.io/v3/concepts/work-pools.
     """
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
@@ -356,7 +355,7 @@ async def delete_work_pool(
 
 @router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
-    background_tasks: BackgroundTasks,
+    docket: dependencies.Docket,
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     work_queue_names: List[str] = Body(
         None, description="The names of work pool queues"
@@ -409,9 +408,10 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    background_tasks.add_task(
+    await docket.add(
         mark_work_queues_ready,
-        db=db,
+        key=f"mark_work_queues_ready:work_pool:{work_pool_id}",
+    )(
         polled_work_queue_ids=[
             wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
         ],
@@ -420,9 +420,10 @@ async def get_scheduled_flow_runs(
         ],
     )
 
-    background_tasks.add_task(
+    await docket.add(
         mark_deployments_ready,
-        db=db,
+        key=f"mark_deployments_ready:work_pool:{work_pool_id}",
+    )(
         work_queue_ids=[wq.id for wq in work_queues],
     )
 
@@ -449,7 +450,7 @@ async def create_work_queue(
     Creates a new work pool queue. If a work pool queue with the same
     name already exists, an error will be raised.
 
-    For more information, see https://docs.prefect.io/v3/deploy/infrastructure-concepts/work-pools#work-queues.
+    For more information, see https://docs.prefect.io/v3/concepts/work-pools#work-queues.
     """
 
     try:

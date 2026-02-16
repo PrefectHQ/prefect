@@ -36,6 +36,7 @@ const AUTOMATION_ACTION_TYPES: Partial<Record<ActionType, string>> = {
 	"pause-automation": "Pause an automation",
 	"resume-automation": "Resume an automation",
 	"send-notification": "Send a notification",
+	"call-webhook": "Call a webhook",
 };
 
 export const ActionTypeSelect = ({ index }: { index: number }) => {
@@ -61,7 +62,7 @@ export const ActionTypeSelect = ({ index }: { index: number }) => {
 								}
 							}}
 						>
-							<SelectTrigger aria-label="select action">
+							<SelectTrigger aria-label="select action" className="w-full">
 								<SelectValue placeholder="Select action" />
 							</SelectTrigger>
 							<SelectContent>

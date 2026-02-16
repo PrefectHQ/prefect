@@ -1374,8 +1374,8 @@ async def test_concurrency_limit_is_available_in_templates(
     (rendered,) = await action.render(triggered_action)
     assert (
         rendered
-        == """
-    Name: my-limit
+        == f"""
+    Name: {concurrency_limit_v2.name}
     Limit: 42
     """
     )

@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type ArtifactsFilter, buildListArtifactsQuery } from "@/api/artifacts";
 import { useFilterArtifactsFlowTaskRuns } from "@/api/artifacts/use-get-artifacts-flow-task-runs/use-get-artifacts-flow-task-runs";
 import { ArtifactsKeyPage } from "@/components/artifacts/key/artifacts-key-page";
+import { PrefectLoading } from "@/components/ui/loading";
 
 const buildFilterBody = (key: string): ArtifactsFilter => ({
 	artifacts: {
@@ -16,7 +17,25 @@ const buildFilterBody = (key: string): ArtifactsFilter => ({
 });
 
 export const Route = createFileRoute("/artifacts/key/$key")({
-	component: RouteComponent,
+	component: function RouteComponent() {
+		const { key } = Route.useParams();
+
+		const { data: artifacts } = useSuspenseQuery(
+			buildListArtifactsQuery(buildFilterBody(key)),
+		);
+
+		const artifactWithMetadata = useFilterArtifactsFlowTaskRuns(
+			buildFilterBody(key),
+		);
+		return (
+			<div>
+				<ArtifactsKeyPage
+					artifactKey={key} // can't use "key" as it is a reserved word
+					artifacts={artifactWithMetadata ?? artifacts}
+				/>
+			</div>
+		);
+	},
 	loader: async ({ context, params }) => {
 		const { key } = params;
 
@@ -27,24 +46,5 @@ export const Route = createFileRoute("/artifacts/key/$key")({
 		return { artifacts };
 	},
 	wrapInSuspense: true,
+	pendingComponent: PrefectLoading,
 });
-
-function RouteComponent() {
-	const { key } = Route.useParams();
-
-	const { data: artifacts } = useSuspenseQuery(
-		buildListArtifactsQuery(buildFilterBody(key)),
-	);
-
-	const artifactWithMetadata = useFilterArtifactsFlowTaskRuns(
-		buildFilterBody(key),
-	);
-	return (
-		<div>
-			<ArtifactsKeyPage
-				artifactKey={key} // can't use "key" as it is a reserved word
-				artifacts={artifactWithMetadata ?? artifacts}
-			/>
-		</div>
-	);
-}
