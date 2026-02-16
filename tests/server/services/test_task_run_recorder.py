@@ -1235,3 +1235,200 @@ async def test_event_dropped_after_max_retries_exceeded(
     assert "Dropping event" in caplog.text
     assert "after 2 failed attempts" in caplog.text
     assert "1 dropped" in caplog.text
+
+
+def make_event_with_flow_run(
+    task_run_id: str,
+    flow_run_id: str,
+    task_key: str,
+    dynamic_key: str,
+    state_ts: datetime,
+    state_type: StateType = StateType.RUNNING,
+) -> ReceivedEvent:
+    state_ts_str = state_ts.isoformat()
+    return ReceivedEvent(
+        occurred=state_ts_str,
+        event=f"prefect.task-run.{state_type.name.title()}",
+        resource={
+            "prefect.resource.id": f"prefect.task-run.{task_run_id}",
+            "prefect.resource.name": "test-task-run",
+            "prefect.state-message": "",
+            "prefect.state-name": state_type.name.title(),
+            "prefect.state-timestamp": state_ts_str,
+            "prefect.state-type": state_type.name,
+            "prefect.orchestration": "client",
+        },
+        related=[
+            {
+                "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                "prefect.resource.role": "flow-run",
+            },
+        ],
+        payload={
+            "intended": {"from": "PENDING", "to": state_type.name},
+            "validated_state": {
+                "type": state_type.name,
+                "name": state_type.name.title(),
+                "message": "",
+            },
+            "task_run": {
+                "name": "test-task-run",
+                "task_key": task_key,
+                "dynamic_key": dynamic_key,
+            },
+        },
+        account=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        workspace=UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        received=state_ts_str,
+        id=uuid4(),
+        follows=None,
+    )
+
+
+async def test_bulk_upsert_with_natural_key_conflict(
+    session: AsyncSession,
+    flow_run,
+):
+    """When two events have different task_run_ids but the same
+    (flow_run_id, task_key, dynamic_key), the recorder should handle the
+    conflict via the composite unique constraint instead of raising
+    IntegrityError."""
+
+    flow_run_id = str(flow_run.id)
+    task_key = "my_task-abcdefg"
+    dynamic_key = "1"
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+
+    first_task_run_id = str(uuid4())
+    second_task_run_id = str(uuid4())
+
+    first_event = make_event_with_flow_run(
+        task_run_id=first_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=base_time,
+        state_type=StateType.PENDING,
+    )
+
+    await task_run_recorder.record_bulk_task_run_events([first_event])
+
+    task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
+    assert task_run is not None
+    assert task_run.task_key == task_key
+    assert task_run.dynamic_key == dynamic_key
+    assert task_run.state_type == StateType.PENDING
+
+    later_time = base_time + timedelta(minutes=1)
+    second_event = make_event_with_flow_run(
+        task_run_id=second_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=later_time,
+        state_type=StateType.RUNNING,
+    )
+
+    await task_run_recorder.record_bulk_task_run_events([second_event])
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
+    assert task_run is not None
+    assert task_run.state_type == StateType.RUNNING
+
+    states = await read_task_run_states(session, task_run.id)
+    assert len(states) == 2
+    assert {s.type for s in states} == {StateType.PENDING, StateType.RUNNING}
+
+
+async def test_single_upsert_with_natural_key_conflict(
+    session: AsyncSession,
+    flow_run,
+):
+    """Same as the bulk test but for the single-event record_task_run_event path."""
+
+    flow_run_id = str(flow_run.id)
+    task_key = "my_task-abcdefg"
+    dynamic_key = "2"
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+
+    first_task_run_id = str(uuid4())
+    second_task_run_id = str(uuid4())
+
+    first_event = make_event_with_flow_run(
+        task_run_id=first_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=base_time,
+        state_type=StateType.PENDING,
+    )
+
+    await task_run_recorder.record_task_run_event(first_event)
+
+    task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
+    assert task_run is not None
+    assert task_run.state_type == StateType.PENDING
+
+    later_time = base_time + timedelta(minutes=1)
+    second_event = make_event_with_flow_run(
+        task_run_id=second_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=later_time,
+        state_type=StateType.RUNNING,
+    )
+
+    await task_run_recorder.record_task_run_event(second_event)
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
+    assert task_run is not None
+    assert task_run.state_type == StateType.RUNNING
+
+    states = await read_task_run_states(session, task_run.id)
+    assert len(states) == 2
+    assert {s.type for s in states} == {StateType.PENDING, StateType.RUNNING}
+
+
+async def test_bulk_natural_key_dedup_within_batch(
+    session: AsyncSession,
+    flow_run,
+):
+    """When a single batch contains two events with different task_run_ids
+    but the same natural key, the batch should be deduplicated and only the
+    latest event (by state_timestamp) should be used for the INSERT."""
+
+    flow_run_id = str(flow_run.id)
+    task_key = "my_task-abcdefg"
+    dynamic_key = "3"
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+
+    first_task_run_id = str(uuid4())
+    second_task_run_id = str(uuid4())
+
+    first_event = make_event_with_flow_run(
+        task_run_id=first_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=base_time,
+        state_type=StateType.PENDING,
+    )
+    later_time = base_time + timedelta(minutes=1)
+    second_event = make_event_with_flow_run(
+        task_run_id=second_task_run_id,
+        flow_run_id=flow_run_id,
+        task_key=task_key,
+        dynamic_key=dynamic_key,
+        state_ts=later_time,
+        state_type=StateType.RUNNING,
+    )
+
+    await task_run_recorder.record_bulk_task_run_events([first_event, second_event])
+
+    task_run_id = second_event.resource["prefect.resource.id"].split(".")[-1]
+    task_run = await read_task_run(session=session, task_run_id=task_run_id)
+    assert task_run is not None
+    assert task_run.state_type == StateType.RUNNING
