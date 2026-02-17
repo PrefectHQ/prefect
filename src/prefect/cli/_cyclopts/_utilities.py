@@ -4,8 +4,8 @@ Utilities for cyclopts CLI commands.
 Mirrors prefect.cli._utilities but uses sys.exit instead of typer.Exit.
 """
 
-import asyncio
 import functools
+import inspect
 import json
 import textwrap
 import traceback
@@ -29,7 +29,7 @@ def exit_with_success(message: str, **kwargs: Any) -> NoReturn:
 
 
 def with_cli_exception_handling(fn: Callable[..., Any]) -> Callable[..., Any]:
-    if asyncio.iscoroutinefunction(fn):
+    if inspect.iscoroutinefunction(fn):
 
         @functools.wraps(fn)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
