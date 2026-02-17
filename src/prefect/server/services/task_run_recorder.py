@@ -210,7 +210,8 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
 
     # Also deduplicate by natural key (flow_run_id, task_key, dynamic_key)
     # for task runs with a flow_run_id, since multiple workers may process
-    # events with different ids for the same logical task run
+    # events with different ids for the same logical task run.
+    # Explicitly keep the entry with the latest state_timestamp per natural key.
     unique_by_natural_key: dict[tuple, dict[str, Any]] = {}
     without_flow_run: list[dict[str, Any]] = []
     for tr in unique_task_runs_by_id.values():
@@ -221,7 +222,12 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                 task_run.task_key,
                 task_run.dynamic_key,
             )
-            unique_by_natural_key[natural_key] = tr
+            existing = unique_by_natural_key.get(natural_key)
+            if (
+                existing is None
+                or task_run.state.timestamp > existing["task_run"].state.timestamp
+            ):
+                unique_by_natural_key[natural_key] = tr
         else:
             without_flow_run.append(tr)
     unique_task_runs = list(unique_by_natural_key.values()) + without_flow_run
