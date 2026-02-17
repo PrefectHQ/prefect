@@ -1,0 +1,120 @@
+---
+title: runner
+sidebarTitle: runner
+---
+
+# `prefect_dbt.core.runner`
+
+
+
+Runner for dbt commands
+
+
+## Functions
+
+### `execute_dbt_node` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L80" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute_dbt_node(task_state: NodeTaskTracker, node_id: str, asset_id: Union[str, None])
+```
+
+
+Execute a dbt node and wait for its completion.
+
+This function will:
+1. Set up the task logger
+2. Wait for the node to finish using efficient threading.Event
+3. Check the node's status and fail if it's in a failure state
+
+
+## Classes
+
+### `PrefectDbtRunner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A runner for executing dbt commands with Prefect integration.
+
+This class enables the invocation of dbt commands while integrating with Prefect's
+logging and assets capabilities.
+
+**Args:**
+- `manifest`: Optional pre-loaded dbt manifest
+- `settings`: Optional PrefectDbtSettings instance for configuring dbt
+- `raise_on_failure`: Whether to raise an error if the dbt command encounters a
+non-exception failure
+- `client`: Optional Prefect client instance
+- `include_compiled_code`: Whether to include compiled code in the asset description
+- `disable_assets`: Global override for disabling asset generation for dbt nodes. If
+True, assets will not be created for any dbt nodes, even if the node's prefect
+config has enable_assets set to True.
+- `_force_nodes_as_tasks`: Whether to force each dbt node execution to have a Prefect task
+representation when `.invoke()` is called outside of a flow or task run
+
+
+**Methods:**
+
+#### `get_dbt_event_msg` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_dbt_event_msg(event: EventMsg) -> str
+```
+
+#### `graph` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+graph(self) -> Graph
+```
+
+#### `invoke` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L1011" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+invoke(self, args: list[str], **kwargs: Any)
+```
+
+Invokes a dbt command.
+
+Supports the same arguments as `dbtRunner.invoke()`. https://docs.getdbt.com/reference/programmatic-invocations
+
+**Args:**
+- `args`: List of command line arguments
+- `**kwargs`: Additional keyword arguments
+
+**Returns:**
+- The result of the dbt command invocation
+
+
+#### `log_level` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+log_level(self) -> EventLevel
+```
+
+#### `manifest` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+manifest(self) -> Manifest
+```
+
+#### `profiles_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+profiles_dir(self) -> Path
+```
+
+#### `project_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+project_dir(self) -> Path
+```
+
+#### `project_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+project_name(self) -> str
+```
+
+#### `target_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/runner.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+target_path(self) -> Path
+```
