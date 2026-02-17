@@ -253,25 +253,15 @@ async def update_deployment(
                         )
                     replaces_targets[schedule.replaces] = schedule.slug or ""
 
-            # Reject chained replacements (e.g., A→B and B→C in the same
-            # request) because the sequential DB updates are order-dependent
-            # and can violate the unique (deployment_id, slug) constraint.
-            new_slugs_from_replaces = set(replaces_targets.values())
-            chained = new_slugs_from_replaces & set(replaces_targets.keys())
-            if chained:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Chained replacements are not supported. "
-                    f"The following slugs appear as both replacement targets "
-                    f"and new slugs: {', '.join(sorted(chained))}",
-                )
-
             # Check for slug collisions: if a schedule's new slug already
-            # exists as a current slug, it's a collision
+            # exists and that existing slug is not being replaced, it's a
+            # collision
+            slugs_being_replaced = set(replaces_targets.keys())
             for schedule in deployment.schedules:
                 if (
                     schedule.slug
                     and schedule.slug in current_slugs
+                    and schedule.slug not in slugs_being_replaced
                     and schedule.replaces
                 ):
                     raise HTTPException(
@@ -405,15 +395,61 @@ async def update_deployment(
             deployment=deployment,
         )
 
+        # Phase 1: For schedules with `replaces`, look up the row ID by
+        # old slug, then NULL out those slugs so the unique index on
+        # (deployment_id, slug) won't block the renames.
+        renamed_schedule_ids: dict[str, UUID] = {}
+        renamed_old_slugs: list[str] = []
         for schedule in schedules_to_patch:
-            # Use replaces slug if provided, otherwise use the schedule's own slug
-            lookup_slug = schedule.replaces if schedule.replaces else schedule.slug
-            await models.deployments.update_deployment_schedule(
-                session=session,
-                deployment_id=deployment_id,
-                schedule=schedule,
-                deployment_schedule_slug=lookup_slug,
+            if schedule.replaces:
+                row = (
+                    await session.execute(
+                        sa.select(db.DeploymentSchedule.id).where(
+                            sa.and_(
+                                db.DeploymentSchedule.deployment_id == deployment_id,
+                                db.DeploymentSchedule.slug == schedule.replaces,
+                            )
+                        )
+                    )
+                ).scalar_one_or_none()
+                if row is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Schedule with slug '{schedule.replaces}' no longer exists.",
+                    )
+                renamed_schedule_ids[schedule.replaces] = row
+                renamed_old_slugs.append(schedule.replaces)
+
+        if renamed_old_slugs:
+            await session.execute(
+                sa.update(db.DeploymentSchedule)
+                .where(
+                    sa.and_(
+                        db.DeploymentSchedule.deployment_id == deployment_id,
+                        db.DeploymentSchedule.slug.in_(renamed_old_slugs),
+                    )
+                )
+                .values(slug=None)
             )
+            await session.flush()
+
+        # Phase 2: Apply the actual updates. Renamed schedules use
+        # their row ID (slug is now NULL); others use slug as before.
+        for schedule in schedules_to_patch:
+            if schedule.replaces:
+                await models.deployments.update_deployment_schedule(
+                    session=session,
+                    deployment_id=deployment_id,
+                    schedule=schedule,
+                    deployment_schedule_id=renamed_schedule_ids[schedule.replaces],
+                )
+            else:
+                await models.deployments.update_deployment_schedule(
+                    session=session,
+                    deployment_id=deployment_id,
+                    schedule=schedule,
+                    deployment_schedule_slug=schedule.slug,
+                )
         if schedules_to_create:
             await models.deployments.create_deployment_schedules(
                 session=session,
