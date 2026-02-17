@@ -11,6 +11,8 @@ import {
 } from "../fixtures";
 
 const TEST_PREFIX = "e2e-wp-";
+const DETAIL_PREFIX = "e2e-wpd-";
+const ACTION_PREFIX = "e2e-wpa-";
 
 async function waitForWorkPoolsPageReady(page: Page): Promise<void> {
 	await expect(
@@ -117,7 +119,7 @@ test.describe("Work Pool Detail Page", () => {
 
 	test.beforeEach(async ({ apiClient }) => {
 		try {
-			await cleanupWorkPools(apiClient, TEST_PREFIX);
+			await cleanupWorkPools(apiClient, DETAIL_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -125,14 +127,14 @@ test.describe("Work Pool Detail Page", () => {
 
 	test.afterEach(async ({ apiClient }) => {
 		try {
-			await cleanupWorkPools(apiClient, TEST_PREFIX);
+			await cleanupWorkPools(apiClient, DETAIL_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
 	});
 
 	test("View work pool detail metadata", async ({ page, apiClient }) => {
-		const poolName = `${TEST_PREFIX}detail-${Date.now()}`;
+		const poolName = `${DETAIL_PREFIX}detail-${Date.now()}`;
 		await createWorkPool(apiClient, {
 			name: poolName,
 			description: "Test description for detail",
@@ -140,13 +142,11 @@ test.describe("Work Pool Detail Page", () => {
 
 		await page.goto(`/work-pools/work-pool/${poolName}`);
 
-		await expect(page.getByText(poolName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByLabel("breadcrumb").getByText(poolName)).toBeVisible(
+			{ timeout: 10000 },
+		);
 
-		await expect(
-			page.getByLabel("breadcrumb").getByText(poolName),
-		).toBeVisible();
-
-		await expect(page.getByText("process")).toBeVisible();
+		await expect(page.getByText("Process", { exact: true })).toBeVisible();
 
 		await expect(page.getByText("Test description for detail")).toBeVisible();
 	});
@@ -155,12 +155,14 @@ test.describe("Work Pool Detail Page", () => {
 		page,
 		apiClient,
 	}) => {
-		const poolName = `${TEST_PREFIX}queues-${Date.now()}`;
+		const poolName = `${DETAIL_PREFIX}queues-${Date.now()}`;
 		await createWorkPool(apiClient, { name: poolName });
 
 		await page.goto(`/work-pools/work-pool/${poolName}`);
 
-		await expect(page.getByText(poolName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByLabel("breadcrumb").getByText(poolName)).toBeVisible(
+			{ timeout: 10000 },
+		);
 
 		await page.getByRole("tab", { name: /work queues/i }).click();
 
@@ -177,12 +179,14 @@ test.describe("Work Pool Detail Page", () => {
 		page,
 		apiClient,
 	}) => {
-		const poolName = `${TEST_PREFIX}queue-nav-${Date.now()}`;
+		const poolName = `${DETAIL_PREFIX}queue-nav-${Date.now()}`;
 		await createWorkPool(apiClient, { name: poolName });
 
 		await page.goto(`/work-pools/work-pool/${poolName}`);
 
-		await expect(page.getByText(poolName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByLabel("breadcrumb").getByText(poolName)).toBeVisible(
+			{ timeout: 10000 },
+		);
 
 		await page.getByRole("tab", { name: /work queues/i }).click();
 
@@ -196,7 +200,9 @@ test.describe("Work Pool Detail Page", () => {
 			timeout: 10000,
 		});
 
-		await expect(page.getByText("default")).toBeVisible();
+		await expect(
+			page.getByLabel("breadcrumb").getByText("default"),
+		).toBeVisible();
 	});
 });
 
@@ -209,7 +215,7 @@ test.describe("Work Pool Actions", () => {
 
 	test.beforeEach(async ({ apiClient }) => {
 		try {
-			await cleanupWorkPools(apiClient, TEST_PREFIX);
+			await cleanupWorkPools(apiClient, ACTION_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -217,7 +223,7 @@ test.describe("Work Pool Actions", () => {
 
 	test.afterEach(async ({ apiClient }) => {
 		try {
-			await cleanupWorkPools(apiClient, TEST_PREFIX);
+			await cleanupWorkPools(apiClient, ACTION_PREFIX);
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -227,22 +233,13 @@ test.describe("Work Pool Actions", () => {
 		page,
 		apiClient,
 	}) => {
-		const poolName = `${TEST_PREFIX}create-${Date.now()}`;
+		const poolName = `${ACTION_PREFIX}create-${Date.now()}`;
 
 		await page.goto("/work-pools/create");
 
-		await expect(
-			page
-				.getByRole("radio", { name: /process/i })
-				.or(page.getByLabel("Process"))
-				.or(page.locator("label").filter({ hasText: "Process" })),
-		).toBeVisible({ timeout: 10000 });
-
-		await page
-			.getByRole("radio", { name: /process/i })
-			.or(page.getByLabel("Process"))
-			.or(page.locator("label").filter({ hasText: "Process" }))
-			.click();
+		const processOption = page.getByRole("radio", { name: /process/i });
+		await expect(processOption).toBeVisible({ timeout: 10000 });
+		await processOption.click();
 
 		await page.getByRole("button", { name: /next/i }).click();
 
@@ -257,7 +254,9 @@ test.describe("Work Pool Actions", () => {
 			{ timeout: 10000 },
 		);
 
-		await expect(page.getByText(poolName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByLabel("breadcrumb").getByText(poolName)).toBeVisible(
+			{ timeout: 10000 },
+		);
 
 		await expect
 			.poll(
@@ -271,12 +270,14 @@ test.describe("Work Pool Actions", () => {
 	});
 
 	test("Toggle work pool pause/resume", async ({ page, apiClient }) => {
-		const poolName = `${TEST_PREFIX}toggle-${Date.now()}`;
+		const poolName = `${ACTION_PREFIX}toggle-${Date.now()}`;
 		await createWorkPool(apiClient, { name: poolName });
 
 		await page.goto(`/work-pools/work-pool/${poolName}`);
 
-		await expect(page.getByText(poolName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByLabel("breadcrumb").getByText(poolName)).toBeVisible(
+			{ timeout: 10000 },
+		);
 
 		await page.getByRole("switch").click();
 
@@ -304,12 +305,14 @@ test.describe("Work Pool Actions", () => {
 	});
 
 	test("Delete work pool via action menu", async ({ page, apiClient }) => {
-		const poolName = `${TEST_PREFIX}delete-${Date.now()}`;
+		const poolName = `${ACTION_PREFIX}delete-${Date.now()}`;
 		await createWorkPool(apiClient, { name: poolName });
 
 		await page.goto(`/work-pools/work-pool/${poolName}`);
 
-		await expect(page.getByText(poolName)).toBeVisible({ timeout: 10000 });
+		await expect(page.getByLabel("breadcrumb").getByText(poolName)).toBeVisible(
+			{ timeout: 10000 },
+		);
 
 		const moreButton = page
 			.getByRole("button")
