@@ -47,6 +47,7 @@ api-ref-all:
         --anchor-name "Python SDK Reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --exclude prefect.agent \
+        --exclude prefect.analytics \
         --include-inheritance
 
 # Generate API reference for specific modules (e.g., just api-ref prefect.flows prefect.tasks)
