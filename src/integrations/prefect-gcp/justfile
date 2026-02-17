@@ -17,5 +17,3 @@ api-ref:
         --repo-url https://github.com/PrefectHQ/prefect \
         --include-inheritance \
         --no-update-nav
-    # Remove __init__ module pages and update docs.json nav
-    find docs/integrations/prefect-gcp/api-ref -name '*-__init__.mdx' -delete
