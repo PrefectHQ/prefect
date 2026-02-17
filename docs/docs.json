@@ -459,7 +459,14 @@
                 "group": "Dask",
                 "pages": [
                   "integrations/prefect-dask/index",
-                  "integrations/prefect-dask/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-dask/api-ref/prefect_dask-client",
+                      "integrations/prefect-dask/api-ref/prefect_dask-task_runners",
+                      "integrations/prefect-dask/api-ref/prefect_dask-utils"
+                    ]
+                  }
                 ]
               },
               {
