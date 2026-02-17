@@ -551,7 +551,13 @@
                 "group": "Gitlab",
                 "pages": [
                   "integrations/prefect-gitlab/index",
-                  "integrations/prefect-gitlab/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-gitlab/api-ref/prefect_gitlab-credentials",
+                      "integrations/prefect-gitlab/api-ref/prefect_gitlab-repositories"
+                    ]
+                  }
                 ]
               },
               {
