@@ -1,0 +1,113 @@
+---
+title: messaging
+sidebarTitle: messaging
+---
+
+# `prefect_redis.messaging`
+
+## Functions
+
+### `ephemeral_subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L565" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ephemeral_subscription(topic: str, source: Optional[str] = None, group: Optional[str] = None) -> AsyncGenerator[dict[str, Any], None]
+```
+
+### `break_topic` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L582" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+break_topic()
+```
+
+## Classes
+
+### `RedisMessagingPublisherSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Settings for the Redis messaging publisher.
+
+No settings are required to be set by the user but any of the settings can be
+overridden by the user using environment variables.
+
+
+### `RedisMessagingConsumerSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L88" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Settings for the Redis messaging consumer.
+
+No settings are required to be set by the user but any of the settings can be
+overridden by the user using environment variables.
+
+
+### `Cache` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `clear_recently_seen_messages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear_recently_seen_messages(self) -> None
+```
+
+#### `forget_duplicates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+forget_duplicates(self, attribute: str, messages: list[M]) -> None
+```
+
+#### `without_duplicates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+without_duplicates(self, attribute: str, messages: list[M]) -> list[M]
+```
+
+### `RedisStreamsMessage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A message sent to a Redis stream.
+
+
+**Methods:**
+
+#### `acknowledge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acknowledge(self) -> None
+```
+
+### `Subscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A subscription-like object for Redis. We mimic the memory subscription interface
+so that we can set max_retries and handle dead letter queue storage in Redis.
+
+
+### `Publisher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `publish_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+publish_data(self, data: bytes, attributes: dict[str, Any])
+```
+
+### `Consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Consumer implementation for Redis Streams with DLQ support.
+
+
+**Methods:**
+
+#### `process_pending_messages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L363" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+process_pending_messages(self, handler: MessageHandler, redis_client: Redis, message_batch_size: int, start_id: str = '0-0')
+```
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/messaging.py#L404" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, handler: MessageHandler) -> None
+```

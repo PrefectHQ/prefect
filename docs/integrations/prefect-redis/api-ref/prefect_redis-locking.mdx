@@ -1,0 +1,108 @@
+---
+title: locking
+sidebarTitle: locking
+---
+
+# `prefect_redis.locking`
+
+## Classes
+
+### `RedisLockManager` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L11" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A lock manager that uses Redis as a backend.
+
+**Attributes:**
+- `host`: The host of the Redis server
+- `port`: The port the Redis server is running on
+- `db`: The database to write to and read from
+- `username`: The username to use when connecting to the Redis server
+- `password`: The password to use when connecting to the Redis server
+- `ssl`: Whether to use SSL when connecting to the Redis server
+- `client`: The Redis client used to communicate with the Redis server
+- `async_client`: The asynchronous Redis client used to communicate with the Redis server
+
+
+**Methods:**
+
+#### `aacquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L142" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aacquire_lock(self, key: str, holder: str, acquire_timeout: Optional[float] = None, hold_timeout: Optional[float] = None) -> bool
+```
+
+Acquires a lock asynchronously.
+
+**Args:**
+- `key`: Unique identifier for the transaction record.
+- `holder`: Unique identifier for the holder of the lock. Must match the
+holder provided when acquiring the lock.
+- `acquire_timeout`: Maximum time to wait for the lock to be acquired.
+- `hold_timeout`: Maximum time to hold the lock.
+
+**Returns:**
+- True if the lock was acquired, False otherwise.
+
+
+#### `acquire_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acquire_lock(self, key: str, holder: str, acquire_timeout: Optional[float] = None, hold_timeout: Optional[float] = None) -> bool
+```
+
+Acquires a lock synchronously.
+
+**Args:**
+- `key`: Unique identifier for the transaction record.
+- `holder`: Unique identifier for the holder of the lock.
+- `acquire_timeout`: Maximum time to wait for the lock to be acquired.
+- `hold_timeout`: Maximum time to hold the lock.
+
+**Returns:**
+- True if the lock was acquired, False otherwise.
+
+
+#### `await_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool
+```
+
+#### `is_lock_holder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_lock_holder(self, key: str, holder: str) -> bool
+```
+
+#### `is_locked` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L226" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_locked(self, key: str) -> bool
+```
+
+#### `release_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+release_lock(self, key: str, holder: str) -> None
+```
+
+Releases the lock on the corresponding transaction record.
+
+Handles the case where a lock might have been released during a task retry
+If the lock doesn't exist in Redis at all, this method will succeed even if
+the holder ID doesn't match the original holder.
+
+**Args:**
+- `key`: Unique identifier for the transaction record.
+- `holder`: Unique identifier for the holder of the lock. Must match the
+holder provided when acquiring the lock.
+
+**Raises:**
+- `ValueError`: If the lock is held by a different holder.
+
+
+#### `wait_for_lock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/locking.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool
+```
