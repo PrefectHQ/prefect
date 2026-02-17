@@ -1061,7 +1061,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 6: Cache Policy
+### Phase 6: Cache Policy ✅
+
+**Status**: Complete — [PR #20644](https://github.com/PrefectHQ/prefect/pull/20644)
 
 **PR Scope**: Cross-run caching for dbt nodes.
 
@@ -1080,6 +1082,16 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Second run with no changes shows cache hits
 - Modified SQL invalidates cache for that node and downstream
 - Cache persists across flow runs (no RUN_ID in key)
+
+**Implementation notes**:
+- **`DbtNodeCachePolicy` is a dataclass, not a class with `__init__`** — The plan's interface showed the policy accepting `project_dir`, `ManifestParser`, and `DbtNode` at construction time and computing hashes lazily in `compute_key()`. The implementation instead pre-computes all hashes at construction via the `build_cache_policy_for_node()` factory, storing only primitive fields (`str`, `bool`, `tuple`) on the dataclass. This makes the policy pickle-safe across process boundaries without holding references to `ManifestParser` or `Path` objects — important since PER_NODE tasks run in subprocesses via `ProcessPoolTaskRunner`.
+- **`build_cache_policy_for_node()` factory instead of `CachePolicyFactory` callable** — The plan defined a `CachePolicyFactory` type alias and a `cache_policy_factory` parameter on the orchestrator for custom policy factories. The implementation uses a single `build_cache_policy_for_node()` function in `_cache.py` that the orchestrator calls directly via `_build_cache_options_for_node()`. Custom policy factories were deferred as YAGNI.
+- **Eager key computation with `computed_cache_keys` dict** — The plan didn't specify how upstream cache keys would be propagated between nodes. The implementation computes cache keys eagerly in `_build_cache_options_for_node()` (before submitting the task) and stores them in a `computed_cache_keys` dict that accumulates across waves. Each node's upstream keys are looked up from this dict. Failed nodes have their keys removed to prevent stale downstream propagation.
+- **`enable_caching` defaults to `False`** — The plan showed `enable_caching: bool = True` with a default 1-day expiration. The implementation defaults to `False` with no expiration, making caching explicitly opt-in. This is safer for users who haven't configured `result_storage` and `cache_key_storage`.
+- **No `use_source_freshness_expiration`** — This was always planned for Phase 7 but appeared in the Phase 6 constructor interface in the plan. The implementation cleanly separates Phase 6 (cache policy) from Phase 7 (freshness-based expiration).
+- **`key_storage` applied via `CachePolicy.configure()`** — The `build_cache_policy_for_node()` factory calls `policy.configure(key_storage=...)` when `key_storage` is provided, using Prefect's built-in cache policy configuration mechanism rather than a custom storage layer.
+- **Integration tests use "drop table" detection** — Since real dbt execution doesn't expose mock call counts, integration tests use a "drop table" strategy: drop a database object between runs, then check whether dbt recreated it (cache miss) or left it absent (cache hit). This required `ThreadPoolTaskRunner` instead of `ProcessPoolTaskRunner` in test fixtures to avoid DuckDB's single-writer file lock across subprocesses.
+- **26 unit tests + 5 integration tests** — Unit tests (`test_orchestrator_cache.py`) cover policy determinism, pickle safety, hash helpers, upstream propagation, cascade invalidation, full-refresh bypass, and cross-instance persistence. Integration tests (`test_orchestrator_integration.py::TestPerNodeCachingIntegration`) validate against real DuckDB: cache hits on identical runs, cascade invalidation on SQL changes, full-refresh bypass, cross-instance cache sharing, and a control test with caching disabled.
 
 ---
 
