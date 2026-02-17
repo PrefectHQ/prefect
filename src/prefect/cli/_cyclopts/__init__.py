@@ -207,7 +207,6 @@ _DELEGATED_COMMANDS: set[str] = {
     "concurrency-limit",
     "dashboard",
     "deploy",
-    "deployment",
     "dev",
     "events",
     "experimental",
@@ -295,15 +294,9 @@ _app.command(flow_run_app)
 
 
 # --- deployment ---
-deployment_app = _delegated_app("deployment", "Manage deployments (legacy commands).")
+from prefect.cli._cyclopts.deployment import deployment_app
+
 _app.command(deployment_app)
-
-
-@deployment_app.default
-def deployment_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("deployment", tokens)
 
 
 # --- server ---

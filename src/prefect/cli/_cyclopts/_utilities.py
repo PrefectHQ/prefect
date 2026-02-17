@@ -6,6 +6,8 @@ Mirrors prefect.cli._utilities but uses sys.exit instead of typer.Exit.
 
 import asyncio
 import functools
+import json
+import textwrap
 import traceback
 from typing import Any, Callable, NoReturn
 
@@ -65,3 +67,40 @@ def with_cli_exception_handling(fn: Callable[..., Any]) -> Callable[..., Any]:
                 exit_with_error("An exception occurred.")
 
         return wrapper
+
+
+def load_json_key_values(
+    cli_input: list[str], display_name: str
+) -> dict[str, dict[str, Any] | str | int]:
+    """Parse a list of "key=value" strings where the value is loaded as JSON."""
+    parsed: dict[str, dict[str, Any] | str | int] = {}
+
+    def cast_value(value: str) -> Any:
+        try:
+            return json.loads(value)
+        except ValueError as exc:
+            if (
+                "Extra data" in str(exc) or "Expecting value" in str(exc)
+            ) and '"' not in value:
+                return cast_value(f'"{value}"')
+            raise exc
+
+    for spec in cli_input:
+        try:
+            key, _, value = spec.partition("=")
+        except ValueError:
+            exit_with_error(
+                f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
+            )
+
+        try:
+            parsed[key] = cast_value(value)
+        except ValueError as exc:
+            indented_value = textwrap.indent(value, prefix="\t")
+            exit_with_error(
+                f"Failed to parse JSON for {display_name} {key!r} with value"
+                f"\n\n{indented_value}\n\n"
+                f"JSON Error: {exc}"
+            )
+
+    return parsed
