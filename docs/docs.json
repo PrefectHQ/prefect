@@ -572,7 +572,18 @@
                 "group": "Redis",
                 "pages": [
                   "integrations/prefect-redis/index",
-                  "integrations/prefect-redis/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-redis/api-ref/prefect_redis-blocks",
+                      "integrations/prefect-redis/api-ref/prefect_redis-client",
+                      "integrations/prefect-redis/api-ref/prefect_redis-lease_storage",
+                      "integrations/prefect-redis/api-ref/prefect_redis-locking",
+                      "integrations/prefect-redis/api-ref/prefect_redis-messaging",
+                      "integrations/prefect-redis/api-ref/prefect_redis-ordering",
+                      "integrations/prefect-redis/api-ref/prefect_redis-tasks"
+                    ]
+                  }
                 ]
               },
               {
