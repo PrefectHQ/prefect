@@ -114,7 +114,8 @@ class IntervalSchedule(PrefectBaseModel):
     @classmethod
     def validate_interval_positive(cls, v: Interval) -> Interval:
         if sys.version_info >= (3, 13) and isinstance(v, DateTimeDelta):
-            if v == DateTimeDelta.ZERO:
+            _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
+            if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
                 raise ValueError("interval must be positive")
         elif isinstance(v, datetime.timedelta) and v <= datetime.timedelta(0):
             raise ValueError("interval must be positive")

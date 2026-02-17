@@ -696,6 +696,13 @@ class TestIntervalScheduleDateTimeDelta:
         with pytest.raises(ValidationError, match="interval must be positive"):
             IntervalSchedule(interval=DateTimeDelta())
 
+    async def test_datetimedelta_negative_rejected(self):
+        """A negative DateTimeDelta should be rejected."""
+        from whenever import DateTimeDelta
+
+        with pytest.raises(ValidationError, match="interval must be positive"):
+            IntervalSchedule(interval=DateTimeDelta(hours=-1))
+
 
 class TestCronScheduleDaylightSavingsTime:
     """
