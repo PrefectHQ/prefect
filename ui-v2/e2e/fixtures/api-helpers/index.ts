@@ -58,3 +58,13 @@ export {
 	listVariables,
 	type Variable,
 } from "./variables";
+export {
+	cleanupWorkPools,
+	createWorkPool,
+	deleteWorkPool,
+	getWorkPool,
+	listWorkPoolQueues,
+	listWorkPools,
+	type WorkPool,
+	type WorkPoolQueue,
+} from "./work-pools";
