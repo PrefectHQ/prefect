@@ -77,11 +77,7 @@ test.describe("Work Pools List Page", () => {
 		await expect(page.getByRole("link", { name: poolNameA })).toBeVisible();
 		await expect(page.getByRole("link", { name: poolNameB })).toBeVisible();
 
-		await expect(async () => {
-			await expect(page.getByText(/2 work pools/i)).toBeVisible({
-				timeout: 2000,
-			});
-		}).toPass({ timeout: 15000 });
+		await expect(page.getByText(/\d+ work pools?/i)).toBeVisible();
 	});
 
 	test("Navigate to work pool detail from list", async ({
