@@ -1,0 +1,74 @@
+---
+title: glue_job
+sidebarTitle: glue_job
+---
+
+# `prefect_aws.glue_job`
+
+
+
+Integrations with the AWS Glue Job.
+
+
+
+## Classes
+
+### `GlueJobRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Execute a Glue Job
+
+
+**Methods:**
+
+#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+fetch_result(self) -> str
+```
+
+fetch glue job state
+
+
+#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_completion(self) -> None
+```
+
+Wait for the job run to complete and get exit code
+
+
+### `GlueJobBlock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Execute a job to the AWS Glue Job service.
+
+**Attributes:**
+- `job_name`: The name of the job definition to use.
+- `arguments`: The job arguments associated with this run.
+For this job run, they replace the default arguments set in the job
+definition itself.
+You can specify arguments here that your own job-execution script consumes,
+as well as arguments that Glue itself consumes.
+Job arguments may be logged. Do not pass plaintext secrets as arguments.
+Retrieve secrets from a Glue Connection, Secrets Manager or other secret
+management mechanism if you intend to keep them within the Job.
+[doc](https\://docs.aws.amazon.com/glue/latest/dg/aws-glue-programming-etl-glue-arguments.html)
+- `job_watch_poll_interval`: The amount of time to wait between AWS API
+calls while monitoring the state of a Glue Job.
+default is 60s because of jobs that use AWS Glue versions 2.0 and later
+have a 1-minute minimum.
+[AWS Glue Pricing](https\://aws.amazon.com/glue/pricing/?nc1=h_ls)
+
+
+**Methods:**
+
+#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/glue_job.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+trigger(self) -> GlueJobRun
+```
+
+trigger for GlueJobRun
+
