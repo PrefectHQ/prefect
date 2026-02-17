@@ -37,6 +37,7 @@ class DbtNode:
     name: str
     resource_type: NodeType
     depends_on: tuple[str, ...] = field(default_factory=tuple)
+    depends_on_macros: tuple[str, ...] = field(default_factory=tuple)
     fqn: tuple[str, ...] = field(default_factory=tuple)
     materialization: Optional[str] = None
     relation_name: Optional[str] = None
@@ -166,9 +167,10 @@ class ManifestParser:
             # Fall back to model if unknown type
             resource_type = NodeType.Model
 
-        # Get depends_on nodes
+        # Get depends_on nodes and macros
         depends_on_data = node_data.get("depends_on", {})
         depends_on_nodes = depends_on_data.get("nodes", [])
+        depends_on_macros = depends_on_data.get("macros", [])
 
         # Get materialization from config
         config = node_data.get("config", {})
@@ -179,6 +181,7 @@ class ManifestParser:
             name=node_data.get("name", ""),
             resource_type=resource_type,
             depends_on=tuple(depends_on_nodes),
+            depends_on_macros=tuple(depends_on_macros),
             fqn=tuple(node_data.get("fqn", [])),
             materialization=materialization,
             relation_name=node_data.get("relation_name"),
@@ -268,6 +271,7 @@ class ManifestParser:
                 name=node.name,
                 resource_type=node.resource_type,
                 depends_on=resolved_deps,
+                depends_on_macros=node.depends_on_macros,
                 fqn=node.fqn,
                 materialization=node.materialization,
                 relation_name=node.relation_name,
@@ -367,6 +371,21 @@ class ManifestParser:
             )
 
         return waves
+
+    def get_macro_paths(self) -> dict[str, Optional[str]]:
+        """Get a mapping of macro unique_id to original_file_path.
+
+        Reads the top-level ``macros`` section of the manifest.
+
+        Returns:
+            Dict mapping macro unique_id to its ``original_file_path``
+            (``None`` when the macro has no path, e.g. builtins).
+        """
+        macros_data = self._manifest_data.get("macros", {})
+        return {
+            macro_id: macro_data.get("original_file_path")
+            for macro_id, macro_data in macros_data.items()
+        }
 
     def filter_nodes(
         self,
