@@ -1095,7 +1095,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 7: Source Freshness Integration
+### Phase 7: Source Freshness Integration ✅
+
+**Status**: Complete — [PR #20671](https://github.com/PrefectHQ/prefect/pull/20671)
 
 **PR Scope**: Freshness-aware cache expiration.
 
@@ -1112,6 +1114,11 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Can compute expiration from source freshness thresholds
 - `only_fresh_sources=True` skips models with stale sources
 - Expiration correctly passed to task decorator
+
+**Deviations from plan**:
+- **`run_source_freshness()` checks output file, not return value** — `dbt source freshness` returns `success=False` when sources are stale even though `sources.json` is written successfully, so the implementation checks for the output file rather than the dbtRunner result.
+- **`get_source_ancestors()` walks all intermediate nodes, not just ephemerals** — Simpler and more correct since any node between a source and the target should be traversed.
+- **Integration tests use `src_*` tables with timestamp casts instead of seed tables directly** — DuckDB `dbt source freshness` requires `loaded_at_field` to be a timestamp, not a date. Seed CSVs produce date columns, so the fixture creates separate `src_customers`/`src_orders` tables with `::timestamp` casts.
 
 ---
 

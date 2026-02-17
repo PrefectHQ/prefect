@@ -7,7 +7,6 @@ are skipped on subsequent runs — cache keys incorporate SQL file content,
 node config, and upstream cache keys so that changes cascade downstream.
 """
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -15,10 +14,11 @@ from typing import Any
 from prefect.cache_policies import CachePolicy
 from prefect.context import TaskRunContext
 from prefect.filesystems import WritableFileSystem
+from prefect.logging import get_logger
 from prefect.utilities.hashing import hash_objects, stable_hash
 from prefect_dbt.core._manifest import DbtNode
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
