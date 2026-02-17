@@ -9,7 +9,7 @@ This module provides:
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from dbt.cli.main import dbtRunner
 
@@ -32,8 +32,8 @@ class ExecutionResult:
 
     success: bool
     node_ids: list[str] = field(default_factory=list)
-    error: Optional[Exception] = None
-    artifacts: Optional[dict[str, Any]] = None
+    error: Exception | None = None
+    artifacts: dict[str, Any] | None = None
 
 
 @runtime_checkable
@@ -71,10 +71,10 @@ class DbtCoreExecutor:
     def __init__(
         self,
         settings: PrefectDbtSettings,
-        threads: Optional[int] = None,
-        state_path: Optional[Path] = None,
+        threads: int | None = None,
+        state_path: Path | None = None,
         defer: bool = False,
-        defer_state_path: Optional[Path] = None,
+        defer_state_path: Path | None = None,
         favor_state: bool = False,
     ):
         self._settings = settings
@@ -101,7 +101,7 @@ class DbtCoreExecutor:
         Args:
             command: dbt command to run (e.g. "build", "run", "seed")
             node_ids: List of node unique_ids for tracking in the result
-            selectors: List of dbt selectors for ``--select``
+            selectors: List of dbt selectors for `--select`
             full_refresh: Whether to pass --full-refresh
         """
         invoke_kwargs: dict[str, Any] = {
@@ -154,7 +154,7 @@ class DbtCoreExecutor:
                 error=exc,
             )
 
-    def _extract_artifacts(self, res: Any) -> Optional[dict[str, Any]]:
+    def _extract_artifacts(self, res: Any) -> dict[str, Any] | None:
         """Extract per-node result data from dbt's RunExecutionResult."""
         if res.result is None or not hasattr(res.result, "results"):
             return None
