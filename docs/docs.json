@@ -717,7 +717,13 @@
                 "group": "Ray",
                 "pages": [
                   "integrations/prefect-ray/index",
-                  "integrations/prefect-ray/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-ray/api-ref/prefect_ray-context",
+                      "integrations/prefect-ray/api-ref/prefect_ray-task_runners"
+                    ]
+                  }
                 ]
               },
               {
