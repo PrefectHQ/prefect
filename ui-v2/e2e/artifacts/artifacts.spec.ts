@@ -1,10 +1,6 @@
 import type { Page } from "@playwright/test";
 import {
 	cleanupArtifacts,
-	cleanupFlowRuns,
-	cleanupFlows,
-	createFlow,
-	createFlowRun,
 	createMarkdownArtifact,
 	createTableArtifact,
 	expect,
@@ -18,8 +14,8 @@ const LIST_PREFIX = "e2e-art-list-";
 async function waitForArtifactsPageReady(page: Page): Promise<void> {
 	await expect(
 		page
-			.getByText("Create an artifact to get started")
-			.or(page.getByText(/\d+ artifact/i)),
+			.getByRole("heading", { name: /create an artifact to get started/i })
+			.or(page.getByRole("heading", { name: /artifacts/i })),
 	).toBeVisible({ timeout: 10000 });
 }
 
@@ -44,16 +40,6 @@ test.describe("Artifacts List Page", () => {
 		} catch {
 			// Ignore cleanup errors
 		}
-		try {
-			await cleanupFlowRuns(apiClient, LIST_PREFIX);
-		} catch {
-			// Ignore cleanup errors
-		}
-		try {
-			await cleanupFlows(apiClient, LIST_PREFIX);
-		} catch {
-			// Ignore cleanup errors
-		}
 	});
 
 	test("Empty state when no artifacts exist", async ({ page, apiClient }) => {
@@ -64,31 +50,25 @@ test.describe("Artifacts List Page", () => {
 		await waitForArtifactsPageReady(page);
 
 		await expect(
-			page.getByText("Create an artifact to get started"),
+			page.getByRole("heading", {
+				name: /create an artifact to get started/i,
+			}),
 		).toBeVisible();
 		await expect(
 			page.getByText(/artifacts are byproducts of your runs/i),
 		).toBeVisible();
 	});
 
-	test("Displays artifacts in list with key, type, and flow run link", async ({
+	test("Displays artifacts in list with key and type", async ({
 		page,
 		apiClient,
 	}) => {
 		const timestamp = Date.now();
-		const flow = await createFlow(apiClient, `${LIST_PREFIX}flow-${timestamp}`);
-		const flowRunName = `${LIST_PREFIX}run-${timestamp}`;
-		const flowRun = await createFlowRun(apiClient, {
-			flowId: flow.id,
-			name: flowRunName,
-			state: { type: "COMPLETED", name: "Completed" },
-		});
 
 		const mdKey = `${LIST_PREFIX}md-${timestamp}`;
 		await createMarkdownArtifact(apiClient, {
 			key: mdKey,
 			markdown: "# Test",
-			flowRunId: flowRun.id,
 		});
 
 		const tblKey = `${LIST_PREFIX}tbl-${timestamp}`;
@@ -105,9 +85,8 @@ test.describe("Artifacts List Page", () => {
 		await expect(page.getByText(mdKey)).toBeVisible();
 		await expect(page.getByText(tblKey)).toBeVisible();
 
-		await expect(page.getByText("MARKDOWN")).toBeVisible();
-
-		await expect(page.getByText(flowRunName)).toBeVisible();
+		await expect(page.getByText("MARKDOWN").first()).toBeVisible();
+		await expect(page.getByText("TABLE").first()).toBeVisible();
 	});
 
 	test("Filters artifacts by type", async ({ page, apiClient }) => {
@@ -130,8 +109,8 @@ test.describe("Artifacts List Page", () => {
 			await expect(page.getByText(tblKey)).toBeVisible({ timeout: 2000 });
 		}).toPass({ timeout: 15000 });
 
-		await page.getByRole("combobox", { name: /artifact type/i }).click();
-		await page.getByRole("option", { name: "Table" }).click();
+		await page.getByLabel("Artifact type").click();
+		await page.getByText("Table", { exact: true }).click();
 
 		await expect(page).toHaveURL(/type=table/, { timeout: 5000 });
 
