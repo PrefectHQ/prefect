@@ -1,0 +1,88 @@
+---
+title: ml_datastore
+sidebarTitle: ml_datastore
+---
+
+# `prefect_azure.ml_datastore`
+
+
+Tasks for interacting with Azure ML Datastore
+
+## Functions
+
+### `ml_list_datastores` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/ml_datastore.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ml_list_datastores(ml_credentials: 'AzureMlCredentials') -> Dict
+```
+
+
+Lists the Datastores in the Workspace.
+
+**Args:**
+- `ml_credentials`: Credentials to use for authentication with Azure.
+
+
+### `ml_get_datastore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/ml_datastore.py#L79" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ml_get_datastore(ml_credentials: 'AzureMlCredentials', datastore_name: Optional[str] = None) -> Datastore
+```
+
+
+Gets the Datastore within the Workspace.
+
+**Args:**
+- `ml_credentials`: Credentials to use for authentication with Azure.
+- `datastore_name`: The name of the Datastore. If `None`, then the
+default Datastore of the Workspace is returned.
+
+
+### `ml_upload_datastore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/ml_datastore.py#L119" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ml_upload_datastore(path: Union[str, Path, List[Union[str, Path]]], ml_credentials: 'AzureMlCredentials', target_path: Union[str, Path, None] = None, relative_root: Union[str, Path, None] = None, datastore_name: Optional[str] = None, overwrite: bool = False) -> 'DataReference'
+```
+
+
+Uploads local files to a Datastore.
+
+**Args:**
+- `path`: The path to a single file, single directory,
+or a list of path to files to be uploaded.
+- `ml_credentials`: Credentials to use for authentication with Azure.
+- `target_path`: The location in the blob container to upload to. If
+None, then upload to root.
+- `relative_root`: The root from which is used to determine the path of
+the files in the blob. For example, if we upload /path/to/file.txt,
+and we define base path to be /path, when file.txt is uploaded
+to the blob storage, it will have the path of /to/file.txt.
+- `datastore_name`: The name of the Datastore. If `None`, then the
+default Datastore of the Workspace is returned.
+- `overwrite`: Overwrite existing file(s).
+
+
+### `ml_register_datastore_blob_container` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/ml_datastore.py#L208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ml_register_datastore_blob_container(container_name: str, ml_credentials: 'AzureMlCredentials', blob_storage_credentials: 'AzureBlobStorageCredentials', datastore_name: Optional[str] = None, create_container_if_not_exists: bool = False, overwrite: bool = False, set_as_default: bool = False) -> 'AzureBlobDatastore'
+```
+
+
+Registers a Azure Blob Storage container as a
+Datastore in a Azure ML service Workspace.
+
+**Args:**
+- `container_name`: The name of the container.
+- `ml_credentials`: Credentials to use for authentication with Azure ML.
+- `blob_storage_credentials`: Credentials to use for authentication
+with Azure Blob Storage.
+- `datastore_name`: The name of the datastore. If not defined, the
+container name will be used.
+- `create_container_if_not_exists`: Create a container, if one does not
+exist with the given name.
+- `overwrite`: Overwrite an existing datastore. If
+the datastore does not exist, it will be created.
+- `set_as_default`: Set the created Datastore as the default datastore
+for the Workspace.
+
