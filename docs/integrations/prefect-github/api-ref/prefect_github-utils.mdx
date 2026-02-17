@@ -1,0 +1,54 @@
+---
+title: utils
+sidebarTitle: utils
+---
+
+# `prefect_github.utils`
+
+
+Utilities to assist with using generated collections.
+
+## Functions
+
+### `camel_to_snake_case` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/utils.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+camel_to_snake_case(string: str) -> str
+```
+
+
+Converts CamelCase and lowerCamelCase to snake_case.
+Args:
+    string: The string in CamelCase or lowerCamelCase to convert.
+Returns:
+    A snake_case version of the string.
+
+
+### `initialize_return_fields_defaults` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/utils.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+initialize_return_fields_defaults(config_path: Union[Path, str]) -> List
+```
+
+
+Reads config_path to parse out the desired default fields to return.
+Args:
+    config_path: The path to the config file.
+
+
+### `strip_kwargs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/utils.py#L49" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+strip_kwargs(**kwargs: Dict) -> Dict
+```
+
+
+Drops keyword arguments if value is None because sgqlc.Operation
+errors out if a keyword argument is provided, but set to None.
+
+**Args:**
+- `**kwargs`: Input keyword arguments.
+
+**Returns:**
+- Stripped version of kwargs.
+

@@ -1,0 +1,1164 @@
+---
+title: viewer
+sidebarTitle: viewer
+---
+
+# `prefect_github.viewer`
+
+
+
+This is a module containing:
+GitHub query_viewer* tasks
+
+
+## Functions
+
+### `query_viewer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer(github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The query root of GitHub's GraphQL interface.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_gist` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_gist(name: str, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Find gist by repo name.
+
+**Args:**
+- `name`: The gist name to find.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_gists` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_gists(github_credentials: GitHubCredentials, privacy: graphql_schema.GistPrivacy = None, order_by: graphql_schema.GistOrder = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of the Gists the user has created.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `privacy`: Filters Gists according to privacy.
+- `order_by`: Ordering options for gists returned from the connection.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_issues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_issues(labels: Iterable[str], states: Iterable[graphql_schema.IssueState], github_credentials: GitHubCredentials, order_by: graphql_schema.IssueOrder = None, filter_by: graphql_schema.IssueFilters = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of issues associated with this user.
+
+**Args:**
+- `labels`: A list of label names to filter the pull requests by.
+- `states`: A list of states to filter the issues by.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `order_by`: Ordering options for issues returned from the
+connection.
+- `filter_by`: Filtering options for issues returned from the
+connection.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_status(github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The user's description of what they're currently doing.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_project` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_project(number: int, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Find project by number.
+
+**Args:**
+- `number`: The project number to find.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_packages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L276" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_packages(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, names: Optional[Iterable[str]] = None, repository_id: Optional[str] = None, package_type: graphql_schema.PackageType = None, order_by: graphql_schema.PackageOrder = {'field': 'CREATED_AT', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of packages under the owner.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `names`: Find packages by their names.
+- `repository_id`: Find packages in a repository by ID.
+- `package_type`: Filter registry package by type.
+- `order_by`: Ordering of the returned packages.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_projects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_projects(states: Iterable[graphql_schema.ProjectState], github_credentials: GitHubCredentials, order_by: graphql_schema.ProjectOrder = None, search: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of projects under the owner.
+
+**Args:**
+- `states`: A list of states to filter the projects by.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `order_by`: Ordering options for projects returned from the
+connection.
+- `search`: Query to search projects by, currently only searching
+by name.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsors` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L398" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsors(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, tier_id: Optional[str] = None, order_by: graphql_schema.SponsorOrder = {'field': 'RELEVANCE', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+List of sponsors for this user or organization.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `tier_id`: If given, will filter for sponsors at the given tier.
+Will only return sponsors whose tier the viewer is permitted
+to see.
+- `order_by`: Ordering options for sponsors returned from the
+connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_watching` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L455" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_watching(github_credentials: GitHubCredentials, privacy: graphql_schema.RepositoryPrivacy = None, order_by: graphql_schema.RepositoryOrder = None, affiliations: Iterable[graphql_schema.RepositoryAffiliation] = None, owner_affiliations: Iterable[graphql_schema.RepositoryAffiliation] = ('OWNER', 'COLLABORATOR'), is_locked: Optional[bool] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of repositories the given user is watching.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `privacy`: If non-null, filters repositories according to privacy.
+- `order_by`: Ordering options for repositories returned from the
+connection.
+- `affiliations`: Affiliation options for repositories returned
+from the connection. If none specified, the results will
+include repositories for which the current viewer is an
+owner or collaborator, or member.
+- `owner_affiliations`: Array of owner's affiliation options for
+repositories returned from the connection. For example,
+OWNER will include only repositories that the organization
+or user being viewed owns.
+- `is_locked`: If non-null, filters repositories according to
+whether they have been locked.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_project_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_project_v2(number: int, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Find a project by number.
+
+**Args:**
+- `number`: The project number.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_followers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L566" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_followers(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of users the given user is followed by.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_following` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_following(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of users the given user is following.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_projects_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L662" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_projects_v2(github_credentials: GitHubCredentials, query: Optional[str] = None, order_by: graphql_schema.ProjectV2Order = {'field': 'NUMBER', 'direction': 'DESC'}, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of projects under the owner.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `query`: A project to search for under the the owner.
+- `order_by`: How to order the returned projects.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_repository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L716" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_repository(name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Find Repository.
+
+**Args:**
+- `name`: Name of Repository to find.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsoring` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L757" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsoring(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.SponsorOrder = {'field': 'RELEVANCE', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+List of users and organizations this entity is sponsoring.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `order_by`: Ordering options for the users and organizations
+returned from the connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_public_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L809" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_public_keys(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of public keys associated with this user.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_project_next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L857" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_project_next(number: int, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Find a project by project (beta) number.
+
+**Args:**
+- `number`: The project (beta) number.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_pinned_items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_pinned_items(types: Iterable[graphql_schema.PinnableItemType], github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of repositories and gists this profile owner has pinned to their profile.
+
+**Args:**
+- `types`: Filter the types of pinned items that are returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_projects_next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L945" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_projects_next(github_credentials: GitHubCredentials, query: Optional[str] = None, sort_by: graphql_schema.ProjectNextOrderField = 'TITLE', after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of projects (beta) under the owner.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `query`: A project (beta) to search for under the the owner.
+- `sort_by`: How to order the returned projects (beta).
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_repositories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L999" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_repositories(github_credentials: GitHubCredentials, privacy: graphql_schema.RepositoryPrivacy = None, order_by: graphql_schema.RepositoryOrder = None, affiliations: Iterable[graphql_schema.RepositoryAffiliation] = None, owner_affiliations: Iterable[graphql_schema.RepositoryAffiliation] = ('OWNER', 'COLLABORATOR'), is_locked: Optional[bool] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, is_fork: Optional[bool] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of repositories that the user owns.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `privacy`: If non-null, filters repositories according to
+privacy.
+- `order_by`: Ordering options for repositories returned from
+the connection.
+- `affiliations`: Array of viewer's affiliation options for
+repositories returned from the connection. For example,
+OWNER will include only repositories that the current viewer
+owns.
+- `owner_affiliations`: Array of owner's affiliation options
+for repositories returned from the connection. For example,
+OWNER will include only repositories that the organization
+or user being viewed owns.
+- `is_locked`: If non-null, filters repositories according to
+whether they have been locked.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `is_fork`: If non-null, filters repositories according to
+whether they are forks of another repository.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_item_showcase` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1078" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_item_showcase(github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Showcases a selection of repositories and gists that the profile owner has
+either curated or that have been selected automatically based on popularity.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_gist_comments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_gist_comments(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of gist comments made by this user.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_organization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_organization(login: str, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Find an organization by its login that the user belongs to.
+
+**Args:**
+- `login`: The login of the organization to find.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_pull_requests` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1195" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_pull_requests(states: Iterable[graphql_schema.PullRequestState], labels: Iterable[str], github_credentials: GitHubCredentials, head_ref_name: Optional[str] = None, base_ref_name: Optional[str] = None, order_by: graphql_schema.IssueOrder = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of pull requests associated with this user.
+
+**Args:**
+- `states`: A list of states to filter the pull requests by.
+- `labels`: A list of label names to filter the pull requests
+by.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `head_ref_name`: The head ref name to filter the pull
+requests by.
+- `base_ref_name`: The base ref name to filter the pull
+requests by.
+- `order_by`: Ordering options for pull requests returned from
+the connection.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_saved_replies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_saved_replies(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.SavedReplyOrder = {'field': 'UPDATED_AT', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Replies this user has saved.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `order_by`: The field to order saved replies by.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_pinnable_items` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1316" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_pinnable_items(types: Iterable[graphql_schema.PinnableItemType], github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of repositories and gists this profile owner can pin to their profile.
+
+**Args:**
+- `types`: Filter the types of pinnable items that are
+returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_issue_comments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_issue_comments(github_credentials: GitHubCredentials, order_by: graphql_schema.IssueCommentOrder = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of issue comments made by this user.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `order_by`: Ordering options for issue comments returned
+from the connection.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_organizations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1420" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_organizations(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of organizations the user belongs to.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_recent_projects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1468" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_recent_projects(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Recent projects that this user has modified in the context of the owner.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_commit_comments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1516" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_commit_comments(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of commit comments made by this user.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsors_listing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1564" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsors_listing(github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The GitHub Sponsors listing for this user or organization.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_top_repositories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1595" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_top_repositories(order_by: graphql_schema.RepositoryOrder, github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, since: Optional[datetime] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Repositories the user has contributed to, ordered by contribution rank, plus
+repositories the user has created.
+
+**Args:**
+- `order_by`: Ordering options for repositories returned
+from the connection.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `since`: How far back in time to fetch contributed
+repositories.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsors_activities` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1652" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsors_activities(actions: Iterable[graphql_schema.SponsorsActivityAction], github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, period: graphql_schema.SponsorsActivityPeriod = 'MONTH', order_by: graphql_schema.SponsorsActivityOrder = {'field': 'TIMESTAMP', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Events involving this sponsorable, such as new sponsorships.
+
+**Args:**
+- `actions`: Filter activities to only the specified
+actions.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come
+after the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `period`: Filter activities returned to only those
+that occurred in the most recent specified time period. Set
+to ALL to avoid filtering by when the activity occurred.
+- `order_by`: Ordering options for activity returned
+from the connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_interaction_ability` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1716" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_interaction_ability(github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The interaction ability settings for this user.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_starred_repositories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1747" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_starred_repositories(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, owned_by_viewer: Optional[bool] = None, order_by: graphql_schema.StarOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Repositories the user has starred.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come
+after the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the
+list.
+- `last`: Returns the last _n_ elements from the list.
+- `owned_by_viewer`: Filters starred repositories to
+only return repositories owned by the viewer.
+- `order_by`: Order for connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_repository_discussions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1803" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_repository_discussions(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.DiscussionOrder = {'field': 'CREATED_AT', 'direction': 'DESC'}, repository_id: Optional[str] = None, answered: Optional[bool] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Discussions this user has started.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that come
+after the specified cursor.
+- `before`: Returns the elements in the list that
+come before the specified cursor.
+- `first`: Returns the first _n_ elements from the
+list.
+- `last`: Returns the last _n_ elements from the
+list.
+- `order_by`: Ordering options for discussions
+returned from the connection.
+- `repository_id`: Filter discussions to only those
+in a specific repository.
+- `answered`: Filter discussions to only those that
+have been answered or not. Defaults to including both
+answered and unanswered discussions.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsorships_as_sponsor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1869" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsorships_as_sponsor(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.SponsorshipOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+This object's sponsorships as the sponsor.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that
+come after the specified cursor.
+- `before`: Returns the elements in the list that
+come before the specified cursor.
+- `first`: Returns the first _n_ elements from the
+list.
+- `last`: Returns the last _n_ elements from the
+list.
+- `order_by`: Ordering options for sponsorships
+returned from this connection. If left blank, the
+sponsorships will be ordered based on relevancy to the
+viewer.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsorship_newsletters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1925" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsorship_newsletters(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.SponsorshipNewsletterOrder = {'field': 'CREATED_AT', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+List of sponsorship updates sent from this sponsorable to sponsors.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that
+come after the specified cursor.
+- `before`: Returns the elements in the list that
+come before the specified cursor.
+- `first`: Returns the first _n_ elements from the
+list.
+- `last`: Returns the last _n_ elements from the
+list.
+- `order_by`: Ordering options for sponsorship
+updates returned from the connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_contributions_collection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L1982" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_contributions_collection(github_credentials: GitHubCredentials, organization_id: Optional[str] = None, from_: Optional[datetime] = None, to: Optional[datetime] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The collection of contributions this user has made to different repositories.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `organization_id`: The ID of the organization
+used to filter contributions.
+- `from_`: Only contributions made at this time or
+later will be counted. If omitted, defaults to a year ago.
+- `to`: Only contributions made before and up to
+(including) this time will be counted. If omitted, defaults
+to the current time or one year from the provided from
+argument.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsorships_as_maintainer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L2030" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsorships_as_maintainer(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, include_private: bool = False, order_by: graphql_schema.SponsorshipOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+This object's sponsorships as the maintainer.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list that
+come after the specified cursor.
+- `before`: Returns the elements in the list that
+come before the specified cursor.
+- `first`: Returns the first _n_ elements from
+the list.
+- `last`: Returns the last _n_ elements from the
+list.
+- `include_private`: Whether or not to include
+private sponsorships in the result set.
+- `order_by`: Ordering options for sponsorships
+returned from this connection. If left blank, the
+sponsorships will be ordered based on relevancy to the
+viewer.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_repositories_contributed_to` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L2090" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_repositories_contributed_to(github_credentials: GitHubCredentials, privacy: graphql_schema.RepositoryPrivacy = None, order_by: graphql_schema.RepositoryOrder = None, is_locked: Optional[bool] = None, include_user_repositories: Optional[bool] = None, contribution_types: Iterable[graphql_schema.RepositoryContributionType] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of repositories that the user recently contributed to.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `privacy`: If non-null, filters repositories
+according to privacy.
+- `order_by`: Ordering options for repositories
+returned from the connection.
+- `is_locked`: If non-null, filters repositories
+according to whether they have been locked.
+- `include_user_repositories`: If true, include
+user repositories.
+- `contribution_types`: If non-null, include
+only the specified types of contributions. The GitHub.com UI
+uses [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY].
+- `after`: Returns the elements in the list that
+come after the specified cursor.
+- `before`: Returns the elements in the list
+that come before the specified cursor.
+- `first`: Returns the first _n_ elements from
+the list.
+- `last`: Returns the last _n_ elements from the
+list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_repository_discussion_comments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L2161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_repository_discussion_comments(github_credentials: GitHubCredentials, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, repository_id: Optional[str] = None, only_answers: bool = False, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Discussion comments this user has authored.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `after`: Returns the elements in the list
+that come after the specified cursor.
+- `before`: Returns the elements in the list
+that come before the specified cursor.
+- `first`: Returns the first _n_ elements
+from the list.
+- `last`: Returns the last _n_ elements from
+the list.
+- `repository_id`: Filter discussion comments
+to only those in a specific repository.
+- `only_answers`: Filter discussion comments
+to only those that were marked as the answer.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsorship_for_viewer_as_sponsor` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L2219" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsorship_for_viewer_as_sponsor(github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The sponsorship from the viewer to this user/organization; that is, the
+sponsorship where you're the sponsor. Only returns a sponsorship if it is
+active.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_viewer_sponsorship_for_viewer_as_sponsorable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/viewer.py#L2254" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_viewer_sponsorship_for_viewer_as_sponsorable(github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The sponsorship from this user/organization to the viewer; that is, the
+sponsorship you're receiving. Only returns a sponsorship if it is active.
+
+**Args:**
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
