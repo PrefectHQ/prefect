@@ -1,0 +1,96 @@
+---
+title: repository_owner
+sidebarTitle: repository_owner
+---
+
+# `prefect_github.repository_owner`
+
+
+
+This is a module containing:
+GitHub query_repository_owner* tasks
+
+
+## Functions
+
+### `query_repository_owner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository_owner.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_owner(login: str, github_credentials: GitHubCredentials, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The query root of GitHub's GraphQL interface.
+
+**Args:**
+- `login`: The username to lookup the owner by.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_owner_repository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository_owner.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_owner_repository(login: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Find Repository.
+
+**Args:**
+- `login`: The username to lookup the owner by.
+- `name`: Name of Repository to find.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_owner_repositories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository_owner.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_owner_repositories(login: str, github_credentials: GitHubCredentials, privacy: Optional[graphql_schema.RepositoryPrivacy] = None, order_by: Optional[graphql_schema.RepositoryOrder] = None, affiliations: Optional[Iterable[graphql_schema.RepositoryAffiliation]] = None, owner_affiliations: Optional[Iterable[graphql_schema.RepositoryAffiliation]] = ('OWNER', 'COLLABORATOR'), is_locked: Optional[bool] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, is_fork: Optional[bool] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of repositories that the user owns.
+
+**Args:**
+- `login`: The username to lookup the owner by.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `privacy`: If non-null, filters repositories according to
+privacy.
+- `order_by`: Ordering options for repositories returned from
+the connection.
+- `affiliations`: Array of viewer's affiliation options for
+repositories returned from the connection. For example,
+OWNER will include only repositories that the current viewer
+owns.
+- `owner_affiliations`: Array of owner's affiliation options
+for repositories returned from the connection. For example,
+OWNER will include only repositories that the organization
+or user being viewed owns.
+- `is_locked`: If non-null, filters repositories according to
+whether they have been locked.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `is_fork`: If non-null, filters repositories according to
+whether they are forks of another repository.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
