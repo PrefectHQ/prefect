@@ -1,3 +1,4 @@
+---
 prefect-version: null
 name: null
 description: "Store code within an S3 bucket"
@@ -7,7 +8,7 @@ required_inputs:
 
 build: null
 
-push: 
+push:
   - prefect_aws.deployments.steps.push_to_s3:
       id: "push_code"
       requires: "prefect-aws>=0.3.4"
