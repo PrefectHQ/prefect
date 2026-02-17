@@ -148,7 +148,9 @@ def test_delete_flow_run_succeeds(
 @pytest.fixture
 def mock_webbrowser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     mock = MagicMock()
-    monkeypatch.setattr("prefect.cli.flow_run.webbrowser", mock)
+    import webbrowser as _wb
+
+    monkeypatch.setattr(_wb, "open_new_tab", mock.open_new_tab)
     return mock
 
 
