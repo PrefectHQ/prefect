@@ -4162,6 +4162,7 @@ dev = [
     { name = "virtualenv" },
     { name = "watchfiles" },
     { name = "whenever" },
+    { name = "yamllint" },
 ]
 markdown-docs = [
     { name = "prefect", extra = ["aws", "azure", "bitbucket", "dask", "databricks", "email", "gcp", "github", "gitlab", "kubernetes", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"] },
@@ -4313,6 +4314,7 @@ dev = [
     { name = "virtualenv", specifier = ">=20.29.2" },
     { name = "watchfiles", specifier = ">=1.0.4" },
     { name = "whenever", specifier = ">=0.7.3,<1.0.0" },
+    { name = "yamllint", specifier = ">=1.35.1" },
 ]
 markdown-docs = [
     { name = "prefect", extras = ["aws"] },
@@ -7337,6 +7339,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/aa/917ceeed4dbb80d2f04dbd0c784b7ee7bba8ae5a54837ef0e5e062cd3cfb/xmltodict-1.0.2.tar.gz", hash = "sha256:54306780b7c2175a3967cad1db92f218207e5bc1aba697d887807c0fb68b7649", size = 25725, upload-time = "2025-09-17T21:59:26.459Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c0/20/69a0e6058bc5ea74892d089d64dfc3a62ba78917ec5e2cfa70f7c92ba3a5/xmltodict-1.0.2-py3-none-any.whl", hash = "sha256:62d0fddb0dcbc9f642745d8bbf4d81fd17d6dfaec5a15b5c1876300aad92af0d", size = 13893, upload-time = "2025-09-17T21:59:24.859Z" },
+]
+
+[[package]]
+name = "yamllint"
+version = "1.37.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pathspec" },
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/46/f2/cd8b7584a48ee83f0bc94f8a32fea38734cefcdc6f7324c4d3bfc699457b/yamllint-1.37.1.tar.gz", hash = "sha256:81f7c0c5559becc8049470d86046b36e96113637bcbe4753ecef06977c00245d", size = 141613, upload-time = "2025-05-04T08:25:54.355Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/b9/be7a4cfdf47e03785f657f94daea8123e838d817be76c684298305bd789f/yamllint-1.37.1-py3-none-any.whl", hash = "sha256:364f0d79e81409f591e323725e6a9f4504c8699ddf2d7263d8d2b539cd66a583", size = 68813, upload-time = "2025-05-04T08:25:52.552Z" },
 ]
 
 [[package]]
