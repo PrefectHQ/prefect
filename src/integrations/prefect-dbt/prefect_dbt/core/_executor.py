@@ -48,7 +48,7 @@ class DbtExecutor(Protocol):
         self,
         nodes: list[DbtNode],
         full_refresh: bool = False,
-        indirect_selection: Optional[str] = None,
+        indirect_selection: str | None = None,
     ) -> ExecutionResult: ...
 
 
@@ -93,7 +93,7 @@ class DbtCoreExecutor:
         node_ids: list[str],
         selectors: list[str],
         full_refresh: bool = False,
-        indirect_selection: Optional[str] = None,
+        indirect_selection: str | None = None,
     ) -> ExecutionResult:
         """Build CLI args and invoke dbt.
 
@@ -209,7 +209,7 @@ class DbtCoreExecutor:
         self,
         nodes: list[DbtNode],
         full_refresh: bool = False,
-        indirect_selection: Optional[str] = None,
+        indirect_selection: str | None = None,
     ) -> ExecutionResult:
         """Execute a wave of nodes using `dbt build`.
 
