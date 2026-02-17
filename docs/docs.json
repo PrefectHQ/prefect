@@ -456,7 +456,49 @@
                 "pages": [
                   "integrations/prefect-gcp/index",
                   "integrations/prefect-gcp/gcp-worker-guide",
-                  "integrations/prefect-gcp/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-gcp/api-ref/prefect_gcp-bigquery",
+                      "integrations/prefect-gcp/api-ref/prefect_gcp-cloud_storage",
+                      "integrations/prefect-gcp/api-ref/prefect_gcp-credentials",
+                      "integrations/prefect-gcp/api-ref/prefect_gcp-secret_manager",
+                      "integrations/prefect-gcp/api-ref/prefect_gcp-utilities",
+                      {
+                        "group": "prefect_gcp.deployments",
+                        "pages": [
+                          "integrations/prefect-gcp/api-ref/prefect_gcp-deployments-steps"
+                        ]
+                      },
+                      {
+                        "group": "prefect_gcp.experimental",
+                        "pages": [
+                          {
+                            "group": "bundles",
+                            "pages": [
+                              "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-execute",
+                              "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-upload"
+                            ]
+                          },
+                          "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-decorators"
+                        ]
+                      },
+                      {
+                        "group": "prefect_gcp.models",
+                        "pages": [
+                          "integrations/prefect-gcp/api-ref/prefect_gcp-models-cloud_run_v2"
+                        ]
+                      },
+                      {
+                        "group": "prefect_gcp.workers",
+                        "pages": [
+                          "integrations/prefect-gcp/api-ref/prefect_gcp-workers-cloud_run",
+                          "integrations/prefect-gcp/api-ref/prefect_gcp-workers-cloud_run_v2",
+                          "integrations/prefect-gcp/api-ref/prefect_gcp-workers-vertex"
+                        ]
+                      }
+                    ]
+                  }
                 ]
               },
               {

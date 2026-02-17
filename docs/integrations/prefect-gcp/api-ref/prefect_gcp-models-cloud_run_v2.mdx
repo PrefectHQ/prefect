@@ -1,0 +1,178 @@
+---
+title: cloud_run_v2
+sidebarTitle: cloud_run_v2
+---
+
+# `prefect_gcp.models.cloud_run_v2`
+
+## Classes
+
+### `SecretKeySelector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L9" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+SecretKeySelector is a data model for specifying a GCP secret to inject
+into a Cloud Run V2 Job as an environment variable.
+Follows Cloud Run V2 rest API, docs:
+https://cloud.google.com/run/docs/reference/rest/v2/Container#SecretKeySelector
+
+
+### `JobV2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+JobV2 is a data model for a job that will be run on Cloud Run with the V2 API.
+
+
+**Methods:**
+
+#### `create` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create(cr_client: Resource, project: str, location: str, job_id: str, body: Dict) -> Dict
+```
+
+Create a job on Cloud Run with the V2 API.
+
+**Args:**
+- `cr_client`: The base client needed for interacting with GCP
+Cloud Run V2 API.
+- `project`: The GCP project ID.
+- `location`: The GCP region.
+- `job_id`: The ID of the job to create.
+- `body`: The job body.
+
+**Returns:**
+- The response from the Cloud Run V2 API.
+
+
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete(cr_client: Resource, project: str, location: str, job_name: str) -> Dict
+```
+
+Delete a job on Cloud Run with the V2 API.
+
+**Args:**
+- `cr_client`: The base client needed for interacting with GCP
+Cloud Run V2 API.
+- `project`: The GCP project ID.
+- `location`: The GCP region.
+- `job_name`: The name of the job to delete.
+
+**Returns:**
+- The response from the Cloud Run V2 API.
+
+
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(cls, cr_client: Resource, project: str, location: str, job_name: str)
+```
+
+Get a job from Cloud Run with the V2 API.
+
+**Args:**
+- `cr_client`: The base client needed for interacting with GCP
+Cloud Run V2 API.
+- `project`: The GCP project ID.
+- `location`: The GCP region.
+- `job_name`: The name of the job to get.
+
+
+#### `get_ready_condition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_ready_condition(self) -> Dict
+```
+
+Get the ready condition for the job.
+
+**Returns:**
+- The ready condition for the job.
+
+
+#### `is_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_ready(self) -> bool
+```
+
+Check if the job is ready to run.
+
+**Returns:**
+- Whether the job is ready to run.
+
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(cr_client: Resource, project: str, location: str, job_name: str)
+```
+
+Run a job on Cloud Run with the V2 API.
+
+**Args:**
+- `cr_client`: The base client needed for interacting with GCP
+Cloud Run V2 API.
+- `project`: The GCP project ID.
+- `location`: The GCP region.
+- `job_name`: The name of the job to run.
+
+
+### `ExecutionV2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+ExecutionV2 is a data model for an execution of a job that will be run on
+Cloud Run API v2.
+
+
+**Methods:**
+
+#### `condition_after_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+condition_after_completion(self) -> Dict
+```
+
+Return the condition after completion.
+
+**Returns:**
+- The condition after completion.
+
+
+#### `get` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get(cls, cr_client: Resource, execution_id: str)
+```
+
+Get an execution from Cloud Run with the V2 API.
+
+**Args:**
+- `cr_client`: The base client needed for interacting with GCP
+Cloud Run V2 API.
+- `execution_id`: The name of the execution to get, in the form of
+projects/{project}/locations/{location}/jobs/{job}/executions
+    /{execution}
+
+
+#### `is_running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_running(self) -> bool
+```
+
+Return whether the execution is running.
+
+**Returns:**
+- Whether the execution is running.
+
+
+#### `succeeded` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/models/cloud_run_v2.py#L321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+succeeded(self)
+```
+
+Whether or not the Execution completed is a successful state.
+
