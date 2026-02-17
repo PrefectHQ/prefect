@@ -584,6 +584,126 @@ class TestIntervalScheduleDaylightSavingsTime:
         ]
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 13),
+    reason="DateTimeDelta requires Python 3.13+ with whenever library",
+)
+class TestIntervalScheduleDateTimeDelta:
+    """Tests that DateTimeDelta intervals correctly distinguish calendar days
+    from exact hours across DST boundaries — the core issue from #17749."""
+
+    async def test_hours_48_differs_from_days_2_across_spring_forward(self):
+        """
+        On 2023-03-26 at 2am, Europe/Amsterdam springs forward.
+
+        DateTimeDelta(hours=48) should add exactly 48 wall-clock hours,
+        landing at 11am (due to the lost hour), while timedelta(days=2)
+        should land at 10am (preserving the calendar day).
+        """
+        from whenever import DateTimeDelta
+
+        anchor = datetime(2023, 3, 24, 10, tzinfo=ZoneInfo("Europe/Amsterdam"))
+
+        s_hours = IntervalSchedule(
+            interval=DateTimeDelta(hours=48),
+            anchor_date=anchor,
+            timezone="Europe/Amsterdam",
+        )
+        s_days = IntervalSchedule(
+            interval=timedelta(days=2),
+            anchor_date=anchor,
+            timezone="Europe/Amsterdam",
+        )
+
+        dates_hours = await s_hours.get_dates(n=2, start=anchor)
+        dates_days = await s_days.get_dates(n=2, start=anchor)
+
+        ams = ZoneInfo("Europe/Amsterdam")
+        assert dates_hours[1].astimezone(ams).hour == 11
+        assert dates_days[1].astimezone(ams).hour == 10
+
+    async def test_hours_72_differs_from_days_3_across_fall_back(self):
+        """
+        On 2018-11-04 at 2am, America/New_York falls back.
+
+        DateTimeDelta(hours=72) should add exactly 72 hours, landing at
+        8am (due to the gained hour), while timedelta(days=3) preserves 9am.
+        """
+        from whenever import DateTimeDelta
+
+        anchor = datetime(2018, 11, 1, 9, tzinfo=ZoneInfo("America/New_York"))
+
+        s_hours = IntervalSchedule(
+            interval=DateTimeDelta(hours=72),
+            anchor_date=anchor,
+            timezone="America/New_York",
+        )
+        s_days = IntervalSchedule(
+            interval=timedelta(days=3),
+            anchor_date=anchor,
+            timezone="America/New_York",
+        )
+
+        dates_hours = await s_hours.get_dates(n=2, start=anchor)
+        dates_days = await s_days.get_dates(n=2, start=anchor)
+
+        ny = ZoneInfo("America/New_York")
+        assert dates_hours[1].astimezone(ny).hour == 8
+        assert dates_days[1].astimezone(ny).hour == 9
+
+    async def test_datetimedelta_calendar_days_match_timedelta_days(self):
+        """DateTimeDelta(days=2) should behave the same as timedelta(days=2)
+        — both preserve calendar-day semantics."""
+        from whenever import DateTimeDelta
+
+        anchor = datetime(2023, 3, 24, 10, tzinfo=ZoneInfo("Europe/Amsterdam"))
+
+        s_dtd = IntervalSchedule(
+            interval=DateTimeDelta(days=2),
+            anchor_date=anchor,
+            timezone="Europe/Amsterdam",
+        )
+        s_td = IntervalSchedule(
+            interval=timedelta(days=2),
+            anchor_date=anchor,
+            timezone="Europe/Amsterdam",
+        )
+
+        dates_dtd = await s_dtd.get_dates(n=3, start=anchor)
+        dates_td = await s_td.get_dates(n=3, start=anchor)
+
+        assert dates_dtd == dates_td
+
+    async def test_datetimedelta_pydantic_roundtrip(self):
+        """DateTimeDelta intervals should survive Pydantic serialization."""
+        from whenever import DateTimeDelta
+
+        schedule = IntervalSchedule(
+            interval=DateTimeDelta(hours=48),
+            anchor_date=datetime(2023, 1, 1, tzinfo=ZoneInfo("UTC")),
+            timezone="UTC",
+        )
+
+        data = schedule.model_dump(mode="json")
+        restored = IntervalSchedule.model_validate(data)
+        assert isinstance(restored.interval, DateTimeDelta)
+        assert restored.interval == DateTimeDelta(hours=48)
+
+    async def test_datetimedelta_zero_rejected(self):
+        """A zero DateTimeDelta should be rejected."""
+        from whenever import DateTimeDelta
+
+        with pytest.raises(ValidationError, match="interval must be positive"):
+            IntervalSchedule(interval=DateTimeDelta())
+
+    async def test_datetimedelta_negative_rejected(self):
+        """A negative DateTimeDelta should be rejected."""
+        from whenever import DateTimeDelta
+
+        with pytest.raises(ValidationError, match="interval must be positive"):
+            IntervalSchedule(interval=DateTimeDelta(hours=-1))
+
+
 class TestCronScheduleDaylightSavingsTime:
     """
     Tests that DST boundaries are respected

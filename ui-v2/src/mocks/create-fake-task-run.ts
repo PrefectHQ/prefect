@@ -69,6 +69,9 @@ export const createFakeTaskRunResponse = (
 		state,
 		task_version: null,
 		tags: randWord({ length: randNumber({ min: 0, max: 6 }) }),
+		total_run_time: 0,
+		estimated_run_time: randNumber({ max: 30, precision: 2 }),
+		estimated_start_time_delta: randNumber({ max: 30, precision: 2 }),
 		...overrides,
 	};
 };

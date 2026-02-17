@@ -1,4 +1,36 @@
 /**
+ * Parses an ISO 8601 duration string (e.g. "PT48H", "P2D") to total seconds.
+ * Returns null if the string is not a valid ISO 8601 duration.
+ */
+function parseISO8601Duration(input: string): number | null {
+	const match = input.match(
+		/^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/,
+	);
+	if (!match) return null;
+	const [, years, months, days, hours, minutes, seconds] = match;
+	return (
+		Number(years ?? 0) * 31536000 +
+		Number(months ?? 0) * 30 * 86400 +
+		Number(days ?? 0) * 86400 +
+		Number(hours ?? 0) * 3600 +
+		Number(minutes ?? 0) * 60 +
+		Number(seconds ?? 0)
+	);
+}
+
+/**
+ * Converts an interval value (numeric seconds or ISO 8601 duration string) to seconds.
+ */
+export function intervalToSeconds(interval: number | string): number {
+	if (typeof interval === "number") return interval;
+	const parsed = parseISO8601Duration(interval);
+	if (parsed !== null) return parsed;
+	const num = Number(interval);
+	if (!Number.isNaN(num)) return num;
+	return 0;
+}
+
+/**
  * Time interval constants in seconds
  */
 export const intervals = {
