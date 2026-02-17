@@ -1,0 +1,135 @@
+---
+title: services
+sidebarTitle: services
+---
+
+# `prefect_kubernetes.services`
+
+
+Tasks for working with Kubernetes services.
+
+## Functions
+
+### `create_namespaced_service` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/services.py#L12" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_namespaced_service(kubernetes_credentials: KubernetesCredentials, new_service: V1Service, namespace: Optional[str] = 'default', **kube_kwargs: Optional[Dict[str, Any]]) -> V1Service
+```
+
+
+Create a namespaced Kubernetes service.
+
+**Args:**
+- `kubernetes_credentials`: A `KubernetesCredentials` block used to generate a
+`CoreV1Api` client.
+- `new_service`: A `V1Service` object representing the service to create.
+- `namespace`: The namespace to create the service in.
+- `**kube_kwargs`: Additional keyword arguments to pass to the `CoreV1Api`
+method call.
+
+**Returns:**
+- A `V1Service` representing the created service.
+
+
+### `delete_namespaced_service` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/services.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+delete_namespaced_service(kubernetes_credentials: KubernetesCredentials, service_name: str, delete_options: Optional[V1DeleteOptions] = None, namespace: Optional[str] = 'default', **kube_kwargs: Optional[Dict[str, Any]]) -> V1Service
+```
+
+
+Delete a namespaced Kubernetes service.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `service_name`: The name of the service to delete.
+- `delete_options`: A `V1DeleteOptions` object representing the options to
+delete the service with.
+- `namespace`: The namespace to delete the service from.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A `V1Service` representing the deleted service.
+
+
+### `list_namespaced_service` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/services.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_namespaced_service(kubernetes_credentials: KubernetesCredentials, namespace: Optional[str] = 'default', **kube_kwargs: Optional[Dict[str, Any]]) -> V1ServiceList
+```
+
+
+List namespaced Kubernetes services.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `namespace`: The namespace to list services from.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A `V1ServiceList` representing the list of services in the given namespace.
+
+
+### `patch_namespaced_service` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/services.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+patch_namespaced_service(kubernetes_credentials: KubernetesCredentials, service_name: str, service_updates: V1Service, namespace: Optional[str] = 'default', **kube_kwargs: Optional[Dict[str, Any]]) -> V1Service
+```
+
+
+Patch a namespaced Kubernetes service.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `service_name`: The name of the service to patch.
+- `service_updates`: A `V1Service` object representing patches to `service_name`.
+- `namespace`: The namespace to patch the service in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A `V1Service` representing the patched service.
+
+
+### `read_namespaced_service` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/services.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_namespaced_service(kubernetes_credentials: KubernetesCredentials, service_name: str, namespace: Optional[str] = 'default', **kube_kwargs: Optional[Dict[str, Any]]) -> V1Service
+```
+
+
+Read a namespaced Kubernetes service.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `service_name`: The name of the service to read.
+- `namespace`: The namespace to read the service from.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A `V1Service` object representing the service.
+
+
+### `replace_namespaced_service` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/services.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+replace_namespaced_service(kubernetes_credentials: KubernetesCredentials, service_name: str, new_service: V1Service, namespace: Optional[str] = 'default', **kube_kwargs: Optional[Dict[str, Any]]) -> V1Service
+```
+
+
+Replace a namespaced Kubernetes service.
+
+**Args:**
+- `kubernetes_credentials`: `KubernetesCredentials` block for creating
+authenticated Kubernetes API clients.
+- `service_name`: The name of the service to replace.
+- `new_service`: A `V1Service` object representing the new service.
+- `namespace`: The namespace to replace the service in.
+- `**kube_kwargs`: Optional extra keyword arguments to pass to the Kubernetes API.
+
+**Returns:**
+- A `V1Service` representing the new service.
+
