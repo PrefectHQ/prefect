@@ -78,3 +78,21 @@ name = "prefect deployment --help (cyclopts)"
 args = ["env", "PREFECT_CLI_FAST=1", "prefect", "deployment", "--help"]
 category = "startup"
 description = "deployment help via cyclopts"
+
+[[commands]]
+name = "prefect concurrency-limit --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "concurrency-limit", "--help"]
+category = "startup"
+description = "concurrency-limit help via cyclopts"
+
+[[commands]]
+name = "prefect events --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "events", "--help"]
+category = "startup"
+description = "events help via cyclopts"
+
+[[commands]]
+name = "prefect experimental --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "experimental", "--help"]
+category = "startup"
+description = "experimental help via cyclopts"

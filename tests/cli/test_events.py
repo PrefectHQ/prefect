@@ -140,7 +140,15 @@ def mock_events_client(monkeypatch: pytest.MonkeyPatch):
         "prefect.cli.events.get_events_client",
         mock_factory,
     )
-    # Also patch the source module so delegated commands (cyclopts) see it.
+    # Also patch the cyclopts implementation module.
+    try:
+        monkeypatch.setattr(
+            "prefect.cli._cyclopts.events.get_events_client",
+            mock_factory,
+        )
+    except AttributeError:
+        pass
+    # Also patch the source module.
     monkeypatch.setattr(
         "prefect.events.clients.get_events_client",
         mock_factory,
