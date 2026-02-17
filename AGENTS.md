@@ -48,6 +48,7 @@ prefect config view            # Inspect configuration
 - No public API changes without approval
 - Use `uv` for dependency management, not `pip`
 - Do not use deferred imports (imports inside functions) unless absolutely necessary to avoid circular imports or for optional dependencies
+- Use single backticks for inline code references in docstrings, not double backticks
 
 ### Testing
 

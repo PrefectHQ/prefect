@@ -10,7 +10,7 @@ node config, and upstream cache keys so that changes cascade downstream.
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from prefect.cache_policies import CachePolicy
 from prefect.context import TaskRunContext
@@ -27,7 +27,7 @@ class DbtNodeCachePolicy(CachePolicy):
 
     All data is baked in at construction time (pre-computed hashes) so the
     policy is pickle-safe across process boundaries and does not hold
-    references to ``ManifestParser`` or ``Path`` objects.
+    references to `ManifestParser` or `Path` objects.
 
     Fields:
         node_unique_id: Ensures distinct keys per node.
@@ -36,14 +36,16 @@ class DbtNodeCachePolicy(CachePolicy):
         full_refresh: Separates full_refresh vs normal cache entries.
         upstream_cache_keys: Sorted upstream node_id → key pairs for
             deterministic hashing.
+        macro_content_hash: Hash of macro dependency file contents
+            (None if no macro dependencies).
     """
 
     node_unique_id: str = ""
-    file_content_hash: Optional[str] = None
-    config_hash: Optional[str] = None
+    file_content_hash: str | None = None
+    config_hash: str | None = None
     full_refresh: bool = False
     upstream_cache_keys: tuple[tuple[str, str], ...] = ()
-    macro_content_hash: Optional[str] = None
+    macro_content_hash: str | None = None
 
     def compute_key(
         self,
@@ -51,10 +53,10 @@ class DbtNodeCachePolicy(CachePolicy):
         inputs: dict[str, Any],
         flow_parameters: dict[str, Any],
         **kwargs: Any,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Compute a cache key from pre-baked node metadata.
 
-        ``task_ctx``, ``inputs``, and ``flow_parameters`` are ignored — all
+        `task_ctx`, `inputs`, and `flow_parameters` are ignored — all
         data needed for the key is stored directly on the policy instance.
         """
         return hash_objects(
@@ -67,10 +69,10 @@ class DbtNodeCachePolicy(CachePolicy):
         )
 
 
-def _hash_node_file(node: DbtNode, project_dir: Path) -> Optional[str]:
+def _hash_node_file(node: DbtNode, project_dir: Path) -> str | None:
     """Hash the source file for *node* (SQL for models/snapshots, CSV for seeds).
 
-    Returns ``None`` when the file cannot be located on disk.
+    Returns `None` when the file cannot be located on disk.
     """
     if not node.original_file_path:
         return None
@@ -90,8 +92,8 @@ def _hash_node_file(node: DbtNode, project_dir: Path) -> Optional[str]:
     return stable_hash(content)
 
 
-def _hash_node_config(node: DbtNode) -> Optional[str]:
-    """Hash the config dict for *node*.  Returns ``None`` for empty configs."""
+def _hash_node_config(node: DbtNode) -> str | None:
+    """Hash the config dict for *node*.  Returns `None` for empty configs."""
     if not node.config:
         return None
     return hash_objects(node.config)
@@ -100,18 +102,18 @@ def _hash_node_config(node: DbtNode) -> Optional[str]:
 def _hash_macro_dependencies(
     node: DbtNode,
     project_dir: Path,
-    macro_paths: dict[str, Optional[str]],
-) -> Optional[str]:
+    macro_paths: dict[str, str | None],
+) -> str | None:
     """Hash macro dependencies for *node*.
 
-    For each macro in ``node.depends_on_macros`` (sorted for determinism):
+    For each macro in `node.depends_on_macros` (sorted for determinism):
 
-    - If the macro has an ``original_file_path`` and the file exists on
+    - If the macro has an `original_file_path` and the file exists on
       disk, hash the file contents.
     - Otherwise, use the macro unique_id as a stable fallback (external
       packages, builtins, etc.).
 
-    Returns ``None`` when the node has no macro dependencies.
+    Returns `None` when the node has no macro dependencies.
     """
     if not node.depends_on_macros:
         return None
@@ -138,8 +140,8 @@ def build_cache_policy_for_node(
     project_dir: Path,
     full_refresh: bool,
     upstream_cache_keys: dict[str, str],
-    key_storage: Optional[Union[WritableFileSystem, str, Path]] = None,
-    macro_paths: Optional[dict[str, Optional[str]]] = None,
+    key_storage: WritableFileSystem | str | Path | None = None,
+    macro_paths: dict[str, str | None] | None = None,
 ) -> DbtNodeCachePolicy:
     """Construct a :class:`DbtNodeCachePolicy` for *node*.
 
