@@ -72,7 +72,7 @@ def pytest_collection_modifyitems(items):
             continue
 
         # Skip generated API reference files for integrations
-        if "/api-ref/" in str(item.fspath):
+        if "/integrations/" in str(item.fspath) and "/api-ref/" in str(item.fspath):
             item.add_marker(
                 pytest.mark.skip(reason="Skipping generated API reference files")
             )
