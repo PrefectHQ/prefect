@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, AsyncGenerator, NoReturn, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.types._datetime
@@ -141,28 +142,44 @@ async def record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None:
     """Record a single task run event in the database"""
     db = provide_database_interface()
 
-    async with db.session_context() as session:
-        task_run, task_run_dict = db_recordable_task_run_from_event(event)
+    max_attempts = 2
+    for attempt in range(1, max_attempts + 1):
+        try:
+            async with db.session_context() as session:
+                task_run, task_run_dict = db_recordable_task_run_from_event(event)
 
-        assert task_run.state is not None
+                assert task_run.state is not None
 
-        now = prefect.types._datetime.now("UTC")
+                now = prefect.types._datetime.now("UTC")
 
-        # Single atomic INSERT ... ON CONFLICT DO UPDATE
-        await session.execute(
-            db.queries.insert(db.TaskRun)
-            .values(**task_run_dict | {"created": now})
-            .on_conflict_do_update(
-                index_elements=["id"],
-                set_={**task_run_dict | {"updated": now}},
-                where=db.TaskRun.state_timestamp < task_run.state.timestamp,
+                await session.execute(
+                    db.queries.insert(db.TaskRun)
+                    .values(**task_run_dict | {"created": now})
+                    .on_conflict_do_update(
+                        index_elements=["id"],
+                        set_={**task_run_dict | {"updated": now}},
+                        where=db.TaskRun.state_timestamp < task_run.state.timestamp,
+                    )
+                )
+
+                await _insert_task_run_states(session, [task_run])
+
+                await session.commit()
+                return
+        except IntegrityError:
+            if attempt < max_attempts:
+                logger.info(
+                    "Retrying task_run upsert after IntegrityError (attempt %s/%s)",
+                    attempt,
+                    max_attempts,
+                )
+                continue
+            logger.warning(
+                "Duplicate task_run, discarding event %s after %s attempts",
+                event.id,
+                max_attempts,
+                exc_info=True,
             )
-        )
-
-        # Still need to insert the task_run_state separately
-        await _insert_task_run_states(session, [task_run])
-
-        await session.commit()
 
 
 async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
