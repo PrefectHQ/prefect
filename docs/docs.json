@@ -1152,7 +1152,6 @@
               {
                 "group": "Python SDK Reference",
                 "pages": [
-                  "v3/api-ref/python/prefect-analytics",
                   "v3/api-ref/python/prefect-artifacts",
                   "v3/api-ref/python/prefect-automations",
                   "v3/api-ref/python/prefect-cache_policies",
