@@ -405,8 +405,47 @@
                 "group": "Azure",
                 "pages": [
                   "integrations/prefect-azure/index",
-                  "integrations/prefect-azure/aci_worker",
-                  "integrations/prefect-azure/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-azure/api-ref/prefect_azure-blob_storage",
+                      "integrations/prefect-azure/api-ref/prefect_azure-container_instance",
+                      "integrations/prefect-azure/api-ref/prefect_azure-cosmos_db",
+                      "integrations/prefect-azure/api-ref/prefect_azure-credentials",
+                      "integrations/prefect-azure/api-ref/prefect_azure-ml_datastore",
+                      "integrations/prefect-azure/api-ref/prefect_azure-repository",
+                      {
+                        "group": "prefect_azure.deployments",
+                        "pages": [
+                          "integrations/prefect-azure/api-ref/prefect_azure-deployments-__init__",
+                          "integrations/prefect-azure/api-ref/prefect_azure-deployments-steps"
+                        ]
+                      },
+                      {
+                        "group": "prefect_azure.experimental",
+                        "pages": [
+                          "integrations/prefect-azure/api-ref/prefect_azure-experimental-__init__",
+                          {
+                            "group": "bundles",
+                            "pages": [
+                              "integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-__init__",
+                              "integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-execute",
+                              "integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-upload"
+                            ]
+                          },
+                          "integrations/prefect-azure/api-ref/prefect_azure-experimental-decorators"
+                        ]
+                      },
+                      {
+                        "group": "prefect_azure.workers",
+                        "pages": [
+                          "integrations/prefect-azure/api-ref/prefect_azure-workers-__init__",
+                          "integrations/prefect-azure/api-ref/prefect_azure-workers-container_instance"
+                        ]
+                      }
+                    ]
+                  },
+                  "integrations/prefect-azure/aci_worker"
                 ]
               },
               {

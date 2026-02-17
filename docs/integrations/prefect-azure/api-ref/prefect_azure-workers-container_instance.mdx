@@ -1,0 +1,168 @@
+---
+title: container_instance
+sidebarTitle: container_instance
+---
+
+# `prefect_azure.workers.container_instance`
+
+
+
+Module containing the Azure Container Instances worker used for executing flow
+runs in ACI containers.
+
+To start an ACI worker, run the following command:
+
+```bash
+prefect worker start --pool 'my-work-pool' --type azure-container-instance
+```
+
+Replace `my-work-pool` with the name of the work pool you want the worker
+to poll for flow runs.
+
+!!! example "Using a custom ARM template"
+    To facilitate easy customization, the Azure Container worker provisions a
+    containing group using an ARM template. The default ARM template is represented
+    in YAML as follows:
+    ```yaml
+    ---
+    arm_template:
+      "$schema": https://schema.management.azure.com/schemas/2019-08-01/deploymentTemplate.json#
+      contentVersion: 1.0.0.0
+      parameters:
+        location:
+          type: string
+          defaultValue: "[resourceGroup().location]"
+          metadata:
+            description: Location for all resources.
+        container_group_name:
+          type: string
+          defaultValue: "[uniqueString(resourceGroup().id)]"
+          metadata:
+            description: The name of the container group to create.
+        container_name:
+          type: string
+          defaultValue: "[uniqueString(resourceGroup().id)]"
+          metadata:
+            description: The name of the container to create.
+      resources:
+      - type: Microsoft.ContainerInstance/containerGroups
+        apiVersion: '2022-09-01'
+        name: "[parameters('container_group_name')]"
+        location: "[parameters('location')]"
+        properties:
+          containers:
+          - name: "[parameters('container_name')]"
+            properties:
+              image: rpeden/my-aci-flow:latest
+              command: "{{ command }}"
+              resources:
+                requests:
+                  cpu: "{{ cpu }}"
+                  memoryInGB: "{{ memory }}"
+              environmentVariables: []
+          osType: Linux
+          restartPolicy: Never
+    ```
+
+    Each values enclosed in `{{ }}` is a placeholder that will be replaced with
+    a value at runtime. The values that can be used a placeholders are defined
+    by the `variables` schema defined in the base job template.
+
+    The default job manifest and available variables can be customized on a work pool
+    by work pool basis. These customizations can be made via the Prefect UI when
+    creating or editing a work pool.
+
+    Using an ARM template makes the worker flexible; you're not limited to using the
+    features the worker provides out of the box. Instead, you can modify the ARM
+    template to use any features available in Azure Container Instances.
+
+
+## Classes
+
+### `ContainerGroupProvisioningState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Terminal provisioning states for ACI container groups. Per the Azure docs,
+the states in this Enum are the only ones that can be relied on as dependencies.
+
+
+### `ContainerRunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Terminal run states for ACI containers.
+
+
+### `AzureContainerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Configuration for an Azure Container Instance flow run.
+
+
+**Methods:**
+
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: Optional['DeploymentResponse'] = None, flow: Optional['Flow'] = None, work_pool: Optional['WorkPool'] = None, worker_name: Optional[str] = None, worker_id: Optional['UUID'] = None)
+```
+
+Prepares the job configuration for a flow run.
+
+
+### `AzureContainerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Variables for an Azure Container Instance flow run.
+
+
+### `AzureContainerWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L517" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Contains information about the final state of a completed process
+
+
+### `AzureContainerWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A Prefect worker that runs flows in an Azure Container Instance.
+
+
+**Methods:**
+
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L1016" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+kill_infrastructure(self, infrastructure_pid: str, configuration: AzureContainerJobConfiguration, grace_seconds: int = 30) -> None
+```
+
+Kill an Azure Container Instance by stopping or deleting its container group.
+
+If `configuration.keep_container_group` is True, the container group will be
+stopped but not deleted. Otherwise, the container group will be deleted.
+
+**Args:**
+- `infrastructure_pid`: The infrastructure identifier in format
+"flow_run_id\:container_group_name".
+- `configuration`: The job configuration used to connect to Azure.
+- `grace_seconds`: Not directly used for ACI (Azure handles graceful shutdown).
+
+**Raises:**
+- `InfrastructureNotFound`: If the container group doesn't exist.
+
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/workers/container_instance.py#L543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, flow_run: 'FlowRun', configuration: AzureContainerJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None)
+```
+
+Run a flow in an Azure Container Instance.
+Args:
+    flow_run: The flow run to run.
+    configuration: The configuration for the flow run.
+    task_status: The task status object for the current task. Used
+    to provide an identifier that can be used to cancel the task.
+
+**Returns:**
+- The result of the flow run.
+
