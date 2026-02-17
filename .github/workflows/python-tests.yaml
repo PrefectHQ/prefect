@@ -102,7 +102,7 @@ jobs:
           # PREFECT_CLI_FAST=1 so invoke_and_assert routes through the
           # cyclopts runner.  Only includes test files for commands that have
           # been migrated to cyclopts (config, profile, server, worker, shell,
-          # version, flow, flow-run).  Expand this list as more commands are migrated; when
+          # version, flow, flow-run, deployment).  Expand this list as more commands are migrated; when
           # the migration is complete replace with tests/cli/.
           - test-type:
               name: CLI Tests (Cyclopts)
@@ -117,6 +117,7 @@ jobs:
                 tests/cli/test_root.py
                 tests/cli/test_flow.py
                 tests/cli/test_flow_run.py
+                tests/cli/test_deploy.py
                 tests/cli/test_cyclopts_runner.py
                 tests/cli/test_cyclopts_parity.py
             database: "postgres:14"
