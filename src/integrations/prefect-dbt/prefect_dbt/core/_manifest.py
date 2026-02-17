@@ -17,6 +17,9 @@ from typing import Any
 from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
 
+# Resource types that are test-like (schema/data tests and unit tests).
+_TEST_TYPES = frozenset({NodeType.Test, NodeType.Unit})
+
 
 @dataclass(frozen=True)
 class DbtNode:
@@ -391,6 +394,71 @@ class ManifestParser:
             macro_id: macro_data.get("original_file_path")
             for macro_id, macro_data in macros_data.items()
         }
+
+    def get_test_nodes(self) -> dict[str, DbtNode]:
+        """Get all test nodes with dependencies resolved through ephemeral models.
+
+        Returns:
+            Dictionary mapping unique_id to DbtNode for test nodes.
+            Dependencies are resolved through ephemeral models to reach
+            executable ancestors.
+        """
+        if hasattr(self, "_test_nodes") and self._test_nodes:
+            return self._test_nodes
+
+        self._test_nodes: dict[str, DbtNode] = {}
+        for unique_id, node in self._all_nodes.items():
+            if node.resource_type not in _TEST_TYPES:
+                continue
+
+            resolved_deps = self._resolve_dependencies_through_ephemeral(node)
+            resolved_node = DbtNode(
+                unique_id=node.unique_id,
+                name=node.name,
+                resource_type=node.resource_type,
+                depends_on=resolved_deps,
+                depends_on_macros=node.depends_on_macros,
+                fqn=node.fqn,
+                materialization=node.materialization,
+                relation_name=node.relation_name,
+                original_file_path=node.original_file_path,
+                config=node.config,
+            )
+            self._test_nodes[unique_id] = resolved_node
+
+        return self._test_nodes
+
+    def filter_test_nodes(
+        self,
+        selected_node_ids: Optional[set[str]] = None,
+        executable_node_ids: Optional[set[str]] = None,
+    ) -> dict[str, DbtNode]:
+        """Filter test nodes by selection and executable parent availability.
+
+        Args:
+            selected_node_ids: If not None, only keep tests whose unique_id
+                is in this set.  Pass None to keep all test nodes.
+            executable_node_ids: Only keep tests whose **all** resolved
+                dependencies are in this set.  This ensures a multi-model
+                relationship test is excluded if one of its parent models
+                was filtered out by selectors or stale-source filtering.
+
+        Returns:
+            Dictionary of filtered test nodes.
+        """
+        tests = self.get_test_nodes()
+
+        if selected_node_ids is not None:
+            tests = {uid: n for uid, n in tests.items() if uid in selected_node_ids}
+
+        if executable_node_ids is not None:
+            tests = {
+                uid: n
+                for uid, n in tests.items()
+                if all(dep in executable_node_ids for dep in n.depends_on)
+            }
+
+        return tests
 
     def filter_nodes(
         self,

@@ -20,6 +20,7 @@ pytest.importorskip(
 from prefect_dbt.core._orchestrator import (  # noqa: E402
     ExecutionMode,
     PrefectDbtOrchestrator,
+    TestStrategy,
 )
 from prefect_dbt.core.settings import PrefectDbtSettings  # noqa: E402
 
@@ -42,6 +43,41 @@ ALL_EXECUTABLE = {
     STG_CUSTOMERS,
     STG_ORDERS,
     CUSTOMER_SUMMARY,
+}
+
+# Test node IDs generated from schema.yml files in the test project.
+# These are deterministic: dbt derives them from model/column/test names
+# plus a short hash suffix.
+TEST_NOT_NULL_STG_CUSTOMERS_ID = (
+    "test.test_project.not_null_stg_customers_customer_id.e2cfb1f9aa"
+)
+TEST_NOT_NULL_STG_ORDERS_ORDER_ID = (
+    "test.test_project.not_null_stg_orders_order_id.81cfe2fe64"
+)
+TEST_NOT_NULL_STG_ORDERS_CUSTOMER_ID = (
+    "test.test_project.not_null_stg_orders_customer_id.af79d5e4b5"
+)
+TEST_UNIQUE_STG_CUSTOMERS_ID = (
+    "test.test_project.unique_stg_customers_customer_id.c7614daada"
+)
+TEST_UNIQUE_STG_ORDERS_ID = "test.test_project.unique_stg_orders_order_id.e3b841c71a"
+TEST_RELATIONSHIPS_ORDERS_CUSTOMERS = "test.test_project.relationships_stg_orders_customer_id__customer_id__ref_stg_customers_.430bf21500"
+TEST_NOT_NULL_SUMMARY_ID = (
+    "test.test_project.not_null_customer_summary_customer_id.a81d32eb67"
+)
+TEST_UNIQUE_SUMMARY_ID = (
+    "test.test_project.unique_customer_summary_customer_id.2fb01e9693"
+)
+
+ALL_TESTS = {
+    TEST_NOT_NULL_STG_CUSTOMERS_ID,
+    TEST_NOT_NULL_STG_ORDERS_ORDER_ID,
+    TEST_NOT_NULL_STG_ORDERS_CUSTOMER_ID,
+    TEST_UNIQUE_STG_CUSTOMERS_ID,
+    TEST_UNIQUE_STG_ORDERS_ID,
+    TEST_RELATIONSHIPS_ORDERS_CUSTOMERS,
+    TEST_NOT_NULL_SUMMARY_ID,
+    TEST_UNIQUE_SUMMARY_ID,
 }
 
 
@@ -924,3 +960,154 @@ class TestPerNodeCachingIntegration:
 
         # customer_summary was recreated — macro change invalidated cache
         assert _object_exists(db_path, "customer_summary")
+
+
+class TestTestStrategyIntegration:
+    """Integration tests for test strategies against a real DuckDB dbt project.
+
+    The dbt test project includes schema.yml files that define not_null,
+    unique, and relationship tests on staging and mart models.  The expected
+    test node IDs are declared as constants (ALL_TESTS) so assertions are
+    deterministic.
+    """
+
+    def test_fixture_contains_test_definitions(self, dbt_project):
+        """Guard: verify the manifest contains the expected test nodes.
+
+        If this fails, the schema.yml files in dbt_test_project are missing
+        or dbt parse did not generate test nodes.
+        """
+        import json
+
+        manifest = json.loads(dbt_project["manifest_path"].read_text())
+        manifest_test_ids = {
+            uid for uid in manifest["nodes"] if uid.startswith("test.")
+        }
+        assert manifest_test_ids == ALL_TESTS, (
+            f"Manifest test nodes don't match ALL_TESTS.\n"
+            f"  Missing: {ALL_TESTS - manifest_test_ids}\n"
+            f"  Extra:   {manifest_test_ids - ALL_TESTS}"
+        )
+
+    def test_skip_produces_no_test_results(self, orchestrator):
+        """SKIP strategy: no test node IDs in results."""
+        orch = orchestrator(test_strategy=TestStrategy.SKIP)
+        results = orch.run_build()
+
+        test_ids = {k for k in results if k.startswith("test.")}
+        assert test_ids == set()
+        assert set(results.keys()) == ALL_EXECUTABLE
+
+    def test_immediate_per_wave_includes_tests(self, orchestrator):
+        """IMMEDIATE + PER_WAVE: all expected test nodes appear with success."""
+        orch = orchestrator(test_strategy=TestStrategy.IMMEDIATE)
+        results = orch.run_build()
+
+        model_ids = {k for k in results if not k.startswith("test.")}
+        test_ids = {k for k in results if k.startswith("test.")}
+
+        assert model_ids == ALL_EXECUTABLE
+        assert test_ids == ALL_TESTS
+        for tid in test_ids:
+            assert results[tid]["status"] == "success", (
+                f"Test {tid} failed: {results[tid].get('error')}"
+            )
+
+    def test_deferred_per_wave_includes_tests(self, orchestrator):
+        """DEFERRED + PER_WAVE: all expected test nodes appear with success."""
+        orch = orchestrator(test_strategy=TestStrategy.DEFERRED)
+        results = orch.run_build()
+
+        model_ids = {k for k in results if not k.startswith("test.")}
+        test_ids = {k for k in results if k.startswith("test.")}
+
+        assert model_ids == ALL_EXECUTABLE
+        assert test_ids == ALL_TESTS
+        for tid in test_ids:
+            assert results[tid]["status"] == "success", (
+                f"Test {tid} failed: {results[tid].get('error')}"
+            )
+
+    def test_immediate_per_node_includes_tests(self, per_node_orchestrator):
+        """IMMEDIATE + PER_NODE: all expected test nodes appear with success."""
+        from prefect import flow
+
+        orch = per_node_orchestrator(
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+            test_strategy=TestStrategy.IMMEDIATE,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        results = test_flow()
+
+        model_ids = {k for k in results if not k.startswith("test.")}
+        test_ids = {k for k in results if k.startswith("test.")}
+
+        assert model_ids == ALL_EXECUTABLE
+        assert test_ids == ALL_TESTS
+        for tid in test_ids:
+            assert results[tid]["status"] == "success", (
+                f"Test {tid} failed: {results[tid].get('error')}"
+            )
+
+    def test_deferred_per_node_includes_tests(self, per_node_orchestrator):
+        """DEFERRED + PER_NODE: test nodes run after all models."""
+        from prefect import flow
+
+        orch = per_node_orchestrator(
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+            test_strategy=TestStrategy.DEFERRED,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        results = test_flow()
+
+        model_ids = {k for k in results if not k.startswith("test.")}
+        test_ids = {k for k in results if k.startswith("test.")}
+
+        assert model_ids == ALL_EXECUTABLE
+        assert test_ids == ALL_TESTS
+
+        # All models must complete before any test starts
+        latest_model = max(results[m]["timing"]["completed_at"] for m in model_ids)
+        earliest_test = min(results[t]["timing"]["started_at"] for t in test_ids)
+        assert latest_model <= earliest_test
+
+    def test_relationship_test_passes(self, orchestrator):
+        """The relationship test between stg_orders.customer_id -> stg_customers passes."""
+        orch = orchestrator(test_strategy=TestStrategy.IMMEDIATE)
+        results = orch.run_build()
+
+        assert TEST_RELATIONSHIPS_ORDERS_CUSTOMERS in results
+        assert results[TEST_RELATIONSHIPS_ORDERS_CUSTOMERS]["status"] == "success", (
+            f"Relationship test failed: "
+            f"{results[TEST_RELATIONSHIPS_ORDERS_CUSTOMERS].get('error')}"
+        )
+
+    def test_per_node_skip_produces_no_test_results(self, per_node_orchestrator):
+        """SKIP + PER_NODE: no test results, backward compatible."""
+        from prefect import flow
+
+        orch = per_node_orchestrator(
+            execution_mode=ExecutionMode.PER_NODE,
+            concurrency=1,
+            test_strategy=TestStrategy.SKIP,
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        results = test_flow()
+
+        test_ids = {k for k in results if k.startswith("test.")}
+        assert test_ids == set()
+        assert set(results.keys()) == ALL_EXECUTABLE
