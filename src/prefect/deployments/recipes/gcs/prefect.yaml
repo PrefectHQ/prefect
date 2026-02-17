@@ -1,3 +1,4 @@
+---
 prefect-version: null
 name: null
 description: "Store code within a GCS bucket"
@@ -7,11 +8,11 @@ required_inputs:
 
 build: null
 
-push: 
+push:
   - prefect_gcp.deployments.steps.push_to_gcs:
       id: "push_code"
       requires: "prefect-gcp>=0.4.3"
-      bucket: "{{ bucket }}" 
+      bucket: "{{ bucket }}"
       folder: "{{ name }}"
 
 pull:

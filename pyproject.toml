@@ -162,6 +162,7 @@ dev = [
     "vale>=3.9.5",
     "virtualenv>=20.29.2",
     "watchfiles>=1.0.4",
+    "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.1",
     "ruff==0.15.1",
