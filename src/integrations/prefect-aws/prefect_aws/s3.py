@@ -902,7 +902,8 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         # Prefect ResultStore pre-resolves paths for blocks without block_document_id).
         # See https://github.com/PrefectHQ/prefect-aws/issues/141 and GCS equivalent.
         if self.bucket_folder and (
-            path == self.bucket_folder or path.startswith(self.bucket_folder + "/")
+            path == self.bucket_folder
+            or path.startswith(self.bucket_folder.rstrip("/") + "/")
         ):
             return path
 

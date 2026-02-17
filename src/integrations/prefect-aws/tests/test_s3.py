@@ -759,12 +759,32 @@ def test_resolve_path(s3_bucket):
 
 def test_resolve_path_no_double_prefix(s3_bucket):
     """When path already contains bucket_folder, _resolve_path should not duplicate it."""
-    s3_bucket.bucket_folder = "prefect-flow-template-dev/prefect-3"
+    s3_bucket.bucket_folder = "twinspector/stereo-pairs"
     # Simple key - should get prefix
-    assert s3_bucket._resolve_path("abc123") == "prefect-flow-template-dev/prefect-3/abc123"
+    assert (
+        s3_bucket._resolve_path("scene_2025-06-01_T32UQD.tif")
+        == "twinspector/stereo-pairs/scene_2025-06-01_T32UQD.tif"
+    )
     # Already-prefixed path - should NOT get duplicated
-    already_prefixed = "prefect-flow-template-dev/prefect-3/task_cache_key"
+    already_prefixed = "twinspector/stereo-pairs/scene_2025-08-12_T32UQD.tif"
     assert s3_bucket._resolve_path(already_prefixed) == already_prefixed
+    # Exact match (path equals bucket_folder)
+    assert (
+        s3_bucket._resolve_path("twinspector/stereo-pairs")
+        == "twinspector/stereo-pairs"
+    )
+    # Prefix-substring that is NOT a sub-path should still get prefixed
+    s3_bucket.bucket_folder = "sentinel-2"
+    assert (
+        s3_bucket._resolve_path("sentinel-2A/T32UQD/ndvi.tif")
+        == "sentinel-2/sentinel-2A/T32UQD/ndvi.tif"
+    )
+    # Trailing slash on bucket_folder should not break the guard
+    s3_bucket.bucket_folder = "insar/deformation/"
+    assert (
+        s3_bucket._resolve_path("insar/deformation/velocity_map.tif")
+        == "insar/deformation/velocity_map.tif"
+    )
 
 
 class TestS3Bucket:
