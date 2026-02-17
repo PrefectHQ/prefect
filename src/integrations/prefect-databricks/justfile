@@ -1,0 +1,18 @@
+test:
+    uv run pytest
+
+# Generate API reference documentation for prefect-databricks
+api-ref:
+    #!/usr/bin/env bash
+    REPO_ROOT="$(git rev-parse --show-toplevel)"
+    cd "$REPO_ROOT"
+    uvx --with-editable ./src/integrations/prefect-databricks \
+        --python 3.12 \
+        --isolated \
+        mdxify \
+        --all \
+        --root-module prefect_databricks \
+        --output-dir docs/integrations/prefect-databricks/api-ref \
+        --anchor-name "SDK Reference" \
+        --repo-url https://github.com/PrefectHQ/prefect \
+        --include-inheritance
