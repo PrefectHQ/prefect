@@ -467,18 +467,15 @@
                       {
                         "group": "prefect_gcp.deployments",
                         "pages": [
-                          "integrations/prefect-gcp/api-ref/prefect_gcp-deployments-__init__",
                           "integrations/prefect-gcp/api-ref/prefect_gcp-deployments-steps"
                         ]
                       },
                       {
                         "group": "prefect_gcp.experimental",
                         "pages": [
-                          "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-__init__",
                           {
                             "group": "bundles",
                             "pages": [
-                              "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-__init__",
                               "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-execute",
                               "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-upload"
                             ]
@@ -489,14 +486,12 @@
                       {
                         "group": "prefect_gcp.models",
                         "pages": [
-                          "integrations/prefect-gcp/api-ref/prefect_gcp-models-__init__",
                           "integrations/prefect-gcp/api-ref/prefect_gcp-models-cloud_run_v2"
                         ]
                       },
                       {
                         "group": "prefect_gcp.workers",
                         "pages": [
-                          "integrations/prefect-gcp/api-ref/prefect_gcp-workers-__init__",
                           "integrations/prefect-gcp/api-ref/prefect_gcp-workers-cloud_run",
                           "integrations/prefect-gcp/api-ref/prefect_gcp-workers-cloud_run_v2",
                           "integrations/prefect-gcp/api-ref/prefect_gcp-workers-vertex"
