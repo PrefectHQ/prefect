@@ -1,0 +1,22 @@
+---
+title: decorators
+sidebarTitle: decorators
+---
+
+# `prefect_docker.experimental.decorators`
+
+## Functions
+
+### `docker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/experimental/decorators.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+docker(work_pool: str, **job_variables: Any) -> Callable[[Flow[P, R]], Flow[P, R]]
+```
+
+
+Decorator that binds execution of a flow to a Docker work pool
+
+**Args:**
+- `work_pool`: The name of the Docker work pool to use
+- `**job_variables`: Additional job variables to use for infrastructure configuration
+
