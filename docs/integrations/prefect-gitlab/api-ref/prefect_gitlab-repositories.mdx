@@ -1,0 +1,95 @@
+---
+title: repositories
+sidebarTitle: repositories
+---
+
+# `prefect_gitlab.repositories`
+
+
+
+Integrations with GitLab.
+
+The `GitLab` class in this collection is a storage block that lets Prefect agents
+pull Prefect flow code from GitLab repositories.
+
+The `GitLab` block is ideally configured via the Prefect UI, but can also be used
+in Python as the following examples demonstrate.
+
+Examples:
+```python
+    from prefect_gitlab.repositories import GitLabRepository
+
+    # public GitLab repository
+    public_gitlab_block = GitLabRepository(
+        name="my-gitlab-block",
+        repository="https://gitlab.com/testing/my-repository.git"
+    )
+
+    public_gitlab_block.save()
+
+
+    # specific branch or tag of a GitLab repository
+    branch_gitlab_block = GitLabRepository(
+        name="my-gitlab-block",
+        reference="branch-or-tag-name"
+        repository="https://gitlab.com/testing/my-repository.git"
+    )
+
+    branch_gitlab_block.save()
+
+
+    # private GitLab repository
+    private_gitlab_block = GitLabRepository(
+        name="my-private-gitlab-block",
+        repository="https://gitlab.com/testing/my-repository.git",
+        access_token="YOUR_GITLAB_PERSONAL_ACCESS_TOKEN"
+    )
+
+    private_gitlab_block.save()
+```
+
+
+## Classes
+
+### `GitLabRepository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gitlab/prefect_gitlab/repositories.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Interact with files stored in GitLab repositories.
+
+An accessible installation of git is required for this block to function
+properly.
+
+
+**Methods:**
+
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gitlab/prefect_gitlab/repositories.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Clones a GitLab project specified in `from_path` to the provided `local_path`;
+defaults to cloning the repository reference configured on the Block to the
+present working directory. Async version.
+
+**Args:**
+- `from_path`: If provided, interpreted as a subdirectory of the underlying
+repository that will be copied to the provided local path.
+- `local_path`: A local path to clone to; defaults to present working directory.
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gitlab/prefect_gitlab/repositories.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Clones a GitLab project specified in `from_path` to the provided `local_path`;
+defaults to cloning the repository reference configured on the Block to the
+present working directory.
+
+**Args:**
+- `from_path`: If provided, interpreted as a subdirectory of the underlying
+repository that will be copied to the provided local path.
+- `local_path`: A local path to clone to; defaults to present working directory.
+
