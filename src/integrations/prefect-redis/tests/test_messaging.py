@@ -749,3 +749,47 @@ async def test_clear_cached_clients():
     await clear_cached_clients()
 
     assert len(_client_cache) == 0, "Cache should be empty after clearing"
+
+
+async def test_consumer_handles_orphan_pending_entries(
+    redis: Redis, broker: str, publisher: Publisher
+):
+    """Test that orphan pending entries (None messages from XAUTOCLAIM) are
+    handled gracefully: acknowledged and skipped without crashing the consumer."""
+    captured_messages: list[Message] = []
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        raise StopConsumer(ack=True)
+
+    consumer = create_consumer("message-tests", min_idle_time=timedelta(seconds=0))
+
+    async with publisher as p:
+        await p.publish_data(b"real-message", {"id": "1"})
+
+    original_xautoclaim = Redis.xautoclaim
+
+    call_count = 0
+
+    async def xautoclaim_with_orphan(self, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return [
+                b"0-0",
+                [(b"9999999999999-0", None)],
+                [],
+            ]
+        return await original_xautoclaim(self, *args, **kwargs)
+
+    with patch.object(Redis, "xautoclaim", xautoclaim_with_orphan):
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        with anyio.move_on_after(5.0):
+            await consumer_task
+
+    assert call_count >= 1, "xautoclaim should have been called"
+    assert len(captured_messages) == 1, (
+        "Should have received the real message after skipping orphan"
+    )
+    assert captured_messages[0].data == "real-message"
