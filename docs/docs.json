@@ -586,7 +586,13 @@
                 "group": "Slack",
                 "pages": [
                   "integrations/prefect-slack/index",
-                  "integrations/prefect-slack/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-slack/api-ref/prefect_slack-credentials",
+                      "integrations/prefect-slack/api-ref/prefect_slack-messages"
+                    ]
+                  }
                 ]
               },
               {
