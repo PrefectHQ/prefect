@@ -1,0 +1,134 @@
+---
+title: vertex
+sidebarTitle: vertex
+---
+
+# `prefect_gcp.workers.vertex`
+
+
+&lt;!-- # noqa --&gt;
+
+Module containing the custom worker used for executing flow runs as Vertex AI Custom Jobs.
+
+Get started by creating a Cloud Run work pool:
+
+```bash
+prefect work-pool create 'my-vertex-pool' --type vertex-ai
+```
+
+Then start a Cloud Run worker with the following command:
+
+```bash
+prefect worker start --pool 'my-vertex-pool'
+```
+
+## Configuration
+Read more about configuring work pools
+[here](https://docs.prefect.io/3.0/deploy/infrastructure-concepts/work-pools).
+
+
+## Classes
+
+### `VertexAIWorkerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Default variables for the Vertex AI worker.
+
+The schema for this class is used to populate the `variables` section of the default
+base job template.
+
+
+### `VertexAIWorkerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Configuration class used by the Vertex AI Worker to create a Job.
+
+An instance of this class is passed to the Vertex AI Worker's `run` method
+for each flow run. It contains all information necessary to execute
+the flow run as a Vertex AI Job.
+
+**Attributes:**
+- `region`: The region where the Vertex AI Job resides.
+- `credentials`: The GCP Credentials used to connect to Vertex AI.
+- `job_spec`: The Vertex AI Job spec used to create the Job.
+- `job_watch_poll_interval`: The interval between GCP API calls to check Job state.
+
+
+**Methods:**
+
+#### `job_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+job_name(self) -> str
+```
+
+The name can be up to 128 characters long and can be consist of any UTF-8 characters. Reference:
+https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform.CustomJob#google_cloud_aiplatform_CustomJob_display_name
+
+
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: Optional['DeploymentResponse'] = None, flow: Optional['Flow'] = None, work_pool: Optional['WorkPool'] = None, worker_name: Optional[str] = None, worker_id: Optional['UUID'] = None)
+```
+
+#### `project` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L308" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+project(self) -> str
+```
+
+property for accessing the project from the credentials.
+
+
+### `VertexAIWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Contains information about the final state of a completed process
+
+
+### `VertexAIWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L407" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Prefect worker that executes flow runs within Vertex AI Jobs.
+
+
+**Methods:**
+
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L693" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+kill_infrastructure(self, infrastructure_pid: str, configuration: VertexAIWorkerJobConfiguration, grace_seconds: int = 30) -> None
+```
+
+Kill a Vertex AI Custom Job by cancelling it.
+
+**Args:**
+- `infrastructure_pid`: The full job name
+(e.g., "projects/123/locations/us-central1/customJobs/456").
+- `configuration`: The job configuration used to connect to GCP.
+- `grace_seconds`: Not used for Vertex AI (GCP handles graceful shutdown).
+
+**Raises:**
+- `InfrastructureNotFound`: If the job doesn't exist.
+
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/vertex.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, flow_run: 'FlowRun', configuration: VertexAIWorkerJobConfiguration, task_status: Optional[anyio.abc.TaskStatus] = None) -> VertexAIWorkerResult
+```
+
+Executes a flow run within a Vertex AI Job and waits for the flow run
+to complete.
+
+**Args:**
+- `flow_run`: The flow run to execute
+- `configuration`: The configuration to use when executing the flow run.
+- `task_status`: The task status object for the current flow run. If provided,
+the task will be marked as started.
+
+**Returns:**
+- A result object containing information about the
+final state of the flow run
+

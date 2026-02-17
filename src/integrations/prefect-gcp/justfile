@@ -1,0 +1,19 @@
+test:
+    uv run pytest
+
+# Generate API reference documentation for prefect-gcp
+api-ref:
+    #!/usr/bin/env bash
+    REPO_ROOT="$(git rev-parse --show-toplevel)"
+    cd "$REPO_ROOT"
+    uvx --with-editable ./src/integrations/prefect-gcp \
+        --python 3.12 \
+        --isolated \
+        mdxify \
+        --all \
+        --root-module prefect_gcp \
+        --output-dir docs/integrations/prefect-gcp/api-ref \
+        --anchor-name "SDK Reference" \
+        --repo-url https://github.com/PrefectHQ/prefect \
+        --include-inheritance \
+        --no-update-nav
