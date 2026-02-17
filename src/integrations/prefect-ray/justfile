@@ -1,0 +1,15 @@
+# Generate API reference documentation for prefect-ray
+api-ref:
+    #!/usr/bin/env bash
+    REPO_ROOT="$(git rev-parse --show-toplevel)"
+    cd "$REPO_ROOT"
+    uvx --with-editable ./src/integrations/prefect-ray \
+        --python 3.12 \
+        --isolated \
+        mdxify \
+        --all \
+        --root-module prefect_ray \
+        --output-dir docs/integrations/prefect-ray/api-ref \
+        --anchor-name "SDK Reference" \
+        --repo-url https://github.com/PrefectHQ/prefect \
+        --include-inheritance
