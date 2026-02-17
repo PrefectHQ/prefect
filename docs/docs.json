@@ -339,7 +339,59 @@
                 "group": "AWS",
                 "pages": [
                   "integrations/prefect-aws/index",
-                  "integrations/prefect-aws/sdk",
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-aws/api-ref/prefect_aws-assume_role_parameters",
+                      "integrations/prefect-aws/api-ref/prefect_aws-batch",
+                      "integrations/prefect-aws/api-ref/prefect_aws-client_parameters",
+                      "integrations/prefect-aws/api-ref/prefect_aws-client_waiter",
+                      "integrations/prefect-aws/api-ref/prefect_aws-credentials",
+                      "integrations/prefect-aws/api-ref/prefect_aws-glue_job",
+                      "integrations/prefect-aws/api-ref/prefect_aws-lambda_function",
+                      "integrations/prefect-aws/api-ref/prefect_aws-plugins",
+                      "integrations/prefect-aws/api-ref/prefect_aws-s3",
+                      "integrations/prefect-aws/api-ref/prefect_aws-secrets_manager",
+                      "integrations/prefect-aws/api-ref/prefect_aws-settings",
+                      "integrations/prefect-aws/api-ref/prefect_aws-utilities",
+                      {
+                        "group": "prefect_aws.deployments",
+                        "pages": [
+                          "integrations/prefect-aws/api-ref/prefect_aws-deployments-__init__",
+                          "integrations/prefect-aws/api-ref/prefect_aws-deployments-steps"
+                        ]
+                      },
+                      {
+                        "group": "prefect_aws.experimental",
+                        "pages": [
+                          "integrations/prefect-aws/api-ref/prefect_aws-experimental-__init__",
+                          {
+                            "group": "bundles",
+                            "pages": [
+                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-__init__",
+                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-execute",
+                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-upload"
+                            ]
+                          },
+                          "integrations/prefect-aws/api-ref/prefect_aws-experimental-decorators"
+                        ]
+                      },
+                      {
+                        "group": "prefect_aws.templates",
+                        "pages": [
+                          "integrations/prefect-aws/api-ref/prefect_aws-templates-__init__",
+                          "integrations/prefect-aws/api-ref/prefect_aws-templates-ecs"
+                        ]
+                      },
+                      {
+                        "group": "prefect_aws.workers",
+                        "pages": [
+                          "integrations/prefect-aws/api-ref/prefect_aws-workers-__init__",
+                          "integrations/prefect-aws/api-ref/prefect_aws-workers-ecs_worker"
+                        ]
+                      }
+                    ]
+                  },
                   {
                     "group": "ECS Worker",
                     "pages": [

@@ -1,0 +1,61 @@
+---
+title: execute
+sidebarTitle: execute
+---
+
+# `prefect_aws.experimental.bundles.execute`
+
+## Functions
+
+### `download_bundle_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/experimental/bundles/execute.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_bundle_from_s3(bucket: str, key: str, output_dir: str | None = None, aws_credentials_block_name: Optional[str] = None) -> DownloadResult
+```
+
+
+Downloads a bundle from an S3 bucket.
+
+**Args:**
+- `bucket`: S3 bucket name
+- `key`: S3 object key
+- `output_dir`: Local directory to save the bundle (if None, uses a temp directory)
+- `aws_credentials_block_name`: Name of the AWS credentials block to use. If None,
+credentials will be inferred from the environment using boto3's standard
+credential resolution.
+
+**Returns:**
+- A dictionary containing:
+- local_path: Path where the bundle was downloaded
+
+
+### `execute_bundle_from_s3` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/experimental/bundles/execute.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute_bundle_from_s3(bucket: str, key: str, aws_credentials_block_name: Optional[str] = None) -> None
+```
+
+
+Downloads a bundle from S3 and executes it.
+
+This step:
+1. Downloads the bundle from S3
+2. Extracts and deserializes the bundle
+3. Downloads and extracts included files (if present)
+4. Executes the flow in a subprocess
+
+**Args:**
+- `bucket`: S3 bucket name
+- `key`: S3 object key
+- `aws_credentials_block_name`: Name of the AWS credentials block to use. If None,
+credentials will be inferred from the environment using boto3's standard
+credential resolution.
+
+
+## Classes
+
+### `DownloadResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/experimental/bundles/execute.py#L22" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Result of downloading a bundle from S3.
+

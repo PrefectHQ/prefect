@@ -1,0 +1,83 @@
+---
+title: client_parameters
+sidebarTitle: client_parameters
+---
+
+# `prefect_aws.client_parameters`
+
+
+Module handling Client parameters
+
+## Classes
+
+### `AwsClientParameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Model used to manage extra parameters that you can pass when you initialize
+the Client. If you want to find more information, see
+[boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
+for more info about the possible client configurations.
+
+**Attributes:**
+- `api_version`: The API version to use. By default, botocore will
+use the latest API version when creating a client. You only need
+to specify this parameter if you want to use a previous API version
+of the client.
+- `use_ssl`: Whether or not to use SSL. By default, SSL is used.
+Note that not all services support non-ssl connections.
+- `verify`: Whether or not to verify SSL certificates. By default
+SSL certificates are verified. If False, SSL will still be used
+(unless use_ssl is False), but SSL certificates
+will not be verified. Passing a file path to this is deprecated.
+- `verify_cert_path`: A filename of the CA cert bundle to
+use. You can specify this argument if you want to use a
+different CA cert bundle than the one used by botocore.
+- `endpoint_url`: The complete URL to use for the constructed
+client. Normally, botocore will automatically construct the
+appropriate URL to use when communicating with a service. You
+can specify a complete URL (including the "http/https" scheme)
+to override this behavior. If this value is provided,
+then ``use_ssl`` is ignored.
+- `config`: Advanced configuration for Botocore clients. See
+[botocore docs](https\://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html)
+for more details.
+
+
+**Methods:**
+
+#### `deprecated_verify_cert_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+deprecated_verify_cert_path(cls, values: Dict[str, Any]) -> Dict[str, Any]
+```
+
+If verify is not a bool, raise a warning.
+
+
+#### `get_params_override` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_params_override(self) -> Dict[str, Any]
+```
+
+Return the dictionary of the parameters to override.
+The parameters to override are the one which are not None.
+
+
+#### `instantiate_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+instantiate_config(cls, value: Union[Config, Dict[str, Any]]) -> Dict[str, Any]
+```
+
+Casts lists to Config instances.
+
+
+#### `verify_cert_path_and_verify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-aws/prefect_aws/client_parameters.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+verify_cert_path_and_verify(cls, values: Dict[str, Any]) -> Dict[str, Any]
+```
+
+If verify_cert_path is set but verify is False, raise a warning.
+
