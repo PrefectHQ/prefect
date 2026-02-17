@@ -487,7 +487,13 @@
                 "group": "Email",
                 "pages": [
                   "integrations/prefect-email/index",
-                  "integrations/prefect-email/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-email/api-ref/prefect_email-credentials",
+                      "integrations/prefect-email/api-ref/prefect_email-message"
+                    ]
+                  }
                 ]
               },
               {
