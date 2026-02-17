@@ -579,7 +579,12 @@
                 "group": "Shell",
                 "pages": [
                   "integrations/prefect-shell/index",
-                  "integrations/prefect-shell/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-shell/api-ref/prefect_shell-commands"
+                    ]
+                  }
                 ]
               },
               {
