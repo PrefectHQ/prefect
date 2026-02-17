@@ -1,0 +1,46 @@
+---
+title: message
+sidebarTitle: message
+---
+
+# `prefect_email.message`
+
+
+
+Tasks for interacting with email message services
+
+
+## Functions
+
+### `email_send_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-email/prefect_email/message.py#L25" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+email_send_message(subject: str, msg: str, email_server_credentials: 'EmailServerCredentials', msg_plain: Optional[str] = None, email_from: Optional[str] = None, email_to: Optional[Union[str, List[str]]] = None, email_to_cc: Optional[Union[str, List[str]]] = None, email_to_bcc: Optional[Union[str, List[str]]] = None, attachments: Optional[List[str]] = None, inline_images: Optional[dict[str, str]] = None)
+```
+
+
+Sends an email message from an authenticated email service over SMTP.
+Sending messages containing HTML code is supported - the default MIME
+type is set to the text/html.
+
+**Args:**
+- `subject`: The subject line of the email.
+- `msg`: The contents of the email, added as html; can be used in
+combination with msg_plain.
+- `msg_plain`: The contents of the email as plain text,
+can be used in combination with msg.
+- `email_to`: The email addresses to send the message to, separated by commas.
+If a list is provided, will join the items, separated by commas.
+- `email_to_cc`: Additional email addresses to send the message to as cc,
+separated by commas. If a list is provided, will join the items,
+separated by commas.
+- `email_to_bcc`: Additional email addresses to send the message to as bcc,
+separated by commas. If a list is provided, will join the items,
+separated by commas.
+- `attachments`: Names of files that should be sent as attachment.
+- `inline_images`: A dictionary where keys are content IDs (cids) and values
+are file paths to images to embed in the HTML body.
+
+**Returns:**
+- The MIME Multipart message of the email.
+
