@@ -1,0 +1,81 @@
+---
+title: utilities
+sidebarTitle: utilities
+---
+
+# `prefect_dbt.utilities`
+
+
+
+Utility functions for prefect-dbt
+
+
+## Functions
+
+### `find_profiles_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+find_profiles_dir() -> Path
+```
+
+
+Find the directory containing profiles.yml.
+
+Returns the current working directory if profiles.yml exists there,
+otherwise returns the default .dbt directory in the user's home.
+
+**Returns:**
+- Directory containing profiles.yml
+
+
+### `replace_with_env_var_call` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+replace_with_env_var_call(placeholder: str, value: Any) -> str
+```
+
+
+A block reference replacement function that returns template text for an env var call.
+
+**Args:**
+- `placeholder`: The placeholder text to replace
+- `value`: The value to replace the placeholder with
+
+**Returns:**
+- The template text for an env var call
+
+
+### `format_resource_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format_resource_id(adapter_type: str, relation_name: str) -> str
+```
+
+
+Format a relation name to be a valid asset key.
+
+**Args:**
+- `adapter_type`: The type of adapter used to connect to the database
+- `relation_name`: The name of the relation to format
+
+**Returns:**
+- The formatted asset key
+
+
+### `kwargs_to_args` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/utilities.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+kwargs_to_args(kwargs: dict, args: Optional[list[str]] = None) -> list[str]
+```
+
+
+Convert a dictionary of kwargs to a list of args in the dbt CLI format.
+If args are provided, they take priority over kwargs when conflicts exist.
+
+**Args:**
+- `kwargs`: A dictionary of kwargs.
+- `args`: Optional list of existing args that take priority over kwargs.
+
+**Returns:**
+- A list of args.
+

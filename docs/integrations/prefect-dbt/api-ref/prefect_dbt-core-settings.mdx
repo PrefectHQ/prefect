@@ -1,0 +1,60 @@
+---
+title: settings
+sidebarTitle: settings
+---
+
+# `prefect_dbt.core.settings`
+
+
+
+A class for configuring or automatically discovering settings to be used with PrefectDbtRunner.
+
+
+## Classes
+
+### `PrefectDbtSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+dbt settings that directly affect the PrefectDbtRunner.
+These settings will be collected automatically from their corresponding 'DBT_'-prefixed environment variables.
+If a setting is not set in the environment or in the fields of this class, the default value will be used.
+
+All other dbt settings should be used as normal, e.g. in the dbt_project.yml file, env vars, or kwargs to `invoke()`.
+
+
+**Methods:**
+
+#### `load_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+load_profiles_yml(self) -> dict[str, Any]
+```
+
+Load and parse the profiles.yml file.
+
+**Returns:**
+- Dict containing the parsed profiles.yml contents
+
+**Raises:**
+- `ValueError`: If profiles.yml is not found
+
+
+#### `resolve_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+resolve_profiles_yml(self) -> Generator[str, None, None]
+```
+
+Context manager that creates a temporary directory with a resolved profiles.yml file.
+
+**Args:**
+- `include_profiles`: Whether to include the resolved profiles.yml in the yield.
+
+Example:
+```python
+    with resolve_profiles_yml() as temp_dir:
+        # temp_dir contains resolved profiles.yml
+        # use temp_dir for dbt operations
+    # temp_dir is automatically cleaned up
+```
+
