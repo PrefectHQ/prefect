@@ -544,7 +544,28 @@
                 "group": "GitHub",
                 "pages": [
                   "integrations/prefect-github/index",
-                  "integrations/prefect-github/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-github/api-ref/prefect_github-credentials",
+                      "integrations/prefect-github/api-ref/prefect_github-exceptions",
+                      "integrations/prefect-github/api-ref/prefect_github-graphql",
+                      "integrations/prefect-github/api-ref/prefect_github-mutations",
+                      "integrations/prefect-github/api-ref/prefect_github-organization",
+                      "integrations/prefect-github/api-ref/prefect_github-repository",
+                      "integrations/prefect-github/api-ref/prefect_github-repository_owner",
+                      "integrations/prefect-github/api-ref/prefect_github-user",
+                      "integrations/prefect-github/api-ref/prefect_github-utils",
+                      "integrations/prefect-github/api-ref/prefect_github-viewer",
+                      {
+                        "group": "prefect_github.schemas",
+                        "pages": [
+                          "integrations/prefect-github/api-ref/prefect_github-schemas-__init__",
+                          "integrations/prefect-github/api-ref/prefect_github-schemas-graphql_schema"
+                        ]
+                      }
+                    ]
+                  }
                 ]
               },
               {

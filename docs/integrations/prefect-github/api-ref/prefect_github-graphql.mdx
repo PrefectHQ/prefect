@@ -1,0 +1,103 @@
+---
+title: graphql
+sidebarTitle: graphql
+---
+
+# `prefect_github.graphql`
+
+
+
+This is a module containing generic GraphQL tasks
+
+
+## Functions
+
+### `aexecute_graphql` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/graphql.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aexecute_graphql(op: Union[Operation, str], github_credentials: GitHubCredentials, error_key: str = 'errors', **vars) -> Dict[str, Any]
+```
+
+
+Async version of execute_graphql. See execute_graphql for full documentation.
+
+
+### `execute_graphql` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/graphql.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute_graphql(op: Union[Operation, str], github_credentials: GitHubCredentials, error_key: str = 'errors', **vars) -> Dict[str, Any]
+```
+
+
+Generic function for executing GraphQL operations.
+
+**Args:**
+- `op`: The operation, either as a valid GraphQL string or sgqlc.Operation.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `error_key`: The key name to look out for in the response
+that indicates an error has occurred with the request.
+
+**Returns:**
+- A dict of the returned fields.
+
+**Examples:**
+
+Queries the first three issues from the Prefect repository
+using a string query.
+```python
+from prefect import flow
+from prefect_github import GitHubCredentials
+from prefect_github.graphql import execute_graphql
+
+@flow()
+def example_execute_graphql_flow():
+    op = '''
+        query GitHubRepoIssues($owner: String!, $name: String!) {
+            repository(owner: $owner, name: $name) {
+                issues(last: 3) {
+                    nodes {
+                        number
+                        title
+                    }
+                }
+            }
+        }
+    '''
+    token = "ghp_..."
+    github_credentials = GitHubCredentials(token=token)
+    params = dict(owner="PrefectHQ", name="Prefect")
+    result = execute_graphql(op, github_credentials, **params)
+    return result
+
+example_execute_graphql_flow()
+```
+
+Queries the first three issues from Prefect repository
+using a sgqlc.Operation.
+```python
+from prefect import flow
+from sgqlc.operation import Operation
+from prefect_github import GitHubCredentials
+from prefect_github.schemas import graphql_schema
+from prefect_github.graphql import execute_graphql
+
+@flow()
+def example_execute_graphql_flow():
+    op = Operation(graphql_schema.Query)
+    op_settings = op.repository(
+        owner="PrefectHQ", name="Prefect"
+    ).issues(
+        first=3
+    ).nodes()
+    op_settings.__fields__("id", "title")
+    token = "ghp_..."
+    github_credentials = GitHubCredentials(token=token)
+    result = execute_graphql(
+        op,
+        github_credentials,
+    )
+    return result
+
+example_execute_graphql_flow()
+```
+
