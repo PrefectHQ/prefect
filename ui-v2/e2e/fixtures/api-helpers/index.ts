@@ -1,4 +1,14 @@
 export {
+	type Artifact,
+	cleanupArtifacts,
+	createArtifact,
+	createLinkArtifact,
+	createMarkdownArtifact,
+	createTableArtifact,
+	deleteArtifact,
+	listArtifacts,
+} from "./artifacts";
+export {
 	type Automation,
 	cleanupAutomations,
 	deleteAutomation,
