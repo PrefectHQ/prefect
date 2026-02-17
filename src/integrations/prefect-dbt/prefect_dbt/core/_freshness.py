@@ -112,7 +112,13 @@ def parse_source_freshness_results(
                     max_loaded_at_str.replace("Z", "+00:00")
                 )
             except (ValueError, AttributeError):
-                pass
+                logger.debug(
+                    "Could not parse max_loaded_at timestamp %r for source %s; "
+                    "freshness-based cache expiration will not apply to "
+                    "downstream nodes of this source",
+                    max_loaded_at_str,
+                    unique_id,
+                )
 
         snapshotted_at_str = entry.get("snapshotted_at")
         if snapshotted_at_str:
@@ -121,7 +127,12 @@ def parse_source_freshness_results(
                     snapshotted_at_str.replace("Z", "+00:00")
                 )
             except (ValueError, AttributeError):
-                pass
+                logger.debug(
+                    "Could not parse snapshotted_at timestamp %r for source %s; "
+                    "elapsed-time adjustment will be skipped for this source",
+                    snapshotted_at_str,
+                    unique_id,
+                )
 
         # Parse thresholds from criteria
         criteria = entry.get("criteria", {})
