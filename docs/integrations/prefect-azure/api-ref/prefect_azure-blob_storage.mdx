@@ -1,0 +1,349 @@
+---
+title: blob_storage
+sidebarTitle: blob_storage
+---
+
+# `prefect_azure.blob_storage`
+
+
+Integrations for interacting with Azure Blob Storage
+
+## Functions
+
+### `blob_storage_download` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+blob_storage_download(container: str, blob: str, blob_storage_credentials: 'AzureBlobStorageCredentials') -> bytes
+```
+
+
+Downloads a blob with a given key from a given Blob Storage container.
+Args:
+    blob: Name of the blob within this container to retrieve.
+    container: Name of the Blob Storage container to retrieve from.
+    blob_storage_credentials: Credentials to use for authentication with Azure.
+Returns:
+    A `bytes` representation of the downloaded blob.
+Example:
+    Download a file from a Blob Storage container
+    ```python
+    from prefect import flow
+
+    from prefect_azure import AzureBlobStorageCredentials
+    from prefect_azure.blob_storage import blob_storage_download
+
+    @flow
+    def example_blob_storage_download_flow():
+        connection_string = "connection_string"
+        blob_storage_credentials = AzureBlobStorageCredentials(
+            connection_string=connection_string,
+        )
+        data = blob_storage_download(
+            container="prefect",
+            blob="prefect.txt",
+            blob_storage_credentials=blob_storage_credentials,
+        )
+        return data
+
+    example_blob_storage_download_flow()
+    ```
+
+
+### `blob_storage_upload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+blob_storage_upload(data: bytes, container: str, blob_storage_credentials: 'AzureBlobStorageCredentials', blob: Optional[str] = None, overwrite: bool = False) -> str
+```
+
+
+Uploads data to an Blob Storage container.
+Args:
+    data: Bytes representation of data to upload to Blob Storage.
+    container: Name of the Blob Storage container to upload to.
+    blob_storage_credentials: Credentials to use for authentication with Azure.
+    blob: Name of the blob within this container to retrieve.
+    overwrite: If `True`, an existing blob with the same name will be overwritten.
+        Defaults to `False` and an error will be thrown if the blob already exists.
+Returns:
+    The blob name of the uploaded object
+Example:
+    Read and upload a file to a Blob Storage container
+    ```python
+    from prefect import flow
+
+    from prefect_azure import AzureBlobStorageCredentials
+    from prefect_azure.blob_storage import blob_storage_upload
+
+    @flow
+    def example_blob_storage_upload_flow():
+        connection_string = "connection_string"
+        blob_storage_credentials = AzureBlobStorageCredentials(
+            connection_string=connection_string,
+        )
+        with open("data.csv", "rb") as f:
+            blob = blob_storage_upload(
+                data=f.read(),
+                container="container",
+                blob="data.csv",
+                blob_storage_credentials=blob_storage_credentials,
+                overwrite=False,
+            )
+        return blob
+
+    example_blob_storage_upload_flow()
+    ```
+
+
+### `blob_storage_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+blob_storage_list(container: str, blob_storage_credentials: 'AzureBlobStorageCredentials', name_starts_with: Optional[str] = None, include: Union[str, List[str], None] = None, **kwargs) -> List['BlobProperties']
+```
+
+
+List objects from a given Blob Storage container.
+Args:
+    container: Name of the Blob Storage container to retrieve from.
+    blob_storage_credentials: Credentials to use for authentication with Azure.
+    name_starts_with: Filters the results to return only blobs whose names
+        begin with the specified prefix.
+    include: Specifies one or more additional datasets to include in the response.
+        Options include: 'snapshots', 'metadata', 'uncommittedblobs', 'copy',
+        'deleted', 'deletedwithversions', 'tags', 'versions', 'immutabilitypolicy',
+        'legalhold'.
+    **kwargs: Additional kwargs passed to `ContainerClient.list_blobs()`
+Returns:
+    A `list` of `dict`s containing metadata about the blob.
+Example:
+    ```python
+    from prefect import flow
+
+    from prefect_azure import AzureBlobStorageCredentials
+    from prefect_azure.blob_storage import blob_storage_list
+
+    @flow
+    def example_blob_storage_list_flow():
+        connection_string = "connection_string"
+        blob_storage_credentials = AzureBlobStorageCredentials(
+            connection_string="connection_string",
+        )
+        data = blob_storage_list(
+            container="container",
+            blob_storage_credentials=blob_storage_credentials,
+        )
+        return data
+
+    example_blob_storage_list_flow()
+    ```
+
+
+## Classes
+
+### `AzureBlobStorageContainer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L193" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Represents a container in Azure Blob Storage.
+
+This class provides methods for downloading and uploading files and folders
+to and from the Azure Blob Storage container.
+
+**Attributes:**
+- `container_name`: The name of the Azure Blob Storage container.
+- `credentials`: The credentials to use for authentication with Azure.
+- `base_folder`: A base path to a folder within the container to use
+for reading and writing objects.
+
+
+**Methods:**
+
+#### `download_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_folder_to_path(self, from_folder: str, to_folder: Union[str, Path], **download_kwargs: Dict[str, Any]) -> Coroutine[Any, Any, Path]
+```
+
+Download a folder from the container to a local path.
+
+**Args:**
+- `from_folder`: The folder path in the container to download.
+- `to_folder`: The local path to download the folder to.
+- `**download_kwargs`: Additional keyword arguments passed into
+`BlobClient.download_blob`.
+
+**Returns:**
+- The local path where the folder was downloaded.
+
+
+#### `download_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_object_to_file_object(self, from_path: str, to_file_object: BinaryIO, **download_kwargs: Dict[str, Any]) -> Coroutine[Any, Any, BinaryIO]
+```
+
+Downloads an object from the container to a file object.
+
+**Args:**
+- `from_path `: The path of the object to download within the container.
+- `to_file_object`: The file object to download the object to.
+- `**download_kwargs`: Additional keyword arguments for the download
+operation.
+
+**Returns:**
+- The file object that the object was downloaded to.
+
+
+#### `download_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_object_to_path(self, from_path: str, to_path: Union[str, Path], **download_kwargs: Dict[str, Any]) -> Coroutine[Any, Any, Path]
+```
+
+Downloads an object from a container to a specified path.
+
+**Args:**
+- `from_path`: The path of the object in the container.
+- `to_path`: The path where the object will be downloaded to.
+- `**download_kwargs`: Additional keyword arguments
+for the download operation.
+
+**Returns:**
+- The path where the object was downloaded to.
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L624" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Downloads the contents of a direry from the blob storage to a local path.
+
+Used to enable flow code storage for deployments.
+
+**Args:**
+- `from_path`: The path of the directory in the blob storage.
+- `local_path`: The local path where the directory will be downloaded.
+
+
+#### `list_blobs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L718" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_blobs(self) -> List[str]
+```
+
+Lists blobs available within the specified Azure container.
+
+Used to introspect your containers.
+
+**Returns:**
+- A list of the blobs within your container.
+
+
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L639" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
+```
+
+Uploads a directory to the blob storage.
+
+Used to enable flow code storage for deployments.
+
+**Args:**
+- `local_path`: The local path of the directory to upload. Defaults to
+current directory.
+- `to_path`: The destination path in the blob storage. Defaults to
+root directory.
+- `ignore_file`: The path to a file containing patterns to ignore
+during upload.
+
+
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L688" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_path(self, path: str) -> bytes
+```
+
+Reads the contents of a file at the specified path and returns it as bytes.
+
+Used to enable results storage.
+
+**Args:**
+- `path`: The path of the file to read.
+
+**Returns:**
+- The contents of the file as bytes.
+
+
+#### `upload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_file_object(self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]) -> Coroutine[Any, Any, str]
+```
+
+Uploads an object from a file object to the specified path in the blob
+    storage container.
+
+**Args:**
+- `from_file_object`: The file object to upload.
+- `to_path`: The path in the blob storage container to upload the
+object to.
+- `**upload_kwargs`: Additional keyword arguments to pass to the
+upload_blob method.
+
+**Returns:**
+- The path where the object was uploaded to.
+
+
+#### `upload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L552" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_folder(self, from_folder: Union[str, Path], to_folder: str, **upload_kwargs: Dict[str, Any]) -> Coroutine[Any, Any, str]
+```
+
+Uploads files from a local folder to a specified folder in the Azure
+    Blob Storage container.
+
+**Args:**
+- `from_folder`: The path to the local folder containing the files to upload.
+- `to_folder`: The destination folder in the Azure Blob Storage container.
+- `**upload_kwargs`: Additional keyword arguments to pass to the
+`upload_blob` method.
+
+**Returns:**
+- The full path of the destination folder in the container.
+
+
+#### `upload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_path(self, from_path: Union[str, Path], to_path: str, **upload_kwargs: Dict[str, Any]) -> Coroutine[Any, Any, str]
+```
+
+Uploads an object from a local path to the specified destination path in the
+    blob storage container.
+
+**Args:**
+- `from_path`: The local path of the object to upload.
+- `to_path`: The destination path in the blob storage container.
+- `**upload_kwargs`: Additional keyword arguments to pass to the
+`upload_blob` method.
+
+**Returns:**
+- The destination path in the blob storage container.
+
+
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/blob_storage.py#L705" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+write_path(self, path: str, content: bytes) -> None
+```
+
+Writes the content to the specified path in the blob storage.
+
+Used to enable results storage.
+
+**Args:**
+- `path`: The path where the content will be written.
+- `content`: The content to be written.
+

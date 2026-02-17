@@ -1,0 +1,22 @@
+---
+title: decorators
+sidebarTitle: decorators
+---
+
+# `prefect_azure.experimental.decorators`
+
+## Functions
+
+### `azure_container_instance` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/experimental/decorators.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+azure_container_instance(work_pool: str, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
+```
+
+
+Decorator that binds execution of a flow to an Azure Container Instance work pool
+
+**Args:**
+- `work_pool`: The name of the Azure Container Instance work pool to use
+- `**job_variables`: Additional job variables to use for infrastructure configuration
+

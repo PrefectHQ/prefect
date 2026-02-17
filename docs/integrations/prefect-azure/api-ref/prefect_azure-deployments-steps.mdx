@@ -1,0 +1,79 @@
+---
+title: steps
+sidebarTitle: steps
+---
+
+# `prefect_azure.deployments.steps`
+
+
+
+Prefect deployment steps for code storage and retrieval in Azure Blob Storage.
+
+These steps can be used in a `prefect.yaml` file to define the default
+push and pull steps for a group of deployments, or they can be used to
+define the push and pull steps for a specific deployment.
+
+!!! example
+    Sample `prefect.yaml` file that is configured to push and pull to and
+    from an Azure Blob Storage container:
+
+    ```yaml
+    prefect_version: ...
+    name: ...
+
+    push:
+        - prefect_azure.deployments.steps.push_to_azure_blob_storage:
+            requires: prefect-azure[blob_storage]
+            container: my-container
+            folder: my-folder
+            credentials: "{{ prefect.blocks.azure-blob-storage-credentials.dev-credentials }}"
+
+    pull:
+        - prefect_azure.deployments.steps.pull_from_azure_blob_storage:
+            requires: prefect-azure[blob_storage]
+            container: "{{ container }}"
+            folder: "{{ folder }}"
+            credentials: "{{ prefect.blocks.azure-blob-storage-credentials.dev-credentials }}"
+    ```
+
+For more information about using deployment steps, check out out the Prefect [docs](https://docs.prefect.io/latest/deploy/).
+
+
+## Functions
+
+### `push_to_azure_blob_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/deployments/steps.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+push_to_azure_blob_storage(container: str, folder: str, credentials: Dict[str, str], ignore_file: Optional[str] = '.prefectignore')
+```
+
+
+Pushes to an Azure Blob Storage container.
+
+**Args:**
+- `container`: The name of the container to push files to
+- `folder`: The folder within the container to push to
+- `credentials`: A dictionary of credentials with keys `connection_string` or
+`account_url` and values of the corresponding connection string or
+account url. If both are provided, `connection_string` will be used.
+- `ignore_file`: The path to a file containing patterns of files to ignore when
+pushing to Azure Blob Storage. If not provided, the default `.prefectignore`
+file will be used.
+
+
+### `pull_from_azure_blob_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/deployments/steps.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+pull_from_azure_blob_storage(container: str, folder: str, credentials: Dict[str, str])
+```
+
+
+Pulls from an Azure Blob Storage container.
+
+**Args:**
+- `container`: The name of the container to pull files from
+- `folder`: The folder within the container to pull from
+- `credentials`: A dictionary of credentials with keys `connection_string` or
+`account_url` and values of the corresponding connection string or
+account url. If both are provided, `connection_string` will be used.
+
