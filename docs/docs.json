@@ -698,7 +698,13 @@
                 "group": "SQLAlchemy",
                 "pages": [
                   "integrations/prefect-sqlalchemy/index",
-                  "integrations/prefect-sqlalchemy/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-sqlalchemy/api-ref/prefect_sqlalchemy-credentials",
+                      "integrations/prefect-sqlalchemy/api-ref/prefect_sqlalchemy-database"
+                    ]
+                  }
                 ]
               }
             ]
