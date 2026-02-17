@@ -1,0 +1,1564 @@
+---
+title: repository
+sidebarTitle: repository
+---
+
+# `prefect_github.repository`
+
+
+
+This is a module containing:
+GitHub query_repository* tasks and the GitHub storage block.
+
+
+## Functions
+
+### `query_repository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The query root of GitHub's GraphQL interface.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a repository
+referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_ref(owner: str, name: str, qualified_name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Fetch a given ref from the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `qualified_name`: The ref to retrieve. Fully qualified matches are
+checked in order (`refs/heads/master`) before falling back
+onto checks for short name matches (`master`).
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_refs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_refs(owner: str, name: str, ref_prefix: str, github_credentials: GitHubCredentials, follow_renames: bool = True, query: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, direction: graphql_schema.OrderDirection = None, order_by: graphql_schema.RefOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Fetch a list of refs from the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `ref_prefix`: A ref name prefix like `refs/heads/`, `refs/tags/`,
+etc.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `query`: Filters refs with query on name.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `direction`: DEPRECATED\: use orderBy. The ordering direction.
+- `order_by`: Ordering options for refs returned from the connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_owner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_owner(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The User owner of the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_forks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_forks(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, privacy: graphql_schema.RepositoryPrivacy = None, order_by: graphql_schema.RepositoryOrder = None, affiliations: Iterable[graphql_schema.RepositoryAffiliation] = None, owner_affiliations: Iterable[graphql_schema.RepositoryAffiliation] = ('OWNER', 'COLLABORATOR'), is_locked: Optional[bool] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of direct forked repositories.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `privacy`: If non-null, filters repositories according to privacy.
+- `order_by`: Ordering options for repositories returned from the
+connection.
+- `affiliations`: Array of viewer's affiliation options for
+repositories returned from the connection. For example,
+OWNER will include only repositories that the current viewer
+owns.
+- `owner_affiliations`: Array of owner's affiliation options for
+repositories returned from the connection. For example,
+OWNER will include only repositories that the organization
+or user being viewed owns.
+- `is_locked`: If non-null, filters repositories according to whether
+they have been locked.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_issue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L499" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_issue(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a single issue from the current repository by number.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `number`: The number for the issue to be returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_label` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_label(owner: str, name: str, label_name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a single label by name.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `label_name`: Label name.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_issues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L599" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_issues(owner: str, name: str, labels: Iterable[str], states: Iterable[graphql_schema.IssueState], github_credentials: GitHubCredentials, follow_renames: bool = True, order_by: graphql_schema.IssueOrder = None, filter_by: graphql_schema.IssueFilters = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of issues that have been opened in the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `labels`: A list of label names to filter the pull requests by.
+- `states`: A list of states to filter the issues by.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `order_by`: Ordering options for issues returned from the
+connection.
+- `filter_by`: Filtering options for issues returned from the
+connection.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L674" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_labels(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, order_by: graphql_schema.LabelOrder = {'field': 'CREATED_AT', 'direction': 'ASC'}, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, query: Optional[str] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of labels associated with the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `order_by`: Ordering options for labels returned from the
+connection.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `query`: If provided, searches labels by name and description.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_object(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, oid: Optional[datetime] = None, expression: Optional[str] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A Git object in the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `oid`: The Git object ID.
+- `expression`: A Git revision expression suitable for rev-parse.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_project` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L795" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_project(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Find project by number.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `number`: The project number to find.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L845" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_release(owner: str, name: str, tag_name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Lookup a single release given various criteria.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `tag_name`: The name of the Tag the Release was created from.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_projects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L895" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_projects(owner: str, name: str, states: Iterable[graphql_schema.ProjectState], github_credentials: GitHubCredentials, follow_renames: bool = True, order_by: graphql_schema.ProjectOrder = None, search: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of projects under the owner.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `states`: A list of states to filter the projects by.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `order_by`: Ordering options for projects returned from the
+connection.
+- `search`: Query to search projects by, currently only searching
+by name.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_packages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L967" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_packages(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, names: Optional[Iterable[str]] = None, repository_id: Optional[str] = None, package_type: graphql_schema.PackageType = None, order_by: graphql_schema.PackageOrder = {'field': 'CREATED_AT', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of packages under the owner.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `names`: Find packages by their names.
+- `repository_id`: Find packages in a repository by ID.
+- `package_type`: Filter registry package by type.
+- `order_by`: Ordering of the returned packages.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_releases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1043" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_releases(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.ReleaseOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+List of releases which are dependent on this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `order_by`: Order for connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_watchers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_watchers(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of users watching the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_languages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_languages(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.LanguageOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list containing a breakdown of the language composition of the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `order_by`: Order for connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_milestone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_milestone(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a single milestone from the current repository by number.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `number`: The number for the milestone to be returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_project_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1282" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_project_v2(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Finds and returns the Project according to the provided Project number.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `number`: The Project number.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_stargazers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_stargazers(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.StarOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of users who have starred this starrable.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `order_by`: Order for connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_deploy_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1396" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_deploy_keys(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of deploy keys that are on this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_discussion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_discussion(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a single discussion from the current repository by number.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `number`: The number for the discussion to be returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_milestones` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1507" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_milestones(owner: str, name: str, states: Iterable[graphql_schema.MilestoneState], github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.MilestoneOrder = None, query: Optional[str] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of milestones associated with the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `states`: Filter by the state of the milestones.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `order_by`: Ordering options for milestones.
+- `query`: Filters milestones with a query on the title.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_projects_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1577" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_projects_v2(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, query: Optional[str] = None, order_by: graphql_schema.ProjectV2Order = {'field': 'NUMBER', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+List of projects linked to this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `query`: A project to search for linked to the repo.
+- `order_by`: How to order the returned projects.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_submodules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1644" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_submodules(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a list of all submodules in this repository parsed from the .gitmodules
+file as of the default branch's HEAD commit.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before the
+specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_license_info` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1706" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_license_info(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The license associated with the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1750" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_deployments(owner: str, name: str, environments: Iterable[str], github_credentials: GitHubCredentials, follow_renames: bool = True, order_by: graphql_schema.DeploymentOrder = {'field': 'CREATED_AT', 'direction': 'ASC'}, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Deployments associated with the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `environments`: Environments to list deployments for.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `order_by`: Ordering options for deployments returned from the
+connection.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_discussions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_discussions(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, category_id: Optional[str] = None, order_by: graphql_schema.DiscussionOrder = {'field': 'UPDATED_AT', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of discussions that have been opened in the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `category_id`: Only include discussions that belong to the
+category with this ID.
+- `order_by`: Ordering options for discussions returned from the
+connection.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_environment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1893" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_environment(owner: str, name: str, environment_name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a single active environment from the current repository by name.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `environment_name`: The name of the environment to be returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_project_next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1943" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_project_next(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Finds and returns the Project (beta) according to the provided Project (beta)
+number.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `number`: The ProjectNext number.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1994" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_pull_request(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a single pull request from the current repository by number.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `number`: The number for the pull request to be returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_contact_links` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_contact_links(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a list of contact links associated to the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_environments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2088" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_environments(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of environments that are in this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after the
+specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_funding_links` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_funding_links(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The funding links for this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_pinned_issues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2193" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_pinned_issues(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of pinned issues for this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_projects_next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2254" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_projects_next(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, query: Optional[str] = None, sort_by: graphql_schema.ProjectNextOrderField = 'TITLE', return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+List of projects (beta) linked to this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `query`: A project (beta) to search for linked to the repo.
+- `sort_by`: How to order the returned project (beta) objects.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_pull_requests` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2321" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_pull_requests(owner: str, name: str, states: Iterable[graphql_schema.PullRequestState], labels: Iterable[str], github_credentials: GitHubCredentials, follow_renames: bool = True, head_ref_name: Optional[str] = None, base_ref_name: Optional[str] = None, order_by: graphql_schema.IssueOrder = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of pull requests that have been opened in the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `states`: A list of states to filter the pull requests by.
+- `labels`: A list of label names to filter the pull requests
+by.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `head_ref_name`: The head ref name to filter the pull
+requests by.
+- `base_ref_name`: The base ref name to filter the pull
+requests by.
+- `order_by`: Ordering options for pull requests returned from
+the connection.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_code_of_conduct` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2401" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_code_of_conduct(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns the code of conduct for this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_collaborators` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2445" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_collaborators(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, affiliation: graphql_schema.CollaboratorAffiliation = None, query: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of collaborators associated with the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `affiliation`: Collaborators affiliation level with a
+repository.
+- `query`: Filters users with query on user name and login.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come before
+the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_latest_release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2513" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_latest_release(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Get the latest release for the repository if one exists.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_recent_projects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2557" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_recent_projects(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Recent projects that this user has modified in the context of the owner.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_commit_comments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_commit_comments(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of commit comments associated with the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_issue_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2679" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_issue_templates(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a list of issue templates associated to the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_assignable_users` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2723" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_assignable_users(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, query: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of users that can be assigned to issues in this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `query`: Filters users with query on user name and login.
+- `after`: Returns the elements in the list that come after
+the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_primary_language` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2787" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_primary_language(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The primary language of the repository's code.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_default_branch_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2831" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_default_branch_ref(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The Ref associated with the repository's default branch.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_mentionable_users` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2875" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_mentionable_users(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, query: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of Users that can be mentioned in the context of the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `query`: Filters users with query on user name and login.
+- `after`: Returns the elements in the list that come
+after the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_repository_topics` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2939" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_repository_topics(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of applied repository-topic associations for this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come
+after the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_pinned_discussions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3000" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_pinned_discussions(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of discussions that have been pinned in this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come
+after the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_discussion_category` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3061" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_discussion_category(owner: str, name: str, slug: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A discussion category by slug.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `slug`: The slug of the discussion category to be
+returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_interaction_ability` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_interaction_ability(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+The interaction ability settings for this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_issue_or_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_issue_or_pull_request(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a single issue-like object from the current repository by number.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `number`: The number for the issue to be returned.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_vulnerability_alerts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_vulnerability_alerts(owner: str, name: str, states: Iterable[graphql_schema.RepositoryVulnerabilityAlertState], dependency_scopes: Iterable[graphql_schema.RepositoryVulnerabilityAlertDependencyScope], github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of vulnerability alerts that are on this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `states`: Filter by the state of the alert.
+- `dependency_scopes`: Filter by the scope of the
+alert's dependency.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come
+after the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the
+list.
+- `last`: Returns the last _n_ elements from the list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_discussion_categories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_discussion_categories(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, filter_by_assignable: bool = False, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of discussion categories that are available in the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that come
+after the specified cursor.
+- `before`: Returns the elements in the list that come
+before the specified cursor.
+- `first`: Returns the first _n_ elements from the
+list.
+- `last`: Returns the last _n_ elements from the list.
+- `filter_by_assignable`: Filter by categories that
+are assignable by the viewer.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_pull_request_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3343" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_pull_request_templates(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+Returns a list of pull request templates associated to the repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+### `query_repository_branch_protection_rules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3387" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+query_repository_branch_protection_rules(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
+```
+
+
+A list of branch protection rules for this repository.
+
+**Args:**
+- `owner`: The login field of a user or organization.
+- `name`: The name of the repository.
+- `github_credentials`: Credentials to use for authentication with GitHub.
+- `follow_renames`: Follow repository renames. If disabled, a
+repository referenced by its old name will return an error.
+- `after`: Returns the elements in the list that
+come after the specified cursor.
+- `before`: Returns the elements in the list that
+come before the specified cursor.
+- `first`: Returns the first _n_ elements from the
+list.
+- `last`: Returns the last _n_ elements from the
+list.
+- `return_fields`: Subset the return fields (as snake_case); defaults to
+fields listed in configs/query/*.json.
+
+**Returns:**
+- A dict of the returned fields.
+
+
+## Classes
+
+### `GitHubRepository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Interact with files stored on GitHub repositories.
+
+
+**Methods:**
+
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Clones a GitHub project specified in `from_path` to the provided `local_path`;
+defaults to cloning the repository reference configured on the Block to the
+present working directory. Async version.
+
+**Args:**
+- `from_path`: If provided, interpreted as a subdirectory of the underlying
+repository that will be copied to the provided local path.
+- `local_path`: A local path to clone to; defaults to present working directory.
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
+```
+
+Clones a GitHub project specified in `from_path` to the provided `local_path`;
+defaults to cloning the repository reference configured on the Block to the
+present working directory.
+
+**Args:**
+- `from_path`: If provided, interpreted as a subdirectory of the underlying
+repository that will be copied to the provided local path.
+- `local_path`: A local path to clone to; defaults to present working directory.
+
