@@ -384,6 +384,19 @@ class Consumer(_Consumer):
                 break
 
             for message_id, message in claimed_messages:
+                if message is None:
+                    msg_id_str = (
+                        message_id.decode()
+                        if isinstance(message_id, bytes)
+                        else message_id
+                    )
+                    logger.warning(
+                        "Skipping orphan pending entry %s "
+                        "(stream entry missing, acknowledging to prevent re-claim)",
+                        msg_id_str,
+                    )
+                    await acker(message_id)
+                    continue
                 await self._handle_message(message_id, message, handler, acker)
 
             start_id = next_start_id
@@ -416,6 +429,12 @@ class Consumer(_Consumer):
                             )
                         except StopConsumer:
                             return
+                        except Exception:
+                            logger.exception(
+                                "Error processing pending messages in "
+                                "consumer %s, continuing",
+                                self.name,
+                            )
 
                     # Read new messages
                     try:
@@ -444,6 +463,13 @@ class Consumer(_Consumer):
                                 )
                             except StopConsumer:
                                 return
+                            except Exception:
+                                logger.exception(
+                                    "Error handling message %s in "
+                                    "consumer %s, continuing",
+                                    message_id,
+                                    self.name,
+                                )
 
             except RedisError as e:
                 # Connection lost or Redis error - log and retry with backoff
