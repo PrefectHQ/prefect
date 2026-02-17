@@ -666,9 +666,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         current_pod_annotations = current_pod_metadata.get("annotations", {})
         all_annotations = {**current_pod_annotations, **merged_annotations}
 
-        current_pod_metadata["annotations"] = {
-            _slugify_label_key(k): v for k, v in all_annotations.items()
-        }
+        current_pod_metadata["annotations"] = all_annotations
         self.job_manifest["spec"]["template"]["metadata"] = current_pod_metadata
 
 
