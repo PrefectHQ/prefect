@@ -1,0 +1,46 @@
+---
+title: observer
+sidebarTitle: observer
+---
+
+# `prefect_kubernetes.observer`
+
+## Functions
+
+### `configure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+configure(settings: kopf.OperatorSettings, **_)
+```
+
+### `initialize_clients` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+initialize_clients(logger: kopf.Logger, **kwargs: Any)
+```
+
+### `cleanup_fn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cleanup_fn(logger: kopf.Logger, **kwargs: Any)
+```
+
+### `start_observer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+start_observer()
+```
+
+
+Start the observer in a separate thread.
+
+
+### `stop_observer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/observer.py#L502" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+stop_observer()
+```
+
+
+Stop the observer thread.
+

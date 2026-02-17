@@ -643,7 +643,30 @@
                 "group": "Kubernetes",
                 "pages": [
                   "integrations/prefect-kubernetes/index",
-                  "integrations/prefect-kubernetes/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-credentials",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-custom_objects",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-deployments",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-exceptions",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-flows",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-jobs",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-observer",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-pods",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-services",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-settings",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-utilities",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-worker",
+                      {
+                        "group": "prefect_kubernetes.experimental",
+                        "pages": [
+                          "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-experimental-__init__",
+                          "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-experimental-decorators"
+                        ]
+                      }
+                    ]
+                  }
                 ]
               },
               {
