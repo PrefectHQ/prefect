@@ -1,0 +1,120 @@
+---
+title: cloud_run_v2
+sidebarTitle: cloud_run_v2
+---
+
+# `prefect_gcp.workers.cloud_run_v2`
+
+## Classes
+
+### `CloudRunWorkerJobV2Configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The configuration for the Cloud Run worker V2.
+
+The schema for this class is used to populate the `job_body` section of the
+default base job template.
+
+
+**Methods:**
+
+#### `job_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+job_name(self) -> str
+```
+
+Returns the name of the job.
+
+**Returns:**
+- The name of the job.
+
+
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L209" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: Optional['DeploymentResponse'] = None, flow: Optional['Flow'] = None, work_pool: Optional['WorkPool'] = None, worker_name: Optional[str] = None, worker_id: Optional['UUID'] = None)
+```
+
+Prepares the job configuration for a flow run.
+
+Ensures that necessary values are present in the job body and that the
+job body is valid.
+
+**Args:**
+- `flow_run`: The flow run to prepare the job configuration for
+- `deployment`: The deployment associated with the flow run used for
+preparation.
+- `flow`: The flow associated with the flow run used for preparation.
+- `work_pool`: The work pool associated with the flow run used for preparation.
+- `worker_name`: The worker name associated with the flow run used for preparation.
+
+
+#### `project` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+project(self) -> str
+```
+
+Returns the GCP project associated with the credentials.
+
+**Returns:**
+- The GCP project associated with the credentials.
+
+
+### `CloudRunWorkerV2Variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Default variables for the v2 Cloud Run worker.
+
+The schema for this class is used to populate the `variables` section of the
+default base job template.
+
+
+### `CloudRunWorkerV2Result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The result of a Cloud Run worker V2 job.
+
+
+### `CloudRunWorkerV2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L625" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The Cloud Run worker V2.
+
+
+**Methods:**
+
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+kill_infrastructure(self, infrastructure_pid: str, configuration: CloudRunWorkerJobV2Configuration, grace_seconds: int = 30) -> None
+```
+
+Kill a Cloud Run V2 Job by deleting it.
+
+**Args:**
+- `infrastructure_pid`: The job name.
+- `configuration`: The job configuration used to connect to GCP.
+- `grace_seconds`: Not used for Cloud Run V2 (GCP handles graceful shutdown).
+
+**Raises:**
+- `InfrastructureNotFound`: If the job doesn't exist.
+
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/workers/cloud_run_v2.py#L644" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, flow_run: 'FlowRun', configuration: CloudRunWorkerJobV2Configuration, task_status: Optional[TaskStatus] = None) -> CloudRunWorkerV2Result
+```
+
+Runs the flow run on Cloud Run and waits for it to complete.
+
+**Args:**
+- `flow_run`: The flow run to run.
+- `configuration`: The configuration for the job.
+- `task_status`: The task status to update.
+
+**Returns:**
+- The result of the job.
+

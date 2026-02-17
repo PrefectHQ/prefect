@@ -1,0 +1,869 @@
+---
+title: bigquery
+sidebarTitle: bigquery
+---
+
+# `prefect_gcp.bigquery`
+
+
+Tasks for interacting with GCP BigQuery
+
+## Functions
+
+### `abigquery_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+abigquery_query(query: str, gcp_credentials: GcpCredentials, query_params: Optional[List[tuple]] = None, dry_run_max_bytes: Optional[int] = None, dataset: Optional[str] = None, table: Optional[str] = None, to_dataframe: bool = False, job_config: Optional[dict] = None, project: Optional[str] = None, result_transformer: Optional[Callable[[List['Row']], Any]] = None, location: str = 'US') -> Any
+```
+
+
+Runs a BigQuery query (async version).
+
+**Args:**
+- `query`: String of the query to execute.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `query_params`: List of 3-tuples specifying BigQuery query parameters; currently
+only scalar query parameters are supported.  See the
+[Google documentation](https\://cloud.google.com/bigquery/docs/parameterized-queries#bigquery-query-params-python)
+for more details on how both the query and the query parameters should be formatted.
+- `dry_run_max_bytes`: If provided, the maximum number of bytes the query
+is allowed to process; this will be determined by executing a dry run
+and raising a `ValueError` if the maximum is exceeded.
+- `dataset`: Name of a destination dataset to write the query results to,
+if you don't want them returned; if provided, `table` must also be provided.
+- `table`: Name of a destination table to write the query results to,
+if you don't want them returned; if provided, `dataset` must also be provided.
+- `to_dataframe`: If provided, returns the results of the query as a pandas
+dataframe instead of a list of `bigquery.table.Row` objects.
+- `job_config`: Dictionary of job configuration parameters;
+note that the parameters provided here must be pickleable
+(e.g., dataset references will be rejected).
+- `project`: The project to initialize the BigQuery Client with; if not
+provided, will default to the one inferred from your credentials.
+- `result_transformer`: Function that can be passed to transform the result of a query before returning. The function will be passed the list of rows returned by BigQuery for the given query.
+- `location`: Location of the dataset that will be queried.
+
+**Returns:**
+- A list of rows, or pandas DataFrame if to_dataframe,
+- matching the query criteria.
+
+
+### `bigquery_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+bigquery_query(query: str, gcp_credentials: GcpCredentials, query_params: Optional[List[tuple]] = None, dry_run_max_bytes: Optional[int] = None, dataset: Optional[str] = None, table: Optional[str] = None, to_dataframe: bool = False, job_config: Optional[dict] = None, project: Optional[str] = None, result_transformer: Optional[Callable[[List['Row']], Any]] = None, location: str = 'US') -> Any
+```
+
+
+Runs a BigQuery query.
+
+**Args:**
+- `query`: String of the query to execute.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `query_params`: List of 3-tuples specifying BigQuery query parameters; currently
+only scalar query parameters are supported.  See the
+[Google documentation](https\://cloud.google.com/bigquery/docs/parameterized-queries#bigquery-query-params-python)
+for more details on how both the query and the query parameters should be formatted.
+- `dry_run_max_bytes`: If provided, the maximum number of bytes the query
+is allowed to process; this will be determined by executing a dry run
+and raising a `ValueError` if the maximum is exceeded.
+- `dataset`: Name of a destination dataset to write the query results to,
+if you don't want them returned; if provided, `table` must also be provided.
+- `table`: Name of a destination table to write the query results to,
+if you don't want them returned; if provided, `dataset` must also be provided.
+- `to_dataframe`: If provided, returns the results of the query as a pandas
+dataframe instead of a list of `bigquery.table.Row` objects.
+- `job_config`: Dictionary of job configuration parameters;
+note that the parameters provided here must be pickleable
+(e.g., dataset references will be rejected).
+- `project`: The project to initialize the BigQuery Client with; if not
+provided, will default to the one inferred from your credentials.
+- `result_transformer`: Function that can be passed to transform the result of a query before returning. The function will be passed the list of rows returned by BigQuery for the given query.
+- `location`: Location of the dataset that will be queried.
+
+**Returns:**
+- A list of rows, or pandas DataFrame if to_dataframe,
+- matching the query criteria.
+
+
+### `abigquery_create_table` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L292" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+abigquery_create_table(dataset: str, table: str, gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, clustering_fields: List[str] = None, time_partitioning: 'TimePartitioning' = None, project: Optional[str] = None, location: str = 'US', external_config: Optional['ExternalConfig'] = None) -> str
+```
+
+
+Creates table in BigQuery (async version).
+Args:
+    dataset: Name of a dataset in that the table will be created.
+    table: Name of a table to create.
+    schema: Schema to use when creating the table.
+    gcp_credentials: Credentials to use for authentication with GCP.
+    clustering_fields: List of fields to cluster the table by.
+    time_partitioning: `bigquery.TimePartitioning` object specifying a partitioning
+        of the newly created table
+    project: Project to initialize the BigQuery Client with; if
+        not provided, will default to the one inferred from your credentials.
+    location: The location of the dataset that will be written to.
+    external_config: The [external data source](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_table#nested_external_data_configuration).  # noqa
+Returns:
+    Table name.
+Example:
+    ```python
+    from prefect import flow
+    from prefect_gcp import GcpCredentials
+    from prefect_gcp.bigquery import abigquery_create_table
+    from google.cloud.bigquery import SchemaField
+
+    @flow
+    async def example_bigquery_create_table_flow():
+        gcp_credentials = GcpCredentials(project="project")
+        schema = [
+            SchemaField("number", field_type="INTEGER", mode="REQUIRED"),
+            SchemaField("text", field_type="STRING", mode="REQUIRED"),
+            SchemaField("bool", field_type="BOOLEAN")
+        ]
+        result = await abigquery_create_table(
+            dataset="dataset",
+            table="test_table",
+            schema=schema,
+            gcp_credentials=gcp_credentials
+        )
+        return result
+    example_bigquery_create_table_flow()
+    ```
+
+
+### `bigquery_create_table` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L388" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+bigquery_create_table(dataset: str, table: str, gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, clustering_fields: List[str] = None, time_partitioning: 'TimePartitioning' = None, project: Optional[str] = None, location: str = 'US', external_config: Optional['ExternalConfig'] = None) -> str
+```
+
+
+Creates table in BigQuery.
+Args:
+    dataset: Name of a dataset in that the table will be created.
+    table: Name of a table to create.
+    schema: Schema to use when creating the table.
+    gcp_credentials: Credentials to use for authentication with GCP.
+    clustering_fields: List of fields to cluster the table by.
+    time_partitioning: `bigquery.TimePartitioning` object specifying a partitioning
+        of the newly created table
+    project: Project to initialize the BigQuery Client with; if
+        not provided, will default to the one inferred from your credentials.
+    location: The location of the dataset that will be written to.
+    external_config: The [external data source](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/bigquery_table#nested_external_data_configuration).  # noqa
+Returns:
+    Table name.
+Example:
+    ```python
+    from prefect import flow
+    from prefect_gcp import GcpCredentials
+    from prefect_gcp.bigquery import bigquery_create_table
+    from google.cloud.bigquery import SchemaField
+
+    @flow
+    def example_bigquery_create_table_flow():
+        gcp_credentials = GcpCredentials(project="project")
+        schema = [
+            SchemaField("number", field_type="INTEGER", mode="REQUIRED"),
+            SchemaField("text", field_type="STRING", mode="REQUIRED"),
+            SchemaField("bool", field_type="BOOLEAN")
+        ]
+        result = bigquery_create_table(
+            dataset="dataset",
+            table="test_table",
+            schema=schema,
+            gcp_credentials=gcp_credentials
+        )
+        return result
+    example_bigquery_create_table_flow()
+    ```
+
+
+### `abigquery_insert_stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+abigquery_insert_stream(dataset: str, table: str, records: List[dict], gcp_credentials: GcpCredentials, project: Optional[str] = None, location: str = 'US') -> List
+```
+
+
+Insert records in a Google BigQuery table via the [streaming
+API](https://cloud.google.com/bigquery/streaming-data-into-bigquery) (async version).
+
+**Args:**
+- `dataset`: Name of a dataset where the records will be written to.
+- `table`: Name of a table to write to.
+- `records`: The list of records to insert as rows into the BigQuery table;
+each item in the list should be a dictionary whose keys correspond to
+columns in the table.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `project`: The project to initialize the BigQuery Client with; if
+not provided, will default to the one inferred from your credentials.
+- `location`: Location of the dataset that will be written to.
+
+**Returns:**
+- List of inserted rows.
+
+
+### `bigquery_insert_stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+bigquery_insert_stream(dataset: str, table: str, records: List[dict], gcp_credentials: GcpCredentials, project: Optional[str] = None, location: str = 'US') -> List
+```
+
+
+Insert records in a Google BigQuery table via the [streaming
+API](https://cloud.google.com/bigquery/streaming-data-into-bigquery).
+
+**Args:**
+- `dataset`: Name of a dataset where the records will be written to.
+- `table`: Name of a table to write to.
+- `records`: The list of records to insert as rows into the BigQuery table;
+each item in the list should be a dictionary whose keys correspond to
+columns in the table.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `project`: The project to initialize the BigQuery Client with; if
+not provided, will default to the one inferred from your credentials.
+- `location`: Location of the dataset that will be written to.
+
+**Returns:**
+- List of inserted rows.
+
+
+### `abigquery_load_cloud_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+abigquery_load_cloud_storage(dataset: str, table: str, uri: str, gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, job_config: Optional[dict] = None, project: Optional[str] = None, location: str = 'US') -> 'LoadJob'
+```
+
+
+Run method for this Task (async version). Invoked by _calling_ this
+Task within a Flow context, after initialization.
+Args:
+    uri: GCS path to load data from.
+    dataset: The id of a destination dataset to write the records to.
+    table: The name of a destination table to write the records to.
+    gcp_credentials: Credentials to use for authentication with GCP.
+    schema: The schema to use when creating the table.
+    job_config: Dictionary of job configuration parameters;
+        note that the parameters provided here must be pickleable
+        (e.g., dataset references will be rejected).
+    project: The project to initialize the BigQuery Client with; if
+        not provided, will default to the one inferred from your credentials.
+    location: Location of the dataset that will be written to.
+
+**Returns:**
+- The response from `load_table_from_uri`.
+
+
+### `bigquery_load_cloud_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L707" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+bigquery_load_cloud_storage(dataset: str, table: str, uri: str, gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, job_config: Optional[dict] = None, project: Optional[str] = None, location: str = 'US') -> 'LoadJob'
+```
+
+
+Run method for this Task.  Invoked by _calling_ this
+Task within a Flow context, after initialization.
+Args:
+    uri: GCS path to load data from.
+    dataset: The id of a destination dataset to write the records to.
+    table: The name of a destination table to write the records to.
+    gcp_credentials: Credentials to use for authentication with GCP.
+    schema: The schema to use when creating the table.
+    job_config: Dictionary of job configuration parameters;
+        note that the parameters provided here must be pickleable
+        (e.g., dataset references will be rejected).
+    project: The project to initialize the BigQuery Client with; if
+        not provided, will default to the one inferred from your credentials.
+    location: Location of the dataset that will be written to.
+
+**Returns:**
+- The response from `load_table_from_uri`.
+
+
+### `abigquery_load_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L793" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+abigquery_load_file(dataset: str, table: str, path: Union[str, Path], gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, job_config: Optional[dict] = None, rewind: bool = False, size: Optional[int] = None, project: Optional[str] = None, location: str = 'US') -> 'LoadJob'
+```
+
+
+Loads file into BigQuery (async version).
+
+**Args:**
+- `dataset`: ID of a destination dataset to write the records to;
+if not provided here, will default to the one provided at initialization.
+- `table`: Name of a destination table to write the records to;
+if not provided here, will default to the one provided at initialization.
+- `path`: A string or path-like object of the file to be loaded.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `schema`: Schema to use when creating the table.
+- `job_config`: An optional dictionary of job configuration parameters;
+note that the parameters provided here must be pickleable
+(e.g., dataset references will be rejected).
+- `rewind`: if True, seek to the beginning of the file handle
+before reading the file.
+- `size`: Number of bytes to read from the file handle. If size is None or large,
+resumable upload will be used. Otherwise, multipart upload will be used.
+- `project`: Project to initialize the BigQuery Client with; if
+not provided, will default to the one inferred from your credentials.
+- `location`: location of the dataset that will be written to.
+
+**Returns:**
+- The response from `load_table_from_file`.
+
+
+### `bigquery_load_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L898" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+bigquery_load_file(dataset: str, table: str, path: Union[str, Path], gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, job_config: Optional[dict] = None, rewind: bool = False, size: Optional[int] = None, project: Optional[str] = None, location: str = 'US') -> 'LoadJob'
+```
+
+
+Loads file into BigQuery.
+
+**Args:**
+- `dataset`: ID of a destination dataset to write the records to;
+if not provided here, will default to the one provided at initialization.
+- `table`: Name of a destination table to write the records to;
+if not provided here, will default to the one provided at initialization.
+- `path`: A string or path-like object of the file to be loaded.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `schema`: Schema to use when creating the table.
+- `job_config`: An optional dictionary of job configuration parameters;
+note that the parameters provided here must be pickleable
+(e.g., dataset references will be rejected).
+- `rewind`: if True, seek to the beginning of the file handle
+before reading the file.
+- `size`: Number of bytes to read from the file handle. If size is None or large,
+resumable upload will be used. Otherwise, multipart upload will be used.
+- `project`: Project to initialize the BigQuery Client with; if
+not provided, will default to the one inferred from your credentials.
+- `location`: location of the dataset that will be written to.
+
+**Returns:**
+- The response from `load_table_from_file`.
+
+
+## Classes
+
+### `BigQueryWarehouse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A block for querying a database with BigQuery.
+
+Upon instantiating, a connection to BigQuery is established
+and maintained for the life of the object until the close method is called.
+
+It is recommended to use this block as a context manager, which will automatically
+close the connection and its cursors when the context is exited.
+
+It is also recommended that this block is loaded and consumed within a single task
+or flow because if the block is passed across separate tasks and flows,
+the state of the block's connection and cursor could be lost.
+
+**Attributes:**
+- `gcp_credentials`: The credentials to use to authenticate.
+- `fetch_size`: The number of rows to fetch at a time when calling fetch_many.
+Note, this parameter is executed on the client side and is not
+passed to the database. To limit on the server side, add the `LIMIT`
+clause, or the dialect's equivalent clause, like `TOP`, to the query.
+
+
+**Methods:**
+
+#### `aexecute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aexecute(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> None
+```
+
+Executes an operation on the database (async version). This method is intended
+to be used for operations that do not return data, such as INSERT, UPDATE,
+or DELETE.
+
+Unlike the fetch methods, this method will always execute the operation
+upon calling.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `parameters`: The parameters for the operation.
+- `**execution_options`: Additional options to pass to `connection.execute`.
+
+**Examples:**
+
+Execute operation with parameters:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+async with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
+    operation = '''
+        CREATE TABLE mydataset.trips AS (
+        SELECT
+            bikeid,
+            start_time,
+            duration_minutes
+        FROM
+            bigquery-public-data.austin_bikeshare.bikeshare_trips
+        LIMIT %(limit)s
+        );
+    '''
+    await warehouse.aexecute(operation, parameters={"limit": 5})
+```
+
+
+#### `aexecute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1541" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aexecute_many(self, operation: str, seq_of_parameters: List[Dict[str, Any]]) -> None
+```
+
+Executes many operations on the database (async version). This method is
+intended to be used for operations that do not return data, such as INSERT,
+UPDATE, or DELETE.
+
+Unlike the fetch methods, this method will always execute the operations
+upon calling.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `seq_of_parameters`: The sequence of parameters for the operation.
+
+**Examples:**
+
+Create mytable in mydataset and insert two rows into it:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+async with BigQueryWarehouse.load("bigquery") as warehouse:
+    create_operation = '''
+    CREATE TABLE IF NOT EXISTS mydataset.mytable (
+        col1 STRING,
+        col2 INTEGER,
+        col3 BOOLEAN
+    )
+    '''
+    await warehouse.aexecute(create_operation)
+    insert_operation = '''
+    INSERT INTO mydataset.mytable (col1, col2, col3) VALUES (%s, %s, %s)
+    '''
+    seq_of_parameters = [
+        ("a", 1, True),
+        ("b", 2, False),
+    ]
+    await warehouse.aexecute_many(
+        insert_operation,
+        seq_of_parameters=seq_of_parameters
+    )
+```
+
+
+#### `afetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+afetch_all(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> List['Row']
+```
+
+Fetch all results from the database (async version).
+
+Repeated calls using the same inputs to *any* of the fetch methods of this
+block will skip executing the operation again, and instead,
+return the next set of results from the previous execution,
+until the reset_cursors method is called.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `parameters`: The parameters for the operation.
+- `**execution_options`: Additional options to pass to `connection.execute`.
+
+**Returns:**
+- A list of tuples containing the data returned by the database,
+where each row is a tuple and each column is a value in the tuple.
+
+**Examples:**
+
+Execute operation with parameters, fetching all rows:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+async with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
+    operation = '''
+        SELECT word, word_count
+        FROM `bigquery-public-data.samples.shakespeare`
+        WHERE corpus = %(corpus)s
+        AND word_count >= %(min_word_count)s
+        ORDER BY word_count DESC
+        LIMIT 3;
+    '''
+    parameters = {
+        "corpus": "romeoandjuliet",
+        "min_word_count": 250,
+    }
+    result = await warehouse.afetch_all(operation, parameters=parameters)
+```
+
+
+#### `afetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+afetch_many(self, operation: str, parameters: Optional[Dict[str, Any]] = None, size: Optional[int] = None, **execution_options: Dict[str, Any]) -> List['Row']
+```
+
+Fetch a limited number of results from the database (async version).
+
+Repeated calls using the same inputs to *any* of the fetch methods of this
+block will skip executing the operation again, and instead,
+return the next set of results from the previous execution,
+until the reset_cursors method is called.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `parameters`: The parameters for the operation.
+- `size`: The number of results to return; if None or 0, uses the value of
+`fetch_size` configured on the block.
+- `**execution_options`: Additional options to pass to `connection.execute`.
+
+**Returns:**
+- A list of tuples containing the data returned by the database,
+where each row is a tuple and each column is a value in the tuple.
+
+**Examples:**
+
+Execute operation with parameters, fetching two new rows at a time:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+async with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
+    operation = '''
+        SELECT word, word_count
+        FROM `bigquery-public-data.samples.shakespeare`
+        WHERE corpus = %(corpus)s
+        AND word_count >= %(min_word_count)s
+        ORDER BY word_count DESC
+        LIMIT 6;
+    '''
+    parameters = {
+        "corpus": "romeoandjuliet",
+        "min_word_count": 250,
+    }
+    for _ in range(0, 3):
+        result = await warehouse.afetch_many(
+            operation,
+            parameters=parameters,
+            size=2
+        )
+        print(result)
+```
+
+
+#### `afetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1087" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+afetch_one(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> 'Row'
+```
+
+Fetch a single result from the database (async version).
+
+Repeated calls using the same inputs to *any* of the fetch methods of this
+block will skip executing the operation again, and instead,
+return the next set of results from the previous execution,
+until the reset_cursors method is called.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `parameters`: The parameters for the operation.
+- `**execution_options`: Additional options to pass to `connection.execute`.
+
+**Returns:**
+- A tuple containing the data returned by the database,
+where each row is a tuple and each column is a value in the tuple.
+
+**Examples:**
+
+Execute operation with parameters, fetching one new row at a time:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+async with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
+    operation = '''
+        SELECT word, word_count
+        FROM `bigquery-public-data.samples.shakespeare`
+        WHERE corpus = %(corpus)s
+        AND word_count >= %(min_word_count)s
+        ORDER BY word_count DESC
+        LIMIT 3;
+    '''
+    parameters = {
+        "corpus": "romeoandjuliet",
+        "min_word_count": 250,
+    }
+    for _ in range(0, 3):
+        result = await warehouse.afetch_one(operation, parameters=parameters)
+        print(result)
+```
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1034" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_initialization(self) -> None
+```
+
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1643" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+close(self)
+```
+
+Closes connection and its cursors.
+
+
+#### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> None
+```
+
+Executes an operation on the database. This method is intended to be used
+for operations that do not return data, such as INSERT, UPDATE, or DELETE.
+
+Unlike the fetch methods, this method will always execute the operation
+upon calling.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `parameters`: The parameters for the operation.
+- `**execution_options`: Additional options to pass to `connection.execute`.
+
+**Examples:**
+
+Execute operation with parameters:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
+    operation = '''
+        CREATE TABLE mydataset.trips AS (
+        SELECT
+            bikeid,
+            start_time,
+            duration_minutes
+        FROM
+            bigquery-public-data.austin_bikeshare.bikeshare_trips
+        LIMIT %(limit)s
+        );
+    '''
+    warehouse.execute(operation, parameters={"limit": 5})
+```
+
+
+#### `execute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1593" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute_many(self, operation: str, seq_of_parameters: List[Dict[str, Any]]) -> None
+```
+
+Executes many operations on the database. This method is intended to be used
+for operations that do not return data, such as INSERT, UPDATE, or DELETE.
+
+Unlike the fetch methods, this method will always execute the operations
+upon calling.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `seq_of_parameters`: The sequence of parameters for the operation.
+
+**Examples:**
+
+Create mytable in mydataset and insert two rows into it:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+with BigQueryWarehouse.load("bigquery") as warehouse:
+    create_operation = '''
+    CREATE TABLE IF NOT EXISTS mydataset.mytable (
+        col1 STRING,
+        col2 INTEGER,
+        col3 BOOLEAN
+    )
+    '''
+    warehouse.execute(create_operation)
+    insert_operation = '''
+    INSERT INTO mydataset.mytable (col1, col2, col3) VALUES (%s, %s, %s)
+    '''
+    seq_of_parameters = [
+        ("a", 1, True),
+        ("b", 2, False),
+    ]
+    warehouse.execute_many(
+        insert_operation,
+        seq_of_parameters=seq_of_parameters
+    )
+```
+
+
+#### `fetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+fetch_all(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> List['Row']
+```
+
+Fetch all results from the database.
+
+Repeated calls using the same inputs to *any* of the fetch methods of this
+block will skip executing the operation again, and instead,
+return the next set of results from the previous execution,
+until the reset_cursors method is called.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `parameters`: The parameters for the operation.
+- `**execution_options`: Additional options to pass to `connection.execute`.
+
+**Returns:**
+- A list of tuples containing the data returned by the database,
+where each row is a tuple and each column is a value in the tuple.
+
+**Examples:**
+
+Execute operation with parameters, fetching all rows:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
+    operation = '''
+        SELECT word, word_count
+        FROM `bigquery-public-data.samples.shakespeare`
+        WHERE corpus = %(corpus)s
+        AND word_count >= %(min_word_count)s
+        ORDER BY word_count DESC
+        LIMIT 3;
+    '''
+    parameters = {
+        "corpus": "romeoandjuliet",
+        "min_word_count": 250,
+    }
+    result = warehouse.fetch_all(operation, parameters=parameters)
+```
+
+
+#### `fetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+fetch_many(self, operation: str, parameters: Optional[Dict[str, Any]] = None, size: Optional[int] = None, **execution_options: Dict[str, Any]) -> List['Row']
+```
+
+Fetch a limited number of results from the database.
+
+Repeated calls using the same inputs to *any* of the fetch methods of this
+block will skip executing the operation again, and instead,
+return the next set of results from the previous execution,
+until the reset_cursors method is called.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `parameters`: The parameters for the operation.
+- `size`: The number of results to return; if None or 0, uses the value of
+`fetch_size` configured on the block.
+- `**execution_options`: Additional options to pass to `connection.execute`.
+
+**Returns:**
+- A list of tuples containing the data returned by the database,
+where each row is a tuple and each column is a value in the tuple.
+
+**Examples:**
+
+Execute operation with parameters, fetching two new rows at a time:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
+    operation = '''
+        SELECT word, word_count
+        FROM `bigquery-public-data.samples.shakespeare`
+        WHERE corpus = %(corpus)s
+        AND word_count >= %(min_word_count)s
+        ORDER BY word_count DESC
+        LIMIT 6;
+    '''
+    parameters = {
+        "corpus": "romeoandjuliet",
+        "min_word_count": 250,
+    }
+    for _ in range(0, 3):
+        result = warehouse.fetch_many(
+            operation,
+            parameters=parameters,
+            size=2
+        )
+        print(result)
+```
+
+
+#### `fetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+fetch_one(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> 'Row'
+```
+
+Fetch a single result from the database.
+
+Repeated calls using the same inputs to *any* of the fetch methods of this
+block will skip executing the operation again, and instead,
+return the next set of results from the previous execution,
+until the reset_cursors method is called.
+
+**Args:**
+- `operation`: The SQL query or other operation to be executed.
+- `parameters`: The parameters for the operation.
+- `**execution_options`: Additional options to pass to `connection.execute`.
+
+**Returns:**
+- A tuple containing the data returned by the database,
+where each row is a tuple and each column is a value in the tuple.
+
+**Examples:**
+
+Execute operation with parameters, fetching one new row at a time:
+```python
+from prefect_gcp.bigquery import BigQueryWarehouse
+
+with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
+    operation = '''
+        SELECT word, word_count
+        FROM `bigquery-public-data.samples.shakespeare`
+        WHERE corpus = %(corpus)s
+        AND word_count >= %(min_word_count)s
+        ORDER BY word_count DESC
+        LIMIT 3;
+    '''
+    parameters = {
+        "corpus": "romeoandjuliet",
+        "min_word_count": 250,
+    }
+    for _ in range(0, 3):
+        result = warehouse.fetch_one(operation, parameters=parameters)
+        print(result)
+```
+
+
+#### `get_connection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1042" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_connection(self) -> 'Connection'
+```
+
+Get the opened connection to BigQuery.
+
+
+#### `reset_cursors` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_cursors(self) -> None
+```
+
+Tries to close all opened cursors.
+
