@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
-import { cn } from "@/utils";
+import { cn, intervalToSeconds } from "@/utils";
 import { formatDate } from "@/utils/date";
 
 const INTERVALS = [
@@ -54,23 +54,24 @@ const INTERVAL_SECONDS = {
 } satisfies Record<Intervals, number>;
 
 const parseIntervalToTime = (
-	interval: number,
+	interval: number | string,
 ): { interval_value: number; interval_time: Intervals } => {
-	let remainingSeconds = interval;
+	const intervalSeconds = intervalToSeconds(interval);
+	let remainingSeconds = intervalSeconds;
 
-	const days = Math.floor(interval / INTERVAL_SECONDS.days);
+	const days = Math.floor(intervalSeconds / INTERVAL_SECONDS.days);
 	remainingSeconds %= INTERVAL_SECONDS.days;
 	if (remainingSeconds === 0) {
 		return { interval_value: days, interval_time: "days" } as const;
 	}
 
-	const hours = Math.floor(interval / INTERVAL_SECONDS.hours);
+	const hours = Math.floor(intervalSeconds / INTERVAL_SECONDS.hours);
 	remainingSeconds %= INTERVAL_SECONDS.hours;
 	if (remainingSeconds === 0) {
 		return { interval_value: hours, interval_time: "hours" } as const;
 	}
 
-	const minutes = Math.floor(interval / INTERVAL_SECONDS.minutes);
+	const minutes = Math.floor(intervalSeconds / INTERVAL_SECONDS.minutes);
 	remainingSeconds %= INTERVAL_SECONDS.minutes;
 	if (remainingSeconds === 0) {
 		return { interval_value: minutes, interval_time: "minutes" } as const;
@@ -133,9 +134,7 @@ export const IntervalScheduleForm = ({
 			const { active, schedule } = scheduleToEdit;
 			if ("interval" in schedule) {
 				const { interval, anchor_date, timezone } = schedule;
-				const { interval_value, interval_time } = parseIntervalToTime(
-					Number(interval),
-				);
+				const { interval_value, interval_time } = parseIntervalToTime(interval);
 				form.reset({
 					active,
 					schedule: {

@@ -17,7 +17,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useIsOverflowing } from "@/hooks/use-is-overflowing";
-import { capitalize, cn } from "@/utils";
+import { capitalize, cn, intervalToSeconds } from "@/utils";
 
 type DeploymentSchedule = components["schemas"]["DeploymentSchedule"];
 type CronSchedule = components["schemas"]["CronSchedule"];
@@ -97,7 +97,7 @@ const IntervalScheduleBadge = ({
 	active: boolean;
 	schedule: IntervalSchedule;
 }) => {
-	const scheduleText = `Every ${humanizeDuration(Number(schedule.interval) * 1000)}`;
+	const scheduleText = `Every ${humanizeDuration(intervalToSeconds(schedule.interval) * 1000)}`;
 	let detailedScheduleText = `${active ? "" : "(Paused)"} ${scheduleText}`;
 	if (schedule.anchor_date) {
 		detailedScheduleText += ` using ${format(
