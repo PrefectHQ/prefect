@@ -343,8 +343,19 @@ async def record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                 if natural_key in actual_ids:
                     task_run.id = actual_ids[natural_key]
 
-        # Insert all task run states - we only coalesce task run updates, not states
-        await _insert_task_run_states(session, [tr["task_run"] for tr in all_task_runs])
+        # Insert task run states, deduplicating by (task_run_id, timestamp) to
+        # avoid violating uq_task_run_state__task_run_id_timestamp_desc when
+        # multiple events resolved to the same task_run id after natural-key dedup.
+        seen_state_keys: set[tuple] = set()
+        deduped_for_states: list[TaskRun] = []
+        for tr in all_task_runs:
+            task_run = tr["task_run"]
+            assert task_run.state is not None
+            key = (task_run.id, task_run.state.timestamp)
+            if key not in seen_state_keys:
+                seen_state_keys.add(key)
+                deduped_for_states.append(task_run)
+        await _insert_task_run_states(session, deduped_for_states)
         await session.commit()
 
 
