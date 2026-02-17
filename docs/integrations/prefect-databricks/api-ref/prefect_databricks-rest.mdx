@@ -1,0 +1,100 @@
+---
+title: rest
+sidebarTitle: rest
+---
+
+# `prefect_databricks.rest`
+
+
+
+This is a module containing generic REST tasks.
+
+
+## Functions
+
+### `serialize_model` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/rest.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+serialize_model(obj: Any) -> Any
+```
+
+
+Recursively serializes `pydantic.BaseModel` into JSON;
+returns original obj if not a `BaseModel`.
+
+**Args:**
+- `obj`: Input object to serialize.
+
+**Returns:**
+- Serialized version of object.
+
+
+### `strip_kwargs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/rest.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+strip_kwargs(**kwargs: Dict) -> Dict
+```
+
+
+Recursively drops keyword arguments if value is None,
+and serializes any `pydantic.BaseModel` types.
+
+**Args:**
+- `**kwargs`: Input keyword arguments.
+
+**Returns:**
+- Stripped version of kwargs.
+
+
+### `execute_endpoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/rest.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+execute_endpoint(endpoint: str, databricks_credentials: 'DatabricksCredentials', http_method: HTTPMethod = HTTPMethod.GET, params: Dict[str, Any] = None, json: Dict[str, Any] = None, **kwargs: Dict[str, Any]) -> httpx.Response
+```
+
+
+Generic function for executing REST endpoints.
+
+**Args:**
+- `endpoint`: The endpoint route.
+- `databricks_credentials`: Credentials to use for authentication with Databricks.
+- `http_method`: Either GET, POST, PUT, DELETE, or PATCH.
+- `params`: URL query parameters in the request.
+- `json`: JSON serializable object to include in the body of the request.
+- `**kwargs`: Additional keyword arguments to pass.
+
+**Returns:**
+- The httpx.Response from interacting with the endpoint.
+
+**Examples:**
+
+Lists jobs on the Databricks instance.
+```python
+from prefect import flow
+from prefect_databricks import DatabricksCredentials
+from prefect_databricks.rest import execute_endpoint
+@flow
+def example_execute_endpoint_flow():
+    endpoint = "/2.1/jobs/list"
+    databricks_credentials = DatabricksCredentials.load("my-block")
+    params = {
+        "limit": 5,
+        "offset": None,
+        "expand_tasks": True,
+    }
+    response = execute_endpoint(
+        endpoint,
+        databricks_credentials,
+        params=params
+    )
+    return response.json()
+```
+
+
+## Classes
+
+### `HTTPMethod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/rest.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Available HTTP request methods.
+

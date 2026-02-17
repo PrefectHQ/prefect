@@ -466,7 +466,22 @@
                 "group": "Databricks",
                 "pages": [
                   "integrations/prefect-databricks/index",
-                  "integrations/prefect-databricks/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-databricks/api-ref/prefect_databricks-credentials",
+                      "integrations/prefect-databricks/api-ref/prefect_databricks-flows",
+                      "integrations/prefect-databricks/api-ref/prefect_databricks-jobs",
+                      "integrations/prefect-databricks/api-ref/prefect_databricks-rest",
+                      {
+                        "group": "prefect_databricks.models",
+                        "pages": [
+                          "integrations/prefect-databricks/api-ref/prefect_databricks-models-__init__",
+                          "integrations/prefect-databricks/api-ref/prefect_databricks-models-jobs"
+                        ]
+                      }
+                    ]
+                  }
                 ]
               },
               {
