@@ -1,6 +1,6 @@
 """Unit tests for the source freshness module."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -446,6 +446,36 @@ class TestComputeFreshnessExpiration:
         exp = compute_freshness_expiration("model.test.m", all_nodes, freshness_results)
         # Should use warn_after=0, not error_after=24h; clamped to zero
         assert exp == timedelta(0)
+
+    def test_subtracts_elapsed_time_since_snapshotted_at(self):
+        """Elapsed time since the freshness check is deducted from remaining TTL."""
+        all_nodes = {
+            "source.test.raw.s": _make_source_node(
+                unique_id="source.test.raw.s", name="s"
+            ),
+            "model.test.m": _make_node(
+                unique_id="model.test.m",
+                name="m",
+                depends_on=("source.test.raw.s",),
+            ),
+        }
+        # Source was 1 hour old when checked 30 minutes ago; warn at 6 hours.
+        # Without elapsed adjustment: 6h - 1h = 5h remaining.
+        # With elapsed adjustment: 6h - 1h - 0.5h = 4.5h remaining.
+        snapshotted = datetime.now(timezone.utc) - timedelta(minutes=30)
+        freshness_results = {
+            "source.test.raw.s": SourceFreshnessResult(
+                unique_id="source.test.raw.s",
+                status="pass",
+                max_loaded_at_time_ago_in_s=3600.0,
+                warn_after=timedelta(hours=6),
+                snapshotted_at=snapshotted,
+            ),
+        }
+        exp = compute_freshness_expiration("model.test.m", all_nodes, freshness_results)
+        assert exp is not None
+        # Allow 5 seconds tolerance for test execution time
+        assert abs(exp - timedelta(hours=4, minutes=30)) < timedelta(seconds=5)
 
 
 class TestFilterStaleNodes:

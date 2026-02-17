@@ -10,18 +10,18 @@ This module provides:
 """
 
 import json
-import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
 
+from prefect.logging import get_logger
 from prefect_dbt.core._manifest import DbtNode
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -261,8 +261,10 @@ def compute_freshness_expiration(
 
     For each upstream source with freshness data, computes the remaining
     time before the freshness threshold is reached. Prefers `warn_after`
-    but falls back to `error_after`. Returns the minimum across all
-    sources so the cache expires when the first source goes stale.
+    but falls back to `error_after`. The elapsed time since the freshness
+    check (`snapshotted_at`) is subtracted so that later-wave nodes get
+    accurate TTLs. Returns the minimum across all sources so the cache
+    expires when the first source goes stale.
 
     Args:
         node_id: The node to compute expiration for
@@ -278,6 +280,7 @@ def compute_freshness_expiration(
         return None
 
     remaining_times: list[timedelta] = []
+    now = datetime.now(timezone.utc)
 
     for source_id in source_ids:
         fr = freshness_results.get(source_id)
@@ -288,6 +291,10 @@ def compute_freshness_expiration(
             continue
 
         time_ago = timedelta(seconds=fr.max_loaded_at_time_ago_in_s)
+        # Account for time elapsed since the freshness check ran so
+        # later-wave nodes don't receive inflated TTLs.
+        if fr.snapshotted_at is not None:
+            time_ago += now - fr.snapshotted_at
         remaining = threshold - time_ago
 
         # Clamp to zero — if already past threshold, expire immediately
