@@ -480,7 +480,31 @@
                 "group": "Docker",
                 "pages": [
                   "integrations/prefect-docker/index",
-                  "integrations/prefect-docker/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-docker/api-ref/prefect_docker-containers",
+                      "integrations/prefect-docker/api-ref/prefect_docker-credentials",
+                      "integrations/prefect-docker/api-ref/prefect_docker-host",
+                      "integrations/prefect-docker/api-ref/prefect_docker-images",
+                      "integrations/prefect-docker/api-ref/prefect_docker-types",
+                      "integrations/prefect-docker/api-ref/prefect_docker-worker",
+                      {
+                        "group": "prefect_docker.deployments",
+                        "pages": [
+                          "integrations/prefect-docker/api-ref/prefect_docker-deployments-__init__",
+                          "integrations/prefect-docker/api-ref/prefect_docker-deployments-steps"
+                        ]
+                      },
+                      {
+                        "group": "prefect_docker.experimental",
+                        "pages": [
+                          "integrations/prefect-docker/api-ref/prefect_docker-experimental-__init__",
+                          "integrations/prefect-docker/api-ref/prefect_docker-experimental-decorators"
+                        ]
+                      }
+                    ]
+                  }
                 ]
               },
               {
