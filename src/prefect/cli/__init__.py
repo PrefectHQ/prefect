@@ -27,6 +27,7 @@ _FLAGS_WITH_VALUES = {
 _CYCLOPTS_COMMANDS: set[str] = {
     "config",
     "flow",
+    "flow-run",
     "profile",
     "server",
     "shell",

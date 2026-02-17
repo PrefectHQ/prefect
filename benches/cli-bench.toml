@@ -66,3 +66,9 @@ name = "prefect flow --help (cyclopts)"
 args = ["env", "PREFECT_CLI_FAST=1", "prefect", "flow", "--help"]
 category = "startup"
 description = "flow help via cyclopts"
+
+[[commands]]
+name = "prefect flow-run --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "flow-run", "--help"]
+category = "startup"
+description = "flow-run help via cyclopts"

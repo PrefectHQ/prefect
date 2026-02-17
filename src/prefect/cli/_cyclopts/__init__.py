@@ -211,7 +211,6 @@ _DELEGATED_COMMANDS: set[str] = {
     "dev",
     "events",
     "experimental",
-    "flow-run",
     "global-concurrency-limit",
     "sdk",
     "task",
@@ -290,15 +289,9 @@ _app.command(flow_app)
 
 
 # --- flow-run ---
-flow_run_app = _delegated_app("flow-run", "Interact with flow runs.")
+from prefect.cli._cyclopts.flow_run import flow_run_app
+
 _app.command(flow_run_app)
-
-
-@flow_run_app.default
-def flow_run_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("flow-run", tokens)
 
 
 # --- deployment ---
