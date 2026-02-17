@@ -473,7 +473,51 @@
                 "group": "dbt",
                 "pages": [
                   "integrations/prefect-dbt/index",
-                  "integrations/prefect-dbt/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-dbt/api-ref/prefect_dbt-utilities",
+                      {
+                        "group": "prefect_dbt.cli",
+                        "pages": [
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cli-__init__",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cli-commands",
+                          {
+                            "group": "configs",
+                            "pages": [
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-__init__",
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-base",
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-bigquery",
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-postgres",
+                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-snowflake"
+                            ]
+                          },
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cli-credentials"
+                        ]
+                      },
+                      {
+                        "group": "prefect_dbt.cloud",
+                        "pages": [
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-__init__",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-clients",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-credentials",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-exceptions",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-jobs",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-models",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-runs",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-utils"
+                        ]
+                      },
+                      {
+                        "group": "prefect_dbt.core",
+                        "pages": [
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-core-__init__",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-core-runner",
+                          "integrations/prefect-dbt/api-ref/prefect_dbt-core-settings"
+                        ]
+                      }
+                    ]
+                  }
                 ]
               },
               {
