@@ -1285,14 +1285,15 @@ def make_event_with_flow_run(
     )
 
 
-async def test_bulk_upsert_with_natural_key_conflict(
+async def test_bulk_upsert_natural_key_conflict_raises_for_consumer_retry(
     session: AsyncSession,
     flow_run,
 ):
-    """When two events have different task_run_ids but the same
-    (flow_run_id, task_key, dynamic_key), the recorder should handle the
-    conflict via the composite unique constraint instead of raising
-    IntegrityError."""
+    """When two sequential bulk upserts have different task_run_ids but the
+    same (flow_run_id, task_key, dynamic_key), record_bulk_task_run_events
+    raises IntegrityError so the consumer's flush() retry mechanism can
+    handle it."""
+    from sqlalchemy.exc import IntegrityError
 
     flow_run_id = str(flow_run.id)
     task_key = "my_task-abcdefg"
@@ -1315,8 +1316,6 @@ async def test_bulk_upsert_with_natural_key_conflict(
 
     task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
     assert task_run is not None
-    assert task_run.task_key == task_key
-    assert task_run.dynamic_key == dynamic_key
     assert task_run.state_type == StateType.PENDING
 
     later_time = base_time + timedelta(minutes=1)
@@ -1329,19 +1328,11 @@ async def test_bulk_upsert_with_natural_key_conflict(
         state_type=StateType.RUNNING,
     )
 
-    await task_run_recorder.record_bulk_task_run_events([second_event])
-
-    session.expire_all()
-    task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
-    assert task_run is not None
-    assert task_run.state_type == StateType.RUNNING
-
-    states = await read_task_run_states(session, task_run.id)
-    assert len(states) == 2
-    assert {s.type for s in states} == {StateType.PENDING, StateType.RUNNING}
+    with pytest.raises(IntegrityError):
+        await task_run_recorder.record_bulk_task_run_events([second_event])
 
 
-async def test_single_upsert_with_natural_key_conflict(
+async def test_single_upsert_with_natural_key_conflict_does_not_raise(
     session: AsyncSession,
     flow_run,
 ):
@@ -1385,50 +1376,4 @@ async def test_single_upsert_with_natural_key_conflict(
     session.expire_all()
     task_run = await read_task_run(session=session, task_run_id=first_task_run_id)
     assert task_run is not None
-    assert task_run.state_type == StateType.RUNNING
-
-    states = await read_task_run_states(session, task_run.id)
-    assert len(states) == 2
-    assert {s.type for s in states} == {StateType.PENDING, StateType.RUNNING}
-
-
-async def test_bulk_natural_key_dedup_within_batch(
-    session: AsyncSession,
-    flow_run,
-):
-    """When a single batch contains two events with different task_run_ids
-    but the same natural key, the batch should be deduplicated and only the
-    latest event (by state_timestamp) should be used for the INSERT."""
-
-    flow_run_id = str(flow_run.id)
-    task_key = "my_task-abcdefg"
-    dynamic_key = "3"
-    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
-
-    first_task_run_id = str(uuid4())
-    second_task_run_id = str(uuid4())
-
-    first_event = make_event_with_flow_run(
-        task_run_id=first_task_run_id,
-        flow_run_id=flow_run_id,
-        task_key=task_key,
-        dynamic_key=dynamic_key,
-        state_ts=base_time,
-        state_type=StateType.PENDING,
-    )
-    later_time = base_time + timedelta(minutes=1)
-    second_event = make_event_with_flow_run(
-        task_run_id=second_task_run_id,
-        flow_run_id=flow_run_id,
-        task_key=task_key,
-        dynamic_key=dynamic_key,
-        state_ts=later_time,
-        state_type=StateType.RUNNING,
-    )
-
-    await task_run_recorder.record_bulk_task_run_events([first_event, second_event])
-
-    task_run_id = second_event.resource["prefect.resource.id"].split(".")[-1]
-    task_run = await read_task_run(session=session, task_run_id=task_run_id)
-    assert task_run is not None
-    assert task_run.state_type == StateType.RUNNING
+    assert task_run.state_type == StateType.PENDING
