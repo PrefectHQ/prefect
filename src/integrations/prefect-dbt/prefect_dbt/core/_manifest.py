@@ -430,8 +430,8 @@ class ManifestParser:
 
     def filter_test_nodes(
         self,
-        selected_node_ids: Optional[set[str]] = None,
-        executable_node_ids: Optional[set[str]] = None,
+        selected_node_ids: set[str] | None = None,
+        executable_node_ids: set[str] | None = None,
     ) -> dict[str, DbtNode]:
         """Filter test nodes by selection and executable parent availability.
 

@@ -1122,7 +1122,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 8: Test Strategies
+### Phase 8: Test Strategies ✅
+
+**Status**: Complete
 
 **PR Scope**: Configurable test execution behavior.
 
@@ -1139,6 +1141,16 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - DEFERRED: all tests run after all models complete
 - SKIP: no tests executed
 - Multi-model tests wait for all referenced models
+
+**Deviations from plan**:
+- **`TestStrategy` is an `Enum`, not a plain class with string constants** — The plan defined `TestStrategy` as a namespace class (like `ExecutionMode`). The implementation uses `enum.Enum` with string values for type safety and validation. A `__test__ = False` attribute prevents pytest from collecting the class.
+- **Default is `SKIP`, not `IMMEDIATE`** — The plan showed `test_strategy: str = TestStrategy.IMMEDIATE` on the orchestrator constructor. The implementation defaults to `TestStrategy.SKIP` for backward compatibility with existing users who never had tests interleaved into orchestrator runs.
+- **`NodeType.Unit` support added** — The plan only mentioned `Test` nodes. The implementation adds a `_TEST_TYPES = frozenset({NodeType.Test, NodeType.Unit})` constant to handle both dbt schema/data tests and dbt unit tests.
+- **`ManifestParser` gained `get_test_nodes()` and `filter_test_nodes()` methods** — The plan didn't specify manifest parser changes. `get_test_nodes()` returns all test nodes with dependencies resolved through ephemerals. `filter_test_nodes(selected_node_ids, executable_node_ids)` filters tests by user selection and ensures multi-model tests are excluded when any parent model is missing from the executable set.
+- **Tests are never cached** — When `enable_caching=True`, test nodes are explicitly excluded from cache policy assignment. Tests always run fresh.
+- **Indirect selection suppression in PER_WAVE mode** — `execute_wave()` gained an `indirect_selection` parameter. The orchestrator passes `indirect_selection="empty"` to prevent dbt from automatically including tests when building selected models, giving the orchestrator exclusive control over test scheduling. A fallback retries without the kwarg for legacy executor implementations that don't support the parameter.
+- **Kahn's algorithm for IMMEDIATE wave placement** — Rather than custom placement logic, IMMEDIATE mode merges test nodes into the model graph and lets `compute_execution_waves()` (Kahn's algorithm) naturally place each test in the earliest wave where all dependencies are satisfied. Multi-model tests automatically wait for all parent models.
+- **DEFERRED computes separate test waves then concatenates** — Test waves are computed independently, renumbered to follow model waves, and appended. Since tests have no inter-dependencies, they all land in a single final wave.
 
 ---
 
