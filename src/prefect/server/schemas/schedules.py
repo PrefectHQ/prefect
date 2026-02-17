@@ -32,11 +32,17 @@ from prefect._internal.schemas.validators import (
 from prefect._vendor.croniter import croniter
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime, TimeZone
-from prefect.types._datetime import create_datetime_instance, now
+from prefect.types._datetime import (
+    PositiveInterval,
+    create_datetime_instance,
+    now,
+)
 
 MAX_ITERATIONS = 1000
 
 if sys.version_info >= (3, 13):
+    from whenever import DateTimeDelta
+
     AnchorDate: TypeAlias = datetime.datetime
 else:
     from pydantic import AfterValidator
@@ -99,7 +105,7 @@ class IntervalSchedule(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
-    interval: datetime.timedelta = Field(gt=datetime.timedelta(0))
+    interval: PositiveInterval = Field()
     anchor_date: AnchorDate = Field(
         default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
@@ -193,24 +199,36 @@ class IntervalSchedule(PrefectBaseModel):
 
             local_end = to_local_zdt(end)
 
-            offset = (
-                local_start - anchor_zdt
-            ).in_seconds() / self.interval.total_seconds()
-            next_date = anchor_zdt.add(
-                seconds=self.interval.total_seconds() * int(offset)
-            )
+            interval = self.interval
+            if isinstance(interval, DateTimeDelta):
+                # DateTimeDelta properly distinguishes calendar days from
+                # exact hours, so we can use it directly. We still need an
+                # approximate total-seconds value for the initial offset jump.
+                _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
+                approx_total_seconds = (
+                    _months * 30 * 86400 + _days * 86400 + _secs + _nanos / 1e9
+                )
 
-            # break the interval into `days` and `seconds` because the datetime
-            # library will handle DST boundaries properly if days are provided, but not
-            # if we add `total seconds`. Therefore, `next_date + self.interval`
-            # fails while `next_date.add(days=days, seconds=seconds)` works.
-            interval_days = self.interval.days
-            interval_seconds = self.interval.total_seconds() - (
-                interval_days * 24 * 60 * 60
-            )
+                def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
+                    return zdt + interval
+            else:
+                approx_total_seconds = interval.total_seconds()
+                # break the interval into `days` and `seconds` because
+                # ZonedDateTime.add will handle DST boundaries properly if
+                # days are provided, but not if we add `total seconds`.
+                _interval_days = interval.days
+                _interval_seconds = interval.total_seconds() - (
+                    _interval_days * 24 * 60 * 60
+                )
+
+                def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
+                    return zdt.add(days=_interval_days, seconds=_interval_seconds)
+
+            offset = (local_start - anchor_zdt).in_seconds() / approx_total_seconds
+            next_date = anchor_zdt.add(seconds=approx_total_seconds * int(offset))
 
             while next_date < local_start:
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+                next_date = _advance(next_date)
 
             counter = 0
             dates: set[ZonedDateTime] = set()
@@ -231,7 +249,7 @@ class IntervalSchedule(PrefectBaseModel):
 
                 counter += 1
 
-                next_date = next_date.add(days=interval_days, seconds=interval_seconds)
+                next_date = _advance(next_date)
 
         else:
             if start is None:

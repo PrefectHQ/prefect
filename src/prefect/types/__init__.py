@@ -7,7 +7,7 @@ from typing_extensions import Literal
 import orjson
 import pydantic
 
-from ._datetime import DateTime, Date
+from ._datetime import DateTime, Date, Interval, PositiveInterval
 from .names import (
     Name,
     NameOrEmpty,

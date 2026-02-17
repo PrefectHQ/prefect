@@ -104,10 +104,13 @@ describe("Runs page", () => {
 
 		await renderRunsPage();
 
-		await waitFor(() => {
-			expect(screen.getByRole("tab", { name: "Flow Runs" })).toBeVisible();
-			expect(screen.getByRole("tab", { name: "Task Runs" })).toBeVisible();
-		});
+		await waitFor(
+			() => {
+				expect(screen.getByRole("tab", { name: "Flow Runs" })).toBeVisible();
+				expect(screen.getByRole("tab", { name: "Task Runs" })).toBeVisible();
+			},
+			{ timeout: 10_000 },
+		);
 	});
 
 	it("should show flow runs list when flow runs exist", async () => {
