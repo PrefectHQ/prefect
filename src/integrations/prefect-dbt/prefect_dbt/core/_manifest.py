@@ -12,7 +12,7 @@ This module provides:
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
@@ -39,9 +39,9 @@ class DbtNode:
     depends_on: tuple[str, ...] = field(default_factory=tuple)
     depends_on_macros: tuple[str, ...] = field(default_factory=tuple)
     fqn: tuple[str, ...] = field(default_factory=tuple)
-    materialization: Optional[str] = None
-    relation_name: Optional[str] = None
-    original_file_path: Optional[str] = None
+    materialization: str | None = None
+    relation_name: str | None = None
+    original_file_path: str | None = None
     config: dict[str, Any] = field(default_factory=dict)
 
     # Resource types that produce database objects via `dbt run`/`dbt seed`/`dbt snapshot`.
@@ -306,7 +306,7 @@ class ManifestParser:
 
     def compute_execution_waves(
         self,
-        nodes: Optional[dict[str, DbtNode]] = None,
+        nodes: dict[str, DbtNode] | None = None,
     ) -> list[ExecutionWave]:
         """Compute execution waves using Kahn's algorithm.
 
@@ -377,7 +377,7 @@ class ManifestParser:
 
         return waves
 
-    def get_macro_paths(self) -> dict[str, Optional[str]]:
+    def get_macro_paths(self) -> dict[str, str | None]:
         """Get a mapping of macro unique_id to original_file_path.
 
         Reads the top-level `macros` section of the manifest.
@@ -394,7 +394,7 @@ class ManifestParser:
 
     def filter_nodes(
         self,
-        selected_node_ids: Optional[set[str]] = None,
+        selected_node_ids: set[str] | None = None,
     ) -> dict[str, DbtNode]:
         """Filter executable nodes by a set of unique IDs.
 
@@ -418,9 +418,9 @@ class DbtLsError(Exception):
 def resolve_selection(
     project_dir: Path,
     profiles_dir: Path,
-    select: Optional[str] = None,
-    exclude: Optional[str] = None,
-    target_path: Optional[Path] = None,
+    select: str | None = None,
+    exclude: str | None = None,
+    target_path: Path | None = None,
 ) -> set[str]:
     """Resolve dbt selectors to a set of node unique_ids.
 

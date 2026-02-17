@@ -635,7 +635,7 @@ class TestRunSourceFreshness:
             )
             return MagicMock(success=True)
 
-        with patch("dbt.cli.main.dbtRunner") as mock_runner_cls:
+        with patch("prefect_dbt.core._freshness.dbtRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner.invoke.side_effect = fake_invoke
             mock_runner_cls.return_value = mock_runner
@@ -649,7 +649,7 @@ class TestRunSourceFreshness:
         """Returns empty dict when dbt source freshness raises."""
         settings = self._make_settings(tmp_path)
 
-        with patch("dbt.cli.main.dbtRunner") as mock_runner_cls:
+        with patch("prefect_dbt.core._freshness.dbtRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner.invoke.side_effect = RuntimeError("dbt crashed")
             mock_runner_cls.return_value = mock_runner
@@ -662,7 +662,7 @@ class TestRunSourceFreshness:
         """Returns empty dict when sources.json is not produced."""
         settings = self._make_settings(tmp_path)
 
-        with patch("dbt.cli.main.dbtRunner") as mock_runner_cls:
+        with patch("prefect_dbt.core._freshness.dbtRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner.invoke.return_value = MagicMock(success=False)
             mock_runner_cls.return_value = mock_runner
@@ -692,7 +692,7 @@ class TestRunSourceFreshness:
         assert (target_dir / "sources.json").exists()
 
         # dbtRunner raises — should NOT fall back to the old file
-        with patch("dbt.cli.main.dbtRunner") as mock_runner_cls:
+        with patch("prefect_dbt.core._freshness.dbtRunner") as mock_runner_cls:
             mock_runner = MagicMock()
             mock_runner.invoke.side_effect = RuntimeError("adapter error")
             mock_runner_cls.return_value = mock_runner
@@ -757,7 +757,7 @@ class TestOrchestratorFreshnessIntegration:
         freshness_data = self._make_freshness_results(target_dir / "sources.json")
 
         with patch(
-            "prefect_dbt.core._freshness.run_source_freshness",
+            "prefect_dbt.core._orchestrator.run_source_freshness",
             return_value=freshness_data,
         ):
             results = orch.run_build(only_fresh_sources=True)
@@ -843,7 +843,7 @@ class TestOrchestratorFreshnessIntegration:
         freshness_data = self._make_freshness_results(target_dir / "sources.json")
 
         with patch(
-            "prefect_dbt.core._freshness.run_source_freshness",
+            "prefect_dbt.core._orchestrator.run_source_freshness",
             return_value=freshness_data,
         ):
 

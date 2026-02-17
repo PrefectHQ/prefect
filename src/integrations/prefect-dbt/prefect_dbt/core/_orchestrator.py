@@ -10,11 +10,17 @@ from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 
+from prefect_dbt.core._cache import build_cache_policy_for_node
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
+from prefect_dbt.core._freshness import (
+    compute_freshness_expiration,
+    filter_stale_nodes,
+    run_source_freshness,
+)
 from prefect_dbt.core._manifest import ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
 
@@ -124,23 +130,23 @@ class PrefectDbtOrchestrator:
 
     def __init__(
         self,
-        settings: Optional[PrefectDbtSettings] = None,
-        manifest_path: Optional[Path] = None,
-        executor: Optional[DbtExecutor] = None,
-        threads: Optional[int] = None,
-        state_path: Optional[Path] = None,
+        settings: PrefectDbtSettings | None = None,
+        manifest_path: Path | None = None,
+        executor: DbtExecutor | None = None,
+        threads: int | None = None,
+        state_path: Path | None = None,
         defer: bool = False,
-        defer_state_path: Optional[Path] = None,
+        defer_state_path: Path | None = None,
         favor_state: bool = False,
         execution_mode: ExecutionMode = ExecutionMode.PER_WAVE,
         retries: int = 0,
         retry_delay_seconds: int = 30,
-        concurrency: Optional[Union[str, int]] = None,
-        task_runner_type: Optional[type] = None,
+        concurrency: str | int | None = None,
+        task_runner_type: type | None = None,
         enable_caching: bool = False,
-        cache_expiration: Optional[timedelta] = None,
-        result_storage: Optional[Union[Any, str, Path]] = None,
-        cache_key_storage: Optional[Union[Any, str, Path]] = None,
+        cache_expiration: timedelta | None = None,
+        result_storage: Any | str | Path | None = None,
+        cache_key_storage: Any | str | Path | None = None,
         use_source_freshness_expiration: bool = False,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
@@ -196,11 +202,11 @@ class PrefectDbtOrchestrator:
     @staticmethod
     def _build_node_result(
         status: str,
-        timing: Optional[dict[str, Any]] = None,
-        invocation: Optional[dict[str, Any]] = None,
-        error: Optional[dict[str, Any]] = None,
-        reason: Optional[str] = None,
-        failed_upstream: Optional[list[str]] = None,
+        timing: dict[str, Any] | None = None,
+        invocation: dict[str, Any] | None = None,
+        error: dict[str, Any] | None = None,
+        reason: str | None = None,
+        failed_upstream: list[str] | None = None,
     ) -> dict[str, Any]:
         result: dict[str, Any] = {"status": status}
         if timing is not None:
@@ -263,8 +269,8 @@ class PrefectDbtOrchestrator:
 
     def run_build(
         self,
-        select: Optional[str] = None,
-        exclude: Optional[str] = None,
+        select: str | None = None,
+        exclude: str | None = None,
         full_refresh: bool = False,
         only_fresh_sources: bool = False,
     ) -> dict[str, Any]:
@@ -305,7 +311,7 @@ class PrefectDbtOrchestrator:
         parser = ManifestParser(manifest_path)
 
         # 2. Resolve selectors if provided
-        selected_ids: Optional[set[str]] = None
+        selected_ids: set[str] | None = None
         if select is not None or exclude is not None:
             with self._settings.resolve_profiles_yml() as resolved_profiles_dir:
                 selected_ids = resolve_selection(
@@ -324,11 +330,6 @@ class PrefectDbtOrchestrator:
         skipped_results: dict[str, Any] = {}
 
         if only_fresh_sources or self._use_source_freshness_expiration:
-            from prefect_dbt.core._freshness import (
-                filter_stale_nodes,
-                run_source_freshness,
-            )
-
             freshness_results = run_source_freshness(
                 self._settings,
                 target_path=self._resolve_target_path(),
@@ -468,8 +469,6 @@ class PrefectDbtOrchestrator:
         As a side-effect, stores the pre-computed cache key in
         *computed_cache_keys* so downstream nodes can incorporate it.
         """
-        from prefect_dbt.core._cache import build_cache_policy_for_node
-
         upstream_keys = {
             dep_id: computed_cache_keys[dep_id]
             for dep_id in node.depends_on
@@ -497,8 +496,6 @@ class PrefectDbtOrchestrator:
         # Determine cache_expiration: freshness-based or default
         cache_expiration = self._cache_expiration
         if self._use_source_freshness_expiration and freshness_results and all_nodes:
-            from prefect_dbt.core._freshness import compute_freshness_expiration
-
             freshness_exp = compute_freshness_expiration(
                 node.unique_id, all_nodes, freshness_results
             )

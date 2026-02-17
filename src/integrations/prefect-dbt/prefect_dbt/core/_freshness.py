@@ -14,9 +14,10 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
+from dbt.cli.main import dbtRunner
 
 from prefect_dbt.core._manifest import DbtNode
 
@@ -39,11 +40,11 @@ class SourceFreshnessResult:
 
     unique_id: str
     status: str
-    max_loaded_at: Optional[datetime] = None
-    snapshotted_at: Optional[datetime] = None
-    max_loaded_at_time_ago_in_s: Optional[float] = None
-    warn_after: Optional[timedelta] = None
-    error_after: Optional[timedelta] = None
+    max_loaded_at: datetime | None = None
+    snapshotted_at: datetime | None = None
+    max_loaded_at_time_ago_in_s: float | None = None
+    warn_after: timedelta | None = None
+    error_after: timedelta | None = None
 
 
 def _period_to_timedelta(count: int, period: str) -> timedelta:
@@ -68,7 +69,7 @@ def _period_to_timedelta(count: int, period: str) -> timedelta:
     raise ValueError(f"Unrecognized freshness period: {period!r}")
 
 
-def _parse_threshold(threshold_data: Optional[dict[str, Any]]) -> Optional[timedelta]:
+def _parse_threshold(threshold_data: dict[str, Any] | None) -> timedelta | None:
     """Parse a dbt freshness threshold dict into a timedelta."""
     if not threshold_data:
         return None
@@ -142,7 +143,7 @@ def parse_source_freshness_results(
 
 def run_source_freshness(
     settings: Any,
-    target_path: Optional[Path] = None,
+    target_path: Path | None = None,
 ) -> dict[str, SourceFreshnessResult]:
     """Run `dbt source freshness` and parse the results.
 
@@ -155,8 +156,6 @@ def run_source_freshness(
     Returns:
         Dict mapping source unique_id to SourceFreshnessResult
     """
-    from dbt.cli.main import dbtRunner
-
     output_target = target_path or settings.target_path
     output_path = settings.project_dir / output_target / "sources.json"
 
@@ -257,7 +256,7 @@ def compute_freshness_expiration(
     node_id: str,
     all_nodes: dict[str, DbtNode],
     freshness_results: dict[str, SourceFreshnessResult],
-) -> Optional[timedelta]:
+) -> timedelta | None:
     """Compute cache expiration for a node based on upstream source freshness.
 
     For each upstream source with freshness data, computes the remaining
