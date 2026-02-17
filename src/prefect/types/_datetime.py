@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import sys
 from contextlib import contextmanager
-from typing import Any, cast
+from typing import Any, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
@@ -12,9 +12,12 @@ from dateutil.parser import parse
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
+    from whenever import DateTimeDelta
+
     DateTime: TypeAlias = datetime.datetime
     Date: TypeAlias = datetime.date
     Duration: TypeAlias = datetime.timedelta
+    Interval: TypeAlias = Union[datetime.timedelta, DateTimeDelta]
 else:
     import pendulum
     import pendulum.tz
@@ -31,6 +34,7 @@ else:
     DateTime: TypeAlias = PydanticDateTime
     Date: TypeAlias = PydanticDate
     Duration: TypeAlias = PydanticDuration
+    Interval: TypeAlias = datetime.timedelta
 
 
 def parse_datetime(dt: str) -> datetime.datetime:
@@ -247,3 +251,13 @@ def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
         return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
     else:
         return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def validate_positive_interval(v: Interval) -> Interval:
+    if sys.version_info >= (3, 13) and isinstance(v, DateTimeDelta):
+        _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
+        if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
+            raise ValueError("interval must be positive")
+    elif isinstance(v, datetime.timedelta) and v <= datetime.timedelta(0):
+        raise ValueError("interval must be positive")
+    return v

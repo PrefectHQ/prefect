@@ -32,7 +32,12 @@ from prefect._internal.schemas.validators import (
 from prefect._vendor.croniter import croniter
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime, TimeZone
-from prefect.types._datetime import create_datetime_instance, now
+from prefect.types._datetime import (
+    Interval,
+    create_datetime_instance,
+    now,
+    validate_positive_interval,
+)
 
 MAX_ITERATIONS = 1000
 
@@ -40,14 +45,12 @@ if sys.version_info >= (3, 13):
     from whenever import DateTimeDelta
 
     AnchorDate: TypeAlias = datetime.datetime
-    Interval: TypeAlias = Union[datetime.timedelta, DateTimeDelta]
 else:
     from pydantic import AfterValidator
 
     from prefect._internal.schemas.validators import default_anchor_date
 
     AnchorDate: TypeAlias = Annotated[DateTime, AfterValidator(default_anchor_date)]
-    Interval: TypeAlias = datetime.timedelta
 
 
 def _prepare_scheduling_start_and_end(
@@ -113,13 +116,7 @@ class IntervalSchedule(PrefectBaseModel):
     @field_validator("interval", mode="after")
     @classmethod
     def validate_interval_positive(cls, v: Interval) -> Interval:
-        if sys.version_info >= (3, 13) and isinstance(v, DateTimeDelta):
-            _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
-            if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
-                raise ValueError("interval must be positive")
-        elif isinstance(v, datetime.timedelta) and v <= datetime.timedelta(0):
-            raise ValueError("interval must be positive")
-        return v
+        return validate_positive_interval(v)
 
     @model_validator(mode="after")
     def validate_timezone(self):
