@@ -1,0 +1,65 @@
+---
+title: messages
+sidebarTitle: messages
+---
+
+# `prefect_slack.messages`
+
+
+Tasks for sending Slack messages.
+
+## Functions
+
+### `send_chat_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-slack/prefect_slack/messages.py#L15" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+send_chat_message(channel: str, slack_credentials: SlackCredentials, text: Optional[str] = None, attachments: Optional[Sequence[Union[Dict, 'slack_sdk.models.attachments.Attachment']]] = None, slack_blocks: Optional[Sequence[Union[Dict, 'slack_sdk.models.blocks.Block']]] = None) -> Dict
+```
+
+
+Sends a message to a Slack channel.
+
+**Args:**
+- `channel`: The name of the channel in which to post the chat message
+(e.g. #general).
+- `slack_credentials`: Instance of `SlackCredentials` initialized with a Slack
+bot token.
+- `text`: Contents of the message. It's a best practice to always provide a `text`
+argument when posting a message. The `text` argument is used in places where
+content cannot be rendered such as\: system push notifications, assistive
+technology such as screen readers, etc.
+- `attachments`: List of objects defining secondary context in the posted Slack
+message. The [Slack API docs](https\://api.slack.com/messaging/composing/layouts#building-attachments)
+provide guidance on building attachments.
+- `slack_blocks`: List of objects defining the layout and formatting of the posted
+message. The [Slack API docs](https\://api.slack.com/block-kit/building)
+provide guidance on building messages with blocks.
+
+**Returns:**
+- Response from the Slack API. Example response structures can be found in
+the [Slack API docs](https://api.slack.com/methods/chat.postMessage#examples).
+
+
+### `send_incoming_webhook_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-slack/prefect_slack/messages.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+send_incoming_webhook_message(slack_webhook: SlackWebhook, text: Optional[str] = None, attachments: Optional[Sequence[Union[Dict, 'slack_sdk.models.attachments.Attachment']]] = None, slack_blocks: Optional[Sequence[Union[Dict, 'slack_sdk.models.blocks.Block']]] = None) -> None
+```
+
+
+Sends a message via an incoming webhook.
+
+**Args:**
+- `slack_webhook`: Instance of `SlackWebhook` initialized with a Slack
+webhook URL.
+- `text`: Contents of the message. It's a best practice to always provide a `text`
+argument when posting a message. The `text` argument is used in places where
+content cannot be rendered such as\: system push notifications, assistive
+technology such as screen readers, etc.
+- `attachments`: List of objects defining secondary context in the posted Slack
+message. The [Slack API docs](https\://api.slack.com/messaging/composing/layouts#building-attachments)
+provide guidance on building attachments.
+- `slack_blocks`: List of objects defining the layout and formatting of the posted
+message. The [Slack API docs](https\://api.slack.com/block-kit/building)
+provide guidance on building messages with blocks.
+
