@@ -3,12 +3,13 @@ from __future__ import annotations
 import datetime
 import sys
 from contextlib import contextmanager
-from typing import Any, Union, cast
+from typing import Annotated, Any, Union, cast
 from unittest import mock
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import humanize
 from dateutil.parser import parse
+from pydantic import AfterValidator
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
@@ -253,7 +254,7 @@ def to_datetime_string(dt: datetime.datetime, include_tz: bool = True) -> str:
         return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def validate_positive_interval(v: Interval) -> Interval:
+def _validate_positive_interval(v: Interval) -> Interval:
     if sys.version_info >= (3, 13) and isinstance(v, DateTimeDelta):
         _months, _days, _secs, _nanos = v.in_months_days_secs_nanos()
         if _months <= 0 and _days <= 0 and _secs <= 0 and _nanos <= 0:
@@ -261,3 +262,6 @@ def validate_positive_interval(v: Interval) -> Interval:
     elif isinstance(v, datetime.timedelta) and v <= datetime.timedelta(0):
         raise ValueError("interval must be positive")
     return v
+
+
+PositiveInterval = Annotated[Interval, AfterValidator(_validate_positive_interval)]

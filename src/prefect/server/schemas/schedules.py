@@ -33,10 +33,9 @@ from prefect._vendor.croniter import croniter
 from prefect.server.utilities.schemas.bases import PrefectBaseModel
 from prefect.types import DateTime, TimeZone
 from prefect.types._datetime import (
-    Interval,
+    PositiveInterval,
     create_datetime_instance,
     now,
-    validate_positive_interval,
 )
 
 MAX_ITERATIONS = 1000
@@ -106,17 +105,12 @@ class IntervalSchedule(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
-    interval: Interval = Field()
+    interval: PositiveInterval = Field()
     anchor_date: AnchorDate = Field(
         default_factory=lambda: now("UTC"),
         examples=["2020-01-01T00:00:00Z"],
     )
     timezone: Optional[str] = Field(default=None, examples=["America/New_York"])
-
-    @field_validator("interval", mode="after")
-    @classmethod
-    def validate_interval_positive(cls, v: Interval) -> Interval:
-        return validate_positive_interval(v)
 
     @model_validator(mode="after")
     def validate_timezone(self):
