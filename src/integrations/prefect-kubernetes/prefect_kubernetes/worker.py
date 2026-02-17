@@ -33,6 +33,7 @@ The default template used for Kubernetes job manifests looks like this:
 apiVersion: batch/v1
 kind: Job
 metadata:
+annotations: "{{ annotations }}"
 labels: "{{ labels }}"
 namespace: "{{ namespace }}"
 generateName: "{{ name }}-"
@@ -68,6 +69,7 @@ pool you could update the job manifest template to look like this:
 apiVersion: batch/v1
 kind: Job
 metadata:
+annotations: "{{ annotations }}"
 labels: "{{ labels }}"
 namespace: "{{ namespace }}"
 generateName: "{{ name }}-"
@@ -184,6 +186,7 @@ def _get_default_job_manifest_template() -> Dict[str, Any]:
         "apiVersion": "batch/v1",
         "kind": "Job",
         "metadata": {
+            "annotations": "{{ annotations }}",
             "labels": "{{ labels }}",
             "namespace": "{{ namespace }}",
             "generateName": "{{ name }}-",
@@ -217,7 +220,7 @@ def _get_base_job_manifest():
     return {
         "apiVersion": "batch/v1",
         "kind": "Job",
-        "metadata": {"labels": {}},
+        "metadata": {"annotations": {}, "labels": {}},
         "spec": {
             "template": {
                 "spec": {
@@ -268,6 +271,13 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         stream_output: Whether or not to stream the job's output.
     """
 
+    annotations: Dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Annotations applied to infrastructure created by the worker using "
+            "this job configuration."
+        ),
+    )
     namespace: str = Field(default="default")
     job_manifest: Dict[str, Any] = Field(
         json_schema_extra=dict(template=_get_default_job_manifest_template())
@@ -294,6 +304,10 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         # Ensure metadata is present
         if "metadata" not in job_manifest:
             job_manifest["metadata"] = {}
+
+        # Ensure annotations is present in metadata
+        if "annotations" not in job_manifest["metadata"]:
+            job_manifest["metadata"]["annotations"] = {}
 
         # Ensure labels is present in metadata
         if "labels" not in job_manifest["metadata"]:
@@ -414,10 +428,12 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
 
         self._populate_env_in_manifest()
         self._slugify_labels()
+        self._slugify_annotations()
         self._populate_image_if_not_present()
         self._populate_command_if_not_present()
         self._populate_generate_name_if_not_present()
         self._propagate_labels_to_pod()
+        self._propagate_annotations_to_pod()
 
     def _configure_eviction_handling(self):
         """
@@ -622,6 +638,39 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         }
         self.job_manifest["spec"]["template"]["metadata"] = current_pod_metadata
 
+    def _slugify_annotations(self):
+        """Merges and slugifies annotation keys in the job manifest.
+
+        Annotation keys follow the same rules as label keys, but annotation
+        values are arbitrary strings so only keys are slugified.
+        """
+        all_annotations = {
+            **self.job_manifest["metadata"].get("annotations", {}),
+            **self.annotations,
+        }
+        self.job_manifest["metadata"]["annotations"] = {
+            _slugify_label_key(k): v for k, v in all_annotations.items()
+        }
+
+    def _propagate_annotations_to_pod(self):
+        """Propagates annotations to the pod in the job manifest.
+
+        Unlike labels, there are no automatic base annotations, so we only
+        touch pod metadata when the user actually provided annotations.
+        """
+        merged_annotations = self.job_manifest["metadata"].get("annotations", {})
+        if not merged_annotations:
+            return
+
+        current_pod_metadata = self.job_manifest["spec"]["template"].get("metadata", {})
+        current_pod_annotations = current_pod_metadata.get("annotations", {})
+        all_annotations = {**current_pod_annotations, **merged_annotations}
+
+        current_pod_metadata["annotations"] = {
+            _slugify_label_key(k): v for k, v in all_annotations.items()
+        }
+        self.job_manifest["spec"]["template"]["metadata"] = current_pod_metadata
+
 
 class KubernetesWorkerVariables(BaseVariables):
     """
@@ -631,6 +680,10 @@ class KubernetesWorkerVariables(BaseVariables):
     base job template.
     """
 
+    annotations: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Annotations applied to Kubernetes jobs and pods created by the worker.",
+    )
     namespace: str = Field(
         default="default", description="The Kubernetes namespace to create jobs within."
     )

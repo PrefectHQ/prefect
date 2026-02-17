@@ -1457,6 +1457,130 @@ class TestKubernetesWorkerJobConfiguration:
             == "sweet"
         )
 
+    async def test_user_supplied_base_job_with_annotations(self, flow_run):
+        """The user can supply a custom base job with annotations and they will be
+        included in the final manifest"""
+        template = KubernetesWorker.get_default_base_job_template()
+        template["job_configuration"]["job_manifest"] = {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {
+                "annotations": {"my-custom-annotation": "some-value"},
+                "labels": {},
+            },
+            "spec": {
+                "template": {
+                    "spec": {
+                        "parallelism": 1,
+                        "completions": 1,
+                        "restartPolicy": "Never",
+                        "containers": [
+                            {
+                                "name": "prefect-job",
+                                "env": [],
+                            }
+                        ],
+                    }
+                }
+            },
+        }
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            template, {}
+        )
+        assert configuration.job_manifest["metadata"]["annotations"] == {
+            "my-custom-annotation": "some-value",
+        }
+        configuration.prepare_for_flow_run(flow_run)
+        assert (
+            configuration.job_manifest["metadata"]["annotations"][
+                "my-custom-annotation"
+            ]
+            == "some-value"
+        )
+
+    async def test_annotations_from_variables_merged_with_hardcoded_template(
+        self, flow_run
+    ):
+        """Annotations from variables are merged with annotations hardcoded
+        directly in the job manifest template"""
+        template = KubernetesWorker.get_default_base_job_template()
+        # Replace the annotations placeholder with a hardcoded annotation
+        template["job_configuration"]["job_manifest"]["metadata"]["annotations"] = {
+            "hardcoded.io/annotation": "from-template",
+        }
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            template, {"annotations": {"variable.io/annotation": "from-variables"}}
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        annotations = configuration.job_manifest["metadata"]["annotations"]
+        # Both template-hardcoded and variable-provided annotations are present
+        assert annotations["hardcoded.io/annotation"] == "from-template"
+        assert annotations["variable.io/annotation"] == "from-variables"
+
+    async def test_annotations_propagated_to_pod(self, flow_run):
+        """Annotations set via variables are propagated to the pod template metadata"""
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"annotations": {"app.example.com/team": "platform"}},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        pod_metadata = configuration.job_manifest["spec"]["template"]["metadata"]
+        assert pod_metadata["annotations"]["app.example.com/team"] == "platform"
+
+    async def test_empty_annotations_not_propagated_to_pod(self, flow_run):
+        """When no annotations are set, pod template metadata should not get
+        an empty annotations dict"""
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {}
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        pod_metadata = configuration.job_manifest["spec"]["template"]["metadata"]
+        assert "annotations" not in pod_metadata
+
+    async def test_annotation_values_not_slugified(self, flow_run):
+        """Unlike labels, annotation values can contain arbitrary strings and
+        should not be slugified"""
+        long_value = "x" * 300
+        special_chars_value = "this has spaces, $pecial chars, and MORE!"
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {
+                "annotations": {
+                    "long-annotation": long_value,
+                    "special-annotation": special_chars_value,
+                }
+            },
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        annotations = configuration.job_manifest["metadata"]["annotations"]
+        assert annotations["long-annotation"] == long_value
+        assert annotations["special-annotation"] == special_chars_value
+
+    async def test_annotation_keys_are_slugified(self, flow_run):
+        """Annotation keys follow the same rules as label keys and should be
+        slugified"""
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {
+                "annotations": {
+                    "valid-dns-prefix/name": "value1",
+                    "key-with-invalid$@*-chars": "value2",
+                }
+            },
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        annotations = configuration.job_manifest["metadata"]["annotations"]
+        assert "valid-dns-prefix/name" in annotations
+        assert "key-with-invalid-chars" in annotations
+
     async def test_user_can_supply_a_sidecar_container_and_volume(self, flow_run):
         """The user can supply a custom base job that includes more complex
         modifications, like a sidecar container and volumes"""
@@ -2594,6 +2718,137 @@ class TestKubernetesWorker:
                 1
             ]["metadata"]["labels"]
             assert labels["foo"] == expected
+
+    async def test_uses_annotations_setting(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {
+                "annotations": {
+                    "app.kubernetes.io/managed-by": "prefect",
+                    "team": "platform",
+                }
+            },
+        )
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]
+            annotations = manifest["metadata"]["annotations"]
+            assert annotations["app.kubernetes.io/managed-by"] == "prefect"
+            assert annotations["team"] == "platform"
+
+    async def test_annotations_applied_to_both_job_and_pod(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"annotations": {"prometheus.io/scrape": "true"}},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]
+
+            job_annotations = manifest["metadata"]["annotations"]
+            assert job_annotations["prometheus.io/scrape"] == "true"
+
+            pod_annotations = manifest["spec"]["template"]["metadata"]["annotations"]
+            assert pod_annotations["prometheus.io/scrape"] == "true"
+
+    @pytest.mark.parametrize(
+        "given,expected",
+        [
+            ("a-valid-dns-subdomain1/and-a-name", "a-valid-dns-subdomain1/and-a-name"),
+            (
+                "a-prefix-with-invalid$@*^$@-characters/and-a-name",
+                "a-prefix-with-invalid-characters/and-a-name",
+            ),
+            ("a" * 300, "a" * 63),
+            ("a" * 300 + "/" + "b" * 100, "a" * 253 + "/" + "b" * 63),
+        ],
+    )
+    async def test_sanitizes_annotation_keys(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        given,
+        expected,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"annotations": {given: "foo"}},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+            annotations = (
+                mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
+                    "metadata"
+                ]["annotations"]
+            )
+            assert annotations[expected] == "foo"
+
+    async def test_annotation_values_preserved_verbatim(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        """Annotation values can be arbitrary strings, unlike label values"""
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        long_value = "a" * 500
+        json_value = '{"key": "value", "nested": [1, 2, 3]}'
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {
+                "annotations": {
+                    "long-annotation": long_value,
+                    "json-annotation": json_value,
+                }
+            },
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            mock_batch_client.return_value.create_namespaced_job.assert_called_once()
+            annotations = (
+                mock_batch_client.return_value.create_namespaced_job.call_args[0][1][
+                    "metadata"
+                ]["annotations"]
+            )
+            assert annotations["long-annotation"] == long_value
+            assert annotations["json-annotation"] == json_value
 
     async def test_uses_namespace_setting(
         self,
