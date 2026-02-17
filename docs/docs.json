@@ -452,7 +452,13 @@
                 "group": "Bitbucket",
                 "pages": [
                   "integrations/prefect-bitbucket/index",
-                  "integrations/prefect-bitbucket/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-bitbucket/api-ref/prefect_bitbucket-credentials",
+                      "integrations/prefect-bitbucket/api-ref/prefect_bitbucket-repository"
+                    ]
+                  }
                 ]
               },
               {
