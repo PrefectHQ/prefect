@@ -604,7 +604,13 @@
                 "group": "Snowflake",
                 "pages": [
                   "integrations/prefect-snowflake/index",
-                  "integrations/prefect-snowflake/sdk"
+                  {
+                    "group": "SDK Reference",
+                    "pages": [
+                      "integrations/prefect-snowflake/api-ref/prefect_snowflake-credentials",
+                      "integrations/prefect-snowflake/api-ref/prefect_snowflake-database"
+                    ]
+                  }
                 ]
               },
               {
