@@ -204,7 +204,9 @@ test.describe("Artifact Detail and Navigation", () => {
 			timeout: 10000,
 		});
 
-		await expect(page.getByText(artifactKey)).toBeVisible();
+		await expect(
+			page.getByLabel("breadcrumb").getByText(artifactKey),
+		).toBeVisible();
 
 		const timelineCard = page.getByTestId(`timeline-card-${artifact.id}`);
 		await expect(timelineCard).toBeVisible({ timeout: 10000 });
@@ -215,7 +217,9 @@ test.describe("Artifact Detail and Navigation", () => {
 			{ timeout: 10000 },
 		);
 
-		await expect(page.getByText(artifactKey)).toBeVisible();
+		await expect(
+			page.getByLabel("breadcrumb").getByText(artifactKey),
+		).toBeVisible();
 	});
 
 	test("Render artifact content correctly for all 3 types", async ({
@@ -423,7 +427,11 @@ test.describe("Artifact Detail and Navigation", () => {
 			timeout: 10000,
 		});
 
-		await expect(page.getByText("Version Three")).toBeVisible();
+		const mdDisplay = page.getByTestId("markdown-display");
+		await expect(mdDisplay).toBeVisible({ timeout: 10000 });
+		await expect(
+			mdDisplay.getByRole("heading", { name: "Version Three" }),
+		).toBeVisible();
 
 		// Go back to key page and click v1
 		await page.goBack();
@@ -441,7 +449,13 @@ test.describe("Artifact Detail and Navigation", () => {
 			timeout: 10000,
 		});
 
-		await expect(page.getByText("Version One")).toBeVisible();
-		await expect(page.getByText("Version Three")).not.toBeVisible();
+		const mdDisplayV1 = page.getByTestId("markdown-display");
+		await expect(mdDisplayV1).toBeVisible({ timeout: 10000 });
+		await expect(
+			mdDisplayV1.getByRole("heading", { name: "Version One" }),
+		).toBeVisible();
+		await expect(
+			mdDisplayV1.getByRole("heading", { name: "Version Three" }),
+		).not.toBeVisible();
 	});
 });
