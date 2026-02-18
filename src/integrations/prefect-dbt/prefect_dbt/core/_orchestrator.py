@@ -6,7 +6,6 @@ This module provides:
 - PrefectDbtOrchestrator: Executes dbt builds with wave or per-node execution
 """
 
-import logging
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -15,6 +14,7 @@ from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 
+from prefect.logging import get_logger
 from prefect_dbt.core._cache import build_cache_policy_for_node
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._freshness import (
@@ -25,7 +25,7 @@ from prefect_dbt.core._freshness import (
 from prefect_dbt.core._manifest import ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ExecutionMode(Enum):
@@ -144,22 +144,22 @@ class PrefectDbtOrchestrator:
             caching to work across process restarts).
         cache_key_storage: Where to persist cache keys.
         test_strategy: Controls when dbt test nodes execute.
-            ``TestStrategy.SKIP`` (default) excludes tests entirely.
-            ``TestStrategy.IMMEDIATE`` interleaves tests with models in
+            `TestStrategy.SKIP` (default) excludes tests entirely.
+            `TestStrategy.IMMEDIATE` interleaves tests with models in
             the DAG (each test runs in the wave after its parent models).
-            ``TestStrategy.DEFERRED`` runs all tests after all model waves.
+            `TestStrategy.DEFERRED` runs all tests after all model waves.
         use_source_freshness_expiration: When True (requires
             `enable_caching=True`), dynamically compute
             `cache_expiration` per-node from upstream source freshness
             thresholds.
         create_summary_artifact: When True, create a Prefect markdown
             artifact summarising the build results at the end of
-            ``run_build()``.  Requires an active flow run context.
+            `run_build()`.  Requires an active flow run context.
         include_compiled_code: When True, include compiled SQL in
             asset descriptions (PER_NODE mode only).
         write_run_results: When True, write a dbt-compatible
-            ``run_results.json`` to the target directory after
-            ``run_build()``.
+            `run_results.json` to the target directory after
+            `run_build()`.
 
     Example::
 
@@ -707,8 +707,8 @@ class PrefectDbtOrchestrator:
         `ProcessPoolTaskRunner`; waves are processed sequentially.  Failed
         nodes cause their downstream dependents to be skipped.
 
-        For models, seeds, and snapshots with a ``relation_name``, the
-        task is wrapped in a ``MaterializingTask`` that tracks asset
+        For models, seeds, and snapshots with a `relation_name`, the
+        task is wrapped in a `MaterializingTask` that tracks asset
         lineage in Prefect's asset graph.
 
         Each subprocess gets its own dbt adapter registry (`FACTORY`
