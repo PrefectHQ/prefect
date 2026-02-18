@@ -41,15 +41,7 @@ The logger returned by `get_run_logger` support the [standard Python logging met
 outside that context — for example, inside a [state change hook](/v3/how-to-guides/workflows/state-change-hooks) — raises a `MissingContextError`.
 
 To log from a state change hook and have logs appear in the Prefect UI, use
-`flow_run_logger` or `task_run_logger` from `prefect.logging.loggers`:
-
-```python
-from prefect.logging.loggers import flow_run_logger
-
-def my_hook(flow, flow_run, state):
-    logger = flow_run_logger(flow_run, flow)
-    logger.info("This log appears in the Prefect UI")
-```
+`flow_run_logger` or `task_run_logger` from `prefect.logging.loggers`. See [state change hook](/v3/how-to-guides/workflows/state-change-hooks) for more details.
 
 To use a normal Python logger anywhere with your same configuration, use `get_logger()` from `prefect.logging`.
 The logger retrieved with `get_logger()` will **not** send log records to the Prefect API.
