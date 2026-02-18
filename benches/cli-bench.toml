@@ -114,3 +114,27 @@ name = "prefect sdk --help (cyclopts)"
 args = ["env", "PREFECT_CLI_FAST=1", "prefect", "sdk", "--help"]
 category = "startup"
 description = "sdk help via cyclopts"
+
+[[commands]]
+name = "prefect variable --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "variable", "--help"]
+category = "startup"
+description = "variable help via cyclopts"
+
+[[commands]]
+name = "prefect artifact --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "artifact", "--help"]
+category = "startup"
+description = "artifact help via cyclopts"
+
+[[commands]]
+name = "prefect task-run --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "task-run", "--help"]
+category = "startup"
+description = "task-run help via cyclopts"
+
+[[commands]]
+name = "prefect api --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "api", "--help"]
+category = "startup"
+description = "api help via cyclopts"

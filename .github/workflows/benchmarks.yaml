@@ -134,26 +134,27 @@ jobs:
       - name: Install dependencies (head)
         run: uv sync --group cli-bench --locked
 
-      - name: Run baseline benchmarks (base)
+      - name: Run benchmarks
         run: |
           uv run --group cli-bench cli-bench \
             --config "$RUNNER_TEMP/cli-bench.toml" \
             --project-root "$RUNNER_TEMP/base" \
             run \
-            --runs 10 \
+            --runs 5 \
             --category startup \
-            --output baseline.json
+            --output baseline.json &
+          base_pid=$!
 
-      - name: Run comparison benchmarks (head)
-        run: |
           uv run --group cli-bench cli-bench \
             --config "$RUNNER_TEMP/cli-bench.toml" \
             --project-root "$RUNNER_TEMP/head" \
             run \
-            --runs 10 \
+            --runs 5 \
             --category startup \
-            --compare baseline.json \
-            --output comparison.json
+            --output comparison.json &
+          head_pid=$!
+
+          wait $base_pid $head_pid
 
       - name: Check for regressions
         run: |

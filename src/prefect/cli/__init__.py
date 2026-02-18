@@ -25,6 +25,8 @@ _FLAGS_WITH_VALUES = {
 # As commands are migrated, add them here so the router sends them
 # to cyclopts instead of delegating to typer.
 _CYCLOPTS_COMMANDS: set[str] = {
+    "api",
+    "artifact",
     "concurrency-limit",
     "config",
     "dashboard",
@@ -38,6 +40,8 @@ _CYCLOPTS_COMMANDS: set[str] = {
     "server",
     "shell",
     "task",
+    "task-run",
+    "variable",
     "version",
     "worker",
 }
