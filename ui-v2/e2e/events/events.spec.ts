@@ -338,15 +338,29 @@ test.describe("Event Detail", () => {
 	test.beforeAll(async ({ apiClient }) => {
 		await waitForServerHealth(apiClient);
 
-		const flow = await createFlow(
-			apiClient,
-			`${DETAIL_PREFIX}flow-${detailTimestamp}`,
-		);
-		const flowRun = await createFlowRun(apiClient, {
-			flowId: flow.id,
-			name: `${DETAIL_PREFIX}run-${detailTimestamp}`,
-			state: { type: "COMPLETED", name: "Completed" },
-		});
+		// Retry setup to handle transient 503s during server warm-up
+		let flow: Awaited<ReturnType<typeof createFlow>>;
+		let flowRun: Awaited<ReturnType<typeof createFlowRun>>;
+		const setupDeadline = Date.now() + 30_000;
+		while (Date.now() < setupDeadline) {
+			try {
+				flow = await createFlow(
+					apiClient,
+					`${DETAIL_PREFIX}flow-${detailTimestamp}`,
+				);
+				flowRun = await createFlowRun(apiClient, {
+					flowId: flow.id,
+					name: `${DETAIL_PREFIX}run-${detailTimestamp}`,
+					state: { type: "COMPLETED", name: "Completed" },
+				});
+				break;
+			} catch {
+				await new Promise((r) => setTimeout(r, 2000));
+			}
+		}
+		if (!flowRun) {
+			throw new Error("Failed to create flow/flow-run after 30s of retries");
+		}
 		detailFlowRunId = flowRun.id;
 
 		const testEvent = buildTestEvent({
@@ -401,10 +415,11 @@ test.describe("Event Detail", () => {
 			});
 		}).toPass({ timeout: 60_000 });
 
-		await page
-			.getByRole("link", { name: /flow run completed/i })
-			.first()
-			.click();
+		// Scope click to the specific list item containing our unique resource name
+		const eventItem = page
+			.locator("li")
+			.filter({ hasText: detailResourceName });
+		await eventItem.getByRole("link", { name: /flow run completed/i }).click();
 
 		await expect(page).toHaveURL(
 			new RegExp(`/events/event/\\d{4}-\\d{2}-\\d{2}/${detailEventId}`),
@@ -481,7 +496,9 @@ test.describe("Event Detail", () => {
 
 		await expect(page.getByRole("tab", { name: "Details" })).toBeVisible();
 
-		await page.getByRole("link", { name: detailResourceName }).click();
+		await page
+			.getByRole("link", { name: new RegExp(detailResourceName) })
+			.click();
 
 		await expect(page).toHaveURL(
 			new RegExp(`/runs/flow-run/${detailFlowRunId}`),
