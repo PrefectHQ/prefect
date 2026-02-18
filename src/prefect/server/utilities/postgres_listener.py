@@ -52,12 +52,17 @@ async def get_pg_notify_connection() -> Connection | None:
 
     # asyncpg.connect can take individual params or a DSN string.
     # We'll pass params directly from the parsed URL if they exist to be explicit.
-    # Build connection arguments, ensuring proper types
+    # Build connection arguments, ensuring proper types.
+    # For UNIX domain socket URLs (e.g. postgresql:///db?host=/tmp/sock&port=5432),
+    # host and port are in query params rather than the URL authority section.
+    query = asyncpg_dsn.query
     connect_args = {}
-    if asyncpg_dsn.host:
-        connect_args["host"] = asyncpg_dsn.host
-    if asyncpg_dsn.port:
-        connect_args["port"] = asyncpg_dsn.port
+    host = asyncpg_dsn.host or query.get("host")
+    if host:
+        connect_args["host"] = host
+    port = asyncpg_dsn.port or query.get("port")
+    if port:
+        connect_args["port"] = int(port)
     if asyncpg_dsn.username:
         connect_args["user"] = asyncpg_dsn.username
     if asyncpg_dsn.password:
@@ -83,7 +88,7 @@ async def get_pg_notify_connection() -> Connection | None:
         conn = await asyncpg.connect(**connect_args)
         _logger.info(
             f"Successfully established raw asyncpg connection for LISTEN/NOTIFY to "
-            f"{asyncpg_dsn.host}:{asyncpg_dsn.port}/{asyncpg_dsn.database}"
+            f"{connect_args.get('host', 'localhost')}:{connect_args.get('port', 5432)}/{asyncpg_dsn.database}"
         )
         return conn
     except Exception as e:
