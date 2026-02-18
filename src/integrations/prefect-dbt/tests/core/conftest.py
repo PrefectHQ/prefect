@@ -3,7 +3,7 @@
 import json
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,11 +19,11 @@ def _make_node(
     depends_on: tuple[str, ...] = (),
     depends_on_macros: tuple[str, ...] = (),
     materialization: str = "table",
-    relation_name: Optional[str] = None,
-    description: Optional[str] = None,
-    compiled_code: Optional[str] = None,
-    config: Optional[dict] = None,
-    original_file_path: Optional[str] = None,
+    relation_name: str | None = None,
+    description: str | None = None,
+    compiled_code: str | None = None,
+    config: dict | None = None,
+    original_file_path: str | None = None,
 ) -> DbtNode:
     return DbtNode(
         unique_id=unique_id,
