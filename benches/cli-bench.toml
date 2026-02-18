@@ -138,3 +138,15 @@ name = "prefect api --help (cyclopts)"
 args = ["env", "PREFECT_CLI_FAST=1", "prefect", "api", "--help"]
 category = "startup"
 description = "api help via cyclopts"
+
+[[commands]]
+name = "prefect dev --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "dev", "--help"]
+category = "startup"
+description = "dev help via cyclopts"
+
+[[commands]]
+name = "prefect global-concurrency-limit --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "global-concurrency-limit", "--help"]
+category = "startup"
+description = "global-concurrency-limit help via cyclopts"

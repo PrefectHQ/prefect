@@ -202,8 +202,6 @@ _DELEGATED_COMMANDS: set[str] = {
     "block",
     "cloud",
     "deploy",
-    "dev",
-    "global-concurrency-limit",
     "transfer",
     "work-pool",
     "work-queue",
@@ -375,17 +373,9 @@ _app.command(concurrency_limit_app)
 
 
 # --- global-concurrency-limit ---
-global_concurrency_limit_app = _delegated_app(
-    "global-concurrency-limit", "Manage global concurrency limits."
-)
+from prefect.cli._cyclopts.global_concurrency_limit import global_concurrency_limit_app
+
 _app.command(global_concurrency_limit_app)
-
-
-@global_concurrency_limit_app.default
-def global_concurrency_limit_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("global-concurrency-limit", tokens)
 
 
 # --- artifact ---
@@ -430,12 +420,10 @@ from prefect.cli._cyclopts.dashboard import dashboard_app
 _app.command(dashboard_app)
 
 
-@_app.command(name="dev")
-def dev_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Development commands."""
-    _delegate("dev", tokens)
+# --- dev ---
+from prefect.cli._cyclopts.dev import dev_app
+
+_app.command(dev_app)
 
 
 # --- sdk ---
