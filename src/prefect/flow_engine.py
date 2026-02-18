@@ -497,9 +497,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.short_circuit = True
 
         if not self._flow_run_name_set and self.flow.flow_run_name:
-            flow_run_name = resolve_custom_flow_run_name(
-                flow=self.flow, parameters=self.parameters
-            )
+            with FlowRunContext(
+                flow=self.flow,
+                flow_run=self.flow_run,
+                parameters=self.parameters,
+                client=self.client,
+                task_runner=self.flow.task_runner,
+                result_store=get_result_store().update_for_flow(self.flow, _sync=True),
+            ):
+                flow_run_name = resolve_custom_flow_run_name(
+                    flow=self.flow, parameters=self.parameters
+                )
             self.client.set_flow_run_name(
                 flow_run_id=self.flow_run.id, name=flow_run_name
             )
@@ -979,19 +987,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                with FlowRunContext(
-                    flow=self.flow,
-                    flow_run=self.flow_run,
-                    parameters=self.parameters,
-                    client=self.client,
-                    task_runner=self.flow.task_runner,
-                    result_store=get_result_store().update_for_flow(
-                        self.flow, _sync=True
-                    ),
-                ):
-                    self.begin_run()
+                self.begin_run()
 
-                    yield
+                yield
 
     @contextmanager
     def run_context(self):
@@ -1122,9 +1120,17 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.short_circuit = True
 
         if not self._flow_run_name_set and self.flow.flow_run_name:
-            flow_run_name = resolve_custom_flow_run_name(
-                flow=self.flow, parameters=self.parameters
-            )
+            with FlowRunContext(
+                flow=self.flow,
+                flow_run=self.flow_run,
+                parameters=self.parameters,
+                client=self.client,
+                task_runner=self.flow.task_runner,
+                result_store=get_result_store().update_for_flow(self.flow, _sync=True),
+            ):
+                flow_run_name = resolve_custom_flow_run_name(
+                    flow=self.flow, parameters=self.parameters
+                )
             await self.client.set_flow_run_name(
                 flow_run_id=self.flow_run.id, name=flow_run_name
             )
@@ -1607,19 +1613,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                with FlowRunContext(
-                    flow=self.flow,
-                    flow_run=self.flow_run,
-                    parameters=self.parameters,
-                    client=self.client,
-                    task_runner=self.flow.task_runner,
-                    result_store=get_result_store().update_for_flow(
-                        self.flow, _sync=True
-                    ),
-                ):
-                    await self.begin_run()
+                await self.begin_run()
 
-                    yield
+                yield
 
     @asynccontextmanager
     async def run_context(self):
