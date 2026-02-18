@@ -14,7 +14,18 @@ from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 
+from prefect.artifacts import create_markdown_artifact
+from prefect.context import AssetContext, FlowRunContext
 from prefect.logging import get_logger
+from prefect.tasks import MaterializingTask
+from prefect_dbt.core._artifacts import (
+    ASSET_NODE_TYPES,
+    create_asset_for_node,
+    create_summary_markdown,
+    get_compiled_code_for_node,
+    get_upstream_assets_for_node,
+    write_run_results_json,
+)
 from prefect_dbt.core._cache import build_cache_policy_for_node
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._freshness import (
@@ -24,6 +35,7 @@ from prefect_dbt.core._freshness import (
 )
 from prefect_dbt.core._manifest import ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
+from prefect_dbt.utilities import format_resource_id
 
 logger = get_logger(__name__)
 
@@ -287,14 +299,8 @@ class PrefectDbtOrchestrator:
     ) -> None:
         """Create post-execution artifacts (summary markdown, run_results.json)."""
         if self._create_summary_artifact:
-            from prefect.context import FlowRunContext
-
             if FlowRunContext.get() is not None:
-                from prefect_dbt.core._artifacts import create_summary_markdown
-
                 try:
-                    from prefect.artifacts import create_markdown_artifact
-
                     markdown = create_summary_markdown(results)
                     create_markdown_artifact(
                         markdown=markdown,
@@ -306,8 +312,6 @@ class PrefectDbtOrchestrator:
                     pass
 
         if self._write_run_results:
-            from prefect_dbt.core._artifacts import write_run_results_json
-
             target_dir = self._settings.project_dir / self._settings.target_path
             write_run_results_json(results, elapsed_time, target_dir)
 
@@ -790,8 +794,6 @@ class PrefectDbtOrchestrator:
                 # Add asset metadata when running inside a MaterializingTask.
                 if asset_key:
                     try:
-                        from prefect.context import AssetContext
-
                         asset_ctx = AssetContext.get()
                         if asset_ctx:
                             metadata: dict[str, Any] = {"status": "success"}
@@ -824,14 +826,6 @@ class PrefectDbtOrchestrator:
 
         def _build_asset_task(node, with_opts):
             """Create a MaterializingTask for nodes that produce assets."""
-            from prefect.tasks import MaterializingTask
-            from prefect_dbt.core._artifacts import (
-                ASSET_NODE_TYPES,
-                create_asset_for_node,
-                get_compiled_code_for_node,
-                get_upstream_assets_for_node,
-            )
-
             if (
                 adapter_type
                 and node.resource_type in ASSET_NODE_TYPES
@@ -851,10 +845,7 @@ class PrefectDbtOrchestrator:
                     node, all_nodes_map, adapter_type
                 )
 
-                from prefect_dbt.utilities import format_resource_id
-
                 asset_key = format_resource_id(adapter_type, node.relation_name)
-
                 return (
                     MaterializingTask(
                         fn=_run_dbt_node,

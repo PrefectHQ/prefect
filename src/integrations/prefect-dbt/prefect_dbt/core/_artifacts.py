@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import dbt.version
 from dbt.artifacts.resources.types import NodeType
 
 from prefect.assets import Asset, AssetProperties
@@ -141,8 +142,6 @@ def create_run_results_dict(
     Returns:
         Dict in dbt run_results.json schema.
     """
-    import dbt.version
-
     run_results: list[dict[str, Any]] = []
     for node_id, result in results.items():
         status = result.get("status", "unknown")
