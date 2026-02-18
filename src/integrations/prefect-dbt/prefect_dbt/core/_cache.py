@@ -46,6 +46,7 @@ class DbtNodeCachePolicy(CachePolicy):
     full_refresh: bool = False
     upstream_cache_keys: tuple[tuple[str, str], ...] = ()
     macro_content_hash: str | None = None
+    relation_name: str | None = None
 
     def compute_key(
         self,
@@ -66,6 +67,7 @@ class DbtNodeCachePolicy(CachePolicy):
             self.full_refresh,
             self.upstream_cache_keys,
             self.macro_content_hash,
+            self.relation_name,
         )
 
 
@@ -163,6 +165,7 @@ def build_cache_policy_for_node(
         full_refresh=full_refresh,
         upstream_cache_keys=sorted_upstream,
         macro_content_hash=macro_hash,
+        relation_name=node.relation_name,
     )
 
     if key_storage is not None:
