@@ -1,0 +1,1266 @@
+---
+title: cloud_storage
+sidebarTitle: cloud_storage
+---
+
+# `prefect_gcp.cloud_storage`
+
+
+Tasks for interacting with GCP Cloud Storage.
+
+## Functions
+
+### `acloud_storage_create_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L37" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acloud_storage_create_bucket(bucket: str, gcp_credentials: GcpCredentials, project: Optional[str] = None, location: Optional[str] = None, **create_kwargs: Dict[str, Any]) -> str
+```
+
+
+Creates a bucket (async version).
+
+**Args:**
+- `bucket`: Name of the bucket.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `location`: Location of the bucket.
+- `**create_kwargs`: Additional keyword arguments to pass to `client.create_bucket`.
+
+**Returns:**
+- The bucket name.
+
+
+### `cloud_storage_create_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cloud_storage_create_bucket(bucket: str, gcp_credentials: GcpCredentials, project: Optional[str] = None, location: Optional[str] = None, **create_kwargs: Dict[str, Any]) -> str
+```
+
+
+Creates a bucket.
+
+**Args:**
+- `bucket`: Name of the bucket.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `location`: Location of the bucket.
+- `**create_kwargs`: Additional keyword arguments to pass to `client.create_bucket`.
+
+**Returns:**
+- The bucket name.
+
+
+### `acloud_storage_download_blob_as_bytes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acloud_storage_download_blob_as_bytes(bucket: str, blob: str, gcp_credentials: GcpCredentials, chunk_size: Optional[int] = None, encryption_key: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **download_kwargs: Dict[str, Any]) -> bytes
+```
+
+
+Downloads a blob as bytes (async version).
+
+**Args:**
+- `bucket`: Name of the bucket.
+- `blob`: Name of the Cloud Storage blob.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `chunk_size`: The size of a chunk of data whenever
+iterating (in bytes). This must be a multiple of 256 KB
+per the API specification.
+- `encryption_key`: An encryption key.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_as_bytes`.
+
+**Returns:**
+- A bytes or string representation of the blob object.
+
+
+### `cloud_storage_download_blob_as_bytes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cloud_storage_download_blob_as_bytes(bucket: str, blob: str, gcp_credentials: GcpCredentials, chunk_size: Optional[int] = None, encryption_key: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **download_kwargs: Dict[str, Any]) -> bytes
+```
+
+
+Downloads a blob as bytes.
+
+**Args:**
+- `bucket`: Name of the bucket.
+- `blob`: Name of the Cloud Storage blob.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `chunk_size`: The size of a chunk of data whenever
+iterating (in bytes). This must be a multiple of 256 KB
+per the API specification.
+- `encryption_key`: An encryption key.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_as_bytes`.
+
+**Returns:**
+- A bytes or string representation of the blob object.
+
+
+### `acloud_storage_download_blob_to_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acloud_storage_download_blob_to_file(bucket: str, blob: str, path: Union[str, Path], gcp_credentials: GcpCredentials, chunk_size: Optional[int] = None, encryption_key: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **download_kwargs: Dict[str, Any]) -> Union[str, Path]
+```
+
+
+Downloads a blob to a file path (async version).
+
+**Args:**
+- `bucket`: Name of the bucket.
+- `blob`: Name of the Cloud Storage blob.
+- `path`: Downloads the contents to the provided file path;
+if the path is a directory, automatically joins the blob name.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `chunk_size`: The size of a chunk of data whenever
+iterating (in bytes). This must be a multiple of 256 KB
+per the API specification.
+- `encryption_key`: An encryption key.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_to_filename`.
+
+**Returns:**
+- The path to the blob object.
+
+
+### `cloud_storage_download_blob_to_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cloud_storage_download_blob_to_file(bucket: str, blob: str, path: Union[str, Path], gcp_credentials: GcpCredentials, chunk_size: Optional[int] = None, encryption_key: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **download_kwargs: Dict[str, Any]) -> Union[str, Path]
+```
+
+
+Downloads a blob to a file path.
+
+**Args:**
+- `bucket`: Name of the bucket.
+- `blob`: Name of the Cloud Storage blob.
+- `path`: Downloads the contents to the provided file path;
+if the path is a directory, automatically joins the blob name.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `chunk_size`: The size of a chunk of data whenever
+iterating (in bytes). This must be a multiple of 256 KB
+per the API specification.
+- `encryption_key`: An encryption key.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_to_filename`.
+
+**Returns:**
+- The path to the blob object.
+
+
+### `acloud_storage_upload_blob_from_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L581" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acloud_storage_upload_blob_from_string(data: Union[str, bytes], bucket: str, blob: str, gcp_credentials: GcpCredentials, content_type: Optional[str] = None, chunk_size: Optional[int] = None, encryption_key: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+
+Uploads a blob from a string or bytes representation of data (async version).
+
+**Args:**
+- `data`: String or bytes representation of data to upload.
+- `bucket`: Name of the bucket.
+- `blob`: Name of the Cloud Storage blob.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `content_type`: Type of content being uploaded.
+- `chunk_size`: The size of a chunk of data whenever
+iterating (in bytes). This must be a multiple of 256 KB
+per the API specification.
+- `encryption_key`: An encryption key.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_string`.
+
+**Returns:**
+- The blob name.
+
+
+### `cloud_storage_upload_blob_from_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L683" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cloud_storage_upload_blob_from_string(data: Union[str, bytes], bucket: str, blob: str, gcp_credentials: GcpCredentials, content_type: Optional[str] = None, chunk_size: Optional[int] = None, encryption_key: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+
+Uploads a blob from a string or bytes representation of data.
+
+**Args:**
+- `data`: String or bytes representation of data to upload.
+- `bucket`: Name of the bucket.
+- `blob`: Name of the Cloud Storage blob.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `content_type`: Type of content being uploaded.
+- `chunk_size`: The size of a chunk of data whenever
+iterating (in bytes). This must be a multiple of 256 KB
+per the API specification.
+- `encryption_key`: An encryption key.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_string`.
+
+**Returns:**
+- The blob name.
+
+
+### `acloud_storage_upload_blob_from_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L755" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acloud_storage_upload_blob_from_file(file: Union[str, Path, BytesIO], bucket: str, blob: str, gcp_credentials: GcpCredentials, content_type: Optional[str] = None, chunk_size: Optional[int] = None, encryption_key: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+
+Uploads a blob from file path or file-like object (async version). Usage for
+passing in file-like object is if the data was downloaded from the web;
+can bypass writing to disk and directly upload to Cloud Storage.
+
+**Args:**
+- `file`: Path to data or file like object to upload.
+- `bucket`: Name of the bucket.
+- `blob`: Name of the Cloud Storage blob.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `content_type`: Type of content being uploaded.
+- `chunk_size`: The size of a chunk of data whenever
+iterating (in bytes). This must be a multiple of 256 KB
+per the API specification.
+- `encryption_key`: An encryption key.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_file` or `Blob.upload_from_filename`.
+
+**Returns:**
+- The blob name.
+
+
+### `cloud_storage_upload_blob_from_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L840" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cloud_storage_upload_blob_from_file(file: Union[str, Path, BytesIO], bucket: str, blob: str, gcp_credentials: GcpCredentials, content_type: Optional[str] = None, chunk_size: Optional[int] = None, encryption_key: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+
+Uploads a blob from file path or file-like object. Usage for passing in
+file-like object is if the data was downloaded from the web;
+can bypass writing to disk and directly upload to Cloud Storage.
+
+**Args:**
+- `file`: Path to data or file like object to upload.
+- `bucket`: Name of the bucket.
+- `blob`: Name of the Cloud Storage blob.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `content_type`: Type of content being uploaded.
+- `chunk_size`: The size of a chunk of data whenever
+iterating (in bytes). This must be a multiple of 256 KB
+per the API specification.
+- `encryption_key`: An encryption key.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_file` or `Blob.upload_from_filename`.
+
+**Returns:**
+- The blob name.
+
+
+### `cloud_storage_copy_blob` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L922" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cloud_storage_copy_blob(source_bucket: str, dest_bucket: str, source_blob: str, gcp_credentials: GcpCredentials, dest_blob: Optional[str] = None, timeout: Union[float, Tuple[float, float]] = 60, project: Optional[str] = None, **copy_kwargs: Dict[str, Any]) -> str
+```
+
+
+Copies data from one Google Cloud Storage bucket to another,
+without downloading it locally.
+
+**Args:**
+- `source_bucket`: Source bucket name.
+- `dest_bucket`: Destination bucket name.
+- `source_blob`: Source blob name.
+- `gcp_credentials`: Credentials to use for authentication with GCP.
+- `dest_blob`: Destination blob name; if not provided, defaults to source_blob.
+- `timeout`: The number of seconds the transport should wait
+for the server response. Can also be passed as a tuple
+(connect_timeout, read_timeout).
+- `project`: Name of the project to use; overrides the
+gcp_credentials project if provided.
+- `**copy_kwargs`: Additional keyword arguments to pass to
+`Bucket.copy_blob`.
+
+**Returns:**
+- Destination blob name.
+
+
+## Classes
+
+### `DataFrameSerializationFormat` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1000" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+An enumeration class to represent different file formats,
+compression options for upload_from_dataframe
+
+**Attributes:**
+- `CSV`: Representation for 'csv' file format with no compression
+and its related content type and suffix.
+- `CSV_GZIP`: Representation for 'csv' file format with 'gzip' compression
+and its related content type and suffix.
+- `PARQUET`: Representation for 'parquet' file format with no compression
+and its related content type and suffix.
+- `PARQUET_SNAPPY`: Representation for 'parquet' file format
+with 'snappy' compression and its related content type and suffix.
+- `PARQUET_GZIP`: Representation for 'parquet' file format
+with 'gzip' compression and its related content type and suffix.
+
+
+**Methods:**
+
+#### `compression` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1039" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+compression(self) -> Union[str, None]
+```
+
+The compression type of the current instance.
+
+
+#### `content_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+content_type(self) -> str
+```
+
+The content type of the current instance.
+
+
+#### `fix_extension_with` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1053" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+fix_extension_with(self, gcs_blob_path: str) -> str
+```
+
+Fix the extension of a GCS blob.
+
+**Args:**
+- `gcs_blob_path`: The path to the GCS blob to be modified.
+
+**Returns:**
+- The modified path to the GCS blob with the new extension.
+
+
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1034" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+format(self) -> str
+```
+
+The file format of the current instance.
+
+
+#### `suffix` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1049" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+suffix(self) -> str
+```
+
+The suffix of the file format of the current instance.
+
+
+### `GcsBucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1068" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Block used to store data using GCP Cloud Storage Buckets.
+
+Note! `GcsBucket` in `prefect-gcp` is a unique block, separate from `GCS`
+in core Prefect. `GcsBucket` does not use `gcsfs` under the hood,
+instead using the `google-cloud-storage` package, and offers more configuration
+and functionality.
+
+**Attributes:**
+- `bucket`: Name of the bucket.
+- `gcp_credentials`: The credentials to authenticate with GCP.
+- `bucket_folder`: A default path to a folder within the GCS bucket to use
+for reading and writing objects.
+
+
+**Methods:**
+
+#### `acreate_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1502" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acreate_bucket(self, location: Optional[str] = None, **create_kwargs) -> 'Bucket'
+```
+
+Creates a bucket (async version).
+
+**Args:**
+- `location`: The location of the bucket.
+- `**create_kwargs`: Additional keyword arguments to pass to the
+`create_bucket` method.
+
+**Returns:**
+- The bucket object.
+
+**Examples:**
+
+Create a bucket.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket(bucket="my-bucket")
+await gcs_bucket.acreate_bucket()
+```
+
+
+#### `adownload_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1939" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adownload_folder_to_path(self, from_folder: str, to_folder: Optional[Union[str, Path]] = None, **download_kwargs: Dict[str, Any]) -> Path
+```
+
+Downloads objects *within* a folder (excluding the folder itself)
+from the object storage service to a folder (async version).
+
+**Args:**
+- `from_folder`: The path to the folder to download from; this gets prefixed
+with the bucket_folder.
+- `to_folder`: The path to download the folder to. If not provided, will default
+to the current directory.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_to_filename`.
+
+**Returns:**
+- The absolute path that the folder was downloaded to.
+
+**Examples:**
+
+Download my_folder to a local folder named my_folder.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+await gcs_bucket.adownload_folder_to_path("my_folder", "my_folder")
+```
+
+
+#### `adownload_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1836" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adownload_object_to_file_object(self, from_path: str, to_file_object: BinaryIO, **download_kwargs: Dict[str, Any]) -> BinaryIO
+```
+
+Downloads an object from the object storage service to a file-like object
+(async version), which can be a BytesIO object or a BufferedWriter.
+
+**Args:**
+- `from_path`: The path to the blob to download from; this gets prefixed
+with the bucket_folder.
+- `to_file_object`: The file-like object to download the blob to.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_to_file`.
+
+**Returns:**
+- The file-like object that the object was downloaded to.
+
+**Examples:**
+
+Download my_folder/notes.txt object to a BytesIO object.
+```python
+from io import BytesIO
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+with BytesIO() as buf:
+    await gcs_bucket.adownload_object_to_file_object("my_folder/notes.txt", buf)
+```
+
+Download my_folder/notes.txt object to a BufferedWriter.
+```python
+    from prefect_gcp.cloud_storage import GcsBucket
+
+    gcs_bucket = GcsBucket.load("my-bucket")
+    with open("notes.txt", "wb") as f:
+        await gcs_bucket.adownload_object_to_file_object("my_folder/notes.txt", f)
+```
+
+
+#### `adownload_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1745" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adownload_object_to_path(self, from_path: str, to_path: Optional[Union[str, Path]] = None, **download_kwargs: Dict[str, Any]) -> Path
+```
+
+Downloads an object from the object storage service to a path (async version).
+
+**Args:**
+- `from_path`: The path to the blob to download; this gets prefixed
+with the bucket_folder.
+- `to_path`: The path to download the blob to. If not provided, the
+blob's name will be used.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_to_filename`.
+
+**Returns:**
+- The absolute path that the object was downloaded to.
+
+**Examples:**
+
+Download my_folder/notes.txt object to notes.txt.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+await gcs_bucket.adownload_object_to_path("my_folder/notes.txt", "notes.txt")
+```
+
+
+#### `aget_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_bucket(self) -> 'Bucket'
+```
+
+Returns the bucket object (async version).
+
+**Returns:**
+- The bucket object.
+
+**Examples:**
+
+Get the bucket object.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+await gcs_bucket.aget_bucket()
+```
+
+
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> List[Union[str, Path]]
+```
+
+Copies a folder from the configured GCS bucket to a local directory
+(async version). Defaults to copying the entire contents of the block's
+bucket_folder to the current working directory.
+
+**Args:**
+- `from_path`: Path in GCS bucket to download from. Defaults to the block's
+configured bucket_folder.
+- `local_path`: Local path to download GCS bucket contents to.
+Defaults to the current working directory.
+
+**Returns:**
+- A list of downloaded file paths.
+
+
+#### `alist_blobs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1602" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+alist_blobs(self, folder: str = '') -> List['Blob']
+```
+
+Lists all blobs in the bucket that are in a folder (async version).
+Folders are not included in the output.
+
+**Args:**
+- `folder`: The folder to list blobs from.
+
+**Returns:**
+- A list of Blob objects.
+
+**Examples:**
+
+Get all blobs from a folder named "prefect".
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+await gcs_bucket.alist_blobs("prefect")
+```
+
+
+#### `alist_folders` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+alist_folders(self, folder: str = '') -> List[str]
+```
+
+Lists all folders and subfolders in the bucket (async version).
+
+**Args:**
+- `folder`: List all folders and subfolders inside given folder.
+
+**Returns:**
+- A list of folders.
+
+**Examples:**
+
+Get all folders from a bucket named "my-bucket".
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+await gcs_bucket.alist_folders()
+```
+
+Get all folders from a folder called years
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+await gcs_bucket.alist_folders("years")
+```
+
+
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
+```
+
+Uploads a directory from a given local path to the configured GCS bucket in a
+given folder (async version).
+
+Defaults to uploading the entire contents the current working directory to the
+block's bucket_folder.
+
+**Args:**
+- `local_path`: Path to local directory to upload from.
+- `to_path`: Path in GCS bucket to upload to. Defaults to block's configured
+bucket_folder.
+- `ignore_file`: Path to file containing gitignore style expressions for
+filepaths to ignore.
+
+**Returns:**
+- The number of files uploaded.
+
+
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread_path(self, path: str) -> bytes
+```
+
+Read specified path from GCS and return contents (async version). Provide the
+entire path to the key in GCS.
+
+**Args:**
+- `path`: Entire path to (and including) the key.
+
+**Returns:**
+- A bytes or string representation of the blob object.
+
+
+#### `aupload_from_dataframe` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupload_from_dataframe(self, df: 'DataFrame', to_path: str, serialization_format: Union[str, DataFrameSerializationFormat] = DataFrameSerializationFormat.CSV_GZIP, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Upload a Pandas DataFrame to Google Cloud Storage in various formats
+(async version).
+
+This function uploads the data in a Pandas DataFrame to Google Cloud Storage
+in a specified format, such as .csv, .csv.gz, .parquet,
+.parquet.snappy, and .parquet.gz.
+
+**Args:**
+- `df`: The Pandas DataFrame to be uploaded.
+- `to_path`: The destination path for the uploaded DataFrame.
+- `serialization_format`: The format to serialize the DataFrame into.
+When passed as a `str`, the valid options are\:
+'csv', 'csv_gzip',  'parquet', 'parquet_snappy', 'parquet_gzip'.
+Defaults to `DataFrameSerializationFormat.CSV_GZIP`.
+- `**upload_kwargs`: Additional keyword arguments to pass to the underlying
+`upload_from_dataframe` method.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+
+#### `aupload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupload_from_file_object(self, from_file_object: BinaryIO, to_path: str, **upload_kwargs) -> str
+```
+
+Uploads an object to the object storage service from a file-like object
+(async version), which can be a BytesIO object or a BufferedReader.
+
+**Args:**
+- `from_file_object`: The file-like object to upload from.
+- `to_path`: The path to upload the object to; this gets prefixed
+with the bucket_folder.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_file`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Upload my_folder/notes.txt object to a BytesIO object.
+```python
+from io import BytesIO
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+with open("notes.txt", "rb") as f:
+    await gcs_bucket.aupload_from_file_object(f, "my_folder/notes.txt")
+```
+
+Upload BufferedReader object to my_folder/notes.txt.
+```python
+from io import BufferedReader
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+with open("notes.txt", "rb") as f:
+    await gcs_bucket.aupload_from_file_object(
+        BufferedReader(f), "my_folder/notes.txt"
+    )
+```
+
+
+#### `aupload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupload_from_folder(self, from_folder: Union[str, Path], to_folder: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Uploads files *within* a folder (excluding the folder itself)
+to the object storage service folder (async version).
+
+**Args:**
+- `from_folder`: The path to the folder to upload from.
+- `to_folder`: The path to upload the folder to. If not provided, will default
+to bucket_folder or the base directory of the bucket.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_filename`.
+
+**Returns:**
+- The path that the folder was uploaded to.
+
+**Examples:**
+
+Upload local folder my_folder to the bucket's folder my_folder.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+await gcs_bucket.aupload_from_folder("my_folder")
+```
+
+
+#### `aupload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2061" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aupload_from_path(self, from_path: Union[str, Path], to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Uploads an object from a path to the object storage service (async version).
+
+**Args:**
+- `from_path`: The path to the file to upload from.
+- `to_path`: The path to upload the file to. If not provided, will use
+the file name of from_path; this gets prefixed
+with the bucket_folder.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_filename`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Upload notes.txt to my_folder/notes.txt.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+await gcs_bucket.aupload_from_path("notes.txt", "my_folder/notes.txt")
+```
+
+
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_path(self, path: str, content: bytes) -> str
+```
+
+Writes to an GCS bucket (async version).
+
+**Args:**
+- `path`: The key name. Each object in your bucket has a unique
+key (or key name).
+- `content`: What you are uploading to GCS Bucket.
+
+**Returns:**
+- The path that the contents were written to.
+
+
+#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+basepath(self) -> str
+```
+
+Read-only property that mirrors the bucket folder.
+
+Used for deployment.
+
+
+#### `create_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_bucket(self, location: Optional[str] = None, **create_kwargs) -> 'Bucket'
+```
+
+Creates a bucket.
+
+**Args:**
+- `location`: The location of the bucket.
+- `**create_kwargs`: Additional keyword arguments to pass to the
+`create_bucket` method.
+
+**Returns:**
+- The bucket object.
+
+**Examples:**
+
+Create a bucket.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket(bucket="my-bucket")
+gcs_bucket.create_bucket()
+```
+
+
+#### `download_folder_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2007" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_folder_to_path(self, from_folder: str, to_folder: Optional[Union[str, Path]] = None, **download_kwargs: Dict[str, Any]) -> Path
+```
+
+Downloads objects *within* a folder (excluding the folder itself)
+from the object storage service to a folder.
+
+**Args:**
+- `from_folder`: The path to the folder to download from; this gets prefixed
+with the bucket_folder.
+- `to_folder`: The path to download the folder to. If not provided, will default
+to the current directory.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_to_filename`.
+
+**Returns:**
+- The absolute path that the folder was downloaded to.
+
+**Examples:**
+
+Download my_folder to a local folder named my_folder.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+gcs_bucket.download_folder_to_path("my_folder", "my_folder")
+```
+
+
+#### `download_object_to_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1891" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_object_to_file_object(self, from_path: str, to_file_object: BinaryIO, **download_kwargs: Dict[str, Any]) -> BinaryIO
+```
+
+Downloads an object from the object storage service to a file-like object,
+which can be a BytesIO object or a BufferedWriter.
+
+**Args:**
+- `from_path`: The path to the blob to download from; this gets prefixed
+with the bucket_folder.
+- `to_file_object`: The file-like object to download the blob to.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_to_file`.
+
+**Returns:**
+- The file-like object that the object was downloaded to.
+
+**Examples:**
+
+Download my_folder/notes.txt object to a BytesIO object.
+```python
+from io import BytesIO
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+with BytesIO() as buf:
+    gcs_bucket.download_object_to_file_object("my_folder/notes.txt", buf)
+```
+
+Download my_folder/notes.txt object to a BufferedWriter.
+```python
+    from prefect_gcp.cloud_storage import GcsBucket
+
+    gcs_bucket = GcsBucket.load("my-bucket")
+    with open("notes.txt", "wb") as f:
+        gcs_bucket.download_object_to_file_object("my_folder/notes.txt", f)
+```
+
+
+#### `download_object_to_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1795" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+download_object_to_path(self, from_path: str, to_path: Optional[Union[str, Path]] = None, **download_kwargs: Dict[str, Any]) -> Path
+```
+
+Downloads an object from the object storage service to a path.
+
+**Args:**
+- `from_path`: The path to the blob to download; this gets prefixed
+with the bucket_folder.
+- `to_path`: The path to download the blob to. If not provided, the
+blob's name will be used.
+- `**download_kwargs`: Additional keyword arguments to pass to
+`Blob.download_to_filename`.
+
+**Returns:**
+- The absolute path that the object was downloaded to.
+
+**Examples:**
+
+Download my_folder/notes.txt object to notes.txt.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+gcs_bucket.download_object_to_path("my_folder/notes.txt", "notes.txt")
+```
+
+
+#### `get_bucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1582" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_bucket(self) -> 'Bucket'
+```
+
+Returns the bucket object.
+
+**Returns:**
+- The bucket object.
+
+**Examples:**
+
+Get the bucket object.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+gcs_bucket.get_bucket()
+```
+
+
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> List[Union[str, Path]]
+```
+
+Copies a folder from the configured GCS bucket to a local directory.
+Defaults to copying the entire contents of the block's bucket_folder
+to the current working directory.
+
+**Args:**
+- `from_path`: Path in GCS bucket to download from. Defaults to the block's
+configured bucket_folder.
+- `local_path`: Local path to download GCS bucket contents to.
+Defaults to the current working directory.
+
+**Returns:**
+- A list of downloaded file paths.
+
+
+#### `list_blobs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1639" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_blobs(self, folder: str = '') -> List['Blob']
+```
+
+Lists all blobs in the bucket that are in a folder.
+Folders are not included in the output.
+
+**Args:**
+- `folder`: The folder to list blobs from.
+
+**Returns:**
+- A list of Blob objects.
+
+**Examples:**
+
+Get all blobs from a folder named "prefect".
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+gcs_bucket.list_blobs("prefect")
+```
+
+
+#### `list_folders` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+list_folders(self, folder: str = '') -> List[str]
+```
+
+Lists all folders and subfolders in the bucket.
+
+**Args:**
+- `folder`: List all folders and subfolders inside given folder.
+
+**Returns:**
+- A list of folders.
+
+**Examples:**
+
+Get all folders from a bucket named "my-bucket".
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+gcs_bucket.list_folders()
+```
+
+Get all folders from a folder called years
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+gcs_bucket.list_folders("years")
+```
+
+
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
+```
+
+Uploads a directory from a given local path to the configured GCS bucket in a
+given folder.
+
+Defaults to uploading the entire contents the current working directory to the
+block's bucket_folder.
+
+**Args:**
+- `local_path`: Path to local directory to upload from.
+- `to_path`: Path in GCS bucket to upload to. Defaults to block's configured
+bucket_folder.
+- `ignore_file`: Path to file containing gitignore style expressions for
+filepaths to ignore.
+
+**Returns:**
+- The number of files uploaded.
+
+
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_path(self, path: str) -> bytes
+```
+
+Read specified path from GCS and return contents. Provide the entire
+path to the key in GCS.
+
+**Args:**
+- `path`: Entire path to (and including) the key.
+
+**Returns:**
+- A bytes or string representation of the blob object.
+
+
+#### `upload_from_dataframe` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2415" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_dataframe(self, df: 'DataFrame', to_path: str, serialization_format: Union[str, DataFrameSerializationFormat] = DataFrameSerializationFormat.CSV_GZIP, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Upload a Pandas DataFrame to Google Cloud Storage in various formats.
+
+This function uploads the data in a Pandas DataFrame to Google Cloud Storage
+in a specified format, such as .csv, .csv.gz, .parquet,
+.parquet.snappy, and .parquet.gz.
+
+**Args:**
+- `df`: The Pandas DataFrame to be uploaded.
+- `to_path`: The destination path for the uploaded DataFrame.
+- `serialization_format`: The format to serialize the DataFrame into.
+When passed as a `str`, the valid options are\:
+'csv', 'csv_gzip',  'parquet', 'parquet_snappy', 'parquet_gzip'.
+Defaults to `DataFrameSerializationFormat.CSV_GZIP`.
+- `**upload_kwargs`: Additional keyword arguments to pass to the underlying
+`upload_from_dataframe` method.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+
+#### `upload_from_file_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_file_object(self, from_file_object: BinaryIO, to_path: str, **upload_kwargs) -> str
+```
+
+Uploads an object to the object storage service from a file-like object,
+which can be a BytesIO object or a BufferedReader.
+
+**Args:**
+- `from_file_object`: The file-like object to upload from.
+- `to_path`: The path to upload the object to; this gets prefixed
+with the bucket_folder.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_file`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Upload my_folder/notes.txt object to a BytesIO object.
+```python
+from io import BytesIO
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+with open("notes.txt", "rb") as f:
+    gcs_bucket.upload_from_file_object(f, "my_folder/notes.txt")
+```
+
+Upload BufferedReader object to my_folder/notes.txt.
+```python
+from io import BufferedReader
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+with open("notes.txt", "rb") as f:
+    gcs_bucket.upload_from_file_object(
+        BufferedReader(f), "my_folder/notes.txt"
+    )
+```
+
+
+#### `upload_from_folder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_folder(self, from_folder: Union[str, Path], to_folder: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Uploads files *within* a folder (excluding the folder itself)
+to the object storage service folder.
+
+**Args:**
+- `from_folder`: The path to the folder to upload from.
+- `to_folder`: The path to upload the folder to. If not provided, will default
+to bucket_folder or the base directory of the bucket.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_filename`.
+
+**Returns:**
+- The path that the folder was uploaded to.
+
+**Examples:**
+
+Upload local folder my_folder to the bucket's folder my_folder.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+gcs_bucket.upload_from_folder("my_folder")
+```
+
+
+#### `upload_from_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L2107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+upload_from_path(self, from_path: Union[str, Path], to_path: Optional[str] = None, **upload_kwargs: Dict[str, Any]) -> str
+```
+
+Uploads an object from a path to the object storage service.
+
+**Args:**
+- `from_path`: The path to the file to upload from.
+- `to_path`: The path to upload the file to. If not provided, will use
+the file name of from_path; this gets prefixed
+with the bucket_folder.
+- `**upload_kwargs`: Additional keyword arguments to pass to
+`Blob.upload_from_filename`.
+
+**Returns:**
+- The path that the object was uploaded to.
+
+**Examples:**
+
+Upload notes.txt to my_folder/notes.txt.
+```python
+from prefect_gcp.cloud_storage import GcsBucket
+
+gcs_bucket = GcsBucket.load("my-bucket")
+gcs_bucket.upload_from_path("notes.txt", "my_folder/notes.txt")
+```
+
+
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/cloud_storage.py#L1457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+write_path(self, path: str, content: bytes) -> str
+```
+
+Writes to an GCS bucket.
+
+**Args:**
+- `path`: The key name. Each object in your bucket has a unique
+key (or key name).
+- `content`: What you are uploading to GCS Bucket.
+
+**Returns:**
+- The path that the contents were written to.
+

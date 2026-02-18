@@ -1,0 +1,22 @@
+---
+title: decorators
+sidebarTitle: decorators
+---
+
+# `prefect_kubernetes.experimental.decorators`
+
+## Functions
+
+### `kubernetes` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/experimental/decorators.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+kubernetes(work_pool: str, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
+```
+
+
+Decorator that binds execution of a flow to a Kubernetes work pool
+
+**Args:**
+- `work_pool`: The name of the Kubernetes work pool to use
+- `**job_variables`: Additional job variables to use for infrastructure configuration
+

@@ -1,0 +1,150 @@
+---
+title: worker
+sidebarTitle: worker
+---
+
+# `prefect_docker.worker`
+
+
+
+Module containing the Docker worker used for executing flow runs as Docker containers.
+
+To start a Docker worker, run the following command:
+
+```bash
+prefect worker start --pool 'my-work-pool' --type docker
+```
+
+Replace `my-work-pool` with the name of the work pool you want the worker
+to poll for flow runs.
+
+For more information about work pools and workers,
+checkout out the [Prefect docs](https://docs.prefect.io/latest/deploy/infrastructure-concepts).
+
+
+## Classes
+
+### `ImagePullPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Enum representing the image pull policy options for a Docker container.
+
+
+### `DockerWorkerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Configuration class used by the Docker worker.
+
+An instance of this class is passed to the Docker worker's `run` method
+for each flow run. It contains all the information necessary to execute the
+flow run as a Docker container.
+
+**Attributes:**
+- `name`: The name to give to created Docker containers.
+- `command`: The command executed in created Docker containers to kick off
+flow run execution.
+- `env`: The environment variables to set in created Docker containers.
+- `labels`: The labels to set on created Docker containers.
+- `image`: The image reference of a container image to use for created jobs.
+If not set, the latest Prefect image will be used.
+- `image_pull_policy`: The image pull policy to use when pulling images.
+- `networks`: Docker networks that created containers should be connected to.
+- `network_mode`: The network mode for the created containers (e.g. host, bridge).
+If 'networks' is set, this cannot be set.
+- `auto_remove`: If set, containers will be deleted on completion.
+- `volumes`: Docker volumes that should be mounted in created containers.
+- `stream_output`: If set, the output from created containers will be streamed
+to local standard output.
+- `mem_limit`: Memory limit of created containers. Accepts a value
+with a unit identifier (e.g. 100000b, 1000k, 128m, 1g.) If a value is
+given without a unit, bytes are assumed.
+- `memswap_limit`: Total memory (memory + swap), -1 to disable swap. Should only be
+set if `mem_limit` is also set. If `mem_limit` is set, this defaults to
+allowing the container to use as much swap as memory. For example, if
+`mem_limit` is 300m and `memswap_limit` is not set, containers can use
+600m in total of memory and swap.
+- `privileged`: Give extended privileges to created containers.
+- `container_create_kwargs`: Extra args for docker py when creating container.
+
+
+**Methods:**
+
+#### `get_extra_hosts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_extra_hosts(self, docker_client: DockerClient) -> Optional[dict[str, str]]
+```
+
+A host.docker.internal -> host-gateway mapping is necessary for communicating
+with the API on Linux machines. Docker Desktop on macOS will automatically
+already have this mapping.
+
+
+#### `get_network_mode` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_network_mode(self) -> Optional[str]
+```
+
+Returns the network mode to use for the container based on the configured
+options and the platform.
+
+
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: 'DeploymentResponse | None' = None, flow: 'APIFlow | None' = None, work_pool: 'WorkPool | None' = None, worker_name: 'str | None' = None, worker_id: 'UUID | None' = None)
+```
+
+Prepares the flow run by setting the image, labels, and name
+attributes.
+
+
+### `DockerWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Contains information about a completed Docker container
+
+
+### `DockerWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Prefect worker that executes flow runs within Docker containers.
+
+
+**Methods:**
+
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L979" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+kill_infrastructure(self, infrastructure_pid: str, configuration: DockerWorkerJobConfiguration, grace_seconds: int = 30) -> None
+```
+
+Kill a Docker container.
+
+**Args:**
+- `infrastructure_pid`: The infrastructure identifier in format
+"docker_host_base_url\:container_id".
+- `configuration`: The job configuration (not used for Docker but kept
+for API compatibility).
+- `grace_seconds`: Time to allow for graceful shutdown before force killing.
+
+**Raises:**
+- `InfrastructureNotFound`: If the container doesn't exist.
+
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, flow_run: 'FlowRun', configuration: DockerWorkerJobConfiguration, task_status: Optional[anyio.abc.TaskStatus[str]] = None) -> DockerWorkerResult
+```
+
+Executes a flow run within a Docker container and waits for the flow run
+to complete.
+
+
+#### `setup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+setup(self)
+```

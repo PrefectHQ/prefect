@@ -1,0 +1,56 @@
+---
+title: host
+sidebarTitle: host
+---
+
+# `prefect_docker.host`
+
+
+Module containing Docker host settings.
+
+## Classes
+
+### `DockerHost` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/host.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Block used to manage settings for interacting with a Docker host.
+
+**Attributes:**
+- `base_url`: URL to the Docker server, e.g. `unix\:///var/run/docker.sock`
+or `tcp\://127.0.0.1\:1234`. If this is not set, the client will
+be configured from environment variables.
+- `version`: The version of the API to use. Set to auto to
+automatically detect the server's version.
+- `timeout`: Default timeout for API calls, in seconds.
+- `max_pool_size`: The maximum number of connections to save in the pool.
+- `client_kwargs`: Additional keyword arguments to pass to
+`docker.from_env()` or `DockerClient`.
+
+**Examples:**
+
+Get a Docker Host client.
+```python
+from prefect_docker import DockerHost
+
+docker_host = DockerHost(
+base_url="tcp://127.0.0.1:1234",
+    max_pool_size=4
+)
+with docker_host.get_client() as client:
+    ... # Use the client for Docker operations
+```
+
+
+**Methods:**
+
+#### `get_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/host.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_client(self) -> docker.DockerClient
+```
+
+Gets a Docker Client to communicate with a Docker host.
+
+**Returns:**
+- A Docker Client.
+

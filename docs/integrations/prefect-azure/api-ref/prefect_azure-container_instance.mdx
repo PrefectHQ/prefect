@@ -1,0 +1,99 @@
+---
+title: container_instance
+sidebarTitle: container_instance
+---
+
+# `prefect_azure.container_instance`
+
+
+
+Integrations with the Azure Container Instances service.
+Note this module is experimental. The interfaces within may change without notice.
+
+The `AzureContainerInstanceJob` infrastructure block in this module is ideally
+configured via the Prefect UI and run via a Prefect agent, but it can be called directly
+as demonstrated in the following examples.
+
+Examples:
+    Run a command using an Azure Container Instances container.
+    ```python
+    AzureContainerInstanceJob(command=["echo", "hello world"]).run()
+    ```
+
+    Run a command and stream the container's output to the local terminal.
+    ```python
+    AzureContainerInstanceJob(
+        command=["echo", "hello world"],
+        stream_output=True,
+    )
+    ```
+
+    Run a command with a specific image
+    ```python
+    AzureContainerInstanceJob(command=["echo", "hello world"], image="alpine:latest")
+    ```
+
+    Run a task with custom memory and CPU requirements
+    ```python
+    AzureContainerInstanceJob(command=["echo", "hello world"], memory=1.0, cpu=1.0)
+    ```
+
+    Run a task with custom memory and CPU requirements
+    ```python
+    AzureContainerInstanceJob(command=["echo", "hello world"], memory=1.0, cpu=1.0)
+    ```
+
+    Run a task with custom memory, CPU, and GPU requirements
+    ```python
+    AzureContainerInstanceJob(command=["echo", "hello world"], memory=1.0, cpu=1.0,
+    gpu_count=1, gpu_sku="V100")
+    ```
+
+    Run a task with custom environment variables
+    ```python
+    AzureContainerInstanceJob(
+        command=["echo", "hello $PLANET"],
+        env={"PLANET": "earth"}
+    )
+    ```
+
+    Run a task that uses a private ACR registry with a managed identity
+    ```python
+    AzureContainerInstanceJob(
+        command=["echo", "hello $PLANET"],
+        image="my-registry.azurecr.io/my-image",
+        image_registry=ACRManagedIdentity(
+            registry_url="my-registry.azurecr.io",
+            identity="/my/managed/identity/123abc"
+        )
+    )
+    ```
+
+
+## Classes
+
+### `ContainerGroupProvisioningState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/container_instance.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Terminal provisioning states for ACI container groups. Per the Azure docs,
+the states in this Enum are the only ones that can be relied on as dependencies.
+
+
+### `ContainerRunState` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/container_instance.py#L94" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Terminal run states for ACI containers.
+
+
+### `ACRManagedIdentity` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/container_instance.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Use a Managed Identity to access Azure Container registry. Requires the
+user-assigned managed identity be available to the ACI container group.
+
+
+### `AzureContainerInstanceJobResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-azure/prefect_azure/container_instance.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The result of an `AzureContainerInstanceJob` run.
+

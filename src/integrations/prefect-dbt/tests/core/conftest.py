@@ -17,6 +17,7 @@ def _make_node(
     name: str = "my_model",
     resource_type: NodeType = NodeType.Model,
     depends_on: tuple[str, ...] = (),
+    depends_on_macros: tuple[str, ...] = (),
     materialization: str = "table",
 ) -> DbtNode:
     return DbtNode(
@@ -24,6 +25,7 @@ def _make_node(
         name=name,
         resource_type=resource_type,
         depends_on=depends_on,
+        depends_on_macros=depends_on_macros,
         materialization=materialization,
     )
 
@@ -105,6 +107,105 @@ def write_manifest(tmp_path: Path, data: dict[str, Any]) -> Path:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(data))
     return manifest_path
+
+
+def write_sql_files(project_dir: Path, file_map: dict[str, str]) -> None:
+    """Create SQL/CSV files relative to *project_dir* for cache tests.
+
+    ``file_map`` maps relative paths (e.g. ``"models/my_model.sql"``) to
+    file content strings.
+    """
+    for rel_path, content in file_map.items():
+        full_path = project_dir / rel_path
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_text(content)
+
+
+def _make_source_node(
+    unique_id: str = "source.test.raw.my_source",
+    name: str = "my_source",
+    depends_on: tuple[str, ...] = (),
+    relation_name: str | None = '"main"."raw"."my_source"',
+) -> DbtNode:
+    return DbtNode(
+        unique_id=unique_id,
+        name=name,
+        resource_type=NodeType.Source,
+        depends_on=depends_on,
+        materialization=None,
+        relation_name=relation_name,
+    )
+
+
+def write_sources_json(path: Path, results: list[dict[str, Any]]) -> Path:
+    """Write a sources.json file at the given path.
+
+    Args:
+        path: Directory to write sources.json into
+        results: List of source freshness result dicts
+
+    Returns:
+        Path to the written sources.json file
+    """
+    sources_json_path = path / "sources.json"
+    sources_json_path.write_text(
+        json.dumps({"metadata": {}, "results": results, "elapsed_time": 0.0})
+    )
+    return sources_json_path
+
+
+@pytest.fixture
+def source_manifest_data() -> dict[str, Any]:
+    """Graph with sources -> staging -> marts.
+
+    sources: raw.customers, raw.orders
+    staging: stg_src_customers (depends on source.test.raw.customers)
+             stg_src_orders (depends on source.test.raw.orders)
+    marts:   src_customer_summary (depends on both stg_src models)
+    """
+    return {
+        "nodes": {
+            "model.test.stg_src_customers": {
+                "name": "stg_src_customers",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["source.test.raw.customers"]},
+                "config": {"materialized": "view"},
+            },
+            "model.test.stg_src_orders": {
+                "name": "stg_src_orders",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["source.test.raw.orders"]},
+                "config": {"materialized": "view"},
+            },
+            "model.test.src_customer_summary": {
+                "name": "src_customer_summary",
+                "resource_type": "model",
+                "depends_on": {
+                    "nodes": [
+                        "model.test.stg_src_customers",
+                        "model.test.stg_src_orders",
+                    ]
+                },
+                "config": {"materialized": "table"},
+            },
+        },
+        "sources": {
+            "source.test.raw.customers": {
+                "name": "customers",
+                "resource_type": "source",
+                "fqn": ["test", "raw", "customers"],
+                "relation_name": '"main"."raw"."customers"',
+                "config": {},
+            },
+            "source.test.raw.orders": {
+                "name": "orders",
+                "resource_type": "source",
+                "fqn": ["test", "raw", "orders"],
+                "relation_name": '"main"."raw"."orders"',
+                "config": {},
+            },
+        },
+    }
 
 
 @pytest.fixture

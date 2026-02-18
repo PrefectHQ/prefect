@@ -26,6 +26,9 @@ _FLAGS_WITH_VALUES = {
 # to cyclopts instead of delegating to typer.
 _CYCLOPTS_COMMANDS: set[str] = {
     "config",
+    "deployment",
+    "flow",
+    "flow-run",
     "profile",
     "server",
     "shell",

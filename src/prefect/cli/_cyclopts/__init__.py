@@ -207,12 +207,9 @@ _DELEGATED_COMMANDS: set[str] = {
     "concurrency-limit",
     "dashboard",
     "deploy",
-    "deployment",
     "dev",
     "events",
     "experimental",
-    "flow",
-    "flow-run",
     "global-concurrency-limit",
     "sdk",
     "task",
@@ -285,39 +282,21 @@ def deploy_default(
 
 
 # --- flow ---
-flow_app = _delegated_app("flow", "Manage flows.")
+from prefect.cli._cyclopts.flow import flow_app
+
 _app.command(flow_app)
 
 
-@flow_app.default
-def flow_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("flow", tokens)
-
-
 # --- flow-run ---
-flow_run_app = _delegated_app("flow-run", "Interact with flow runs.")
+from prefect.cli._cyclopts.flow_run import flow_run_app
+
 _app.command(flow_run_app)
 
 
-@flow_run_app.default
-def flow_run_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("flow-run", tokens)
-
-
 # --- deployment ---
-deployment_app = _delegated_app("deployment", "Manage deployments (legacy commands).")
+from prefect.cli._cyclopts.deployment import deployment_app
+
 _app.command(deployment_app)
-
-
-@deployment_app.default
-def deployment_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("deployment", tokens)
 
 
 # --- server ---

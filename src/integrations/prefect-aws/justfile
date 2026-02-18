@@ -2,3 +2,19 @@ mod infra
 
 test:
     uv run pytest
+
+# Generate API reference documentation for prefect-aws
+api-ref:
+    #!/usr/bin/env bash
+    REPO_ROOT="$(git rev-parse --show-toplevel)"
+    cd "$REPO_ROOT"
+    uvx --with-editable ./src/integrations/prefect-aws \
+        --python 3.12 \
+        --isolated \
+        mdxify \
+        --all \
+        --root-module prefect_aws \
+        --output-dir docs/integrations/prefect-aws/api-ref \
+        --anchor-name "SDK Reference" \
+        --repo-url https://github.com/PrefectHQ/prefect \
+        --include-inheritance

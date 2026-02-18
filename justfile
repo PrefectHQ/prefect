@@ -47,6 +47,7 @@ api-ref-all:
         --anchor-name "Python SDK Reference" \
         --repo-url https://github.com/PrefectHQ/prefect \
         --exclude prefect.agent \
+        --exclude prefect.analytics \
         --include-inheritance
 
 # Generate API reference for specific modules (e.g., just api-ref prefect.flows prefect.tasks)
@@ -140,6 +141,13 @@ prepare-integration-release PACKAGE:
 
     # Run the script to generate integration release notes
     uv run scripts/prepare_integration_release_notes.py {{PACKAGE}}
+
+    # Regenerate API reference docs if available
+    INTEGRATION_DIR="src/integrations/{{PACKAGE}}"
+    if [ -f "$INTEGRATION_DIR/justfile" ] && just --justfile "$INTEGRATION_DIR/justfile" --summary 2>/dev/null | grep -q "api-ref"; then
+        echo "Regenerating API reference for {{PACKAGE}}..."
+        just --justfile "$INTEGRATION_DIR/justfile" --working-directory "$INTEGRATION_DIR" api-ref
+    fi
 
     # Open the generated file in the user's editor
     if [ -n "$EDITOR" ]; then
