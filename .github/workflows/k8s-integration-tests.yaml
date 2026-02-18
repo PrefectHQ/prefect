@@ -35,7 +35,7 @@ jobs:
           cache-dependency-glob: "src/integrations/prefect-kubernetes/integration_tests/pyproject.toml"
 
       - name: Set up Kind cluster
-        uses: helm/kind-action@v1.13.0
+        uses: helm/kind-action@v1.14.0
         with:
           cluster_name: prefect-test
 
