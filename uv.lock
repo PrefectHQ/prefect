@@ -972,6 +972,19 @@ toml = [
 ]
 
 [[package]]
+name = "croniter"
+version = "6.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+    { name = "pytz" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ad/2f/44d1ae153a0e27be56be43465e5cb39b9650c781e001e7864389deb25090/croniter-6.0.0.tar.gz", hash = "sha256:37c504b313956114a983ece2c2b07790b1f1094fe9d81cc94739214748255577", size = 64481, upload-time = "2024-12-17T17:17:47.32Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/4b/290b4c3efd6417a8b0c284896de19b1d5855e6dbdb97d2a35e68fa42de85/croniter-6.0.0-py2.py3-none-any.whl", hash = "sha256:2f878c3856f17896979b2a4379ba1f09c83e374931ea15cc835c5dd2eee9b368", size = 25468, upload-time = "2024-12-17T17:17:45.359Z" },
+]
+
+[[package]]
 name = "cryptography"
 version = "46.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -4241,7 +4254,7 @@ requires-dist = [
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
     { name = "pydantic-settings", specifier = ">2.2.1,!=2.9.0,<3.0.0" },
-    { name = "pydocket", specifier = ">=0.17.2" },
+    { name = "pydocket", specifier = ">=0.17.7" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
     { name = "pytz", specifier = ">=2021.1,<2026" },
@@ -5061,10 +5074,11 @@ wheels = [
 
 [[package]]
 name = "pydocket"
-version = "0.17.2"
+version = "0.17.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cloudpickle" },
+    { name = "croniter" },
     { name = "exceptiongroup", marker = "python_full_version < '3.11'" },
     { name = "fakeredis", extra = ["lua"] },
     { name = "opentelemetry-api" },
@@ -5076,10 +5090,11 @@ dependencies = [
     { name = "taskgroup", marker = "python_full_version < '3.11'" },
     { name = "typer" },
     { name = "typing-extensions" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/90/17/1fb6309e40bbee999c5d881b8213a1078968412d855e064a9a94cfb9eeef/pydocket-0.17.2.tar.gz", hash = "sha256:8f02c68952701eb1b3a70d439b76392d15f1eb9568d0bde6a69997ea5c79c89f", size = 329829, upload-time = "2026-01-26T16:07:56.217Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/51/fe/319957bc0744ce6871140c3c1fb5dff89d9b9e645d36145da49e9954142b/pydocket-0.17.8.tar.gz", hash = "sha256:929628c70ee7d3bcae5f142c41f362147510e8f5d04b7030e5c5dd078b8c7f2a", size = 348865, upload-time = "2026-02-17T22:07:12.727Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/74/4c9b70753d5721165047e6428ac239ca083118474794deaca5a27d0ab212/pydocket-0.17.2-py3-none-any.whl", hash = "sha256:f43743b84b4e3d614d99b0cad2deebab028104c217745406ecf9e1efb8926e04", size = 91628, upload-time = "2026-01-26T16:07:55.018Z" },
+    { url = "https://files.pythonhosted.org/packages/27/fa/dd934a9b661a324fa92b3129493fe8b5876227bed941398bf569b689fefa/pydocket-0.17.8-py3-none-any.whl", hash = "sha256:6442edeef0151d706be5db5bdf997d23c51e1916da1755ea5342ce825d7d2cb3", size = 94887, upload-time = "2026-02-17T22:07:11.479Z" },
 ]
 
 [[package]]
