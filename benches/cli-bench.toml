@@ -96,3 +96,21 @@ name = "prefect experimental --help (cyclopts)"
 args = ["env", "PREFECT_CLI_FAST=1", "prefect", "experimental", "--help"]
 category = "startup"
 description = "experimental help via cyclopts"
+
+[[commands]]
+name = "prefect dashboard --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "dashboard", "--help"]
+category = "startup"
+description = "dashboard help via cyclopts"
+
+[[commands]]
+name = "prefect task --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "task", "--help"]
+category = "startup"
+description = "task help via cyclopts"
+
+[[commands]]
+name = "prefect sdk --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "sdk", "--help"]
+category = "startup"
+description = "sdk help via cyclopts"
