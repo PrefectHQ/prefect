@@ -417,7 +417,7 @@ test.describe("Event Detail", () => {
 
 		// Scope click to the specific list item containing our unique resource name
 		const eventItem = page
-			.locator("li")
+			.getByRole("listitem")
 			.filter({ hasText: detailResourceName });
 		await eventItem.getByRole("link", { name: /flow run completed/i }).click();
 
