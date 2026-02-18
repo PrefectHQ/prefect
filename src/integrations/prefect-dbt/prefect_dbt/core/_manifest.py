@@ -33,10 +33,14 @@ class DbtNode:
         name: Short name (e.g., "stg_users")
         resource_type: Node type from dbt (Model, Source, Test, etc.)
         depends_on: Tuple of unique_ids this node depends on (tuple for hashability)
+        depends_on_macros: Tuple of macro unique_ids this node depends on
+        fqn: Fully-qualified name as a tuple of path segments
         materialization: How the node is materialized ("view", "table", "ephemeral", etc.)
         relation_name: Database relation name
         original_file_path: Path to the source SQL/YAML file
         config: Node configuration dictionary
+        description: Optional node description from the dbt project
+        compiled_code: Compiled SQL code (populated by `dbt compile`)
     """
 
     unique_id: str
@@ -49,6 +53,8 @@ class DbtNode:
     relation_name: str | None = None
     original_file_path: str | None = None
     config: dict[str, Any] = field(default_factory=dict)
+    description: str | None = None
+    compiled_code: str | None = None
 
     # Resource types that produce database objects via `dbt run`/`dbt seed`/`dbt snapshot`.
     # Tests are excluded because they use `dbt test` and have their own scheduling strategy.
@@ -148,6 +154,18 @@ class ManifestParser:
         """All parsed nodes including sources and ephemeral models."""
         return self._all_nodes
 
+    @property
+    def adapter_type(self) -> str | None:
+        """Database adapter type from manifest metadata (e.g. ``"postgres"``)."""
+        metadata = self._manifest_data.get("metadata", {})
+        return metadata.get("adapter_type")
+
+    @property
+    def project_name(self) -> str | None:
+        """dbt project name from manifest metadata."""
+        metadata = self._manifest_data.get("metadata", {})
+        return metadata.get("project_name")
+
     def _load_manifest(self) -> None:
         """Load and parse the manifest.json file."""
         with open(self._manifest_path) as f:
@@ -198,6 +216,8 @@ class ManifestParser:
             relation_name=node_data.get("relation_name"),
             original_file_path=node_data.get("original_file_path"),
             config=config,
+            description=node_data.get("description"),
+            compiled_code=node_data.get("compiled_code"),
         )
 
     def _create_source_node(
@@ -214,6 +234,7 @@ class ManifestParser:
             relation_name=source_data.get("relation_name"),
             original_file_path=source_data.get("original_file_path"),
             config=source_data.get("config", {}),
+            description=source_data.get("description"),
         )
 
     def _resolve_dependencies_through_ephemeral(self, node: DbtNode) -> tuple[str, ...]:
@@ -288,6 +309,8 @@ class ManifestParser:
                 relation_name=node.relation_name,
                 original_file_path=node.original_file_path,
                 config=node.config,
+                description=node.description,
+                compiled_code=node.compiled_code,
             )
             self._nodes[unique_id] = resolved_node
 
@@ -426,6 +449,8 @@ class ManifestParser:
                 relation_name=node.relation_name,
                 original_file_path=node.original_file_path,
                 config=node.config,
+                description=node.description,
+                compiled_code=node.compiled_code,
             )
             self._test_nodes[unique_id] = resolved_node
 
