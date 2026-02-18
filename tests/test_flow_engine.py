@@ -119,9 +119,20 @@ class TestFlowRunNameSetBeforeRunningEvent:
         assert len(names_at_running_transition) >= 1
         assert names_at_running_transition[0] == "custom-world"
 
-    async def test_sync_flow_callable_name_correctly_resolved(
-        self, sync_prefect_client
+    async def test_sync_flow_callable_name_set_before_running(
+        self, sync_prefect_client, monkeypatch
     ):
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state_sync
+
+        def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state_sync", tracking_propose)
+
         def generate_name():
             return "callable-generated-name"
 
@@ -133,10 +144,23 @@ class TestFlowRunNameSetBeforeRunningEvent:
         run = sync_prefect_client.read_flow_run(result)
 
         assert run.name == "callable-generated-name"
+        assert len(names_at_running_transition) >= 1
+        assert names_at_running_transition[0] == "callable-generated-name"
 
-    async def test_async_flow_callable_name_correctly_resolved(
-        self, sync_prefect_client
+    async def test_async_flow_callable_name_set_before_running(
+        self, sync_prefect_client, monkeypatch
     ):
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state
+
+        async def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return await original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state", tracking_propose)
+
         def generate_name():
             return "async-callable-name"
 
@@ -148,6 +172,39 @@ class TestFlowRunNameSetBeforeRunningEvent:
         run = sync_prefect_client.read_flow_run(result)
 
         assert run.name == "async-callable-name"
+        assert len(names_at_running_transition) >= 1
+        assert names_at_running_transition[0] == "async-callable-name"
+
+    async def test_sync_flow_callable_with_runtime_params_set_before_running(
+        self, sync_prefect_client, monkeypatch
+    ):
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state_sync
+
+        def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state_sync", tracking_propose)
+
+        import prefect.runtime
+
+        def generate_name():
+            params = prefect.runtime.flow_run.parameters
+            return f"hi-{params['x']}-{params['y']}"
+
+        @flow(flow_run_name=generate_name)
+        def my_flow(x, y):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters=dict(x="one", y="two"))
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "hi-one-two"
+        assert len(names_at_running_transition) >= 1
+        assert names_at_running_transition[0] == "hi-one-two"
 
     async def test_sync_flow_string_template_with_multiple_params(
         self, sync_prefect_client
