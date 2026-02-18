@@ -252,7 +252,6 @@ class TestVacuumOldFlowRuns:
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 1
 
-
     async def test_preserves_cancelling_flow_runs(self, session, flow):
         """CANCELLING is non-terminal and should not be deleted."""
         db = provide_database_interface()
@@ -343,9 +342,7 @@ class TestVacuumArtifactCollections:
         db = provide_database_interface()
         # Create an artifact with a key → this also creates an artifact_collection
         fake_flow_run_id = uuid.uuid4()
-        await _create_artifact(
-            session, flow_run_id=fake_flow_run_id, key="my-report"
-        )
+        await _create_artifact(session, flow_run_id=fake_flow_run_id, key="my-report")
 
         assert await _count(session, db, db.ArtifactCollection) == 1
 
@@ -368,9 +365,7 @@ class TestVacuumArtifactCollections:
 
         # Newer artifact version (same key) — orphaned flow run
         fake_flow_run_id = uuid.uuid4()
-        await _create_artifact(
-            session, flow_run_id=fake_flow_run_id, key="my-report"
-        )
+        await _create_artifact(session, flow_run_id=fake_flow_run_id, key="my-report")
 
         # Collection should point to the newer (orphaned) artifact
         assert await _count(session, db, db.ArtifactCollection) == 1
@@ -467,6 +462,38 @@ class TestVacuumIdempotency:
             assert await _count(new_session, db, db.Log) == 0
             assert await _count(new_session, db, db.Artifact) == 0
             assert await _count(new_session, db, db.ArtifactCollection) == 0
+
+
+class TestErrorIsolation:
+    async def test_step_failure_does_not_block_subsequent_steps(
+        self, session, flow, monkeypatch
+    ):
+        """If one cleanup step fails, the remaining steps should still execute."""
+        db = provide_database_interface()
+        # Create an old flow run that step 4 should delete
+        await _create_flow_run(session, flow, end_time=OLD)
+
+        # Make step 1 (orphaned logs) fail by patching _batch_delete to raise
+        # on the first call only
+        import prefect.server.services.db_vacuum as vacuum_module
+
+        original_batch_delete = vacuum_module._batch_delete
+        call_count = 0
+
+        async def failing_batch_delete(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RuntimeError("Simulated step 1 failure")
+            return await original_batch_delete(*args, **kwargs)
+
+        monkeypatch.setattr(vacuum_module, "_batch_delete", failing_batch_delete)
+
+        await vacuum_old_resources()
+
+        # Step 1 failed, but step 4 (flow run deletion) should still have run
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
 
 
 class TestNoOp:
