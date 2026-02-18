@@ -68,6 +68,7 @@ Prefect automatically creates a Pydantic model containing one field annotated wi
 The auto-generated field is always named `value`. This matters when resuming a paused flow run programmatically with
 `resume_flow_run()`—you must provide the input as a dictionary with that field name:
 
+{/* pmd-metadata: notest */}
 ```python
 from prefect.flow_runs import resume_flow_run
 
