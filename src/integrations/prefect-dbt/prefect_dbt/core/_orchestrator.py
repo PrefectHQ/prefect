@@ -311,9 +311,8 @@ class PrefectDbtOrchestrator:
                         key="dbt-orchestrator-summary",
                         _sync=True,
                     )
-                except Exception:
-                    # Gracefully handle API errors during artifact creation.
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to create dbt summary artifact: %s", e)
 
         if self._write_run_results:
             target_dir = self._settings.project_dir / self._settings.target_path
