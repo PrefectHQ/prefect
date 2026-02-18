@@ -513,6 +513,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             )
             self.flow_run.name = flow_run_name
             self._flow_run_name_set = True
+            self._telemetry.update_run_name(name=flow_run_name)
 
         new_state = Running()
         state = self.set_state(new_state)
@@ -1135,6 +1136,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             )
             self.flow_run.name = flow_run_name
             self._flow_run_name_set = True
+            self._telemetry.update_run_name(name=flow_run_name)
 
         new_state = Running()
         state = await self.set_state(new_state)
