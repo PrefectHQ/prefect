@@ -16,9 +16,7 @@ def test_db_vacuum_service_registered():
 def test_db_vacuum_disabled_by_default():
     """Test that db vacuum is disabled by default."""
     config = next(
-        c
-        for c in _PERPETUAL_SERVICES
-        if c.function.__name__ == "vacuum_old_resources"
+        c for c in _PERPETUAL_SERVICES if c.function.__name__ == "vacuum_old_resources"
     )
     assert config.enabled_getter() is False
 
