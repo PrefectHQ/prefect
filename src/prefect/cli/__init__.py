@@ -27,14 +27,17 @@ _FLAGS_WITH_VALUES = {
 _CYCLOPTS_COMMANDS: set[str] = {
     "concurrency-limit",
     "config",
+    "dashboard",
     "deployment",
     "events",
     "experimental",
     "flow",
     "flow-run",
     "profile",
+    "sdk",
     "server",
     "shell",
+    "task",
     "version",
     "worker",
 }
