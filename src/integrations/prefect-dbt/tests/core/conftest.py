@@ -19,6 +19,11 @@ def _make_node(
     depends_on: tuple[str, ...] = (),
     depends_on_macros: tuple[str, ...] = (),
     materialization: str = "table",
+    relation_name: str | None = None,
+    description: str | None = None,
+    compiled_code: str | None = None,
+    config: dict | None = None,
+    original_file_path: str | None = None,
 ) -> DbtNode:
     return DbtNode(
         unique_id=unique_id,
@@ -27,6 +32,11 @@ def _make_node(
         depends_on=depends_on,
         depends_on_macros=depends_on_macros,
         materialization=materialization,
+        relation_name=relation_name,
+        description=description,
+        compiled_code=compiled_code,
+        config=config or {},
+        original_file_path=original_file_path,
     )
 
 
