@@ -6,6 +6,7 @@ This module provides:
 - PrefectDbtOrchestrator: Executes dbt builds with wave or per-node execution
 """
 
+import logging
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -23,6 +24,8 @@ from prefect_dbt.core._freshness import (
 )
 from prefect_dbt.core._manifest import ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionMode(Enum):
@@ -573,7 +576,9 @@ class PrefectDbtOrchestrator:
                             ]
                     results[node.unique_id] = node_result
             else:
-                # PER_WAVE: all nodes in wave marked as error
+                # PER_WAVE failure: use per-node artifact status when
+                # available so that test failures don't incorrectly
+                # cascade to sibling models or downstream waves.
                 error_info = {
                     "message": str(wave_result.error)
                     if wave_result.error
@@ -583,13 +588,39 @@ class PrefectDbtOrchestrator:
                     else "UnknownError",
                 }
                 for node in wave.nodes:
-                    results[node.unique_id] = self._build_node_result(
-                        status="error",
-                        timing=dict(timing),
-                        invocation=dict(invocation),
-                        error=error_info,
+                    # Check per-node artifact status to distinguish
+                    # individually successful nodes from truly failed ones.
+                    node_artifact = (
+                        wave_result.artifacts.get(node.unique_id)
+                        if wave_result.artifacts
+                        else None
                     )
-                failed_nodes.extend(n.unique_id for n in wave.nodes)
+                    node_succeeded = node_artifact is not None and node_artifact.get(
+                        "status"
+                    ) in ("success", "pass")
+
+                    if node_succeeded:
+                        node_result = self._build_node_result(
+                            status="success",
+                            timing=dict(timing),
+                            invocation=dict(invocation),
+                        )
+                        if "execution_time" in node_artifact:
+                            node_result["timing"]["execution_time"] = node_artifact[
+                                "execution_time"
+                            ]
+                        results[node.unique_id] = node_result
+                    else:
+                        results[node.unique_id] = self._build_node_result(
+                            status="error",
+                            timing=dict(timing),
+                            invocation=dict(invocation),
+                            error=error_info,
+                        )
+                        # Only propagate non-test failures to downstream
+                        # waves so test failures don't skip models.
+                        if node.resource_type not in _TEST_NODE_TYPES:
+                            failed_nodes.append(node.unique_id)
 
         return results
 
@@ -612,11 +643,22 @@ class PrefectDbtOrchestrator:
         As a side-effect, stores the pre-computed cache key in
         *computed_cache_keys* so downstream nodes can incorporate it.
         """
-        upstream_keys = {
-            dep_id: computed_cache_keys[dep_id]
-            for dep_id in node.depends_on
-            if dep_id in computed_cache_keys
-        }
+        upstream_keys = {}
+        for dep_id in node.depends_on:
+            if dep_id in computed_cache_keys:
+                upstream_keys[dep_id] = computed_cache_keys[dep_id]
+            else:
+                # An upstream dependency was not executed in this run
+                # (e.g. excluded by select=...).  We cannot guarantee
+                # the cached result is still valid — the upstream may
+                # have changed in a separate run — so disable caching
+                # for this node to prevent stale cache reuse.
+                logger.debug(
+                    "Disabling cache for %s: upstream %s was not executed",
+                    node.unique_id,
+                    dep_id,
+                )
+                return {}
         policy = build_cache_policy_for_node(
             node,
             self._settings.project_dir,
