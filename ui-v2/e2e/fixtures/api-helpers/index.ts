@@ -46,6 +46,14 @@ export {
 	listDeployments,
 } from "./deployments";
 export {
+	buildTestEvent,
+	type Event,
+	type EventPage,
+	emitEvents,
+	listEvents,
+	type ReceivedEvent,
+} from "./events";
+export {
 	cleanupFlowRuns,
 	createFlowRun,
 	deleteFlowRun,
