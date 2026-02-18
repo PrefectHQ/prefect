@@ -38,7 +38,7 @@ def _make_mock_executor(
     """Create a mock DbtExecutor that returns the given result for execute_wave."""
     executor = MagicMock(spec=DbtExecutor)
 
-    def _execute_wave(nodes, full_refresh=False):
+    def _execute_wave(nodes, full_refresh=False, indirect_selection=None):
         return ExecutionResult(
             success=success,
             node_ids=[n.unique_id for n in nodes],
@@ -119,6 +119,20 @@ def write_sql_files(project_dir: Path, file_map: dict[str, str]) -> None:
         full_path = project_dir / rel_path
         full_path.parent.mkdir(parents=True, exist_ok=True)
         full_path.write_text(content)
+
+
+def _make_test_node(
+    unique_id: str = "test.test.not_null_my_model_id",
+    name: str = "not_null_my_model_id",
+    depends_on: tuple[str, ...] = (),
+) -> DbtNode:
+    return DbtNode(
+        unique_id=unique_id,
+        name=name,
+        resource_type=NodeType.Test,
+        depends_on=depends_on,
+        materialization=None,
+    )
 
 
 def _make_source_node(
@@ -274,6 +288,69 @@ def linear_manifest_data() -> dict[str, Any]:
                 "resource_type": "model",
                 "depends_on": {"nodes": ["model.test.b"]},
                 "config": {"materialized": "table"},
+            },
+        },
+        "sources": {},
+    }
+
+
+@pytest.fixture
+def diamond_with_tests_manifest_data() -> dict[str, Any]:
+    """Diamond model graph + test nodes.
+
+    Models:
+        Wave 0: root
+        Wave 1: left, right
+        Wave 2: leaf
+
+    Tests:
+        test_not_null_root_id: depends on root (single-model test)
+        test_not_null_leaf_id: depends on leaf (single-model test)
+        test_rel_leaf_to_left: depends on leaf AND left (multi-model relationship test)
+    """
+    return {
+        "nodes": {
+            "model.test.root": {
+                "name": "root",
+                "resource_type": "model",
+                "depends_on": {"nodes": []},
+                "config": {"materialized": "table"},
+            },
+            "model.test.left": {
+                "name": "left",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["model.test.root"]},
+                "config": {"materialized": "table"},
+            },
+            "model.test.right": {
+                "name": "right",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["model.test.root"]},
+                "config": {"materialized": "table"},
+            },
+            "model.test.leaf": {
+                "name": "leaf",
+                "resource_type": "model",
+                "depends_on": {"nodes": ["model.test.left", "model.test.right"]},
+                "config": {"materialized": "table"},
+            },
+            "test.test.not_null_root_id": {
+                "name": "not_null_root_id",
+                "resource_type": "test",
+                "depends_on": {"nodes": ["model.test.root"]},
+                "config": {},
+            },
+            "test.test.not_null_leaf_id": {
+                "name": "not_null_leaf_id",
+                "resource_type": "test",
+                "depends_on": {"nodes": ["model.test.leaf"]},
+                "config": {},
+            },
+            "test.test.rel_leaf_to_left": {
+                "name": "rel_leaf_to_left",
+                "resource_type": "test",
+                "depends_on": {"nodes": ["model.test.leaf", "model.test.left"]},
+                "config": {},
             },
         },
         "sources": {},

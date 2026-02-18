@@ -45,7 +45,10 @@ class DbtExecutor(Protocol):
     ) -> ExecutionResult: ...
 
     def execute_wave(
-        self, nodes: list[DbtNode], full_refresh: bool = False
+        self,
+        nodes: list[DbtNode],
+        full_refresh: bool = False,
+        indirect_selection: str | None = None,
     ) -> ExecutionResult: ...
 
 
@@ -90,6 +93,7 @@ class DbtCoreExecutor:
         node_ids: list[str],
         selectors: list[str],
         full_refresh: bool = False,
+        indirect_selection: str | None = None,
     ) -> ExecutionResult:
         """Build CLI args and invoke dbt.
 
@@ -103,6 +107,8 @@ class DbtCoreExecutor:
             node_ids: List of node unique_ids for tracking in the result
             selectors: List of dbt selectors for `--select`
             full_refresh: Whether to pass --full-refresh
+            indirect_selection: dbt indirect selection mode (e.g. "empty"
+                to suppress automatic test inclusion)
         """
         invoke_kwargs: dict[str, Any] = {
             "project_dir": str(self._settings.project_dir),
@@ -111,6 +117,8 @@ class DbtCoreExecutor:
             "log_level_file": str(self._settings.log_level.value),
             "select": selectors,
         }
+        if indirect_selection is not None:
+            invoke_kwargs["indirect_selection"] = indirect_selection
 
         if self._threads is not None:
             invoke_kwargs["threads"] = self._threads
@@ -198,7 +206,10 @@ class DbtCoreExecutor:
         )
 
     def execute_wave(
-        self, nodes: list[DbtNode], full_refresh: bool = False
+        self,
+        nodes: list[DbtNode],
+        full_refresh: bool = False,
+        indirect_selection: str | None = None,
     ) -> ExecutionResult:
         """Execute a wave of nodes using `dbt build`.
 
@@ -207,6 +218,9 @@ class DbtCoreExecutor:
         Args:
             nodes: List of DbtNode objects to execute
             full_refresh: Whether to pass --full-refresh
+            indirect_selection: dbt indirect selection mode.  Pass
+                ``"empty"`` to prevent dbt from automatically including
+                tests attached to selected models.
 
         Returns:
             ExecutionResult with success/failure status and artifacts
@@ -220,5 +234,9 @@ class DbtCoreExecutor:
         node_ids = [node.unique_id for node in nodes]
         selectors = [node.dbt_selector for node in nodes]
         return self._invoke(
-            "build", node_ids=node_ids, selectors=selectors, full_refresh=full_refresh
+            "build",
+            node_ids=node_ids,
+            selectors=selectors,
+            full_refresh=full_refresh,
+            indirect_selection=indirect_selection,
         )

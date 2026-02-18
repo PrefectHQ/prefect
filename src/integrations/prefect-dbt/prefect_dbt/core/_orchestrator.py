@@ -41,12 +41,41 @@ class ExecutionMode(Enum):
     PER_WAVE = "per_wave"
 
 
+class TestStrategy(Enum):
+    """Strategy for executing dbt test nodes.
+
+    IMMEDIATE: Tests are interleaved with models in the execution DAG.
+        Kahn's algorithm naturally places each test in the wave after
+        all of its parent models complete.
+
+    DEFERRED: All model waves execute first, then all tests execute
+        together in a final wave.
+
+    SKIP: Tests are excluded from execution (default for backward
+        compatibility).
+    """
+
+    __test__ = False  # prevent pytest collection
+
+    IMMEDIATE = "immediate"
+    DEFERRED = "deferred"
+    SKIP = "skip"
+
+
 # Map executable node types to their dbt CLI commands.
 _NODE_COMMAND = {
     NodeType.Model: "run",
     NodeType.Seed: "seed",
     NodeType.Snapshot: "snapshot",
+    NodeType.Test: "test",
 }
+# NodeType.Unit was added in dbt-core 1.8; guard for older versions.
+_UNIT_TYPE = getattr(NodeType, "Unit", None)
+if _UNIT_TYPE is not None:
+    _NODE_COMMAND[_UNIT_TYPE] = "test"
+
+# Resource types that are test-like and should not be cached.
+_TEST_NODE_TYPES = frozenset(t for t in (NodeType.Test, _UNIT_TYPE) if t is not None)
 
 
 class _DbtNodeError(Exception):
@@ -111,6 +140,11 @@ class PrefectDbtOrchestrator:
         result_storage: Where to persist task results (required for
             caching to work across process restarts).
         cache_key_storage: Where to persist cache keys.
+        test_strategy: Controls when dbt test nodes execute.
+            ``TestStrategy.SKIP`` (default) excludes tests entirely.
+            ``TestStrategy.IMMEDIATE`` interleaves tests with models in
+            the DAG (each test runs in the wave after its parent models).
+            ``TestStrategy.DEFERRED`` runs all tests after all model waves.
         use_source_freshness_expiration: When True (requires
             `enable_caching=True`), dynamically compute
             `cache_expiration` per-node from upstream source freshness
@@ -147,6 +181,7 @@ class PrefectDbtOrchestrator:
         cache_expiration: timedelta | None = None,
         result_storage: Any | str | Path | None = None,
         cache_key_storage: Any | str | Path | None = None,
+        test_strategy: TestStrategy = TestStrategy.SKIP,
         use_source_freshness_expiration: bool = False,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
@@ -157,6 +192,13 @@ class PrefectDbtOrchestrator:
             raise ValueError(
                 f"Invalid execution_mode {execution_mode!r}. "
                 f"Must be one of: {', '.join(m.value for m in ExecutionMode)}"
+            ) from None
+        try:
+            self._test_strategy = TestStrategy(test_strategy)
+        except ValueError:
+            raise ValueError(
+                f"Invalid test_strategy {test_strategy!r}. "
+                f"Must be one of: {', '.join(s.value for s in TestStrategy)}"
             ) from None
         self._retries = retries
         self._retry_delay_seconds = retry_delay_seconds
@@ -340,10 +382,35 @@ class PrefectDbtOrchestrator:
                     filtered_nodes, parser.all_nodes, freshness_results
                 )
 
-        # 5. Compute waves from remaining nodes
-        waves = parser.compute_execution_waves(nodes=filtered_nodes)
+        # 5. Collect test nodes when strategy != SKIP
+        test_nodes: dict = {}
+        if self._test_strategy != TestStrategy.SKIP:
+            test_nodes = parser.filter_test_nodes(
+                selected_node_ids=selected_ids,
+                executable_node_ids=set(filtered_nodes.keys()),
+            )
 
-        # 6. Execute
+        # 6. Compute waves from remaining nodes
+        if self._test_strategy == TestStrategy.IMMEDIATE and test_nodes:
+            # Merge tests into the model graph so Kahn's algorithm
+            # naturally places each test after all its parent models.
+            waves = parser.compute_execution_waves(
+                nodes={**filtered_nodes, **test_nodes}
+            )
+        elif self._test_strategy == TestStrategy.DEFERRED and test_nodes:
+            # Compute model waves normally, then append test wave(s).
+            model_waves = parser.compute_execution_waves(nodes=filtered_nodes)
+            test_waves = parser.compute_execution_waves(nodes=test_nodes)
+            # Renumber test waves to follow model waves.
+            next_wave_num = (model_waves[-1].wave_number + 1) if model_waves else 0
+            for tw in test_waves:
+                tw.wave_number = next_wave_num
+                next_wave_num += 1
+            waves = model_waves + test_waves
+        else:
+            waves = parser.compute_execution_waves(nodes=filtered_nodes)
+
+        # 7. Execute
         if self._execution_mode == ExecutionMode.PER_NODE:
             macro_paths = parser.get_macro_paths() if self._enable_caching else {}
             execution_results = self._execute_per_node(
@@ -375,6 +442,12 @@ class PrefectDbtOrchestrator:
         results: dict[str, Any] = {}
         failed_nodes: list[str] = []
 
+        # Always suppress dbt's automatic indirect test selection in
+        # PER_WAVE mode.  The orchestrator owns test scheduling:
+        #   SKIP     → no tests at all (indirect selection would leak them)
+        #   IMMEDIATE/DEFERRED → tests only in orchestrator-placed waves
+        indirect_selection = "empty"
+
         for wave in waves:
             if failed_nodes:
                 # Skip this wave -- upstream failure
@@ -389,9 +462,23 @@ class PrefectDbtOrchestrator:
             # Execute the wave
             started_at = datetime.now(timezone.utc)
             try:
-                wave_result: ExecutionResult = self._executor.execute_wave(
-                    wave.nodes, full_refresh=full_refresh
-                )
+                try:
+                    wave_result: ExecutionResult = self._executor.execute_wave(
+                        wave.nodes,
+                        full_refresh=full_refresh,
+                        indirect_selection=indirect_selection,
+                    )
+                except TypeError as type_err:
+                    # Only retry without the kwarg when the executor
+                    # truly doesn't accept indirect_selection (legacy
+                    # signature).  Re-raise any other TypeError so it
+                    # isn't silently swallowed and retried.
+                    if "indirect_selection" not in str(type_err):
+                        raise
+                    wave_result = self._executor.execute_wave(
+                        wave.nodes,
+                        full_refresh=full_refresh,
+                    )
             except Exception as exc:
                 wave_result = ExecutionResult(
                     success=False,
@@ -643,7 +730,10 @@ class PrefectDbtOrchestrator:
                         "retry_delay_seconds": self._retry_delay_seconds,
                     }
 
-                    if self._enable_caching:
+                    if (
+                        self._enable_caching
+                        and node.resource_type not in _TEST_NODE_TYPES
+                    ):
                         with_opts.update(
                             self._build_cache_options_for_node(
                                 node,
