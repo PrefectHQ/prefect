@@ -48,6 +48,7 @@ from prefect.settings import (
     PREFECT_UI_API_URL,
     PREFECT_UI_URL,
     PREFECT_UNIT_TEST_MODE,
+    PREFECT_WORKER_DEBUG_MODE,
     Profile,
     ProfilesCollection,
     Settings,
@@ -543,6 +544,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_UNIT_TEST_LOOP_DEBUG": {"test_value": True, "legacy": True},
     "PREFECT_UNIT_TEST_MODE": {"test_value": True, "legacy": True},
     "PREFECT_WORKER_CANCELLATION_POLL_SECONDS": {"test_value": 60.0},
+    "PREFECT_WORKER_DEBUG_MODE": {"test_value": True},
     "PREFECT_WORKER_ENABLE_CANCELLATION": {"test_value": True},
     "PREFECT_WORKER_HEARTBEAT_SECONDS": {"test_value": 10.0},
     "PREFECT_WORKER_PREFETCH_SECONDS": {"test_value": 10.0},
@@ -2831,3 +2833,36 @@ def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
         )
 
     assert not caught
+
+
+class TestWorkerDebugMode:
+    def test_worker_debug_mode_defaults_to_false(self):
+        settings = Settings()
+        assert settings.worker.debug_mode is False
+
+    def test_worker_debug_mode_does_not_set_root_debug_mode(self):
+        settings = Settings(worker={"debug_mode": True})
+        assert settings.debug_mode is False
+
+    def test_worker_debug_mode_does_not_set_global_logging_level(self):
+        settings = Settings(
+            worker={"debug_mode": True},
+            testing={"test_mode": False},
+        )
+        assert settings.logging.level != "DEBUG"
+
+    def test_worker_debug_mode_env_not_in_base_environment_as_debug_mode(self):
+        with temporary_settings({PREFECT_WORKER_DEBUG_MODE: True}):
+            env = get_current_settings().to_environment_variables(exclude_unset=True)
+            assert "PREFECT_WORKER_DEBUG_MODE" in env
+            assert "PREFECT_DEBUG_MODE" not in env
+
+    def test_root_debug_mode_still_sets_logging_to_debug(self):
+        settings = Settings(debug_mode=True)
+        assert settings.logging.level == "DEBUG"
+        assert settings.internal.logging_level == "DEBUG"
+
+    def test_root_debug_mode_propagates_via_base_environment(self):
+        with temporary_settings({PREFECT_DEBUG_MODE: True}):
+            env = get_current_settings().to_environment_variables(exclude_unset=True)
+            assert "PREFECT_DEBUG_MODE" in env
