@@ -59,11 +59,23 @@ def greet_user():
 In this example, the flow run pauses until a user clicks the Resume button in the Prefect UI, enters a name, and submits the form.
 
 <Note>
-**Types can you pass for `wait_for_input`**
+**Types you can pass for `wait_for_input`**
 
 When you pass a built-in type such as `int` as an argument for the `wait_for_input` parameter to `pause_flow_run` or `suspend_flow_run`,
 Prefect automatically creates a Pydantic model containing one field annotated with the type you specified. This means you can use
 [any type annotation that Pydantic accepts for model fields](https://docs.pydantic.dev/1.10/usage/types/) with these functions.
+
+The auto-generated field is always named `value`. This matters when resuming a paused flow run programmatically with
+`resume_flow_run()`—you must provide the input as a dictionary with that field name:
+
+```python
+from prefect.flow_runs import resume_flow_run
+
+# When the flow was paused with pause_flow_run(wait_for_input=str), resume with:
+resume_flow_run(flow_run_id, run_input={"value": "Alice"})
+```
+
+To use a different field name, pass a `RunInput` or `BaseModel` class to `wait_for_input` instead of a built-in type.
 </Note>
 
 Instead of a built-in type, you can pass in a `pydantic.BaseModel` class. This is useful if you already have a `BaseModel` you want to use:
