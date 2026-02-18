@@ -6,6 +6,7 @@ This module provides:
 - PrefectDbtOrchestrator: Executes dbt builds with wave or per-node execution
 """
 
+import os
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -14,9 +15,12 @@ from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 
+from prefect import task as prefect_task
 from prefect.artifacts import create_markdown_artifact
+from prefect.concurrency.sync import concurrency as prefect_concurrency
 from prefect.context import AssetContext, FlowRunContext
 from prefect.logging import get_logger
+from prefect.task_runners import ProcessPoolTaskRunner
 from prefect.tasks import MaterializingTask
 from prefect_dbt.core._artifacts import (
     ASSET_NODE_TYPES,
@@ -721,11 +725,7 @@ class PrefectDbtOrchestrator:
 
         Requires an active Prefect flow run context (call inside a `@flow`).
         """
-        from prefect import task as prefect_task
-
         if self._task_runner_type is None:
-            from prefect.task_runners import ProcessPoolTaskRunner
-
             task_runner_type = ProcessPoolTaskRunner
         else:
             task_runner_type = self._task_runner_type
@@ -745,8 +745,6 @@ class PrefectDbtOrchestrator:
             # Named concurrency limit: the server-side limit throttles
             # execution, so clamp the pool to avoid spawning an excessive
             # number of idle processes on large DAGs.
-            import os
-
             max_workers = min(largest_wave, os.cpu_count() or 4)
         else:
             max_workers = largest_wave
@@ -757,10 +755,6 @@ class PrefectDbtOrchestrator:
         def _run_dbt_node(node, command, full_refresh, asset_key=None):
             # Acquire named concurrency slot if configured
             if concurrency_name:
-                from prefect.concurrency.sync import (
-                    concurrency as prefect_concurrency,
-                )
-
                 ctx = prefect_concurrency(concurrency_name, strict=True)
             else:
                 ctx = nullcontext()
