@@ -703,7 +703,9 @@ class TestOrchestratorSummaryArtifact:
 
         with (
             patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
-            patch("prefect.artifacts.create_markdown_artifact") as mock_create,
+            patch(
+                "prefect_dbt.core._orchestrator.create_markdown_artifact"
+            ) as mock_create,
             patch("prefect.context.FlowRunContext.get", return_value=MagicMock()),
         ):
             parser_instance = MockParser.return_value
@@ -744,7 +746,9 @@ class TestOrchestratorSummaryArtifact:
 
         with (
             patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
-            patch("prefect.artifacts.create_markdown_artifact") as mock_create,
+            patch(
+                "prefect_dbt.core._orchestrator.create_markdown_artifact"
+            ) as mock_create,
             patch("prefect.context.FlowRunContext.get", return_value=None),
         ):
             parser_instance = MockParser.return_value
@@ -774,7 +778,9 @@ class TestOrchestratorSummaryArtifact:
 
         with (
             patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
-            patch("prefect.artifacts.create_markdown_artifact") as mock_create,
+            patch(
+                "prefect_dbt.core._orchestrator.create_markdown_artifact"
+            ) as mock_create,
         ):
             parser_instance = MockParser.return_value
             parser_instance.filter_nodes.return_value = {}
@@ -913,10 +919,10 @@ class TestOrchestratorAssetTracking:
         with (
             patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
             patch(
-                "prefect_dbt.core._artifacts.create_asset_for_node"
+                "prefect_dbt.core._orchestrator.create_asset_for_node"
             ) as mock_create_asset,
             patch(
-                "prefect_dbt.core._artifacts.get_upstream_assets_for_node"
+                "prefect_dbt.core._orchestrator.get_upstream_assets_for_node"
             ) as mock_get_upstream,
         ):
             from prefect.assets import Asset, AssetProperties
@@ -998,7 +1004,7 @@ class TestOrchestratorAssetTracking:
         with (
             patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
             patch(
-                "prefect_dbt.core._artifacts.create_asset_for_node"
+                "prefect_dbt.core._orchestrator.create_asset_for_node"
             ) as mock_create_asset,
         ):
             node = _make_node("model.test.m1", "m1")
@@ -1054,7 +1060,7 @@ class TestOrchestratorAssetTracking:
         with (
             patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
             patch(
-                "prefect_dbt.core._artifacts.create_asset_for_node"
+                "prefect_dbt.core._orchestrator.create_asset_for_node"
             ) as mock_create_asset,
         ):
             node = DbtNode(
@@ -1105,11 +1111,11 @@ class TestOrchestratorCompiledCode:
         with (
             patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
             patch(
-                "prefect_dbt.core._artifacts.get_compiled_code_for_node",
+                "prefect_dbt.core._orchestrator.get_compiled_code_for_node",
                 return_value="\n### Compiled code\n```sql\nSELECT 1\n```",
             ) as mock_compiled,
             patch(
-                "prefect_dbt.core._artifacts.get_upstream_assets_for_node",
+                "prefect_dbt.core._orchestrator.get_upstream_assets_for_node",
                 return_value=[],
             ),
         ):
