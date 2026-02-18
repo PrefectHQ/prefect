@@ -199,17 +199,12 @@ def app():
 # *before* cyclopts parses subcommand args (cyclopts would otherwise mangle
 # combined short flags like "-jv" into "-j", "-v").
 _DELEGATED_COMMANDS: set[str] = {
-    "api",
-    "artifact",
-    "automation",
     "block",
     "cloud",
     "deploy",
     "dev",
     "global-concurrency-limit",
-    "task-run",
     "transfer",
-    "variable",
     "work-pool",
     "work-queue",
 }
@@ -356,15 +351,9 @@ def work_queue_default(
 
 
 # --- variable ---
-variable_app = _delegated_app("variable", "Manage Prefect variables.")
+from prefect.cli._cyclopts.variable import variable_app
+
 _app.command(variable_app)
-
-
-@variable_app.default
-def variable_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("variable", tokens)
 
 
 # --- block ---
@@ -400,27 +389,9 @@ def global_concurrency_limit_default(
 
 
 # --- artifact ---
-artifact_app = _delegated_app("artifact", "Manage artifacts.")
+from prefect.cli._cyclopts.artifact import artifact_app
+
 _app.command(artifact_app)
-
-
-@artifact_app.default
-def artifact_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("artifact", tokens)
-
-
-# --- automation ---
-automation_app = _delegated_app("automation", "Manage automations.")
-_app.command(automation_app)
-
-
-@automation_app.default
-def automation_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("automation", tokens)
 
 
 # --- experimental ---
@@ -442,26 +413,15 @@ _app.command(task_app)
 
 
 # --- task-run ---
-task_run_app = _delegated_app("task-run", "Manage task runs.")
+from prefect.cli._cyclopts.task_run import task_run_app
+
 _app.command(task_run_app)
 
 
-@task_run_app.default
-def task_run_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("task-run", tokens)
+# --- api ---
+from prefect.cli._cyclopts.api import api_app
 
-
-# --- Simple commands (no subcommands) ---
-
-
-@_app.command(name="api")
-def api_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Interact with the Prefect API."""
-    _delegate("api", tokens)
+_app.command(api_app)
 
 
 # --- dashboard ---
