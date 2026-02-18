@@ -97,13 +97,12 @@ async def vacuum_old_resources(
     # 3. Stale artifact collections — re-point to next latest version if one
     #    exists, otherwise delete the collection row.
     try:
-        collections_updated, collections_deleted = (
-            await _reconcile_artifact_collections(db, batch_size)
-        )
+        (
+            collections_updated,
+            collections_deleted,
+        ) = await _reconcile_artifact_collections(db, batch_size)
     except Exception:
-        logger.exception(
-            "Database vacuum: failed to reconcile artifact collections."
-        )
+        logger.exception("Database vacuum: failed to reconcile artifact collections.")
 
     # 4. Old top-level flow runs
     try:
@@ -206,8 +205,9 @@ async def _reconcile_artifact_collections(
                     total_updated += 1
                 else:
                     await session.execute(
-                        sa.delete(db.ArtifactCollection)
-                        .where(db.ArtifactCollection.id == collection_id)
+                        sa.delete(db.ArtifactCollection).where(
+                            db.ArtifactCollection.id == collection_id
+                        )
                     )
                     total_deleted += 1
 
