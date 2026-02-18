@@ -38,6 +38,8 @@ class DbtNodeCachePolicy(CachePolicy):
             deterministic hashing.
         macro_content_hash: Hash of macro dependency file contents
             (None if no macro dependencies).
+        relation_name: Database relation name included in the cache key so
+            that changes to the materialized relation invalidate the cache.
     """
 
     node_unique_id: str = ""

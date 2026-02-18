@@ -33,10 +33,14 @@ class DbtNode:
         name: Short name (e.g., "stg_users")
         resource_type: Node type from dbt (Model, Source, Test, etc.)
         depends_on: Tuple of unique_ids this node depends on (tuple for hashability)
+        depends_on_macros: Tuple of macro unique_ids this node depends on
+        fqn: Fully-qualified name as a tuple of path segments
         materialization: How the node is materialized ("view", "table", "ephemeral", etc.)
         relation_name: Database relation name
         original_file_path: Path to the source SQL/YAML file
         config: Node configuration dictionary
+        description: Optional node description from the dbt project
+        compiled_code: Compiled SQL code (populated by `dbt compile`)
     """
 
     unique_id: str
@@ -49,8 +53,8 @@ class DbtNode:
     relation_name: str | None = None
     original_file_path: str | None = None
     config: dict[str, Any] = field(default_factory=dict)
-    description: Optional[str] = None
-    compiled_code: Optional[str] = None
+    description: str | None = None
+    compiled_code: str | None = None
 
     # Resource types that produce database objects via `dbt run`/`dbt seed`/`dbt snapshot`.
     # Tests are excluded because they use `dbt test` and have their own scheduling strategy.
@@ -151,13 +155,13 @@ class ManifestParser:
         return self._all_nodes
 
     @property
-    def adapter_type(self) -> Optional[str]:
+    def adapter_type(self) -> str | None:
         """Database adapter type from manifest metadata (e.g. ``"postgres"``)."""
         metadata = self._manifest_data.get("metadata", {})
         return metadata.get("adapter_type")
 
     @property
-    def project_name(self) -> Optional[str]:
+    def project_name(self) -> str | None:
         """dbt project name from manifest metadata."""
         metadata = self._manifest_data.get("metadata", {})
         return metadata.get("project_name")
