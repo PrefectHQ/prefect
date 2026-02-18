@@ -6,6 +6,7 @@ This module provides:
 - PrefectDbtOrchestrator: Executes dbt builds with wave or per-node execution
 """
 
+import os
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -14,6 +15,21 @@ from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
 
+from prefect import task as prefect_task
+from prefect.artifacts import create_markdown_artifact
+from prefect.concurrency.sync import concurrency as prefect_concurrency
+from prefect.context import AssetContext, FlowRunContext
+from prefect.logging import get_logger
+from prefect.task_runners import ProcessPoolTaskRunner
+from prefect.tasks import MaterializingTask
+from prefect_dbt.core._artifacts import (
+    ASSET_NODE_TYPES,
+    create_asset_for_node,
+    create_summary_markdown,
+    get_compiled_code_for_node,
+    get_upstream_assets_for_node,
+    write_run_results_json,
+)
 from prefect_dbt.core._cache import build_cache_policy_for_node
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._freshness import (
@@ -23,6 +39,9 @@ from prefect_dbt.core._freshness import (
 )
 from prefect_dbt.core._manifest import ManifestParser, resolve_selection
 from prefect_dbt.core.settings import PrefectDbtSettings
+from prefect_dbt.utilities import format_resource_id
+
+logger = get_logger(__name__)
 
 
 class ExecutionMode(Enum):
@@ -141,14 +160,22 @@ class PrefectDbtOrchestrator:
             caching to work across process restarts).
         cache_key_storage: Where to persist cache keys.
         test_strategy: Controls when dbt test nodes execute.
-            ``TestStrategy.SKIP`` (default) excludes tests entirely.
-            ``TestStrategy.IMMEDIATE`` interleaves tests with models in
+            `TestStrategy.SKIP` (default) excludes tests entirely.
+            `TestStrategy.IMMEDIATE` interleaves tests with models in
             the DAG (each test runs in the wave after its parent models).
-            ``TestStrategy.DEFERRED`` runs all tests after all model waves.
+            `TestStrategy.DEFERRED` runs all tests after all model waves.
         use_source_freshness_expiration: When True (requires
             `enable_caching=True`), dynamically compute
             `cache_expiration` per-node from upstream source freshness
             thresholds.
+        create_summary_artifact: When True, create a Prefect markdown
+            artifact summarising the build results at the end of
+            `run_build()`.  Requires an active flow run context.
+        include_compiled_code: When True, include compiled SQL in
+            asset descriptions (PER_NODE mode only).
+        write_run_results: When True, write a dbt-compatible
+            `run_results.json` to the target directory after
+            `run_build()`.
 
     Example::
 
@@ -183,6 +210,9 @@ class PrefectDbtOrchestrator:
         cache_key_storage: Any | str | Path | None = None,
         test_strategy: TestStrategy = TestStrategy.SKIP,
         use_source_freshness_expiration: bool = False,
+        create_summary_artifact: bool = True,
+        include_compiled_code: bool = False,
+        write_run_results: bool = False,
     ):
         self._settings = (settings or PrefectDbtSettings()).model_copy()
         self._manifest_path = manifest_path
@@ -209,6 +239,9 @@ class PrefectDbtOrchestrator:
         self._result_storage = result_storage
         self._cache_key_storage = cache_key_storage
         self._use_source_freshness_expiration = use_source_freshness_expiration
+        self._create_summary_artifact = create_summary_artifact
+        self._include_compiled_code = include_compiled_code
+        self._write_run_results = write_run_results
 
         if enable_caching and self._execution_mode != ExecutionMode.PER_NODE:
             raise ValueError(
@@ -262,6 +295,28 @@ class PrefectDbtOrchestrator:
         if failed_upstream is not None:
             result["failed_upstream"] = failed_upstream
         return result
+
+    def _create_artifacts(
+        self,
+        results: dict[str, Any],
+        elapsed_time: float,
+    ) -> None:
+        """Create post-execution artifacts (summary markdown, run_results.json)."""
+        if self._create_summary_artifact:
+            if FlowRunContext.get() is not None:
+                try:
+                    markdown = create_summary_markdown(results)
+                    create_markdown_artifact(
+                        markdown=markdown,
+                        key="dbt-orchestrator-summary",
+                        _sync=True,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to create dbt summary artifact: %s", e)
+
+        if self._write_run_results:
+            target_dir = self._settings.project_dir / self._settings.target_path
+            write_run_results_json(results, elapsed_time, target_dir)
 
     def _resolve_target_path(self) -> Path:
         """Resolve the target directory path.
@@ -411,6 +466,8 @@ class PrefectDbtOrchestrator:
             waves = parser.compute_execution_waves(nodes=filtered_nodes)
 
         # 7. Execute
+        build_started = datetime.now(timezone.utc)
+
         if self._execution_mode == ExecutionMode.PER_NODE:
             macro_paths = parser.get_macro_paths() if self._enable_caching else {}
             execution_results = self._execute_per_node(
@@ -420,16 +477,22 @@ class PrefectDbtOrchestrator:
                 freshness_results=freshness_results
                 if self._use_source_freshness_expiration
                 else None,
-                all_nodes=parser.all_nodes
-                if self._use_source_freshness_expiration
-                else None,
+                all_nodes=parser.all_nodes,
+                adapter_type=parser.adapter_type,
+                project_name=parser.project_name,
             )
         else:
             execution_results = self._execute_per_wave(waves, full_refresh)
 
+        build_completed = datetime.now(timezone.utc)
+        elapsed_time = (build_completed - build_started).total_seconds()
+
         # Merge skipped results with execution results
         if skipped_results:
             execution_results.update(skipped_results)
+
+        # 8. Post-execution: artifacts
+        self._create_artifacts(execution_results, elapsed_time)
 
         return execution_results
 
@@ -517,7 +580,9 @@ class PrefectDbtOrchestrator:
                             ]
                     results[node.unique_id] = node_result
             else:
-                # PER_WAVE: all nodes in wave marked as error
+                # PER_WAVE failure: use per-node artifact status when
+                # available so that test failures don't incorrectly
+                # cascade to sibling models or downstream waves.
                 error_info = {
                     "message": str(wave_result.error)
                     if wave_result.error
@@ -527,13 +592,39 @@ class PrefectDbtOrchestrator:
                     else "UnknownError",
                 }
                 for node in wave.nodes:
-                    results[node.unique_id] = self._build_node_result(
-                        status="error",
-                        timing=dict(timing),
-                        invocation=dict(invocation),
-                        error=error_info,
+                    # Check per-node artifact status to distinguish
+                    # individually successful nodes from truly failed ones.
+                    node_artifact = (
+                        wave_result.artifacts.get(node.unique_id)
+                        if wave_result.artifacts
+                        else None
                     )
-                failed_nodes.extend(n.unique_id for n in wave.nodes)
+                    node_succeeded = node_artifact is not None and node_artifact.get(
+                        "status"
+                    ) in ("success", "pass")
+
+                    if node_succeeded:
+                        node_result = self._build_node_result(
+                            status="success",
+                            timing=dict(timing),
+                            invocation=dict(invocation),
+                        )
+                        if "execution_time" in node_artifact:
+                            node_result["timing"]["execution_time"] = node_artifact[
+                                "execution_time"
+                            ]
+                        results[node.unique_id] = node_result
+                    else:
+                        results[node.unique_id] = self._build_node_result(
+                            status="error",
+                            timing=dict(timing),
+                            invocation=dict(invocation),
+                            error=error_info,
+                        )
+                        # Only propagate non-test failures to downstream
+                        # waves so test failures don't skip models.
+                        if node.resource_type not in _TEST_NODE_TYPES:
+                            failed_nodes.append(node.unique_id)
 
         return results
 
@@ -556,11 +647,22 @@ class PrefectDbtOrchestrator:
         As a side-effect, stores the pre-computed cache key in
         *computed_cache_keys* so downstream nodes can incorporate it.
         """
-        upstream_keys = {
-            dep_id: computed_cache_keys[dep_id]
-            for dep_id in node.depends_on
-            if dep_id in computed_cache_keys
-        }
+        upstream_keys = {}
+        for dep_id in node.depends_on:
+            if dep_id in computed_cache_keys:
+                upstream_keys[dep_id] = computed_cache_keys[dep_id]
+            else:
+                # An upstream dependency was not executed in this run
+                # (e.g. excluded by select=...).  We cannot guarantee
+                # the cached result is still valid — the upstream may
+                # have changed in a separate run — so disable caching
+                # for this node to prevent stale cache reuse.
+                logger.debug(
+                    "Disabling cache for %s: upstream %s was not executed",
+                    node.unique_id,
+                    dep_id,
+                )
+                return {}
         policy = build_cache_policy_for_node(
             node,
             self._settings.project_dir,
@@ -602,6 +704,8 @@ class PrefectDbtOrchestrator:
         macro_paths=None,
         freshness_results=None,
         all_nodes=None,
+        adapter_type=None,
+        project_name=None,
     ):
         """Execute each node as an individual Prefect task.
 
@@ -610,17 +714,17 @@ class PrefectDbtOrchestrator:
         `ProcessPoolTaskRunner`; waves are processed sequentially.  Failed
         nodes cause their downstream dependents to be skipped.
 
+        For models, seeds, and snapshots with a `relation_name`, the
+        task is wrapped in a `MaterializingTask` that tracks asset
+        lineage in Prefect's asset graph.
+
         Each subprocess gets its own dbt adapter registry (`FACTORY`
         singleton), so there is no shared mutable state and no need to
         monkey-patch `adapter_management`.
 
         Requires an active Prefect flow run context (call inside a `@flow`).
         """
-        from prefect import task as prefect_task
-
         if self._task_runner_type is None:
-            from prefect.task_runners import ProcessPoolTaskRunner
-
             task_runner_type = ProcessPoolTaskRunner
         else:
             task_runner_type = self._task_runner_type
@@ -630,6 +734,7 @@ class PrefectDbtOrchestrator:
             self._concurrency if isinstance(self._concurrency, str) else None
         )
         build_result = self._build_node_result
+        all_nodes_map = all_nodes or {}
 
         # Compute max_workers for the process pool.
         largest_wave = max((len(wave.nodes) for wave in waves), default=1)
@@ -639,21 +744,16 @@ class PrefectDbtOrchestrator:
             # Named concurrency limit: the server-side limit throttles
             # execution, so clamp the pool to avoid spawning an excessive
             # number of idle processes on large DAGs.
-            import os
-
             max_workers = min(largest_wave, os.cpu_count() or 4)
         else:
             max_workers = largest_wave
 
-        # Define the task function once; .with_options() customizes per node.
-        @prefect_task
-        def run_dbt_node(node, command, full_refresh):
+        # The core task function.  Shared by both regular Task and
+        # MaterializingTask paths; the only difference is how the task
+        # object wrapping this function is constructed.
+        def _run_dbt_node(node, command, full_refresh, asset_key=None):
             # Acquire named concurrency slot if configured
             if concurrency_name:
-                from prefect.concurrency.sync import (
-                    concurrency as prefect_concurrency,
-                )
-
                 ctx = prefect_concurrency(concurrency_name, strict=True)
             else:
                 ctx = nullcontext()
@@ -683,6 +783,19 @@ class PrefectDbtOrchestrator:
                         node_result["timing"]["execution_time"] = artifact[
                             "execution_time"
                         ]
+
+                # Add asset metadata when running inside a MaterializingTask.
+                if asset_key:
+                    try:
+                        asset_ctx = AssetContext.get()
+                        if asset_ctx:
+                            metadata: dict[str, Any] = {"status": "success"}
+                            if result.artifacts and node.unique_id in result.artifacts:
+                                metadata.update(result.artifacts[node.unique_id])
+                            asset_ctx.add_asset_metadata(asset_key, metadata)
+                    except Exception:
+                        pass
+
                 return node_result
 
             # Ensure the error is pickle-safe before raising across processes.
@@ -697,9 +810,47 @@ class PrefectDbtOrchestrator:
                 )
             raise _DbtNodeError(result, timing, invocation)
 
+        # Create a base task for non-asset nodes.
+        base_task = prefect_task(_run_dbt_node)
+
         def _mark_failed(node_id):
             failed_nodes.add(node_id)
             computed_cache_keys.pop(node_id, None)
+
+        def _build_asset_task(node, with_opts):
+            """Create a MaterializingTask for nodes that produce assets."""
+            if (
+                adapter_type
+                and node.resource_type in ASSET_NODE_TYPES
+                and node.relation_name
+            ):
+                description_suffix = ""
+                if self._include_compiled_code and project_name:
+                    description_suffix = get_compiled_code_for_node(
+                        node,
+                        self._settings.project_dir,
+                        self._settings.target_path,
+                        project_name,
+                    )
+
+                asset = create_asset_for_node(node, adapter_type, description_suffix)
+                upstream_assets = get_upstream_assets_for_node(
+                    node, all_nodes_map, adapter_type
+                )
+
+                asset_key = format_resource_id(adapter_type, node.relation_name)
+                return (
+                    MaterializingTask(
+                        fn=_run_dbt_node,
+                        assets=[asset],
+                        materialized_by="dbt",
+                        asset_deps=upstream_assets or None,
+                        **with_opts,
+                    ),
+                    asset_key,
+                )
+
+            return None, None
 
         results: dict[str, Any] = {}
         failed_nodes: set[str] = set()
@@ -745,13 +896,21 @@ class PrefectDbtOrchestrator:
                             )
                         )
 
-                    node_task = run_dbt_node.with_options(**with_opts)
+                    # Try to create a MaterializingTask for asset-eligible nodes.
+                    asset_task, asset_key = _build_asset_task(node, with_opts)
+                    if asset_task is not None:
+                        node_task = asset_task
+                    else:
+                        asset_key = None
+                        node_task = base_task.with_options(**with_opts)
+
                     future = runner.submit(
                         node_task,
                         parameters={
                             "node": node,
                             "command": command,
                             "full_refresh": full_refresh,
+                            "asset_key": asset_key,
                         },
                     )
                     futures[node.unique_id] = future

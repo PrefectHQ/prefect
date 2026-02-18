@@ -184,8 +184,7 @@ def run_source_freshness(
             "--profiles-dir",
             resolved_profiles_dir,
         ]
-        if target_path is not None:
-            args.extend(["--target-path", str(target_path)])
+        args.extend(["--target-path", str(output_target)])
 
         try:
             dbtRunner().invoke(args)

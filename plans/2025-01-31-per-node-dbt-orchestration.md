@@ -1124,7 +1124,7 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ### Phase 8: Test Strategies ✅
 
-**Status**: Complete
+**Status**: Complete — [PR #20743](https://github.com/PrefectHQ/prefect/pull/20743)
 
 **PR Scope**: Configurable test execution behavior.
 
@@ -1154,7 +1154,9 @@ This implementation is designed to be delivered across multiple PRs, with each p
 
 ---
 
-### Phase 9: Artifacts and Asset Tracking
+### Phase 9: Artifacts and Asset Tracking ✅
+
+**Status**: Complete — [PR #20743](https://github.com/PrefectHQ/prefect/pull/20743)
 
 **PR Scope**: Prefect artifacts and asset lineage.
 
@@ -1172,6 +1174,16 @@ This implementation is designed to be delivered across multiple PRs, with each p
 - Asset graph shows model dependencies
 - Compiled SQL included when enabled
 - run_results.json written when enabled
+
+**Deviations from plan**:
+- **Dedicated `_artifacts.py` module** — The plan didn't specify a module structure for artifact logic. All artifact helpers (`create_summary_markdown`, `create_run_results_dict`, `write_run_results_json`, `create_asset_for_node`, `get_upstream_assets_for_node`, `get_compiled_code_for_node`) were extracted into a standalone `_artifacts.py` module, keeping `_orchestrator.py` focused on execution logic.
+- **No row counts in asset metadata** — The plan listed "Asset metadata (timing, row counts)" as a deliverable. dbt's `RunResult` objects do not expose row counts, so only `status` and `execution_time` are attached via `AssetContext.add_asset_metadata()`.
+- **Graceful degradation for artifact creation** — Summary artifact creation is wrapped in a broad `try/except` so API failures (e.g. no active flow run context, network errors) are silently ignored rather than aborting the build.
+- **`_build_asset_task()` nested helper** — Asset task construction is factored into a `_build_asset_task()` closure inside `_execute_per_node()`. Non-asset nodes fall back to a single shared `base_task` instance created once per wave loop to avoid redundant `with_options()` calls.
+- **Upstream asset resolution traces through ephemeral models** — `get_upstream_assets_for_node()` explicitly walks through ephemeral model dependencies so that lineage reaches the actual materialized upstream relations rather than stopping at the ephemeral boundary.
+- **Asset description length clamping** — Descriptions are clamped to Prefect's `MAX_ASSET_DESCRIPTION_LENGTH`. Compiled code (the suffix) is dropped first; if the base description alone still exceeds the limit it is truncated.
+- **`relation_name` added to `DbtNodeCachePolicy`** — Cache keys now incorporate `relation_name` so that renaming the materialized relation invalidates the cache. This was a correctness fix surfaced during phase 9 work, not originally scoped to the cache phase.
+- **Phase 8 (test strategies) delivered in the same PR** — The test strategy work was implemented on the phase-9 branch and merged together with artifact support in PR #20743.
 
 ---
 
