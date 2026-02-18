@@ -29,6 +29,7 @@ test.describe("Events List Page", () => {
 	const flowForResourceFilter = `e2e-evt-res-${timestamp}`;
 
 	let flowIdForCleanup: string | undefined;
+	const flowRunResourceId = `prefect.flow-run.${crypto.randomUUID()}`;
 
 	test.beforeAll(async ({ apiClient }) => {
 		await waitForServerHealth(apiClient);
@@ -39,7 +40,7 @@ test.describe("Events List Page", () => {
 		await emitEvents(apiClient, [
 			buildTestEvent({
 				event: flowRunEvent,
-				resourceId: `prefect.flow-run.${crypto.randomUUID()}`,
+				resourceId: flowRunResourceId,
 				resourceName: flowRunResourceName,
 			}),
 			buildTestEvent({
@@ -64,11 +65,11 @@ test.describe("Events List Page", () => {
 		while (Date.now() < deadline && !indexed) {
 			const result = await listEvents(apiClient, {
 				any_resource: {
-					id_prefix: ["prefect.flow-run."],
+					id_prefix: [flowRunResourceId],
 				},
 			});
-			const found = result.events.some((e) =>
-				e.resource["prefect.resource.name"]?.includes(flowRunResourceName),
+			const found = result.events.some(
+				(e) => e.resource["prefect.resource.id"] === flowRunResourceId,
 			);
 			if (found) {
 				indexed = true;
@@ -166,7 +167,7 @@ test.describe("Events List Page", () => {
 		await expect(async () => {
 			await page.goto("/events");
 			await waitForEventsPageReady(page);
-			await expect(page.locator("ol li").first()).toBeVisible({
+			await expect(page.locator("ol.list-none li").first()).toBeVisible({
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 15000 });
@@ -225,12 +226,12 @@ test.describe("Events List Page", () => {
 		await expect(async () => {
 			await page.goto("/events");
 			await waitForEventsPageReady(page);
-			await expect(page.locator("ol li").first()).toBeVisible({
+			await expect(page.locator("ol.list-none li").first()).toBeVisible({
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 15000 });
 
-		const unfilteredCount = await page.locator("ol li").count();
+		const unfilteredCount = await page.locator("ol.list-none li").count();
 
 		await page.getByLabel("Filter by event type").click();
 		const eventTypeOption = page
@@ -244,7 +245,7 @@ test.describe("Events List Page", () => {
 		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
 
 		await expect(async () => {
-			const filteredCount = await page.locator("ol li").count();
+			const filteredCount = await page.locator("ol.list-none li").count();
 			expect(filteredCount).toBeLessThanOrEqual(unfilteredCount);
 		}).toPass({ timeout: 15000 });
 	});
@@ -253,7 +254,7 @@ test.describe("Events List Page", () => {
 		await expect(async () => {
 			await page.goto("/events");
 			await waitForEventsPageReady(page);
-			await expect(page.locator("ol li").first()).toBeVisible({
+			await expect(page.locator("ol.list-none li").first()).toBeVisible({
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 15000 });
