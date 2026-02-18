@@ -497,7 +497,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.short_circuit = True
 
         if not self._flow_run_name_set and isinstance(self.flow.flow_run_name, str):
-            flow_run_name = self.flow.flow_run_name.format(**self.parameters)
+            flow_run_name = resolve_custom_flow_run_name(
+                flow=self.flow, parameters=self.parameters
+            )
             self.client.set_flow_run_name(
                 flow_run_id=self.flow_run.id, name=flow_run_name
             )
@@ -1108,7 +1110,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 self.short_circuit = True
 
         if not self._flow_run_name_set and isinstance(self.flow.flow_run_name, str):
-            flow_run_name = self.flow.flow_run_name.format(**self.parameters)
+            flow_run_name = resolve_custom_flow_run_name(
+                flow=self.flow, parameters=self.parameters
+            )
             await self.client.set_flow_run_name(
                 flow_run_id=self.flow_run.id, name=flow_run_name
             )
