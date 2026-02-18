@@ -25,6 +25,15 @@ class WorkerWebserverSettings(PrefectBaseSettings):
 class WorkerSettings(PrefectBaseSettings):
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(("worker",))
 
+    debug_mode: bool = Field(
+        default=False,
+        description=(
+            "If True, enables debug mode for the worker only. "
+            "Unlike PREFECT_DEBUG_MODE, this setting does not propagate "
+            "to flow runs executed by the worker."
+        ),
+    )
+
     heartbeat_seconds: float = Field(
         default=30,
         description="Number of seconds a worker should wait between sending a heartbeat.",
