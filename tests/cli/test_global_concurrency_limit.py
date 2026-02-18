@@ -6,6 +6,7 @@ from uuid import UUID
 import pytest
 from typer import Exit
 
+from prefect.cli import _USE_CYCLOPTS
 from prefect.client.schemas.actions import GlobalConcurrencyLimitUpdate
 from prefect.client.schemas.objects import GlobalConcurrencyLimit
 from prefect.server import models
@@ -19,6 +20,14 @@ def interactive_console(monkeypatch):
     monkeypatch.setattr(
         "prefect.cli.global_concurrency_limit.is_interactive", lambda: True
     )
+
+    # Also patch cyclopts module for dual-mode parity
+    try:
+        import prefect.cli._cyclopts as _cli
+
+        monkeypatch.setattr(_cli, "is_interactive", lambda: True)
+    except ImportError:
+        pass
 
     # `readchar` does not like the fake stdin provided by typer isolation so we provide
     # a version that does not require a fd to be attached
@@ -606,7 +615,7 @@ async def test_create_gcl_no_fields():
             "create",
             "test",
         ],
-        expected_code=2,
+        expected_code=1 if _USE_CYCLOPTS else 2,
     )
 
 
