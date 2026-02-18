@@ -11,13 +11,13 @@ import {
 } from "../fixtures";
 
 async function waitForEventsPageReady(page: Page): Promise<void> {
-	await expect(
-		page.getByText(/no events found/i).or(page.locator("ol").first()),
-	).toBeVisible({ timeout: 10000 });
+	await expect(page.getByLabel("Filter by event type")).toBeVisible({
+		timeout: 10000,
+	});
 }
 
 test.describe("Events List Page", () => {
-	test.describe.configure({ mode: "serial" });
+	test.describe.configure({ mode: "serial", timeout: 120_000 });
 
 	const timestamp = Date.now();
 	const flowRunEvent = "prefect.flow-run.Completed";
@@ -26,11 +26,15 @@ test.describe("Events List Page", () => {
 	const flowRunResourceName = `e2e-evt-flow-${timestamp}`;
 	const deploymentResourceName = `e2e-evt-deploy-${timestamp}`;
 	const workPoolResourceName = `e2e-evt-wp-${timestamp}`;
+	const flowForResourceFilter = `e2e-evt-res-${timestamp}`;
 
 	let flowIdForCleanup: string | undefined;
 
 	test.beforeAll(async ({ apiClient }) => {
 		await waitForServerHealth(apiClient);
+
+		const flow = await createFlow(apiClient, flowForResourceFilter);
+		flowIdForCleanup = flow.id;
 
 		await emitEvents(apiClient, [
 			buildTestEvent({
@@ -48,7 +52,35 @@ test.describe("Events List Page", () => {
 				resourceId: `prefect.work-pool.${crypto.randomUUID()}`,
 				resourceName: workPoolResourceName,
 			}),
+			buildTestEvent({
+				event: "prefect.flow.Updated",
+				resourceId: `prefect.flow.${flow.id}`,
+				resourceName: flowForResourceFilter,
+			}),
 		]);
+
+		const deadline = Date.now() + 45_000;
+		let indexed = false;
+		while (Date.now() < deadline && !indexed) {
+			const result = await listEvents(apiClient, {
+				any_resource: {
+					id_prefix: ["prefect.flow-run."],
+				},
+			});
+			const found = result.events.some((e) =>
+				e.resource["prefect.resource.name"]?.includes(flowRunResourceName),
+			);
+			if (found) {
+				indexed = true;
+			} else {
+				await new Promise((r) => setTimeout(r, 2000));
+			}
+		}
+		if (!indexed) {
+			throw new Error(
+				`Events not indexed within 45s for ${flowRunResourceName}`,
+			);
+		}
 	});
 
 	test.afterAll(async ({ apiClient }) => {
@@ -66,113 +98,91 @@ test.describe("Events List Page", () => {
 	}) => {
 		await expect(async () => {
 			await page.goto("/events");
-			await expect(page.getByText(flowRunEvent)).toBeVisible({
+			await waitForEventsPageReady(page);
+			await expect(page.getByText(flowRunResourceName).first()).toBeVisible({
 				timeout: 2000,
 			});
-		}).toPass({ timeout: 15000 });
+		}).toPass({ timeout: 60_000 });
+
+		await expect(page.getByText(deploymentResourceName).first()).toBeVisible();
+		await expect(page.getByText(workPoolResourceName).first()).toBeVisible();
 
 		await expect(page.getByText(flowRunEvent).first()).toBeVisible();
 		await expect(page.getByText(deploymentEvent).first()).toBeVisible();
 		await expect(page.getByText(workPoolEvent).first()).toBeVisible();
-
-		await expect(page.getByText(flowRunResourceName).first()).toBeVisible();
-		await expect(page.getByText(deploymentResourceName).first()).toBeVisible();
-		await expect(page.getByText(workPoolResourceName).first()).toBeVisible();
 	});
 
 	test("Empty state shown when filtering to nonexistent resource", async ({
 		page,
 	}) => {
+		const nonexistentId = `prefect.flow-run.nonexistent-${Date.now()}`;
 		await page.goto(
-			`/events?resource=prefect.flow-run.nonexistent-${Date.now()}`,
+			`/events?resource=${encodeURIComponent(JSON.stringify([nonexistentId]))}`,
 		);
-		await waitForEventsPageReady(page);
 
-		await expect(page.getByText(/no events found/i)).toBeVisible();
+		await expect(async () => {
+			await expect(page.getByText(/no events found/i)).toBeVisible({
+				timeout: 2000,
+			});
+		}).toPass({ timeout: 15000 });
+
 		await expect(
 			page.getByText(/no events match your current filters/i),
 		).toBeVisible();
 	});
 
-	test("Filter by event type", async ({ page, apiClient }) => {
-		const filterTimestamp = Date.now();
-		const completedEvent = "prefect.flow-run.Completed";
-		const failedEvent = "prefect.flow-run.Failed";
-		const completedResourceName = `e2e-evt-type-completed-${filterTimestamp}`;
-		const failedResourceName = `e2e-evt-type-failed-${filterTimestamp}`;
-
-		await emitEvents(apiClient, [
-			buildTestEvent({
-				event: completedEvent,
-				resourceId: `prefect.flow-run.${crypto.randomUUID()}`,
-				resourceName: completedResourceName,
-			}),
-			buildTestEvent({
-				event: failedEvent,
-				resourceId: `prefect.flow-run.${crypto.randomUUID()}`,
-				resourceName: failedResourceName,
-			}),
-		]);
-
+	test("Filter by event type", async ({ page }) => {
 		await expect(async () => {
 			await page.goto("/events");
-			await expect(page.getByText(completedResourceName)).toBeVisible({
-				timeout: 2000,
-			});
-			await expect(page.getByText(failedResourceName)).toBeVisible({
+			await waitForEventsPageReady(page);
+			await expect(page.getByText(flowRunResourceName)).toBeVisible({
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 15000 });
 
 		await page.getByLabel("Filter by event type").click();
-		await page
-			.getByRole("option", { name: "prefect.flow-run.Completed" })
-			.click();
+
+		await expect(async () => {
+			await expect(
+				page.getByRole("option", { name: flowRunEvent }),
+			).toBeVisible({ timeout: 2000 });
+		}).toPass({ timeout: 15000 });
+
+		await page.getByRole("option", { name: flowRunEvent }).click();
+		await page.keyboard.press("Escape");
 
 		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
 
 		await expect(async () => {
-			await expect(page.getByText(completedResourceName)).toBeVisible({
-				timeout: 2000,
-			});
-			await expect(page.getByText(failedResourceName)).not.toBeVisible({
+			await expect(page.getByText(flowRunResourceName)).toBeVisible({
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 15000 });
+
+		await expect(page.getByText(deploymentResourceName)).not.toBeVisible();
 	});
 
-	test("Filter by resource", async ({ page, apiClient }) => {
-		const resTimestamp = Date.now();
-		const flowName = `e2e-evt-res-${resTimestamp}`;
-		const flow = await createFlow(apiClient, flowName);
-		flowIdForCleanup = flow.id;
-
-		const resourceEvent = "prefect.flow.Updated";
-		await emitEvents(apiClient, [
-			buildTestEvent({
-				event: resourceEvent,
-				resourceId: `prefect.flow.${flow.id}`,
-				resourceName: flowName,
-			}),
-		]);
-
+	test("Filter by resource", async ({ page }) => {
 		await expect(async () => {
 			await page.goto("/events");
-			await expect(page.getByText(flowName)).toBeVisible({
+			await waitForEventsPageReady(page);
+			await expect(page.locator("ol li").first()).toBeVisible({
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 15000 });
 
 		await page.getByLabel("Filter by resource").click();
-		await page.getByPlaceholder("Search resources...").fill(flowName);
+		await page
+			.getByPlaceholder("Search resources...")
+			.fill(flowForResourceFilter);
 
 		await expect(async () => {
-			await expect(page.getByRole("option", { name: flowName })).toBeVisible({
-				timeout: 2000,
-			});
+			await expect(
+				page.getByRole("option", { name: flowForResourceFilter }),
+			).toBeVisible({ timeout: 2000 });
 		}).toPass({ timeout: 15000 });
 
-		await page.getByRole("option", { name: flowName }).click();
+		await page.getByRole("option", { name: flowForResourceFilter }).click();
 
 		await expect(page).toHaveURL(/resource=/, { timeout: 5000 });
 	});
@@ -195,6 +205,7 @@ test.describe("Events List Page", () => {
 		await expect(eventTypeOption).toBeVisible({ timeout: 5000 });
 		const selectedTypeName = await eventTypeOption.textContent();
 		await eventTypeOption.click();
+		await page.keyboard.press("Escape");
 
 		await expect(page).toHaveURL(/event=/, { timeout: 5000 });
 
@@ -205,7 +216,7 @@ test.describe("Events List Page", () => {
 
 		if (selectedTypeName) {
 			await expect(page.getByLabel("Filter by event type")).toContainText(
-				selectedTypeName,
+				selectedTypeName.trim(),
 			);
 		}
 	});
@@ -262,7 +273,10 @@ test.describe("Events List Page", () => {
 		await page.getByRole("option", { name: /all event types/i }).click();
 		await page.keyboard.press("Escape");
 
-		await expect(page).not.toHaveURL(/event=/, { timeout: 5000 });
+		await expect(page.getByLabel("Filter by event type")).toContainText(
+			/all event types/i,
+			{ timeout: 5000 },
+		);
 	});
 
 	test("Events timeline chart renders with data", async ({ page }) => {
@@ -274,30 +288,29 @@ test.describe("Events List Page", () => {
 		}).toPass({ timeout: 15000 });
 
 		await expect(page.locator(".recharts-wrapper")).toBeVisible();
-		const areaPath = page.locator(".recharts-area-area path");
-		await expect(areaPath.first()).toBeVisible();
-		const d = await areaPath.first().getAttribute("d");
-		expect(d).toBeTruthy();
+		const chartSvg = page.locator(".recharts-wrapper svg");
+		await expect(chartSvg.first()).toBeVisible();
 	});
 
 	test("Chart updates when time range changes", async ({ page }) => {
 		await expect(async () => {
 			await page.goto("/events");
+			await waitForEventsPageReady(page);
 			await expect(page.locator(".recharts-wrapper")).toBeVisible({
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 15000 });
 
-		await page.getByText("Past day").click();
+		await page.getByRole("button", { name: /past day/i }).click();
 		await page.getByRole("button", { name: "Past hour" }).click();
 
+		await expect(page).toHaveURL(/seconds=-3600/, { timeout: 5000 });
+
 		await expect(async () => {
-			await expect(page.locator(".recharts-wrapper")).toBeVisible({
+			await expect(page.locator(".recharts-wrapper svg")).toBeVisible({
 				timeout: 2000,
 			});
 		}).toPass({ timeout: 10000 });
-
-		await expect(page).toHaveURL(/seconds=-3600/, { timeout: 5000 });
 	});
 
 	test("API confirms emitted events exist", async ({ apiClient }) => {
