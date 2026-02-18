@@ -25,8 +25,11 @@ _FLAGS_WITH_VALUES = {
 # As commands are migrated, add them here so the router sends them
 # to cyclopts instead of delegating to typer.
 _CYCLOPTS_COMMANDS: set[str] = {
+    "concurrency-limit",
     "config",
     "deployment",
+    "events",
+    "experimental",
     "flow",
     "flow-run",
     "profile",
