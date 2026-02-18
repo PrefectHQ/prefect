@@ -18,7 +18,10 @@ from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
 
 # Resource types that are test-like (schema/data tests and unit tests).
-_TEST_TYPES = frozenset({NodeType.Test, NodeType.Unit})
+# NodeType.Unit was added in dbt-core 1.8; guard for older versions.
+_TEST_TYPES = frozenset(
+    t for t in (NodeType.Test, getattr(NodeType, "Unit", None)) if t is not None
+)
 
 
 @dataclass(frozen=True)

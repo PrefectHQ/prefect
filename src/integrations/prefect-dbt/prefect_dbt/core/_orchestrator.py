@@ -68,11 +68,14 @@ _NODE_COMMAND = {
     NodeType.Seed: "seed",
     NodeType.Snapshot: "snapshot",
     NodeType.Test: "test",
-    NodeType.Unit: "test",
 }
+# NodeType.Unit was added in dbt-core 1.8; guard for older versions.
+_UNIT_TYPE = getattr(NodeType, "Unit", None)
+if _UNIT_TYPE is not None:
+    _NODE_COMMAND[_UNIT_TYPE] = "test"
 
 # Resource types that are test-like and should not be cached.
-_TEST_NODE_TYPES = frozenset({NodeType.Test, NodeType.Unit})
+_TEST_NODE_TYPES = frozenset(t for t in (NodeType.Test, _UNIT_TYPE) if t is not None)
 
 
 class _DbtNodeError(Exception):
