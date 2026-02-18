@@ -512,6 +512,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 flow_run_id=self.flow_run.id, name=flow_run_name
             )
             self.flow_run.name = flow_run_name
+            self._flow_run_name_set = True
 
         new_state = Running()
         state = self.set_state(new_state)
@@ -1133,6 +1134,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 flow_run_id=self.flow_run.id, name=flow_run_name
             )
             self.flow_run.name = flow_run_name
+            self._flow_run_name_set = True
 
         new_state = Running()
         state = await self.set_state(new_state)
