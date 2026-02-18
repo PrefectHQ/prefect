@@ -52,13 +52,126 @@ from prefect.logging import get_run_logger
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.utilities.callables import get_call_parameters
-from prefect.utilities.engine import propose_state
+from prefect.utilities.engine import propose_state, propose_state_sync
 from prefect.utilities.filesystem import tmpchdir
 
 
 @flow
 async def foo():
     return 42
+
+
+class TestFlowRunNameSetBeforeRunningEvent:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/20658
+
+    Verifies that the custom flow run name is persisted to the database before
+    the Running state transition, so that automation notifications triggered by
+    prefect.flow-run.Running events see the correct name.
+    """
+
+    async def test_sync_flow_string_template_name_set_before_running(
+        self, sync_prefect_client, monkeypatch
+    ):
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state_sync
+
+        def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state_sync", tracking_propose)
+
+        @flow(flow_run_name="custom-{x}")
+        def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters=dict(x="hello"))
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-hello"
+        assert len(names_at_running_transition) >= 1
+        assert names_at_running_transition[0] == "custom-hello"
+
+    async def test_async_flow_string_template_name_set_before_running(
+        self, sync_prefect_client, monkeypatch
+    ):
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state
+
+        async def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return await original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state", tracking_propose)
+
+        @flow(flow_run_name="custom-{x}")
+        async def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow, parameters=dict(x="world"))
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-world"
+        assert len(names_at_running_transition) >= 1
+        assert names_at_running_transition[0] == "custom-world"
+
+    async def test_sync_flow_callable_name_correctly_resolved(
+        self, sync_prefect_client
+    ):
+        def generate_name():
+            return "callable-generated-name"
+
+        @flow(flow_run_name=generate_name)
+        def my_flow():
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow)
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "callable-generated-name"
+
+    async def test_async_flow_callable_name_correctly_resolved(
+        self, sync_prefect_client
+    ):
+        def generate_name():
+            return "async-callable-name"
+
+        @flow(flow_run_name=generate_name)
+        async def my_flow():
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow)
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "async-callable-name"
+
+    async def test_sync_flow_string_template_with_multiple_params(
+        self, sync_prefect_client
+    ):
+        @flow(flow_run_name="{env}-{job_id}-run")
+        def my_flow(env, job_id):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters=dict(env="prod", job_id="42"))
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "prod-42-run"
+
+    async def test_async_flow_string_template_with_multiple_params(
+        self, sync_prefect_client
+    ):
+        @flow(flow_run_name="{env}-{job_id}-run")
+        async def my_flow(env, job_id):
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow, parameters=dict(env="staging", job_id="99"))
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "staging-99-run"
 
 
 class TestFlowRunEngine:
