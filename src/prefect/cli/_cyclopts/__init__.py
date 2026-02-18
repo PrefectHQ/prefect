@@ -204,12 +204,9 @@ _DELEGATED_COMMANDS: set[str] = {
     "automation",
     "block",
     "cloud",
-    "dashboard",
     "deploy",
     "dev",
     "global-concurrency-limit",
-    "sdk",
-    "task",
     "task-run",
     "transfer",
     "variable",
@@ -439,15 +436,9 @@ _app.command(events_app)
 
 
 # --- task ---
-task_app = _delegated_app("task", "Manage tasks.")
+from prefect.cli._cyclopts.task import task_app
+
 _app.command(task_app)
-
-
-@task_app.default
-def task_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("task", tokens)
 
 
 # --- task-run ---
@@ -473,12 +464,10 @@ def api_cmd(
     _delegate("api", tokens)
 
 
-@_app.command(name="dashboard")
-def dashboard_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Open the Prefect dashboard."""
-    _delegate("dashboard", tokens)
+# --- dashboard ---
+from prefect.cli._cyclopts.dashboard import dashboard_app
+
+_app.command(dashboard_app)
 
 
 @_app.command(name="dev")
@@ -489,12 +478,10 @@ def dev_cmd(
     _delegate("dev", tokens)
 
 
-@_app.command(name="sdk")
-def sdk_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Generate typed Python SDK from deployments."""
-    _delegate("sdk", tokens)
+# --- sdk ---
+from prefect.cli._cyclopts.sdk import sdk_app
+
+_app.command(sdk_app)
 
 
 @_app.command(name="transfer")
