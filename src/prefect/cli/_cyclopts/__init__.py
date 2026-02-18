@@ -204,12 +204,9 @@ _DELEGATED_COMMANDS: set[str] = {
     "automation",
     "block",
     "cloud",
-    "concurrency-limit",
     "dashboard",
     "deploy",
     "dev",
-    "events",
-    "experimental",
     "global-concurrency-limit",
     "sdk",
     "task",
@@ -386,17 +383,9 @@ def block_default(
 
 
 # --- concurrency-limit ---
-concurrency_limit_app = _delegated_app(
-    "concurrency-limit", "Manage task-level concurrency limits."
-)
+from prefect.cli._cyclopts.concurrency_limit import concurrency_limit_app
+
 _app.command(concurrency_limit_app)
-
-
-@concurrency_limit_app.default
-def concurrency_limit_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("concurrency-limit", tokens)
 
 
 # --- global-concurrency-limit ---
@@ -438,27 +427,15 @@ def automation_default(
 
 
 # --- experimental ---
-experimental_app = _delegated_app("experimental", "Experimental commands.")
+from prefect.cli._cyclopts.experimental import experimental_app
+
 _app.command(experimental_app)
 
 
-@experimental_app.default
-def experimental_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("experimental", tokens)
-
-
 # --- events ---
-events_app = _delegated_app("events", "Manage events.")
+from prefect.cli._cyclopts.events import events_app
+
 _app.command(events_app)
-
-
-@events_app.default
-def events_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("events", tokens)
 
 
 # --- task ---
