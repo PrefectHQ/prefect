@@ -80,9 +80,6 @@ if _UNIT_TYPE is not None:
 # Resource types that are test-like and should not be cached.
 _TEST_NODE_TYPES = frozenset(t for t in (NodeType.Test, _UNIT_TYPE) if t is not None)
 
-# Resource types that are test-like and should not be cached.
-_TEST_NODE_TYPES = frozenset({NodeType.Test, NodeType.Unit})
-
 
 class _DbtNodeError(Exception):
     """Raised inside per-node tasks to trigger Prefect retries.
