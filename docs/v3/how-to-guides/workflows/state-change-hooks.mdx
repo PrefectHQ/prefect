@@ -100,6 +100,34 @@ Note that `on_running` hooks execute **synchronously** before the task body runs
 
 When retries are configured, `on_running` hooks fire on **each retry attempt**, including the initial run. For example, a task configured with `retries=2` will trigger its `on_running` hooks up to three times: once on the initial run and once for each retry attempt.
 
+### Log from state change hooks
+
+State change hooks run **outside** the active flow or task run context. This means
+`get_run_logger()` will raise a `MissingContextError` if called inside a hook.
+
+To emit logs from a hook that appear in the Prefect UI, use `flow_run_logger` (or
+`task_run_logger` for task hooks) from `prefect.logging.loggers`. These functions
+create a logger tied to the run using the parameters your hook already receives:
+
+```python
+from prefect import flow
+from prefect.logging.loggers import flow_run_logger
+
+
+def my_hook(flow, flow_run, state):
+    logger = flow_run_logger(flow_run, flow)
+    logger.info(f"Flow {flow_run.name} entered state {state.name}")
+
+
+@flow(on_failure=[my_hook])
+def failing_flow():
+    raise ValueError("oops!")
+```
+
+<Tip>
+For more information on logging options, see [How to add logging](/v3/how-to-guides/workflows/add-logging).
+</Tip>
+
 ### Pass `kwargs` to state change hooks
 
 You can compose the `with_options` method to effectively pass arbitrary `**kwargs` to your hooks:
