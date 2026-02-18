@@ -336,7 +336,7 @@ class TestRunBuildFailure:
 
         call_count = 0
 
-        def _execute_wave(nodes, full_refresh=False):
+        def _execute_wave(nodes, full_refresh=False, **kwargs):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -785,7 +785,7 @@ class TestRunBuildWaveOrder:
 
         wave_calls: list[set[str]] = []
 
-        def _execute_wave(nodes, full_refresh=False):
+        def _execute_wave(nodes, full_refresh=False, **kwargs):
             wave_calls.append({n.unique_id for n in nodes})
             return ExecutionResult(
                 success=True,
@@ -817,7 +817,7 @@ class TestRunBuildWaveOrder:
 
         wave_calls: list[set[str]] = []
 
-        def _execute_wave(nodes, full_refresh=False):
+        def _execute_wave(nodes, full_refresh=False, **kwargs):
             wave_calls.append({n.unique_id for n in nodes})
             return ExecutionResult(
                 success=True,
@@ -856,7 +856,7 @@ class TestRunBuildWaveOrder:
 
         wave_calls: list[set[str]] = []
 
-        def _execute_wave(nodes, full_refresh=False):
+        def _execute_wave(nodes, full_refresh=False, **kwargs):
             wave_calls.append({n.unique_id for n in nodes})
             return ExecutionResult(
                 success=True,
