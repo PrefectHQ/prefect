@@ -136,14 +136,14 @@ def per_wave_orch(tmp_path):
 
 
 class TestTestStrategyInit:
-    def test_default_is_skip(self, tmp_path):
+    def test_default_is_immediate(self, tmp_path):
         manifest = write_manifest(tmp_path, EMPTY_MANIFEST)
         orch = PrefectDbtOrchestrator(
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=_make_mock_executor(),
         )
-        assert orch._test_strategy == TestStrategy.SKIP
+        assert orch._test_strategy == TestStrategy.IMMEDIATE
 
     def test_immediate_accepted(self, tmp_path):
         manifest = write_manifest(tmp_path, EMPTY_MANIFEST)
@@ -228,13 +228,6 @@ class TestSkipStrategy:
         results = test_flow()
 
         assert "model.test.m1" in results
-        assert "test.test.not_null_m1_id" not in results
-
-    def test_default_strategy_excludes_tests(self, per_wave_orch):
-        """Default (no test_strategy arg) excludes tests."""
-        orch, _ = per_wave_orch(SINGLE_MODEL_WITH_TEST)
-        results = orch.run_build()
-
         assert "test.test.not_null_m1_id" not in results
 
     def test_executor_not_called_for_tests_per_node(self, per_node_orch):
@@ -400,6 +393,15 @@ class TestImmediatePerNode:
 
 
 class TestImmediatePerWave:
+    def test_default_strategy_includes_tests(self, per_wave_orch):
+        """Default (no test_strategy arg) includes tests (IMMEDIATE)."""
+        orch, _ = per_wave_orch(SINGLE_MODEL_WITH_TEST)
+        results = orch.run_build()
+
+        assert "model.test.m1" in results
+        assert "test.test.not_null_m1_id" in results
+        assert results["test.test.not_null_m1_id"]["status"] == "success"
+
     def test_tests_interleaved_in_waves(
         self, per_wave_orch, diamond_with_tests_manifest_data
     ):
@@ -735,7 +737,7 @@ class TestIndirectSelectionSuppressed:
             assert call_obj.kwargs.get("indirect_selection") == "empty"
 
     def test_default_also_passes_indirect_selection_empty(self, per_wave_orch):
-        """Default strategy (SKIP): indirect_selection='empty' suppresses implicit tests."""
+        """Default strategy (IMMEDIATE): indirect_selection='empty' suppresses implicit tests."""
         orch, executor = per_wave_orch(SINGLE_MODEL_WITH_TEST)
         orch.run_build()
 
@@ -743,7 +745,7 @@ class TestIndirectSelectionSuppressed:
             assert call_obj.kwargs.get("indirect_selection") == "empty"
 
     def test_legacy_executor_works_with_skip(self, tmp_path):
-        """A custom executor with the old signature works under SKIP (default).
+        """A custom executor with the old signature works under SKIP.
 
         Ensures backward compatibility: callers who pass executor=MyExecutor()
         with execute_wave(nodes, full_refresh=False) are not broken.
