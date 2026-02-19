@@ -19,7 +19,7 @@ from prefect import task as prefect_task
 from prefect.artifacts import create_markdown_artifact
 from prefect.concurrency.sync import concurrency as prefect_concurrency
 from prefect.context import AssetContext, FlowRunContext
-from prefect.logging import get_logger
+from prefect.logging import get_logger, get_run_logger
 from prefect.task_runners import ProcessPoolTaskRunner
 from prefect.tasks import MaterializingTask
 from prefect_dbt.core._artifacts import (
@@ -95,6 +95,30 @@ if _UNIT_TYPE is not None:
 
 # Resource types that are test-like and should not be cached.
 _TEST_NODE_TYPES = frozenset(t for t in (NodeType.Test, _UNIT_TYPE) if t is not None)
+
+_LOG_EMITTERS = {
+    "debug": lambda log, msg: log.debug(msg),
+    "info": lambda log, msg: log.info(msg),
+    "warning": lambda log, msg: log.warning(msg),
+    "error": lambda log, msg: log.error(msg),
+}
+
+
+def _emit_log_messages(
+    log_messages: dict[str, list[tuple[str, str]]] | None,
+    node_id: str,
+    target_logger: Any,
+) -> None:
+    """Emit captured dbt log messages for *node_id* to a Prefect logger.
+
+    Only messages keyed by the given *node_id* are emitted.  Each message
+    is emitted at the level it was captured at.
+    """
+    if not log_messages:
+        return
+    for level, msg in log_messages.get(node_id, []):
+        emitter = _LOG_EMITTERS.get(level, _LOG_EMITTERS["info"])
+        emitter(target_logger, msg)
 
 
 class _DbtNodeError(Exception):
@@ -557,6 +581,10 @@ class PrefectDbtOrchestrator:
                 )
             completed_at = datetime.now(timezone.utc)
 
+            for node in wave.nodes:
+                _emit_log_messages(wave_result.log_messages, node.unique_id, logger)
+            _emit_log_messages(wave_result.log_messages, "", logger)
+
             timing = {
                 "started_at": started_at.isoformat(),
                 "completed_at": completed_at.isoformat(),
@@ -769,6 +797,13 @@ class PrefectDbtOrchestrator:
             with ctx:
                 result = executor.execute_node(node, command, full_refresh)
             completed_at = datetime.now(timezone.utc)
+
+            try:
+                task_logger = get_run_logger()
+                _emit_log_messages(result.log_messages, node.unique_id, task_logger)
+                _emit_log_messages(result.log_messages, "", task_logger)
+            except Exception:
+                pass
 
             timing = {
                 "started_at": started_at.isoformat(),
