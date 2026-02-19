@@ -208,6 +208,22 @@ class TestExecuteNode:
 
         assert "--full-refresh" in _invoked_args(mock_runner)
 
+    def test_target_forwarded(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_node(_make_node(), "run", target="prod")
+
+        args = _invoked_args(mock_runner)
+        idx = args.index("--target")
+        assert args[idx + 1] == "prod"
+
+    def test_target_absent_by_default(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_node(_make_node(), "run")
+
+        assert "--target" not in _invoked_args(mock_runner)
+
     def test_full_refresh_ignored_for_test_command(self, mock_dbt):
         _, mock_runner = mock_dbt
         executor = DbtCoreExecutor(_make_settings())
@@ -390,6 +406,22 @@ class TestExecuteWave:
         executor.execute_wave([_make_node()], full_refresh=True)
 
         assert "--full-refresh" in _invoked_args(mock_runner)
+
+    def test_target_forwarded(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_wave([_make_node()], target="staging")
+
+        args = _invoked_args(mock_runner)
+        idx = args.index("--target")
+        assert args[idx + 1] == "staging"
+
+    def test_target_absent_by_default(self, mock_dbt):
+        _, mock_runner = mock_dbt
+        executor = DbtCoreExecutor(_make_settings())
+        executor.execute_wave([_make_node()])
+
+        assert "--target" not in _invoked_args(mock_runner)
 
 
 # =============================================================================

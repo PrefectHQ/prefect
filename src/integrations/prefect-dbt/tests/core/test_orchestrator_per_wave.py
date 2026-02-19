@@ -570,6 +570,7 @@ class TestRunBuildWithSelectors:
             select="tag:nightly",
             exclude=None,
             target_path=tmp_path,
+            target=None,
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
@@ -596,6 +597,7 @@ class TestRunBuildWithSelectors:
             select="tag:daily",
             exclude="model.test.leaf",
             target_path=tmp_path,
+            target=None,
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
@@ -678,6 +680,77 @@ class TestRunBuildWithSelectors:
 # =============================================================================
 # TestRunBuildArtifacts
 # =============================================================================
+
+
+class TestRunBuildTarget:
+    def test_target_forwarded_to_executor(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build(target="prod")
+
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["target"] == "prod"
+
+    def test_target_none_by_default(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build()
+
+        _, kwargs = executor.execute_wave.call_args
+        assert kwargs["target"] is None
+
+    @patch("prefect_dbt.core._orchestrator.resolve_selection")
+    def test_target_forwarded_to_resolve_selection(
+        self, mock_resolve, tmp_path, diamond_manifest_data
+    ):
+        manifest = write_manifest(tmp_path, diamond_manifest_data)
+        mock_resolve.return_value = {"model.test.root"}
+
+        executor = _make_mock_executor()
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        orch.run_build(select="tag:daily", target="staging")
+
+        mock_resolve.assert_called_once()
+        assert mock_resolve.call_args.kwargs["target"] == "staging"
 
 
 class TestRunBuildArtifacts:

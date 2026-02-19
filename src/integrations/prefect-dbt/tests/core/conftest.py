@@ -48,7 +48,7 @@ def _make_mock_executor(
     """Create a mock DbtExecutor that returns the given result for execute_wave."""
     executor = MagicMock(spec=DbtExecutor)
 
-    def _execute_wave(nodes, full_refresh=False, indirect_selection=None):
+    def _execute_wave(nodes, full_refresh=False, indirect_selection=None, target=None):
         return ExecutionResult(
             success=success,
             node_ids=[n.unique_id for n in nodes],
@@ -91,7 +91,7 @@ def _make_mock_executor_per_node(
     executor = MagicMock(spec=DbtExecutor)
     fail_nodes = fail_nodes or set()
 
-    def _execute_node(node, command, full_refresh=False):
+    def _execute_node(node, command, full_refresh=False, target=None):
         should_fail = (not success and not fail_nodes) or node.unique_id in fail_nodes
         if should_fail:
             return ExecutionResult(

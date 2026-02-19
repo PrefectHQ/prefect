@@ -155,6 +155,7 @@ def parse_source_freshness_results(
 def run_source_freshness(
     settings: Any,
     target_path: Path | None = None,
+    target: str | None = None,
 ) -> dict[str, SourceFreshnessResult]:
     """Run `dbt source freshness` and parse the results.
 
@@ -163,6 +164,7 @@ def run_source_freshness(
     Args:
         settings: PrefectDbtSettings instance
         target_path: Optional override for the target directory
+        target: dbt target name (`--target` / `-t`)
 
     Returns:
         Dict mapping source unique_id to SourceFreshnessResult
@@ -185,6 +187,8 @@ def run_source_freshness(
             resolved_profiles_dir,
         ]
         args.extend(["--target-path", str(output_target)])
+        if target is not None:
+            args.extend(["--target", target])
 
         try:
             dbtRunner().invoke(args)
