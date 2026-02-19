@@ -49,7 +49,10 @@ test.describe("Runs Page - Task Runs Tab", () => {
 			});
 		}).toPass({ timeout: 15000 });
 
-		await expect(page.getByText("Completed").first()).toBeVisible();
+		const taskRunRow = page
+			.getByRole("listitem")
+			.filter({ has: page.getByRole("link", { name: taskRunName }) });
+		await expect(taskRunRow.getByText("Completed")).toBeVisible();
 
 		await expect(page.getByRole("link", { name: flowRunName })).toBeVisible();
 	});
