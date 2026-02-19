@@ -55,6 +55,8 @@ _CYCLOPTS_COMMANDS: set[str] = {
     "task-runs",  # alias for task-run
     "variable",
     "version",
+    "work-pool",
+    "work-pools",  # alias for work-pool
     "work-queue",
     "work-queues",  # alias for work-queue
     "worker",
