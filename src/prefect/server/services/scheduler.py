@@ -51,16 +51,21 @@ def _get_select_deployments_to_schedule_query(
     This per-schedule check ensures that high-frequency schedules get
     re-evaluated even when other schedules on the same deployment still
     have runs far in the future.
+
+    Each schedule's runs are identified via the ``created_by`` JSON column
+    which stores ``{"id": "<schedule_id>", "type": "SCHEDULE", ...}`` on
+    every auto-scheduled flow run.  An expression index on
+    ``(created_by->>'id')`` keeps these correlated subqueries fast.
     """
     right_now = now("UTC")
 
-    idempotency_prefix = (
-        sa.literal("scheduled ")
-        + sa.cast(db.DeploymentSchedule.deployment_id, sa.String)
-        + sa.literal(" ")
-        + sa.cast(db.DeploymentSchedule.id, sa.String)
-        + sa.literal(" %")
-    )
+    # Use type_coerce to bypass the Pydantic TypeDecorator so SQLAlchemy
+    # emits a bare ``created_by->>'id'`` (Postgres) / ``json_extract(created_by, '$.id')``
+    # (SQLite) without an extra CAST wrapper.  This is required for
+    # PostgreSQL to match the expression index on ``(created_by->>'id')``.
+    schedule_id_match = sa.type_coerce(db.FlowRun.created_by, sa.JSON)[
+        "id"
+    ].as_string() == sa.cast(db.DeploymentSchedule.id, sa.String)
 
     per_schedule_run_count = (
         sa.select(sa.func.count())
@@ -70,7 +75,7 @@ def _get_select_deployments_to_schedule_query(
             db.FlowRun.state_type == StateType.SCHEDULED,
             db.FlowRun.next_scheduled_start_time >= right_now,
             db.FlowRun.auto_scheduled.is_(True),
-            db.FlowRun.idempotency_key.like(idempotency_prefix),
+            schedule_id_match,
         )
         .correlate(db.DeploymentSchedule)
         .scalar_subquery()
@@ -84,7 +89,7 @@ def _get_select_deployments_to_schedule_query(
             db.FlowRun.state_type == StateType.SCHEDULED,
             db.FlowRun.next_scheduled_start_time >= right_now,
             db.FlowRun.auto_scheduled.is_(True),
-            db.FlowRun.idempotency_key.like(idempotency_prefix),
+            schedule_id_match,
         )
         .correlate(db.DeploymentSchedule)
         .scalar_subquery()

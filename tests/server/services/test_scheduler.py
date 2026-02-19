@@ -806,7 +806,9 @@ class TestMultiScheduleDeployments:
             result = await session.execute(query)
             assert len(result.scalars().all()) == 0
 
-            freq_runs = [r for r in runs if str(freq_schedule.id) in r.idempotency_key]
+            freq_runs = [
+                r for r in runs if r.created_by and r.created_by.id == freq_schedule.id
+            ]
             assert len(freq_runs) == 5
 
             for r in freq_runs:
@@ -895,7 +897,9 @@ class TestMultiScheduleDeployments:
             await schedule_deployments()
 
             runs = await models.flow_runs.read_flow_runs(session)
-            freq_runs = [r for r in runs if str(freq_schedule.id) in r.idempotency_key]
+            freq_runs = [
+                r for r in runs if r.created_by and r.created_by.id == freq_schedule.id
+            ]
             assert len(freq_runs) == 5
 
             for r in freq_runs:
@@ -913,7 +917,9 @@ class TestMultiScheduleDeployments:
                 if r.state_type == schemas.states.StateType.SCHEDULED
             ]
             freq_scheduled = [
-                r for r in scheduled if str(freq_schedule.id) in r.idempotency_key
+                r
+                for r in scheduled
+                if r.created_by and r.created_by.id == freq_schedule.id
             ]
 
             assert len(freq_scheduled) > 0, (
