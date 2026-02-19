@@ -616,6 +616,58 @@ class TestLS:
         )
         assert "None" not in res.output
 
+    async def test_ls_json_output(self, prefect_client, work_pool):
+        """Test work-pool ls command with --output json flag."""
+        import json
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool ls --output json",
+        )
+        assert res.exit_code == 0
+
+        output_data = json.loads(res.output.strip())
+        assert isinstance(output_data, list)
+        output_ids = {item["id"] for item in output_data}
+        assert str(work_pool.id) in output_ids
+
+    async def test_ls_json_output_short_flag(self, prefect_client, work_pool):
+        """Test work-pool ls command with -o json flag."""
+        import json
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool ls -o json",
+        )
+        assert res.exit_code == 0
+
+        output_data = json.loads(res.output.strip())
+        assert isinstance(output_data, list)
+        output_ids = {item["id"] for item in output_data}
+        assert str(work_pool.id) in output_ids
+
+    async def test_ls_json_output_empty(self, prefect_client):
+        """Test work-pool ls with --output json when no work pools exist."""
+        import json
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool ls -o json",
+        )
+        assert res.exit_code == 0
+
+        output_data = json.loads(res.output.strip())
+        assert output_data == []
+
+    async def test_ls_invalid_output_format(self, prefect_client):
+        """Test work-pool ls with unsupported output format exits with error."""
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            "work-pool ls -o xml",
+            expected_code=1,
+            expected_output_contains="Only 'json' output format is supported.",
+        )
+
 
 class TestUpdate:
     async def test_update_description(self, prefect_client, work_pool):
