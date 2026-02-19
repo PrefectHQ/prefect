@@ -1099,6 +1099,126 @@ class TestOrchestratorAssetTracking:
             mock_create_asset.assert_not_called()
 
 
+class TestOrchestratorDisableAssets:
+    """Verify disable_assets flag suppresses asset creation."""
+
+    def test_disable_assets_skips_materializing_task(self, tmp_path):
+        """When disable_assets=True, create_asset_for_node should NOT be called
+        even for nodes that would normally produce assets."""
+        manifest_path = write_manifest(tmp_path, MANIFEST_WITH_ASSETS)
+        settings = _make_mock_settings(project_dir=tmp_path)
+        executor = _make_mock_executor_per_node()
+
+        with (
+            patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
+            patch(
+                "prefect_dbt.core._orchestrator.create_asset_for_node"
+            ) as mock_create_asset,
+        ):
+            root_node = DbtNode(
+                unique_id="model.test.root",
+                name="root",
+                resource_type=NodeType.Model,
+                materialization="table",
+                relation_name='"main"."public"."root"',
+                description="Root model",
+                original_file_path="models/root.sql",
+            )
+
+            parser_instance = MockParser.return_value
+            parser_instance.filter_nodes.return_value = {
+                "model.test.root": root_node,
+            }
+            parser_instance.all_nodes = {"model.test.root": root_node}
+            parser_instance.adapter_type = "postgres"
+            parser_instance.project_name = "test_project"
+            parser_instance.compute_execution_waves.return_value = [
+                MagicMock(nodes=[root_node]),
+            ]
+            parser_instance.get_macro_paths.return_value = {}
+
+            @flow
+            def test_flow():
+                orchestrator = PrefectDbtOrchestrator(
+                    settings=settings,
+                    executor=executor,
+                    manifest_path=manifest_path,
+                    execution_mode=ExecutionMode.PER_NODE,
+                    task_runner_type=_ThreadDelegatingRunner,
+                    create_summary_artifact=False,
+                    disable_assets=True,
+                )
+                return orchestrator.run_build()
+
+            results = test_flow()
+
+            assert results["model.test.root"]["status"] == "success"
+            mock_create_asset.assert_not_called()
+
+    def test_disable_assets_defaults_false(self, tmp_path):
+        """When disable_assets is not set, assets should be created as usual."""
+        manifest_path = write_manifest(tmp_path, MANIFEST_WITH_ASSETS)
+        settings = _make_mock_settings(project_dir=tmp_path)
+        executor = _make_mock_executor_per_node()
+
+        with (
+            patch("prefect_dbt.core._orchestrator.ManifestParser") as MockParser,
+            patch(
+                "prefect_dbt.core._orchestrator.create_asset_for_node"
+            ) as mock_create_asset,
+            patch(
+                "prefect_dbt.core._orchestrator.get_upstream_assets_for_node"
+            ) as mock_get_upstream,
+        ):
+            from prefect.assets import Asset, AssetProperties
+
+            mock_asset = Asset(
+                key="postgres://main/public/root",
+                properties=AssetProperties(name="root"),
+            )
+            mock_create_asset.return_value = mock_asset
+            mock_get_upstream.return_value = []
+
+            root_node = DbtNode(
+                unique_id="model.test.root",
+                name="root",
+                resource_type=NodeType.Model,
+                materialization="table",
+                relation_name='"main"."public"."root"',
+                description="Root model",
+                original_file_path="models/root.sql",
+            )
+
+            parser_instance = MockParser.return_value
+            parser_instance.filter_nodes.return_value = {
+                "model.test.root": root_node,
+            }
+            parser_instance.all_nodes = {"model.test.root": root_node}
+            parser_instance.adapter_type = "postgres"
+            parser_instance.project_name = "test_project"
+            parser_instance.compute_execution_waves.return_value = [
+                MagicMock(nodes=[root_node]),
+            ]
+            parser_instance.get_macro_paths.return_value = {}
+
+            @flow
+            def test_flow():
+                orchestrator = PrefectDbtOrchestrator(
+                    settings=settings,
+                    executor=executor,
+                    manifest_path=manifest_path,
+                    execution_mode=ExecutionMode.PER_NODE,
+                    task_runner_type=_ThreadDelegatingRunner,
+                    create_summary_artifact=False,
+                )
+                return orchestrator.run_build()
+
+            results = test_flow()
+
+            assert results["model.test.root"]["status"] == "success"
+            mock_create_asset.assert_called_once()
+
+
 class TestOrchestratorCompiledCode:
     """Test include_compiled_code option."""
 
