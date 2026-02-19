@@ -724,6 +724,92 @@ class TestPerNodeConcurrency:
 
 
 # =============================================================================
+# TestPerNodeTaskRunNames
+# =============================================================================
+
+
+class TestPerNodeTaskRunNames:
+    def test_model_task_run_name(self, per_node_orch):
+        """Model node gets task run name 'model m1'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SINGLE_MODEL, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "model m1" in task_names
+
+    def test_seed_task_run_name(self, per_node_orch):
+        """Seed node gets task run name 'seed users'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SEED_MANIFEST, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "seed users" in task_names
+
+    def test_snapshot_task_run_name(self, per_node_orch):
+        """Snapshot node gets task run name 'snapshot snap_users'."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(SNAPSHOT_MANIFEST, task_runner_type=_CapturingRunner)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+        assert "snapshot snap_users" in task_names
+
+    def test_mixed_resource_task_run_names(
+        self, per_node_orch, mixed_resource_manifest_data
+    ):
+        """Each resource type gets the correct '{type} {name}' task run name."""
+        task_names = []
+
+        class _CapturingRunner(ThreadPoolTaskRunner):
+            def submit(self, task, *args, **kwargs):
+                task_names.append(task.task_run_name)
+                return super().submit(task, *args, **kwargs)
+
+        orch, _ = per_node_orch(
+            mixed_resource_manifest_data, task_runner_type=_CapturingRunner
+        )
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+
+        assert "seed seed_users" in task_names
+        assert "model stg_users" in task_names
+        assert "snapshot snap_users" in task_names
+
+
+# =============================================================================
 # TestPerNodeWithSelectors
 # =============================================================================
 
