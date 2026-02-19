@@ -6,6 +6,7 @@ This module provides:
 - PrefectDbtOrchestrator: Executes dbt builds with wave or per-node execution
 """
 
+import argparse
 import os
 from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
@@ -80,6 +81,158 @@ class TestStrategy(Enum):
     IMMEDIATE = "immediate"
     DEFERRED = "deferred"
     SKIP = "skip"
+
+
+# ---------------------------------------------------------------
+# extra_cli_args validation tables
+# ---------------------------------------------------------------
+
+_BLOCKED_FLAGS: dict[str, str] = {
+    "--select": (
+        "The orchestrator resolves selection at the manifest level and passes "
+        "nodes as unique-ID selectors; a second CLI-level --select conflicts. "
+        "Use the 'select' parameter of run_build() instead."
+    ),
+    "--models": (
+        "Alias for --select. The orchestrator resolves selection at the "
+        "manifest level. Use the 'select' parameter of run_build() instead."
+    ),
+    "--exclude": (
+        "The orchestrator resolves exclusion at the manifest level; a CLI-level "
+        "--exclude conflicts. Use the 'exclude' parameter of run_build() instead."
+    ),
+    "--selector": (
+        "References a YAML selector that would override the orchestrator's "
+        "resolved node set."
+    ),
+    "--indirect-selection": (
+        "Hardcoded to 'empty' in PER_WAVE mode so the orchestrator controls "
+        "test scheduling via TestStrategy; a user override would break "
+        "IMMEDIATE/DEFERRED behaviour."
+    ),
+    "--project-dir": (
+        "Set from settings.project_dir in the executor; overriding "
+        "desynchronizes the orchestrator's path handling."
+    ),
+    "--target-path": (
+        "Set from settings.target_path and used for manifest resolution; "
+        "overriding desynchronizes manifest resolution."
+    ),
+    "--profiles-dir": (
+        "Managed via settings.resolve_profiles_yml(); bypassing breaks "
+        "temporary profile-file resolution."
+    ),
+    "--log-level": (
+        "Set to 'none' for console output in the executor; the orchestrator "
+        "deliberately silences dbt's console output and captures logs via "
+        "callbacks."
+    ),
+}
+
+_FIRST_CLASS_FLAGS: dict[str, str] = {
+    "--full-refresh": "run_build(full_refresh=True)",
+    "--target": "run_build(target='...')",
+    "--threads": "DbtCoreExecutor(threads=N)",
+    "--defer": "DbtCoreExecutor(defer=True)",
+    "--defer-state": "DbtCoreExecutor(defer_state_path=Path(...))",
+    "--favor-state": "DbtCoreExecutor(favor_state=True)",
+    "--state": "DbtCoreExecutor(state_path=Path(...))",
+}
+
+_CAVEAT_FLAGS: dict[str, str] = {
+    "--resource-type": (
+        "Filters resource types at the CLI level; passing '--resource-type model' "
+        "to a wave that includes tests (via TestStrategy.IMMEDIATE) would "
+        "silently drop those tests."
+    ),
+    "--exclude-resource-type": (
+        "Filters resource types at the CLI level; may silently drop tests "
+        "scheduled by TestStrategy.IMMEDIATE."
+    ),
+    "--fail-fast": (
+        "In PER_WAVE mode dbt stops the wave on first failure, potentially "
+        "leaving nodes in a state the orchestrator hasn't tracked. Safe in "
+        "PER_NODE mode since each invocation is a single node."
+    ),
+}
+
+
+def _build_extra_cli_args_parser() -> tuple[
+    argparse.ArgumentParser, dict[str, tuple[str, str]]
+]:
+    """Build an ArgumentParser that detects blocked, first-class, and caveat flags.
+
+    Using argparse handles `--flag=value`, `--flag value`, and `-s value`
+    forms natively.  Returns the parser and a mapping from argparse dest
+    to `(canonical_flag, category)` for error/warning lookup.
+    """
+    p = argparse.ArgumentParser(add_help=False)
+    dest_to_info: dict[str, tuple[str, str]] = {}
+
+    def _add(flags: list[str], dest: str, category: str) -> None:
+        p.add_argument(*flags, dest=dest, nargs="?", const=True, default=None)
+        dest_to_info[dest] = (flags[0], category)
+
+    # Blocked flags (short aliases grouped with their long forms)
+    _add(["--select", "-s"], "select", "blocked")
+    _add(["--models", "-m"], "models", "blocked")
+    _add(["--exclude"], "exclude", "blocked")
+    _add(["--selector"], "selector", "blocked")
+    _add(["--indirect-selection"], "indirect_selection", "blocked")
+    _add(["--project-dir"], "project_dir", "blocked")
+    _add(["--target-path"], "target_path", "blocked")
+    _add(["--profiles-dir"], "profiles_dir", "blocked")
+    _add(["--log-level"], "log_level", "blocked")
+
+    # First-class flags
+    _add(["--full-refresh"], "full_refresh", "first_class")
+    _add(["--target", "-t"], "target", "first_class")
+    _add(["--threads"], "threads", "first_class")
+    _add(["--defer"], "defer", "first_class")
+    _add(["--defer-state"], "defer_state", "first_class")
+    _add(["--favor-state"], "favor_state", "first_class")
+    _add(["--state"], "state", "first_class")
+
+    # Caveat flags
+    _add(["--resource-type"], "resource_type", "caveat")
+    _add(["--exclude-resource-type"], "exclude_resource_type", "caveat")
+    _add(["--fail-fast", "-x"], "fail_fast", "caveat")
+
+    return p, dest_to_info
+
+
+_EXTRA_CLI_ARGS_PARSER, _DEST_TO_INFO = _build_extra_cli_args_parser()
+
+
+def _validate_extra_cli_args(extra_cli_args: list[str]) -> None:
+    """Validate extra_cli_args against blocked, first-class, and caveat flags.
+
+    Uses `argparse.parse_known_args` to correctly handle `--flag=value`,
+    `--flag value`, and short-flag forms.
+
+    Raises:
+        ValueError: If any blocked or first-class flag is found.
+    """
+    known, _ = _EXTRA_CLI_ARGS_PARSER.parse_known_args(extra_cli_args)
+
+    for dest, value in vars(known).items():
+        if value is None:
+            continue
+        flag, category = _DEST_TO_INFO[dest]
+
+        if category == "blocked":
+            raise ValueError(
+                f"Cannot pass '{flag}' via extra_cli_args: {_BLOCKED_FLAGS[flag]}"
+            )
+        if category == "first_class":
+            raise ValueError(
+                f"Cannot pass '{flag}' via extra_cli_args; use "
+                f"{_FIRST_CLASS_FLAGS[flag]} instead."
+            )
+        if category == "caveat":
+            logger.warning(
+                "extra_cli_args contains '%s': %s", flag, _CAVEAT_FLAGS[flag]
+            )
 
 
 # Map executable node types to their dbt CLI commands.
@@ -445,6 +598,7 @@ class PrefectDbtOrchestrator:
         full_refresh: bool = False,
         only_fresh_sources: bool = False,
         target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ) -> dict[str, Any]:
         """Execute a dbt build wave-by-wave or per-node.
 
@@ -469,6 +623,13 @@ class PrefectDbtOrchestrator:
                 error").  Downstream dependents are also skipped.
             target: dbt target name to override the default from
                 profiles.yml (maps to `--target` / `-t`)
+            extra_cli_args: Additional dbt CLI flags to pass through
+                to every dbt invocation.  Useful for flags the
+                orchestrator does not expose as first-class parameters
+                (e.g. `["--store-failures", "--vars",
+                "{'my_var': 'value'}"]`).  Flags that conflict with
+                orchestrator-managed settings are rejected with a
+                `ValueError`.
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
@@ -479,7 +640,13 @@ class PrefectDbtOrchestrator:
             - `error`: `{message, type}` (only for error status)
             - `reason`: reason string (only for skipped status)
             - `failed_upstream`: list of failed node IDs (only for skipped)
+
+        Raises:
+            ValueError: If `extra_cli_args` contains a blocked flag or
+                a flag that has a first-class parameter equivalent.
         """
+        if extra_cli_args:
+            _validate_extra_cli_args(extra_cli_args)
         # 1. Parse manifest
         manifest_path = self._resolve_manifest_path()
         parser = ManifestParser(manifest_path)
@@ -560,10 +727,11 @@ class PrefectDbtOrchestrator:
                 adapter_type=parser.adapter_type,
                 project_name=parser.project_name,
                 target=target,
+                extra_cli_args=extra_cli_args,
             )
         else:
             execution_results = self._execute_per_wave(
-                waves, full_refresh, target=target
+                waves, full_refresh, target=target, extra_cli_args=extra_cli_args
             )
 
         build_completed = datetime.now(timezone.utc)
@@ -582,7 +750,13 @@ class PrefectDbtOrchestrator:
     # PER_WAVE execution
     # ------------------------------------------------------------------
 
-    def _execute_per_wave(self, waves, full_refresh, target: str | None = None):
+    def _execute_per_wave(
+        self,
+        waves,
+        full_refresh,
+        target: str | None = None,
+        extra_cli_args: list[str] | None = None,
+    ):
         """Execute waves one at a time, each as a single dbt invocation."""
         results: dict[str, Any] = {}
         failed_nodes: list[str] = []
@@ -612,6 +786,7 @@ class PrefectDbtOrchestrator:
                     full_refresh=full_refresh,
                     indirect_selection=indirect_selection,
                     target=target,
+                    extra_cli_args=extra_cli_args,
                 )
             except Exception as exc:
                 wave_result = ExecutionResult(
@@ -786,6 +961,7 @@ class PrefectDbtOrchestrator:
         adapter_type=None,
         project_name=None,
         target: str | None = None,
+        extra_cli_args: list[str] | None = None,
     ):
         """Execute each node as an individual Prefect task.
 
@@ -831,7 +1007,14 @@ class PrefectDbtOrchestrator:
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
         # object wrapping this function is constructed.
-        def _run_dbt_node(node, command, full_refresh, target=None, asset_key=None):
+        def _run_dbt_node(
+            node,
+            command,
+            full_refresh,
+            target=None,
+            asset_key=None,
+            extra_cli_args=None,
+        ):
             # Acquire named concurrency slot if configured
             if concurrency_name:
                 ctx = prefect_concurrency(concurrency_name, strict=True)
@@ -841,7 +1024,11 @@ class PrefectDbtOrchestrator:
             started_at = datetime.now(timezone.utc)
             with ctx:
                 result = executor.execute_node(
-                    node, command, full_refresh, target=target
+                    node,
+                    command,
+                    full_refresh,
+                    target=target,
+                    extra_cli_args=extra_cli_args,
                 )
             completed_at = datetime.now(timezone.utc)
 
@@ -1008,6 +1195,7 @@ class PrefectDbtOrchestrator:
                             "full_refresh": full_refresh,
                             "target": target,
                             "asset_key": asset_key,
+                            "extra_cli_args": extra_cli_args,
                         },
                     )
                     futures[node.unique_id] = future
