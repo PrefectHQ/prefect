@@ -202,7 +202,6 @@ _DELEGATED_COMMANDS: set[str] = {
     "cloud",
     "deploy",
     "transfer",
-    "work-pool",
 }
 
 
@@ -323,15 +322,9 @@ def cloud_default(
 
 
 # --- work-pool ---
-work_pool_app = _delegated_app("work-pool", "Manage work pools.")
+from prefect.cli._cyclopts.work_pool import work_pool_app
+
 _app.command(work_pool_app)
-
-
-@work_pool_app.default
-def work_pool_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("work-pool", tokens)
 
 
 # --- work-queue ---
