@@ -168,6 +168,18 @@ _CAVEAT_FLAGS: dict[str, str] = {
 }
 
 
+def _flag_name(token: str) -> str:
+    """Extract the flag name from a CLI token.
+
+    Handles both `--flag value` (separate tokens) and `--flag=value`
+    (combined) styles.  Returns the token unchanged for short flags
+    like `-s` or positional values.
+    """
+    if token.startswith("--") and "=" in token:
+        return token.split("=", 1)[0]
+    return token
+
+
 def _validate_extra_cli_args(extra_cli_args: list[str]) -> None:
     """Validate extra_cli_args against blocked and first-class flags.
 
@@ -175,22 +187,26 @@ def _validate_extra_cli_args(extra_cli_args: list[str]) -> None:
         ValueError: If any blocked or first-class flag is found.
     """
     for arg in extra_cli_args:
-        if arg in _BLOCKED_FLAGS:
+        flag = _flag_name(arg)
+        if flag in _BLOCKED_FLAGS:
             raise ValueError(
-                f"Cannot pass '{arg}' via extra_cli_args: {_BLOCKED_FLAGS[arg]}"
+                f"Cannot pass '{flag}' via extra_cli_args: {_BLOCKED_FLAGS[flag]}"
             )
-        if arg in _FIRST_CLASS_FLAGS:
+        if flag in _FIRST_CLASS_FLAGS:
             raise ValueError(
-                f"Cannot pass '{arg}' via extra_cli_args; use "
-                f"{_FIRST_CLASS_FLAGS[arg]} instead."
+                f"Cannot pass '{flag}' via extra_cli_args; use "
+                f"{_FIRST_CLASS_FLAGS[flag]} instead."
             )
 
 
 def _warn_caveat_flags(extra_cli_args: list[str]) -> None:
     """Log warnings for flags that are allowed but have caveats."""
     for arg in extra_cli_args:
-        if arg in _CAVEAT_FLAGS:
-            logger.warning("extra_cli_args contains '%s': %s", arg, _CAVEAT_FLAGS[arg])
+        flag = _flag_name(arg)
+        if flag in _CAVEAT_FLAGS:
+            logger.warning(
+                "extra_cli_args contains '%s': %s", flag, _CAVEAT_FLAGS[flag]
+            )
 
 
 # Map executable node types to their dbt CLI commands.

@@ -1360,3 +1360,63 @@ class TestExtraCliArgs:
 
         _, kwargs = executor.execute_wave.call_args
         assert kwargs["extra_cli_args"] == ["--store-failures"]
+
+    # --- equals-sign syntax (--flag=value) ---
+
+    @pytest.mark.parametrize(
+        "token",
+        [
+            "--select=tag:daily",
+            "--project-dir=/tmp/proj",
+            "--profiles-dir=/tmp/profiles",
+            "--log-level=debug",
+            "--exclude=model.foo",
+        ],
+    )
+    def test_blocked_flag_equals_syntax_raises(self, tmp_path, token):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        flag = token.split("=", 1)[0]
+
+        with pytest.raises(
+            ValueError, match=f"Cannot pass '{flag}' via extra_cli_args"
+        ):
+            orch.run_build(extra_cli_args=[token])
+
+    @pytest.mark.parametrize(
+        "token,api_hint",
+        [
+            ("--full-refresh=1", "run_build"),
+            ("--threads=4", "DbtCoreExecutor"),
+        ],
+    )
+    def test_first_class_flag_equals_syntax_raises(self, tmp_path, token, api_hint):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        flag = token.split("=", 1)[0]
+
+        with pytest.raises(ValueError, match=f"Cannot pass '{flag}'") as exc_info:
+            orch.run_build(extra_cli_args=[token])
+        assert api_hint in str(exc_info.value)
+
+    def test_caveat_flag_equals_syntax_warns(self, tmp_path):
+        manifest = self._single_node_manifest(tmp_path)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        with patch("prefect_dbt.core._orchestrator.logger") as mock_logger:
+            orch.run_build(extra_cli_args=["--fail-fast=1"])
+
+        mock_logger.warning.assert_called_once()
+        assert "--fail-fast" in mock_logger.warning.call_args[0][1]
