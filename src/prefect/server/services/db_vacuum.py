@@ -1,7 +1,11 @@
 """
-The database vacuum service. Periodically deletes old flow runs and
-orphaned resources (logs, artifacts, artifact collections) past a
-configurable retention period.
+The database vacuum service. Periodically schedules cleanup tasks for old
+flow runs and orphaned resources (logs, artifacts, artifact collections)
+past a configurable retention period.
+
+Uses the find-and-flood pattern: a single perpetual service (the finder)
+enqueues independent docket tasks for each resource type, giving per-task
+error isolation and retries.
 """
 
 from __future__ import annotations
@@ -11,7 +15,7 @@ import logging
 from datetime import timedelta
 
 import sqlalchemy as sa
-from docket import Perpetual
+from docket import CurrentDocket, Depends, Docket, Perpetual
 
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, provide_database_interface
@@ -23,10 +27,16 @@ from prefect.types._datetime import now
 logger: logging.Logger = get_logger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Finder (perpetual service)
+# ---------------------------------------------------------------------------
+
+
 @perpetual_service(
     enabled_getter=lambda: get_current_settings().server.services.db_vacuum.enabled,
 )
-async def vacuum_old_resources(
+async def schedule_vacuum_tasks(
+    docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(
         automatic=False,
         every=timedelta(
@@ -34,113 +44,113 @@ async def vacuum_old_resources(
         ),
     ),
 ) -> None:
+    """Schedule independent cleanup tasks for each resource type.
+
+    Orphan cleanup is enqueued before flow run deletion so that leftovers
+    from a previous interrupted cycle are handled before creating new
+    orphans.
     """
-    Delete old flow runs and orphaned resources past the retention period.
+    await docket.add(vacuum_orphaned_logs)()
+    await docket.add(vacuum_orphaned_artifacts)()
+    await docket.add(vacuum_stale_artifact_collections)()
+    await docket.add(vacuum_old_flow_runs)()
 
-    Deletion order (orphans first, then flow runs):
-    1. Orphaned logs — logs whose flow_run_id points to a deleted flow run
-    2. Orphaned artifacts — same pattern as logs
-    3. Stale artifact collections — collections whose latest_id points to a
-       deleted artifact
-    4. Old top-level flow runs — terminal flow runs older than retention_period
 
-    Orphans are cleaned first so that leftovers from a previous interrupted
-    cycle are handled before creating new orphans in step 4.
+# ---------------------------------------------------------------------------
+# Flood tasks (docket task functions)
+# ---------------------------------------------------------------------------
+
+
+async def vacuum_orphaned_logs(
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """Delete logs whose flow_run_id references a non-existent flow run."""
+    settings = get_current_settings().server.services.db_vacuum
+    existing_flow_run = sa.select(sa.literal(1)).where(
+        db.FlowRun.id == db.Log.flow_run_id
+    )
+    deleted = await _batch_delete(
+        db,
+        db.Log,
+        sa.and_(
+            db.Log.flow_run_id.is_not(None),
+            ~sa.exists(existing_flow_run),
+        ),
+        settings.batch_size,
+    )
+    if deleted:
+        logger.info("Database vacuum: deleted %d orphaned logs.", deleted)
+
+
+async def vacuum_orphaned_artifacts(
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """Delete artifacts whose flow_run_id references a non-existent flow run."""
+    settings = get_current_settings().server.services.db_vacuum
+    existing_flow_run = sa.select(sa.literal(1)).where(
+        db.FlowRun.id == db.Artifact.flow_run_id
+    )
+    deleted = await _batch_delete(
+        db,
+        db.Artifact,
+        sa.and_(
+            db.Artifact.flow_run_id.is_not(None),
+            ~sa.exists(existing_flow_run),
+        ),
+        settings.batch_size,
+    )
+    if deleted:
+        logger.info("Database vacuum: deleted %d orphaned artifacts.", deleted)
+
+
+async def vacuum_stale_artifact_collections(
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """Reconcile artifact collections whose latest_id points to a deleted artifact.
+
+    Re-points to the next latest version if one exists, otherwise deletes
+    the collection row.
     """
     settings = get_current_settings().server.services.db_vacuum
-    db = provide_database_interface()
-    retention_cutoff = now("UTC") - settings.retention_period
-    batch_size = settings.batch_size
-
-    logs_deleted = 0
-    artifacts_deleted = 0
-    collections_updated = 0
-    collections_deleted = 0
-    flow_runs_deleted = 0
-
-    # Each step is isolated so that a failure in one does not skip the rest.
-
-    # 1. Orphaned logs
-    try:
-        existing_flow_run_for_log = sa.select(sa.literal(1)).where(
-            db.FlowRun.id == db.Log.flow_run_id
-        )
-        logs_deleted = await _batch_delete(
-            db,
-            db.Log,
-            sa.and_(
-                db.Log.flow_run_id.is_not(None),
-                ~sa.exists(existing_flow_run_for_log),
-            ),
-            batch_size,
-        )
-    except Exception:
-        logger.exception("Database vacuum: failed to clean orphaned logs.")
-
-    # 2. Orphaned artifacts
-    try:
-        existing_flow_run_for_artifact = sa.select(sa.literal(1)).where(
-            db.FlowRun.id == db.Artifact.flow_run_id
-        )
-        artifacts_deleted = await _batch_delete(
-            db,
-            db.Artifact,
-            sa.and_(
-                db.Artifact.flow_run_id.is_not(None),
-                ~sa.exists(existing_flow_run_for_artifact),
-            ),
-            batch_size,
-        )
-    except Exception:
-        logger.exception("Database vacuum: failed to clean orphaned artifacts.")
-
-    # 3. Stale artifact collections — re-point to next latest version if one
-    #    exists, otherwise delete the collection row.
-    try:
-        (
-            collections_updated,
-            collections_deleted,
-        ) = await _reconcile_artifact_collections(db, batch_size)
-    except Exception:
-        logger.exception("Database vacuum: failed to reconcile artifact collections.")
-
-    # 4. Old top-level flow runs
-    try:
-        flow_runs_deleted = await _batch_delete(
-            db,
-            db.FlowRun,
-            sa.and_(
-                db.FlowRun.parent_task_run_id.is_(None),
-                db.FlowRun.state_type.in_(TERMINAL_STATES),
-                db.FlowRun.end_time.is_not(None),
-                db.FlowRun.end_time < retention_cutoff,
-            ),
-            batch_size,
-        )
-    except Exception:
-        logger.exception("Database vacuum: failed to clean old flow runs.")
-
-    total = (
-        logs_deleted
-        + artifacts_deleted
-        + collections_updated
-        + collections_deleted
-        + flow_runs_deleted
-    )
-    if total > 0:
+    updated, deleted = await _reconcile_artifact_collections(db, settings.batch_size)
+    if updated or deleted:
         logger.info(
-            "Database vacuum completed: deleted %d flow runs, %d orphaned logs, "
-            "%d orphaned artifacts, %d stale artifact collections "
+            "Database vacuum: reconciled %d stale artifact collections "
             "(%d re-pointed, %d removed).",
-            flow_runs_deleted,
-            logs_deleted,
-            artifacts_deleted,
-            collections_updated + collections_deleted,
-            collections_updated,
-            collections_deleted,
+            updated + deleted,
+            updated,
+            deleted,
         )
-    else:
-        logger.debug("Database vacuum completed: nothing to delete.")
+
+
+async def vacuum_old_flow_runs(
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """Delete old top-level terminal flow runs past the retention period."""
+    settings = get_current_settings().server.services.db_vacuum
+    retention_cutoff = now("UTC") - settings.retention_period
+    deleted = await _batch_delete(
+        db,
+        db.FlowRun,
+        sa.and_(
+            db.FlowRun.parent_task_run_id.is_(None),
+            db.FlowRun.state_type.in_(TERMINAL_STATES),
+            db.FlowRun.end_time.is_not(None),
+            db.FlowRun.end_time < retention_cutoff,
+        ),
+        settings.batch_size,
+    )
+    if deleted:
+        logger.info("Database vacuum: deleted %d old flow runs.", deleted)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
 async def _reconcile_artifact_collections(
