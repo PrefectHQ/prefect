@@ -882,8 +882,12 @@ class PrefectDbtOrchestrator:
                         continue
 
                     command = _NODE_COMMAND.get(node.resource_type, "run")
+                    node_type_label = node.resource_type.value
+                    node_label = node.name if node.name else node.unique_id
+                    task_run_name = f"{node_type_label} {node_label}"
                     with_opts: dict[str, Any] = {
-                        "name": f"dbt_{command}_{node.name}",
+                        "name": task_run_name,
+                        "task_run_name": task_run_name,
                         "retries": self._retries,
                         "retry_delay_seconds": self._retry_delay_seconds,
                     }
