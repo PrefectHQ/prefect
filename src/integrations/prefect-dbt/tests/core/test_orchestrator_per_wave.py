@@ -1257,6 +1257,8 @@ class TestExtraCliArgs:
         "flag,api_hint",
         [
             ("--full-refresh", "run_build"),
+            ("--target", "run_build"),
+            ("-t", "run_build"),
             ("--threads", "DbtCoreExecutor"),
             ("--defer", "DbtCoreExecutor"),
             ("--defer-state", "DbtCoreExecutor"),
@@ -1391,6 +1393,7 @@ class TestExtraCliArgs:
         "token,api_hint",
         [
             ("--full-refresh=1", "run_build"),
+            ("--target=prod", "run_build"),
             ("--threads=4", "DbtCoreExecutor"),
         ],
     )

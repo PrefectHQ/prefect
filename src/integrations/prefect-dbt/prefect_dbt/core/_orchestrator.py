@@ -138,6 +138,8 @@ _BLOCKED_FLAGS: dict[str, str] = {
 
 _FIRST_CLASS_FLAGS: dict[str, str] = {
     "--full-refresh": "run_build(full_refresh=True)",
+    "--target": "run_build(target='...')",
+    "-t": "run_build(target='...')",
     "--threads": "DbtCoreExecutor(threads=N)",
     "--defer": "DbtCoreExecutor(defer=True)",
     "--defer-state": "DbtCoreExecutor(defer_state_path=Path(...))",
