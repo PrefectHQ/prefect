@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
+from dbt.cli.main import dbtRunner
 
 from prefect import task as prefect_task
 from prefect.artifacts import create_markdown_artifact
@@ -341,17 +342,20 @@ class PrefectDbtOrchestrator:
         return self._settings.target_path
 
     def _resolve_manifest_path(self) -> Path:
-        """Resolve the path to manifest.json.
+        """Resolve the path to manifest.json, generating it if necessary.
 
         Uses the explicit `manifest_path` if provided (relative paths are
         resolved against `settings.project_dir`), otherwise derives it from
         `settings.project_dir / settings.target_path / "manifest.json"`.
 
+        If the manifest file does not exist, runs `dbt parse` to generate
+        it automatically.
+
         Returns:
             Resolved Path to the manifest.json file
 
         Raises:
-            FileNotFoundError: If the manifest file does not exist
+            RuntimeError: If `dbt parse` fails to generate the manifest
         """
         if self._manifest_path is not None:
             if self._manifest_path.is_absolute():
@@ -366,11 +370,49 @@ class PrefectDbtOrchestrator:
             )
 
         if not path.exists():
-            raise FileNotFoundError(
-                f"Manifest file not found: {path}. "
-                f"Run 'dbt compile' or 'dbt parse' to generate it."
-            )
+            self._generate_manifest(path)
         return path
+
+    def _generate_manifest(self, expected_path: Path) -> None:
+        """Run `dbt parse` to generate a manifest.json.
+
+        Args:
+            expected_path: Where the manifest is expected to appear after
+                parsing.  Used only for the error message on failure.
+
+        Raises:
+            RuntimeError: If the `dbt parse` invocation fails or the
+                manifest file is still missing after a successful parse.
+        """
+        logger.info(
+            "Manifest not found at %s; running 'dbt parse' to generate it.",
+            expected_path,
+        )
+        with self._settings.resolve_profiles_yml() as profiles_dir:
+            args = [
+                "parse",
+                "--project-dir",
+                str(self._settings.project_dir),
+                "--profiles-dir",
+                profiles_dir,
+                "--target-path",
+                str(self._settings.target_path),
+                "--log-level",
+                "none",
+                "--log-level-file",
+                str(self._settings.log_level.value),
+            ]
+            result = dbtRunner().invoke(args)
+
+        if not result.success:
+            raise RuntimeError(
+                f"Failed to generate manifest via 'dbt parse': {result.exception}"
+            )
+
+        if not expected_path.exists():
+            raise RuntimeError(
+                f"'dbt parse' succeeded but manifest not found at {expected_path}."
+            )
 
     def run_build(
         self,
@@ -378,6 +420,7 @@ class PrefectDbtOrchestrator:
         exclude: str | None = None,
         full_refresh: bool = False,
         only_fresh_sources: bool = False,
+        target: str | None = None,
     ) -> dict[str, Any]:
         """Execute a dbt build wave-by-wave or per-node.
 
@@ -400,6 +443,8 @@ class PrefectDbtOrchestrator:
             only_fresh_sources: When True, skip models whose upstream
                 sources are stale (freshness status "error" or "runtime
                 error").  Downstream dependents are also skipped.
+            target: dbt target name to override the default from
+                profiles.yml (maps to `--target` / `-t`)
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
@@ -425,6 +470,7 @@ class PrefectDbtOrchestrator:
                     select=select,
                     exclude=exclude,
                     target_path=self._resolve_target_path(),
+                    target=target,
                 )
 
         # 3. Filter nodes
@@ -438,6 +484,7 @@ class PrefectDbtOrchestrator:
             freshness_results = run_source_freshness(
                 self._settings,
                 target_path=self._resolve_target_path(),
+                target=target,
             )
 
             if only_fresh_sources and freshness_results:
@@ -488,9 +535,12 @@ class PrefectDbtOrchestrator:
                 all_nodes=parser.all_nodes,
                 adapter_type=parser.adapter_type,
                 project_name=parser.project_name,
+                target=target,
             )
         else:
-            execution_results = self._execute_per_wave(waves, full_refresh)
+            execution_results = self._execute_per_wave(
+                waves, full_refresh, target=target
+            )
 
         build_completed = datetime.now(timezone.utc)
         elapsed_time = (build_completed - build_started).total_seconds()
@@ -508,7 +558,7 @@ class PrefectDbtOrchestrator:
     # PER_WAVE execution
     # ------------------------------------------------------------------
 
-    def _execute_per_wave(self, waves, full_refresh):
+    def _execute_per_wave(self, waves, full_refresh, target: str | None = None):
         """Execute waves one at a time, each as a single dbt invocation."""
         results: dict[str, Any] = {}
         failed_nodes: list[str] = []
@@ -533,23 +583,12 @@ class PrefectDbtOrchestrator:
             # Execute the wave
             started_at = datetime.now(timezone.utc)
             try:
-                try:
-                    wave_result: ExecutionResult = self._executor.execute_wave(
-                        wave.nodes,
-                        full_refresh=full_refresh,
-                        indirect_selection=indirect_selection,
-                    )
-                except TypeError as type_err:
-                    # Only retry without the kwarg when the executor
-                    # truly doesn't accept indirect_selection (legacy
-                    # signature).  Re-raise any other TypeError so it
-                    # isn't silently swallowed and retried.
-                    if "indirect_selection" not in str(type_err):
-                        raise
-                    wave_result = self._executor.execute_wave(
-                        wave.nodes,
-                        full_refresh=full_refresh,
-                    )
+                wave_result: ExecutionResult = self._executor.execute_wave(
+                    wave.nodes,
+                    full_refresh=full_refresh,
+                    indirect_selection=indirect_selection,
+                    target=target,
+                )
             except Exception as exc:
                 wave_result = ExecutionResult(
                     success=False,
@@ -714,6 +753,7 @@ class PrefectDbtOrchestrator:
         all_nodes=None,
         adapter_type=None,
         project_name=None,
+        target: str | None = None,
     ):
         """Execute each node as an individual Prefect task.
 
@@ -759,7 +799,7 @@ class PrefectDbtOrchestrator:
         # The core task function.  Shared by both regular Task and
         # MaterializingTask paths; the only difference is how the task
         # object wrapping this function is constructed.
-        def _run_dbt_node(node, command, full_refresh, asset_key=None):
+        def _run_dbt_node(node, command, full_refresh, target=None, asset_key=None):
             # Acquire named concurrency slot if configured
             if concurrency_name:
                 ctx = prefect_concurrency(concurrency_name, strict=True)
@@ -768,7 +808,9 @@ class PrefectDbtOrchestrator:
 
             started_at = datetime.now(timezone.utc)
             with ctx:
-                result = executor.execute_node(node, command, full_refresh)
+                result = executor.execute_node(
+                    node, command, full_refresh, target=target
+                )
             completed_at = datetime.now(timezone.utc)
 
             timing = {
@@ -883,8 +925,12 @@ class PrefectDbtOrchestrator:
                         continue
 
                     command = _NODE_COMMAND.get(node.resource_type, "run")
+                    node_type_label = node.resource_type.value
+                    node_label = node.name if node.name else node.unique_id
+                    task_run_name = f"{node_type_label} {node_label}"
                     with_opts: dict[str, Any] = {
-                        "name": f"dbt_{command}_{node.name}",
+                        "name": task_run_name,
+                        "task_run_name": task_run_name,
                         "retries": self._retries,
                         "retry_delay_seconds": self._retry_delay_seconds,
                     }
@@ -921,6 +967,7 @@ class PrefectDbtOrchestrator:
                             "node": node,
                             "command": command,
                             "full_refresh": full_refresh,
+                            "target": target,
                             "asset_key": asset_key,
                         },
                     )

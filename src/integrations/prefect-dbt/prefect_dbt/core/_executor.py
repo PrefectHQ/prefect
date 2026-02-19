@@ -41,7 +41,11 @@ class DbtExecutor(Protocol):
     """Protocol for dbt execution backends."""
 
     def execute_node(
-        self, node: DbtNode, command: str, full_refresh: bool = False
+        self,
+        node: DbtNode,
+        command: str,
+        full_refresh: bool = False,
+        target: str | None = None,
     ) -> ExecutionResult: ...
 
     def execute_wave(
@@ -49,6 +53,7 @@ class DbtExecutor(Protocol):
         nodes: list[DbtNode],
         full_refresh: bool = False,
         indirect_selection: str | None = None,
+        target: str | None = None,
     ) -> ExecutionResult: ...
 
 
@@ -94,6 +99,7 @@ class DbtCoreExecutor:
         selectors: list[str],
         full_refresh: bool = False,
         indirect_selection: str | None = None,
+        target: str | None = None,
     ) -> ExecutionResult:
         """Build CLI args and invoke dbt.
 
@@ -109,6 +115,8 @@ class DbtCoreExecutor:
             full_refresh: Whether to pass --full-refresh
             indirect_selection: dbt indirect selection mode (e.g. "empty"
                 to suppress automatic test inclusion)
+            target: dbt target name to override the default from
+                profiles.yml (maps to `--target` / `-t`)
         """
         invoke_kwargs: dict[str, Any] = {
             "project_dir": str(self._settings.project_dir),
@@ -119,6 +127,8 @@ class DbtCoreExecutor:
         }
         if indirect_selection is not None:
             invoke_kwargs["indirect_selection"] = indirect_selection
+        if target is not None:
+            invoke_kwargs["target"] = target
 
         if self._threads is not None:
             invoke_kwargs["threads"] = self._threads
@@ -185,7 +195,11 @@ class DbtCoreExecutor:
         return artifacts or None
 
     def execute_node(
-        self, node: DbtNode, command: str, full_refresh: bool = False
+        self,
+        node: DbtNode,
+        command: str,
+        full_refresh: bool = False,
+        target: str | None = None,
     ) -> ExecutionResult:
         """Execute a single dbt node with the specified command.
 
@@ -194,6 +208,7 @@ class DbtCoreExecutor:
             command: dbt command ("run", "seed", "snapshot", "test")
             full_refresh: Whether to pass --full-refresh (ignored for
                 commands that don't support it, like "test" and "snapshot")
+            target: dbt target name (`--target` / `-t`)
 
         Returns:
             ExecutionResult with success/failure status and artifacts
@@ -203,6 +218,7 @@ class DbtCoreExecutor:
             node_ids=[node.unique_id],
             selectors=[node.dbt_selector],
             full_refresh=full_refresh,
+            target=target,
         )
 
     def execute_wave(
@@ -210,6 +226,7 @@ class DbtCoreExecutor:
         nodes: list[DbtNode],
         full_refresh: bool = False,
         indirect_selection: str | None = None,
+        target: str | None = None,
     ) -> ExecutionResult:
         """Execute a wave of nodes using `dbt build`.
 
@@ -221,6 +238,7 @@ class DbtCoreExecutor:
             indirect_selection: dbt indirect selection mode.  Pass
                 ``"empty"`` to prevent dbt from automatically including
                 tests attached to selected models.
+            target: dbt target name (`--target` / `-t`)
 
         Returns:
             ExecutionResult with success/failure status and artifacts
@@ -239,4 +257,5 @@ class DbtCoreExecutor:
             selectors=selectors,
             full_refresh=full_refresh,
             indirect_selection=indirect_selection,
+            target=target,
         )
