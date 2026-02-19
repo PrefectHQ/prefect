@@ -1,0 +1,82 @@
+name: Prefect Azure Docker Test Build
+
+on:
+  pull_request:
+    paths:
+      - "src/integrations/prefect-azure/Dockerfile"
+      - ".github/workflows/prefect-azure-docker-images.yaml"
+      - ".github/workflows/prefect-azure-docker-test.yaml"
+
+jobs:
+  get-versions:
+    name: Get Prefect and prefect-azure versions
+    runs-on: ubuntu-latest
+    outputs:
+      PREFECT_VERSION: ${{ steps.get_prefect_version.outputs.PREFECT_VERSION }}
+      PREFECT_AZURE_VERSION: ${{ steps.get_prefect_azure_version.outputs.PREFECT_AZURE_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get latest Prefect version
+        id: get_prefect_version
+        run: |
+          PREFECT_VERSION=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
+          echo "PREFECT_VERSION=$PREFECT_VERSION" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Get latest prefect-azure version from tags
+        id: get_prefect_azure_version
+        run: |
+          PREFECT_AZURE_VERSION=$(git tag --list 'prefect-azure-*' --sort=-version:refname | head -1 | sed 's/^prefect-azure-//')
+          if [ -z "$PREFECT_AZURE_VERSION" ]; then
+            echo "Unable to determine most recent prefect-azure version!"
+            exit 1
+          fi
+          echo "PREFECT_AZURE_VERSION=$PREFECT_AZURE_VERSION" >> $GITHUB_OUTPUT
+
+  test-build:
+    name: Test build prefect-azure Docker image
+    runs-on: ubuntu-latest
+    needs: get-versions
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test Docker build
+        uses: docker/build-push-action@v6
+        with:
+          context: src/integrations/prefect-azure
+          platforms: linux/amd64
+          build-args: |
+            PYTHON_VERSION=3.12
+            PREFECT_VERSION=${{ needs.get-versions.outputs.PREFECT_VERSION }}
+            PREFECT_AZURE_VERSION=${{ needs.get-versions.outputs.PREFECT_AZURE_VERSION }}
+          push: false
+          pull: true
+          tags: prefect-azure-test:latest
+          load: true
+
+      - name: Test prefect-azure version in image
+        run: |
+          # Run the image and get the installed prefect-azure version
+          INSTALLED_VERSION=$(docker run --rm prefect-azure-test:latest python -c "import prefect_azure; print(prefect_azure.__version__)")
+          echo "Expected prefect-azure version: ${{ needs.get-versions.outputs.PREFECT_AZURE_VERSION }}"
+          echo "Installed prefect-azure version: $INSTALLED_VERSION"
+
+          # Compare versions
+          if [ "$INSTALLED_VERSION" != "${{ needs.get-versions.outputs.PREFECT_AZURE_VERSION }}" ]; then
+            echo "ERROR: Version mismatch!"
+            echo "Expected: ${{ needs.get-versions.outputs.PREFECT_AZURE_VERSION }}"
+            echo "Found: $INSTALLED_VERSION"
+            exit 1
+          fi
+
+          echo "prefect-azure version matches expected version"
