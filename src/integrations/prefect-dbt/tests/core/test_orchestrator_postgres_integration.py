@@ -154,7 +154,7 @@ def pg_dbt_project(tmp_path_factory):
 def orchestrator(pg_dbt_project):
     """Factory fixture that creates a PrefectDbtOrchestrator for the Postgres project.
 
-    Defaults to ``test_strategy=TestStrategy.SKIP`` so that concurrency tests
+    Defaults to `test_strategy=TestStrategy.SKIP` so that concurrency tests
     get deterministic results containing only model/seed nodes.
     """
 

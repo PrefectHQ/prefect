@@ -66,7 +66,7 @@ class TestStrategy(Enum):
     IMMEDIATE: Tests are interleaved with models in the execution DAG.
         Kahn's algorithm naturally places each test in the wave after
         all of its parent models complete.  This is the default,
-        matching ``dbt build`` semantics.
+        matching `dbt build` semantics.
 
     DEFERRED: All model waves execute first, then all tests execute
         together in a final wave.
@@ -162,7 +162,7 @@ class PrefectDbtOrchestrator:
         test_strategy: Controls when dbt test nodes execute.
             `TestStrategy.IMMEDIATE` (default) interleaves tests with
             models in the DAG (each test runs in the wave after its
-            parent models), matching ``dbt build`` semantics.
+            parent models), matching `dbt build` semantics.
             `TestStrategy.DEFERRED` runs all tests after all model waves.
             `TestStrategy.SKIP` excludes tests entirely.
         use_source_freshness_expiration: When True (requires

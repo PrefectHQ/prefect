@@ -143,10 +143,10 @@ def dbt_project(tmp_path_factory):
 def orchestrator(dbt_project):
     """Factory fixture that creates a PrefectDbtOrchestrator for the test project.
 
-    Defaults to ``test_strategy=TestStrategy.SKIP`` so that tests which are not
+    Defaults to `test_strategy=TestStrategy.SKIP` so that tests which are not
     specifically exercising test-strategy behaviour get deterministic results
-    containing only model/seed nodes.  Tests in ``TestTestStrategyIntegration``
-    override this by passing an explicit ``test_strategy``.
+    containing only model/seed nodes.  Tests in `TestTestStrategyIntegration`
+    override this by passing an explicit `test_strategy`.
     """
 
     def _factory(**kwargs):
@@ -391,8 +391,8 @@ def per_node_dbt_project(dbt_project, tmp_path):
 def per_node_orchestrator(per_node_dbt_project):
     """Factory fixture that creates a PrefectDbtOrchestrator for PER_NODE tests.
 
-    Defaults to ``test_strategy=TestStrategy.SKIP`` for the same reason as
-    the ``orchestrator`` fixture.
+    Defaults to `test_strategy=TestStrategy.SKIP` for the same reason as
+    the `orchestrator` fixture.
     """
 
     def _factory(**kwargs):
