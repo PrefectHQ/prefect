@@ -178,7 +178,7 @@ class PrefectDbtOrchestrator:
             `run_build()`.
         disable_assets: Global override to suppress Prefect asset
             creation for dbt node runs.  When True, no
-            ``MaterializingTask`` instances are created regardless of
+            `MaterializingTask` instances are created regardless of
             per-node configuration.  Defaults to False for backwards
             compatibility.
 
