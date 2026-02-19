@@ -57,40 +57,24 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
     enabled: bool = Field(
         default=False,
         description="Whether or not to start the database vacuum service in the server application. Disabled by default because it permanently deletes data.",
-        validation_alias=AliasChoices(
-            AliasPath("enabled"),
-            "prefect_server_services_db_vacuum_enabled",
-        ),
     )
 
     loop_seconds: float = Field(
         default=3600,
         gt=0,
         description="The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
-        validation_alias=AliasChoices(
-            AliasPath("loop_seconds"),
-            "prefect_server_services_db_vacuum_loop_seconds",
-        ),
     )
 
     retention_period: SecondsTimeDelta = Field(
         default=timedelta(days=90),
         gt=timedelta(hours=1),
         description="How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.",
-        validation_alias=AliasChoices(
-            AliasPath("retention_period"),
-            "prefect_server_services_db_vacuum_retention_period",
-        ),
     )
 
     batch_size: int = Field(
         default=1000,
         gt=0,
         description="The number of records to delete per database transaction. Defaults to `1000`.",
-        validation_alias=AliasChoices(
-            AliasPath("batch_size"),
-            "prefect_server_services_db_vacuum_batch_size",
-        ),
     )
 
 
