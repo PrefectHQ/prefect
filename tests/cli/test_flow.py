@@ -208,9 +208,7 @@ class TestFlowLs:
 
     async def test_ls_no_output_flag(self, prefect_client):
         """Test flow ls without output flag renders a Rich table."""
-        from prefect import flow as prefect_flow
-
-        @prefect_flow(name="test-flow-ls")
+        @flow(name="test-flow-ls")
         def my_flow():
             pass
 
@@ -226,9 +224,7 @@ class TestFlowLs:
         """Test flow ls with --output json returns valid JSON array."""
         import json
 
-        from prefect import flow as prefect_flow
-
-        @prefect_flow(name="test-flow-ls-json")
+        @flow(name="test-flow-ls-json")
         def my_flow():
             pass
 
@@ -248,9 +244,7 @@ class TestFlowLs:
         """Test flow ls with -o json returns valid JSON array."""
         import json
 
-        from prefect import flow as prefect_flow
-
-        @prefect_flow(name="test-flow-ls-json-short")
+        @flow(name="test-flow-ls-json-short")
         def my_flow():
             pass
 
