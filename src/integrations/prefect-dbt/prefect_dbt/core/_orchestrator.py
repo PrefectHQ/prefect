@@ -883,7 +883,8 @@ class PrefectDbtOrchestrator:
 
                     command = _NODE_COMMAND.get(node.resource_type, "run")
                     node_type_label = node.resource_type.value
-                    task_run_name = f"{node_type_label} {node.name}"
+                    node_label = node.name if node.name else node.unique_id
+                    task_run_name = f"{node_type_label} {node_label}"
                     with_opts: dict[str, Any] = {
                         "name": task_run_name,
                         "task_run_name": task_run_name,
