@@ -100,10 +100,18 @@ async def ls(
     state_type: List[StateType] = typer.Option(
         None, help="Type of the task run's state"
     ),
+    output: Optional[str] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Specify an output format. Currently supports: json",
+    ),
 ):
     """
     View recent task runs
     """
+    if output and output.lower() != "json":
+        exit_with_error("Only 'json' output format is supported.")
 
     if state or state_type:
         state_filter = TaskRunFilterState(
@@ -126,7 +134,16 @@ async def ls(
         )
 
     if not task_runs:
+        if output and output.lower() == "json":
+            app.console.print("[]")
+            return
         app.console.print("No task runs found.")
+        return
+
+    if output and output.lower() == "json":
+        task_runs_json = [task_run.model_dump(mode="json") for task_run in task_runs]
+        json_output = orjson.dumps(task_runs_json, option=orjson.OPT_INDENT_2).decode()
+        app.console.print(json_output)
         return
 
     table = Table(title="Task Runs")
