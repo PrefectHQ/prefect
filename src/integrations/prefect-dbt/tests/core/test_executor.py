@@ -560,18 +560,6 @@ class TestEventCapture:
 
     def test_log_messages_captured(self, monkeypatch):
         """Events fired during invoke are stored in result.log_messages."""
-        captured_cb = None
-
-        def _fake_cls(callbacks=None):
-            nonlocal captured_cb
-            captured_cb = callbacks[0] if callbacks else None
-            runner = MagicMock()
-            runner.invoke.return_value = _mock_dbt_result(success=True)
-            return runner
-
-        monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _fake_cls)
-
-        executor = DbtCoreExecutor(_make_settings())
         node = _make_node()
 
         def _patched_cls(callbacks=None):
@@ -588,6 +576,7 @@ class TestEventCapture:
 
         monkeypatch.setattr("prefect_dbt.core._executor.dbtRunner", _patched_cls)
 
+        executor = DbtCoreExecutor(_make_settings())
         result = executor.execute_node(node, "run")
 
         assert result.log_messages is not None
