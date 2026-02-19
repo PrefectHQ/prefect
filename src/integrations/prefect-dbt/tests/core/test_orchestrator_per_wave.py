@@ -965,10 +965,47 @@ class TestPerWaveLogEmission:
             executor=executor,
         )
 
-        with patch("prefect_dbt.core._orchestrator.logger") as mock_logger:
+        mock_run_logger = MagicMock()
+        with patch(
+            "prefect_dbt.core._orchestrator.get_run_logger",
+            return_value=mock_run_logger,
+        ):
+            orch.run_build()
+            mock_run_logger.info.assert_any_call("1 of 1 OK created table")
+            mock_run_logger.info.assert_any_call("Finished running 1 table model")
+
+    def test_log_messages_fall_back_to_module_logger(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        log_messages = {
+            "model.test.m1": [("info", "1 of 1 OK created table")],
+        }
+        executor = _make_mock_executor(log_messages=log_messages)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        with (
+            patch(
+                "prefect_dbt.core._orchestrator.get_run_logger",
+                side_effect=RuntimeError("no run context"),
+            ),
+            patch("prefect_dbt.core._orchestrator.logger") as mock_logger,
+        ):
             orch.run_build()
             mock_logger.info.assert_any_call("1 of 1 OK created table")
-            mock_logger.info.assert_any_call("Finished running 1 table model")
 
     def test_no_log_messages_no_error(self, tmp_path):
         data = {

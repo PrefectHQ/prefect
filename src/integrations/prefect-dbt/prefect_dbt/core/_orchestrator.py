@@ -581,9 +581,13 @@ class PrefectDbtOrchestrator:
                 )
             completed_at = datetime.now(timezone.utc)
 
+            try:
+                run_logger = get_run_logger()
+            except Exception:
+                run_logger = logger
             for node in wave.nodes:
-                _emit_log_messages(wave_result.log_messages, node.unique_id, logger)
-            _emit_log_messages(wave_result.log_messages, "", logger)
+                _emit_log_messages(wave_result.log_messages, node.unique_id, run_logger)
+            _emit_log_messages(wave_result.log_messages, "", run_logger)
 
             timing = {
                 "started_at": started_at.isoformat(),
