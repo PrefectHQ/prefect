@@ -35,6 +35,7 @@ pytest.importorskip(
 from prefect_dbt.core._orchestrator import (  # noqa: E402
     ExecutionMode,
     PrefectDbtOrchestrator,
+    TestStrategy,
 )
 from prefect_dbt.core.settings import PrefectDbtSettings  # noqa: E402
 
@@ -151,9 +152,14 @@ def pg_dbt_project(tmp_path_factory):
 
 @pytest.fixture
 def orchestrator(pg_dbt_project):
-    """Factory fixture that creates a PrefectDbtOrchestrator for the Postgres project."""
+    """Factory fixture that creates a PrefectDbtOrchestrator for the Postgres project.
+
+    Defaults to ``test_strategy=TestStrategy.SKIP`` so that concurrency tests
+    get deterministic results containing only model/seed nodes.
+    """
 
     def _factory(**kwargs):
+        kwargs.setdefault("test_strategy", TestStrategy.SKIP)
         settings = PrefectDbtSettings(
             project_dir=pg_dbt_project["project_dir"],
             profiles_dir=pg_dbt_project["profiles_dir"],
