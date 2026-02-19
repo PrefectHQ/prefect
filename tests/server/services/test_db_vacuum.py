@@ -1,4 +1,4 @@
-"""Tests for the database vacuum perpetual service."""
+"""Tests for the database vacuum docket task functions."""
 
 from __future__ import annotations
 
@@ -11,7 +11,12 @@ import sqlalchemy as sa
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas.actions import LogCreate
-from prefect.server.services.db_vacuum import vacuum_old_resources
+from prefect.server.services.db_vacuum import (
+    vacuum_old_flow_runs,
+    vacuum_orphaned_artifacts,
+    vacuum_orphaned_logs,
+    vacuum_stale_artifact_collections,
+)
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
@@ -120,7 +125,7 @@ class TestVacuumOldFlowRuns:
         await _create_flow_run(session, flow, end_time=OLD)
 
         assert await _count(session, db, db.FlowRun) == 1
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
@@ -130,7 +135,7 @@ class TestVacuumOldFlowRuns:
         db = provide_database_interface()
         await _create_flow_run(session, flow, end_time=RECENT)
 
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 1
@@ -145,7 +150,7 @@ class TestVacuumOldFlowRuns:
             end_time=None,
         )
 
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 1
@@ -157,7 +162,7 @@ class TestVacuumOldFlowRuns:
         await _create_task_run(session, flow_run)
 
         assert await _count(session, db, db.TaskRun) == 1
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
@@ -181,7 +186,7 @@ class TestVacuumOldFlowRuns:
 
         # Parent deletion cascades SET NULL on subflow's parent_task_run_id,
         # making it top-level. The batch loop's next iteration picks it up.
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
@@ -200,7 +205,7 @@ class TestVacuumOldFlowRuns:
             parent_task_run_id=parent_task.id,
         )
 
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             # Parent deleted, but subflow survives (too recent)
@@ -223,7 +228,7 @@ class TestVacuumOldFlowRuns:
             await _create_flow_run(session, flow, state=state_cls(), end_time=OLD)
 
         assert await _count(session, db, db.FlowRun) == 4
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
@@ -235,7 +240,7 @@ class TestVacuumOldFlowRuns:
             session, flow, state=schemas.states.Completed(), end_time=None
         )
 
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 1
@@ -247,7 +252,7 @@ class TestVacuumOldFlowRuns:
             session, flow, state=schemas.states.Scheduled(), end_time=None
         )
 
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 1
@@ -259,7 +264,7 @@ class TestVacuumOldFlowRuns:
             session, flow, state=schemas.states.Cancelling(), end_time=OLD
         )
 
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 1
@@ -274,7 +279,7 @@ class TestVacuumOrphanedLogs:
         await _create_log(session, flow_run_id=fake_flow_run_id)
 
         assert await _count(session, db, db.Log) == 1
-        await vacuum_old_resources()
+        await vacuum_orphaned_logs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Log) == 0
@@ -285,7 +290,7 @@ class TestVacuumOrphanedLogs:
         flow_run = await _create_flow_run(session, flow, end_time=RECENT)
         await _create_log(session, flow_run_id=flow_run.id)
 
-        await vacuum_old_resources()
+        await vacuum_orphaned_logs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Log) == 1
@@ -295,7 +300,7 @@ class TestVacuumOrphanedLogs:
         db = provide_database_interface()
         await _create_log(session, flow_run_id=None)
 
-        await vacuum_old_resources()
+        await vacuum_orphaned_logs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Log) == 1
@@ -309,7 +314,7 @@ class TestVacuumOrphanedArtifacts:
         await _create_artifact(session, flow_run_id=fake_flow_run_id)
 
         assert await _count(session, db, db.Artifact) == 1
-        await vacuum_old_resources()
+        await vacuum_orphaned_artifacts(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Artifact) == 0
@@ -320,7 +325,7 @@ class TestVacuumOrphanedArtifacts:
         flow_run = await _create_flow_run(session, flow, end_time=RECENT)
         await _create_artifact(session, flow_run_id=flow_run.id)
 
-        await vacuum_old_resources()
+        await vacuum_orphaned_artifacts(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Artifact) == 1
@@ -330,7 +335,7 @@ class TestVacuumOrphanedArtifacts:
         db = provide_database_interface()
         await _create_artifact(session, flow_run_id=None)
 
-        await vacuum_old_resources()
+        await vacuum_orphaned_artifacts(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Artifact) == 1
@@ -340,14 +345,15 @@ class TestVacuumArtifactCollections:
     async def test_deletes_stale_artifact_collections(self, session, flow):
         """Artifact collections pointing to deleted artifacts should be removed."""
         db = provide_database_interface()
-        # Create an artifact with a key → this also creates an artifact_collection
+        # Create an artifact with a key -> this also creates an artifact_collection
         fake_flow_run_id = uuid.uuid4()
         await _create_artifact(session, flow_run_id=fake_flow_run_id, key="my-report")
 
         assert await _count(session, db, db.ArtifactCollection) == 1
 
-        # Vacuum will delete the orphaned artifact, then the stale collection
-        await vacuum_old_resources()
+        # First vacuum orphaned artifacts, then stale collections
+        await vacuum_orphaned_artifacts(db=db)
+        await vacuum_stale_artifact_collections(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Artifact) == 0
@@ -370,7 +376,8 @@ class TestVacuumArtifactCollections:
         # Collection should point to the newer (orphaned) artifact
         assert await _count(session, db, db.ArtifactCollection) == 1
 
-        await vacuum_old_resources()
+        await vacuum_orphaned_artifacts(db=db)
+        await vacuum_stale_artifact_collections(db=db)
 
         async with db.session_context() as new_session:
             # Orphaned artifact deleted, but collection survives re-pointed
@@ -403,7 +410,7 @@ class TestVacuumArtifactCollections:
         async with db.session_context() as s:
             assert await _count(s, db, db.ArtifactCollection) == 1
 
-        await vacuum_old_resources()
+        await vacuum_stale_artifact_collections(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.ArtifactCollection) == 0
@@ -414,7 +421,7 @@ class TestVacuumArtifactCollections:
         flow_run = await _create_flow_run(session, flow, end_time=RECENT)
         await _create_artifact(session, flow_run_id=flow_run.id, key="my-report")
 
-        await vacuum_old_resources()
+        await vacuum_stale_artifact_collections(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.ArtifactCollection) == 1
@@ -431,7 +438,7 @@ class TestVacuumBatching:
             await _create_flow_run(session, flow, end_time=OLD)
 
         assert await _count(session, db, db.FlowRun) == 12
-        await vacuum_old_resources()
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
@@ -439,14 +446,17 @@ class TestVacuumBatching:
 
 class TestVacuumIdempotency:
     async def test_second_run_is_noop(self, session, flow):
-        """Running vacuum twice should produce zero changes on the second run."""
+        """Running vacuum tasks twice should produce zero changes on the second run."""
         db = provide_database_interface()
         await _create_flow_run(session, flow, end_time=OLD)
         fake_flow_run_id = uuid.uuid4()
         await _create_log(session, flow_run_id=fake_flow_run_id)
         await _create_artifact(session, flow_run_id=fake_flow_run_id, key="report")
 
-        await vacuum_old_resources()
+        await vacuum_orphaned_logs(db=db)
+        await vacuum_orphaned_artifacts(db=db)
+        await vacuum_stale_artifact_collections(db=db)
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
@@ -455,7 +465,10 @@ class TestVacuumIdempotency:
             assert await _count(new_session, db, db.ArtifactCollection) == 0
 
         # Second run should be a no-op
-        await vacuum_old_resources()
+        await vacuum_orphaned_logs(db=db)
+        await vacuum_orphaned_artifacts(db=db)
+        await vacuum_stale_artifact_collections(db=db)
+        await vacuum_old_flow_runs(db=db)
 
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
@@ -464,39 +477,11 @@ class TestVacuumIdempotency:
             assert await _count(new_session, db, db.ArtifactCollection) == 0
 
 
-class TestErrorIsolation:
-    async def test_step_failure_does_not_block_subsequent_steps(
-        self, session, flow, monkeypatch
-    ):
-        """If one cleanup step fails, the remaining steps should still execute."""
-        db = provide_database_interface()
-        # Create an old flow run that step 4 should delete
-        await _create_flow_run(session, flow, end_time=OLD)
-
-        # Make step 1 (orphaned logs) fail by patching _batch_delete to raise
-        # on the first call only
-        import prefect.server.services.db_vacuum as vacuum_module
-
-        original_batch_delete = vacuum_module._batch_delete
-        call_count = 0
-
-        async def failing_batch_delete(*args, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise RuntimeError("Simulated step 1 failure")
-            return await original_batch_delete(*args, **kwargs)
-
-        monkeypatch.setattr(vacuum_module, "_batch_delete", failing_batch_delete)
-
-        await vacuum_old_resources()
-
-        # Step 1 failed, but step 4 (flow run deletion) should still have run
-        async with db.session_context() as new_session:
-            assert await _count(new_session, db, db.FlowRun) == 0
-
-
 class TestNoOp:
     async def test_empty_database_does_not_error(self):
-        """Running vacuum on an empty database should complete without error."""
-        await vacuum_old_resources()
+        """Running vacuum tasks on an empty database should complete without error."""
+        db = provide_database_interface()
+        await vacuum_orphaned_logs(db=db)
+        await vacuum_orphaned_artifacts(db=db)
+        await vacuum_stale_artifact_collections(db=db)
+        await vacuum_old_flow_runs(db=db)
