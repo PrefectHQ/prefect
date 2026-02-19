@@ -417,7 +417,7 @@ async def stamp(revision: str):
 # --- services subcommands ---
 
 
-@services_app.command(name="ls")
+@services_app.command(name="ls", alias="list")
 @with_cli_exception_handling
 def list_services():
     """List all available services and their status."""
@@ -440,7 +440,7 @@ def list_services():
     _cli.console.print(table)
 
 
-@services_app.command(name="start")
+@services_app.command(name="start", alias="enable")
 @with_cli_exception_handling
 def start_services(
     *,
@@ -508,7 +508,7 @@ def start_services(
     )
 
 
-@services_app.command(name="stop")
+@services_app.command(name="stop", alias="disable")
 @with_cli_exception_handling
 async def stop_services():
     """Stop any background Prefect services that were started."""

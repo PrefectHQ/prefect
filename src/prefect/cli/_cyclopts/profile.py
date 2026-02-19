@@ -28,7 +28,9 @@ from prefect.context import use_profile
 from prefect.settings import ProfilesCollection
 from prefect.settings.profiles import _read_profiles_from, _write_profiles_to
 
-profile_app = cyclopts.App(name="profile", help="Select and manage Prefect profiles.")
+profile_app = cyclopts.App(
+    name="profile", alias="profiles", help="Select and manage Prefect profiles."
+)
 
 
 @profile_app.command()

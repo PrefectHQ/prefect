@@ -199,7 +199,6 @@ def app():
 # *before* cyclopts parses subcommand args (cyclopts would otherwise mangle
 # combined short flags like "-jv" into "-j", "-v").
 _DELEGATED_COMMANDS: set[str] = {
-    "block",
     "cloud",
     "deploy",
     "transfer",
@@ -355,15 +354,9 @@ _app.command(variable_app)
 
 
 # --- block ---
-block_app = _delegated_app("block", "Interact with blocks.")
+from prefect.cli._cyclopts.block import block_app
+
 _app.command(block_app)
-
-
-@block_app.default
-def block_default(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    _delegate("block", tokens)
 
 
 # --- concurrency-limit ---

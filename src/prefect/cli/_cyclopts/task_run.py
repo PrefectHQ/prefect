@@ -20,6 +20,7 @@ from prefect.cli._cyclopts._utilities import (
 
 task_run_app = cyclopts.App(
     name="task-run",
+    alias="task-runs",
     help="View and inspect task runs.",
     version_flags=[],
     help_flags=["--help"],

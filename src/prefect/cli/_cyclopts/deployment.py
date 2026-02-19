@@ -81,6 +81,7 @@ yaml.representer.SafeRepresenter.add_representer(str, _str_presenter)
 
 deployment_app = cyclopts.App(
     name="deployment",
+    alias="deployments",
     help="Manage deployments.",
     version_flags=[],
     help_flags=["--help"],

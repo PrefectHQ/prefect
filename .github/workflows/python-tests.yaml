@@ -104,7 +104,7 @@ jobs:
           # been migrated to cyclopts (config, profile, server, worker, shell,
           # version, flow, flow-run, deployment, concurrency-limit, events,
           # experimental, dashboard, task, sdk, variable, artifact, task-run,
-          # api, dev, global-concurrency-limit).
+          # api, dev, global-concurrency-limit, block).
           # Expand this list as more commands are migrated; when
           # the migration is complete replace with tests/cli/.
           - test-type:
@@ -130,6 +130,7 @@ jobs:
                 tests/cli/test_task_run.py
                 tests/cli/test_dev.py
                 tests/cli/test_global_concurrency_limit.py
+                tests/cli/test_block.py
                 tests/cli/test_cyclopts_runner.py
                 tests/cli/test_cyclopts_parity.py
             database: "postgres:14"

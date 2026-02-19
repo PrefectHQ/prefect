@@ -150,3 +150,9 @@ name = "prefect global-concurrency-limit --help (cyclopts)"
 args = ["env", "PREFECT_CLI_FAST=1", "prefect", "global-concurrency-limit", "--help"]
 category = "startup"
 description = "global-concurrency-limit help via cyclopts"
+
+[[commands]]
+name = "prefect block --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "block", "--help"]
+category = "startup"
+description = "block help via cyclopts"

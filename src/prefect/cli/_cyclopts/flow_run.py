@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
 flow_run_app = cyclopts.App(
     name="flow-run",
+    alias="flow-runs",
     help="Interact with flow runs.",
     version_flags=[],
     help_flags=["--help"],
