@@ -584,10 +584,10 @@ class PrefectDbtOrchestrator:
             extra_cli_args: Additional dbt CLI flags to pass through
                 to every dbt invocation.  Useful for flags the
                 orchestrator does not expose as first-class parameters
-                (e.g. ``["--store-failures", "--vars",
-                "{'my_var': 'value'}"]``).  Flags that conflict with
+                (e.g. `["--store-failures", "--vars",
+                "{'my_var': 'value'}"]`).  Flags that conflict with
                 orchestrator-managed settings are rejected with a
-                ``ValueError``.
+                `ValueError`.
 
         Returns:
             Dict mapping node unique_id to result dict. Each result has:
@@ -600,7 +600,7 @@ class PrefectDbtOrchestrator:
             - `failed_upstream`: list of failed node IDs (only for skipped)
 
         Raises:
-            ValueError: If ``extra_cli_args`` contains a blocked flag or
+            ValueError: If `extra_cli_args` contains a blocked flag or
                 a flag that has a first-class parameter equivalent.
         """
         if extra_cli_args:
