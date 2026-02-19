@@ -778,10 +778,12 @@ class TestIndirectSelectionSuppressed:
         is not swallowed by the legacy fallback — it surfaces as a wave error."""
 
         class BuggyExecutor:
-            def execute_node(self, node, command, full_refresh=False):
+            def execute_node(self, node, command, full_refresh=False, target=None):
                 return ExecutionResult(success=True, node_ids=[node.unique_id])
 
-            def execute_wave(self, nodes, full_refresh=False, indirect_selection=None):
+            def execute_wave(
+                self, nodes, full_refresh=False, indirect_selection=None, target=None
+            ):
                 # A bug inside the executor — not a signature mismatch.
                 raise TypeError("unsupported operand type(s)")
 

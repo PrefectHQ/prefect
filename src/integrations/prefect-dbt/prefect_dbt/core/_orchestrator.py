@@ -549,10 +549,11 @@ class PrefectDbtOrchestrator:
                     )
                 except TypeError as type_err:
                     # Only retry without the kwarg when the executor
-                    # truly doesn't accept indirect_selection (legacy
-                    # signature).  Re-raise any other TypeError so it
-                    # isn't silently swallowed and retried.
-                    if "indirect_selection" not in str(type_err):
+                    # truly doesn't accept indirect_selection/target
+                    # (legacy signature).  Re-raise any other TypeError
+                    # so it isn't silently swallowed and retried.
+                    err_msg = str(type_err)
+                    if "indirect_selection" not in err_msg and "target" not in err_msg:
                         raise
                     wave_result = self._executor.execute_wave(
                         wave.nodes,
