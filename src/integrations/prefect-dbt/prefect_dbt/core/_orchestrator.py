@@ -515,7 +515,7 @@ class PrefectDbtOrchestrator:
     # PER_WAVE execution
     # ------------------------------------------------------------------
 
-    def _execute_per_wave(self, waves, full_refresh, target=None):
+    def _execute_per_wave(self, waves, full_refresh, target: str | None = None):
         """Execute waves one at a time, each as a single dbt invocation."""
         results: dict[str, Any] = {}
         failed_nodes: list[str] = []
@@ -722,7 +722,7 @@ class PrefectDbtOrchestrator:
         all_nodes=None,
         adapter_type=None,
         project_name=None,
-        target=None,
+        target: str | None = None,
     ):
         """Execute each node as an individual Prefect task.
 
