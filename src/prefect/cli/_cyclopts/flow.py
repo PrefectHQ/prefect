@@ -24,7 +24,11 @@ from prefect.runner import Runner
 from prefect.utilities import urls
 
 flow_app = cyclopts.App(
-    name="flow", help="View and serve flows.", version_flags=[], help_flags=["--help"]
+    name="flow",
+    alias="flows",
+    help="View and serve flows.",
+    version_flags=[],
+    help_flags=["--help"],
 )
 
 

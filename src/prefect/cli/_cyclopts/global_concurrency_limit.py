@@ -18,6 +18,7 @@ from prefect.cli._cyclopts._utilities import (
 
 global_concurrency_limit_app = cyclopts.App(
     name="global-concurrency-limit",
+    alias="gcl",
     help="Manage global concurrency limits.",
     version_flags=[],
     help_flags=["--help"],

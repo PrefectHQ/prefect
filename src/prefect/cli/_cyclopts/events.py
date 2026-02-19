@@ -18,6 +18,7 @@ from prefect.events.clients import get_events_client
 
 events_app = cyclopts.App(
     name="events",
+    alias="event",
     help="Stream events.",
     version_flags=[],
     help_flags=["--help"],
