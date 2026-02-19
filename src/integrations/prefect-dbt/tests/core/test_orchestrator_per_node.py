@@ -310,6 +310,30 @@ class TestPerNodeBasic:
         args, kwargs = executor.execute_node.call_args
         assert args[2] is True or kwargs.get("full_refresh") is True
 
+    def test_target_forwarded_to_executor(self, per_node_orch):
+        orch, executor = per_node_orch(SINGLE_MODEL)
+
+        @flow
+        def test_flow():
+            return orch.run_build(target="prod")
+
+        test_flow()
+
+        _, kwargs = executor.execute_node.call_args
+        assert kwargs["target"] == "prod"
+
+    def test_target_none_by_default(self, per_node_orch):
+        orch, executor = per_node_orch(SINGLE_MODEL)
+
+        @flow
+        def test_flow():
+            return orch.run_build()
+
+        test_flow()
+
+        _, kwargs = executor.execute_node.call_args
+        assert kwargs["target"] is None
+
 
 # =============================================================================
 # TestPerNodeCommandMapping
@@ -606,7 +630,7 @@ class TestPerNodeRetries:
         """Node fails once, then succeeds on retry."""
         call_count = 0
 
-        def _execute_node(node, command, full_refresh=False):
+        def _execute_node(node, command, full_refresh=False, target=None):
             nonlocal call_count
             call_count += 1
             if call_count == 1:

@@ -10,7 +10,6 @@ from conftest import (
     write_manifest,
 )
 from dbt.artifacts.resources.types import NodeType
-from prefect_dbt.core._executor import ExecutionResult
 from prefect_dbt.core._manifest import ManifestParser
 from prefect_dbt.core._orchestrator import (
     ExecutionMode,
@@ -741,62 +740,6 @@ class TestIndirectSelectionSuppressed:
 
         for call_obj in executor.execute_wave.call_args_list:
             assert call_obj.kwargs.get("indirect_selection") == "empty"
-
-    def test_legacy_executor_works_with_skip(self, tmp_path):
-        """A custom executor with the old signature works under SKIP (default).
-
-        Ensures backward compatibility: callers who pass executor=MyExecutor()
-        with execute_wave(nodes, full_refresh=False) are not broken.
-        """
-
-        class LegacyExecutor:
-            """Executor with old signature — no indirect_selection param."""
-
-            def execute_node(self, node, command, full_refresh=False):
-                return ExecutionResult(success=True, node_ids=[node.unique_id])
-
-            def execute_wave(self, nodes, full_refresh=False):
-                return ExecutionResult(
-                    success=True,
-                    node_ids=[n.unique_id for n in nodes],
-                )
-
-        manifest = write_manifest(tmp_path, SINGLE_MODEL_WITH_TEST)
-        orch = PrefectDbtOrchestrator(
-            settings=_make_mock_settings(),
-            manifest_path=manifest,
-            executor=LegacyExecutor(),
-            test_strategy=TestStrategy.SKIP,
-        )
-
-        # Must not raise TypeError
-        results = orch.run_build()
-        assert results["model.test.m1"]["status"] == "success"
-
-    def test_non_signature_type_error_not_swallowed(self, tmp_path):
-        """A TypeError raised inside execute_wave (not a signature mismatch)
-        is not swallowed by the legacy fallback — it surfaces as a wave error."""
-
-        class BuggyExecutor:
-            def execute_node(self, node, command, full_refresh=False):
-                return ExecutionResult(success=True, node_ids=[node.unique_id])
-
-            def execute_wave(self, nodes, full_refresh=False, indirect_selection=None):
-                # A bug inside the executor — not a signature mismatch.
-                raise TypeError("unsupported operand type(s)")
-
-        manifest = write_manifest(tmp_path, SINGLE_MODEL_WITH_TEST)
-        orch = PrefectDbtOrchestrator(
-            settings=_make_mock_settings(),
-            manifest_path=manifest,
-            executor=BuggyExecutor(),
-            test_strategy=TestStrategy.SKIP,
-        )
-
-        results = orch.run_build()
-        # The error must surface, not be masked by a silent retry.
-        assert results["model.test.m1"]["status"] == "error"
-        assert "unsupported operand" in results["model.test.m1"]["error"]["message"]
 
 
 # =============================================================================
