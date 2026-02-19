@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from dbt.artifacts.resources.types import NodeType
+from dbt.cli.main import dbtRunner
 
 from prefect import task as prefect_task
 from prefect.artifacts import create_markdown_artifact
@@ -340,17 +341,20 @@ class PrefectDbtOrchestrator:
         return self._settings.target_path
 
     def _resolve_manifest_path(self) -> Path:
-        """Resolve the path to manifest.json.
+        """Resolve the path to manifest.json, generating it if necessary.
 
         Uses the explicit `manifest_path` if provided (relative paths are
         resolved against `settings.project_dir`), otherwise derives it from
         `settings.project_dir / settings.target_path / "manifest.json"`.
 
+        If the manifest file does not exist, runs `dbt parse` to generate
+        it automatically.
+
         Returns:
             Resolved Path to the manifest.json file
 
         Raises:
-            FileNotFoundError: If the manifest file does not exist
+            RuntimeError: If `dbt parse` fails to generate the manifest
         """
         if self._manifest_path is not None:
             if self._manifest_path.is_absolute():
@@ -365,11 +369,49 @@ class PrefectDbtOrchestrator:
             )
 
         if not path.exists():
-            raise FileNotFoundError(
-                f"Manifest file not found: {path}. "
-                f"Run 'dbt compile' or 'dbt parse' to generate it."
-            )
+            self._generate_manifest(path)
         return path
+
+    def _generate_manifest(self, expected_path: Path) -> None:
+        """Run `dbt parse` to generate a manifest.json.
+
+        Args:
+            expected_path: Where the manifest is expected to appear after
+                parsing.  Used only for the error message on failure.
+
+        Raises:
+            RuntimeError: If the `dbt parse` invocation fails or the
+                manifest file is still missing after a successful parse.
+        """
+        logger.info(
+            "Manifest not found at %s; running 'dbt parse' to generate it.",
+            expected_path,
+        )
+        with self._settings.resolve_profiles_yml() as profiles_dir:
+            args = [
+                "parse",
+                "--project-dir",
+                str(self._settings.project_dir),
+                "--profiles-dir",
+                profiles_dir,
+                "--target-path",
+                str(self._settings.target_path),
+                "--log-level",
+                "none",
+                "--log-level-file",
+                str(self._settings.log_level.value),
+            ]
+            result = dbtRunner().invoke(args)
+
+        if not result.success:
+            raise RuntimeError(
+                f"Failed to generate manifest via 'dbt parse': {result.exception}"
+            )
+
+        if not expected_path.exists():
+            raise RuntimeError(
+                f"'dbt parse' succeeded but manifest not found at {expected_path}."
+            )
 
     def run_build(
         self,
