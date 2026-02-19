@@ -1,5 +1,6 @@
+import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, TextIO
 
 from prefect.settings import (
     PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
@@ -37,6 +38,7 @@ class DockerImage:
         name: str,
         tag: Optional[str] = None,
         dockerfile: str = "auto",
+        stream_progress_to: Optional[TextIO] = sys.stdout,
         **build_kwargs: Any,
     ):
         image_name, image_tag = parse_image_tag(name)
@@ -55,6 +57,7 @@ class DockerImage:
         self.name: str = "/".join(filter(None, [namespace, repository]))
         self.tag: str = tag or image_tag or slugify(now("UTC").isoformat())
         self.dockerfile: str = dockerfile
+        self.stream_progress_to: Optional[TextIO] = stream_progress_to
         self.build_kwargs: dict[str, Any] = build_kwargs
 
     @property
@@ -68,6 +71,7 @@ class DockerImage:
             build_kwargs["context"] = Path.cwd()
         build_kwargs["tag"] = full_image_name
         build_kwargs["pull"] = build_kwargs.get("pull", True)
+        build_kwargs["stream_progress_to"] = self.stream_progress_to
 
         if self.dockerfile == "auto":
             with generate_default_dockerfile():
@@ -84,3 +88,9 @@ class DockerImage:
             for event in events:
                 if "error" in event:
                     raise PushError(event["error"])
+                if self.stream_progress_to and "status" in event:
+                    self.stream_progress_to.write(event["status"])
+                    if "progress" in event:
+                        self.stream_progress_to.write(" " + event["progress"])
+                    self.stream_progress_to.write("\n")
+                    self.stream_progress_to.flush()
