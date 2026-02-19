@@ -283,12 +283,17 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 		);
 		await waitForRunsPageReady(page);
 
-		const clearDateRange = page.getByRole("button", {
-			name: /clear date range/i,
-		});
-		if (await clearDateRange.isVisible()) {
-			await clearDateRange.click();
-		}
+		await expect(async () => {
+			const clearDateRange = page.getByRole("button", {
+				name: /clear date range/i,
+			});
+			if (await clearDateRange.isVisible()) {
+				await clearDateRange.click();
+			}
+			await expect(page.getByRole("button", { name: /all time/i })).toBeVisible(
+				{ timeout: 2000 },
+			);
+		}).toPass({ timeout: 10000 });
 
 		await page.getByRole("button", { name: /all time/i }).click();
 
