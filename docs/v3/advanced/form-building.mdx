@@ -243,6 +243,166 @@ The resulting form looks like this:
 
 
 
+## Using callable and class parameters
+
+If your parameter model includes `Callable` or `Type` fields, Prefect can't serialize them
+to JSON. The UI shows a placeholder like `<MyParams>` instead of actual values, and
+automation templates can't access individual fields.
+
+Pydantic's [`ImportString`](https://docs.pydantic.dev/latest/api/types/#pydantic.types.ImportString)
+type solves this. It accepts a dotted import path as a string (e.g. `"mymodule.my_func"`),
+resolves it to the real Python object at validation time, and serializes back to a string
+for JSON.
+
+For example, an order ingestion flow that needs a different normalizer per vendor:
+
+{/* pmd-metadata: notest */}
+```python vendors.py
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel
+
+
+class Order(BaseModel):
+    order_id: str
+    customer_email: str
+    total_cents: int
+    currency: str
+    placed_at: datetime
+
+
+class StripeCharge(BaseModel):
+    id: str
+    receipt_email: str
+    amount: int
+    currency: str
+    created: int
+
+
+class ShopifyOrder(BaseModel):
+    name: str
+    email: str
+    total_price: str
+    currency: str
+    created_at: str
+
+
+def normalize_stripe(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "order_id": r["id"],
+            "customer_email": r["receipt_email"],
+            "total_cents": r["amount"],
+            "currency": r["currency"],
+            "placed_at": datetime.fromtimestamp(r["created"]).isoformat(),
+        }
+        for r in records
+    ]
+
+
+def normalize_shopify(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "order_id": r["name"],
+            "customer_email": r["email"],
+            "total_cents": int(float(r["total_price"]) * 100),
+            "currency": r["currency"],
+            "placed_at": r["created_at"],
+        }
+        for r in records
+    ]
+```
+
+Use `ImportString` in the parameter model so the normalizer and raw schema are editable
+strings in the UI, but resolve to real Python objects at runtime:
+
+{/* pmd-metadata: notest */}
+```python pipeline.py
+from typing import Any, Callable, Type
+
+from pydantic import BaseModel, ImportString, TypeAdapter
+
+from prefect import flow, task
+
+
+class IngestConfig(BaseModel):
+    vendor: str
+    normalizer: ImportString[Callable[[list[dict[str, Any]]], list[dict[str, Any]]]]
+    raw_schema: ImportString[Type[BaseModel]]
+
+
+@task
+def fetch_raw_records(vendor: str) -> list[dict[str, Any]]:
+    ...
+
+
+@task
+def validate_raw(
+    records: list[dict[str, Any]], schema: type[BaseModel]
+) -> list[BaseModel]:
+    adapter = TypeAdapter(list[schema])
+    return adapter.validate_python(records)
+
+
+@task
+def normalize(
+    records: list[dict[str, Any]],
+    normalizer: Callable[[list[dict[str, Any]]], list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    return normalizer(records)
+
+
+@flow(flow_run_name="ingest-{config.vendor}", log_prints=True)
+def ingest_orders(config: IngestConfig):
+    raw = fetch_raw_records(config.vendor)
+    validated_raw = validate_raw(raw, config.raw_schema)
+    orders = normalize(raw, config.normalizer)
+    print(f"vendor: {config.vendor}, validated: {len(validated_raw)}, produced: {len(orders)}")
+
+
+if __name__ == "__main__":
+    ingest_orders.serve(
+        name="order-ingestion",
+        parameters={
+            "config": {
+                "vendor": "stripe",
+                "normalizer": "vendors.normalize_stripe",
+                "raw_schema": "vendors.StripeCharge",
+            }
+        },
+    )
+```
+
+Anyone can override the vendor config when triggering a run:
+
+```bash
+prefect deployment run 'ingest-orders/order-ingestion' \
+  -p 'config={
+    "vendor": "shopify",
+    "normalizer": "vendors.normalize_shopify",
+    "raw_schema": "vendors.ShopifyOrder"
+  }'
+```
+
+The server stores clean JSON that the UI and automations can read:
+
+```json
+{
+  "config": {
+    "vendor": "shopify",
+    "normalizer": "vendors.normalize_shopify",
+    "raw_schema": "vendors.ShopifyOrder"
+  }
+}
+```
+
+<Note>
+`ImportString` requires that the referenced object is importable by dotted path. Lambdas,
+closures, and objects defined in `__main__` won't work — move them to a named module
+instead.
+</Note>
+
 ## Recap
 
 We have now embedded the constraints on our parameters in the types that describe our flow signature, which means:
