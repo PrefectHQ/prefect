@@ -132,6 +132,7 @@ jobs:
                 tests/cli/test_global_concurrency_limit.py
                 tests/cli/test_block.py
                 tests/cli/test_work_pool.py
+                tests/cli/test_transfer.py
                 tests/cli/test_work_queues.py
                 tests/cli/test_cyclopts_runner.py
                 tests/cli/test_cyclopts_parity.py

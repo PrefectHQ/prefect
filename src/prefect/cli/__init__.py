@@ -53,6 +53,7 @@ _CYCLOPTS_COMMANDS: set[str] = {
     "task",
     "task-run",
     "task-runs",  # alias for task-run
+    "transfer",
     "variable",
     "version",
     "work-pool",

@@ -5,12 +5,24 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from prefect.cli import _USE_CYCLOPTS
 from prefect.cli.transfer import _find_root_resources, _get_resource_display_name
 from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources.base import MigratableProtocol
 from prefect.settings import Profile, ProfilesCollection
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+
+# Patch targets — cyclopts uses deferred imports so we patch at the source module;
+# typer has module-level imports so we patch the copied reference.
+if _USE_CYCLOPTS:
+    _PATCH_LOAD_PROFILES = "prefect.settings.load_profiles"
+    _PATCH_USE_PROFILE = "prefect.context.use_profile"
+    _PATCH_GET_CLIENT = "prefect.client.orchestration.get_client"
+else:
+    _PATCH_LOAD_PROFILES = "prefect.cli.transfer.load_profiles"
+    _PATCH_USE_PROFILE = "prefect.cli.transfer.use_profile"
+    _PATCH_GET_CLIENT = "prefect.cli.transfer.get_client"
 
 
 class MockMigratableResource:
@@ -131,7 +143,7 @@ def mock_dag():
 class TestTransferArguments:
     """Test command line argument validation."""
 
-    @patch("prefect.cli.transfer.load_profiles")
+    @patch(_PATCH_LOAD_PROFILES)
     def test_transfer_source_profile_not_found(self, mock_load_profiles: MagicMock):
         """Test transfer command fails when source profile doesn't exist."""
         mock_load_profiles.return_value = ProfilesCollection([])
@@ -142,7 +154,7 @@ class TestTransferArguments:
             expected_output_contains="Source profile 'nonexistent' not found",
         )
 
-    @patch("prefect.cli.transfer.load_profiles")
+    @patch(_PATCH_LOAD_PROFILES)
     def test_transfer_target_profile_not_found(
         self, mock_load_profiles: MagicMock, mock_profiles: ProfilesCollection
     ):
@@ -157,7 +169,7 @@ class TestTransferArguments:
             expected_output_contains="Target profile 'nonexistent' not found",
         )
 
-    @patch("prefect.cli.transfer.load_profiles")
+    @patch(_PATCH_LOAD_PROFILES)
     def test_transfer_same_source_and_target_profiles(
         self, mock_load_profiles: MagicMock
     ):
@@ -175,9 +187,9 @@ class TestTransferArguments:
 class TestResourceCollection:
     """Test resource collection from source profile."""
 
-    @patch("prefect.cli.transfer.load_profiles")
-    @patch("prefect.cli.transfer.use_profile")
-    @patch("prefect.cli.transfer.get_client")
+    @patch(_PATCH_LOAD_PROFILES)
+    @patch(_PATCH_USE_PROFILE)
+    @patch(_PATCH_GET_CLIENT)
     async def test_transfer_no_resources_found(
         self,
         mock_get_client: MagicMock,
@@ -215,7 +227,7 @@ class TestResourceCollection:
 class TestIntegrationScenarios:
     """Integration-style tests for common scenarios."""
 
-    @patch("prefect.cli.transfer.load_profiles")
+    @patch(_PATCH_LOAD_PROFILES)
     def test_transfer_basic_help_and_validation(
         self, mock_load_profiles: MagicMock, mock_profiles: ProfilesCollection
     ):

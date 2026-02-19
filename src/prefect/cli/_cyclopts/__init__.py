@@ -201,7 +201,6 @@ def app():
 _DELEGATED_COMMANDS: set[str] = {
     "cloud",
     "deploy",
-    "transfer",
 }
 
 
@@ -411,12 +410,10 @@ from prefect.cli._cyclopts.sdk import sdk_app
 _app.command(sdk_app)
 
 
-@_app.command(name="transfer")
-def transfer_cmd(
-    *tokens: Annotated[str, cyclopts.Parameter(show=False, allow_leading_hyphen=True)],
-):
-    """Transfer resources between workspaces."""
-    _delegate("transfer", tokens)
+# --- transfer ---
+from prefect.cli._cyclopts.transfer import transfer_app
+
+_app.command(transfer_app)
 
 
 # --- version ---
