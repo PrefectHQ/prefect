@@ -156,3 +156,9 @@ name = "prefect block --help (cyclopts)"
 args = ["env", "PREFECT_CLI_FAST=1", "prefect", "block", "--help"]
 category = "startup"
 description = "block help via cyclopts"
+
+[[commands]]
+name = "prefect work-queue --help (cyclopts)"
+args = ["env", "PREFECT_CLI_FAST=1", "prefect", "work-queue", "--help"]
+category = "startup"
+description = "work-queue help via cyclopts"
